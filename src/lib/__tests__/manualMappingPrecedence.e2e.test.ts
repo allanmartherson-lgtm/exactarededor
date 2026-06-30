@@ -139,3 +139,95 @@ describe("E2E: mapeamento manual de repasse vence aliases e heurística", () => 
     expect(result.grossAuthoritative).toBe(true);
   });
 });
+
+describe("E2E: procedure_amount=0 mapeado manualmente é autoritativo", () => {
+  it("header arbitrário mapeado para procedure_amount com 0 — sem alias, sem heurística", () => {
+    const customProcHeader = "Tabela Interna Acordo Especial";
+    const rawRow: Record<string, unknown> = {
+      [customProcHeader]: 0,
+      // Armadilhas: aliases canônicos com outros valores
+      "Valor Convênio": 250,
+      "Valor Procedimento": 300,
+      "Vl Proce": 400,
+      "Vl a Repassar": 500,
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      procedure_amount: customProcHeader,
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procAuthoritative).toBe(true);
+  });
+
+  it("procedure_amount=0 mapeado vence alias canônico 'Valor Convênio'", () => {
+    const rawRow = {
+      "Valor Convênio": 0,        // analista quer ESSA
+      "Valor Procedimento": 850,  // alias mais forte — seria escolhido sem mapping
+      "Vl a Repassar": 500,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      procedure_amount: "Valor Convênio",
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procAuthoritative).toBe(true);
+  });
+
+  it("procedure_amount=0 em string '0' (formato BR) é preservado", () => {
+    const rawRow = {
+      "Tabela Convênio": "0",
+      "Valor Tot": "1.234,56",
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      procedure_amount: "Tabela Convênio",
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procAuthoritative).toBe(true);
+  });
+
+  it("procedure_amount=0 e gross_amount>0 mapeados — coexistem sem contaminação", () => {
+    // Cenário: convênio não paga procedimento (procedure=0) mas hospital
+    // paga repasse fixo ao médico (gross=300).
+    const rawRow = {
+      "Vl a Repassar": 300,
+      "Valor Convênio": 0,
+      "Valor Tot": 95,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Vl a Repassar",
+      procedure_amount: "Valor Convênio",
+    });
+    expect(result.gross_amount).toBe(300);
+    expect(result.procedure_amount).toBe(0);
+    expect(result.grossAuthoritative).toBe(true);
+    expect(result.procAuthoritative).toBe(true);
+    expect(result.valor_invalido).toBe(false);
+  });
+
+  it("procedure_amount=0 mapeado NÃO cai para gross_amount como fallback", () => {
+    // Regressão: a lógica antiga fazia `procedure_amount || gross_amount`,
+    // o que substituía 0 por gross. Com mapeamento autoritativo, 0 é 0.
+    const rawRow = {
+      "Vl Repasse": 500,
+      "Convênio Não Paga": 0,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      gross_amount: "Vl Repasse",
+      procedure_amount: "Convênio Não Paga",
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procedure_amount).not.toBe(500);
+  });
+
+  it("procedure_amount mapeado AUSENTE da linha → grava 0 (mapeamento é lei)", () => {
+    const rawRow = {
+      "Valor Convênio": 999,
+      "Vl a Repassar": 500,
+    };
+    const result = resolvePaymentAmounts(rawRow, {
+      procedure_amount: "Header Que Sumiu",
+    });
+    expect(result.procedure_amount).toBe(0);
+    expect(result.procAuthoritative).toBe(true);
+  });
+});
+
