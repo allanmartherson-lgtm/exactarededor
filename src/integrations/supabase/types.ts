@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_d3e4_payments_model_fix: {
+        Row: {
+          backed_up_at: string | null
+          id: string | null
+          payment_model_id: string | null
+          payment_type_id: string | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          id?: string | null
+          payment_model_id?: string | null
+          payment_type_id?: string | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          id?: string | null
+          payment_model_id?: string | null
+          payment_type_id?: string | null
+        }
+        Relationships: []
+      }
       access_requests: {
         Row: {
           birth_date: string
