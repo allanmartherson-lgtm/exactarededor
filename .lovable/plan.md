@@ -1,110 +1,101 @@
-## Zeev — Copiloto contextual de cadastros
 
-Assistente IA flutuante que entende a tela aberta, diagnostica problemas (overlap, conflitos, regras inválidas), sugere correções e — quando autorizado — aplica edições. Memória por usuário no banco.
+## Contexto
 
-### Escopo das telas (fase 1)
-Regras, Convênios, Médicos, Empresas, Setores, Casos Especiais. Cada tela publica seu "contexto" (o que está sendo editado) para o Zeev ler.
+Hoje a tabela `payment_types` mistura dois conceitos:
 
-### Experiência
+- **Modelo de pagamento (do lote)** — Produção, Plantão, Remessa, Valor fixo
+- **Tipo de item / procedimento (da linha)** — Parecer, Visita, Cirurgia, Consulta, Bônus por paciente, Exames SADT, Exames Cardiologia
 
-```text
-┌─────────────────────────────────┐
-│  [Tela de Regras — editando]    │
-│                                 │
-│  Cálculo A: ... ⚠ overlap       │
-│  Cálculo B: ...                 │
-│                          ╭───╮  │
-│                          │ Z │ ← FAB sempre visível
-│                          ╰───╯  │
-└─────────────────────────────────┘
-        ↓ clique
-┌────────────────────────────┐
-│  Zeev                      │
-│  Vejo que você tem 2       │
-│  cálculos sobrepondo no    │
-│  eixo Convênio.            │
-│                            │
-│  [Aplicar correção]        │
-│  [Explicar mais]           │
-└────────────────────────────┘
-```
+Isso causa: dropdowns confusos (`Lote misto detectado` mostra "Produção" como opção de override de item), motor de classificação tratando lote-tipo e item-tipo como mesma chave, e itens não-Consulta caindo silenciosamente em Consulta quando o TUSS existia mas não foi olhado.
 
-- FAB no canto inferior direito, persistente em todas as telas de cadastro.
-- Clique abre modal/drawer compacto com chat.
-- Cada mensagem do Zeev pode trazer **ações sugeridas** (botões) que aplicam mudanças com confirmação.
-- Histórico persistido por usuário+hospital — usuário continua a conversa depois.
+## Decisões já aprovadas
 
-### Inteligência
+1. Duas entidades distintas: `payment_models` (lote) + `item_types` (item)
+2. Classificação automática do item: se tem TUSS → tipo derivado do TUSS; sem TUSS → Consulta
+3. Reclassificar em lote todos os itens já existentes via TUSS
 
-**Contexto que o Zeev recebe a cada pergunta:**
-1. Tela ativa (rota) + nome legível ("Edição de Regra: Master ACME").
-2. Snapshot dos dados em edição (regra + cálculos, ou cadastro aberto).
-3. Diagnósticos do motor já disponíveis (problems do `detectCalcOverlap`, validações pendentes).
-4. Conhecimento embutido sobre o sistema: precedência de regras, 11 eixos, whitelist/blacklist, glosa médico→PJ, especialidade não impacta cálculo, etc. (vem das memórias `.lovable/mem/`).
+## Plano
 
-**Ações que o Zeev pode propor:**
-- Adicionar/remover item em whitelist/blacklist de cálculo.
-- Sugerir blacklist de convênio/especialidade para resolver overlap.
-- Apontar regra/cálculo específico que está em conflito (com link "ir até").
-- Sem ação destrutiva sem confirmação explícita. Sem `DELETE` direto em `rule_calculations` (respeita governança existente).
-
-### Arquitetura técnica
-
-**Backend (edge function `zeev-chat`):**
-- Recebe `{ conversation_id, messages, screen_context }`.
-- Usa AI SDK + Lovable AI Gateway, modelo `google/gemini-3-flash-preview`.
-- System prompt embute as regras de ouro do projeto (precedência, eixos, constraints).
-- Tools registradas:
-  - `diagnose_rule_overlap(rule_id)` — chama `detectCalcOverlap` e retorna explicação.
-  - `suggest_calc_edit(calc_id, patch)` — gera proposta (não aplica).
-  - `apply_calc_edit(calc_id, patch)` — `needsApproval: true`, exige confirmação na UI.
-  - `link_to_entity(type, id)` — gera link clicável para outra tela.
-- Persiste mensagens em `zeev_messages`.
-
-**Frontend:**
-- `src/components/zeev/ZeevFab.tsx` — botão flutuante global, montado no layout dos hubs de cadastro.
-- `src/components/zeev/ZeevChat.tsx` — drawer com `useChat` (AI SDK), markdown, ações inline.
-- `src/contexts/ZeevContext.tsx` — cada tela registra seu `screen_context` (entidade aberta, dados em edição) via hook `useZeevContext({ screen, entity, snapshot })`.
-- Componentes AI Elements: `Conversation`, `Message`, `MessageResponse`, `PromptInput`, `Tool`, `Shimmer`.
-- Identidade visual própria do Zeev (não usar Sparkles genérico) — ícone/logo dedicado.
-
-**Banco (migration nova):**
+### Etapa 1 — Schema (uma migration)
 
 ```text
-zeev_conversations
-  id uuid pk, user_id uuid, hospital_id uuid,
-  title text, created_at, updated_at
-
-zeev_messages
-  id uuid pk, conversation_id uuid fk,
-  role text ('user'|'assistant'|'tool'),
-  parts jsonb,  -- UIMessage parts (AI SDK)
-  screen_context jsonb,  -- snapshot da tela no momento
-  created_at
-
-zeev_action_log
-  id uuid pk, conversation_id uuid fk,
-  action_type text, payload jsonb,
-  applied_by uuid, applied_at, rolled_back boolean
+payment_models                       item_types
+─────────────                        ──────────
+id (uuid)                            id (uuid)
+code (text, único)                   code (text, único)
+label (text)                         label (text)
+active, sort_order, color            active, sort_order, color
+calc_strategy                        default_function
+expected_headers                     requires_tuss (bool)
+allow_mixed_item_types (bool)        is_default_when_no_tuss (bool)  ← marca "Consulta"
 ```
 
-RLS: usuário só vê suas conversas; ações registradas em `audit_log` também.
+Seed inicial:
+- `payment_models`: producao, plantao, remessa, valor_fixo
+- `item_types`: parecer_adulto, visita, cirurgia, consulta (default), bonus_paciente, sadt, exames_cardiologia
 
-### Fase 1 (este ticket) — entrega mínima viável
-1. Schema + RLS + grants.
-2. Edge function `zeev-chat` com streaming + 1 tool real: `diagnose_rule_overlap`.
-3. FAB + drawer integrados no `RegrasHub` (única tela na fase 1, apesar do escopo amplo, para validar o padrão).
-4. `ZeevContext` publicando regra/cálculos abertos.
-5. Memória persistida; histórico recarregável.
+Tabela de ligação TUSS → item_type já existe conceitualmente em `procedure_classifications`; vamos consolidá-la como fonte única (`item_type_id` em `procedure_classifications`).
 
-### Fase 2 (depois de validar fase 1)
-- Estender `useZeevContext` para Convênios, Médicos, Empresas, Setores, Casos Especiais.
-- Tools de `apply_calc_edit` com confirmação.
-- Tools de diagnóstico para cada tipo de cadastro (ex: convênio sem alias, médico sem PJ vinculada).
-- "Explicar com Zeev" inline nos alertas de erro do motor.
+`payment_types` **não é apagada** nesta etapa — permanece como view de compatibilidade lendo das duas novas tabelas, para o código atual continuar respondendo enquanto migramos.
 
-### Por que faseado
-Construir as 6 telas e todas as tools de uma vez tem alto risco de regressão. Validar primeiro em Regras (onde a dor é maior) garante que o padrão de `ZeevContext` + tools funcione antes de replicar.
+### Etapa 2 — Colunas nas tabelas operacionais
 
-### Pergunta restante
-Posso prosseguir com a Fase 1 (Regras apenas) como entrega deste ciclo, ou prefere que eu já estruture o `ZeevContext` em todas as 6 telas mesmo que sem tools específicas?
+- `payments.payment_model_id` (novo) ← preenchido a partir de `payment_type_id` quando o atual é um modelo
+- `payment_items.item_type_id` (novo) ← preenchido a partir de `payment_type_id` quando o atual é um tipo de item; senão derivado do TUSS
+- `rules.payment_model_id` + `rules.item_type_id` (regra pode escopar por um, outro ou ambos)
+- Backfill SQL na mesma migration usando o mapa fixo:
+  - modelos: producao, plantao, remessa, valor_fixo
+  - itens: o resto
+
+### Etapa 3 — Novo classificador de item
+
+Substitui o atual `auto-classify-payment-types` por `classify-item-by-tuss`:
+
+```text
+para cada item:
+  if procedure_code:
+    item_type_id = procedure_classifications[TUSS].item_type_id
+    source = 'auto_tuss'
+  else:
+    item_type_id = item_types.where(is_default_when_no_tuss=true).id  // Consulta
+    source = 'auto_default'
+```
+
+Remove a heurística de texto atual (`/procedimento|cirurgia|exame/`) — TUSS é a verdade.
+
+### Etapa 4 — UI
+
+- Dropdown do lote: lista só `payment_models`
+- Inline select do item (a coluna "Tipo" que acabamos de adicionar): lista só `item_types`, mostra de onde veio (TUSS / Consulta default / manual)
+- Filtros do grid de itens: troca "tipo" único por dois filtros separados
+- Tela `/payment-types` vira `/payment-models` + `/item-types`
+
+### Etapa 5 — Reclassificação em massa
+
+Edge function `backfill-item-types` (one-shot, com dry-run):
+- Para cada `payment_items.procedure_code` não-nulo, aplica `procedure_classifications`
+- Marca `payment_type_source='backfill_tuss'` para auditoria
+- Re-dispara o motor nos `payments` afetados que **não estão aprovados/pagos**
+- Lotes aprovados/pagos: só registra o item_type derivado em coluna paralela `item_type_id_suggested`, não muda o cálculo (preserva auditoria)
+
+### Etapa 6 — Limpeza (em PR separado, depois de estabilizar)
+
+- Remove a view de compatibilidade `payment_types`
+- Remove colunas legacy `payment_type_id` de `payments` / `payment_items` / `rules`
+- Remove código morto do antigo classificador heurístico
+
+## Riscos e mitigações
+
+- **Regras existentes** podem estar escopadas com um `payment_type_id` que era na verdade misto. Migration emite RAISE NOTICE listando regras ambíguas para revisão manual.
+- **DRE/Pools** filtram por `payment_type_id`. Backfill mantém compatibilidade via view até trocarmos consumidor por consumidor.
+- **Edge functions** (analyze-payment, dispatch-payment-analysis, simulate-rule, cross-reference-parecer, recalc-payment-pools, apply-company-deductions, validate-payment, zeev-executor) usam `payment_type_id`. Etapa 2 mantém a coluna; só Etapa 6 remove.
+
+## Ordem de execução proposta
+
+1. Migration Etapa 1 + 2 (schema + backfill, com view de compatibilidade) — aprovação sua
+2. Edge function nova de classificação + chamadas
+3. Ajustes de UI (dropdown lote, inline item, filtros, telas de cadastro)
+4. Backfill em massa (Etapa 5) — sob seu comando, com dry-run primeiro
+5. Limpeza (Etapa 6) — depois de você confirmar produção estável
+
+Posso começar pela migration da Etapa 1+2?
