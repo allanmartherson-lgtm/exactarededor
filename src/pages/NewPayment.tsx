@@ -621,7 +621,7 @@ const NewPayment = () => {
   const isVisitaType = paymentModelMeta?.code === "visita";
   // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
   // Esconde a opção quando o lote já é puro parecer/visita (esses já cruzam por padrão).
-  const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, payment_type_id: null });
+  const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, item_type_id: null });
   const showMixedParecerOption = !!paymentModelMeta && !isParecerType && !isVisitaType;
   const ambiguousTussCount = useAmbiguousTussCount();
   const requiresParecerReport = (modoConfeccao && isParecerType) || (showMixedParecerOption && mixedParecer.enabled);
