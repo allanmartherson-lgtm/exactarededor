@@ -15,13 +15,15 @@ Triggers e funções de sync (`sync_payment_items_type_columns`, `sync_rule_calc
 - Variável/coluna que representa **modelo de pagamento do LOTE** (Produção/Plantão/Remessa/Valor fixo) → `payment_model_id` / `paymentModelId`.
 
 **Colunas DB que AINDA usam `payment_type_id` (não migradas):**
-- `payments.payment_type_id` (modelo do lote — alias do payment_model_id; trigger `sync_payments_type_columns` mantém em sincronia)
+- `payments.payment_type_id` (modelo do lote — coluna `payment_model_id` já existe e é mantida em sincronia pelo trigger `sync_payments_type_columns`)
 - `payments.mixed_parecer_payment_type_id` (subtipo parecer destino)
-- `rules.payment_type_id` (filtro de regra)
+- `rules.payment_type_id` (filtro de regra; `rules.payment_model_id` existe via trigger `sync_rules_type_columns`)
 - ~~`payout_models.payment_type_id`~~ — REMOVIDA na D3.c (jun/2026). Usar `payout_models.payment_model_id`.
 - `companies.default_payment_type_id` (padrão da empresa)
 - `company_financial_adjustments.payment_type_ids[]` (array de filtros)
 
+**Status D3.a (jun/2026 — Opção 1 / refactor mínimo):** trigger ativo, coluna `payment_model_id` populada, MAS o código frontend NÃO foi migrado. Motivo: toda a UI usa `usePaymentTypes` / `usePaymentTypeMeta` e a variável `paymentModelId` (apesar do nome) guarda um `payment_types.id`. As tabelas `payment_types` e `payment_models` são SEPARADAS (joinadas só por `code`), então trocar `INSERT { payment_type_id }` por `{ payment_model_id }` daria FK violation. Cutover completo (drop da legacy) depende de migrar consumidores para `usePaymentModels` / `payment_models.id` — onda futura (D3.e).
+
 Essas seguem para ondas futuras (D3+). NÃO criar fallback `?? payment_type_id` em código novo que toca payment_items ou rule_calculations — colunas não existem mais.
 
-**How to apply:** Em código novo, ler/escrever sempre `item_type_id` / `item_type_source` para payment_items e rule_calculations. Para as demais tabelas, manter `payment_type_id` até a onda equivalente.
+**How to apply:** Em código novo, ler/escrever sempre `item_type_id` / `item_type_source` para payment_items e rule_calculations. Para `payments`/`rules`/`companies`, manter `payment_type_id` até a onda equivalente (a UI ainda opera em payment_types.id).
