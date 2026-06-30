@@ -1942,6 +1942,59 @@ export function ItemsDataGrid({
         height: `min(calc(100vh - 40px), max(640px, ${estimatedHeight}px))`,
       }}
     >
+      {selectionMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border bg-background shadow-lg px-4 py-2">
+          <span className="text-xs font-medium">
+            {selectedIds.size} item(ns) selecionado(s)
+          </span>
+          <span className="text-[11px] text-muted-foreground">Reclassificar para:</span>
+          <Select
+            value={bulkTypeId ?? undefined}
+            onValueChange={(v) => setBulkTypeId(v)}
+          >
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue placeholder="Escolher tipo…" />
+            </SelectTrigger>
+            <SelectContent>
+              {bulkSelectable.map((t) => (
+                <SelectItem key={t.id} value={t.id} className="text-xs">
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            disabled={!bulkTypeId}
+            onClick={async () => {
+              if (!bulkTypeId) return;
+              const t = bulkSelectable.find((x) => x.id === bulkTypeId);
+              if (!t) return;
+              const ids = Array.from(selectedIds);
+              await changeCaseSubtype(ids, bulkTypeId, t.label);
+              setSelectedIds(new Set());
+              setBulkTypeId(null);
+            }}
+          >
+            Aplicar
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => {
+              setSelectedIds(new Set());
+              setBulkTypeId(null);
+            }}
+            title="Limpar seleção"
+          >
+            <XIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+
 
 
       {showToolbar && (
