@@ -1072,6 +1072,13 @@ export function ItemsDataGrid({
         return;
       }
 
+      // Refresh imediato para a UI refletir o novo tipo antes da reanálise
+      // (que pode levar dezenas de segundos). Sem isso o dropdown "voltava"
+      // para o tipo antigo até o polling terminar.
+      onRefresh?.();
+
+
+
       // Auditoria — um único registro por operação, com diff agregado.
       try {
         const { data: userRes } = await supabase.auth.getUser();
