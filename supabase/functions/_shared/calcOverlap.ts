@@ -229,18 +229,18 @@ function axisAccessRoutes(a: RuleCalculationItem, b: RuleCalculationItem): AxisR
   return { empty: false, shared: true, description: `Vias {${[...inter].sort().join(", ")}}` };
 }
 
-// ===== Eixo 11: payment_type_id (tipo de pagamento por cálculo) =====
-// O motor (rulesEngine) já filtra cada cálculo pelo payment_type_id do item.
-// Cálculos com payment_type_id diferentes NUNCA disputam o mesmo item em runtime.
-function axisPaymentType(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
-  const A = (a as any).payment_type_id ?? null;
-  const B = (b as any).payment_type_id ?? null;
+// ===== Eixo 11: item_type_id (tipo de item por cálculo) =====
+// O motor (rulesEngine) já filtra cada cálculo pelo item_type_id do item.
+// Cálculos com item_type_id diferentes NUNCA disputam o mesmo item em runtime.
+function axisItemType(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
+  const A = (a as any).item_type_id ?? (a as any).payment_type_id ?? null;
+  const B = (b as any).item_type_id ?? (b as any).payment_type_id ?? null;
   const aRestricts = A != null;
   const bRestricts = B != null;
   if (!aRestricts && !bRestricts) return { empty: false, shared: false };
   if (aRestricts !== bRestricts) return { empty: false, shared: false };
   if (A !== B) return { empty: true };
-  return { empty: false, shared: true, description: `Tipo de pagamento` };
+  return { empty: false, shared: true, description: `Tipo de item` };
 }
 
 
