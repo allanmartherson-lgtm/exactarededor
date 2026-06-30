@@ -15,6 +15,9 @@ import { Label } from "@/components/ui/label";
 import { SafeCard } from "@/components/ui/SafeCard";
 import { CalcDuplicityResolverPanel } from "./CalcDuplicityResolverPanel";
 import { PaymentTypeOverrideAction } from "./PaymentTypeOverrideAction";
+import { useItemTypes } from "@/hooks/useItemTypes";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { CheckSquare, X as XIcon } from "lucide-react";
 import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } from "@/lib/itemConfeccaoStatus";
 import {
   AlertTriangle,
