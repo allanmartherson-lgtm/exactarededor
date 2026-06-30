@@ -742,8 +742,10 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       special_case_status: it.special_case_status ?? null,
       // Filtro de tipo de item por cálculo (rule_calculations.item_type_id)
       // — usa o tipo do ITEM quando setado (reclassificação Visita × Parecer no
-      // mesmo lote); cai para o modelo do lote como fallback histórico.
-      payment_type_id: (it as any).item_type_id ?? (it as any).payment_type_id ?? ctx.payment_type_id ?? null,
+      // mesmo lote); cai para o legado `payment_type_id` como fallback.
+      item_type_id: (it as any).item_type_id ?? (it as any).payment_type_id ?? null,
+      // @deprecated — alias legado para retrocompatibilidade.
+      payment_type_id: (it as any).item_type_id ?? (it as any).payment_type_id ?? null,
       // Exceção do cálculo (LEGADO) — substituída por manual_intervention_reason_id.
       calc_exception_skip: (it as any).calc_exception_skip ?? false,
       calc_exception_skipped_calc_id: (it as any).calc_exception_skipped_calc_id ?? null,
