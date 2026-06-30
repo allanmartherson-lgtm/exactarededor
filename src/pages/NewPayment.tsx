@@ -2673,7 +2673,7 @@ const NewPayment = () => {
             ? currentBucket?.matchedCompany?.id
             : r.company_id) ?? currentBucket?.matchedCompany?.id ?? null;
           const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
-          const loteId = (payment as any).payment_type_id ?? null;
+          const loteId = (payment as any).payment_model_id ?? (payment as any).payment_type_id ?? null;
           if (r.payment_type_id_override) {
             return { item_type_id: r.payment_type_id_override, item_type_source: "base" };
           }
