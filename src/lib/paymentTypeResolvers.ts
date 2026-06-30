@@ -46,10 +46,10 @@ async function loadCache(): Promise<CacheShape> {
     for (const r of (ptRes.data ?? []) as Array<{ id: string; code: string }>) {
       next.ptIdToCode.set(r.id, r.code);
     }
-    for (const r of (pmRes.data ?? []) as Array<{ id: string; code: string }>) {
+    for (const r of ((pmRes.data ?? []) as unknown) as Array<{ id: string; code: string }>) {
       next.codeToPaymentModelId.set(r.code, r.id);
     }
-    for (const r of (itRes.data ?? []) as Array<{ id: string; code: string }>) {
+    for (const r of ((itRes.data ?? []) as unknown) as Array<{ id: string; code: string }>) {
       next.codeToItemTypeId.set(r.code, r.id);
     }
     cache = next;
