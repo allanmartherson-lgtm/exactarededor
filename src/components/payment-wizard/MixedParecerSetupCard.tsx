@@ -66,7 +66,7 @@ export function MixedParecerSetupCard({
             id="mixed-parecer"
             checked={value.enabled}
             onCheckedChange={(c) =>
-              onChange({ ...value, enabled: !!c, payment_type_id: c ? value.payment_type_id : null })
+              onChange({ ...value, enabled: !!c, item_type_id: c ? value.item_type_id : null })
             }
             className="mt-0.5"
           />
