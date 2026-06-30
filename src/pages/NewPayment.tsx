@@ -568,7 +568,13 @@ const NewPayment = () => {
     expected_headers: string[];
     allow_mixed_subtypes: boolean;
     subtype_split_hint: SubtypeSplitHint;
+    /** TUSS extras aceitos como "ainda é Consulta" (vem de item_types.tuss_codes_extra). */
+    consulta_tuss_extras: string[];
+    /** item_types.id de "Procedimento" — destino quando lote é Consulta e o
+     * TUSS da planilha não bate com consulta. */
+    dynamic_fallback_item_type_id: string | null;
   };
+
   const [paymentModelMeta, setPaymentModelMeta] = useState<PaymentTypeMeta | null>(null);
   const paymentTypeMetaRef = useRef<PaymentTypeMeta | null>(null);
   useEffect(() => { paymentTypeMetaRef.current = paymentModelMeta; }, [paymentModelMeta]);
