@@ -225,7 +225,7 @@ Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamen
                           specialties: { type: "array", items: { type: "string" } },
                           sectors: { type: "array", items: { type: "string" } },
                           doctor_roles: { type: "array", items: { type: "string" } },
-                          payment_type_code: { type: ["string", "null"] },
+                          item_type_code: { type: ["string", "null"] },
                         },
                         required: ["calculation_type"],
                         additionalProperties: false,
