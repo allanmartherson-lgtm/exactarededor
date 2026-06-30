@@ -182,12 +182,13 @@ function CalcExceptionItemAction({
 
         <p
           className={cn(
-            "text-xs min-w-0 sm:flex-1 break-words",
+            "text-xs min-w-0 break-words",
             isMarked
               ? "text-amber-900 dark:text-amber-200"
               : "text-sky-900/80 dark:text-sky-200/80",
           )}
         >
+
 
           {isMarked ? (
             <>
