@@ -260,7 +260,7 @@ function evaluatePair(
     axisSimpleArray(a.sectors, b.sectors, "Setor"),
     axisSimpleArray(a.specialties, b.specialties, "Especialidade"),
     axisSpecialCase(a, b, sameRulePrecedence),
-    axisPaymentType(a, b),
+    axisItemType(a, b),
   ];
 
 
