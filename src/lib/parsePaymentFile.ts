@@ -732,6 +732,39 @@ export const parsePaymentFile = async (
       ? procVal
       : (procVal || genericValue || grossFromAny || null);
 
+    // === INVARIANTE INTERNO (NÃO REMOVER) ===
+    // Quando o analista mapeia manualmente uma coluna de valor (repasse ou
+    // base de procedimento), o valor final DEVE ser exatamente o que está
+    // naquela célula — mesmo se for 0, vazio, negativo ou inválido.
+    // Heurísticas, fallback para "Valor Tot"/"Valor"/aliases canônicos e
+    // cruzamento com outro campo são PROIBIDOS nesse caso. Esta guarda existe
+    // para garantir que regressões futuras no pipeline de pick/heurística
+    // não voltem a inflar lotes silenciosamente (caso MATERNAL: 24 itens
+    // com Vl a Repassar=0 sobrescritos por Valor Tot=95).
+    if (hasManualField(manualMapping, "gross_amount")) {
+      const manualHeader = manualMapping!.gross_amount!;
+      const expected = toNumber(row[manualHeader]);
+      if (grossFromAny !== expected) {
+        throw new Error(
+          `[parsePaymentFile] Invariante violado: mapeamento manual de gross_amount → "${manualHeader}" ` +
+          `deveria resultar em ${expected} (valor cru: ${JSON.stringify(row[manualHeader])}), ` +
+          `mas o pipeline produziu ${grossFromAny}. Heurística ou fallback indevido foi acionado.`
+        );
+      }
+    }
+    if (hasManualField(manualMapping, "procedure_amount")) {
+      const manualHeader = manualMapping!.procedure_amount!;
+      const expected = toNumber(row[manualHeader]);
+      if (procedureAmountFinal !== expected) {
+        throw new Error(
+          `[parsePaymentFile] Invariante violado: mapeamento manual de procedure_amount → "${manualHeader}" ` +
+          `deveria resultar em ${expected} (valor cru: ${JSON.stringify(row[manualHeader])}), ` +
+          `mas o pipeline produziu ${procedureAmountFinal}. Heurística ou fallback indevido foi acionado.`
+        );
+      }
+    }
+
+
     const rowCompanyNameRaw = toStr(pickField(row, "company_name", manualMapping));
     let rowMatchedCompany: CompanyRow | null = null;
     if (!filenameTrusted && rowCompanyNameRaw) {
