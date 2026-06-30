@@ -2241,7 +2241,7 @@ export default function CompanyAnalysis() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-start gap-2 flex-wrap">
-                <h1 className="text-xl font-semibold leading-tight break-words min-w-0 flex-1 sm:flex-none sm:max-w-full">{group.company_name}</h1>
+                <h1 className="text-base sm:text-xl font-semibold leading-tight break-words min-w-0 flex-1 sm:flex-none sm:max-w-full line-clamp-2 sm:line-clamp-none">{group.company_name}</h1>
                 {canEdit && (
                   <Dialog open={changeCompanyOpen} onOpenChange={setChangeCompanyOpen}>
                     <DialogTrigger asChild>
