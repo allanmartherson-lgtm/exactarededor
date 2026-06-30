@@ -22,10 +22,8 @@ export type PaymentTypeRow = {
   sort_order: number;
   active: boolean;
   origin: "item_type" | "payment_model";
-  /** @deprecated Não vem mais da view unificada — sempre null. Mantido por compat de UI. */
-  description?: string | null;
-  /** @deprecated Não vem mais da view unificada — sempre null. */
-  color?: string | null;
+  description: string | null;
+  color: string | null;
 };
 
 export function usePaymentTypes(opts: { onlyActive?: boolean; origin?: "item_type" | "payment_model" } = { onlyActive: true }) {
