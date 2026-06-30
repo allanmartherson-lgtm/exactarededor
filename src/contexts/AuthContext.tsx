@@ -4,6 +4,13 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/status";
 
+const isTransientAuthError = (message?: string | null) => {
+  if (!message) return false;
+  return /load failed|failed to fetch|network|fetch/i.test(message);
+};
+
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
@@ -128,8 +135,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn: AuthContextValue["signIn"] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const credentials = { email: email.trim().toLowerCase(), password };
+    const firstAttempt = await supabase.auth.signInWithPassword(credentials);
+    if (!firstAttempt.error) return { error: null };
+
+    if (isTransientAuthError(firstAttempt.error.message)) {
+      await wait(650);
+      const secondAttempt = await supabase.auth.signInWithPassword(credentials);
+      if (!secondAttempt.error) return { error: null };
+      if (isTransientAuthError(secondAttempt.error.message)) {
+        return { error: "Falha de conexão com o login. Atualize a tela e tente novamente; se estiver no 4G, teste também no Wi‑Fi." };
+      }
+      return { error: secondAttempt.error.message };
+    }
+
+    return { error: firstAttempt.error.message };
   };
 
   const signUp: AuthContextValue["signUp"] = async (email, password, fullName) => {
