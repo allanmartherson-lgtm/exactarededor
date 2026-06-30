@@ -12,6 +12,8 @@ import ProcedureSpecialtyMap from "./ProcedureSpecialtyMap";
 import Convenios from "./Convenios";
 import CostCenters from "./CostCenters";
 import PaymentTypes from "./PaymentTypes";
+import PaymentModels from "./PaymentModels";
+import ItemTypes from "./ItemTypes";
 import ManualInterventionReasons from "./ManualInterventionReasons";
 import Hospitals from "./Hospitals";
 import PayoutModels from "./PayoutModels";
@@ -23,6 +25,8 @@ type TabValue =
   | "medicos"
   | "convenios"
   | "centros-de-custo"
+  | "modelos-pagamento"
+  | "tipos-item"
   | "tipos-pagamento"
   | "motivos-intervencao-manual"
   | "mapa-especialidades"
@@ -35,7 +39,8 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "medicos", label: "Médicos" },
   { value: "convenios", label: "Convênios" },
   { value: "centros-de-custo", label: "Setores e Centros" },
-  { value: "tipos-pagamento", label: "Tipos de Pagamento" },
+  { value: "modelos-pagamento", label: "Modelos de Pagamento" },
+  { value: "tipos-item", label: "Tipos de Item" },
   { value: "motivos-intervencao-manual", label: "Motivos de Tratamento Manual" },
   { value: "especialidades", label: "Especialidades" },
   { value: "mapa-especialidades", label: "Mapa de Especialidades" },
@@ -62,6 +67,8 @@ export default function CadastrosHub() {
       case "medicos": return <Doctors embedded />;
       case "convenios": return <Convenios embedded />;
       case "centros-de-custo": return <CostCenters embedded />;
+      case "modelos-pagamento": return <PaymentModels embedded />;
+      case "tipos-item": return <ItemTypes embedded />;
       case "tipos-pagamento": return <PaymentTypes embedded />;
       case "motivos-intervencao-manual": return <ManualInterventionReasons embedded />;
       case "especialidades": return <Specialties embedded />;

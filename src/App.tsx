@@ -370,6 +370,11 @@ const App = () => (
                   <Route path="/convenios" element={<Navigate to="/cadastros?tab=convenios" replace />} />
                   <Route path="/centros-de-custo" element={<Navigate to="/cadastros?tab=centros-de-custo" replace />} />
                   <Route path="/tipos-pagamento" element={<Navigate to="/cadastros?tab=tipos-pagamento" replace />} />
+                  <Route path="/payment-types" element={<Navigate to="/cadastros?tab=tipos-pagamento" replace />} />
+                  <Route path="/modelos-pagamento" element={<Navigate to="/cadastros?tab=modelos-pagamento" replace />} />
+                  <Route path="/payment-models" element={<Navigate to="/cadastros?tab=modelos-pagamento" replace />} />
+                  <Route path="/tipos-item" element={<Navigate to="/cadastros?tab=tipos-item" replace />} />
+                  <Route path="/item-types" element={<Navigate to="/cadastros?tab=tipos-item" replace />} />
                   <Route path="/pools" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolsHub /></ProtectedRoute>} />
                   <Route path="/pools/:id/valores-mensais" element={<ProtectedRoute roles={["diretor", "admin"]}><PoolMonthlyValues /></ProtectedRoute>} />
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
