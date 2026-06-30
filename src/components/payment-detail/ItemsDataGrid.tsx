@@ -861,12 +861,9 @@ export function ItemsDataGrid({
   const [bulkTypeId, setBulkTypeId] = useState<string | null>(null);
   const { list: itemTypesForBulk } = useItemTypes({ onlyActive: true });
   const { list: paymentTypesForBulk } = usePaymentTypes({ onlyActive: true });
-  // Mapeia item_types.code → payment_types.id (escrita canônica em item_type_id usa o id de payment_types correspondente).
-  const itemTypeCodes = useMemo(() => new Set(itemTypesForBulk.map((t) => t.code)), [itemTypesForBulk]);
-  const bulkSelectable = useMemo(
-    () => paymentTypesForBulk.filter((t) => itemTypeCodes.has(t.code)),
-    [paymentTypesForBulk, itemTypeCodes],
-  );
+  // `payment_items.item_type_id` FK em item_types(id) — usar os ids do
+  // catálogo canônico, não de payment_types (codes batem, ids não).
+  const bulkSelectable = itemTypesForBulk;
 
 
   const [filter, setFilter] = useState(pf.filter ?? "");

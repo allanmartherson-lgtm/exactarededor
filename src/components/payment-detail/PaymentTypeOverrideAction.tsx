@@ -46,18 +46,25 @@ export function PaymentTypeOverrideAction({
   const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
   const { list: itemTypes } = useItemTypes({ onlyActive: true });
 
-  // Só mostrar no dropdown os payment_types cujo code é de fato um item_type.
-  const itemTypeCodes = useMemo(() => new Set(itemTypes.map((t) => t.code)), [itemTypes]);
-  const selectable = useMemo(
-    () => paymentTypes.filter((t) => itemTypeCodes.has(t.code)),
-    [paymentTypes, itemTypeCodes],
-  );
+  // Dropdown lista item_types diretamente. `payment_items.item_type_id`
+  // tem FK em `item_types(id)`, então precisamos escrever o id do
+  // item_types — não o do payment_types (mesmo code, ids diferentes em
+  // alguns casos como "procedimento").
+  const selectable = itemTypes;
+
+  // Mapeia o tipo do lote (payment_types.id) → item_types.id via code.
+  const loteItemType = useMemo(() => {
+    const lotePt = paymentTypes.find((t) => t.id === lotePaymentTypeId);
+    if (!lotePt) return null;
+    return itemTypes.find((t) => t.code === lotePt.code) ?? null;
+  }, [paymentTypes, itemTypes, lotePaymentTypeId]);
+  const loteItemTypeId = loteItemType?.id ?? null;
 
   const itemTypeId = item.item_type_id ?? null;
-  const effectiveId = itemTypeId ?? lotePaymentTypeId ?? null;
-  const isOverride = !!itemTypeId && itemTypeId !== lotePaymentTypeId;
-  const current = paymentTypes.find((t) => t.id === effectiveId) ?? null;
-  const loteType = paymentTypes.find((t) => t.id === lotePaymentTypeId) ?? null;
+  const effectiveId = itemTypeId ?? loteItemTypeId ?? null;
+  const isOverride = !!itemTypeId && itemTypeId !== loteItemTypeId;
+  const current = itemTypes.find((t) => t.id === effectiveId) ?? null;
+  const loteType = loteItemType;
 
   const attendIds = useMemo(() => {
     const att = String(item.attendance_number ?? "").trim();
@@ -80,11 +87,9 @@ export function PaymentTypeOverrideAction({
   };
 
   const resetToLote = () => {
-    if (!lotePaymentTypeId) return;
-    const type = paymentTypes.find((t) => t.id === lotePaymentTypeId);
-    if (!type) return;
+    if (!loteItemTypeId || !loteItemType) return;
     const ids = scope === "attendance" && hasAttendanceSiblings ? attendIds : [item.id];
-    onChange(ids, lotePaymentTypeId, type.label);
+    onChange(ids, loteItemTypeId, loteItemType.label);
   };
 
 
@@ -119,7 +124,7 @@ export function PaymentTypeOverrideAction({
               <SelectItem key={t.id} value={t.id} className="text-xs">
                 <div className="flex items-center gap-2">
                   <span>{t.label}</span>
-                  {t.id === lotePaymentTypeId && (
+                  {t.id === loteItemTypeId && (
                     <span className="text-[10px] text-muted-foreground">(padrão do lote)</span>
                   )}
                 </div>
