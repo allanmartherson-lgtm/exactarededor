@@ -85,7 +85,7 @@ export default function NewManualPayment() {
         competence_months: [`${competence}-01`],
         payment_due_date: paymentDueDate || null,
         analysis_mode: "manual" as any,
-        payment_type_id: paymentModelId,
+        payment_model_id: paymentModelId,
         cost_center_code: costCenterCode,
         competence_regime: competenceRegime,
         import_mode: prefillImportMode,
