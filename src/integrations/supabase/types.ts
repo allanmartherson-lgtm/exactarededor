@@ -10651,7 +10651,9 @@ export type Database = {
         Row: {
           active: boolean | null
           code: string | null
+          color: string | null
           created_at: string | null
+          description: string | null
           id: string | null
           label: string | null
           origin: string | null
