@@ -28,6 +28,9 @@ type Adjustment = {
   data_inicio: string;
   ativo: boolean;
   origem: string | null;
+  /** Canônico (D3.e). */
+  payment_model_ids: string[] | null;
+  /** Legado — trigger sync mantém alinhado; remoção em D3.f. */
   payment_type_ids: string[] | null;
   recorrente: boolean;
   data_fim: string | null;
@@ -84,7 +87,8 @@ const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
 
 export default function CreditosDebitos() {
-  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
+  // D3.e: CFA filtra por payment_model do lote.
+  const { list: paymentModels } = usePaymentTypes({ onlyActive: true, origin: "payment_model" });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [glosaDebts, setGlosaDebts] = useState<GlosaDebt[]>([]);
@@ -164,7 +168,7 @@ export default function CreditosDebitos() {
     setEditingAdj(a ? { ...a } : {
       tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
       parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
-      payment_type_ids: null, recorrente: false, data_fim: null,
+      payment_model_ids: null, payment_type_ids: null, recorrente: false, data_fim: null,
     });
     setAdjDialogOpen(true);
   };
@@ -180,7 +184,7 @@ export default function CreditosDebitos() {
       parcelas_pagas: editingAdj.parcelas_pagas ?? 0,
       data_inicio: editingAdj.data_inicio,
       ativo: editingAdj.ativo ?? true, origem: editingAdj.origem || null,
-      payment_type_ids: (editingAdj.payment_type_ids && editingAdj.payment_type_ids.length > 0) ? editingAdj.payment_type_ids : null,
+      payment_model_ids: (editingAdj.payment_model_ids && editingAdj.payment_model_ids.length > 0) ? editingAdj.payment_model_ids : null,
       recorrente,
       data_fim: recorrente ? (editingAdj.data_fim || null) : null,
     };
@@ -442,13 +446,19 @@ export default function CreditosDebitos() {
                         <span className="font-medium text-sm">{a._company_name}</span>
                         {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
                         {!a.ativo && <Badge variant="outline">Inativo</Badge>}
-                        {a.payment_type_ids && a.payment_type_ids.length > 0 && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Só em: {a.payment_type_ids
-                              .map(id => paymentTypes.find(p => p.id === id)?.label ?? "—")
-                              .join(", ")}
-                          </Badge>
-                        )}
+                        {(() => {
+                          const ids = (a.payment_model_ids && a.payment_model_ids.length > 0)
+                            ? a.payment_model_ids
+                            : (a.payment_type_ids ?? []);
+                          if (!ids || ids.length === 0) return null;
+                          return (
+                            <Badge variant="outline" className="text-[10px]">
+                              Só em: {ids
+                                .map(id => paymentModels.find(p => p.id === id)?.label ?? "—")
+                                .join(", ")}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                       <p className="text-xs text-muted-foreground">{a.descricao}</p>
                       <p className="text-xs">
@@ -643,9 +653,9 @@ export default function CreditosDebitos() {
               <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <Label className="text-xs">Aplicar somente em lotes do tipo</Label>
-                  {(editingAdj.payment_type_ids?.length ?? 0) > 0 && (
+                {(editingAdj.payment_model_ids?.length ?? 0) > 0 && (
                     <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs"
-                      onClick={() => setEditingAdj({ ...editingAdj, payment_type_ids: null })}>
+                      onClick={() => setEditingAdj({ ...editingAdj, payment_model_ids: null })}>
                       Limpar (qualquer tipo)
                     </Button>
                   )}
@@ -654,8 +664,8 @@ export default function CreditosDebitos() {
                   Vazio = aplica em qualquer lote da empresa. Marque para restringir somente aos tipos selecionados.
                 </p>
                 <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
-                  {paymentTypes.map(pt => {
-                    const cur = editingAdj.payment_type_ids ?? [];
+                  {paymentModels.map(pt => {
+                    const cur = editingAdj.payment_model_ids ?? [];
                     const checked = cur.includes(pt.id);
                     return (
                       <label key={pt.id} className="flex items-center gap-2 text-xs rounded px-2 py-1 hover:bg-muted/50 cursor-pointer">
@@ -663,7 +673,7 @@ export default function CreditosDebitos() {
                           checked={checked}
                           onCheckedChange={(v) => setEditingAdj({
                             ...editingAdj,
-                            payment_type_ids: v
+                            payment_model_ids: v
                               ? Array.from(new Set([...cur, pt.id]))
                               : cur.filter(id => id !== pt.id),
                           })}
@@ -672,7 +682,7 @@ export default function CreditosDebitos() {
                       </label>
                     );
                   })}
-                  {paymentTypes.length === 0 && (
+                  {paymentModels.length === 0 && (
                     <p className="text-xs text-muted-foreground italic col-span-2">Nenhum tipo de lote ativo cadastrado.</p>
                   )}
                 </div>
