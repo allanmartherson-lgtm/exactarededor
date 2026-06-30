@@ -154,15 +154,18 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
-      .select("sectors,specialties,payment_type,payment_type_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode,pool_id")
+      .select("sectors,specialties,payment_type,payment_model_id,payment_due_date,competence_month,analysis_mode,hospital_id,import_mode,pool_id")
       .eq("id", payment_id)
-      .maybeSingle<PaymentRow & { import_mode?: string | null; payment_type_id?: string | null }>();
+      .maybeSingle<PaymentRow & { import_mode?: string | null; payment_model_id?: string | null }>();
 
     const ctx: PaymentContext = {
       sectors: payment?.sectors ?? [],
       specialties: payment?.specialties ?? [],
       payment_type: payment?.payment_type ?? null,
-      payment_type_id: (payment as any)?.payment_type_id ?? null,
+      // Mantém nome `payment_type_id` no PaymentContext apenas como compat
+      // com o rulesEngine atual (refactor desse contrato é a Onda 3). O valor
+      // já é o modelo do lote (payment_models.id) — UUIDs unificados com legacy.
+      payment_type_id: (payment as any)?.payment_model_id ?? null,
       // Onda 1 — Regra de competência: a vigência é determinada pela
       // `procedure_date` de CADA item dentro do motor (analyzeItem).
       // `reference_date` aqui é apenas informativo e NÃO é usado para
@@ -251,7 +254,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
         force_totalized,
         prevent_external_fallback,
         special_case_filter,
-        payment_type_id
+        item_type_id
     `;
 
     const RULE_CALCS_SELECT = `
@@ -266,7 +269,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       bonus_amount,bonus_pct,target_amount,allowed_access_routes,
       force_totalized,application_unit,sectors,specialties,match_by_specialty,
       special_case_filter,
-      payment_type_id,
+      item_type_id,
       procedure_codes,code_match_mode,doctor_roles,
       agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions,
       package_roles_distribution,
@@ -296,15 +299,15 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
           const ageMs = Date.now() - new Date(cacheRow.built_at as string).getTime();
           if (ageMs < CONTEXT_TTL_MS) {
             const ctxJ = cacheRow.context as any;
-            // Bust cache se snapshot foi gerado antes de incluirmos payment_type_id
+            // Bust cache se snapshot foi gerado antes de incluirmos item_type_id
             // nas regras (caso contrário, filtro por tipo não funciona até TTL expirar).
-            const snapshotHasTypeField = !ctxJ.rules.length || ("payment_type_id" in ctxJ.rules[0]);
+            const snapshotHasTypeField = !ctxJ.rules.length || ("item_type_id" in ctxJ.rules[0]);
             const cachedCalcLists = Object.values(ctxJ.calcs_by_rule ?? {}) as any[];
             const snapshotHasCalcSpecialCaseField = cachedCalcLists.every((list: any) =>
               !Array.isArray(list) || list.every((c: any) => "special_case_filter" in c),
             );
             const snapshotHasCalcPaymentTypeField = cachedCalcLists.every((list: any) =>
-              !Array.isArray(list) || list.every((c: any) => "payment_type_id" in c),
+              !Array.isArray(list) || list.every((c: any) => "item_type_id" in c),
             );
             const snapshotHasCalcSpecialtyToggle = cachedCalcLists.every((list: any) =>
               !Array.isArray(list) || list.every((c: any) => "match_by_specialty" in c),
@@ -490,8 +493,8 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
         manual_intervention_reason_id,
         manual_intervention_source,
         manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
-        payment_type_id,
-        payment_type_source,
+        item_type_id,
+        item_type_source,
         is_pool_item,
         raw_data
       `)
@@ -737,10 +740,10 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       convenio_value_totalized: it.convenio_value_totalized ?? false,
       special_case_code: it.special_case_code ?? null,
       special_case_status: it.special_case_status ?? null,
-      // Filtro de tipo de pagamento por cálculo (rule_calculations.payment_type_id)
+      // Filtro de tipo de item por cálculo (rule_calculations.item_type_id)
       // — usa o tipo do ITEM quando setado (reclassificação Visita × Parecer no
-      // mesmo lote); cai para o tipo do lote como fallback.
-      payment_type_id: (it as any).payment_type_id ?? ctx.payment_type_id ?? null,
+      // mesmo lote); cai para o modelo do lote como fallback histórico.
+      payment_type_id: (it as any).item_type_id ?? (it as any).payment_type_id ?? ctx.payment_type_id ?? null,
       // Exceção do cálculo (LEGADO) — substituída por manual_intervention_reason_id.
       calc_exception_skip: (it as any).calc_exception_skip ?? false,
       calc_exception_skipped_calc_id: (it as any).calc_exception_skipped_calc_id ?? null,
