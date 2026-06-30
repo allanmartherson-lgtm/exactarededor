@@ -611,6 +611,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deactivated_at: string | null
+          default_item_type_id: string | null
           default_payment_type_id: string | null
           document: string | null
           id: string
@@ -628,6 +629,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deactivated_at?: string | null
+          default_item_type_id?: string | null
           default_payment_type_id?: string | null
           document?: string | null
           id?: string
@@ -645,6 +647,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deactivated_at?: string | null
+          default_item_type_id?: string | null
           default_payment_type_id?: string | null
           document?: string | null
           id?: string
@@ -656,6 +659,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "companies_default_item_type_id_fkey"
+            columns: ["default_item_type_id"]
+            isOneToOne: false
+            referencedRelation: "item_types"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "companies_default_payment_type_id_fkey"
             columns: ["default_payment_type_id"]
@@ -860,6 +870,7 @@ export type Database = {
           origem: string | null
           parcelas_pagas: number
           parcelas_total: number
+          payment_model_ids: string[] | null
           payment_type_ids: string[] | null
           recorrente: boolean
           tipo: string
@@ -879,6 +890,7 @@ export type Database = {
           origem?: string | null
           parcelas_pagas?: number
           parcelas_total?: number
+          payment_model_ids?: string[] | null
           payment_type_ids?: string[] | null
           recorrente?: boolean
           tipo: string
@@ -898,6 +910,7 @@ export type Database = {
           origem?: string | null
           parcelas_pagas?: number
           parcelas_total?: number
+          payment_model_ids?: string[] | null
           payment_type_ids?: string[] | null
           recorrente?: boolean
           tipo?: string
@@ -6861,6 +6874,7 @@ export type Database = {
           liquido_total: number
           manual_general_attachment_name: string | null
           manual_general_attachment_path: string | null
+          mixed_parecer_item_type_id: string | null
           mixed_parecer_payment_type_id: string | null
           origem: string
           payment_due_date: string | null
@@ -6920,6 +6934,7 @@ export type Database = {
           liquido_total?: number
           manual_general_attachment_name?: string | null
           manual_general_attachment_path?: string | null
+          mixed_parecer_item_type_id?: string | null
           mixed_parecer_payment_type_id?: string | null
           origem?: string
           payment_due_date?: string | null
@@ -6979,6 +6994,7 @@ export type Database = {
           liquido_total?: number
           manual_general_attachment_name?: string | null
           manual_general_attachment_path?: string | null
+          mixed_parecer_item_type_id?: string | null
           mixed_parecer_payment_type_id?: string | null
           origem?: string
           payment_due_date?: string | null
@@ -7014,6 +7030,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_mixed_parecer_item_type_id_fkey"
+            columns: ["mixed_parecer_item_type_id"]
+            isOneToOne: false
+            referencedRelation: "item_types"
             referencedColumns: ["id"]
           },
           {
