@@ -19,10 +19,19 @@ import {
 } from "@/lib/registryLookup";
 import { useAuth } from "@/contexts/AuthContext";
 
+export type UnresolvedOccurrence = {
+  attendance?: string | null;
+  patient?: string | null;
+  doctor?: string | null;
+  date?: string | null;
+  procedure?: string | null;
+};
+
 export type UnresolvedGroup = {
   kind: "doctor" | "convenio" | "sector";
   raw: string;
   count: number;
+  samples?: UnresolvedOccurrence[];
 };
 
 interface Props {
