@@ -1616,8 +1616,30 @@ const PaymentDetail = () => {
       // Limpa apenas itens; grupos serão sincronizados (não apagados em massa)
       // para que as empresas continuem visíveis na tela durante a reanálise pela IA.
       // O motor (analyze-payment) atualiza totais e remove grupos órfãos ao final.
-      const { error: delItemsErr } = await supabase.from("payment_items").delete().eq("payment_id", id);
-      if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
+      //
+      // IMPORTANTE: o DELETE em massa por `payment_id` dispara vários triggers
+      // (sync_company_groups por STATEMENT, invalidate_financials por ROW,
+      // recalc_priority) e cascades em ~12 tabelas filhas. Em lotes médios
+      // isso estoura o `statement_timeout` do role `authenticated` (~8s) e o
+      // PostgREST devolve "canceling statement due to statement timeout".
+      // Para evitar, paginamos os ids e deletamos em chunks pequenos.
+      const DEL_CHUNK = 100;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: idsBatch, error: idsErr } = await supabase
+          .from("payment_items")
+          .select("id")
+          .eq("payment_id", id)
+          .limit(DEL_CHUNK);
+        if (idsErr) { toast({ title: "Falha ao listar itens p/ limpar", description: idsErr.message, variant: "destructive" }); return; }
+        if (!idsBatch || idsBatch.length === 0) break;
+        const { error: delItemsErr } = await supabase
+          .from("payment_items")
+          .delete()
+          .in("id", idsBatch.map((r) => r.id));
+        if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
+        if (idsBatch.length < DEL_CHUNK) break;
+      }
 
       // Sincronização eager de grupos: agrega por empresa a partir das linhas
       // recém-importadas e faz upsert/insert; remove grupos cuja empresa não
@@ -1706,8 +1728,11 @@ const PaymentDetail = () => {
       }));
 
 
-      // Inserção em lotes de 1000 para evitar limites do Supabase
-      const chunkSize = 1000;
+      // Inserção em chunks menores: cada INSERT dispara triggers FOR EACH ROW
+      // (hash, competência, financials) e FOR EACH STATEMENT (sync_company_groups
+      // que chama sync_payment_company_group por (payment_id, company_id) distinto).
+      // 200 é um meio-termo que evita statement_timeout em lotes médios/grandes.
+      const chunkSize = 200;
       for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
         const chunk = itemsToInsert.slice(i, i + chunkSize);
         const { error: insErr } = await supabase.from("payment_items").insert(chunk);
