@@ -235,12 +235,36 @@ export function AutoClassifiedReviewSheet({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-0.5">
-                      <div className="text-xs font-medium truncate">
-                        Atend. {it.attendance_number ?? "—"} · TUSS {it.procedure_code ?? "—"}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground line-clamp-2">
-                        {it.procedure_description ?? "—"}
-                      </div>
+                      {(() => {
+                        const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+                        const baseName =
+                          (typeof raw["Produto"] === "string" && (raw["Produto"] as string)) ||
+                          it.description ||
+                          it.procedure_description ||
+                          it.procedure_name ||
+                          "—";
+                        const tussInjected = !!raw["__tuss_default_applied"];
+                        const tuss = it.procedure_code;
+                        return (
+                          <>
+                            <div className="text-xs font-medium line-clamp-2" title={baseName}>
+                              {baseName}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              Atend. {it.attendance_number ?? "—"}
+                              {tuss && (
+                                <>
+                                  {" · "}
+                                  TUSS <span className="font-mono">{tuss}</span>
+                                  {tussInjected && (
+                                    <span className="ml-1 italic opacity-70">(imputado)</span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                       {it.company_name && (
                         <div className="text-[10px] text-muted-foreground truncate">
                           {it.company_name}
