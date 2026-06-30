@@ -2006,7 +2006,7 @@ export default function CompanyAnalysis() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
           <Button variant="ghost" size="sm" asChild>
             <Link to={`/pagamentos/${id}#group-${groupId}`}>
               <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao lote
