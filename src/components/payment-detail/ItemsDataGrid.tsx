@@ -927,8 +927,9 @@ export function ItemsDataGrid({
     const loteId = ((firstWithType as any)?.item_type_id ?? null) as string | null;
     let cancelled = false;
     (async () => {
+      // D3.e.2: lê do catálogo canônico item_types (antes lia de payment_types).
       const { data } = await supabase
-        .from("payment_types")
+        .from("item_types")
         .select("id, code")
         .in("code", ["visita", "parecer_adulto", "parecer_pediatrico"]);
       if (cancelled) return;
