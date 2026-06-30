@@ -264,6 +264,22 @@ Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamen
         seen.add(sig);
         return true;
       });
+
+      // Fase D: normaliza item_type_code ↔ payment_type_code (legado).
+      // Preferimos `item_type_code`; espelhamos em `payment_type_code` para
+      // consumidores que ainda leem o nome antigo.
+      const mirrorTypeCode = (obj: any) => {
+        if (!obj || typeof obj !== "object") return;
+        const it = obj.item_type_code ?? null;
+        const pt = obj.payment_type_code ?? null;
+        const chosen = it ?? pt ?? null;
+        obj.item_type_code = chosen;
+        obj.payment_type_code = chosen;
+      };
+      for (const r of parsed.rules) {
+        mirrorTypeCode(r);
+        if (Array.isArray(r?.calculations)) r.calculations.forEach(mirrorTypeCode);
+      }
     }
 
     return new Response(JSON.stringify({ ...parsed, detected_kind: effectiveKind }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
