@@ -65,19 +65,19 @@ export function PaymentTypeOverrideAction({
 
   return (
     <div className={cn(
-      "rounded-md border border-dashed px-3 py-2 flex items-center justify-between gap-2",
+      "rounded-md border border-dashed px-3 py-2 flex flex-col gap-2 min-w-0 max-w-full",
       isOverride
         ? "border-violet-300/70 bg-violet-50/50 dark:bg-violet-950/15 dark:border-violet-900/60"
         : "border-muted-foreground/20 bg-muted/30",
     )}>
-      <div className="flex items-center gap-2 min-w-0 text-xs">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 text-xs">
         <Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="text-muted-foreground">Tipo deste item:</span>
         <Badge variant={isOverride ? "default" : "outline"} className="h-5 px-1.5 text-[10px]">
           {current?.label ?? "—"}
         </Badge>
         {isOverride && (
-          <span className="text-[10px] text-muted-foreground hidden sm:inline">
+          <span className="text-[10px] text-muted-foreground break-words">
             (override do lote
             {loteType?.label ? ` "${loteType.label}"` : ""})
           </span>
@@ -85,10 +85,11 @@ export function PaymentTypeOverrideAction({
       </div>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button size="sm" variant="outline" className="h-7 text-xs whitespace-nowrap">
+          <Button size="sm" variant="outline" className="h-7 text-xs whitespace-nowrap self-start shrink-0">
             Alterar tipo…
           </Button>
         </PopoverTrigger>
+
         <PopoverContent align="end" className="w-72 p-2 space-y-1">
           <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground px-1 mb-1">
             Reclassificar como
