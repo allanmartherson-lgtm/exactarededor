@@ -1950,7 +1950,11 @@ const PaymentDetail = () => {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        ...(r.payment_type_id_override
+          ? { item_type_id: r.payment_type_id_override, item_type_source: "base" as const }
+          : {}),
       }));
+
       const chunkSize = 1000;
       for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
         const chunk = itemsToInsert.slice(i, i + chunkSize);
