@@ -376,5 +376,4 @@ describe("parsePaymentFile — Vl a Repassar zero / vazio / fórmula sem cache",
     expect(sheet["B2"].f).toBe("SUM(A1:A2)");
   });
 });
-});
 
