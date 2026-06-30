@@ -1,0 +1,1 @@
+ALTER VIEW public.payment_types_unified SET (security_invoker = true);
