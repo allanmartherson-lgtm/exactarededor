@@ -626,10 +626,13 @@ function CaseSubtypeBadge({
     : "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-800";
   const sourceLabel: Record<string, string> = {
     base: "lido da planilha",
+    auto_tuss: "TUSS cadastrado",
+    auto_heuristic: "TUSS fora do lote",
     report_cross: "cruzamento com relatório de parecer",
     manual: "marcação manual do analista",
     company_override: "padrão da empresa no lote",
     default: "padrão do lote",
+    inherit: "herdado do lote",
   };
   const sourceText = source ? sourceLabel[source] ?? source : "herdado do lote";
   const title = `${isVisita ? "Visita" : "Parecer"} — origem: ${sourceText}. Clique para alterar.`;

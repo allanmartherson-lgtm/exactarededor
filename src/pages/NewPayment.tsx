@@ -2719,12 +2719,12 @@ const NewPayment = () => {
           const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
           const loteId = (payment as any).payment_model_id ?? null;
           if (r.payment_type_id_override) {
-            return { item_type_id: r.payment_type_id_override, item_type_source: "base" };
+            return { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" };
           }
           if (companyDefault && companyDefault !== loteId) {
-            return { item_type_id: companyDefault, item_type_source: "company_override" };
+            return { item_type_id: companyDefault, item_type_source: "inherit" };
           }
-          return { item_type_id: loteId, item_type_source: loteId ? "default" : null };
+          return { item_type_id: loteId, item_type_source: loteId ? "inherit" : null };
         })(),
       });
     };
