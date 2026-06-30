@@ -15,10 +15,15 @@ function makeFile(rows: Record<string, unknown>[], name = "consulta.xlsx"): File
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
   const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
-  return new File([buf], name, {
+  // jsdom's File não implementa arrayBuffer(); criamos um stub compatível.
+  const fake = {
+    name,
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+    arrayBuffer: async () => buf,
+  };
+  return fake as unknown as File;
 }
+
 
 const BASE_ROW = {
   "Nr. Atendimento": "111222",
