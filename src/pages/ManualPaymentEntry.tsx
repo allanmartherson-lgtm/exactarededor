@@ -115,7 +115,9 @@ export default function ManualPaymentEntry() {
     setLoading(true);
     const { data: p } = await supabase.from("payments").select("*").eq("id", id).single();
     setPayment(p);
-    setDefaultTypeId((p as any)?.payment_type_id ?? null);
+    // D3.e.2: prefere coluna canônica `payment_model_id`; trigger garante coerência
+    // com a legada `payment_type_id` para lotes escritos antes da migração.
+    setDefaultTypeId((p as any)?.payment_model_id ?? (p as any)?.payment_type_id ?? null);
     setGeneralAttPath((p as any)?.manual_general_attachment_path ?? null);
     setGeneralAttName((p as any)?.manual_general_attachment_name ?? null);
 
