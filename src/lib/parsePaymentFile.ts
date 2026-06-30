@@ -831,22 +831,33 @@ export const parsePaymentFile = async (
     if (paymentTypeMeta) {
       const procFixed =
         !!paymentTypeMeta.tuss_default || paymentTypeMeta.requires_tuss_in_sheet === false;
+      // Regra híbrida (aplicada primeiro a CONSULTA): se a planilha trouxer
+      // procedure_code/procedure_name, ela prevalece; caso contrário, o sistema
+      // imputa o default do tipo. Parecer/Visita seguem o comportamento antigo
+      // (sempre sobrescreve) até decidirmos migrá-los também.
+      const labelLower = (paymentTypeMeta.label || "").toLowerCase();
+      const isConsultaHybrid = labelLower.includes("consulta");
       if (procFixed) {
-        if (paymentTypeMeta.tuss_default) {
+        const planilhaTemTuss = !!base.procedure_code;
+        const planilhaTemNome = !!base.procedure_name;
+        if (paymentTypeMeta.tuss_default && (!isConsultaHybrid || !planilhaTemTuss)) {
           base.procedure_code = paymentTypeMeta.tuss_default;
           (base.raw_data as Record<string, unknown>).__tuss_default_applied = paymentTypeMeta.tuss_default;
         }
-        const especDest = toStr(pick(row, [
-          "espec dest", "espec. dest", "especialidade destino",
-          "especialidade do parecerista", "especialidade",
-        ]));
-        const baseName = paymentTypeMeta.label || "Procedimento";
-        base.procedure_name = especDest ? `${baseName} - ${especDest}` : baseName;
-        (base.raw_data as Record<string, unknown>).__procedure_name_defaulted = base.procedure_name;
+        if (!isConsultaHybrid || !planilhaTemNome) {
+          const especDest = toStr(pick(row, [
+            "espec dest", "espec. dest", "especialidade destino",
+            "especialidade do parecerista", "especialidade",
+          ]));
+          const baseName = paymentTypeMeta.label || "Procedimento";
+          base.procedure_name = especDest ? `${baseName} - ${especDest}` : baseName;
+          (base.raw_data as Record<string, unknown>).__procedure_name_defaulted = base.procedure_name;
+        }
       } else if (!base.procedure_code && paymentTypeMeta.tuss_default) {
         base.procedure_code = paymentTypeMeta.tuss_default;
         (base.raw_data as Record<string, unknown>).__tuss_default_applied = paymentTypeMeta.tuss_default;
       }
+
       if (!base.doctor_role && paymentTypeMeta.default_function) {
         base.doctor_role = paymentTypeMeta.default_function;
         (base.raw_data as Record<string, unknown>).__role_default_applied = paymentTypeMeta.default_function;
