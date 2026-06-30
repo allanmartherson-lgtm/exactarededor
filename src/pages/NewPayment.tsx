@@ -114,6 +114,10 @@ interface ParsedRow {
    * (ex.: planilha de Parecer com algumas linhas de Visita). Preenchido pelo
    * parser via `subtype_split_hint` do tipo escolhido na criação da base. */
   payment_type_id_override?: string | null;
+  /** true quando a coluna de repasse (gross_amount) foi mapeada/canônica —
+   *  inclusive com valor 0 (ex.: Retorno não pago). Permite distinguir
+   *  "0 legítimo" de "valor ausente" na validação. */
+  gross_explicit?: boolean;
 }
 
 // === Classificação de tipo_linha (pré-validação) ===
