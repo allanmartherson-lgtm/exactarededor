@@ -32,10 +32,11 @@ const BASE_ROW = {
   "Empresa": "ACME LTDA",
   "Convênio": "BRADESCO SAUDE",
   "Setor": "AMBULATORIO",
-  "Data Procedimento": "2026-01-15",
+  "Data Atendimento": "2026-01-15",
   "Valor": "150,00",
   "Qtd": 1,
 };
+
 
 describe("parsePaymentFile — regra híbrida Consulta", () => {
   it("planilha COM Código TUSS e Produto: prevalece a planilha, sem flag de default", async () => {
