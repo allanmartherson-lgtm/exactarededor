@@ -3239,16 +3239,16 @@ function Stat({
   const t = tones[tone];
   return (
     <div className="rounded-2xl border border-border/50 bg-card shadow-card">
-      <div className="flex items-start gap-3 px-3 py-3">
+      <div className="flex items-start gap-2 sm:gap-3 px-2.5 py-2.5 sm:px-3 sm:py-3">
         {icon && (
-          <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0", t.chip)}>
+          <div className={cn("flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-lg flex-shrink-0", t.chip)}>
             {icon}
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">{label}</div>
-          <div className={cn("mt-1 text-lg sm:text-xl font-semibold leading-tight break-words", mono && "tabular-nums", t.value)}>{value}</div>
-          {sub && <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
+          <div className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">{label}</div>
+          <div className={cn("mt-0.5 sm:mt-1 text-base sm:text-xl font-semibold leading-tight break-words", mono && "tabular-nums", t.value)}>{value}</div>
+          {sub && <div className="mt-0.5 text-[10px] sm:text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
         </div>
       </div>
     </div>
