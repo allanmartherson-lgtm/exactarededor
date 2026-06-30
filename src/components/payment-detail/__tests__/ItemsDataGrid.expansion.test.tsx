@@ -6,14 +6,24 @@ import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
 vi.mock("@/hooks/useSectorAliases", () => ({ useSectorAliases: () => null }));
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: { id: "u1", email: "admin@example.com" },
+    roles: ["admin", "diretor", "validador", "analista"],
+    hasRole: () => true,
+    signOut: vi.fn(),
+  }),
+}));
+
 vi.mock("@/integrations/supabase/client", () => {
-  const chain: any = new Proxy({}, {
+  const chain: any = new Proxy(function () {}, {
     get(_t, prop: string) {
-      if (prop === "then") return undefined;
+      if (prop === "then") return (resolve: any) => resolve({ data: [], error: null });
       if (prop === "single" || prop === "maybeSingle")
         return vi.fn(() => Promise.resolve({ data: null, error: null }));
       return vi.fn(() => chain);
     },
+    apply() { return chain; },
   });
   return {
     supabase: {
@@ -69,7 +79,7 @@ const setViewport = (w: number, h: number) => {
 const clickFirstRow = (id: string) => {
   const row = document.querySelector(`tr[data-row-id="${id}"]`) as HTMLElement;
   expect(row).toBeTruthy();
-  fireEvent.click(row);
+  fireEvent.doubleClick(row);
 };
 
 describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {

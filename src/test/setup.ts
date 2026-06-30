@@ -15,6 +15,27 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
+// jsdom não implementa ResizeObserver / IntersectionObserver — polyfills mínimos
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+(globalThis as any).ResizeObserver = (globalThis as any).ResizeObserver || ResizeObserverMock;
+(window as any).ResizeObserver = (window as any).ResizeObserver || ResizeObserverMock;
+
+class IntersectionObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() { return []; }
+  root = null;
+  rootMargin = "";
+  thresholds = [];
+}
+(globalThis as any).IntersectionObserver = (globalThis as any).IntersectionObserver || IntersectionObserverMock;
+(window as any).IntersectionObserver = (window as any).IntersectionObserver || IntersectionObserverMock;
+
 // Mock global do HospitalContext para evitar "useHospital must be used within HospitalProvider"
 // em testes que renderizam AppLayout/HospitalSwitcher sem o provider real.
 // Testes que precisam de hospital específico podem sobrescrever com vi.mock próprio.
