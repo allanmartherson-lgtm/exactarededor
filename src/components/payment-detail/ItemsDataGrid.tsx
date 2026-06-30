@@ -173,12 +173,13 @@ function CalcExceptionItemAction({
     <>
       <div
         className={cn(
-          "rounded-md border border-dashed px-3 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0 max-w-full",
+          "rounded-md border border-dashed px-3 py-2 flex flex-col gap-2 min-w-0 max-w-full",
           isMarked
             ? "border-amber-400/70 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800/70"
             : "border-sky-300/70 bg-sky-50/40 dark:bg-sky-950/15 dark:border-sky-900/60",
         )}
       >
+
         <p
           className={cn(
             "text-xs min-w-0 sm:flex-1 break-words",
