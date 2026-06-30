@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { useItemTypes } from "@/hooks/useItemTypes";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -29,10 +30,14 @@ interface Props {
 /**
  * Override manual do tipo de pagamento por item.
  *
- * UX nova (jun/2026): Select inline em vez de popover. Analista escolhe o tipo
- * direto no dropdown e decide o escopo (só este item × atendimento inteiro) num
- * toggle compacto antes de aplicar. Mudança dispara reanálise (motor respeita
- * `payment_items.payment_type_id` em analyze-payment).
+ * UX nova (jun/2026): Select inline em vez de popover. O dropdown lista
+ * APENAS item_types (Parecer/Visita/Cirurgia/Consulta/Bônus/Exames) — os
+ * modelos do lote (Produção/Plantão/Remessa/Valor fixo) ficam fora porque
+ * não fazem sentido como tipo de procedimento.
+ *
+ * Por compatibilidade com o motor atual, o write continua usando
+ * `payment_type_id` (legacy), resolvendo via code o id equivalente na
+ * tabela antiga payment_types.
  */
 export function PaymentTypeOverrideAction({
   item,
@@ -42,11 +47,20 @@ export function PaymentTypeOverrideAction({
   canEdit,
   onChange,
 }: Props) {
-  const { list } = usePaymentTypes({ onlyActive: true });
+  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
+  const { list: itemTypes } = useItemTypes({ onlyActive: true });
+
+  // Só mostrar no dropdown os payment_types cujo code é de fato um item_type.
+  const itemTypeCodes = useMemo(() => new Set(itemTypes.map((t) => t.code)), [itemTypes]);
+  const selectable = useMemo(
+    () => paymentTypes.filter((t) => itemTypeCodes.has(t.code)),
+    [paymentTypes, itemTypeCodes],
+  );
+
   const effectiveId = item.payment_type_id ?? lotePaymentTypeId ?? null;
   const isOverride = !!item.payment_type_id && item.payment_type_id !== lotePaymentTypeId;
-  const current = list.find((t) => t.id === effectiveId) ?? null;
-  const loteType = list.find((t) => t.id === lotePaymentTypeId) ?? null;
+  const current = paymentTypes.find((t) => t.id === effectiveId) ?? null;
+  const loteType = paymentTypes.find((t) => t.id === lotePaymentTypeId) ?? null;
 
   const attendIds = useMemo(() => {
     const att = String(item.attendance_number ?? "").trim();
@@ -59,10 +73,10 @@ export function PaymentTypeOverrideAction({
   const hasAttendanceSiblings = attendIds.length > 1;
   const [scope, setScope] = useState<"item" | "attendance">("item");
 
-  if (hidden || !canEdit || !onChange || list.length === 0) return null;
+  if (hidden || !canEdit || !onChange || selectable.length === 0) return null;
 
   const applyChange = (newTypeId: string) => {
-    const type = list.find((t) => t.id === newTypeId);
+    const type = selectable.find((t) => t.id === newTypeId);
     if (!type) return;
     const ids = scope === "attendance" && hasAttendanceSiblings ? attendIds : [item.id];
     onChange(ids, newTypeId, type.label);
@@ -70,8 +84,12 @@ export function PaymentTypeOverrideAction({
 
   const resetToLote = () => {
     if (!lotePaymentTypeId) return;
-    applyChange(lotePaymentTypeId);
+    const type = paymentTypes.find((t) => t.id === lotePaymentTypeId);
+    if (!type) return;
+    const ids = scope === "attendance" && hasAttendanceSiblings ? attendIds : [item.id];
+    onChange(ids, lotePaymentTypeId, type.label);
   };
+
 
   return (
     <div
@@ -100,7 +118,7 @@ export function PaymentTypeOverrideAction({
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {list.map((t) => (
+            {selectable.map((t) => (
               <SelectItem key={t.id} value={t.id} className="text-xs">
                 <div className="flex items-center gap-2">
                   <span>{t.label}</span>

@@ -3662,6 +3662,57 @@ export type Database = {
           },
         ]
       }
+      item_types: {
+        Row: {
+          active: boolean
+          code: string
+          color: string | null
+          created_at: string
+          default_function: string | null
+          description: string | null
+          id: string
+          is_default_when_no_tuss: boolean
+          label: string
+          requires_tuss: boolean
+          sort_order: number
+          tuss_codes_extra: string[] | null
+          tuss_default: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          color?: string | null
+          created_at?: string
+          default_function?: string | null
+          description?: string | null
+          id?: string
+          is_default_when_no_tuss?: boolean
+          label: string
+          requires_tuss?: boolean
+          sort_order?: number
+          tuss_codes_extra?: string[] | null
+          tuss_default?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          color?: string | null
+          created_at?: string
+          default_function?: string | null
+          description?: string | null
+          id?: string
+          is_default_when_no_tuss?: boolean
+          label?: string
+          requires_tuss?: boolean
+          sort_order?: number
+          tuss_codes_extra?: string[] | null
+          tuss_default?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       learned_pattern_events: {
         Row: {
           created_at: string
@@ -5058,6 +5109,8 @@ export type Database = {
           item_hash: string | null
           item_origem: string | null
           item_origin: string
+          item_type_id: string | null
+          item_type_source: string | null
           manual_composition: Json | null
           manual_edit: boolean
           manual_entered_at: string | null
@@ -5184,6 +5237,8 @@ export type Database = {
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
+          item_type_id?: string | null
+          item_type_source?: string | null
           manual_composition?: Json | null
           manual_edit?: boolean
           manual_entered_at?: string | null
@@ -5310,6 +5365,8 @@ export type Database = {
           item_hash?: string | null
           item_origem?: string | null
           item_origin?: string
+          item_type_id?: string | null
+          item_type_source?: string | null
           manual_composition?: Json | null
           manual_edit?: boolean
           manual_entered_at?: string | null
@@ -5426,6 +5483,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_items_item_type_id_fkey"
+            columns: ["item_type_id"]
+            isOneToOne: false
+            referencedRelation: "item_types"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payment_items_manual_intervention_reason_id_fkey"
             columns: ["manual_intervention_reason_id"]
             isOneToOne: false
@@ -5537,6 +5601,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_models: {
+        Row: {
+          active: boolean
+          allow_mixed_item_types: boolean
+          calc_strategy: string | null
+          code: string
+          color: string | null
+          created_at: string
+          description: string | null
+          expected_headers: Json | null
+          id: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allow_mixed_item_types?: boolean
+          calc_strategy?: string | null
+          code: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          expected_headers?: Json | null
+          id?: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allow_mixed_item_types?: boolean
+          calc_strategy?: string | null
+          code?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          expected_headers?: Json | null
+          id?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       payment_observations: {
         Row: {
@@ -6420,6 +6529,7 @@ export type Database = {
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
           payment_mode: string
+          payment_model_id: string | null
           payment_track: Database["public"]["Enums"]["payment_track"] | null
           payment_type: string | null
           payment_type_id: string | null
@@ -6478,6 +6588,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_mode?: string
+          payment_model_id?: string | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           payment_type_id?: string | null
@@ -6536,6 +6647,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_mode?: string
+          payment_model_id?: string | null
           payment_track?: Database["public"]["Enums"]["payment_track"] | null
           payment_type?: string | null
           payment_type_id?: string | null
@@ -6572,6 +6684,13 @@ export type Database = {
             columns: ["mixed_parecer_payment_type_id"]
             isOneToOne: false
             referencedRelation: "payment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_payment_model_id_fkey"
+            columns: ["payment_model_id"]
+            isOneToOne: false
+            referencedRelation: "payment_models"
             referencedColumns: ["id"]
           },
           {
@@ -7476,6 +7595,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          item_type_id: string | null
           observation: string | null
           sector_classified: string
           updated_at: string
@@ -7488,6 +7608,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          item_type_id?: string | null
           observation?: string | null
           sector_classified?: string
           updated_at?: string
@@ -7500,11 +7621,20 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          item_type_id?: string | null
           observation?: string | null
           sector_classified?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "procedure_classifications_item_type_id_fkey"
+            columns: ["item_type_id"]
+            isOneToOne: false
+            referencedRelation: "item_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       procedure_specialty_map: {
         Row: {
@@ -8983,6 +9113,7 @@ export type Database = {
           include_auxiliaries: boolean
           includes_holidays: boolean
           instrumentador_pct: number | null
+          item_type_id: string | null
           limiar_alerta_tipo:
             | Database["public"]["Enums"]["threshold_type"]
             | null
@@ -9006,6 +9137,7 @@ export type Database = {
           package_opinions_count: boolean
           package_subtype: string | null
           package_visits_count: boolean
+          payment_model_id: string | null
           payment_type_id: string | null
           prevent_external_fallback: boolean
           reference_table_id: string | null
@@ -9060,6 +9192,7 @@ export type Database = {
           include_auxiliaries?: boolean
           includes_holidays?: boolean
           instrumentador_pct?: number | null
+          item_type_id?: string | null
           limiar_alerta_tipo?:
             | Database["public"]["Enums"]["threshold_type"]
             | null
@@ -9083,6 +9216,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          payment_model_id?: string | null
           payment_type_id?: string | null
           prevent_external_fallback?: boolean
           reference_table_id?: string | null
@@ -9137,6 +9271,7 @@ export type Database = {
           include_auxiliaries?: boolean
           includes_holidays?: boolean
           instrumentador_pct?: number | null
+          item_type_id?: string | null
           limiar_alerta_tipo?:
             | Database["public"]["Enums"]["threshold_type"]
             | null
@@ -9160,6 +9295,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          payment_model_id?: string | null
           payment_type_id?: string | null
           prevent_external_fallback?: boolean
           reference_table_id?: string | null
@@ -9188,6 +9324,20 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rules_item_type_id_fkey"
+            columns: ["item_type_id"]
+            isOneToOne: false
+            referencedRelation: "item_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rules_payment_model_id_fkey"
+            columns: ["payment_model_id"]
+            isOneToOne: false
+            referencedRelation: "payment_models"
             referencedColumns: ["id"]
           },
           {
