@@ -10688,7 +10688,23 @@ export type Database = {
       v_legacy_payment_type_divergence: {
         Row: {
           context_id: string | null
+          divergence_kind: string | null
           legacy_code: string | null
+          legacy_has_new_equivalent: boolean | null
+          legacy_id: string | null
+          new_code: string | null
+          new_id: string | null
+          row_id: string | null
+          table_name: string | null
+        }
+        Relationships: []
+      }
+      v_legacy_payment_type_orphans: {
+        Row: {
+          context_id: string | null
+          divergence_kind: string | null
+          legacy_code: string | null
+          legacy_has_new_equivalent: boolean | null
           legacy_id: string | null
           new_code: string | null
           new_id: string | null
