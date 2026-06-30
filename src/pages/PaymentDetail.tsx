@@ -1616,8 +1616,30 @@ const PaymentDetail = () => {
       // Limpa apenas itens; grupos serão sincronizados (não apagados em massa)
       // para que as empresas continuem visíveis na tela durante a reanálise pela IA.
       // O motor (analyze-payment) atualiza totais e remove grupos órfãos ao final.
-      const { error: delItemsErr } = await supabase.from("payment_items").delete().eq("payment_id", id);
-      if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
+      //
+      // IMPORTANTE: o DELETE em massa por `payment_id` dispara vários triggers
+      // (sync_company_groups por STATEMENT, invalidate_financials por ROW,
+      // recalc_priority) e cascades em ~12 tabelas filhas. Em lotes médios
+      // isso estoura o `statement_timeout` do role `authenticated` (~8s) e o
+      // PostgREST devolve "canceling statement due to statement timeout".
+      // Para evitar, paginamos os ids e deletamos em chunks pequenos.
+      const DEL_CHUNK = 100;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: idsBatch, error: idsErr } = await supabase
+          .from("payment_items")
+          .select("id")
+          .eq("payment_id", id)
+          .limit(DEL_CHUNK);
+        if (idsErr) { toast({ title: "Falha ao listar itens p/ limpar", description: idsErr.message, variant: "destructive" }); return; }
+        if (!idsBatch || idsBatch.length === 0) break;
+        const { error: delItemsErr } = await supabase
+          .from("payment_items")
+          .delete()
+          .in("id", idsBatch.map((r) => r.id));
+        if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
+        if (idsBatch.length < DEL_CHUNK) break;
+      }
 
       // Sincronização eager de grupos: agrega por empresa a partir das linhas
       // recém-importadas e faz upsert/insert; remove grupos cuja empresa não
