@@ -272,10 +272,10 @@ export const formatDate = (value: string | null | undefined) => {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 };
 
-// payment_type passou a ser texto livre vinculado à tabela mestre public.payment_types.
-// Mantemos os 4 códigos seed como fallback de label/descrição para componentes
-// síncronos (badges em listagens, snapshots de auditoria). Componentes que precisam
-// da lista completa e atualizada devem ler de payment_types via usePaymentTypes().
+// Códigos seed do payment_kind (producao/remessa/valor_fixo/plantao) usados como
+// fallback síncrono de label/descrição em badges e snapshots de auditoria. Para
+// listagens dinâmicas, ler de `payment_models` via `usePaymentModels()` (LOTE)
+// ou da view `payment_types_unified` via `usePaymentTypes()` (LOTE+ITEM).
 export type PaymentType = string;
 export type PaymentKind = Database["public"]["Enums"]["payment_kind"];
 

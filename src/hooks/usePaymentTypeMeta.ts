@@ -1,10 +1,12 @@
 /**
- * Carrega o subconjunto de `payment_types` necessário para o parse de planilhas
- * e o diálogo de mapeamento de colunas. É a fonte de verdade compartilhada
- * entre o fluxo de IMPORTAÇÃO (NewPayment) e o de REIMPORTAÇÃO
- * (CompanyAnalysis / PaymentDetail). Sem isso, a tela de reimportação
- * exige TUSS/Função mesmo quando o tipo (parecer, visita, plantão fixo)
- * já injeta esses valores automaticamente.
+ * @deprecated Sub-fase D2 vai remover. Use `usePaymentModels` (modelo do lote)
+ * ou `useItemTypes` (tipo do item) conforme o caso. Este hook lê da tabela
+ * legada `payment_types` que continua sendo populada pelo trigger de sync da
+ * Fase B', mas será dropada na D2.
+ *
+ * Mantido enquanto o fluxo de reimportação (PaymentDetail / CompanyAnalysis)
+ * depende dos campos `requires_tuss_in_sheet` e `category` que ainda não
+ * existem nas tabelas novas (`item_types` / `payment_models`).
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
