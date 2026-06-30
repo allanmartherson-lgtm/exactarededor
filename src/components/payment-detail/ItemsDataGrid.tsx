@@ -118,7 +118,7 @@ function SpecialCaseItemAction({
 }
 
 /** Botão "Exceção do cálculo" para um item específico — só aparece quando o
- *  cálculo aplicado ao item tem `payment_type_id` setado (ex.: Parecer).
+ *  cálculo aplicado ao item tem `item_type_id` setado (ex.: Parecer).
  *  Marcar faz o motor pular esse cálculo e cair no próximo elegível. */
 function CalcExceptionItemAction({
   paymentId,
@@ -134,7 +134,7 @@ function CalcExceptionItemAction({
 }) {
   const [open, setOpen] = useState(false);
   const [calcMeta, setCalcMeta] = useState<{
-    payment_type_id: string | null;
+    item_type_id: string | null;
     label: string | null;
   } | null>(null);
 
@@ -149,7 +149,7 @@ function CalcExceptionItemAction({
     let cancelled = false;
     supabase
       .from("rule_calculations")
-      .select("payment_type_id,label")
+      .select("item_type_id,label")
       .eq("id", calcId)
       .maybeSingle()
       .then(({ data }) => {
@@ -157,7 +157,7 @@ function CalcExceptionItemAction({
         const d = data as any;
         setCalcMeta(
           d
-            ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null }
+            ? { item_type_id: d.item_type_id ?? null, label: d.label ?? null }
             : null,
         );
       });
@@ -166,7 +166,7 @@ function CalcExceptionItemAction({
     };
   }, [calcId]);
 
-  const hasTypedCalc = !!calcMeta?.payment_type_id;
+  const hasTypedCalc = !!calcMeta?.item_type_id;
   if (!isMarked && !hasTypedCalc) return null;
 
   return (
@@ -252,23 +252,23 @@ function CalcExceptionItemIconAction({
   };
 }) {
   const [open, setOpen] = useState(false);
-  const [calcMeta, setCalcMeta] = useState<{ payment_type_id: string | null; label: string | null } | null>(null);
+  const [calcMeta, setCalcMeta] = useState<{ item_type_id: string | null; label: string | null } | null>(null);
   const calcId = item.applied_calc_id ?? null;
   const isMarked = !!item.calc_exception_skip;
 
   useEffect(() => {
     if (!calcId) { setCalcMeta(null); return; }
     let cancelled = false;
-    supabase.from("rule_calculations").select("payment_type_id,label").eq("id", calcId).maybeSingle()
+    supabase.from("rule_calculations").select("item_type_id,label").eq("id", calcId).maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
         const d = data as any;
-        setCalcMeta(d ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null } : null);
+        setCalcMeta(d ? { item_type_id: d.item_type_id ?? null, label: d.label ?? null } : null);
       });
     return () => { cancelled = true; };
   }, [calcId]);
 
-  const hasTypedCalc = !!calcMeta?.payment_type_id;
+  const hasTypedCalc = !!calcMeta?.item_type_id;
   if (!isMarked && !hasTypedCalc) return null;
 
   return (
@@ -388,22 +388,22 @@ function RowMoreActionsMenu({
 }) {
   const [calcOpen, setCalcOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [calcMeta, setCalcMeta] = useState<{ payment_type_id: string | null; label: string | null } | null>(null);
+  const [calcMeta, setCalcMeta] = useState<{ item_type_id: string | null; label: string | null } | null>(null);
   const calcId = item.applied_calc_id ?? null;
 
   useEffect(() => {
     if (!calcId) { setCalcMeta(null); return; }
     let cancelled = false;
-    supabase.from("rule_calculations").select("payment_type_id,label").eq("id", calcId).maybeSingle()
+    supabase.from("rule_calculations").select("item_type_id,label").eq("id", calcId).maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
         const d = data as any;
-        setCalcMeta(d ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null } : null);
+        setCalcMeta(d ? { item_type_id: d.item_type_id ?? null, label: d.label ?? null } : null);
       });
     return () => { cancelled = true; };
   }, [calcId]);
 
-  const hasTypedCalc = !!calcMeta?.payment_type_id;
+  const hasTypedCalc = !!calcMeta?.item_type_id;
   const calcMarked = !!item.calc_exception_skip;
   const manualMarked = !!item.manual_intervention_reason_id;
   const isAuto = item.manual_intervention_source === "auto_parecer_report";
@@ -582,8 +582,8 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
 
 /**
  * Tipo de pagamento por item (mostra/alterna entre Parecer × Visita).
- * Reusa `payment_items.payment_type_id`: cada item pode pertencer a um
- * payment_type diferente do tipo do lote — é assim que a base mista
+ * Reusa `payment_items.item_type_id`: cada item pode pertencer a um
+ * item_type diferente do tipo do lote — é assim que a base mista
  * (Parecer Adulto com algumas visitas) é tratada sem criar lotes separados.
  */
 function CaseSubtypeBadge({
@@ -607,8 +607,8 @@ function CaseSubtypeBadge({
   ) => void;
   canEdit: boolean;
 }) {
-  const itemTypeId = ((item as any).payment_type_id ?? null) as string | null;
-  const source = ((item as any).payment_type_source ?? null) as string | null;
+  const itemTypeId = ((item as any).item_type_id ?? (item as any).payment_type_id ?? null) as string | null;
+  const source = ((item as any).item_type_source ?? (item as any).payment_type_source ?? null) as string | null;
   const effectiveTypeId = itemTypeId ?? lotePaymentTypeId;
   const isVisita = !!visitaPaymentTypeId && effectiveTypeId === visitaPaymentTypeId;
   const isParecer = !!parecerPaymentTypeId && effectiveTypeId === parecerPaymentTypeId;
@@ -923,8 +923,8 @@ export function ItemsDataGrid({
   }>({ lote: null, visita: null, parecer: null });
   useEffect(() => {
     if (!isParecerPayment) return;
-    const firstWithType = items.find((i: any) => i.payment_type_id);
-    const loteId = (firstWithType as any)?.payment_type_id ?? null;
+    const firstWithType = items.find((i: any) => i.item_type_id ?? i.payment_type_id);
+    const loteId = ((firstWithType as any)?.item_type_id ?? (firstWithType as any)?.payment_type_id ?? null) as string | null;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -1026,11 +1026,15 @@ export function ItemsDataGrid({
       const beforeById = new Map<string, string | null>();
       for (const it of items) {
         if (itemIds.includes(it.id)) {
-          beforeById.set(it.id, ((it as any).payment_type_id ?? null) as string | null);
+          beforeById.set(it.id, ((it as any).item_type_id ?? (it as any).payment_type_id ?? null) as string | null);
         }
       }
 
+      // Escrita canônica em item_type_id; trigger sync_payment_items_type_columns
+      // espelha para payment_type_id (legacy) automaticamente.
       const reclassPatch: Record<string, unknown> = {
+        item_type_id: newTypeId,
+        item_type_source: "manual",
         payment_type_id: newTypeId,
         payment_type_source: "manual",
         reclassified_from_parecer: newTypeLabel === "Visita",
@@ -1774,7 +1778,7 @@ export function ItemsDataGrid({
     let parecer = 0;
     let visita = 0;
     for (const it of items) {
-      const tid = ((it as any).payment_type_id ?? lotePaymentTypeId) as string | null;
+      const tid = (((it as any).item_type_id ?? (it as any).payment_type_id) ?? lotePaymentTypeId) as string | null;
       if (tid === visitaPaymentTypeId) visita += 1;
       else if (tid === parecerPaymentTypeId || tid === lotePaymentTypeId) parecer += 1;
     }
@@ -4370,7 +4374,7 @@ function ItemDetailsRow({
   const specialCasePending = itemAny.special_case_status === "pending" && !!itemAny.special_case_code;
   const itemObs = observations.filter((o) => o.item_id === it.id);
   const [appliedCalcTypeMeta, setAppliedCalcTypeMeta] = useState<{
-    payment_type_id: string | null;
+    item_type_id: string | null;
     label: string | null;
   } | null>(null);
 
@@ -4383,14 +4387,14 @@ function ItemDetailsRow({
     let cancelled = false;
     supabase
       .from("rule_calculations")
-      .select("payment_type_id,label")
+      .select("item_type_id,label")
       .eq("id", calcId)
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
         const d = data as any;
         setAppliedCalcTypeMeta(
-          d ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null } : null,
+          d ? { item_type_id: d.item_type_id ?? null, label: d.label ?? null } : null,
         );
       });
     return () => {
@@ -4398,14 +4402,14 @@ function ItemDetailsRow({
     };
   }, [(it as any).applied_calc_id]);
 
-  const itemPaymentTypeId = ((it as any).payment_type_id ?? null) as string | null;
-  const isItemParecer = !!parecerPaymentTypeId && itemPaymentTypeId === parecerPaymentTypeId;
-  const isItemVisita = !!visitaPaymentTypeId && itemPaymentTypeId === visitaPaymentTypeId;
-  const calcPaymentTypeId = appliedCalcTypeMeta?.payment_type_id ?? null;
-  const calcIsParecer = !!parecerPaymentTypeId && calcPaymentTypeId === parecerPaymentTypeId;
-  const calcIsVisita = !!visitaPaymentTypeId && calcPaymentTypeId === visitaPaymentTypeId;
+  const itemTypeIdLocal = (((it as any).item_type_id ?? (it as any).payment_type_id) ?? null) as string | null;
+  const isItemParecer = !!parecerPaymentTypeId && itemTypeIdLocal === parecerPaymentTypeId;
+  const isItemVisita = !!visitaPaymentTypeId && itemTypeIdLocal === visitaPaymentTypeId;
+  const calcItemTypeId = appliedCalcTypeMeta?.item_type_id ?? null;
+  const calcIsParecer = !!parecerPaymentTypeId && calcItemTypeId === parecerPaymentTypeId;
+  const calcIsVisita = !!visitaPaymentTypeId && calcItemTypeId === visitaPaymentTypeId;
   const subtypeMismatch =
-    !!itemPaymentTypeId && !!calcPaymentTypeId && itemPaymentTypeId !== calcPaymentTypeId;
+    !!itemTypeIdLocal && !!calcItemTypeId && itemTypeIdLocal !== calcItemTypeId;
   const parecerEvidence = ((it as any).parecer_evidence ?? null) as string | null;
   const reclassifiedFromParecer = (it as any).reclassified_from_parecer === true;
   const reclassReason = ((it as any).manual_intervention_notes ?? "").toString().trim();
