@@ -4357,7 +4357,7 @@ const NewPayment = () => {
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.payment_type_id)}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
 
