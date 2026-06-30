@@ -923,8 +923,8 @@ export function ItemsDataGrid({
   }>({ lote: null, visita: null, parecer: null });
   useEffect(() => {
     if (!isParecerPayment) return;
-    const firstWithType = items.find((i: any) => i.payment_type_id);
-    const loteId = (firstWithType as any)?.payment_type_id ?? null;
+    const firstWithType = items.find((i: any) => i.item_type_id ?? i.payment_type_id);
+    const loteId = ((firstWithType as any)?.item_type_id ?? (firstWithType as any)?.payment_type_id ?? null) as string | null;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -1026,11 +1026,15 @@ export function ItemsDataGrid({
       const beforeById = new Map<string, string | null>();
       for (const it of items) {
         if (itemIds.includes(it.id)) {
-          beforeById.set(it.id, ((it as any).payment_type_id ?? null) as string | null);
+          beforeById.set(it.id, ((it as any).item_type_id ?? (it as any).payment_type_id ?? null) as string | null);
         }
       }
 
+      // Escrita canônica em item_type_id; trigger sync_payment_items_type_columns
+      // espelha para payment_type_id (legacy) automaticamente.
       const reclassPatch: Record<string, unknown> = {
+        item_type_id: newTypeId,
+        item_type_source: "manual",
         payment_type_id: newTypeId,
         payment_type_source: "manual",
         reclassified_from_parecer: newTypeLabel === "Visita",
@@ -1774,7 +1778,7 @@ export function ItemsDataGrid({
     let parecer = 0;
     let visita = 0;
     for (const it of items) {
-      const tid = ((it as any).payment_type_id ?? lotePaymentTypeId) as string | null;
+      const tid = (((it as any).item_type_id ?? (it as any).payment_type_id) ?? lotePaymentTypeId) as string | null;
       if (tid === visitaPaymentTypeId) visita += 1;
       else if (tid === parecerPaymentTypeId || tid === lotePaymentTypeId) parecer += 1;
     }
@@ -4370,7 +4374,7 @@ function ItemDetailsRow({
   const specialCasePending = itemAny.special_case_status === "pending" && !!itemAny.special_case_code;
   const itemObs = observations.filter((o) => o.item_id === it.id);
   const [appliedCalcTypeMeta, setAppliedCalcTypeMeta] = useState<{
-    payment_type_id: string | null;
+    item_type_id: string | null;
     label: string | null;
   } | null>(null);
 
@@ -4383,14 +4387,14 @@ function ItemDetailsRow({
     let cancelled = false;
     supabase
       .from("rule_calculations")
-      .select("payment_type_id,label")
+      .select("item_type_id,label")
       .eq("id", calcId)
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
         const d = data as any;
         setAppliedCalcTypeMeta(
-          d ? { payment_type_id: d.payment_type_id ?? null, label: d.label ?? null } : null,
+          d ? { item_type_id: d.item_type_id ?? null, label: d.label ?? null } : null,
         );
       });
     return () => {
@@ -4398,14 +4402,14 @@ function ItemDetailsRow({
     };
   }, [(it as any).applied_calc_id]);
 
-  const itemPaymentTypeId = ((it as any).payment_type_id ?? null) as string | null;
-  const isItemParecer = !!parecerPaymentTypeId && itemPaymentTypeId === parecerPaymentTypeId;
-  const isItemVisita = !!visitaPaymentTypeId && itemPaymentTypeId === visitaPaymentTypeId;
-  const calcPaymentTypeId = appliedCalcTypeMeta?.payment_type_id ?? null;
-  const calcIsParecer = !!parecerPaymentTypeId && calcPaymentTypeId === parecerPaymentTypeId;
-  const calcIsVisita = !!visitaPaymentTypeId && calcPaymentTypeId === visitaPaymentTypeId;
+  const itemTypeIdLocal = (((it as any).item_type_id ?? (it as any).payment_type_id) ?? null) as string | null;
+  const isItemParecer = !!parecerPaymentTypeId && itemTypeIdLocal === parecerPaymentTypeId;
+  const isItemVisita = !!visitaPaymentTypeId && itemTypeIdLocal === visitaPaymentTypeId;
+  const calcItemTypeId = appliedCalcTypeMeta?.item_type_id ?? null;
+  const calcIsParecer = !!parecerPaymentTypeId && calcItemTypeId === parecerPaymentTypeId;
+  const calcIsVisita = !!visitaPaymentTypeId && calcItemTypeId === visitaPaymentTypeId;
   const subtypeMismatch =
-    !!itemPaymentTypeId && !!calcPaymentTypeId && itemPaymentTypeId !== calcPaymentTypeId;
+    !!itemTypeIdLocal && !!calcItemTypeId && itemTypeIdLocal !== calcItemTypeId;
   const parecerEvidence = ((it as any).parecer_evidence ?? null) as string | null;
   const reclassifiedFromParecer = (it as any).reclassified_from_parecer === true;
   const reclassReason = ((it as any).manual_intervention_notes ?? "").toString().trim();
