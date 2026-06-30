@@ -132,7 +132,7 @@ Saída CORRETA — UMA regra:
     "severity": "aviso",
     "scope": "master",
     "sectors": ["consulta"],
-    "payment_type_code": "consulta",
+    "item_type_code": "consulta",
     "calculations": [
       { "label": "Cardiologia",      "calculation_type": "valor_fixo", "fixed_amount": 130, "specialties": ["Cardiologia"] },
       { "label": "Endocrinologia",   "calculation_type": "valor_fixo", "fixed_amount": 130, "specialties": ["Endocrinologia"] },
