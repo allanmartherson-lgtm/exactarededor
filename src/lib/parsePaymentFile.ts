@@ -54,7 +54,13 @@ export interface ParsedRow {
   raw_data: Record<string, unknown>;
   tipo_linha: LineType;
   line_issues: LineIssue[];
+  /** Override de item_type aplicado pelo parser (ex.: lote Consulta com TUSS
+   * que não bate com consulta.tuss_default/extras → reclassifica para
+   * Procedimento). Consumido por NewPayment/PaymentDetail ao montar
+   * payment_items.item_type_id. */
+  payment_type_id_override?: string | null;
 }
+
 
 export interface CompanyRow { id: string; name: string; aliases: string[] }
 
@@ -635,8 +641,15 @@ export interface ParseOptions {
     tuss_default?: string | null;
     requires_tuss_in_sheet?: boolean;
     default_function?: string | null;
+    /** Códigos TUSS extras aceitos como "ainda é Consulta" (além do tuss_default). */
+    tuss_codes_extra?: string[] | null;
+    /** item_types.id para onde reclassificar quando o lote é Consulta e o
+     * TUSS da planilha não casa com {tuss_default} ∪ tuss_codes_extra.
+     * Tipicamente o id de "Procedimento". */
+    dynamic_fallback_item_type_id?: string | null;
   } | null;
 }
+
 
 const PARECER_RESPONSE_DATE_KEYS = [
   "dt resposta parecer", "dt. resposta parecer", "data resposta parecer",
@@ -828,6 +841,7 @@ export const parsePaymentFile = async (
     //  - default_function → preenche doctor_role vazio (ex.: "Parecerista");
     //  - tipos por evento (que injetam função padrão) não têm dimensão de setor —
     //    a coluna de setor é zerada para o lookup estrito não tentar resolver.
+    let payment_type_id_override: string | null = null;
     if (paymentTypeMeta) {
       const procFixed =
         !!paymentTypeMeta.tuss_default || paymentTypeMeta.requires_tuss_in_sheet === false;
@@ -837,7 +851,34 @@ export const parsePaymentFile = async (
       // (sempre sobrescreve) até decidirmos migrá-los também.
       const labelLower = (paymentTypeMeta.label || "").toLowerCase();
       const isConsultaHybrid = labelLower.includes("consulta");
-      if (procFixed) {
+
+      // Conjunto de TUSS aceitos como "ainda é Consulta" — default + extras
+      // cadastrados em item_types.tuss_codes_extra.
+      const normTuss = (s: string | null | undefined) =>
+        String(s ?? "").replace(/\D+/g, "");
+      const acceptedConsultaTuss = new Set<string>();
+      if (paymentTypeMeta.tuss_default) acceptedConsultaTuss.add(normTuss(paymentTypeMeta.tuss_default));
+      (paymentTypeMeta.tuss_codes_extra ?? []).forEach((c) => {
+        const n = normTuss(c);
+        if (n) acceptedConsultaTuss.add(n);
+      });
+
+      // Reclassificação para tipo dinâmico (Procedimento): lote Consulta + planilha
+      // trouxe um TUSS que NÃO é de consulta → não é consulta, vira Procedimento.
+      // Quando isso acontece, planilha vence em tudo (procedure_code e procedure_name)
+      // e nada de imputação default.
+      const planilhaTussNorm = normTuss(base.procedure_code);
+      const shouldReclassifyOutOfConsulta =
+        isConsultaHybrid
+        && !!planilhaTussNorm
+        && !acceptedConsultaTuss.has(planilhaTussNorm)
+        && !!paymentTypeMeta.dynamic_fallback_item_type_id;
+
+      if (shouldReclassifyOutOfConsulta) {
+        payment_type_id_override = paymentTypeMeta.dynamic_fallback_item_type_id ?? null;
+        (base.raw_data as Record<string, unknown>).__reclassified_from_consulta = planilhaTussNorm;
+        // procedure_code/name da planilha permanecem como estão; nada de default.
+      } else if (procFixed) {
         const planilhaTemTuss = !!base.procedure_code;
         const planilhaTemNome = !!base.procedure_name;
         if (paymentTypeMeta.tuss_default && (!isConsultaHybrid || !planilhaTemTuss)) {
@@ -870,7 +911,8 @@ export const parsePaymentFile = async (
 
     const explicitType = extractExplicitItemType(row);
     const tipo_linha = explicitType ?? classifyLine(base, paymentKind || null);
-    const withType = { ...base, tipo_linha };
+    const withType = { ...base, tipo_linha, payment_type_id_override };
+
 
     const line_issues = validateLine(withType);
     if (accessRouteNorm.fallback && accessRouteNorm.raw) {

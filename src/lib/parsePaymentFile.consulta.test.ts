@@ -88,3 +88,45 @@ describe("parsePaymentFile — regra híbrida Consulta", () => {
     expect(raw.__procedure_name_defaulted).toBeUndefined();
   });
 });
+
+describe("parsePaymentFile — reclassificação Consulta → Procedimento", () => {
+  const META_WITH_FALLBACK = {
+    ...CONSULTA_META,
+    tuss_codes_extra: ["10101020"],
+    dynamic_fallback_item_type_id: "procedimento-item-type-id",
+  };
+
+  it("planilha com TUSS que NÃO é de consulta: marca override e mantém dados da planilha", async () => {
+    const file = makeFile([{
+      ...BASE_ROW,
+      "Código TUSS": "40601137",
+      "Procedimento": "Citopatologia Cérvico-Vaginal",
+    }]);
+    const bucket = await parsePaymentFile(file, [], "consulta", { paymentTypeMeta: META_WITH_FALLBACK });
+    const r = bucket.rows[0];
+    expect(r.payment_type_id_override).toBe("procedimento-item-type-id");
+    expect(r.procedure_code).toBe("40601137");
+    expect(r.procedure_name).toBe("Citopatologia Cérvico-Vaginal");
+    const raw = (r.raw_data ?? {}) as Record<string, unknown>;
+    expect(raw.__reclassified_from_consulta).toBe("40601137");
+    expect(raw.__tuss_default_applied).toBeUndefined();
+    expect(raw.__procedure_name_defaulted).toBeUndefined();
+  });
+
+  it("planilha com TUSS extra cadastrado em consulta: permanece Consulta (sem override)", async () => {
+    const file = makeFile([{ ...BASE_ROW, "Código TUSS": "10101020" }]);
+    const bucket = await parsePaymentFile(file, [], "consulta", { paymentTypeMeta: META_WITH_FALLBACK });
+    const r = bucket.rows[0];
+    expect(r.payment_type_id_override).toBeFalsy();
+    expect(r.procedure_code).toBe("10101020");
+  });
+
+  it("sem fallback configurado: não reclassifica mesmo com TUSS estranho", async () => {
+    const file = makeFile([{ ...BASE_ROW, "Código TUSS": "40601137" }]);
+    const bucket = await parsePaymentFile(file, [], "consulta", { paymentTypeMeta: CONSULTA_META });
+    const r = bucket.rows[0];
+    expect(r.payment_type_id_override).toBeFalsy();
+    expect(r.procedure_code).toBe("40601137");
+  });
+});
+

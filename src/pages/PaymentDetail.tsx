@@ -1519,8 +1519,24 @@ const PaymentDetail = () => {
       );
       const companies = companiesData.map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
 
+      // Pré-carrega catálogo de item_types para (a) achar id de "procedimento"
+      // como fallback dinâmico quando o lote é Consulta e (b) extras de TUSS
+      // aceitos pela Consulta.
+      let dynamicFallbackItemTypeId: string | null = null;
+      let consultaTussExtras: string[] = [];
+      try {
+        const { data: itemTypes } = await supabase
+          .from("item_types" as any)
+          .select("id,code,tuss_codes_extra");
+        const it = (itemTypes ?? []) as any[];
+        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const consulta = it.find((t) => t.code === "consulta");
+        consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+      } catch { /* noop — fallback ausente apenas desativa reclassificação */ }
+
       let allRows: any[] = [];
       let fileNames: string[] = [];
+
 
       for (const file of files) {
         // Tenta achar template salvo cuja assinatura bata com os headers desta planilha
@@ -1572,7 +1588,10 @@ const PaymentDetail = () => {
             tuss_default: paymentTypeMeta.tuss_default,
             requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
             default_function: paymentTypeMeta.default_function,
+            tuss_codes_extra: consultaTussExtras,
+            dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
           } : null,
+
         });
 
         if (bucket.rows.length > 0) {
@@ -1678,7 +1697,14 @@ const PaymentDetail = () => {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        // Override do parser: lote Consulta com TUSS fora dos códigos da Consulta
+        // → reclassifica para "Procedimento" já na importação. Sem override,
+        // mantém o tipo padrão do lote (resolvido pelo motor).
+        ...(r.payment_type_id_override
+          ? { item_type_id: r.payment_type_id_override, item_type_source: "base" as const }
+          : {}),
       }));
+
 
       // Inserção em lotes de 1000 para evitar limites do Supabase
       const chunkSize = 1000;
@@ -1758,6 +1784,19 @@ const PaymentDetail = () => {
       );
       const companies = companiesData.map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
 
+      // Catálogo para reclassificação automática (lote Consulta + TUSS fora da consulta → Procedimento).
+      let dynamicFallbackItemTypeId: string | null = null;
+      let consultaTussExtras: string[] = [];
+      try {
+        const { data: itemTypes } = await supabase
+          .from("item_types" as any)
+          .select("id,code,tuss_codes_extra");
+        const it = (itemTypes ?? []) as any[];
+        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const consulta = it.find((t) => t.code === "consulta");
+        consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+      } catch { /* noop */ }
+
       const norm = (s: string) => (s ?? "").trim().toLowerCase();
       const { data: existingGroups } = await supabase
         .from("payment_company_groups")
@@ -1767,6 +1806,7 @@ const PaymentDetail = () => {
 
       let allRows: any[] = [];
       const fileNames: string[] = [];
+
 
       for (const file of files) {
         const { headers, sampleRow } = await inspectFileHeaders(file);
@@ -1812,7 +1852,10 @@ const PaymentDetail = () => {
             tuss_default: paymentTypeMeta.tuss_default,
             requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
             default_function: paymentTypeMeta.default_function,
+            tuss_codes_extra: consultaTussExtras,
+            dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
           } : null,
+
         });
 
         if (bucket.rows.length > 0) {
@@ -1907,7 +1950,11 @@ const PaymentDetail = () => {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        ...(r.payment_type_id_override
+          ? { item_type_id: r.payment_type_id_override, item_type_source: "base" as const }
+          : {}),
       }));
+
       const chunkSize = 1000;
       for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
         const chunk = itemsToInsert.slice(i, i + chunkSize);

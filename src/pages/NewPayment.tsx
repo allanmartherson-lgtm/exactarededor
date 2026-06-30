@@ -568,7 +568,13 @@ const NewPayment = () => {
     expected_headers: string[];
     allow_mixed_subtypes: boolean;
     subtype_split_hint: SubtypeSplitHint;
+    /** TUSS extras aceitos como "ainda é Consulta" (vem de item_types.tuss_codes_extra). */
+    consulta_tuss_extras: string[];
+    /** item_types.id de "Procedimento" — destino quando lote é Consulta e o
+     * TUSS da planilha não bate com consulta. */
+    dynamic_fallback_item_type_id: string | null;
   };
+
   const [paymentModelMeta, setPaymentModelMeta] = useState<PaymentTypeMeta | null>(null);
   const paymentTypeMetaRef = useRef<PaymentTypeMeta | null>(null);
   useEffect(() => { paymentTypeMetaRef.current = paymentModelMeta; }, [paymentModelMeta]);
@@ -586,6 +592,21 @@ const NewPayment = () => {
         .maybeSingle();
       if (cancelled || !data) return;
       const hint = (data as any).subtype_split_hint ?? null;
+
+      // Carrega catálogo de item_types para reclassificação Consulta → Procedimento
+      // quando o TUSS da planilha não casar com consulta.tuss_default/extras.
+      let dynamicFallbackItemTypeId: string | null = null;
+      let consultaTussExtras: string[] = [];
+      try {
+        const { data: itemTypes } = await supabase
+          .from("item_types" as any)
+          .select("id,code,tuss_codes_extra");
+        const it = (itemTypes ?? []) as any[];
+        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const consulta = it.find((t) => t.code === "consulta");
+        consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+      } catch { /* noop */ }
+
       const meta: PaymentTypeMeta = {
         id: data.id,
         code: data.code,
@@ -597,8 +618,11 @@ const NewPayment = () => {
         expected_headers: Array.isArray((data as any).expected_headers) ? (data as any).expected_headers : [],
         allow_mixed_subtypes: !!(data as any).allow_mixed_subtypes,
         subtype_split_hint: hint && hint.column && Array.isArray(hint.patterns) ? hint as SubtypeSplitHint : null,
+        consulta_tuss_extras: consultaTussExtras,
+        dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
       };
       setPaymentModelMeta(meta);
+
       // Carrega labels dos tipos referenciados + o próprio
       const ids = new Set<string>([meta.id]);
       meta.subtype_split_hint?.patterns.forEach((p) => p.target_payment_type_id && ids.add(p.target_payment_type_id));
@@ -1121,24 +1145,51 @@ const NewPayment = () => {
       // Defaults só atuam quando a célula está vazia — analista pode sempre
       // sobrescrever pela própria planilha.
       const ptMeta = paymentTypeMetaRef.current;
+      let payment_type_id_override: string | null = null;
       if (ptMeta) {
         const procFixed = !!ptMeta.tuss_default || ptMeta.requires_tuss_in_sheet === false;
-        if (procFixed) {
-          // Tipo de evento com procedimento fixo (parecer/visita/consulta):
-          // SEMPRE sobrescrevemos procedure_code e procedure_name. Qualquer
-          // valor que tenha vindo da planilha (mapeamento errado, coluna de
-          // data, número solto) é descartado — o tipo é a fonte da verdade.
-          if (ptMeta.tuss_default) {
+        const labelLower = (ptMeta.label || "").toLowerCase();
+        const isConsultaHybrid = labelLower.includes("consulta");
+
+        // Conjunto de TUSS aceitos como "ainda é Consulta".
+        const normTuss = (s: string | null | undefined) => String(s ?? "").replace(/\D+/g, "");
+        const acceptedConsultaTuss = new Set<string>();
+        if (ptMeta.tuss_default) acceptedConsultaTuss.add(normTuss(ptMeta.tuss_default));
+        (ptMeta.consulta_tuss_extras ?? []).forEach((c) => {
+          const n = normTuss(c);
+          if (n) acceptedConsultaTuss.add(n);
+        });
+
+        // Reclassificação Consulta → Procedimento quando a planilha trouxe
+        // TUSS que não é de consulta. Planilha vence tudo, sem default.
+        const planilhaTussNorm = normTuss(base.procedure_code);
+        const shouldReclassifyOutOfConsulta =
+          isConsultaHybrid
+          && !!planilhaTussNorm
+          && !acceptedConsultaTuss.has(planilhaTussNorm)
+          && !!ptMeta.dynamic_fallback_item_type_id;
+
+        if (shouldReclassifyOutOfConsulta) {
+          payment_type_id_override = ptMeta.dynamic_fallback_item_type_id ?? null;
+          (base.raw_data as any).__reclassified_from_consulta = planilhaTussNorm;
+        } else if (procFixed) {
+          // Tipo fixo: regra híbrida para Consulta (planilha vence se trouxer),
+          // sempre-sobrescreve para Parecer/Visita.
+          const planilhaTemTuss = !!base.procedure_code;
+          const planilhaTemNome = !!base.procedure_name;
+          if (ptMeta.tuss_default && (!isConsultaHybrid || !planilhaTemTuss)) {
             base.procedure_code = ptMeta.tuss_default;
             (base.raw_data as any).__tuss_default_applied = ptMeta.tuss_default;
           }
-          const especDest = toStr(pick(rawRow, [
-            "espec dest", "espec. dest", "especialidade destino",
-            "especialidade do parecerista", "especialidade",
-          ]));
-          const baseName = ptMeta.label || "Procedimento";
-          base.procedure_name = especDest ? `${baseName} - ${especDest}` : baseName;
-          (base.raw_data as any).__procedure_name_defaulted = base.procedure_name;
+          if (!isConsultaHybrid || !planilhaTemNome) {
+            const especDest = toStr(pick(rawRow, [
+              "espec dest", "espec. dest", "especialidade destino",
+              "especialidade do parecerista", "especialidade",
+            ]));
+            const baseName = ptMeta.label || "Procedimento";
+            base.procedure_name = especDest ? `${baseName} - ${especDest}` : baseName;
+            (base.raw_data as any).__procedure_name_defaulted = base.procedure_name;
+          }
         } else {
           if (!base.procedure_code && ptMeta.tuss_default) {
             base.procedure_code = ptMeta.tuss_default;
@@ -1149,11 +1200,6 @@ const NewPayment = () => {
           base.doctor_role = ptMeta.default_function;
           (base.raw_data as any).__role_default_applied = ptMeta.default_function;
         }
-        // Tipos por evento (parecer, visita, plantão fixo etc.) que injetam
-        // função padrão NÃO possuem dimensão de setor — a planilha não traz
-        // coluna real de setor e qualquer valor capturado (ex.: "parecer"
-        // vindo de uma coluna de procedimento/serviço) só polui a Resolução
-        // de cadastros. Limpamos para o lookup estrito não tentar resolver.
         if (ptMeta.default_function) {
           base.sector = null;
           (base.raw_data as any).__sector_skipped_by_payment_type = true;
@@ -1166,8 +1212,8 @@ const NewPayment = () => {
       // cada linha. Vazio = mantém o tipo pai escolhido na criação da base.
       // Match é case-insensitive, regex se a string começar com `/` ou
       // substring caso contrário.
-      let payment_type_id_override: string | null = null;
       if (ptMeta?.allow_mixed_subtypes && ptMeta.subtype_split_hint) {
+
         const hint = ptMeta.subtype_split_hint;
         const cellRaw = row[hint.column];
         const cell = (cellRaw == null ? "" : String(cellRaw)).toLowerCase();
