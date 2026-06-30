@@ -2490,7 +2490,7 @@ const NewPayment = () => {
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
-        payment_type_id: paymentModelId,
+        payment_model_id: paymentModelId,
         has_mixed_parecer: mixedParecer.enabled,
         mixed_parecer_item_type_id: mixedParecer.enabled ? mixedParecer.item_type_id : null,
         import_mode: isHistoricoImport ? "historico" : "normal",
