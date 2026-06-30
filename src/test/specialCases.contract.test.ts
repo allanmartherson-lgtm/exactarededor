@@ -36,10 +36,12 @@ describe("Special cases — auth & validation", () => {
     expect(markFn).toMatch(/special_case_types[\s\S]{0,200}eq\(\s*"active"\s*,\s*true\s*\)/);
   });
 
-  it("mark-special-case define origin/status conforme role", () => {
-    // analista cria pending; gestao_medica/diretor/admin já approved.
+  it("mark-special-case define origin conforme role", () => {
+    // Status inicial agora é sempre "approved" (workflow simplificado);
+    // o origin ainda distingue gestao_medica vs analista para auditoria.
     expect(markFn).toMatch(/roleSet\.has\(\s*"gestao_medica"\s*\)/);
-    expect(markFn).toMatch(/initialStatus\s*=\s*isGestao\s*\?\s*"approved"\s*:\s*"pending"/);
+    expect(markFn).toMatch(/origin\s*=\s*isGestao\s*\?\s*"gestao_medica"\s*:\s*"analista"/);
+    expect(markFn).toMatch(/initialStatus\s*=\s*"approved"/);
   });
 
   it("mark-special-case notifica gestão médica quando pending", () => {

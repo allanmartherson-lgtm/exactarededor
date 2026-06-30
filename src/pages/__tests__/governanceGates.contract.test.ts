@@ -84,10 +84,10 @@ describe("PaymentDetail.tsx — gates de governança nos botões", () => {
     expect(enclosingGate(paymentDetail, "/> Editar lote")).toBe("canEditMeta");
   });
 
-  it("botão 'Reimportar base' está dentro do gate canReimport", () => {
-    // O label exato aparece duas vezes (DropdownMenuItem e AlertDialogTitle);
-    // usamos a marcação JSX única do item de menu.
-    expect(enclosingGate(paymentDetail, "/> Reimportar base")).toBe("canReimport");
+  it("botão 'Reimportar base' está dentro do gate canManagePaymentBase", () => {
+    // canManagePaymentBase = canReimport || canImportInitialPaymentBase.
+    // Cobre tanto reimport (lote com base) quanto primeiro import.
+    expect(enclosingGate(paymentDetail, '"Reimportar base"}')).toBe("canManagePaymentBase");
   });
 
   it("AssignmentCard recebe canAssume={canAssumeNow} (botão Assumir governado)", () => {
@@ -160,9 +160,14 @@ describe("Imports — páginas usam helpers do paymentFlow", () => {
 
 describe("Reanálise — sempre passa pelo orquestrador", () => {
   it("PaymentDetail, CompanyAnalysis e Payments disparam dispatch-payment-analysis", () => {
-    expect(paymentDetail).toMatch(/functions\.invoke\(\s*["']dispatch-payment-analysis["']/);
-    expect(companyAnalysis).toMatch(/functions\.invoke\(\s*["']dispatch-payment-analysis["']/);
-    expect(paymentsPage).toMatch(/functions\.invoke\(\s*["']dispatch-payment-analysis["']/);
+    // PaymentDetail usa o wrapper invokeDispatchAnalysis (que invoca
+    // a edge function). Aceitamos qualquer das duas formas.
+    const matchesDispatch = (src: string) =>
+      /functions\.invoke\(\s*["']dispatch-payment-analysis["']/.test(src) ||
+      /invokeDispatchAnalysis\s*\(/.test(src);
+    expect(matchesDispatch(paymentDetail)).toBe(true);
+    expect(matchesDispatch(companyAnalysis)).toBe(true);
+    expect(matchesDispatch(paymentsPage)).toBe(true);
   });
 
   it("nenhuma UI persistente chama analyze-payment direto (exceto simulação dry-run)", () => {
