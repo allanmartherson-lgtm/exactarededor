@@ -280,13 +280,17 @@ const pickField = (
   fieldKey: FieldKey,
   manual?: ManualMapping,
 ): unknown => {
-  if (manual && manual[fieldKey]) {
+  if (manual && Object.prototype.hasOwnProperty.call(manual, fieldKey)) {
     const header = manual[fieldKey]!;
     if (header in row) return row[header];
+    return undefined;
   }
   const def = FIELD_BY_KEY[fieldKey];
   return pick(row, def.keys, def.excludes ?? []);
 };
+
+const hasManualField = (manual: ManualMapping | undefined, fieldKey: FieldKey): boolean =>
+  !!manual && Object.prototype.hasOwnProperty.call(manual, fieldKey);
 
 const toNumber = (v: unknown): number => {
   if (v == null || v === "") return 0;
@@ -711,13 +715,22 @@ export const parsePaymentFile = async (
       return pickField(row, "procedure_date", manualMapping);
     })();
     const role = toStr(pickField(row, "doctor_role", manualMapping));
-    const repasse = toNumber(pickField(row, "gross_amount", manualMapping));
-    const procVal = toNumber(pickField(row, "procedure_amount", manualMapping));
-    // Fallback "valor bruto" só se NADA foi mapeado para gross_amount/procedure_amount
-    const grossFromAny = repasse
-      || (manualMapping?.gross_amount ? 0 : toNumber(pick(row, ["valor bruto","vlrbruto","bruto","valor"], ["repasse"])))
-      || procVal;
-    const procedureAmountFinal = procVal || grossFromAny || null;
+    const repasseRaw = pickField(row, "gross_amount", manualMapping);
+    const procValRaw = pickField(row, "procedure_amount", manualMapping);
+    const repasse = toNumber(repasseRaw);
+    const procVal = toNumber(procValRaw);
+    const grossSourceAuthoritative = hasManualField(manualMapping, "gross_amount") || repasseRaw !== undefined;
+    const procSourceAuthoritative = hasManualField(manualMapping, "procedure_amount") || procValRaw !== undefined;
+    const genericValue = toNumber(pick(row, ["valor bruto","vlrbruto","bruto","valor"], ["repasse"]));
+    // Repasse manual/canônico é autoritativo mesmo quando o valor é 0/vazio.
+    const grossFromAny = grossSourceAuthoritative
+      ? repasse
+      : (repasse || genericValue || procVal);
+    // Base do procedimento também preserva 0 quando mapeada/canônica; caso contrário,
+    // ainda pode usar o valor genérico da planilha como base de cálculo.
+    const procedureAmountFinal = procSourceAuthoritative
+      ? procVal
+      : (procVal || genericValue || grossFromAny || null);
 
     const rowCompanyNameRaw = toStr(pickField(row, "company_name", manualMapping));
     let rowMatchedCompany: CompanyRow | null = null;
