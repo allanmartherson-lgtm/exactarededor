@@ -162,9 +162,9 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       sectors: payment?.sectors ?? [],
       specialties: payment?.specialties ?? [],
       payment_type: payment?.payment_type ?? null,
-      // Mantém nome `payment_type_id` no PaymentContext apenas como compat
-      // com o rulesEngine atual (refactor desse contrato é a Onda 3). O valor
-      // já é o modelo do lote (payment_models.id) — UUIDs unificados com legacy.
+      payment_model: (payment as any)?.payment_model_id ?? null,
+      // @deprecated — alias legado: `rules.payment_type_id` foi descontinuada (Fase D).
+      // O motor não filtra mais regras inteiras por este campo.
       payment_type_id: (payment as any)?.payment_model_id ?? null,
       // Onda 1 — Regra de competência: a vigência é determinada pela
       // `procedure_date` de CADA item dentro do motor (analyzeItem).
