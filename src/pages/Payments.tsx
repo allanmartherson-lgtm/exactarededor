@@ -1248,6 +1248,7 @@ const Payments = () => {
           const advancedCount = [
             analystFilter !== "all",
             typeFilter !== "all",
+            itemTypeFilter !== "all",
             trackFilter !== "all",
             competenceFilter !== "all",
             ownerGroup !== "all",
