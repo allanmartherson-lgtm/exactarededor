@@ -10685,6 +10685,34 @@ export type Database = {
         }
         Relationships: []
       }
+      v_legacy_payment_type_divergence: {
+        Row: {
+          context_id: string | null
+          divergence_kind: string | null
+          legacy_code: string | null
+          legacy_has_new_equivalent: boolean | null
+          legacy_id: string | null
+          new_code: string | null
+          new_id: string | null
+          row_id: string | null
+          table_name: string | null
+        }
+        Relationships: []
+      }
+      v_legacy_payment_type_orphans: {
+        Row: {
+          context_id: string | null
+          divergence_kind: string | null
+          legacy_code: string | null
+          legacy_has_new_equivalent: boolean | null
+          legacy_id: string | null
+          new_code: string | null
+          new_id: string | null
+          row_id: string | null
+          table_name: string | null
+        }
+        Relationships: []
+      }
       v_payment_items_registration_issues: {
         Row: {
           company_id: string | null
@@ -10842,6 +10870,22 @@ export type Database = {
       _open_payment_ids_for_pool: {
         Args: { _competence?: string; _pool_id: string }
         Returns: string[]
+      }
+      _resolve_item_type_from_payment_type: {
+        Args: { _pt_id: string }
+        Returns: string
+      }
+      _resolve_payment_model_from_payment_type: {
+        Args: { _pt_id: string }
+        Returns: string
+      }
+      _resolve_payment_type_from_item_type: {
+        Args: { _it_id: string }
+        Returns: string
+      }
+      _resolve_payment_type_from_payment_model: {
+        Args: { _pm_id: string }
+        Returns: string
       }
       _validate_cancel_target: {
         Args: { _group_id: string }
