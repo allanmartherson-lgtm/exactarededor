@@ -169,7 +169,7 @@ Saída ERRADA: 4 regras separadas, cada uma com 1 valor.
 - specialties: nomes de especialidade quando o cálculo se aplica só a uma especialidade (use os nomes do CONTEXTO).
 - sectors: setores quando o cálculo é restrito a um setor.
 - doctor_roles: ['cirurgiao_principal'|'primeiro_aux'|'segundo_aux'|'anestesista'|'instrumentador'] quando aplicável.
-- payment_type_code: código do payment_type quando o cálculo é restrito a um tipo.
+- item_type_code: código do item_type quando o cálculo é restrito a um tipo de item (Parecer × Visita, etc.).
 
 Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamento de..."), retorne calculations como array vazio.`;
 
