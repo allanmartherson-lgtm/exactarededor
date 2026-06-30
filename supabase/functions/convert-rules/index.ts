@@ -6,6 +6,9 @@ const corsHeaders = {
 };
 
 interface ContextHint {
+  /** Fase D: substitui `paymentTypes`. Lista de tipos de item (Parecer, Visita, Consulta, etc.). */
+  itemTypes?: { id: string; code: string; label: string }[];
+  /** @deprecated — use `itemTypes`. Alias legado aceito durante a transição. */
   paymentTypes?: { id: string; code: string; label: string }[];
   specialties?: string[];
   sectors?: string[];
@@ -57,9 +60,10 @@ serve(async (req) => {
         : detectKind(text ?? "");
 
     const ctxLines: string[] = [];
-    if (context?.paymentTypes?.length) {
-      ctxLines.push("Tipos de pagamento disponíveis (use o `code` em `payment_type_code` quando aplicável):");
-      for (const pt of context.paymentTypes.slice(0, 40)) {
+    const itemTypes = context?.itemTypes ?? context?.paymentTypes ?? [];
+    if (itemTypes.length) {
+      ctxLines.push("Tipos de item disponíveis (use o `code` em `item_type_code` quando aplicável):");
+      for (const pt of itemTypes.slice(0, 40)) {
         ctxLines.push(`- ${pt.code} — ${pt.label}`);
       }
     }
@@ -128,7 +132,7 @@ Saída CORRETA — UMA regra:
     "severity": "aviso",
     "scope": "master",
     "sectors": ["consulta"],
-    "payment_type_code": "consulta",
+    "item_type_code": "consulta",
     "calculations": [
       { "label": "Cardiologia",      "calculation_type": "valor_fixo", "fixed_amount": 130, "specialties": ["Cardiologia"] },
       { "label": "Endocrinologia",   "calculation_type": "valor_fixo", "fixed_amount": 130, "specialties": ["Endocrinologia"] },
@@ -152,7 +156,7 @@ Saída ERRADA: 4 regras separadas, cada uma com 1 valor.
 - severity: 'info' | 'aviso' | 'bloqueio'.
 - scope: 'master' (vale para todos) | 'especifica' (vinculada a um médico/empresa).
 - sectors: ['cirurgia'|'hemodinamica'|'parecer'|'visita'|'procedimento'|'consulta'|'outro'].
-- payment_type_code: código de payment_type quando reconhecido (ver CONTEXTO).
+- item_type_code: código de item_type quando reconhecido (ex.: "parecer", "visita", "consulta" — ver CONTEXTO).
 - target_type/target_identifier/target_name: só preencher se scope='especifica'.
 - calculations[]: array (pode ser vazio se a regra for puramente informativa).
 
@@ -165,7 +169,7 @@ Saída ERRADA: 4 regras separadas, cada uma com 1 valor.
 - specialties: nomes de especialidade quando o cálculo se aplica só a uma especialidade (use os nomes do CONTEXTO).
 - sectors: setores quando o cálculo é restrito a um setor.
 - doctor_roles: ['cirurgiao_principal'|'primeiro_aux'|'segundo_aux'|'anestesista'|'instrumentador'] quando aplicável.
-- payment_type_code: código do payment_type quando o cálculo é restrito a um tipo.
+- item_type_code: código do item_type quando o cálculo é restrito a um tipo de item (Parecer × Visita, etc.).
 
 Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamento de..."), retorne calculations como array vazio.`;
 
@@ -198,7 +202,7 @@ Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamen
                     severity: { type: "string", enum: ["info", "aviso", "bloqueio"] },
                     scope: { type: "string", enum: ["master", "especifica"] },
                     sectors: { type: "array", items: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] } },
-                    payment_type_code: { type: ["string", "null"] },
+                    item_type_code: { type: ["string", "null"] },
                     target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
                     target_identifier: { type: ["string", "null"] },
                     target_name: { type: ["string", "null"] },
@@ -221,7 +225,7 @@ Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamen
                           specialties: { type: "array", items: { type: "string" } },
                           sectors: { type: "array", items: { type: "string" } },
                           doctor_roles: { type: "array", items: { type: "string" } },
-                          payment_type_code: { type: ["string", "null"] },
+                          item_type_code: { type: ["string", "null"] },
                         },
                         required: ["calculation_type"],
                         additionalProperties: false,
@@ -260,6 +264,22 @@ Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamen
         seen.add(sig);
         return true;
       });
+
+      // Fase D: normaliza item_type_code ↔ payment_type_code (legado).
+      // Preferimos `item_type_code`; espelhamos em `payment_type_code` para
+      // consumidores que ainda leem o nome antigo.
+      const mirrorTypeCode = (obj: any) => {
+        if (!obj || typeof obj !== "object") return;
+        const it = obj.item_type_code ?? null;
+        const pt = obj.payment_type_code ?? null;
+        const chosen = it ?? pt ?? null;
+        obj.item_type_code = chosen;
+        obj.payment_type_code = chosen;
+      };
+      for (const r of parsed.rules) {
+        mirrorTypeCode(r);
+        if (Array.isArray(r?.calculations)) r.calculations.forEach(mirrorTypeCode);
+      }
     }
 
     return new Response(JSON.stringify({ ...parsed, detected_kind: effectiveKind }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
