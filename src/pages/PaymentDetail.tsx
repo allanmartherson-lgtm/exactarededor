@@ -1784,6 +1784,19 @@ const PaymentDetail = () => {
       );
       const companies = companiesData.map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
 
+      // Catálogo para reclassificação automática (lote Consulta + TUSS fora da consulta → Procedimento).
+      let dynamicFallbackItemTypeId: string | null = null;
+      let consultaTussExtras: string[] = [];
+      try {
+        const { data: itemTypes } = await supabase
+          .from("item_types" as any)
+          .select("id,code,tuss_codes_extra");
+        const it = (itemTypes ?? []) as any[];
+        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const consulta = it.find((t) => t.code === "consulta");
+        consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+      } catch { /* noop */ }
+
       const norm = (s: string) => (s ?? "").trim().toLowerCase();
       const { data: existingGroups } = await supabase
         .from("payment_company_groups")
@@ -1793,6 +1806,7 @@ const PaymentDetail = () => {
 
       let allRows: any[] = [];
       const fileNames: string[] = [];
+
 
       for (const file of files) {
         const { headers, sampleRow } = await inspectFileHeaders(file);
