@@ -2400,28 +2400,26 @@ export function ItemsDataGrid({
                   )}
                   {expandedId === it.id && !isBonus && (
                     <li key={`exp-${it.id}`} className="bg-muted/20 p-0">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <tbody>
-                            <ItemDetailsRow
-                              it={it}
-                              allItems={items}
-                              rulesIndex={rulesIndex}
-                              rulesByName={rulesByName}
-                              observations={observations}
-                              profiles={profiles}
-                              colSpan={1}
-                              showTipoEntrada={!!colVis.tipo_entrada}
-                              visitaPaymentTypeId={visitaPaymentTypeId}
-                              parecerPaymentTypeId={parecerPaymentTypeId}
-                              lotePaymentTypeId={lotePaymentTypeId}
-                              isParecerPayment={isParecerPayment}
-                              canEdit={canEdit}
-                              onChangeCaseSubtype={changeCaseSubtype}
-                            />
-                          </tbody>
-                        </table>
-                      </div>
+                      <table className="w-full">
+                        <tbody>
+                          <ItemDetailsRow
+                            it={it}
+                            allItems={items}
+                            rulesIndex={rulesIndex}
+                            rulesByName={rulesByName}
+                            observations={observations}
+                            profiles={profiles}
+                            colSpan={1}
+                            showTipoEntrada={!!colVis.tipo_entrada}
+                            visitaPaymentTypeId={visitaPaymentTypeId}
+                            parecerPaymentTypeId={parecerPaymentTypeId}
+                            lotePaymentTypeId={lotePaymentTypeId}
+                            isParecerPayment={isParecerPayment}
+                            canEdit={canEdit}
+                            onChangeCaseSubtype={changeCaseSubtype}
+                          />
+                        </tbody>
+                      </table>
                     </li>
                   )}
                 </Fragment>
@@ -4556,15 +4554,15 @@ function ItemDetailsRow({
           cortado pelo scroll horizontal, usamos sticky + max-width baseado em 100vw.
         */}
         <div
-          className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4 animate-accordion-down overflow-hidden", TEXT_BODY)}
+          className={cn("sticky left-0 px-4 sm:px-5 py-4 sm:py-5 animate-accordion-down overflow-hidden", TEXT_BODY)}
           style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
         >
           {/* Resumo do item */}
-          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8">
+          <div className="mb-5 grid gap-x-4 gap-y-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8">
             {summary.map((s) => (
               <div key={s.label} className="min-w-0">
                 <Label>{s.label}</Label>
-                <p className={cn(TEXT_BODY, "break-words whitespace-normal max-w-full mt-0.5")}>{s.value}</p>
+                <p className={cn(TEXT_BODY, "break-words whitespace-normal max-w-full mt-1")}>{s.value}</p>
               </div>
             ))}
           </div>
