@@ -221,6 +221,9 @@ function ResolutionRow({
     }
   };
 
+  const [showOccurrences, setShowOccurrences] = useState(false);
+  const samples = group.samples ?? [];
+
   return (
     <div className="rounded-lg border bg-card p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -229,12 +232,50 @@ function ResolutionRow({
             <Badge variant="secondary">{KIND_LABEL[group.kind]}</Badge>
             <span className="font-medium truncate">{group.raw || "(vazio)"}</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{group.count} ocorrência{group.count === 1 ? "" : "s"} no lote</p>
+          <button
+            type="button"
+            onClick={() => setShowOccurrences((v) => !v)}
+            className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            disabled={samples.length === 0}
+            title={samples.length === 0 ? "Sem detalhes disponíveis" : "Ver linhas da planilha"}
+          >
+            {showOccurrences ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {group.count} ocorrência{group.count === 1 ? "" : "s"} no lote
+            {samples.length > 0 && samples.length < group.count && (
+              <span className="opacity-60"> · ver {samples.length}</span>
+            )}
+          </button>
         </div>
         <Button size="sm" variant="outline" onClick={() => setShowCreate((v) => !v)} disabled={busy}>
           <UserPlus className="h-4 w-4 mr-1" /> Cadastrar novo
         </Button>
       </div>
+
+      {showOccurrences && samples.length > 0 && (
+        <div className="rounded-md border bg-muted/30 text-xs">
+          <div className="grid grid-cols-[1fr_1.5fr_1.5fr_1fr] gap-2 px-2 py-1 font-medium text-muted-foreground border-b">
+            <span>Atendimento</span>
+            <span>Paciente</span>
+            <span>Médico</span>
+            <span>Data</span>
+          </div>
+          <div className="max-h-48 overflow-auto divide-y">
+            {samples.map((s, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1.5fr_1.5fr_1fr] gap-2 px-2 py-1">
+                <span className="truncate">{s.attendance || "—"}</span>
+                <span className="truncate">{s.patient || "—"}</span>
+                <span className="truncate">{s.doctor || "—"}</span>
+                <span className="truncate">{s.date || "—"}</span>
+              </div>
+            ))}
+          </div>
+          {samples.length < group.count && (
+            <p className="px-2 py-1 text-[10px] text-muted-foreground border-t">
+              Mostrando {samples.length} de {group.count}. Para ver todas, filtre a planilha pelo texto "{group.raw}".
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         <Input
