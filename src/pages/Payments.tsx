@@ -339,7 +339,7 @@ const Payments = () => {
     const snapshot: PersistedPaymentsState = {
       page, pageSize, q,
       companyFilter, doctorFilter,
-      analystFilter, typeFilter, trackFilter, statusFilter, competenceFilter,
+      analystFilter, typeFilter, itemTypeFilter, trackFilter, statusFilter, competenceFilter,
       view, sortBy, colSort,
       divergenceFilter, questionedFilter,
       poolFilter, importModeFilter, emptyOnly,
