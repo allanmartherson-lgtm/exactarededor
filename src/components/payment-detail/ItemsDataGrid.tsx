@@ -19,6 +19,7 @@ import { useItemTypes } from "@/hooks/useItemTypes";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { X as XIcon } from "lucide-react";
 import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } from "@/lib/itemConfeccaoStatus";
+import { buildReclassifyPatch } from "@/lib/reclassifyItemType";
 import {
   AlertTriangle,
   Columns3,
@@ -1043,67 +1044,25 @@ export function ItemsDataGrid({
         }
       }
 
-      // Resolve metadata do tipo destino para decidir TUSS/nome do procedimento.
-      //  - Tipo FIXO (tuss_default preenchido): força procedure_code = tuss_default
-      //    e procedure_name = "{label} - {Espec dest}" (mesma lógica da importação).
-      //  - Tipo DINÂMICO (Procedimento/SADT/Cirurgia/Exames): se o item carrega
-      //    códigos imputados pela importação (flags __tuss_default_applied /
-      //    __procedure_name_defaulted no raw_data), restaura procedure_code/nome
-      //    a partir das colunas originais ("Código TUSS" / "Produto") — caso
-      //    contrário o item permanece exibindo o TUSS de Consulta mesmo após
-      //    o usuário marcar como Procedimento.
       const targetType = itemTypesForBulk.find((t) => t.id === newTypeId);
-      const targetTuss = targetType?.tuss_default ?? null;
-      const targetLabel = targetType?.label ?? newTypeLabel;
-      const targetIsFixed = !!targetTuss;
-
-      const pickRaw = (raw: any, regexes: RegExp[]): string | null => {
-        if (!raw || typeof raw !== "object") return null;
-        for (const k of Object.keys(raw)) {
-          if (regexes.some((r) => r.test(k))) {
-            const v = (raw as any)[k];
-            if (v == null) continue;
-            const s = String(v).trim();
-            if (s) return s;
-          }
-        }
-        return null;
-      };
-
-      const baseReclassPatch: Record<string, unknown> = {
-        item_type_id: newTypeId,
-        item_type_source: "manual",
-        reclassified_from_parecer: newTypeLabel === "Visita",
-        manual_intervention_notes:
-          newTypeLabel === "Visita"
-            ? "Reclassificado manualmente como Visita."
-            : null,
-        // Reset de estado obsoleto: força o motor a recomputar do zero.
-        ai_status: "pendente",
-        ai_findings: null,
-        package_absorbed: false,
-        package_absorbed_calc_id: null,
-      };
+      if (!targetType) {
+        toast.error("Tipo de item desconhecido.");
+        return;
+      }
 
       const targetItems = items.filter((i) => itemIds.includes(i.id));
-      const perItemUpdates = targetItems.map((it) => {
-        const raw = ((it as any).raw_data ?? {}) as Record<string, any>;
-        const patch: Record<string, unknown> = { ...baseReclassPatch };
-        if (targetIsFixed) {
-          patch.procedure_code = targetTuss;
-          const especDest = pickRaw(raw, [/espec.*dest/i, /^especialidade$/i, /especialidade\s*m[eé]dico/i]);
-          patch.procedure_name = especDest ? `${targetLabel} - ${especDest}` : targetLabel;
-        } else {
-          const wasImputed = !!(raw.__tuss_default_applied || raw.__procedure_name_defaulted);
-          if (wasImputed) {
-            const rawCode = pickRaw(raw, [/c[oó]digo\s*tuss/i, /^tuss$/i, /^procedure_code$/i]);
-            const rawName = pickRaw(raw, [/^produto$/i, /^procedimento$/i, /^descri[cç][aã]o$/i, /^procedure_name$/i]);
-            if (rawCode) patch.procedure_code = rawCode;
-            if (rawName) patch.procedure_name = rawName;
-          }
-        }
-        return { id: it.id, patch };
-      });
+      const perItemUpdates = targetItems.map((it) => ({
+        id: it.id,
+        patch: buildReclassifyPatch(
+          { id: it.id, raw_data: (it as any).raw_data ?? null },
+          {
+            id: targetType.id,
+            label: targetType.label,
+            tuss_default: targetType.tuss_default ?? null,
+          },
+          newTypeLabel,
+        ),
+      }));
 
       const results = await Promise.all(
         perItemUpdates.map((u) =>
