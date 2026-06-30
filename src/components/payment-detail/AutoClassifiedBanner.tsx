@@ -10,15 +10,8 @@ type Item = {
   procedure_code?: string | null;
   procedure_description?: string | null;
   company_name?: string | null;
-  // Fonte canônica: item_type_id / item_type_source. Aceita os campos legados
-  // (payment_type_id / payment_type_source) como fallback enquanto a coluna
-  // antiga não for dropada na Sub-fase D2.
   item_type_id?: string | null;
   item_type_source?: string | null;
-  /** @deprecated — alias da coluna legada `payment_items.payment_type_id`. */
-  payment_type_id?: string | null;
-  /** @deprecated — alias da coluna legada `payment_items.payment_type_source`. */
-  payment_type_source?: string | null;
 };
 
 /**
@@ -47,8 +40,8 @@ export function AutoClassifiedBanner({
     let autoHeur = 0;
     let manual = 0;
     for (const it of items) {
-      const src = String(it.item_type_source ?? it.payment_type_source ?? "");
-      const itemTypeId = it.item_type_id ?? it.payment_type_id ?? null;
+      const src = String(it.item_type_source ?? "");
+      const itemTypeId = it.item_type_id ?? null;
       if (!itemTypeId || itemTypeId === lotePaymentTypeId) continue;
       if (src === "auto_tuss") autoTuss++;
       else if (src === "auto_heuristic") autoHeur++;

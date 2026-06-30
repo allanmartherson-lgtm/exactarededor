@@ -122,7 +122,7 @@ export default function ManualPaymentEntry() {
     const { data: items } = await supabase
       .from("payment_items")
       .select(
-        "id,company_id,company_name,doctor_id,doctor_name,payment_type_id,specialty,attendance_number,patient_name,gross_amount,manual_note,manual_composition,manual_source_attachment_path",
+        "id,company_id,company_name,doctor_id,doctor_name,item_type_id,specialty,attendance_number,patient_name,gross_amount,manual_note,manual_composition,manual_source_attachment_path",
       )
       .eq("payment_id", id)
       .eq("is_manual_entry", true)
@@ -137,7 +137,7 @@ export default function ManualPaymentEntry() {
       doctor: it.doctor_id
         ? { id: it.doctor_id, name: it.doctor_name ?? "", crm: null, crm_uf: null }
         : null,
-      itemTypeId: it.payment_type_id ?? null,
+      itemTypeId: it.item_type_id ?? null,
       specialty: it.specialty ?? "",
       attendance: it.attendance_number ?? "",
       patient: it.patient_name ?? "",
@@ -250,7 +250,7 @@ export default function ManualPaymentEntry() {
     // é NOT NULL no banco, então usamos empresa como fallback para preservar
     // rastreabilidade sem quebrar o constraint.
     doctor_name: row.doctor?.name ?? row.company?.name ?? "—",
-    payment_type_id: row.itemTypeId ?? defaultTypeId,
+    item_type_id: row.itemTypeId ?? defaultTypeId,
     specialty: row.specialty || null,
     attendance_number: row.attendance || null,
     patient_name: row.patient || null,

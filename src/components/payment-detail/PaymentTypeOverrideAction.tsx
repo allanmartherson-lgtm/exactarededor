@@ -17,13 +17,8 @@ interface Props {
   item: {
     id: string;
     attendance_number?: string | null;
-    /** Fonte canônica do tipo do item. */
     item_type_id?: string | null;
     item_type_source?: string | null;
-    /** @deprecated alias da coluna legada. */
-    payment_type_id?: string | null;
-    /** @deprecated alias da coluna legada. */
-    payment_type_source?: string | null;
   };
   allItems: Array<{ id: string; attendance_number?: string | null }>;
   lotePaymentTypeId: string | null;
@@ -39,9 +34,6 @@ interface Props {
  * APENAS item_types (Parecer/Visita/Cirurgia/Consulta/Bônus/Exames) — os
  * modelos do lote (Produção/Plantão/Remessa/Valor fixo) ficam fora porque
  * não fazem sentido como tipo de procedimento.
- *
- * O write canônico é `item_type_id`; o trigger `sync_payment_items_type_columns`
- * mantém `payment_type_id` (legado) espelhado automaticamente.
  */
 export function PaymentTypeOverrideAction({
   item,
@@ -61,7 +53,7 @@ export function PaymentTypeOverrideAction({
     [paymentTypes, itemTypeCodes],
   );
 
-  const itemTypeId = item.item_type_id ?? item.payment_type_id ?? null;
+  const itemTypeId = item.item_type_id ?? null;
   const effectiveId = itemTypeId ?? lotePaymentTypeId ?? null;
   const isOverride = !!itemTypeId && itemTypeId !== lotePaymentTypeId;
   const current = paymentTypes.find((t) => t.id === effectiveId) ?? null;

@@ -110,12 +110,9 @@ export function AutoClassifiedReviewSheet({
     if (!canEdit || busyId) return;
     setBusyId(it.id);
     try {
-      // Escrita dupla (item_type_source canônico + payment_type_source legacy)
-      // — o trigger sync_payment_items_type_columns mirroring uma direção só,
-      // garantimos a consistência explícita por aqui.
       const { error } = await supabase
         .from("payment_items")
-        .update({ item_type_source: "manual", payment_type_source: "manual" } as any)
+        .update({ item_type_source: "manual" } as any)
         .eq("id", it.id);
       if (error) {
         toast({ title: "Falha ao confirmar", description: error.message, variant: "destructive" });
@@ -134,16 +131,11 @@ export function AutoClassifiedReviewSheet({
     if (!canEdit || busyId) return;
     setBusyId(it.id);
     try {
-      // IMPORTANTE: limpar BOTH item_type_id e payment_type_id no mesmo UPDATE.
-      // O trigger sync_payment_items_type_columns re-preenche payment_type_id
-      // a partir de item_type_id se só um for setado como null — bug sutil.
       const { error } = await supabase
         .from("payment_items")
         .update({
           item_type_id: null,
           item_type_source: null,
-          payment_type_id: null,
-          payment_type_source: null,
         } as any)
         .eq("id", it.id);
       if (error) {
