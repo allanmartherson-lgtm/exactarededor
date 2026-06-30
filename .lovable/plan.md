@@ -1,62 +1,111 @@
-# Fase D — Cleanup definitivo do legacy `payment_types`
+## D3.e — Cutover final do legado `payment_type_id`
 
-Hoje o motor inteiro ainda lê `payment_type_id` — os triggers da Fase B' apenas mantêm sincronia com `item_type_id`/`payment_model_id`. Levantamento atual: **42 arquivos**, ~280 referências (top ofensores: `types.ts`, `ItemsDataGrid`, `NewPayment`, `cross-reference-parecer`, `_shared/rulesEngine`, `analyze-payment`).
+Esta é a onda que destrava o que D3.a e D3.d deixaram pendente. Foco em **migrar a UI** e **reescrever os IDs já gravados** antes de dropar colunas.
 
-Fazer rename + drop num turno único é alto risco. Proponho dividir em **D1 (refactor reversível)** e **D2 (drop irreversível)**.
+---
 
-## Sub-fase D1 — Refactor do motor (não destrutiva)
+### Problema central
 
-Objetivo: zero leitura/escrita de `payment_type_id`/`payment_type_source`/`payment_types` no código. As colunas/tabela continuam vivas, populadas pelos triggers, como rede de segurança.
+Hoje, três camadas convivem:
 
-Mapeamento canônico (decidido item a item, não busca-e-substitui cego):
-- `payment_items.payment_type_id` → `item_type_id`
-- `payment_items.payment_type_source` → `item_type_source`
-- `payments.payment_type_id` → `payment_model_id` (é modelo do LOTE)
-- `rules.payment_type_id` → quando filtra item: `item_type_id`; quando filtra modelo de lote: `payment_model_id` (revisão caso a caso em `rulesEngine.ts`)
-- `procedure_classifications.payment_type_id` → já existe `item_type_id`, remover leitura legacy
-- `rule_calculations.payment_type_id` → `item_type_id` (adicionar coluna nova nessa migration, com backfill + trigger sync)
-- `payout_models.payment_type_id` → `payment_model_id`
+```text
+payment_types  ──code──▶ payment_models   (modelo do LOTE: producao/plantao/remessa/...)
+                └─code──▶ item_types      (tipo do ITEM: parecer/visita/cirurgia/...)
+```
 
-Arquivos por bloco (ordem de execução):
+A UI inteira seleciona via `usePaymentTypes` e grava `payment_types.id` em colunas que conceitualmente são "modelo de lote" ou "tipo de item". Trigger de sync esconde a discrepância em `payments` (espelha em `payment_model_id`). Já em `companies.default_payment_type_id`, `payments.mixed_parecer_payment_type_id` e `company_financial_adjustments.payment_type_ids[]` não há espelho — UI e DB seguem em payment_types.
 
-1. **Edge functions motor** — `_shared/rulesEngine.ts`, `_shared/calcOverlap.ts`, `analyze-payment`, `validate-payment`, `dispatch-payment-analysis`, `simulate-rule`, `simulate-rule-batch`, `recalc-payment-pools`, `apply-company-deductions`, `cross-reference-parecer`, `auto-classify-payment-types`, `convert-rules`, `zeev-executor`
-2. **Hooks/lib frontend** — substituir `usePaymentTypes` por `usePaymentModels` (para lote) ou `useItemTypes` (para item) caso a caso; deprecar `usePaymentTypeMeta`; ajustar `src/lib/status.ts`
-3. **UI pagamento** — `PaymentDetail`, `ItemsDataGrid`, `PaymentTypeOverrideAction`, `AutoClassifiedReviewSheet`, `AutoClassifiedBanner`, `MixedParecerRetroAction`, `MixedParecerSetupCard`, `PaymentModeSelectModal`, `ZeevRetroactiveGapsCard`
-4. **UI regras** — `Rules.tsx`, `RuleCalculationsEditor`, `ImportCalculationsDialog`
-5. **UI lançamento** — `NewPayment`, `NewManualPayment`, `NewManualPaymentComposicao`, `ManualPaymentEntry`
-6. **UI análise** — `CompanyAnalysis`, `CreditosDebitos`, `CompanyFinancialAdjustmentsDialog`, `PayoutModels`
-7. **Testes** — atualizar/remover `usePaymentTypeCodeSync.test`, `rulesEngine_test`, `calcOverlap_test`, `columnMapping.paymentTypeMeta.test`
+---
 
-Migration única no fim de D1:
-- Adiciona `rule_calculations.item_type_id` + backfill + trigger sync bidirecional
-- Mantém `payment_types` e colunas legacy intactas
+### Escopo (4 sub-ondas)
 
-Critério de saída D1:
-- `rg "payment_type_id|payment_type_source|payment_types|usePaymentTypes|usePaymentTypeMeta" src supabase` retorna apenas `types.ts` (auto-gen) e arquivos de teste removidos
-- Re-rodar `analyze-payment` em 3 pagamentos representativos: `rule_calculations` idêntico ao antes
-- View `v_legacy_payment_type_divergence` continua zerada em `out_of_sync`
+#### D3.e.1 — Hooks e helpers de leitura
+Trocar os pontos de seleção da UI para as tabelas canônicas, mantendo escrita ainda no campo legado (modo de transição).
 
-Pausa para você operar 1 ciclo e confirmar que nada quebrou.
+- `src/hooks/usePaymentTypes.ts` → manter, mas marcar deprecated; introduzir helper `resolvePaymentModelIdFromPaymentTypeId(pt_id)` e `resolveItemTypeIdFromPaymentTypeId(pt_id)` (lookup local via `code`).
+- Garantir que `usePaymentModels` e `useItemTypes` retornam `{id, code, label}` no mesmo shape esperado pelos combos atuais.
 
-## Sub-fase D2 — Drop irreversível
+#### D3.e.2 — Cutover por consumidor
+Trocar combos + reescrever o valor selecionado para o id da tabela alvo.
 
-Migration única (só após "ok" explícito):
-1. Drop triggers de sincronização da Fase B'
-2. `ALTER TABLE payment_items DROP COLUMN payment_type_id, DROP COLUMN payment_type_source`
-3. `ALTER TABLE payments DROP COLUMN payment_type_id`
-4. `ALTER TABLE rules DROP COLUMN payment_type_id`
-5. `ALTER TABLE rule_calculations DROP COLUMN payment_type_id`
-6. `ALTER TABLE payout_models DROP COLUMN payment_type_id`
-7. `ALTER TABLE procedure_classifications DROP COLUMN payment_type_id` (se ainda existir além de `item_type_id`)
-8. `DROP VIEW v_legacy_payment_type_divergence, v_legacy_payment_type_orphans, v_legacy_payment_type_usage`
-9. `DROP TABLE payment_types CASCADE`
-10. Remove arquivos: `src/pages/PaymentTypes.tsx` (original), `src/hooks/usePaymentTypes.ts`, `src/hooks/usePaymentTypeMeta.ts`, `src/hooks/__tests__/usePaymentTypeCodeSync.test.tsx`, `src/hooks/usePaymentTypeCodeSync.ts`, `src/lib/__tests__/columnMapping.paymentTypeMeta.test.ts`
+| Consumidor | Hoje grava em | Alvo D3.e |
+|---|---|---|
+| `NewPayment.tsx` (linha 2493) — `payments.payment_type_id` | `payment_types.id` | `payments.payment_model_id` recebe `payment_models.id` direto |
+| `NewManualPayment.tsx` (linha 88) | idem | idem |
+| `NewManualPaymentComposicao.tsx` (linha 205) | idem | idem |
+| `ManualPaymentEntry.tsx` (linha 118) — leitura | `payment_types.id` | passa a ler `payment_model_id` e expor `payment_models.id` |
+| `MixedParecerSetupCard.tsx` — `payments.mixed_parecer_payment_type_id` | `payment_types.id` (subtipo parecer) | `payments.mixed_parecer_item_type_id` recebe `item_types.id` |
+| `MixedParecerRetroAction.tsx` (linha 86) — idem | idem | idem |
+| `ItemsDataGrid.tsx` (linha 1187) — `companies.default_payment_type_id` | `payment_types.id` | `companies.default_item_type_id` recebe `item_types.id` |
+| `CompanyFinancialAdjustmentsDialog.tsx` + `CreditosDebitos.tsx` — `company_financial_adjustments.payment_type_ids[]` | `payment_types.id[]` | `company_financial_adjustments.payment_model_ids[]` recebe `payment_models.id[]` (memória diz que ids já batem com payment_models) |
 
-## Riscos conhecidos
+Pontos derivados que vão precisar atualizar:
+- `NewPayment.tsx` linha 2673 (`loteId` ← `payment.payment_type_id` é usado como `item_type_id`) — passa a derivar via lookup payment_model→item_type (mesmo `code`).
+- `usePaymentTypeMeta` em `PaymentDetail.tsx` (236) e `CompanyAnalysis.tsx` (267, 2441, 2450) — refatorar para aceitar `payment_model_id` e resolver o meta via JOIN.
+- `cross-reference-parecer/index.ts` (94, 98) — passar a ler `mixed_parecer_item_type_id`.
+- `ZeevRetroactiveGapsCard.tsx` (já tem dual-read; remover fallback ao concluir).
 
-- **38 órfãos** (`v_legacy_payment_type_orphans`): linhas onde o legacy não tem `item_type_id` equivalente claro (ex.: `parecer_adulto`). Em D1 essas linhas continuam funcionando via fallback. Em **D2 elas quebrarão** se não tiverem `item_type_id` resolvido antes. Precisa de decisão sua antes de D2: mapear esses 38 manualmente ou aceitar perda controlada.
-- **100 correções** (`producao` → `consulta`): intencionais, sem ação necessária.
+#### D3.e.3 — Migration DB (add → backfill → swap)
 
-## O que preciso de você agora
+1. Adicionar colunas novas:
+   - `companies.default_item_type_id uuid REFERENCES item_types(id)`
+   - `payments.mixed_parecer_item_type_id uuid REFERENCES item_types(id)`
+   - `company_financial_adjustments.payment_model_ids uuid[]`
+2. Backfill via JOIN por `code`:
+   - `default_item_type_id ← item_types.id WHERE item_types.code = payment_types.code AND payment_types.id = default_payment_type_id`
+   - `mixed_parecer_item_type_id` análogo
+   - `payment_model_ids ← array de payment_models.id mapeados a partir de payment_type_ids`
+3. Triggers bidirecionais temporários (espelho legacy ↔ novo) para o intervalo D3.e.2 → D3.e.4.
+4. (D3.a complementar) Validar que `payments.payment_model_id` está 100% populado e sem divergência via `v_legacy_payment_type_divergence`.
 
-Confirma esse encadeamento (D1 agora, pausa, D2 depois com sua aprovação explícita e tratamento dos 38 órfãos)? Se sim, sigo direto pra D1 começando pelas edge functions do motor.
+#### D3.e.4 — Drop final
+Após 1 ciclo de produção sem inserts/updates em colunas legadas (auditável via `pg_stat_user_columns` ou trigger de logging temporário):
+
+- `DROP TRIGGER trg_sync_payments_type_columns` + função `sync_payments_type_columns`
+- `ALTER TABLE payments DROP COLUMN payment_type_id`
+- `ALTER TABLE payments DROP COLUMN mixed_parecer_payment_type_id`
+- `ALTER TABLE companies DROP COLUMN default_payment_type_id`
+- `ALTER TABLE company_financial_adjustments DROP COLUMN payment_type_ids`
+- Drop final da view `v_legacy_payment_type_divergence` (sem alvos).
+- Avaliar drop da própria tabela `payment_types` (se não houver mais nenhum consumidor — provavelmente vira deprecated junto).
+
+---
+
+### Ações pendentes herdadas (não esquecer)
+
+Estas ficaram em "no-op" nas ondas anteriores e voltam aqui:
+
+1. **De D3.a** — refatorar 7 pontos em `NewPayment.tsx`, `NewManualPayment.tsx`, `NewManualPaymentComposicao.tsx`, `ManualPaymentEntry.tsx`, `CompanyAnalysis.tsx`, `PaymentDetail.tsx`, `ZeevRetroactiveGapsCard.tsx` para usar `payment_model_id`.
+2. **De D3.d** — refatorar `ItemsDataGrid` (default da empresa), `MixedParecerSetupCard` + `MixedParecerRetroAction`, `CompanyFinancialAdjustmentsDialog` + `CreditosDebitos`, `cross-reference-parecer`.
+3. Remover dual-reads e fallbacks `?? payment_type_id` que sobrarem após D3.e.2.
+4. Atualizar a memória `payment-type-id-rename-hybrid.md` ao final, marcando todas as colunas como removidas e excluindo o arquivo se virar irrelevante.
+
+---
+
+### Riscos
+
+- **Combo migration mistura tabelas:** se `payment_types` e `payment_models` têm `code` divergentes para algum registro, backfill deixa NULL — precisa relatório prévio antes da migration.
+- **Subtipo parecer (`mixed_parecer_*`)** aponta para item_types específicos (`parecer`, `visita`) — confirmar que `item_types` tem todos os subtipos cadastrados.
+- `company_financial_adjustments.payment_type_ids` é array — backfill exige `unnest` + `array_agg`. Comportamento atual do filtro em `apply-company-deductions` já assume "ids unificados com payment_models.id" (comentário do código), então o mapping deve ser direto.
+- Triggers bidirecionais durante a transição: cuidado com loops — usar guarda `WHEN OLD IS DISTINCT FROM NEW` ou flag de origem.
+
+---
+
+### Ordem sugerida de execução
+
+1. Relatório prévio: listar `payment_types` sem equivalente em `item_types`/`payment_models` por `code` (bloqueio pré-migration).
+2. D3.e.3 (add colunas + backfill + triggers de espelho).
+3. D3.e.1 (hooks/helpers).
+4. D3.e.2 por consumidor — começar pelos de menor impacto (`CompanyFinancialAdjustmentsDialog`, `MixedParecerSetupCard`) antes de tocar `NewPayment`.
+5. Janela de observação (≥ 1 ciclo de uso real).
+6. D3.e.4 (drop final).
+
+---
+
+### Estimativa
+
+- 1 migration de adição + backfill + triggers.
+- ~10 arquivos frontend tocados.
+- 2 edge functions ajustadas.
+- 1 migration final de drop.
+- Janela de observação: o tempo que o usuário definir.
