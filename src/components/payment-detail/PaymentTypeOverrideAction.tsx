@@ -118,7 +118,7 @@ export function PaymentTypeOverrideAction({
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {list.map((t) => (
+            {selectable.map((t) => (
               <SelectItem key={t.id} value={t.id} className="text-xs">
                 <div className="flex items-center gap-2">
                   <span>{t.label}</span>
