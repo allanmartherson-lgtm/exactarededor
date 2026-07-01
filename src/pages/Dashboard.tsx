@@ -1032,16 +1032,31 @@ const Dashboard = () => {
   useEffect(() => {
     if (!isAnalista || !user?.id) return;
     let cancelled = false;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Split em duas queries para evitar INNER JOIN + RLS pesados no PostgREST.
+    // 1) IDs dos pagamentos do usuário. 2) Grupos in(payment_id) filtrados por status.
     const fetchPending = async () => {
+      const { data: pays } = await supabase
+        .from("payments")
+        .select("id, reference")
+        .eq("created_by", user.id);
+      if (cancelled) return;
+      const payMap = new Map<string, string>();
+      (pays ?? []).forEach((p: any) => payMap.set(p.id, p.reference ?? "—"));
+      if (payMap.size === 0) {
+        setPendingQuestions([]);
+        return;
+      }
       const { data } = await supabase
         .from("payment_company_groups")
-        .select("id, payment_id, company_name, payments!inner(reference, created_by)")
+        .select("payment_id, company_name")
         .eq("status", "em_questionamento")
-        .eq("payments.created_by", user.id);
+        .in("payment_id", Array.from(payMap.keys()));
       if (cancelled) return;
       const byPayment = new Map<string, { reference: string; count: number }>();
-      ((data ?? []) as Array<{ payment_id: string; payments: { reference: string } | null }>).forEach((r) => {
-        const ref = r.payments?.reference ?? "—";
+      (data ?? []).forEach((r: any) => {
+        const ref = payMap.get(r.payment_id) ?? "—";
         const cur = byPayment.get(r.payment_id) ?? { reference: ref, count: 0 };
         cur.count += 1;
         byPayment.set(r.payment_id, cur);
@@ -1050,22 +1065,31 @@ const Dashboard = () => {
         Array.from(byPayment.entries()).map(([payment_id, v]) => ({ payment_id, ...v })),
       );
     };
+
+    const scheduleFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!cancelled) fetchPending();
+      }, 800);
+    };
+
     fetchPending();
     const ch = supabase
       .channel("dash_pending_questions")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "payment_company_groups" },
-        () => fetchPending(),
+        { event: "UPDATE", schema: "public", table: "payment_company_groups", filter: "status=eq.em_questionamento" },
+        scheduleFetch,
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "payment_questions" },
-        () => fetchPending(),
+        { event: "INSERT", schema: "public", table: "payment_questions" },
+        scheduleFetch,
       )
       .subscribe();
     return () => {
       cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(ch);
     };
   }, [isAnalista, user?.id]);
@@ -1078,16 +1102,29 @@ const Dashboard = () => {
   useEffect(() => {
     if (!isAnalista || !user?.id) return;
     let cancelled = false;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const fetchPending = async () => {
+      const { data: pays } = await supabase
+        .from("payments")
+        .select("id, reference")
+        .eq("created_by", user.id);
+      if (cancelled) return;
+      const payMap = new Map<string, string>();
+      (pays ?? []).forEach((p: any) => payMap.set(p.id, p.reference ?? "—"));
+      if (payMap.size === 0) {
+        setPendingReleaseNf([]);
+        return;
+      }
       const { data } = await supabase
         .from("payment_company_groups")
-        .select("id, payment_id, payments!inner(reference, created_by)")
+        .select("payment_id")
         .eq("status", "revisao_pos_aprovacao")
-        .eq("payments.created_by", user.id);
+        .in("payment_id", Array.from(payMap.keys()));
       if (cancelled) return;
       const byPayment = new Map<string, { reference: string; count: number }>();
-      ((data ?? []) as Array<{ payment_id: string; payments: { reference: string } | null }>).forEach((r) => {
-        const ref = r.payments?.reference ?? "—";
+      (data ?? []).forEach((r: any) => {
+        const ref = payMap.get(r.payment_id) ?? "—";
         const cur = byPayment.get(r.payment_id) ?? { reference: ref, count: 0 };
         cur.count += 1;
         byPayment.set(r.payment_id, cur);
@@ -1096,20 +1133,30 @@ const Dashboard = () => {
         Array.from(byPayment.entries()).map(([payment_id, v]) => ({ payment_id, ...v })),
       );
     };
+
+    const scheduleFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!cancelled) fetchPending();
+      }, 800);
+    };
+
     fetchPending();
     const ch = supabase
       .channel("dash_pending_release_nf")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "payment_company_groups" },
-        () => fetchPending(),
+        { event: "UPDATE", schema: "public", table: "payment_company_groups", filter: "status=eq.revisao_pos_aprovacao" },
+        scheduleFetch,
       )
       .subscribe();
     return () => {
       cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(ch);
     };
   }, [isAnalista, user?.id]);
+
   const totalPendingReleaseNf = pendingReleaseNf.reduce((sum, p) => sum + p.count, 0);
 
   // Perguntas da EMPRESA (recebedor) na NF — não lidas pelo time interno

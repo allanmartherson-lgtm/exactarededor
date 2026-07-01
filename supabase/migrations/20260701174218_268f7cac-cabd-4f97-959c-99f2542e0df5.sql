@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_pcg_status_payment ON public.payment_company_groups (status, payment_id);
