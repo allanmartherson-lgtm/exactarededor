@@ -1170,6 +1170,11 @@ const NewPayment = () => {
       const resolvedName = resolvedCompany?.name
         ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
         ?? null;
+      const company_source: "arquivo" | "planilha" | "none" =
+        filenameTrusted
+          ? "arquivo"
+          : (rowMatchedCompany ? "planilha" : (resolvedCompany ? "arquivo" : "none"));
+
 
       const DOCTOR_EXCLUDES = ["solic", "solicitante", "requisit", "pedinte"];
       let doctorNameRaw = toStr(pick(row, [
