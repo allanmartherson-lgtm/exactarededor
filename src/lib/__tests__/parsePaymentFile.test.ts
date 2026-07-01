@@ -230,6 +230,22 @@ describe("parsePaymentFile — empresa via filename", () => {
     expect(b.matchScore).toBeGreaterThanOrEqual(0.9);
     expect(b.rows[0].company_id).toBe("c-acme");
   });
+
+  it("quando a planilha tem múltiplas PJs, divide por EMPRESA em vez de usar a PJ do arquivo", async () => {
+    const f = makeFile(
+      [
+        { "EMPRESA": "Acme Médica LTDA", "Médico": "Dr. A", "Vl Repasse": "1" },
+        { "EMPRESA": "Beta Serviços Médicos LTDA", "Médico": "Dr. B", "Vl Repasse": "2" },
+      ],
+      "Acme Médica LTDA - base completa.xlsx",
+    );
+    const b = await parsePaymentFile(f, [
+      ...COMPANIES,
+      { id: "c-beta", name: "Beta Serviços Médicos LTDA", aliases: [] },
+    ]);
+    expect(b.matchedCompany?.id).toBe("c-acme");
+    expect(b.rows.map((r) => r.company_id)).toEqual(["c-acme", "c-beta"]);
+  });
 });
 
 describe("parsePaymentFile — header não está na primeira linha", () => {
