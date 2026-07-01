@@ -284,11 +284,11 @@ const IdlePrefetcher = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <NavLayoutProvider>
       <TooltipProvider>
         <Sonner />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
+          <NavLayoutProvider>
           <HospitalProvider>
           <IdlePrefetcher />
           <HospitalSwitchingOverlayMount />
@@ -416,10 +416,10 @@ const App = () => (
             </Suspense>
           </ErrorBoundary>
           </HospitalProvider>
+          </NavLayoutProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
-      </NavLayoutProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
