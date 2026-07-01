@@ -1624,10 +1624,13 @@ export type Database = {
           aliases: string[]
           code: string
           created_at: string
+          created_by_user_id: string | null
           deactivated_at: string | null
           name: string
           notes: string | null
           operator_code: string | null
+          pending_admin_review: boolean
+          pending_review_note: string | null
           slug: string
           sort_order: number
           state_uf: string | null
@@ -1638,10 +1641,13 @@ export type Database = {
           aliases?: string[]
           code?: string
           created_at?: string
+          created_by_user_id?: string | null
           deactivated_at?: string | null
           name: string
           notes?: string | null
           operator_code?: string | null
+          pending_admin_review?: boolean
+          pending_review_note?: string | null
           slug: string
           sort_order?: number
           state_uf?: string | null
@@ -1652,10 +1658,13 @@ export type Database = {
           aliases?: string[]
           code?: string
           created_at?: string
+          created_by_user_id?: string | null
           deactivated_at?: string | null
           name?: string
           notes?: string | null
           operator_code?: string | null
+          pending_admin_review?: boolean
+          pending_review_note?: string | null
           slug?: string
           sort_order?: number
           state_uf?: string | null
@@ -9431,9 +9440,12 @@ export type Database = {
           classification: string | null
           code: string
           created_at: string
+          created_by_user_id: string | null
           deactivated_at: string | null
           name: string
           notes: string | null
+          pending_admin_review: boolean
+          pending_review_note: string | null
           slug: string
           sort_order: number
           state_uf: string | null
@@ -9446,9 +9458,12 @@ export type Database = {
           classification?: string | null
           code?: string
           created_at?: string
+          created_by_user_id?: string | null
           deactivated_at?: string | null
           name: string
           notes?: string | null
+          pending_admin_review?: boolean
+          pending_review_note?: string | null
           slug: string
           sort_order?: number
           state_uf?: string | null
@@ -9461,9 +9476,12 @@ export type Database = {
           classification?: string | null
           code?: string
           created_at?: string
+          created_by_user_id?: string | null
           deactivated_at?: string | null
           name?: string
           notes?: string | null
+          pending_admin_review?: boolean
+          pending_review_note?: string | null
           slug?: string
           sort_order?: number
           state_uf?: string | null
