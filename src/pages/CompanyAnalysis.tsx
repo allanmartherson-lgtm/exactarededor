@@ -725,8 +725,21 @@ export default function CompanyAnalysis() {
     });
     setBusy(false);
     if (error) return toast.error("Erro ao acatar", { description: error.message });
-    const res = data as { ok: boolean; error?: string } | null;
+    const res = data as { ok: boolean; error?: string; gross_novo?: number } | null;
     if (!res?.ok) return toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
+    // Otimismo local: reflete gross/expected/status na UI imediatamente sem
+    // depender do realtime (debounce longo pode atrasar o refresh e o usuário
+    // percebe como "esperado não atualizou após aceite").
+    const grossNovo = typeof res.gross_novo === "number" ? res.gross_novo : null;
+    setItems((prev) => prev.map((row) => row.id !== it.id ? row : ({
+      ...row,
+      ai_status: "acatado" as any,
+      gross_amount: grossNovo ?? row.gross_amount,
+      expected_amount: row.expected_amount ?? grossNovo ?? row.expected_amount,
+      ai_findings: row.ai_findings
+        ? { ...(row.ai_findings as any), alerts: [], expected_amount: (row.ai_findings as any)?.expected_amount ?? grossNovo }
+        : row.ai_findings,
+    } as any)));
     toast.success("Item acatado");
     await load();
     await composition.refresh();
@@ -749,6 +762,16 @@ export default function CompanyAnalysis() {
     if (error) return toast.error("Erro ao acatar", { description: error.message });
     const res = data as { ok: boolean; error?: string } | null;
     if (!res?.ok) return toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
+    setItems((prev) => prev.map((row) => row.id !== it.id ? row : ({
+      ...row,
+      ai_status: "acatado" as any,
+      // "keep paid" alinha expected_amount ao valor pago para eliminar a
+      // divergência visual imediatamente (o RPC faz o mesmo no banco).
+      expected_amount: Number(row.gross_amount ?? 0),
+      ai_findings: row.ai_findings
+        ? { ...(row.ai_findings as any), alerts: [], expected_amount: Number(row.gross_amount ?? 0) }
+        : row.ai_findings,
+    } as any)));
     toast.success("Item acatado (valor pago mantido)");
     await load();
     await composition.refresh();
@@ -766,6 +789,7 @@ export default function CompanyAnalysis() {
     await load();
     await composition.refresh();
   };
+
 
   // Ações de fluxo (paridade com o popup de análise por empresa).
   const autoClaim = async () => {
