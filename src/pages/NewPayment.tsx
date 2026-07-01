@@ -2826,12 +2826,24 @@ const NewPayment = () => {
     }
 
     if (matchedItems.length > 0) {
-      const { error: itemsErr } = await supabase.from("payment_items").insert(matchedItems);
-      if (itemsErr) {
-        setSubmitting(false);
-        toast({ title: "Erro ao salvar itens", description: itemsErr.message, variant: "destructive" });
-        return;
+      // Insert em lotes para evitar "canceling statement due to statement timeout"
+      // em bases grandes (o timeout do Postgres é ~8s no pooler; lotes com milhares
+      // de linhas + triggers de análise não cabem num único INSERT).
+      const CHUNK = 400;
+      for (let i = 0; i < matchedItems.length; i += CHUNK) {
+        const slice = matchedItems.slice(i, i + CHUNK);
+        const { error: itemsErr } = await supabase.from("payment_items").insert(slice);
+        if (itemsErr) {
+          setSubmitting(false);
+          toast({
+            title: "Erro ao salvar itens",
+            description: `${itemsErr.message} (lote ${Math.floor(i / CHUNK) + 1} de ${Math.ceil(matchedItems.length / CHUNK)})`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
+
       // Enriquecimento pós-insert: preenche doctor_document (CRM/UF) via match por nome
       // contra o cadastro de doctors. Planilhas Rede D'Or não trazem coluna de documento,
       // então sem isso 100% dos itens ficariam órfãos. Falha não bloqueia o fluxo.
