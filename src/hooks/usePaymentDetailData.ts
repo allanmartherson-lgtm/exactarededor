@@ -138,19 +138,38 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
             .single();
           companyName = g?.company_name ?? null;
         }
-        const PAGE = 1000;
+        // Página menor (500) reduz o custo por requisição — em lotes grandes
+        // (~3k+ itens) o combinado de policies RLS permissivas + JSONB largo
+        // (ai_findings/validation_findings) estava batendo statement_timeout
+        // na página de 1000. 500 dá folga e mantém poucas rodadas.
+        const PAGE = 500;
+        const MAX_RETRIES = 3;
+        const isTimeoutErr = (e: unknown) => {
+          const err = e as { code?: string; message?: string } | null;
+          const msg = String(err?.message ?? "").toLowerCase();
+          return err?.code === "57014" || msg.includes("statement timeout") || msg.includes("canceling statement");
+        };
         const all: any[] = [];
         for (let from = 0; ; from += PAGE) {
-          let q = supabase
-            .from("payment_items")
-            .select("*")
-            .eq("payment_id", id)
-            .order("created_at")
-            .range(from, from + PAGE - 1)
-            .abortSignal(ac.signal);
-          if (companyName) q = q.eq("company_name", companyName);
-          const res = await q;
-          if (res.error) return res;
+          let attempt = 0;
+          let res: any = null;
+          // Backoff exponencial em statement_timeout — mantém o load() vivo
+          // sem virar tela em branco para o analista em lotes grandes.
+          while (true) {
+            let q = supabase
+              .from("payment_items")
+              .select("*")
+              .eq("payment_id", id)
+              .order("created_at")
+              .range(from, from + PAGE - 1)
+              .abortSignal(ac.signal);
+            if (companyName) q = q.eq("company_name", companyName);
+            res = await q;
+            if (!res.error) break;
+            if (!isTimeoutErr(res.error) || attempt >= MAX_RETRIES || ac.signal.aborted) return res;
+            attempt += 1;
+            await new Promise((r) => setTimeout(r, 400 * attempt));
+          }
           const rows = res.data ?? [];
           all.push(...rows);
           if (rows.length < PAGE) return { data: all, error: null } as any;
