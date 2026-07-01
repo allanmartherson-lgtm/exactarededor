@@ -1223,6 +1223,8 @@ const NewPayment = () => {
         sector: rawSector,
         attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
         raw_data: rawRow,
+        company_source,
+
         source_file: f.name,
         source_row_number: headerOffset + 2 + rowIndex,
       };
