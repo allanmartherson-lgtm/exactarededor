@@ -12120,6 +12120,25 @@ export type Database = {
         Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
+      rls_test_cleanup: {
+        Args: {
+          _hosp_a: string
+          _hosp_b: string
+          _user_a: string
+          _user_b: string
+        }
+        Returns: undefined
+      }
+      rls_test_hospital_tables: {
+        Args: never
+        Returns: {
+          table_name: string
+        }[]
+      }
+      rls_test_setup: {
+        Args: { _user_a: string; _user_b: string }
+        Returns: Json
+      }
       rollback_new_payment: { Args: { _payment_id: string }; Returns: Json }
       rule_pending_doctors: {
         Args: { p_rule_id: string }
