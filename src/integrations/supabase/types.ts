@@ -11771,10 +11771,9 @@ export type Database = {
       }
       is_any_company_portal_user: { Args: { _uid: string }; Returns: boolean }
       is_any_doctor_portal_user: { Args: { _uid: string }; Returns: boolean }
-      is_company_portal_user: {
-        Args: { _company_id: string; _user_id: string }
-        Returns: boolean
-      }
+      is_company_portal_user:
+        | { Args: never; Returns: boolean }
+        | { Args: { _company_id: string; _user_id: string }; Returns: boolean }
       is_feature_enabled: {
         Args: { _key: string; _user_id: string }
         Returns: boolean
