@@ -2579,6 +2579,16 @@ const NewPayment = () => {
       return;
     }
 
+    const rollbackCreatedPayment = async (context: string) => {
+      const { error: rollbackErr } = await (supabase as any).rpc("rollback_new_payment", {
+        _payment_id: payment.id,
+      });
+      if (rollbackErr) {
+        console.warn(`[NewPayment] rollback falhou (${context}):`, rollbackErr);
+      }
+      return rollbackErr;
+    };
+
     // Vincula o payment criado de volta na apuração retroativa (handoff).
     if (retroHandoff?.reconciliation_id) {
       try {
@@ -2805,7 +2815,7 @@ const NewPayment = () => {
       setSubmitting(false);
       // Abort antes do insert para não deixar payment órfão em em_analise_ia.
       // Deleta o registro recém-criado para o analista poder reimportar limpo.
-      await supabase.from("payments").delete().eq("id", payment.id);
+      await rollbackCreatedPayment("linha sem bucket");
       toast({
         title: "Inconsistência ao montar itens do lote",
         description: `${orphanRows.length} linha(s) sem bucket associado. Recarregue a página e tente novamente. Nenhum dado foi salvo.`,
@@ -2816,7 +2826,7 @@ const NewPayment = () => {
     const expectedTotal = matchedItems.length + unmatchedItems.length;
     if (expectedTotal !== allRows.length) {
       setSubmitting(false);
-      await supabase.from("payments").delete().eq("id", payment.id);
+      await rollbackCreatedPayment("contagem divergente");
       toast({
         title: "Inconsistência ao montar itens do lote",
         description: `Esperado ${allRows.length} itens, montados ${expectedTotal}. Recarregue a página e tente novamente.`,
@@ -2826,22 +2836,19 @@ const NewPayment = () => {
     }
 
     if (matchedItems.length > 0) {
-      // Insert em lotes para evitar "canceling statement due to statement timeout"
-      // em bases grandes (o timeout do Postgres é ~8s no pooler; lotes com milhares
-      // de linhas + triggers de análise não cabem num único INSERT).
-      const CHUNK = 400;
+      // Insert em lotes via RPC com statement_timeout=0 no banco. Evita o timeout
+      // curto da API e mantém rollback confiável caso qualquer etapa falhe.
+      const CHUNK = 900;
       for (let i = 0; i < matchedItems.length; i += CHUNK) {
         const slice = matchedItems.slice(i, i + CHUNK);
-        const { error: itemsErr } = await supabase.from("payment_items").insert(slice);
+        const { error: itemsErr } = await (supabase as any).rpc("bulk_insert_new_payment_items", {
+          _payment_id: payment.id,
+          _items: slice,
+        });
         if (itemsErr) {
-          // Reverte o payment_items já inserido + o registro payments para que
-          // o analista possa reimportar sem gerar lote duplicado/órfão.
-          try {
-            await supabase.from("payment_items").delete().eq("payment_id", payment.id);
-            await supabase.from("payments").delete().eq("id", payment.id);
-          } catch (rollbackErr) {
-            console.warn("[NewPayment] rollback após falha de insert falhou:", rollbackErr);
-          }
+          // Reverte itens/grupos/quarentena/payment para o analista reimportar
+          // sem gerar lote duplicado ou parcial.
+          await rollbackCreatedPayment("falha ao inserir payment_items");
           setSubmitting(false);
           toast({
             title: "Erro ao salvar itens",
@@ -2952,19 +2959,25 @@ const NewPayment = () => {
 
 
     if (unmatchedItems.length > 0) {
-      const CHUNK_U = 500;
+      const CHUNK_U = 900;
       let unErr: any = null;
       for (let i = 0; i < unmatchedItems.length; i += CHUNK_U) {
         const slice = unmatchedItems.slice(i, i + CHUNK_U);
-        const { error } = await supabase.from("payment_unmatched_items").insert(slice);
+        const { error } = await (supabase as any).rpc("bulk_insert_new_payment_unmatched_items", {
+          _payment_id: payment.id,
+          _items: slice,
+        });
         if (error) { unErr = error; break; }
       }
       if (unErr) {
+        await rollbackCreatedPayment("falha ao inserir payment_unmatched_items");
+        setSubmitting(false);
         toast({
-          title: "Aviso: itens órfãos não registrados",
-          description: `${unmatchedItems.length} item(ns) sem PJ identificada não foram salvos: ${unErr.message}`,
+          title: "Erro ao salvar itens sem PJ",
+          description: `${unErr.message}. Nenhum dado foi salvo — pode reenviar.`,
           variant: "destructive",
         });
+        return;
       } else {
 
         // Em rateio: o pool já pré-vinculou as PJs participantes. Resolve unmatched
