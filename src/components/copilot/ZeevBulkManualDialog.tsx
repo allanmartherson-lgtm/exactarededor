@@ -49,7 +49,7 @@ interface Props {
   title?: string;
   subtitle?: string;
   items: ZeevBulkItem[];
-  onApplied?: () => void;
+  onApplied?: (payload?: { itemIds: string[]; rows: Array<Record<string, unknown>> }) => void;
 }
 
 const fmtBRL = (v: number | null | undefined) =>
@@ -205,6 +205,22 @@ export function ZeevBulkManualDialog({
 
       setProgress({ done: targetItems.length, total: targetItems.length });
 
+      // Refetch dos itens afetados IMEDIATAMENTE após o RPC — garante que
+      // gross_amount/expected_amount/ai_findings/ai_status na UI reflitam o
+      // banco mesmo em navegadores lentos onde o realtime demora (ou é
+      // engolido pelo debounce) e o load() global ainda pode estar em cooldown.
+      const ids = targetItems.map((i) => i.id);
+      let refreshedRows: Array<Record<string, unknown>> = [];
+      try {
+        const { data: fresh } = await supabase
+          .from("payment_items")
+          .select("*")
+          .in("id", ids);
+        refreshedRows = (fresh ?? []) as Array<Record<string, unknown>>;
+      } catch (e) {
+        console.warn("[ZeevBulk] refetch pós-RPC falhou (silencioso)", e);
+      }
+
       // Re-dispara análise da empresa uma única vez
       try {
         await supabase.functions.invoke("dispatch-payment-analysis", {
@@ -223,7 +239,7 @@ export function ZeevBulkManualDialog({
         description: "Os itens foram marcados como aprovados via tratativa manual.",
       });
       onOpenChange(false);
-      onApplied?.();
+      onApplied?.({ itemIds: ids, rows: refreshedRows });
     } catch (e: any) {
       toast({
         title: "Falha ao aplicar em lote",
