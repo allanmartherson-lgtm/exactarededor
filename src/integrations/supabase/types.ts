@@ -10915,6 +10915,14 @@ export type Database = {
           updated_count: number
         }[]
       }
+      bulk_insert_new_payment_items: {
+        Args: { _items: Json; _payment_id: string }
+        Returns: number
+      }
+      bulk_insert_new_payment_unmatched_items: {
+        Args: { _items: Json; _payment_id: string }
+        Returns: number
+      }
       bulk_send_groups_to_validation: {
         Args: { _group_ids: string[]; _payment_id: string }
         Returns: {
@@ -10946,6 +10954,10 @@ export type Database = {
       }
       can_access_pool_deduction_path: {
         Args: { _path: string }
+        Returns: boolean
+      }
+      can_manage_new_payment: {
+        Args: { _actor_id: string; _payment_id: string }
         Returns: boolean
       }
       cancel_by_reconciliation: {
@@ -12096,6 +12108,7 @@ export type Database = {
         Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
+      rollback_new_payment: { Args: { _payment_id: string }; Returns: Json }
       rule_pending_doctors: {
         Args: { p_rule_id: string }
         Returns: {
