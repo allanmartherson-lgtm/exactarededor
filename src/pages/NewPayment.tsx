@@ -2838,7 +2838,7 @@ const NewPayment = () => {
     if (matchedItems.length > 0) {
       // Insert em lotes via RPC com statement_timeout=0 no banco. Evita o timeout
       // curto da API e mantém rollback confiável caso qualquer etapa falhe.
-      const CHUNK = 900;
+      const CHUNK = 250;
       for (let i = 0; i < matchedItems.length; i += CHUNK) {
         const slice = matchedItems.slice(i, i + CHUNK);
         const { error: itemsErr } = await (supabase as any).rpc("bulk_insert_new_payment_items", {
@@ -2959,7 +2959,7 @@ const NewPayment = () => {
 
 
     if (unmatchedItems.length > 0) {
-      const CHUNK_U = 900;
+      const CHUNK_U = 250;
       let unErr: any = null;
       for (let i = 0; i < unmatchedItems.length; i += CHUNK_U) {
         const slice = unmatchedItems.slice(i, i + CHUNK_U);
