@@ -11,6 +11,29 @@ const isTransientAuthError = (message?: string | null) => {
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const resetAuthState = () => ({
+  session: null,
+  user: null,
+  roles: [] as AppRole[],
+  accountActive: true,
+  isSenior: false,
+});
+
+const isValidJwtShape = (token?: string | null) => Boolean(token && token.split(".").length === 3);
+
+const clearLocalAuthSession = async () => {
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    try {
+      const storageKey = `sb-${new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+      localStorage.removeItem(storageKey);
+    } catch {
+      // ignore — se nem localStorage estiver disponível, só zera o state React.
+    }
+  }
+};
+
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
@@ -65,6 +88,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     lastLoadedUserIdRef.current = userId;
   };
 
+  const applySignedOutState = () => {
+    activeRolesLoadRef.current += 1;
+    const clean = resetAuthState();
+    setSession(clean.session);
+    setUser(clean.user);
+    setRoles(clean.roles);
+    setAccountActive(clean.accountActive);
+    setIsSenior(clean.isSenior);
+    setRolesLoading(false);
+    lastLoadedUserIdRef.current = null;
+  };
+
+  const acceptSession = async (nextSession: Session | null, opts: { verify: boolean }) => {
+    if (!nextSession?.user) {
+      applySignedOutState();
+      return;
+    }
+
+    // getSession() pode restaurar do localStorage uma sessão estruturalmente
+    // corrompida/antiga. Se aceitarmos isso, o app dispara roles/profile com
+    // Bearer inválido e prende o login em 401/403. Primeiro validamos a sessão.
+    if (!isValidJwtShape(nextSession.access_token)) {
+      console.warn("[auth] sessão local inválida removida: access_token malformado");
+      await clearLocalAuthSession();
+      applySignedOutState();
+      return;
+    }
+
+    if (opts.verify) {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        console.warn("[auth] sessão local inválida removida", { message: error?.message ?? "usuário ausente" });
+        await clearLocalAuthSession();
+        applySignedOutState();
+        return;
+      }
+    }
+
+    setSession(nextSession);
+    setUser(nextSession.user);
+    const newUserId = nextSession.user.id;
+    if (lastLoadedUserIdRef.current !== newUserId) {
+      setRoles([]);
+      setAccountActive(true);
+      setIsSenior(false);
+      setRolesLoading(true);
+      await loadRoles(newUserId);
+    }
+  };
+
 
   useEffect(() => {
     // IMPORTANTE: sempre registramos o onAuthStateChange, mesmo quando a
@@ -76,44 +149,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Em rotas de recovery, ignoramos qualquer sessão remanescente do
       // recoveryClient para não autenticar o usuário antes de definir a senha.
       if (isRecoveryRouteRef.current) {
-        setSession(null);
-        setUser(null);
-        setRoles([]);
+        const clean = resetAuthState();
+        setSession(clean.session);
+        setUser(clean.user);
+        setRoles(clean.roles);
+        setAccountActive(clean.accountActive);
+        setIsSenior(clean.isSenior);
         setRolesLoading(false);
         lastLoadedUserIdRef.current = null;
         return;
       }
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      const newUserId = newSession?.user?.id ?? null;
-      if (newUserId) {
-        // Só recarrega papéis se o usuário mudou. Eventos como
-        // TOKEN_REFRESHED disparam frequentemente e não devem causar
-        // rolesLoading=true (que desmonta a página via ProtectedRoute).
-        if (lastLoadedUserIdRef.current !== newUserId) {
-          setRoles([]);
-          setAccountActive(true);
-          setIsSenior(false);
-          setRolesLoading(true);
-          setTimeout(() => loadRoles(newUserId), 0);
-        }
-      } else {
-        activeRolesLoadRef.current += 1;
-        setRoles([]);
-        setAccountActive(true);
-        setIsSenior(false);
-        setRolesLoading(false);
-        lastLoadedUserIdRef.current = null;
-      }
+      void acceptSession(newSession, { verify: false });
     });
 
     if (isRecoveryRouteRef.current) {
       console.info("[auth recovery] AuthProvider pulou getSession inicial na rota de recovery", {
         path: location.pathname,
       });
-      setSession(null);
-      setUser(null);
-      setRoles([]);
+      const clean = resetAuthState();
+      setSession(clean.session);
+      setUser(clean.user);
+      setRoles(clean.roles);
+      setAccountActive(clean.accountActive);
+      setIsSenior(clean.isSenior);
       setRolesLoading(false);
       setLoading(false);
       lastLoadedUserIdRef.current = null;
@@ -121,24 +179,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     supabase.auth.getSession().then(async ({ data: { session: existing } }) => {
-      setSession(existing);
-      setUser(existing?.user ?? null);
-      if (existing?.user) {
-        if (lastLoadedUserIdRef.current !== existing.user.id) {
-          await loadRoles(existing.user.id);
-        }
-      } else {
-        activeRolesLoadRef.current += 1;
-        setRoles([]);
-        setAccountActive(true);
-        setIsSenior(false);
-        setRolesLoading(false);
-        lastLoadedUserIdRef.current = null;
-      }
+      await acceptSession(existing, { verify: true });
       setLoading(false);
     });
-
-    return () => sub.subscription.unsubscribe();
 
     return () => sub.subscription.unsubscribe();
     // Roda apenas uma vez por sessão. Trocar de rota não deve reinicializar
