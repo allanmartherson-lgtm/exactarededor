@@ -84,6 +84,7 @@ describe("AuthProvider login race", () => {
 
     await act(async () => {
       state.authCallback?.("SIGNED_IN", {
+        access_token: "header.payload.signature",
         user: { id: "user-1", email: "analista@example.com", user_metadata: {} },
       });
     });
