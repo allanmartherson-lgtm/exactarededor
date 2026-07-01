@@ -49,7 +49,7 @@ interface Props {
   title?: string;
   subtitle?: string;
   items: ZeevBulkItem[];
-  onApplied?: () => void;
+  onApplied?: (payload?: { itemIds: string[]; rows: Array<Record<string, unknown>> }) => void;
 }
 
 const fmtBRL = (v: number | null | undefined) =>
