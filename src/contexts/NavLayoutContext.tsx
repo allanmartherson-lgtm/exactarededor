@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type NavLayout = "top" | "side";
 
@@ -25,6 +26,7 @@ function getInitialLayout(): NavLayout {
 }
 
 export const NavLayoutProvider = ({ children }: { children: ReactNode }) => {
+  const { user, loading: authLoading } = useAuth();
   const [layout, setLayoutState] = useState<NavLayout>(getInitialLayout);
   const hydratedFromDb = useRef(false);
   const currentUserIdRef = useRef<string | null>(null);
@@ -69,17 +71,14 @@ export const NavLayoutProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const uid = auth?.user?.id;
-      if (cancelled) return;
-      if (uid) {
-        await hydrateForUser(uid);
-      } else {
-        hydratedFromDb.current = true;
-      }
-    })();
+    if (authLoading) return;
+    const uid = user?.id ?? null;
+    if (uid) {
+      void hydrateForUser(uid);
+    } else {
+      currentUserIdRef.current = null;
+      hydratedFromDb.current = true;
+    }
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       const uid = sess?.user?.id ?? null;
@@ -95,10 +94,9 @@ export const NavLayoutProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
-      cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [authLoading, user?.id]);
 
   // Persiste mudanças no banco (apenas depois da hidratação inicial).
   useEffect(() => {
