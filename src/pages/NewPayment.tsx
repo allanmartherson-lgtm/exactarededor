@@ -2826,12 +2826,24 @@ const NewPayment = () => {
     }
 
     if (matchedItems.length > 0) {
-      const { error: itemsErr } = await supabase.from("payment_items").insert(matchedItems);
-      if (itemsErr) {
-        setSubmitting(false);
-        toast({ title: "Erro ao salvar itens", description: itemsErr.message, variant: "destructive" });
-        return;
+      // Insert em lotes para evitar "canceling statement due to statement timeout"
+      // em bases grandes (o timeout do Postgres é ~8s no pooler; lotes com milhares
+      // de linhas + triggers de análise não cabem num único INSERT).
+      const CHUNK = 400;
+      for (let i = 0; i < matchedItems.length; i += CHUNK) {
+        const slice = matchedItems.slice(i, i + CHUNK);
+        const { error: itemsErr } = await supabase.from("payment_items").insert(slice);
+        if (itemsErr) {
+          setSubmitting(false);
+          toast({
+            title: "Erro ao salvar itens",
+            description: `${itemsErr.message} (lote ${Math.floor(i / CHUNK) + 1} de ${Math.ceil(matchedItems.length / CHUNK)})`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
+
       // Enriquecimento pós-insert: preenche doctor_document (CRM/UF) via match por nome
       // contra o cadastro de doctors. Planilhas Rede D'Or não trazem coluna de documento,
       // então sem isso 100% dos itens ficariam órfãos. Falha não bloqueia o fluxo.
@@ -2931,7 +2943,13 @@ const NewPayment = () => {
 
 
     if (unmatchedItems.length > 0) {
-      const { error: unErr } = await supabase.from("payment_unmatched_items").insert(unmatchedItems);
+      const CHUNK_U = 500;
+      let unErr: any = null;
+      for (let i = 0; i < unmatchedItems.length; i += CHUNK_U) {
+        const slice = unmatchedItems.slice(i, i + CHUNK_U);
+        const { error } = await supabase.from("payment_unmatched_items").insert(slice);
+        if (error) { unErr = error; break; }
+      }
       if (unErr) {
         toast({
           title: "Aviso: itens órfãos não registrados",
@@ -2939,6 +2957,7 @@ const NewPayment = () => {
           variant: "destructive",
         });
       } else {
+
         // Em rateio: o pool já pré-vinculou as PJs participantes. Resolve unmatched
         // automaticamente via doctor→PJ entre os participantes — não joga em quarentena
         // o que o pool consegue absorver sozinho.
