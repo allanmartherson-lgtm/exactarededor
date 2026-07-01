@@ -591,11 +591,11 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
 };
 
 // Limites de decisão. Centralizados para manter UI e parser em sincronia.
-export const MATCH_AUTO_THRESHOLD = 0.92;
-// Reduzido de 0.75 → 0.55: quando há um candidato razoável, preferimos pedir
-// CONFIRMAÇÃO em vez de jogar o arquivo direto em "sem PJ — isolado". O
-// isolamento real só ocorre quando o score é tão baixo que confirmar manualmente
-// não faria sentido (provavelmente PJ nova ainda não cadastrada).
+// IMPORTANTE: auto-match APENAS quando 100% (nome exato ou alias exato após
+// normalização). Match fuzzy (ex.: 0.92) gerou vários falsos-positivos em
+// produção — analista relatou que "muitos 90% não batiam". Qualquer coisa
+// abaixo de 1.0 entra em revisão manual; abaixo de 0.55 vai pra "sem PJ".
+export const MATCH_AUTO_THRESHOLD = 1.0;
 export const MATCH_REVIEW_THRESHOLD = 0.55;
 
 // Palavras-âncora que indicam que uma linha é cabeçalho de dados de pagamento.
