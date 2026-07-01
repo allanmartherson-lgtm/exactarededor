@@ -57,12 +57,13 @@ describe("matchCompany — guarda de token distintivo", () => {
     expect(score).toBeGreaterThanOrEqual(MATCH_AUTO_THRESHOLD);
   });
 
-  it("variações ortográficas leves continuam casando (proteção não regrediu)", () => {
+  it("variações ortográficas leves não passam mais no automático sem alias exato", () => {
     // "Otorrino" ≈ "Otorhino" via Levenshtein em tokens ≥6 chars
     const s = similarity(
       "BSB Otorhino Servicos Saude",
       "BSB Otorrino Servicos de Saude LTDA",
     );
-    expect(s).toBeGreaterThanOrEqual(MATCH_AUTO_THRESHOLD);
+    expect(s).toBeLessThan(MATCH_AUTO_THRESHOLD);
+    expect(s).toBeGreaterThanOrEqual(MATCH_REVIEW_THRESHOLD);
   });
 });
