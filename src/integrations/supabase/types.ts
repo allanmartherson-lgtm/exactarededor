@@ -12185,6 +12185,10 @@ export type Database = {
         Args: { _company_id: string }
         Returns: boolean
       }
+      user_can_see_hospital: {
+        Args: { _hospital_id: string }
+        Returns: boolean
+      }
       user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
       user_state_ufs: { Args: { _uid: string }; Returns: string[] }
       validate_rule_save: {
