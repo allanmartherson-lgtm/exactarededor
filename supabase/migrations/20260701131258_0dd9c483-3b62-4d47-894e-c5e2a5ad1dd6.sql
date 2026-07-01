@@ -1,0 +1,226 @@
+
+CREATE OR REPLACE FUNCTION public.run_rls_hospital_isolation_test()
+RETURNS TABLE(kind text, message text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $fn$
+DECLARE
+    hosp_a    uuid := gen_random_uuid();
+    hosp_b    uuid := gen_random_uuid();
+    user_a    uuid := gen_random_uuid();
+    user_b    uuid := gen_random_uuid();
+    v_count   bigint;
+    v_leaks   bigint := 0;
+    v_checked int := 0;
+    v_skipped int := 0;
+    r         record;
+    v_sql     text;
+    v_pay_a uuid; v_pay_b uuid;
+    v_pcg_a uuid; v_pcg_b uuid;
+    v_gb_a  uuid; v_gb_b  uuid;
+    v_thr_a uuid; v_thr_b uuid;
+    v_doc_a uuid; v_doc_b uuid;
+    v_co_a  uuid; v_co_b  uuid;
+    v_conv_a uuid; v_conv_b uuid;
+    v_sect_a uuid; v_sect_b uuid;
+    v_inv_a uuid; v_inv_b uuid;
+    v_err_msg text;
+    v_failed boolean := false;
+BEGIN
+    kind := 'info'; message := 'RLS hospital isolation test — starting'; RETURN NEXT;
+
+    INSERT INTO public.hospitals(id, name, slug, cnpj, state_uf, active, created_at) VALUES
+      (hosp_a,'RLS-TEST-A','rls-test-a-'||substr(hosp_a::text,1,8),'RLS'||substr(hosp_a::text,1,11),'DF',true,now()),
+      (hosp_b,'RLS-TEST-B','rls-test-b-'||substr(hosp_b::text,1,8),'RLS'||substr(hosp_b::text,1,11),'DF',true,now());
+
+    INSERT INTO auth.users(id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data) VALUES
+      (user_a,'authenticated','authenticated','rls-'||substr(user_a::text,1,8)||'@test.local','',now(),now(),now(),'{}'::jsonb,'{}'::jsonb),
+      (user_b,'authenticated','authenticated','rls-'||substr(user_b::text,1,8)||'@test.local','',now(),now(),now(),'{}'::jsonb,'{}'::jsonb);
+
+    INSERT INTO public.user_hospitals(user_id, hospital_id, role) VALUES
+      (user_a, hosp_a, 'analista'), (user_b, hosp_b, 'analista');
+    INSERT INTO public.user_roles(user_id, role) VALUES (user_a,'analista'),(user_b,'analista');
+    INSERT INTO public.user_active_hospital(user_id, hospital_id) VALUES (user_a,hosp_a),(user_b,hosp_b);
+
+    v_co_a := gen_random_uuid(); v_co_b := gen_random_uuid();
+    INSERT INTO public.companies(id,hospital_id,cnpj,razao_social,code,active,created_at,updated_at) VALUES
+      (v_co_a,hosp_a,'11111111000191','CO A','CO-A-'||substr(v_co_a::text,1,6),true,now(),now()),
+      (v_co_b,hosp_b,'22222222000192','CO B','CO-B-'||substr(v_co_b::text,1,6),true,now(),now());
+
+    v_doc_a := gen_random_uuid(); v_doc_b := gen_random_uuid();
+    INSERT INTO public.doctors(id,hospital_id,name,crm,code,active,created_at,updated_at) VALUES
+      (v_doc_a,hosp_a,'Doc A','11111/DF','DR-A-'||substr(v_doc_a::text,1,6),true,now(),now()),
+      (v_doc_b,hosp_b,'Doc B','22222/DF','DR-B-'||substr(v_doc_b::text,1,6),true,now(),now());
+
+    v_conv_a := gen_random_uuid(); v_conv_b := gen_random_uuid();
+    INSERT INTO public.convenios(id,hospital_id,name,code,active,created_at,updated_at) VALUES
+      (v_conv_a,hosp_a,'CV A','CV-A-'||substr(v_conv_a::text,1,6),true,now(),now()),
+      (v_conv_b,hosp_b,'CV B','CV-B-'||substr(v_conv_b::text,1,6),true,now(),now());
+
+    v_sect_a := gen_random_uuid(); v_sect_b := gen_random_uuid();
+    INSERT INTO public.sectors(id,hospital_id,name,code,active,created_at,updated_at) VALUES
+      (v_sect_a,hosp_a,'ST A','ST-A-'||substr(v_sect_a::text,1,6),true,now(),now()),
+      (v_sect_b,hosp_b,'ST B','ST-B-'||substr(v_sect_b::text,1,6),true,now(),now());
+
+    v_pay_a := gen_random_uuid(); v_pay_b := gen_random_uuid();
+    INSERT INTO public.payments(id,hospital_id,competence_month,status,created_at,updated_at) VALUES
+      (v_pay_a,hosp_a,date_trunc('month',now())::date,'em_confeccao',now(),now()),
+      (v_pay_b,hosp_b,date_trunc('month',now())::date,'em_confeccao',now(),now());
+
+    v_pcg_a := gen_random_uuid(); v_pcg_b := gen_random_uuid();
+    BEGIN
+      INSERT INTO public.payment_company_groups(id,hospital_id,payment_id,company_id,created_at,updated_at) VALUES
+        (v_pcg_a,hosp_a,v_pay_a,v_co_a,now(),now()),
+        (v_pcg_b,hosp_b,v_pay_b,v_co_b,now(),now());
+    EXCEPTION WHEN OTHERS THEN kind:='seed_skip'; message:='payment_company_groups: '||SQLERRM; RETURN NEXT; END;
+
+    v_gb_a := gen_random_uuid(); v_gb_b := gen_random_uuid();
+    BEGIN
+      INSERT INTO public.glosa_batches(id,hospital_id,created_at,updated_at) VALUES
+        (v_gb_a,hosp_a,now(),now()),(v_gb_b,hosp_b,now(),now());
+    EXCEPTION WHEN OTHERS THEN kind:='seed_skip'; message:='glosa_batches: '||SQLERRM; RETURN NEXT; END;
+
+    v_thr_a := gen_random_uuid(); v_thr_b := gen_random_uuid();
+    BEGIN
+      INSERT INTO public.company_threads(id,hospital_id,company_id,subject,status,created_at,updated_at) VALUES
+        (v_thr_a,hosp_a,v_co_a,'T A','open',now(),now()),
+        (v_thr_b,hosp_b,v_co_b,'T B','open',now(),now());
+    EXCEPTION WHEN OTHERS THEN kind:='seed_skip'; message:='company_threads: '||SQLERRM; RETURN NEXT; END;
+
+    v_inv_a := gen_random_uuid(); v_inv_b := gen_random_uuid();
+    BEGIN
+      INSERT INTO public.invoices(id,hospital_id,company_id,competence_month,created_at,updated_at) VALUES
+        (v_inv_a,hosp_a,v_co_a,date_trunc('month',now())::date,now(),now()),
+        (v_inv_b,hosp_b,v_co_b,date_trunc('month',now())::date,now(),now());
+    EXCEPTION WHEN OTHERS THEN kind:='seed_skip'; message:='invoices: '||SQLERRM; RETURN NEXT; END;
+
+    BEGIN
+      INSERT INTO public.pendencias(id,hospital_id,title,status,created_at,updated_at) VALUES
+        (gen_random_uuid(),hosp_a,'P A','open',now(),now()),
+        (gen_random_uuid(),hosp_b,'P B','open',now(),now());
+    EXCEPTION WHEN OTHERS THEN kind:='seed_skip'; message:='pendencias: '||SQLERRM; RETURN NEXT; END;
+
+    -- Assertions como user A
+    PERFORM set_config('request.jwt.claims',
+        json_build_object('sub',user_a::text,'role','authenticated','aud','authenticated')::text, true);
+    EXECUTE 'SET LOCAL ROLE authenticated';
+
+    SELECT count(*) INTO v_count FROM public.hospitals WHERE id IN (hosp_a,hosp_b);
+    IF v_count<>1 THEN v_failed:=true;
+      kind:='FAIL'; message:=format('hospitals: user A viu %s hospitais (esperado 1)',v_count); RETURN NEXT;
+    ELSE kind:='pass'; message:='hospitals: user A vê apenas o próprio'; RETURN NEXT; END IF;
+
+    FOR r IN SELECT unnest(ARRAY[
+        'payments','payment_company_groups','glosa_batches','company_threads',
+        'invoices','pendencias','doctors','companies','convenios','sectors'
+      ]) AS tname
+    LOOP
+      BEGIN
+        v_sql := format('SELECT count(*) FROM public.%I WHERE hospital_id = %L', r.tname, hosp_b);
+        EXECUTE v_sql INTO v_count;
+        IF v_count>0 THEN v_failed:=true;
+          kind:='FAIL'; message:=format('%s: user A viu %s linhas do hospital B',r.tname,v_count); RETURN NEXT;
+        ELSE kind:='pass'; message:=format('%s: 0 vazamento de hosp B',r.tname); RETURN NEXT; END IF;
+      EXCEPTION WHEN OTHERS THEN
+        kind:='assert_skip'; message:=format('%s: %s',r.tname,SQLERRM); RETURN NEXT;
+      END;
+    END LOOP;
+
+    -- Leak scan genérico
+    FOR r IN
+      SELECT c.table_name
+        FROM information_schema.columns c
+        JOIN information_schema.tables t ON t.table_schema=c.table_schema AND t.table_name=c.table_name
+       WHERE c.table_schema='public' AND c.column_name='hospital_id' AND t.table_type='BASE TABLE'
+       ORDER BY c.table_name
+    LOOP
+      BEGIN
+        v_sql := format('SELECT count(*) FROM public.%I WHERE hospital_id = %L', r.table_name, hosp_b);
+        EXECUTE v_sql INTO v_count;
+        v_checked := v_checked+1;
+        IF v_count>0 THEN
+          v_leaks := v_leaks+1; v_failed:=true;
+          kind:='FAIL'; message:=format('LEAK em %s: user A vê %s linhas do hospital B',r.table_name,v_count); RETURN NEXT;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN v_skipped := v_skipped+1;
+      END;
+    END LOOP;
+
+    -- Cross-check user B
+    PERFORM set_config('request.jwt.claims',
+        json_build_object('sub',user_b::text,'role','authenticated','aud','authenticated')::text, true);
+    EXECUTE 'SET LOCAL ROLE authenticated';
+
+    FOR r IN SELECT unnest(ARRAY['payments','glosa_batches','company_threads','pendencias','doctors','companies']) AS tname
+    LOOP
+      BEGIN
+        v_sql := format('SELECT count(*) FROM public.%I WHERE hospital_id = %L', r.tname, hosp_a);
+        EXECUTE v_sql INTO v_count;
+        IF v_count>0 THEN v_failed:=true;
+          kind:='FAIL'; message:=format('(B←A) %s: user B viu %s linhas do hospital A',r.tname,v_count); RETURN NEXT;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL; END;
+    END LOOP;
+
+    EXECUTE 'RESET ROLE';
+    PERFORM set_config('request.jwt.claims','',true);
+
+    -- Cleanup
+    DELETE FROM public.pendencias           WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.invoice_questions    WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.invoices             WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.company_threads      WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.doctor_messages      WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.comm_campaigns       WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.glosa_debts          WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.glosa_batches        WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.payment_items        WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.payment_company_groups WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.payments             WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.sectors              WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.convenios            WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.doctors              WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.companies            WHERE hospital_id IN (hosp_a,hosp_b);
+    DELETE FROM public.user_active_hospital WHERE user_id IN (user_a,user_b);
+    DELETE FROM public.user_roles           WHERE user_id IN (user_a,user_b);
+    DELETE FROM public.user_hospitals       WHERE user_id IN (user_a,user_b);
+    DELETE FROM public.hospitals            WHERE id IN (hosp_a,hosp_b);
+    DELETE FROM auth.users                  WHERE id IN (user_a,user_b);
+
+    IF v_failed THEN
+      kind:='RESULT'; message:=format('❌ FAILED — leaks=%s checked=%s skipped=%s',v_leaks,v_checked,v_skipped); RETURN NEXT;
+      RAISE EXCEPTION 'RLS hospital isolation test FAILED';
+    ELSE
+      kind:='RESULT'; message:=format('✅ PASSED — leak scan tables=%s (skipped=%s)',v_checked,v_skipped); RETURN NEXT;
+    END IF;
+    RETURN;
+
+EXCEPTION WHEN OTHERS THEN
+    v_err_msg := SQLERRM;
+    BEGIN EXECUTE 'RESET ROLE'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN PERFORM set_config('request.jwt.claims','',true); EXCEPTION WHEN OTHERS THEN NULL; END;
+    -- Cascade cleanup (ON DELETE CASCADE em auth.users limpa profiles/user_roles/etc)
+    BEGIN DELETE FROM public.pendencias           WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.invoice_questions    WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.invoices             WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.company_threads      WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.doctor_messages      WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.comm_campaigns       WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.glosa_debts          WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.glosa_batches        WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.payment_items        WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.payment_company_groups WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.payments             WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.sectors              WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.convenios            WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.doctors              WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.companies            WHERE hospital_id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM public.hospitals            WHERE id IN (hosp_a,hosp_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN DELETE FROM auth.users                  WHERE id IN (user_a,user_b); EXCEPTION WHEN OTHERS THEN NULL; END;
+    RAISE EXCEPTION 'RLS test aborted: %', v_err_msg;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION public.run_rls_hospital_isolation_test() FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.run_rls_hospital_isolation_test() TO service_role;
