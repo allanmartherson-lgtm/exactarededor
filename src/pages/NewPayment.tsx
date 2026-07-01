@@ -2943,7 +2943,13 @@ const NewPayment = () => {
 
 
     if (unmatchedItems.length > 0) {
-      const { error: unErr } = await supabase.from("payment_unmatched_items").insert(unmatchedItems);
+      const CHUNK_U = 500;
+      let unErr: any = null;
+      for (let i = 0; i < unmatchedItems.length; i += CHUNK_U) {
+        const slice = unmatchedItems.slice(i, i + CHUNK_U);
+        const { error } = await supabase.from("payment_unmatched_items").insert(slice);
+        if (error) { unErr = error; break; }
+      }
       if (unErr) {
         toast({
           title: "Aviso: itens órfãos não registrados",
@@ -2951,6 +2957,7 @@ const NewPayment = () => {
           variant: "destructive",
         });
       } else {
+
         // Em rateio: o pool já pré-vinculou as PJs participantes. Resolve unmatched
         // automaticamente via doctor→PJ entre os participantes — não joga em quarentena
         // o que o pool consegue absorver sozinho.
