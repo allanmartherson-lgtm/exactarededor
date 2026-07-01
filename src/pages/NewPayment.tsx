@@ -118,7 +118,13 @@ interface ParsedRow {
    *  inclusive com valor 0 (ex.: Retorno não pago). Permite distinguir
    *  "0 legítimo" de "valor ausente" na validação. */
   gross_explicit?: boolean;
+  /** Origem da PJ resolvida para esta linha:
+   *  - 'arquivo'  → veio do nome do arquivo (comportamento antigo)
+   *  - 'planilha' → veio de coluna explícita de PJ na linha
+   *  - 'none'     → não foi possível resolver (item isolado) */
+  company_source?: "arquivo" | "planilha" | "none";
 }
+
 
 // === Classificação de tipo_linha (pré-validação) ===
 export type LineType =
