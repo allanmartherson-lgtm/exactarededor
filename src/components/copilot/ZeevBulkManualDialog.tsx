@@ -305,7 +305,7 @@ export function ZeevBulkManualDialog({
         </DialogHeader>
 
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto px-6 flex-1 min-h-0">
           {/* Lista de itens */}
           <div className="rounded-lg border bg-muted/30">
             <div className="flex items-center justify-between px-3 py-2 border-b bg-background/60">
