@@ -200,17 +200,39 @@ function ResolutionRow({
           description: "Aguarda validação do administrador antes do envio para validação do pagamento.",
         });
       } else if (group.kind === "convenio") {
+        if (!user) throw new Error("Sessão expirada");
         const slug = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 64);
-        const { error } = await supabase.from("convenios").insert({ slug, name: newName.trim(), active: true });
+        const { error } = await supabase.from("convenios").insert({
+          slug,
+          name: newName.trim(),
+          active: true,
+          pending_admin_review: true,
+          created_by_user_id: user.id,
+          pending_review_note: `Cadastro provisório criado durante importação. Texto original na planilha: "${group.raw}".`,
+        } as any);
         if (error) throw error;
         await createConvenioAlias(slug, group.raw);
-        toast({ title: "Cadastro criado", description: `${KIND_LABEL[group.kind]} cadastrado e vinculado.` });
+        toast({
+          title: "Convênio cadastrado provisoriamente",
+          description: "Aguarda validação do administrador.",
+        });
       } else {
+        if (!user) throw new Error("Sessão expirada");
         const slug = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 64);
-        const { error } = await supabase.from("sectors").insert({ slug, name: newName.trim(), active: true });
+        const { error } = await supabase.from("sectors").insert({
+          slug,
+          name: newName.trim(),
+          active: true,
+          pending_admin_review: true,
+          created_by_user_id: user.id,
+          pending_review_note: `Cadastro provisório criado durante importação. Texto original na planilha: "${group.raw}".`,
+        } as any);
         if (error) throw error;
         await createSectorAlias(slug, group.raw);
-        toast({ title: "Cadastro criado", description: `${KIND_LABEL[group.kind]} cadastrado e vinculado.` });
+        toast({
+          title: "Setor cadastrado provisoriamente",
+          description: "Aguarda validação do administrador.",
+        });
       }
       setShowCreate(false);
       await onResolved();
