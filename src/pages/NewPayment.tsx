@@ -985,16 +985,45 @@ const NewPayment = () => {
     if (companiesLoadPromiseRef.current) return companiesLoadPromiseRef.current;
 
     companiesLoadPromiseRef.current = (async () => {
+      // Cache curto em sessionStorage (60s) — evita re-fetch quando o usuário
+      // navega entre telas e reduz pressão no pool durante picos de import.
+      const CACHE_KEY = "newpayment.companies.cache.v1";
+      const CACHE_TTL_MS = 60_000;
+      try {
+        const raw = sessionStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { at: number; rows: CompanyRow[] };
+          if (parsed && Date.now() - parsed.at < CACHE_TTL_MS && Array.isArray(parsed.rows)) {
+            companiesRef.current = parsed.rows;
+            setCompanies(parsed.rows);
+            return parsed.rows;
+          }
+        }
+      } catch { /* ignore */ }
+
       const pageSize = 1000;
       const all: CompanyRow[] = [];
-      for (let from = 0; ; from += pageSize) {
-        const { data, error } = await supabase
-          .from("companies")
-          .select("id,name,aliases")
-          .order("name", { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
 
+      const fetchPage = async (from: number) => {
+        // Retry com backoff exponencial p/ timeouts (57014) e falhas transitórias.
+        let lastErr: any = null;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const { data, error } = await supabase
+            .from("companies")
+            .select("id,name,aliases")
+            .order("name", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (!error) return data ?? [];
+          lastErr = error;
+          const isTimeout = (error as any)?.code === "57014";
+          if (!isTimeout && attempt >= 1) break;
+          await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
+        }
+        throw lastErr;
+      };
+
+      for (let from = 0; ; from += pageSize) {
+        const data = await fetchPage(from);
         const page = (data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
         all.push(...page);
         if (page.length < pageSize) break;
@@ -1002,6 +1031,9 @@ const NewPayment = () => {
 
       companiesRef.current = all;
       setCompanies(all);
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), rows: all }));
+      } catch { /* quota — ignore */ }
       return all;
     })();
 
@@ -1011,6 +1043,7 @@ const NewPayment = () => {
       companiesLoadPromiseRef.current = null;
     }
   }, []);
+
 
   useEffect(() => {
     loadCompanies().catch((error) => {
