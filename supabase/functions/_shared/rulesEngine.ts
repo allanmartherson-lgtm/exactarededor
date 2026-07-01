@@ -2970,7 +2970,11 @@ export function analyzeItem(
     const category = item.manual_intervention_reason_category ?? "";
     const procAmount = Number(item.procedure_amount ?? 0);
     const grossAmount = Number(item.gross_amount ?? 0);
-    const expected = procAmount;
+    // Aceite financeiro = analista está aceitando o VALOR PAGO como esperado
+    // (ex.: reajuste sem regra atualizada). Reclassificação clínica e demais
+    // categorias mantêm o comportamento original (aceita valor do convênio).
+    const acceptsPaidAsExpected = category === "aceite_financeiro";
+    const expected = acceptsPaidAsExpected ? grossAmount : procAmount;
 
     // Mesmo em tratamento manual, queremos saber se EXISTE regra específica
     // para o médico/PJ (mesmo informativa) — para que o usuário enxergue o
@@ -2989,11 +2993,15 @@ export function analyzeItem(
     } catch (_e) { /* ignore: tratamento manual prossegue */ }
 
     const ruleLabel = matchedRuleName ? ` Regra aderente: "${matchedRuleName}".` : "";
-    const explanation = `Tratamento manual — motivo "${code}"${category ? ` (${category})` : ""}. Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).${ruleLabel}`;
+    const baseLabel = acceptsPaidAsExpected
+      ? `Valor aceito = gross_amount pago (R$ ${grossAmount.toFixed(2)}).`
+      : `Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
+    const explanation = `Tratamento manual — motivo "${code}"${category ? ` (${category})` : ""}. ${baseLabel}${ruleLabel}`;
     const alerts: string[] = [];
-    if (Math.abs(expected - grossAmount) > 0.01) {
+    if (!acceptsPaidAsExpected && Math.abs(expected - grossAmount) > 0.01) {
       alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do convênio (R$ ${procAmount.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
     }
+
     return {
       item_id: item.id,
       status: "aprovado",
