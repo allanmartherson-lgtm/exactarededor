@@ -2,6 +2,7 @@
 // Extraído de src/pages/NewPayment.tsx para reutilização no reimport.
 import * as XLSX from "xlsx";
 import {
+  applyManualMappingShim,
   FIELD_BY_KEY,
   inspectColumnMapping,
   type FieldKey,
@@ -316,6 +317,27 @@ const toStr = (v: unknown): string | null => {
   const s = String(v).trim();
   return s.length ? s : null;
 };
+const ROW_COMPANY_KEYS = ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"];
+const hasMultipleDistinctCompanyValues = (
+  json: Record<string, unknown>[],
+  manualMapping?: ManualMapping,
+): boolean => {
+  const distinct = new Set<string>();
+  for (const rawRow of json) {
+    const row = applyManualMappingShim(rawRow, manualMapping);
+    const v = toStr(pick(row, ROW_COMPANY_KEYS));
+    if (!v) continue;
+    distinct.add(v.trim().toLowerCase());
+    if (distinct.size > 1) return true;
+  }
+  return false;
+};
+const shouldTrustFilenameCompany = (
+  score: number,
+  company: CompanyRow | null,
+  json: Record<string, unknown>[],
+  manualMapping?: ManualMapping,
+): boolean => score >= MATCH_AUTO_THRESHOLD && !!company && !hasMultipleDistinctCompanyValues(json, manualMapping);
 const excelSerialToParts = (
   serial: number,
 ): { y: number; m: number; d: number; H: number; M: number; S: number; hasTime: boolean } | null => {
@@ -770,7 +792,7 @@ export const parsePaymentFile = async (
 
   const rawCompanyName = extractCompanyFromFilename(f.name);
   const { company: fileMatchedCompany, score: fileMatchScore } = matchCompany(rawCompanyName, companies);
-  const filenameTrusted = fileMatchScore >= MATCH_AUTO_THRESHOLD && !!fileMatchedCompany;
+  const filenameTrusted = shouldTrustFilenameCompany(fileMatchScore, fileMatchedCompany, json, effectiveMapping);
 
   const rows: ParsedRow[] = json.map((row) => {
     const procedureDateValue = (() => {
@@ -846,7 +868,7 @@ export const parsePaymentFile = async (
 
     const resolvedCompany = filenameTrusted
       ? fileMatchedCompany
-      : (rowMatchedCompany || fileMatchedCompany);
+      : (rowCompanyNameRaw ? rowMatchedCompany : fileMatchedCompany);
     const resolvedName = resolvedCompany?.name
       || (filenameTrusted ? fileMatchedCompany!.name : (rowCompanyNameRaw || rawCompanyName))
       || null;
