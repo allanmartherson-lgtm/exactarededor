@@ -2705,7 +2705,23 @@ export default function CompanyAnalysis() {
             }}
             items={items as never[]}
             bulkContext={{ paymentId: id!, companyName: group?.company_name ?? null, companyGroupId: group?.id ?? null }}
-            onBulkApplied={() => { void (async () => { await load(); await composition.refresh(); })(); }}
+            onBulkApplied={(payload) => {
+              // Aplica IMEDIATAMENTE as linhas já reconciliadas com o banco
+              // (retornadas pelo dialog após o RPC). Garante que gross_amount
+              // e expected_amount fiquem sincronizados na UI sem depender do
+              // realtime — que pode chegar tarde em navegadores lentos ou ser
+              // engolido pelo debounce/single-flight do load().
+              if (payload?.rows?.length) {
+                const map = new Map(payload.rows.map((r) => [String((r as { id: string }).id), r]));
+                setItems((prev) =>
+                  prev.map((it) => {
+                    const fresh = map.get(it.id);
+                    return fresh ? ({ ...it, ...(fresh as object) } as typeof it) : it;
+                  }),
+                );
+              }
+              void (async () => { await load(); await composition.refresh(); })();
+            }}
             smartActionsEnabled
           />
           {group && (
