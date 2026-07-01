@@ -106,8 +106,9 @@ interface Props {
   onApplyFilter?: (filter: "divergentes" | "sem_regra" | "reprovados" | "zerados") => void;
   /** Contexto necessário pra ações em lote (paymentId + companyName + companyGroupId opcional pra sugestões). */
   bulkContext?: { paymentId: string; companyName: string | null; companyGroupId?: string | null };
-  /** Callback chamado após o Zeev aplicar uma ação em lote. */
-  onBulkApplied?: () => void;
+  /** Callback chamado após o Zeev aplicar uma ação em lote. Recebe (opcional) as linhas
+   * já reconciliadas do DB para permitir sync imediato da UI sem esperar realtime. */
+  onBulkApplied?: (payload?: { itemIds: string[]; rows: Array<Record<string, unknown>> }) => void;
   /** Posicionamento (default: bottom-left). */
   side?: "bottom-left" | "bottom-right";
   /**
