@@ -23,14 +23,10 @@ const isValidJwtShape = (token?: string | null) => Boolean(token && token.split(
 
 const clearLocalAuthSession = async () => {
   try {
-    await supabase.auth.signOut({ scope: "local" });
+    const storageKey = `sb-${new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+    localStorage.removeItem(storageKey);
   } catch {
-    try {
-      const storageKey = `sb-${new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
-      localStorage.removeItem(storageKey);
-    } catch {
-      // ignore — se nem localStorage estiver disponível, só zera o state React.
-    }
+    // ignore — se nem localStorage estiver disponível, só zera o state React.
   }
 };
 
