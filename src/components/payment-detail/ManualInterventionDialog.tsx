@@ -143,11 +143,13 @@ export function ManualInterventionDialog({
           .eq("id", itemId)
           .maybeSingle();
         if (readErr) throw readErr;
-        // Tratamento manual aceita como esperado o valor que já está sendo
-        // pago ao médico. Se o gross_amount já foi ajustado manualmente
-        // (ex.: aceite de valor zerado em consulta de retorno), preserva
-        // esse valor. Caso contrário, usa procedure_amount (valor do
-        // convênio) como base. NULL/0 => 0 (zera repasse).
+        // Regra de acatação:
+        //  • aceite_financeiro  -> aceita o VALOR PAGO (gross_amount atual, ou
+        //    gross_amount_original se já houver override) como esperado.
+        //    Cobre casos de reajuste sem precisar refazer a regra.
+        //  • reclassificacao_clinica -> aceita procedure_amount (valor do
+        //    convênio) como esperado (comportamento clínico original).
+        //  • Se já havia override manual anterior, preserva o gross vigente.
         const rawProc = row?.procedure_amount;
         const procAmt =
           rawProc == null || !Number.isFinite(Number(rawProc))
@@ -155,9 +157,24 @@ export function ManualInterventionDialog({
             : Number(rawProc);
         const hasPriorOverride = !!(row as any)?.gross_override_at;
         const currentGross = (row as any)?.gross_amount;
-        const acceptedAmt = hasPriorOverride && currentGross != null && Number.isFinite(Number(currentGross))
-          ? Number(currentGross)
-          : procAmt;
+        const originalGross = (row as any)?.gross_amount_original;
+        const paidGrossRaw = hasPriorOverride ? originalGross : currentGross;
+        const paidGross =
+          paidGrossRaw != null && Number.isFinite(Number(paidGrossRaw))
+            ? Number(paidGrossRaw)
+            : null;
+
+        let acceptedAmt: number;
+        if (hasPriorOverride && currentGross != null && Number.isFinite(Number(currentGross))) {
+          // Preserva ajuste manual anterior (ex.: zerado em consulta de retorno).
+          acceptedAmt = Number(currentGross);
+        } else if (selectedReason?.category === "aceite_financeiro" && paidGross != null) {
+          // Aceita o valor efetivamente pago como esperado.
+          acceptedAmt = paidGross;
+        } else {
+          // Reclassificação clínica ou fallback: usa valor do convênio.
+          acceptedAmt = procAmt;
+        }
         (patch as any).expected_amount = acceptedAmt;
         (patch as any).gross_amount = acceptedAmt;
         if (!hasPriorOverride) {
@@ -167,6 +184,7 @@ export function ManualInterventionDialog({
         (patch as any).gross_override_by = user.id;
         (patch as any).gross_override_reason = "tratamento_manual";
         (patch as any).ai_status = "aprovado";
+
       } else {
         const { data: row, error: readErr } = await supabase
           .from("payment_items")
