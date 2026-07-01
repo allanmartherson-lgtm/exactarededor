@@ -1382,7 +1382,23 @@ const NewPayment = () => {
     }
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companyRegistry);
-    const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
+    let filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
+
+    // Se a planilha tem coluna EMPRESA/PJ com múltiplos valores distintos,
+    // a coluna vence o nome do arquivo — cada linha resolve sua própria PJ.
+    // Assim o card único da BANHATE volta a virar N cards (um por PJ).
+    if (filenameTrusted) {
+      const companyKeys = ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"];
+      const distinct = new Set<string>();
+      for (const r of json) {
+        const v = toStr(pick(r as Record<string, unknown>, companyKeys));
+        if (v && v.trim()) distinct.add(v.trim().toLowerCase());
+        if (distinct.size > 1) break;
+      }
+      if (distinct.size > 1) {
+        filenameTrusted = false;
+      }
+    }
 
     // Detecta a coluna "setor" cruzando cabeçalho + valores com sectores cadastrados.
     // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
