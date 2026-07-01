@@ -2834,15 +2834,24 @@ const NewPayment = () => {
         const slice = matchedItems.slice(i, i + CHUNK);
         const { error: itemsErr } = await supabase.from("payment_items").insert(slice);
         if (itemsErr) {
+          // Reverte o payment_items já inserido + o registro payments para que
+          // o analista possa reimportar sem gerar lote duplicado/órfão.
+          try {
+            await supabase.from("payment_items").delete().eq("payment_id", payment.id);
+            await supabase.from("payments").delete().eq("id", payment.id);
+          } catch (rollbackErr) {
+            console.warn("[NewPayment] rollback após falha de insert falhou:", rollbackErr);
+          }
           setSubmitting(false);
           toast({
             title: "Erro ao salvar itens",
-            description: `${itemsErr.message} (lote ${Math.floor(i / CHUNK) + 1} de ${Math.ceil(matchedItems.length / CHUNK)})`,
+            description: `${itemsErr.message} (lote ${Math.floor(i / CHUNK) + 1} de ${Math.ceil(matchedItems.length / CHUNK)}). Nenhum dado foi salvo — pode reenviar.`,
             variant: "destructive",
           });
           return;
         }
       }
+
 
       // Enriquecimento pós-insert: preenche doctor_document (CRM/UF) via match por nome
       // contra o cadastro de doctors. Planilhas Rede D'Or não trazem coluna de documento,
