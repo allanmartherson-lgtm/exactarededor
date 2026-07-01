@@ -1143,7 +1143,9 @@ const NewPayment = () => {
             "lotacao", "lotação",
             "ala", "posto", "area", "área", "local", "localizacao", "localização",
           ]));
-      const resolvedCompany = filenameTrusted ? company : (rowMatchedCompany || company);
+      const resolvedCompany = filenameTrusted
+        ? company
+        : (rowCompanyNameRaw ? rowMatchedCompany : company);
       const resolvedName = resolvedCompany?.name
         ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
         ?? null;
@@ -2860,7 +2862,7 @@ const NewPayment = () => {
     const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
       payment_id: payment.id,
       source_file: b.file.name,
-      raw_company_name: (b.rawCompanyName || r.company_name || "—").trim(),
+      raw_company_name: (r.company_name || b.rawCompanyName || "—").trim(),
       match_score: b.matchScore || 0,
       match_suggestion_id: b.matchedCompany?.id ?? null,
       match_suggestion_name: b.matchedCompany?.name ?? null,
