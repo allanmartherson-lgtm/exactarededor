@@ -354,41 +354,60 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
    */
   useEffect(() => {
     if (!id) return;
-    // Debounce coalesces bursts of realtime events (e.g., centenas de updates de
-    // payment_items durante a análise por IA) num único refetch. Sem isso, cada
-    // evento chama load() e o AbortController do load() anterior cancela o
-    // request em voo — resultado: o estado fica preso vazio até o usuário
-    // recarregar a página manualmente.
+    // Debounce coalesces bursts of realtime events (e.g., aplicar em lote do
+    // Zeev, análise por IA que faz DELETE+INSERT de payment_items). Usamos
+    // duas janelas: uma curta (400 ms) para mudanças "leves" — payment,
+    // observações, perguntas, atribuições — e uma longa (1500 ms) para
+    // payment_items, que costuma vir em rajadas maiores. Enquanto qualquer
+    // evento continuar chegando dentro de um intervalo máximo (`MAX_WAIT`),
+    // seguramos o refetch para evitar redesenho a cada linha; passado o
+    // MAX_WAIT desde o primeiro evento, forçamos um refetch mesmo que os
+    // eventos ainda estejam vindo.
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleReload = () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        debounceTimer = null;
-        loadGuarded();
-      }, 600);
+    let firstEventAt: number | null = null;
+    const MAX_WAIT_MS = 3000;
+    const flush = () => {
+      debounceTimer = null;
+      firstEventAt = null;
+      loadGuarded();
     };
+    const scheduleReload = (delay = 400) => {
+      const now = Date.now();
+      if (firstEventAt == null) firstEventAt = now;
+      const elapsed = now - firstEventAt;
+      if (elapsed >= MAX_WAIT_MS) {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        flush();
+        return;
+      }
+      const wait = Math.min(delay, MAX_WAIT_MS - elapsed);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(flush, wait);
+    };
+    const scheduleReloadFast = () => scheduleReload(400);
+    const scheduleReloadItems = () => scheduleReload(1500);
 
     const channel = supabase
       .channel(`payment-detail:${id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_observations", filter: `payment_id=eq.${id}` },
-        scheduleReload,
+        scheduleReloadFast,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "invoice_questions", filter: `payment_id=eq.${id}` },
-        scheduleReload,
+        scheduleReloadFast,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_assignments", filter: `payment_id=eq.${id}` },
-        scheduleReload,
+        scheduleReloadFast,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments", filter: `id=eq.${id}` },
-        scheduleReload,
+        scheduleReloadFast,
       )
       .on(
         "postgres_changes",
@@ -415,18 +434,12 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
           setGroups((prev) => prev.filter((g) => g.id !== row.id));
         },
       )
-      // payment_items: a análise faz DELETE+INSERT em lote, e o Realtime
-      // pode entregar eventos fora de ordem ou descartar alguns sob carga.
-      // Aplicar patches CDC locais (INSERT/UPDATE/DELETE) deixava o estado
-      // com um subconjunto dos itens (ex.: 35 de 107 para a mesma empresa)
-      // mesmo com o banco íntegro. Tratamos cada evento como sinal e
-      // refazemos o fetch debounced — load() é idempotente e reconcilia o
-      // estado contra o banco, evitando contagens/somatórios incorretos no
-      // grid e nos cards financeiros.
+      // payment_items: rajadas grandes (aplicar em lote / análise IA). Janela
+      // maior evita redesenho da grid a cada linha.
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
-        scheduleReload,
+        scheduleReloadItems,
       )
       .subscribe();
     return () => {
@@ -434,6 +447,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       supabase.removeChannel(channel);
     };
   }, [id, loadGuarded]);
+
 
   /**
    * Polling de segurança (backup do Realtime): a cada 20s busca apenas a

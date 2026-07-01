@@ -1941,15 +1941,8 @@ export default function CompanyAnalysis() {
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const isTerminal = ["pago", "rejeitado", "cancelado", "lancado"].includes(payment.status as string);
   const canDelete = isAdmin || (isAnalistaRole && !isTerminal);
-  
-  console.log("Render Info:", {
-    id,
-    paymentStatus: payment.status,
-    canDelete,
-    isAdmin,
-    isAnalista,
-    userRole: user?.role
-  });
+
+
 
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
   // Em CONFECÇÃO, o estado vivo do grupo está em confeccao_status (gStatus fica
