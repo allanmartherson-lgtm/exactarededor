@@ -139,22 +139,28 @@ export function ManualInterventionDialog({
       if (next) {
         const { data: row, error: readErr } = await supabase
           .from("payment_items")
-          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at")
+          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at,gross_override_reason")
           .eq("id", itemId)
           .maybeSingle();
         if (readErr) throw readErr;
-        // Tratamento manual aceita o procedure_amount como esperado.
-        // procedure_amount NULL ou 0 (item "zerado") => expected = 0, para
-        // que o repasse calculado também zere e o motor não mantenha valor
-        // antigo da regra.
+        // Tratamento manual aceita como esperado o valor que já está sendo
+        // pago ao médico. Se o gross_amount já foi ajustado manualmente
+        // (ex.: aceite de valor zerado em consulta de retorno), preserva
+        // esse valor. Caso contrário, usa procedure_amount (valor do
+        // convênio) como base. NULL/0 => 0 (zera repasse).
         const rawProc = row?.procedure_amount;
         const procAmt =
           rawProc == null || !Number.isFinite(Number(rawProc))
             ? 0
             : Number(rawProc);
-        (patch as any).expected_amount = procAmt;
-        (patch as any).gross_amount = procAmt;
-        if (!(row as any)?.gross_override_at) {
+        const hasPriorOverride = !!(row as any)?.gross_override_at;
+        const currentGross = (row as any)?.gross_amount;
+        const acceptedAmt = hasPriorOverride && currentGross != null && Number.isFinite(Number(currentGross))
+          ? Number(currentGross)
+          : procAmt;
+        (patch as any).expected_amount = acceptedAmt;
+        (patch as any).gross_amount = acceptedAmt;
+        if (!hasPriorOverride) {
           (patch as any).gross_amount_original = (row as any)?.gross_amount ?? null;
         }
         (patch as any).gross_override_at = new Date().toISOString();
