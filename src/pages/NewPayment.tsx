@@ -3008,7 +3008,7 @@ const NewPayment = () => {
           setSubmitting(false);
           toast({
             title: "Erro ao salvar itens",
-            description: `${res.err?.message ?? "erro desconhecido"} (lote ${Math.floor(i / CHUNK_START) + 1} de ${TOTAL_LOTS}). Nenhum dado foi salvo — seu rascunho foi preservado, é só clicar em salvar novamente.`,
+            description: `${(res as any).err?.message ?? "erro desconhecido"} (lote ${Math.floor(i / CHUNK_START) + 1} de ${TOTAL_LOTS}). Nenhum dado foi salvo — seu rascunho foi preservado, é só clicar em salvar novamente.`,
             variant: "destructive",
           });
           return;
