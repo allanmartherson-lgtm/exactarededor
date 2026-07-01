@@ -328,45 +328,51 @@ Deno.serve(async (req) => {
     // Phase 2 lote misto: auto-classifica item_type_id por item ANTES do
     // orquestrador, para que o motor já calcule as regras com o tipo correto.
     // Mantém override manual e cruzamento de parecer (gates do edge).
-    try {
-      const acResp = await fetch(`${SUPABASE_URL}/functions/v1/auto-classify-payment-types`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-        body: JSON.stringify({ payment_id }),
-      });
-      if (!acResp.ok) {
-        console.warn("[dispatch] auto-classify falhou", acResp.status, (await acResp.text()).slice(0, 300));
-      } else {
-        const acJson = await acResp.json();
-        console.log(`[dispatch] auto-classify ok auto_tuss=${acJson?.auto_tuss} auto_heuristic=${acJson?.auto_heuristic} auto_default=${acJson?.auto_default}`);
-      }
-    } catch (acErr) {
-      console.warn("[dispatch] auto-classify erro:", (acErr as any)?.message ?? acErr);
-    }
-
-    // Delega orquestração para `orchestrate-analysis` (página 0).
-    // Fire-and-forget: dispatch retorna imediatamente sem aguardar.
+    // 2026-07-01: encadeado em background (auto-classify → orchestrate) para
+    // que o dispatch retorne <2s mesmo em lotes com 100+ empresas — antes o
+    // await no auto-classify estourava IDLE_TIMEOUT (150s) do runtime.
     const orchestratorUrl = `${SUPABASE_URL}/functions/v1/orchestrate-analysis`;
-    runInBackground(fetch(orchestratorUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${SERVICE_KEY}`,
-      },
-      body: JSON.stringify({
-        job_id: job.id,
-        payment_id,
-        page_index: 0,
-        page_size: PAGE_SIZE,
-        ai_statuses,
-        tolerance_pct,
-        force_fresh_rules: force_fresh_rules === true,
-        skip_ai: skip_ai === true,
-      }),
-    }).then(async (resp) => {
-      if (!resp.ok) console.error("[dispatch] orquestrador retornou erro", resp.status, (await resp.text()).slice(0, 500));
-      else await resp.text();
-    }), "falha ao disparar orquestrador");
+    runInBackground(
+      (async () => {
+        try {
+          const acResp = await fetch(`${SUPABASE_URL}/functions/v1/auto-classify-payment-types`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+            body: JSON.stringify({ payment_id }),
+          });
+          if (!acResp.ok) {
+            console.warn("[dispatch] auto-classify falhou", acResp.status, (await acResp.text()).slice(0, 300));
+          } else {
+            const acJson = await acResp.json().catch(() => ({}));
+            console.log(`[dispatch] auto-classify ok auto_tuss=${acJson?.auto_tuss} auto_heuristic=${acJson?.auto_heuristic} auto_default=${acJson?.auto_default}`);
+          }
+        } catch (acErr) {
+          console.warn("[dispatch] auto-classify erro:", (acErr as any)?.message ?? acErr);
+        }
+
+        const resp = await fetch(orchestratorUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SERVICE_KEY}`,
+          },
+          body: JSON.stringify({
+            job_id: job.id,
+            payment_id,
+            page_index: 0,
+            page_size: PAGE_SIZE,
+            ai_statuses,
+            tolerance_pct,
+            force_fresh_rules: force_fresh_rules === true,
+            skip_ai: skip_ai === true,
+          }),
+        });
+        if (!resp.ok) console.error("[dispatch] orquestrador retornou erro", resp.status, (await resp.text()).slice(0, 500));
+        else await resp.text();
+      })(),
+      "auto-classify + orquestrador",
+    );
+
 
     return new Response(
       JSON.stringify({
