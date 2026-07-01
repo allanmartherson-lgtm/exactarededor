@@ -704,9 +704,9 @@ export function ZeevAssistant({
               attendance_number: it.attendance_number,
               procedure_amount: it.procedure_amount,
             }))}
-          onApplied={() => {
+          onApplied={(payload) => {
             setBulkOpen(null);
-            onBulkApplied?.();
+            onBulkApplied?.(payload);
           }}
         />
       )}
