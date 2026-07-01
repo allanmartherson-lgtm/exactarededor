@@ -2964,28 +2964,57 @@ const NewPayment = () => {
     }
 
     if (matchedItems.length > 0) {
-      // Insert em lotes via RPC com statement_timeout=0 no banco. Evita o timeout
-      // curto da API e mantém rollback confiável caso qualquer etapa falhe.
-      const CHUNK = 250;
-      for (let i = 0; i < matchedItems.length; i += CHUNK) {
-        const slice = matchedItems.slice(i, i + CHUNK);
-        const { error: itemsErr } = await (supabase as any).rpc("bulk_insert_new_payment_items", {
+      // Insert em lotes via RPC. bulk_insert_new_payment_items usa
+      // statement_timeout=0 no banco, mas ainda assim lotes muito grandes
+      // podem estourar o timeout curto da API (Postgrest ~8s por request)
+      // quando há muitos itens por linha (triggers pesadas de rateio,
+      // company_group, doctor_companies etc).
+      //
+      // Estratégia: começa com CHUNK moderado; em caso de statement/timeout,
+      // quebra o slice em pedaços cada vez menores e re-tenta. Só faz rollback
+      // se ficar impossível abaixo do menor tamanho.
+      const CHUNK_START = 100;
+      const MIN_CHUNK = 10;
+      const TOTAL_LOTS = Math.ceil(matchedItems.length / CHUNK_START);
+
+      const isTimeoutErr = (msg: string) =>
+        /statement timeout|canceling statement due to statement timeout|57014|timeout/i.test(msg || "");
+
+      const insertSlice = async (slice: any[], depth = 0): Promise<{ ok: true } | { ok: false; err: any }> => {
+        const { error } = await (supabase as any).rpc("bulk_insert_new_payment_items", {
           _payment_id: payment.id,
           _items: slice,
         });
-        if (itemsErr) {
-          // Reverte itens/grupos/quarentena/payment para o analista reimportar
-          // sem gerar lote duplicado ou parcial.
+        if (!error) return { ok: true };
+        // Só retenta em timeout; erros de schema/RLS devem falhar rápido.
+        if (!isTimeoutErr(error.message) || slice.length <= MIN_CHUNK) {
+          return { ok: false, err: error };
+        }
+        // Quebra ao meio e re-tenta cada metade.
+        const half = Math.max(MIN_CHUNK, Math.floor(slice.length / 2));
+        for (let j = 0; j < slice.length; j += half) {
+          const sub = slice.slice(j, j + half);
+          const res = await insertSlice(sub, depth + 1);
+          if (!res.ok) return res;
+        }
+        return { ok: true };
+      };
+
+      for (let i = 0; i < matchedItems.length; i += CHUNK_START) {
+        const slice = matchedItems.slice(i, i + CHUNK_START);
+        const res = await insertSlice(slice);
+        if (!res.ok) {
           await rollbackCreatedPayment("falha ao inserir payment_items");
           setSubmitting(false);
           toast({
             title: "Erro ao salvar itens",
-            description: `${itemsErr.message} (lote ${Math.floor(i / CHUNK) + 1} de ${Math.ceil(matchedItems.length / CHUNK)}). Nenhum dado foi salvo — pode reenviar.`,
+            description: `${(res as any).err?.message ?? "erro desconhecido"} (lote ${Math.floor(i / CHUNK_START) + 1} de ${TOTAL_LOTS}). Nenhum dado foi salvo — seu rascunho foi preservado, é só clicar em salvar novamente.`,
             variant: "destructive",
           });
           return;
         }
       }
+
 
 
       // Enriquecimento pós-insert: preenche doctor_document (CRM/UF) via match por nome
