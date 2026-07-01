@@ -317,15 +317,29 @@ const toStr = (v: unknown): string | null => {
   const s = String(v).trim();
   return s.length ? s : null;
 };
-const ROW_COMPANY_KEYS = ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"];
+const EXPLICIT_ROW_COMPANY_KEYS = [
+  "empresa", "empresa pj", "empresa (pj)", "pj", "fornecedor", "terceiro", "terceiro prestador",
+  "razao social", "razão social", "nome empresa", "nome da empresa",
+];
+const LEGACY_ROW_COMPANY_KEYS = ["hospital", "unidade", "unidade de atendimento"];
+const readRowCompanyName = (
+  row: Record<string, unknown>,
+  manualMapping?: ManualMapping,
+  includeLegacy = true,
+): string | null => {
+  const mappedHeader = manualMapping?.company_name;
+  if (mappedHeader && mappedHeader in row) return toStr(row[mappedHeader]);
+  const explicit = toStr(pick(row, EXPLICIT_ROW_COMPANY_KEYS));
+  if (explicit) return explicit;
+  return includeLegacy ? toStr(pick(row, LEGACY_ROW_COMPANY_KEYS)) : null;
+};
 const hasMultipleDistinctCompanyValues = (
   json: Record<string, unknown>[],
   manualMapping?: ManualMapping,
 ): boolean => {
   const distinct = new Set<string>();
-  for (const rawRow of json) {
-    const row = applyManualMappingShim(rawRow, manualMapping);
-    const v = toStr(pick(row, ROW_COMPANY_KEYS));
+  for (const row of json) {
+    const v = readRowCompanyName(row, manualMapping, false);
     if (!v) continue;
     distinct.add(v.trim().toLowerCase());
     if (distinct.size > 1) return true;
@@ -859,7 +873,7 @@ export const parsePaymentFile = async (
     }
 
 
-    const rowCompanyNameRaw = toStr(pickField(row, "company_name", manualMapping));
+    const rowCompanyNameRaw = readRowCompanyName(row, manualMapping);
     let rowMatchedCompany: CompanyRow | null = null;
     if (!filenameTrusted && rowCompanyNameRaw) {
       const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
