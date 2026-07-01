@@ -11100,6 +11100,31 @@ export type Database = {
         Returns: string
       }
       current_active_hospital: { Args: never; Returns: string }
+      dashboard_company_invoice_questions: {
+        Args: { _created_by: string }
+        Returns: {
+          count: number
+          first_payment_id: string
+        }[]
+      }
+      dashboard_invoice_counts: {
+        Args: { _created_by: string }
+        Returns: {
+          count: number
+          status: Database["public"]["Enums"]["invoice_status"]
+        }[]
+      }
+      dashboard_pending_company_groups: {
+        Args: {
+          _created_by: string
+          _status: Database["public"]["Enums"]["payment_status"]
+        }
+        Returns: {
+          count: number
+          payment_id: string
+          reference: string
+        }[]
+      }
       declare_engine_source_applicable: {
         Args: { _applicable?: boolean; _payment_id: string; _source: string }
         Returns: undefined
