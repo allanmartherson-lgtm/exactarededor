@@ -25,6 +25,8 @@ import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { usePaymentTypeCodeSync } from "@/hooks/usePaymentTypeCodeSync";
 import { fetchCompanyRiskProfiles } from "@/lib/companyRiskProfile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
 import { resolvePaymentAmounts } from "@/lib/resolvePaymentAmounts";
