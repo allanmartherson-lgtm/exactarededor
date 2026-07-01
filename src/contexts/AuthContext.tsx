@@ -43,17 +43,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // remontava o ProtectedRoute periodicamente e apagava formulários em
   // andamento (ex.: modal de cadastro de regras).
   const lastLoadedUserIdRef = useRef<string | null>(null);
+  const activeRolesLoadRef = useRef(0);
   const isRecoveryRouteRef = useRef(false);
   isRecoveryRouteRef.current = ["/definir-senha", "/reset-password", "/auth/reset-password"].includes(
     location.pathname,
   );
 
   const loadRoles = async (userId: string) => {
+    const loadId = ++activeRolesLoadRef.current;
     setRolesLoading(true);
     const [rolesRes, profileRes] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase.from("profiles").select("active,is_senior").eq("id", userId).maybeSingle(),
     ]);
+    if (loadId !== activeRolesLoadRef.current) return;
     setRoles((rolesRes.data ?? []).map((r) => r.role as AppRole));
     const profile = profileRes.data as { active?: boolean; is_senior?: boolean } | null;
     setAccountActive(profile?.active !== false);
@@ -88,10 +91,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // TOKEN_REFRESHED disparam frequentemente e não devem causar
         // rolesLoading=true (que desmonta a página via ProtectedRoute).
         if (lastLoadedUserIdRef.current !== newUserId) {
+          setRoles([]);
+          setAccountActive(true);
+          setIsSenior(false);
+          setRolesLoading(true);
           setTimeout(() => loadRoles(newUserId), 0);
         }
       } else {
+        activeRolesLoadRef.current += 1;
         setRoles([]);
+        setAccountActive(true);
+        setIsSenior(false);
         setRolesLoading(false);
         lastLoadedUserIdRef.current = null;
       }
@@ -118,7 +128,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await loadRoles(existing.user.id);
         }
       } else {
+        activeRolesLoadRef.current += 1;
         setRoles([]);
+        setAccountActive(true);
+        setIsSenior(false);
         setRolesLoading(false);
         lastLoadedUserIdRef.current = null;
       }
