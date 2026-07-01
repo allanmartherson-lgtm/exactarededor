@@ -531,6 +531,7 @@ const NewPayment = () => {
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
+  const registriesLoadPromiseRef = useRef<Promise<void> | null>(null);
   const [searchParams] = useSearchParams();
   // Resolve o modo na seguinte ordem: query param → sessionStorage (escolhido
   // no modal antes de navegar) → padrão. Garante que se o param se perder no
@@ -988,7 +989,7 @@ const NewPayment = () => {
       // Cache curto em sessionStorage (60s) — evita re-fetch quando o usuário
       // navega entre telas e reduz pressão no pool durante picos de import.
       const CACHE_KEY = "newpayment.companies.cache.v1";
-      const CACHE_TTL_MS = 60_000;
+      const CACHE_TTL_MS = 5 * 60_000;
       try {
         const raw = sessionStorage.getItem(CACHE_KEY);
         if (raw) {
@@ -1001,18 +1002,20 @@ const NewPayment = () => {
         }
       } catch { /* ignore */ }
 
-      const pageSize = 1000;
+      const pageSize = 500;
       const all: CompanyRow[] = [];
 
-      const fetchPage = async (from: number) => {
+      const fetchPage = async (afterId: string | null) => {
         // Retry com backoff exponencial p/ timeouts (57014) e falhas transitórias.
         let lastErr: any = null;
         for (let attempt = 0; attempt < 4; attempt++) {
-          const { data, error } = await supabase
+          let q = supabase
             .from("companies")
             .select("id,name,aliases")
-            .order("name", { ascending: true })
-            .range(from, from + pageSize - 1);
+            .order("id", { ascending: true })
+            .limit(pageSize);
+          if (afterId) q = q.gt("id", afterId);
+          const { data, error } = await q;
           if (!error) return data ?? [];
           lastErr = error;
           const isTimeout = (error as any)?.code === "57014";
@@ -1022,12 +1025,18 @@ const NewPayment = () => {
         throw lastErr;
       };
 
-      for (let from = 0; ; from += pageSize) {
-        const data = await fetchPage(from);
+      let afterId: string | null = null;
+      for (;;) {
+        const data = await fetchPage(afterId);
         const page = (data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
         all.push(...page);
         if (page.length < pageSize) break;
+        const next = page[page.length - 1]?.id ?? null;
+        if (!next || next === afterId) break;
+        afterId = next;
       }
+
+      all.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
       companiesRef.current = all;
       setCompanies(all);
@@ -1044,17 +1053,6 @@ const NewPayment = () => {
     }
   }, []);
 
-
-  useEffect(() => {
-    loadCompanies().catch((error) => {
-      console.error("[NewPayment] loadCompanies", error);
-      toast({
-        title: "Não foi possível carregar empresas",
-        description: "Atualize a página e tente enviar os arquivos novamente.",
-        variant: "destructive",
-      });
-    });
-  }, [loadCompanies]);
 
   /**
    * Mapeia um array de linhas JSON (já com cabeçalho correto) para ParsedRow[].
@@ -1370,7 +1368,18 @@ const NewPayment = () => {
       );
     }
 
-    const companyRegistry = await loadCompanies();
+    let companyRegistry: CompanyRow[] = [];
+    try {
+      companyRegistry = await loadCompanies();
+    } catch (error) {
+      console.warn("[NewPayment] loadCompanies during parse", error);
+      companyRegistry = companiesRef.current.length ? companiesRef.current : companies;
+      toast({
+        title: "Empresas não carregaram automaticamente",
+        description: "O arquivo foi lido mesmo assim. Se a PJ não for reconhecida, selecione manualmente no card do arquivo.",
+        variant: "destructive",
+      });
+    }
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companyRegistry);
     const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
@@ -2186,21 +2195,37 @@ const NewPayment = () => {
   const [sectorReg, setSectorReg] = useState<SectorRegistry | null>(null);
   const [registryVersion, setRegistryVersion] = useState(0);
 
-  const reloadRegistries = async () => {
-    const [d, c, s] = await Promise.all([
-      loadDoctorRegistry(),
-      loadConvenioRegistry(),
-      loadSectorRegistry(),
-    ]);
-    setDoctorReg(d);
-    setConvenioReg(c);
-    setSectorReg(s);
-    setRegistryVersion((v) => v + 1);
+  const reloadRegistries = async (force = false) => {
+    if (!force && registriesLoadPromiseRef.current) return registriesLoadPromiseRef.current;
+    registriesLoadPromiseRef.current = (async () => {
+      const [d, c, s] = await Promise.all([
+        loadDoctorRegistry(force),
+        loadConvenioRegistry(force),
+        loadSectorRegistry(force),
+      ]);
+      setDoctorReg(d);
+      setConvenioReg(c);
+      setSectorReg(s);
+      setRegistryVersion((v) => v + 1);
+    })();
+    try {
+      await registriesLoadPromiseRef.current;
+    } finally {
+      registriesLoadPromiseRef.current = null;
+    }
   };
 
   useEffect(() => {
-    void reloadRegistries();
-  }, []);
+    if (allRows.length === 0 || (doctorReg && convenioReg && sectorReg)) return;
+    reloadRegistries().catch((error) => {
+      console.error("[NewPayment] reloadRegistries", error);
+      toast({
+        title: "Cadastros oficiais ainda não carregaram",
+        description: "O upload pode continuar; se a lista de pendências não aparecer, aguarde alguns segundos e tente novamente.",
+        variant: "destructive",
+      });
+    });
+  }, [allRows.length, doctorReg, convenioReg, sectorReg]);
 
   // Quando o analista escolhe explicitamente o setor do bucket via chip
   // ("Setor: SADT Endoscopia"), esse override DEVE prevalecer sobre o valor
@@ -2276,6 +2301,7 @@ const NewPayment = () => {
   }, [resolvedRows, doctorReg, convenioReg, sectorReg, buckets]);
 
 
+  const registriesReady = allRows.length === 0 || (!!doctorReg && !!convenioReg && !!sectorReg);
   const hasUnresolved = unresolvedGroups.length > 0;
 
 
@@ -4418,13 +4444,23 @@ const NewPayment = () => {
           <CompanyRiskProfileList companyNames={uniqueCompanyNames} />
         )}
 
+        {allRows.length > 0 && !registriesReady && (
+          <Alert>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <AlertTitle>Carregando cadastros oficiais</AlertTitle>
+            <AlertDescription>
+              Estou carregando médicos, convênios e setores para validar a base antes do envio.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {allRows.length > 0 && doctorReg && convenioReg && sectorReg && (
           <RegistryResolutionPanel
             unresolved={unresolvedGroups}
             doctorReg={doctorReg}
             convenioReg={convenioReg}
             sectorReg={sectorReg}
-            onResolved={reloadRegistries}
+            onResolved={() => reloadRegistries(true)}
           />
         )}
 
@@ -4498,11 +4534,13 @@ const NewPayment = () => {
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
+          <Button onClick={submit} disabled={submitting || allRows.length === 0 || !registriesReady || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
 
               ? `Revise ${pendingSuspiciousCount} linha${pendingSuspiciousCount === 1 ? "" : "s"} suspeita${pendingSuspiciousCount === 1 ? "" : "s"}`
+              : !registriesReady
+                ? "Carregando cadastros oficiais"
               : hasUnresolved
                 ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`
                 : !costCenterCode

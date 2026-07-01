@@ -72,6 +72,51 @@ const crmUfKey = (number: string, uf: string | null | undefined) =>
 
 // ====== loaders ======
 
+const REGISTRY_CACHE_TTL_MS = 5 * 60_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetriableLookupError = (error: any) =>
+  error?.code === "57014" || /timeout|temporar/i.test(String(error?.message ?? ""));
+
+async function runLookupQuery<T>(queryFactory: () => any, attempts = 4): Promise<T[]> {
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const { data, error } = await queryFactory();
+    if (!error) return (data ?? []) as T[];
+    lastErr = error;
+    if (!isRetriableLookupError(error)) break;
+    await sleep(500 * Math.pow(2, attempt));
+  }
+  throw lastErr;
+}
+
+function readSessionCache<T>(key: string, ttlMs: number): T | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at: number; value: T };
+    if (parsed && Date.now() - parsed.at < ttlMs) return parsed.value;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function writeSessionCache<T>(key: string, value: T): void {
+  if (typeof sessionStorage === "undefined") return;
+  try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), value })); } catch { /* quota — ignore */ }
+}
+
+async function cachedRows<T>(key: string, force: boolean, loader: () => Promise<T>): Promise<T> {
+  if (!force) {
+    const cached = readSessionCache<T>(key, REGISTRY_CACHE_TTL_MS);
+    if (cached) return cached;
+  }
+  const value = await loader();
+  writeSessionCache(key, value);
+  return value;
+}
+
 /**
  * Pagina todas as linhas de uma query Supabase ignorando o teto default
  * de 1000. Necessário para `doctors` (>4k linhas) — sem isso o resolver
@@ -93,20 +138,57 @@ async function fetchAllPaginated<T>(
   return out;
 }
 
-export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
+/**
+ * Paginação por chave primária. Evita OFFSET em tabelas com RLS, que precisa
+ * "passar" pelas linhas anteriores e vinha estourando statement_timeout.
+ */
+async function fetchAllById<T extends { id?: string }>(
+  buildQuery: (afterId: string | null, limit: number) => any,
+  pageSize = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  let afterId: string | null = null;
+  for (;;) {
+    const rows = await runLookupQuery<T>(() => buildQuery(afterId, pageSize));
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+    const next = rows[rows.length - 1]?.id;
+    if (!next || next === afterId) break;
+    afterId = next;
+  }
+  return out;
+}
+
+export async function loadDoctorRegistry(force = false): Promise<DoctorRegistry> {
   const reg: DoctorRegistry = { byCrm: new Map(), byCrmUf: new Map(), byCpf: new Map(), byAlias: new Map() };
-  const [docs, aliases] = await Promise.all([
-    fetchAllPaginated<any>((from, to) =>
-      supabase
-        .from("doctors")
-        .select("id, full_name, crm, crm_uf, cpf, specialties")
-        .eq("active", true)
-        .range(from, to),
-    ),
-    fetchAllPaginated<any>((from, to) =>
-      supabase.from("doctor_aliases").select("doctor_id, alias_normalized").range(from, to),
-    ),
-  ]);
+  const { docs, aliases } = await cachedRows(
+    "registry.doctors.v2",
+    force,
+    async () => {
+      const [docs, aliases] = await Promise.all([
+        fetchAllById<any>((afterId, limit) => {
+          let q = supabase
+            .from("doctors")
+            .select("id, full_name, crm, crm_uf, cpf, specialties")
+            .eq("active", true)
+            .order("id", { ascending: true })
+            .limit(limit);
+          if (afterId) q = q.gt("id", afterId);
+          return q;
+        }),
+        fetchAllById<any>((afterId, limit) => {
+          let q = supabase
+            .from("doctor_aliases")
+            .select("id, doctor_id, alias_normalized")
+            .order("id", { ascending: true })
+            .limit(limit);
+          if (afterId) q = q.gt("id", afterId);
+          return q;
+        }),
+      ]);
+      return { docs, aliases };
+    },
+  );
   const byId = new Map<string, DoctorRegistryEntry>();
   for (const d of docs ?? []) {
     const e: DoctorRegistryEntry = {
@@ -138,16 +220,23 @@ export async function loadDoctorRegistry(): Promise<DoctorRegistry> {
   return reg;
 }
 
-export async function loadConvenioRegistry(): Promise<ConvenioRegistry> {
+export async function loadConvenioRegistry(force = false): Promise<ConvenioRegistry> {
   const reg: ConvenioRegistry = { bySlug: new Map(), byAlias: new Map() };
-  const [conv, aliases] = await Promise.all([
-    fetchAllPaginated<any>((from, to) =>
-      supabase.from("convenios").select("slug, name").eq("active", true).range(from, to),
-    ),
-    fetchAllPaginated<any>((from, to) =>
-      supabase.from("convenio_aliases").select("convenio_slug, alias_normalized").range(from, to),
-    ),
-  ]);
+  const { conv, aliases } = await cachedRows(
+    "registry.convenios.v2",
+    force,
+    async () => {
+      const [conv, aliases] = await Promise.all([
+        fetchAllPaginated<any>((from, to) =>
+          supabase.from("convenios").select("slug, name").eq("active", true).range(from, to),
+        ),
+        fetchAllPaginated<any>((from, to) =>
+          supabase.from("convenio_aliases").select("convenio_slug, alias_normalized").range(from, to),
+        ),
+      ]);
+      return { conv, aliases };
+    },
+  );
   for (const c of conv ?? []) {
     const e: ConvenioRegistryEntry = { slug: (c as any).slug, name: (c as any).name };
     reg.bySlug.set(e.slug, e);
@@ -163,16 +252,23 @@ export async function loadConvenioRegistry(): Promise<ConvenioRegistry> {
   return reg;
 }
 
-export async function loadSectorRegistry(): Promise<SectorRegistry> {
+export async function loadSectorRegistry(force = false): Promise<SectorRegistry> {
   const reg: SectorRegistry = { bySlug: new Map(), byAlias: new Map() };
-  const [sec, aliases] = await Promise.all([
-    fetchAllPaginated<any>((from, to) =>
-      supabase.from("sectors").select("slug, name").eq("active", true).range(from, to),
-    ),
-    fetchAllPaginated<any>((from, to) =>
-      supabase.from("sector_aliases").select("sector_slug, alias_normalized").range(from, to),
-    ),
-  ]);
+  const { sec, aliases } = await cachedRows(
+    "registry.sectors.v2",
+    force,
+    async () => {
+      const [sec, aliases] = await Promise.all([
+        fetchAllPaginated<any>((from, to) =>
+          supabase.from("sectors").select("slug, name").eq("active", true).range(from, to),
+        ),
+        fetchAllPaginated<any>((from, to) =>
+          supabase.from("sector_aliases").select("sector_slug, alias_normalized").range(from, to),
+        ),
+      ]);
+      return { sec, aliases };
+    },
+  );
   for (const s of sec ?? []) {
     const e: SectorRegistryEntry = { slug: (s as any).slug, name: (s as any).name };
     reg.bySlug.set(e.slug, e);
