@@ -6683,7 +6683,7 @@ export type Database = {
             foreignKeyName: "payments_payment_model_id_fkey"
             columns: ["payment_model_id"]
             isOneToOne: false
-            referencedRelation: "payment_models"
+            referencedRelation: "payment_types"
             referencedColumns: ["id"]
           },
           {
