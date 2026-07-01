@@ -292,8 +292,8 @@ export function ZeevBulkManualDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[min(95vw,720px)] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="px-6 pt-6">
           <DialogTitle className="flex items-center gap-2">
             <ZeevIcon variant="circle" size={20} />
             {title ?? "Aplicar tratativa manual em lote"}
@@ -303,6 +303,7 @@ export function ZeevBulkManualDialog({
               "Zeev sugere aplicar a mesma justificativa em todos esses itens. Revise a lista, escolha o motivo e confirme."}
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-4">
           {/* Lista de itens */}
