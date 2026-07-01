@@ -2216,6 +2216,7 @@ const NewPayment = () => {
   };
 
   useEffect(() => {
+    if (allRows.length === 0 || (doctorReg && convenioReg && sectorReg)) return;
     reloadRegistries().catch((error) => {
       console.error("[NewPayment] reloadRegistries", error);
       toast({
@@ -2224,7 +2225,7 @@ const NewPayment = () => {
         variant: "destructive",
       });
     });
-  }, []);
+  }, [allRows.length, doctorReg, convenioReg, sectorReg]);
 
   // Quando o analista escolhe explicitamente o setor do bucket via chip
   // ("Setor: SADT Endoscopia"), esse override DEVE prevalecer sobre o valor
@@ -2300,6 +2301,7 @@ const NewPayment = () => {
   }, [resolvedRows, doctorReg, convenioReg, sectorReg, buckets]);
 
 
+  const registriesReady = allRows.length === 0 || (!!doctorReg && !!convenioReg && !!sectorReg);
   const hasUnresolved = unresolvedGroups.length > 0;
 
 
