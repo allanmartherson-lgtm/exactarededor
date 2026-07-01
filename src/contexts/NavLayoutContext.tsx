@@ -72,7 +72,6 @@ export const NavLayoutProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (authLoading) return;
-    let cancelled = false;
     const uid = user?.id ?? null;
     if (uid) {
       void hydrateForUser(uid);
@@ -95,7 +94,6 @@ export const NavLayoutProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
-      cancelled = true;
       sub.subscription.unsubscribe();
     };
   }, [authLoading, user?.id]);
