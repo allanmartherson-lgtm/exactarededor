@@ -531,6 +531,7 @@ const NewPayment = () => {
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
+  const registriesLoadPromiseRef = useRef<Promise<void> | null>(null);
   const [searchParams] = useSearchParams();
   // Resolve o modo na seguinte ordem: query param → sessionStorage (escolhido
   // no modal antes de navegar) → padrão. Garante que se o param se perder no
@@ -988,7 +989,7 @@ const NewPayment = () => {
       // Cache curto em sessionStorage (60s) — evita re-fetch quando o usuário
       // navega entre telas e reduz pressão no pool durante picos de import.
       const CACHE_KEY = "newpayment.companies.cache.v1";
-      const CACHE_TTL_MS = 60_000;
+      const CACHE_TTL_MS = 5 * 60_000;
       try {
         const raw = sessionStorage.getItem(CACHE_KEY);
         if (raw) {
@@ -1001,18 +1002,20 @@ const NewPayment = () => {
         }
       } catch { /* ignore */ }
 
-      const pageSize = 1000;
+      const pageSize = 500;
       const all: CompanyRow[] = [];
 
-      const fetchPage = async (from: number) => {
+      const fetchPage = async (afterId: string | null) => {
         // Retry com backoff exponencial p/ timeouts (57014) e falhas transitórias.
         let lastErr: any = null;
         for (let attempt = 0; attempt < 4; attempt++) {
-          const { data, error } = await supabase
+          let q = supabase
             .from("companies")
             .select("id,name,aliases")
-            .order("name", { ascending: true })
-            .range(from, from + pageSize - 1);
+            .order("id", { ascending: true })
+            .limit(pageSize);
+          if (afterId) q = q.gt("id", afterId);
+          const { data, error } = await q;
           if (!error) return data ?? [];
           lastErr = error;
           const isTimeout = (error as any)?.code === "57014";
@@ -1022,12 +1025,18 @@ const NewPayment = () => {
         throw lastErr;
       };
 
-      for (let from = 0; ; from += pageSize) {
-        const data = await fetchPage(from);
+      let afterId: string | null = null;
+      for (;;) {
+        const data = await fetchPage(afterId);
         const page = (data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
         all.push(...page);
         if (page.length < pageSize) break;
+        const next = page[page.length - 1]?.id ?? null;
+        if (!next || next === afterId) break;
+        afterId = next;
       }
+
+      all.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
       companiesRef.current = all;
       setCompanies(all);
@@ -1044,17 +1053,6 @@ const NewPayment = () => {
     }
   }, []);
 
-
-  useEffect(() => {
-    loadCompanies().catch((error) => {
-      console.error("[NewPayment] loadCompanies", error);
-      toast({
-        title: "Não foi possível carregar empresas",
-        description: "Atualize a página e tente enviar os arquivos novamente.",
-        variant: "destructive",
-      });
-    });
-  }, [loadCompanies]);
 
   /**
    * Mapeia um array de linhas JSON (já com cabeçalho correto) para ParsedRow[].
@@ -1370,7 +1368,18 @@ const NewPayment = () => {
       );
     }
 
-    const companyRegistry = await loadCompanies();
+    let companyRegistry: CompanyRow[] = [];
+    try {
+      companyRegistry = await loadCompanies();
+    } catch (error) {
+      console.warn("[NewPayment] loadCompanies during parse", error);
+      companyRegistry = companiesRef.current.length ? companiesRef.current : companies;
+      toast({
+        title: "Empresas não carregaram automaticamente",
+        description: "O arquivo foi lido mesmo assim. Se a PJ não for reconhecida, selecione manualmente no card do arquivo.",
+        variant: "destructive",
+      });
+    }
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companyRegistry);
     const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
