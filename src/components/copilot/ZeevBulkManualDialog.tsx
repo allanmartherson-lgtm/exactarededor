@@ -444,7 +444,7 @@ export function ZeevBulkManualDialog({
           )}
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 px-6 py-4 border-t bg-background">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
