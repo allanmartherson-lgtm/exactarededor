@@ -2195,20 +2195,35 @@ const NewPayment = () => {
   const [sectorReg, setSectorReg] = useState<SectorRegistry | null>(null);
   const [registryVersion, setRegistryVersion] = useState(0);
 
-  const reloadRegistries = async () => {
-    const [d, c, s] = await Promise.all([
-      loadDoctorRegistry(),
-      loadConvenioRegistry(),
-      loadSectorRegistry(),
-    ]);
-    setDoctorReg(d);
-    setConvenioReg(c);
-    setSectorReg(s);
-    setRegistryVersion((v) => v + 1);
+  const reloadRegistries = async (force = false) => {
+    if (!force && registriesLoadPromiseRef.current) return registriesLoadPromiseRef.current;
+    registriesLoadPromiseRef.current = (async () => {
+      const [d, c, s] = await Promise.all([
+        loadDoctorRegistry(force),
+        loadConvenioRegistry(force),
+        loadSectorRegistry(force),
+      ]);
+      setDoctorReg(d);
+      setConvenioReg(c);
+      setSectorReg(s);
+      setRegistryVersion((v) => v + 1);
+    })();
+    try {
+      await registriesLoadPromiseRef.current;
+    } finally {
+      registriesLoadPromiseRef.current = null;
+    }
   };
 
   useEffect(() => {
-    void reloadRegistries();
+    reloadRegistries().catch((error) => {
+      console.error("[NewPayment] reloadRegistries", error);
+      toast({
+        title: "Cadastros oficiais ainda não carregaram",
+        description: "O upload pode continuar; se a lista de pendências não aparecer, aguarde alguns segundos e tente novamente.",
+        variant: "destructive",
+      });
+    });
   }, []);
 
   // Quando o analista escolhe explicitamente o setor do bucket via chip
