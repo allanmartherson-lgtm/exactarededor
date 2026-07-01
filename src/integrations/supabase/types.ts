@@ -10883,6 +10883,18 @@ export type Database = {
         Args: { _mark_id: string }
         Returns: undefined
       }
+      apply_zeev_bulk_manual: {
+        Args: {
+          _item_ids: string[]
+          _notes: string
+          _override_reason?: string
+          _reason_id: string
+          _source?: string
+        }
+        Returns: {
+          updated_count: number
+        }[]
+      }
       approve_campaign: { Args: { _campaign_id: string }; Returns: undefined }
       approve_payment: {
         Args: {

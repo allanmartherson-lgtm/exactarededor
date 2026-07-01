@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { recordAudit, buildDiff } from "@/lib/audit";
+
 import {
   Dialog,
   DialogContent,
@@ -194,62 +194,16 @@ export function ZeevBulkManualDialog({
     setSubmitting(true);
     setProgress({ done: 0, total: targetItems.length });
     try {
-      let done = 0;
-      for (const it of targetItems) {
-        // Lê valores atuais para preservar o pago original e permitir undo fiel.
-        const { data: row, error: readErr } = await supabase
-          .from("payment_items")
-          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at")
-          .eq("id", it.id)
-          .maybeSingle();
-        if (readErr) throw readErr;
-        const procAmt =
-          (row as any)?.procedure_amount == null ? null : Number((row as any).procedure_amount);
+      const { error } = await supabase.rpc("apply_zeev_bulk_manual" as never, {
+        _item_ids: targetItems.map((i) => i.id),
+        _reason_id: reasonId,
+        _notes: notes.trim() || null,
+        _source: "zeev_bulk",
+        _override_reason: "zeev_bulk_manual",
+      } as never);
+      if (error) throw error;
 
-        const patch: Record<string, unknown> = {
-          manual_intervention_reason_id: reasonId,
-          manual_intervention_notes: notes.trim() || null,
-          manual_intervention_by: user.id,
-          manual_intervention_source: "zeev_bulk",
-          ai_status: "aprovado",
-        };
-        if (procAmt != null && Number.isFinite(procAmt)) {
-          patch.expected_amount = procAmt;
-          patch.gross_amount = procAmt;
-          if (!(row as any)?.gross_override_at) {
-            patch.gross_amount_original = (row as any)?.gross_amount ?? null;
-          }
-          patch.gross_override_at = new Date().toISOString();
-          patch.gross_override_by = user.id;
-          patch.gross_override_reason = "zeev_bulk_manual";
-        }
-
-        const { error } = await supabase
-          .from("payment_items")
-          .update(patch as never)
-          .eq("id", it.id);
-        if (error) throw error;
-
-        await recordAudit({
-          entityType: "payment_item",
-          entityId: it.id,
-          action: "update",
-          actorId: user.id,
-          diff: {
-            __op: {
-              before: null,
-              after: `zeev_bulk_apply:${selectedReason?.code ?? reasonId}`,
-            },
-            ...buildDiff(
-              { manual_intervention_reason_id: null },
-              { manual_intervention_reason_id: reasonId },
-            ),
-          },
-        });
-
-        done += 1;
-        setProgress({ done, total: targetItems.length });
-      }
+      setProgress({ done: targetItems.length, total: targetItems.length });
 
       // Re-dispara análise da empresa uma única vez
       try {
@@ -280,6 +234,7 @@ export function ZeevBulkManualDialog({
       setSubmitting(false);
     }
   };
+
 
   const groupOrder: ManualInterventionReason["category"][] = [
     "reclassificacao_clinica",
