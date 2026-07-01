@@ -419,6 +419,45 @@ const toStr = (v: unknown): string | null => {
   return s.length ? s : null;
 };
 
+const EXPLICIT_ROW_COMPANY_KEYS = [
+  "empresa", "empresa pj", "empresa (pj)", "pj", "fornecedor", "terceiro", "terceiro prestador",
+  "razao social", "razão social", "nome empresa", "nome da empresa",
+];
+const LEGACY_ROW_COMPANY_KEYS = ["hospital", "unidade", "unidade de atendimento"];
+
+const readRowCompanyName = (
+  row: Record<string, unknown>,
+  manualMapping?: ManualMapping,
+  includeLegacy = true,
+): string | null => {
+  const mappedHeader = manualMapping?.company_name;
+  if (mappedHeader && mappedHeader in row) return toStr(row[mappedHeader]);
+  const explicit = toStr(pick(row, EXPLICIT_ROW_COMPANY_KEYS));
+  if (explicit) return explicit;
+  return includeLegacy ? toStr(pick(row, LEGACY_ROW_COMPANY_KEYS)) : null;
+};
+
+const hasMultipleDistinctCompanyValues = (
+  json: Record<string, unknown>[],
+  manualMapping?: ManualMapping,
+): boolean => {
+  const distinct = new Set<string>();
+  for (const row of json) {
+    const v = readRowCompanyName(row, manualMapping, false);
+    if (!v) continue;
+    distinct.add(v.trim().toLowerCase());
+    if (distinct.size > 1) return true;
+  }
+  return false;
+};
+
+const shouldTrustFilenameCompany = (
+  score: number,
+  company: CompanyRow | null,
+  json: Record<string, unknown>[],
+  manualMapping?: ManualMapping,
+): boolean => score >= MATCH_AUTO_THRESHOLD && !!company && !hasMultipleDistinctCompanyValues(json, manualMapping);
+
 /**
  * Converte data crua da base hospitalar para ISO. Retorna também
  * `hasTime` indicando se a HORA do atendimento veio explícita na origem
@@ -1102,7 +1141,7 @@ const NewPayment = () => {
       const valor_invalido = amounts.valor_invalido || r_qty.invalid;
 
 
-      const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
+      const rowCompanyNameRaw = readRowCompanyName(rawRow, sanitizedMapping);
       let rowMatchedCompany: CompanyRow | null = null;
       if (!filenameTrusted && rowCompanyNameRaw) {
         const registry = companiesRef.current.length ? companiesRef.current : companies;
@@ -1119,7 +1158,9 @@ const NewPayment = () => {
             "lotacao", "lotação",
             "ala", "posto", "area", "área", "local", "localizacao", "localização",
           ]));
-      const resolvedCompany = filenameTrusted ? company : (rowMatchedCompany || company);
+      const resolvedCompany = filenameTrusted
+        ? company
+        : (rowCompanyNameRaw ? rowMatchedCompany : company);
       const resolvedName = resolvedCompany?.name
         ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
         ?? null;
@@ -1382,23 +1423,6 @@ const NewPayment = () => {
     }
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companyRegistry);
-    let filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
-
-    // Se a planilha tem coluna EMPRESA/PJ com múltiplos valores distintos,
-    // a coluna vence o nome do arquivo — cada linha resolve sua própria PJ.
-    // Assim o card único da BANHATE volta a virar N cards (um por PJ).
-    if (filenameTrusted) {
-      const companyKeys = ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"];
-      const distinct = new Set<string>();
-      for (const r of json) {
-        const v = toStr(pick(r as Record<string, unknown>, companyKeys));
-        if (v && v.trim()) distinct.add(v.trim().toLowerCase());
-        if (distinct.size > 1) break;
-      }
-      if (distinct.size > 1) {
-        filenameTrusted = false;
-      }
-    }
 
     // Detecta a coluna "setor" cruzando cabeçalho + valores com sectores cadastrados.
     // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
@@ -1423,6 +1447,7 @@ const NewPayment = () => {
       console.warn("[mapping-template] lookup failed", e);
     }
 
+    const filenameTrusted = shouldTrustFilenameCompany(score, company, json, manualMapping);
     const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName, autoSectorColumn, manualMapping);
 
     // 6) Colunas obrigatórias presentes
@@ -1515,11 +1540,11 @@ const NewPayment = () => {
       const matrix = bucket.rawMatrix;
       if (!matrix) return bucket;
       const json = matrixToJson(matrix, newHeaderIdx);
-      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
       const registry = companiesRef.current.length ? companiesRef.current : companies;
       const company = bucket.matchedCompany
         ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
+      const filenameTrusted = shouldTrustFilenameCompany(bucket.matchScore, company, json, bucket.columnMapping);
       const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null, bucket.columnMapping);
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
@@ -1542,11 +1567,11 @@ const NewPayment = () => {
       const headerIdx = bucket.headerRowIndex ?? 0;
       if (!matrix) return { ...bucket, sectorColumnUsed: columnName };
       const json = matrixToJson(matrix, headerIdx);
-      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
       const registry = companiesRef.current.length ? companiesRef.current : companies;
       const company = bucket.matchedCompany
         ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
+      const filenameTrusted = shouldTrustFilenameCompany(bucket.matchScore, company, json, bucket.columnMapping);
       const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, columnName, bucket.columnMapping);
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
@@ -1594,11 +1619,11 @@ const NewPayment = () => {
       const headerIdx = bucket.headerRowIndex ?? 0;
       if (!matrix) return { ...bucket, columnMapping: mapping };
       const json = matrixToJson(matrix, headerIdx);
-      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
       const registry = companiesRef.current.length ? companiesRef.current : companies;
       const company = bucket.matchedCompany
         ? (registry.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
+      const filenameTrusted = shouldTrustFilenameCompany(bucket.matchScore, company, json, mapping);
       const rows = mapJsonToRows(json, bucket.file, headerIdx, company, filenameTrusted, bucket.rawCompanyName, bucket.sectorColumnUsed ?? null, mapping);
       const baseHits = inspectColumnMapping(bucket.detectedHeaders ?? []);
       const mappingHits: FieldMappingHit[] = baseHits.map((h) => {
@@ -2092,16 +2117,17 @@ const NewPayment = () => {
 
     // 2) PJ não confirmada
     const noPj = buckets
-      .map((b, idx) => ({ b, idx }))
-      .filter(({ b }) => !b.manualOverride && (!b.matchedCompany || b.matchScore < MATCH_AUTO_THRESHOLD));
-    if (noPj.length > 0) {
+      .map((b, idx) => ({ b, idx, count: b.rows.filter((r) => !b.manualOverride && !r.company_id).length }))
+      .filter(({ count }) => count > 0);
+    const noPjCount = noPj.reduce((sum, item) => sum + item.count, 0);
+    if (noPjCount > 0) {
       const names = noPj.map(({ b }) => b.file.name).slice(0, 3).join(", ");
       out.push({
-        id: `staging-pj-${noPj.length}`,
-        priority: noPj.length >= 3 ? "alta" : "media",
+        id: `staging-pj-${noPjCount}`,
+        priority: noPjCount >= 100 ? "alta" : "media",
         icon: Building2,
-        title: `${noPj.length} arquivo${noPj.length === 1 ? "" : "s"} sem PJ confirmada`,
-        message: `Itens sem PJ ficam isolados no pagamento. Confirme/troque a empresa no card. Afetados: ${names}${noPj.length > 3 ? "…" : ""}.`,
+        title: `${noPjCount} item${noPjCount === 1 ? "" : "s"} sem PJ confirmada`,
+        message: `Só os itens sem PJ ficam isolados no pagamento. Os itens já identificados serão divididos por empresa. Afetados: ${names}${noPj.length > 3 ? "…" : ""}.`,
       });
     }
 
@@ -2482,16 +2508,25 @@ const NewPayment = () => {
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
     }
-    // Buckets sem identificação confiável (e sem override manual) viram itens órfãos
-    // em payment_unmatched_items: NÃO entram no motor até serem resolvidos.
-    const isUnmatchedBucket = (b: FileBucket) =>
+    // Itens sem identificação confiável de PJ viram órfãos em payment_unmatched_items.
+    // Importante: em bases completas, o arquivo pode não representar uma PJ única;
+    // então a decisão é por LINHA. Se a coluna EMPRESA/PJ resolveu uma empresa,
+    // o item entra no motor mesmo que o nome do arquivo não seja uma PJ.
+    const isBucketFileUnmatched = (b: FileBucket) =>
       !b.manualOverride && (!b.matchedCompany || b.matchScore < MATCH_AUTO_THRESHOLD);
-    const unmatchedBuckets = buckets.filter(isUnmatchedBucket);
-    if (unmatchedBuckets.length > 0) {
+    const isUnmatchedBucket = (b: FileBucket) =>
+      isBucketFileUnmatched(b) && !b.rows.some((r) => !!r.company_id);
+    const rowWillBeUnmatched = (r: ParsedRow, b: FileBucket | undefined) =>
+      !b || (!b.manualOverride && !r.company_id);
+    const unmatchedRowsPreview = allRows.filter((r) => {
+      const bIdx = (r as any).source_bucket_index as number | undefined;
+      return rowWillBeUnmatched(r, typeof bIdx === "number" ? buckets[bIdx] : undefined);
+    });
+    if (unmatchedRowsPreview.length > 0) {
       const ok = confirm(
-        `${unmatchedBuckets.length} arquivo(s) sem PJ identificada com confiança suficiente.\n\n` +
+        `${unmatchedRowsPreview.length} item(ns) sem PJ identificada com confiança suficiente.\n\n` +
         `Esses itens ficarão isolados em "Empresas não vinculadas" e NÃO entrarão na análise. ` +
-        `Você poderá vincular/cadastrar a empresa depois pela tela do lote.\n\nProsseguir mesmo assim?`,
+        `Os demais itens já identificados serão divididos por empresa normalmente.\n\nProsseguir mesmo assim?`,
       );
       if (!ok) return;
     }
@@ -2755,6 +2790,9 @@ const NewPayment = () => {
         const cid = b.matchedCompany?.id;
         if (cid) ids.add(cid);
       }
+      for (const r of allRows) {
+        if (r.company_id) ids.add(r.company_id);
+      }
       if (ids.size > 0) {
         const { data } = await supabase
           .from("companies")
@@ -2839,7 +2877,7 @@ const NewPayment = () => {
     const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
       payment_id: payment.id,
       source_file: b.file.name,
-      raw_company_name: (b.rawCompanyName || r.company_name || "—").trim(),
+      raw_company_name: (r.company_name || b.rawCompanyName || "—").trim(),
       match_score: b.matchScore || 0,
       match_suggestion_id: b.matchedCompany?.id ?? null,
       match_suggestion_name: b.matchedCompany?.name ?? null,
@@ -2882,7 +2920,7 @@ const NewPayment = () => {
       const bIdx = (r as any).source_bucket_index as number | undefined;
       const b = typeof bIdx === "number" ? buckets[bIdx] : undefined;
       if (!b) { orphanRows.push(idx); continue; }
-      const isUnmatched = isUnmatchedBucket(b);
+      const isUnmatched = rowWillBeUnmatched(r, b);
       if (isUnmatched) unmatchedItems.push(buildUnmatchedRow(r, b));
       else matchedItems.push(buildItemRow(r, b));
     }

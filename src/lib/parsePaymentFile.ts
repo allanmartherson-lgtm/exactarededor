@@ -2,6 +2,7 @@
 // Extraído de src/pages/NewPayment.tsx para reutilização no reimport.
 import * as XLSX from "xlsx";
 import {
+  applyManualMappingShim,
   FIELD_BY_KEY,
   inspectColumnMapping,
   type FieldKey,
@@ -316,6 +317,41 @@ const toStr = (v: unknown): string | null => {
   const s = String(v).trim();
   return s.length ? s : null;
 };
+const EXPLICIT_ROW_COMPANY_KEYS = [
+  "empresa", "empresa pj", "empresa (pj)", "pj", "fornecedor", "terceiro", "terceiro prestador",
+  "razao social", "razão social", "nome empresa", "nome da empresa",
+];
+const LEGACY_ROW_COMPANY_KEYS = ["hospital", "unidade", "unidade de atendimento"];
+const readRowCompanyName = (
+  row: Record<string, unknown>,
+  manualMapping?: ManualMapping,
+  includeLegacy = true,
+): string | null => {
+  const mappedHeader = manualMapping?.company_name;
+  if (mappedHeader && mappedHeader in row) return toStr(row[mappedHeader]);
+  const explicit = toStr(pick(row, EXPLICIT_ROW_COMPANY_KEYS));
+  if (explicit) return explicit;
+  return includeLegacy ? toStr(pick(row, LEGACY_ROW_COMPANY_KEYS)) : null;
+};
+const hasMultipleDistinctCompanyValues = (
+  json: Record<string, unknown>[],
+  manualMapping?: ManualMapping,
+): boolean => {
+  const distinct = new Set<string>();
+  for (const row of json) {
+    const v = readRowCompanyName(row, manualMapping, false);
+    if (!v) continue;
+    distinct.add(v.trim().toLowerCase());
+    if (distinct.size > 1) return true;
+  }
+  return false;
+};
+const shouldTrustFilenameCompany = (
+  score: number,
+  company: CompanyRow | null,
+  json: Record<string, unknown>[],
+  manualMapping?: ManualMapping,
+): boolean => score >= MATCH_AUTO_THRESHOLD && !!company && !hasMultipleDistinctCompanyValues(json, manualMapping);
 const excelSerialToParts = (
   serial: number,
 ): { y: number; m: number; d: number; H: number; M: number; S: number; hasTime: boolean } | null => {
@@ -770,7 +806,7 @@ export const parsePaymentFile = async (
 
   const rawCompanyName = extractCompanyFromFilename(f.name);
   const { company: fileMatchedCompany, score: fileMatchScore } = matchCompany(rawCompanyName, companies);
-  const filenameTrusted = fileMatchScore >= MATCH_AUTO_THRESHOLD && !!fileMatchedCompany;
+  const filenameTrusted = shouldTrustFilenameCompany(fileMatchScore, fileMatchedCompany, json, effectiveMapping);
 
   const rows: ParsedRow[] = json.map((row) => {
     const procedureDateValue = (() => {
@@ -837,7 +873,7 @@ export const parsePaymentFile = async (
     }
 
 
-    const rowCompanyNameRaw = toStr(pickField(row, "company_name", manualMapping));
+    const rowCompanyNameRaw = readRowCompanyName(row, manualMapping);
     let rowMatchedCompany: CompanyRow | null = null;
     if (!filenameTrusted && rowCompanyNameRaw) {
       const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
@@ -846,7 +882,7 @@ export const parsePaymentFile = async (
 
     const resolvedCompany = filenameTrusted
       ? fileMatchedCompany
-      : (rowMatchedCompany || fileMatchedCompany);
+      : (rowCompanyNameRaw ? rowMatchedCompany : fileMatchedCompany);
     const resolvedName = resolvedCompany?.name
       || (filenameTrusted ? fileMatchedCompany!.name : (rowCompanyNameRaw || rawCompanyName))
       || null;
