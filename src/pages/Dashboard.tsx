@@ -1034,35 +1034,24 @@ const Dashboard = () => {
     let cancelled = false;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Split em duas queries para evitar INNER JOIN + RLS pesados no PostgREST.
-    // 1) IDs dos pagamentos do usuário. 2) Grupos in(payment_id) filtrados por status.
+    // RPC agregada evita INNER JOIN PostgREST + RLS linha-a-linha no Dashboard,
+    // que estava disputando recurso com a importação de planilhas.
     const fetchPending = async () => {
-      const { data: pays } = await supabase
-        .from("payments")
-        .select("id, reference")
-        .eq("created_by", user.id);
+      const { data, error } = await supabase.rpc("dashboard_pending_company_groups" as any, {
+        _created_by: user.id,
+        _status: "em_questionamento",
+      });
       if (cancelled) return;
-      const payMap = new Map<string, string>();
-      (pays ?? []).forEach((p: any) => payMap.set(p.id, p.reference ?? "—"));
-      if (payMap.size === 0) {
-        setPendingQuestions([]);
+      if (error) {
+        console.warn("[Dashboard] pending questions failed", error);
         return;
       }
-      const { data } = await supabase
-        .from("payment_company_groups")
-        .select("payment_id, company_name")
-        .eq("status", "em_questionamento")
-        .in("payment_id", Array.from(payMap.keys()));
-      if (cancelled) return;
-      const byPayment = new Map<string, { reference: string; count: number }>();
-      (data ?? []).forEach((r: any) => {
-        const ref = payMap.get(r.payment_id) ?? "—";
-        const cur = byPayment.get(r.payment_id) ?? { reference: ref, count: 0 };
-        cur.count += 1;
-        byPayment.set(r.payment_id, cur);
-      });
       setPendingQuestions(
-        Array.from(byPayment.entries()).map(([payment_id, v]) => ({ payment_id, ...v })),
+        ((data ?? []) as any[]).map((r) => ({
+          payment_id: r.payment_id,
+          reference: r.reference ?? "—",
+          count: Number(r.count ?? 0),
+        })),
       );
     };
 
@@ -1105,32 +1094,21 @@ const Dashboard = () => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const fetchPending = async () => {
-      const { data: pays } = await supabase
-        .from("payments")
-        .select("id, reference")
-        .eq("created_by", user.id);
+      const { data, error } = await supabase.rpc("dashboard_pending_company_groups" as any, {
+        _created_by: user.id,
+        _status: "revisao_pos_aprovacao",
+      });
       if (cancelled) return;
-      const payMap = new Map<string, string>();
-      (pays ?? []).forEach((p: any) => payMap.set(p.id, p.reference ?? "—"));
-      if (payMap.size === 0) {
-        setPendingReleaseNf([]);
+      if (error) {
+        console.warn("[Dashboard] pending release nf failed", error);
         return;
       }
-      const { data } = await supabase
-        .from("payment_company_groups")
-        .select("payment_id")
-        .eq("status", "revisao_pos_aprovacao")
-        .in("payment_id", Array.from(payMap.keys()));
-      if (cancelled) return;
-      const byPayment = new Map<string, { reference: string; count: number }>();
-      (data ?? []).forEach((r: any) => {
-        const ref = payMap.get(r.payment_id) ?? "—";
-        const cur = byPayment.get(r.payment_id) ?? { reference: ref, count: 0 };
-        cur.count += 1;
-        byPayment.set(r.payment_id, cur);
-      });
       setPendingReleaseNf(
-        Array.from(byPayment.entries()).map(([payment_id, v]) => ({ payment_id, ...v })),
+        ((data ?? []) as any[]).map((r) => ({
+          payment_id: r.payment_id,
+          reference: r.reference ?? "—",
+          count: Number(r.count ?? 0),
+        })),
       );
     };
 
@@ -1165,30 +1143,18 @@ const Dashboard = () => {
     if (!isAnalista || !user?.id) return;
     let cancelled = false;
     const fetchIQ = async () => {
-      const { data } = await supabase
-        .from("invoice_questions")
-        .select("id, payment_id, invoice_id, payment:payments!inner(created_by)")
-        .eq("author_type", "recebedor")
-        .is("read_at", null)
-        .eq("payments.created_by", user.id);
+      const { data, error } = await supabase.rpc("dashboard_company_invoice_questions" as any, {
+        _created_by: user.id,
+      });
       if (cancelled) return;
-      const rows = (data ?? []) as Array<{ id: string; payment_id: string; invoice_id: string | null }>;
-      const invoiceIds = Array.from(new Set(rows.map((r) => r.invoice_id).filter(Boolean) as string[]));
-      let activeIds = new Set<string>();
-      if (invoiceIds.length) {
-        const { data: invs } = await supabase
-          .from("invoices")
-          .select("id, status")
-          .in("id", invoiceIds)
-          .in("status", ["aguardando", "recebida", "divergente"]);
-        if (cancelled) return;
-        activeIds = new Set((invs ?? []).map((i) => i.id as string));
+      if (error) {
+        console.warn("[Dashboard] company invoice questions failed", error);
+        return;
       }
-      // Mantém só perguntas cuja NF ainda existe e está em fase ativa.
-      const active = rows.filter((r) => r.invoice_id && activeIds.has(r.invoice_id));
+      const row = Array.isArray(data) ? (data[0] as any) : (data as any);
       setCompanyInvoiceQuestions({
-        count: active.length,
-        firstPaymentId: active[0]?.payment_id ?? null,
+        count: Number(row?.count ?? 0),
+        firstPaymentId: row?.first_payment_id ?? null,
       });
     };
     fetchIQ();
@@ -1209,28 +1175,18 @@ const Dashboard = () => {
     if (!isAnalista || !user?.id) return;
     let cancelled = false;
     const fetchNfCounts = async () => {
-      const { data: aguardando } = await supabase
-        .from("invoices")
-        .select("id, payment:payments!inner(created_by)")
-        .eq("status", "aguardando")
-        .eq("payments.created_by", user.id);
-
-      const { data: recebida } = await supabase
-        .from("invoices")
-        .select("id, payment:payments!inner(created_by)")
-        .eq("status", "recebida")
-        .eq("payments.created_by", user.id);
-
-      const { data: conciliar } = await supabase
-        .from("invoices")
-        .select("id, payment:payments!inner(created_by)")
-        .eq("status", "conciliada")
-        .eq("payments.created_by", user.id);
-
+      const { data, error } = await supabase.rpc("dashboard_invoice_counts" as any, {
+        _created_by: user.id,
+      });
       if (cancelled) return;
-      setPendingNfAguardando((aguardando ?? []).length);
-      setPendingNfRecebida((recebida ?? []).length);
-      setPendingNfConciliar((conciliar ?? []).length);
+      if (error) {
+        console.warn("[Dashboard] invoice counts failed", error);
+        return;
+      }
+      const byStatus = new Map(((data ?? []) as any[]).map((r) => [r.status, Number(r.count ?? 0)]));
+      setPendingNfAguardando(byStatus.get("aguardando") ?? 0);
+      setPendingNfRecebida(byStatus.get("recebida") ?? 0);
+      setPendingNfConciliar(byStatus.get("conciliada") ?? 0);
     };
     fetchNfCounts();
     const ch = supabase
