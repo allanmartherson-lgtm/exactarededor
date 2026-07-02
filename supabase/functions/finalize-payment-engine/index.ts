@@ -125,7 +125,12 @@ Deno.serve(async (req) => {
 
     const perCompany: any[] = [];
     if (companyIds.length > 0) {
-      const CONCURRENCY = 4;
+      // 2026-07-02: baixado de 4 → 2. Com 4 empresas simultâneas × 3 subcalls
+      // (deductions + mg + snapshot) = 12 fetches concorrentes contra o runtime,
+      // suficiente para o Supabase disparar RateLimitError em lotes densos
+      // (reimport de INSTITUTO SALUTAIRE reproduziu). 2 mantém throughput
+      // aceitável e evita o backoff de ~57s sugerido pelo runtime.
+      const CONCURRENCY = 2;
       const runForCompany = async (cid: string) => {
         const summary: any = { company_id: cid };
         // 1) deductions (sequencial dentro da PJ — afeta o snapshot)
