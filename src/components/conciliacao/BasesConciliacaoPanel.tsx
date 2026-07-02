@@ -210,6 +210,7 @@ export default function BasesConciliacaoPanel() {
 
   const confirmImportConcBase = async () => {
     if (!importPreview) return;
+    if (!ensure("importar uma base de conciliação")) return;
     setUploadingConc(true);
     try {
       const { file, rows, colMap, competenceMonth, reference, sheetName } = importPreview;
@@ -220,6 +221,7 @@ export default function BasesConciliacaoPanel() {
         file_name: file.name,
         sheet_name: sheetName,
         uploaded_by: user?.id,
+        hospital_id: hospitalId,
         total_rows: rows.length,
         raw_data: rows as any,
         col_map: colMap,
