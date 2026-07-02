@@ -10,6 +10,32 @@ import { toast } from "@/hooks/use-toast";
 
 const FUNCTIONS_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/approve-via-magic-link`;
 
+/**
+ * Decodifica o payload de um JWT HS256 sem validar a assinatura.
+ * Usado apenas para checagem client-side de expiração — a validação real
+ * (assinatura + single-use + revogação) acontece no edge function.
+ */
+function decodeJwtPayload(token: string): { exp?: number; iat?: number } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function checkTokenExpiration(token: string): { expired: boolean; expiresAt?: Date; malformed?: boolean } {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return { expired: false, malformed: true };
+  if (typeof payload.exp !== "number") return { expired: false };
+  const expiresAt = new Date(payload.exp * 1000);
+  return { expired: expiresAt.getTime() <= Date.now(), expiresAt };
+}
+
 type GroupDiff = {
   id: string;
   company_name: string | null;
@@ -71,6 +97,18 @@ export default function ApproveMagicLink() {
 
   useEffect(() => {
     if (!token) return;
+    const check = checkTokenExpiration(token);
+    if (check.malformed) {
+      setError("Este link parece estar corrompido ou incompleto. Solicite um novo link.");
+      setLoading(false);
+      return;
+    }
+    if (check.expired) {
+      const when = check.expiresAt ? ` (expirou em ${check.expiresAt.toLocaleString("pt-BR")})` : "";
+      setError(`O prazo deste link já venceu${when}. Peça um novo link de aprovação para continuar.`);
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const r = await fetch(FUNCTIONS_URL, {
@@ -91,6 +129,18 @@ export default function ApproveMagicLink() {
 
   async function confirm() {
     if (!token) return;
+    const check = checkTokenExpiration(token);
+    if (check.expired) {
+      const when = check.expiresAt ? ` (expirou em ${check.expiresAt.toLocaleString("pt-BR")})` : "";
+      toast({
+        title: "Link expirado",
+        description: `O prazo deste link venceu${when}. Solicite um novo link para registrar a ação.`,
+        variant: "destructive",
+      });
+      setError(`O prazo deste link já venceu${when}. Peça um novo link de aprovação para continuar.`);
+      setPreview(null);
+      return;
+    }
     setSubmitting(true);
     try {
       const r = await fetch(FUNCTIONS_URL, {
