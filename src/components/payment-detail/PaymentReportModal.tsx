@@ -824,6 +824,12 @@ export function PaymentReportModal({
                       onCheckedChange={(c) => setStatusFilter(prev => ({ ...prev, reprovado: !!c }))}
                     /> ✗ Reprovado
                   </label>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <Checkbox 
+                      checked={statusFilter.acatado}
+                      onCheckedChange={(c) => setStatusFilter(prev => ({ ...prev, acatado: !!c }))}
+                    /> ● Acatado
+                  </label>
                 </div>
               </div>
 
