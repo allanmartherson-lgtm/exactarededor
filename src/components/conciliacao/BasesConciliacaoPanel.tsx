@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRequireHospital } from "@/hooks/useRequireHospital";
 import { toast } from "sonner";
 import {
   Upload,
@@ -45,6 +46,7 @@ const SurfaceCard = ({
 
 export default function BasesConciliacaoPanel() {
   const { user } = useAuth();
+  const { hospitalId, ensure } = useRequireHospital();
   const [concBases, setConcBases] = useState<any[]>([]);
   const [uploadingConc, setUploadingConc] = useState(false);
   const concFileRef = useRef<HTMLInputElement>(null);
@@ -208,6 +210,7 @@ export default function BasesConciliacaoPanel() {
 
   const confirmImportConcBase = async () => {
     if (!importPreview) return;
+    if (!ensure("importar uma base de conciliação")) return;
     setUploadingConc(true);
     try {
       const { file, rows, colMap, competenceMonth, reference, sheetName } = importPreview;
@@ -218,6 +221,7 @@ export default function BasesConciliacaoPanel() {
         file_name: file.name,
         sheet_name: sheetName,
         uploaded_by: user?.id,
+        hospital_id: hospitalId,
         total_rows: rows.length,
         raw_data: rows as any,
         col_map: colMap,
