@@ -101,6 +101,7 @@ self.onmessage = async (e) => {
       if (status === "aprovado") statusStyle = { fill: { fgColor: { rgb: "D1FAE5" } } };
       else if (status === "alerta") statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } };
       else if (status === "reprovado") statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } };
+      else if (status === "acatado") statusStyle = { fill: { fgColor: { rgb: "DBEAFE" } } };
 
       let validationCol: string = typeof it.validation_summary === "string" ? it.validation_summary : "";
       if (!validationCol) {
