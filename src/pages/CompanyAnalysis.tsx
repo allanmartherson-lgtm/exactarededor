@@ -2607,28 +2607,52 @@ export default function CompanyAnalysis() {
         <TabsContent value="analise" className="space-y-3">
           {(() => {
             const diag = (payment?.processing_diagnostics ?? {}) as any;
-            const hasErr = !!payment?.processing_timeout_occurred || diag.has_company_error === true;
-            const partial = diag.partial_ai_failure === true;
-            if (!hasErr && !partial) return null;
             const perCompany = (diag.per_company ?? {}) as Record<string, any>;
-            const failedCompanies = Object.entries(perCompany)
-              .filter(([, c]: [string, any]) => c?.status === "error" || c?.partial_ai_failure)
+            const errorCompanies = Object.entries(perCompany)
+              .filter(([, c]: [string, any]) => c?.status === "error")
               .map(([name]) => name);
+            const partialAiCompanies = Object.entries(perCompany)
+              .filter(([, c]: [string, any]) => c?.status !== "error" && c?.partial_ai_failure === true)
+              .map(([name]) => name);
+            // Só considera "erro real" quando há empresa com status=error.
+            // processing_timeout_occurred sozinho não basta — pode ficar setado de rodadas antigas.
+            const hasErr = errorCompanies.length > 0
+              || (!!payment?.processing_timeout_occurred && diag.has_company_error === true);
+            const partial = partialAiCompanies.length > 0 || diag.partial_ai_failure === true;
+            if (!hasErr && !partial) return null;
+            const tone = hasErr ? "destructive" : "amber";
+            const wrapperClass = hasErr
+              ? "bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300"
+              : "bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300";
+            const iconClass = hasErr ? "h-4 w-4 text-destructive shrink-0 mt-0.5" : "h-4 w-4 text-amber-600 shrink-0 mt-0.5";
+            const titleClass = hasErr ? "text-xs font-bold text-destructive leading-tight" : "text-xs font-bold text-amber-700 dark:text-amber-400 leading-tight";
+            const bodyClass = hasErr ? "text-[11px] text-destructive/80 leading-snug" : "text-[11px] text-amber-700/90 dark:text-amber-400/90 leading-snug";
             return (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <Clock className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className={wrapperClass}>
+                <Clock className={iconClass} />
                 <div className="space-y-1">
-                  <p className="text-xs font-bold text-destructive leading-tight">
+                  <p className={titleClass}>
                     {hasErr ? "Análise Incompleta (Falha em alguma empresa)" : "Justificativas da IA parciais"}
                   </p>
-                  <p className="text-[11px] text-destructive/80 leading-snug">
-                    {hasErr
-                      ? "Pelo menos uma empresa deste lote falhou no processamento (timeout, deadlock ou erro). "
-                      : "O motor terminou todas as empresas, mas alguns chunks da IA falharam — justificativas podem estar incompletas. "}
-                    {failedCompanies.length > 0 && (
-                      <>Empresas afetadas: <strong>{failedCompanies.join(", ")}</strong>. </>
+                  <p className={bodyClass}>
+                    {hasErr ? (
+                      <>
+                        Pelo menos uma empresa deste lote falhou no processamento (timeout, deadlock ou erro).{" "}
+                        {errorCompanies.length > 0 && (
+                          <>Empresas afetadas: <strong>{errorCompanies.join(", ")}</strong>. </>
+                        )}
+                        Clique em "Reaplicar regras" para reprocessar.
+                      </>
+                    ) : (
+                      <>
+                        O motor concluiu o cálculo de todas as empresas com sucesso — apenas as justificativas
+                        automáticas da IA ficaram parciais (rate-limit do provedor). Os valores, status e regras
+                        aplicadas estão corretos; não é necessário reprocessar.{" "}
+                        {partialAiCompanies.length > 0 && (
+                          <>Empresas sem justificativa completa: <strong>{partialAiCompanies.join(", ")}</strong>.</>
+                        )}
+                      </>
                     )}
-                    Clique em "Reaplicar regras" para reprocessar.
                   </p>
                 </div>
               </div>
