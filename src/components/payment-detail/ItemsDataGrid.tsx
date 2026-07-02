@@ -1470,9 +1470,9 @@ export function ItemsDataGrid({
             case "qtd": return Number(it.quantity ?? 1);
             case "medico": return (it.doctor_name ?? "").toLowerCase();
             case "gross": return Number(it.gross_amount ?? 0);
-            case "esperado": return Number(it.ai_findings?.expected_amount ?? (it as any).expected_amount ?? 0);
+            case "esperado": return Number((it as any).expected_amount ?? it.ai_findings?.expected_amount ?? 0);
             case "diferenca": {
-              const exp = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
+              const exp = (it as any).expected_amount ?? it.ai_findings?.expected_amount;
               return exp != null ? Number(exp) - Number(it.gross_amount ?? 0) : 0;
             }
             case "status": {
@@ -1692,8 +1692,8 @@ export function ItemsDataGrid({
       } else if (!(it as any).package_absorbed) {
         m.count += 1;
         m.totalGross += Number(it.gross_amount ?? 0);
-        const exp = (it.ai_findings?.expected_amount as number | undefined) ??
-          ((it as any).expected_amount as number | undefined);
+        const exp = ((it as any).expected_amount as number | undefined) ??
+          (it.ai_findings?.expected_amount as number | undefined);
         if (exp != null) m.totalExpected = (m.totalExpected ?? 0) + Number(exp);
       }
       if (it.ai_status === "reprovado") m.worstStatus = "reprovado";
@@ -1728,8 +1728,8 @@ export function ItemsDataGrid({
       g.totalGross += Number(it.gross_amount ?? 0);
       if ((it as any).applied_calc_method === "pacote") {
         const exp =
-          (it.ai_findings?.expected_amount as number | undefined) ??
-          ((it as any).expected_amount as number | undefined);
+          ((it as any).expected_amount as number | undefined) ??
+          (it.ai_findings?.expected_amount as number | undefined);
         if (exp != null) g.totalExpected = (g.totalExpected ?? 0) + Number(exp);
       }
       if (it.ai_status === "reprovado") g.worstStatus = "reprovado";
@@ -1762,7 +1762,7 @@ export function ItemsDataGrid({
       count++;
       valor += Number(it.gross_amount ?? 0);
       procedure += Number((it as any).procedure_amount ?? 0);
-      const exp = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
+      const exp = (it as any).expected_amount ?? it.ai_findings?.expected_amount;
       if (exp != null) {
         esperado += Number(exp);
         temEsperado = true;
@@ -2400,7 +2400,7 @@ export function ItemsDataGrid({
             )}
             {displayRows.map((it, idx) => {
               const paciente = getPatient(it);
-              const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
+              const expected = (it as any).expected_amount ?? it.ai_findings?.expected_amount;
               const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
               const tone: keyof typeof TONE_CLASSES =
                 eff === "cancelado" ? "muted"
@@ -2861,7 +2861,7 @@ export function ItemsDataGrid({
               )}
               {displayRows.map((it, idx) => {
                 const paciente = getPatient(it);
-                const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
+                const expected = (it as any).expected_amount ?? it.ai_findings?.expected_amount;
                 const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus, (it as any).is_cancelled);
                 const tone: keyof typeof TONE_CLASSES =
                   eff === "cancelado"
@@ -4476,7 +4476,7 @@ function ItemDetailsRow({
     if (r && !seen.has(r.id)) { seen.add(r.id); matchedRules.push(r); }
   });
   const isCritical = it.ai_status === "reprovado";
-  const expected = it.ai_findings?.expected_amount ?? (it as any).expected_amount;
+  const expected = (it as any).expected_amount ?? it.ai_findings?.expected_amount;
   const explanation = it.ai_findings?.calculation_explanation;
   const engine = it.ai_findings?.engine ?? null;
   const aiNote = engine?.ai_note;
