@@ -3388,6 +3388,118 @@ export type Database = {
         }
         Relationships: []
       }
+      intervention_ledger: {
+        Row: {
+          approved_at: string
+          approved_by: string | null
+          autor_id: string | null
+          cancellation_reason: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string
+          delta: number
+          doctor_name: string | null
+          fonte: string
+          hospital_id: string
+          id: string
+          item_id: string
+          payment_id: string
+          procedure_code: string | null
+          procedure_name: string | null
+          reverted_at: string | null
+          reverted_reason: string | null
+          valor_pago_final: number
+          valor_regra: number
+        }
+        Insert: {
+          approved_at: string
+          approved_by?: string | null
+          autor_id?: string | null
+          cancellation_reason?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string
+          delta?: number
+          doctor_name?: string | null
+          fonte: string
+          hospital_id: string
+          id?: string
+          item_id: string
+          payment_id: string
+          procedure_code?: string | null
+          procedure_name?: string | null
+          reverted_at?: string | null
+          reverted_reason?: string | null
+          valor_pago_final?: number
+          valor_regra?: number
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string | null
+          autor_id?: string | null
+          cancellation_reason?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string
+          delta?: number
+          doctor_name?: string | null
+          fonte?: string
+          hospital_id?: string
+          id?: string
+          item_id?: string
+          payment_id?: string
+          procedure_code?: string | null
+          procedure_name?: string | null
+          reverted_at?: string | null
+          reverted_reason?: string | null
+          valor_pago_final?: number
+          valor_regra?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_ledger_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_ledger_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_ledger_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "intervention_ledger_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "intervention_ledger_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_ledger_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
       invoice_question_attachments: {
         Row: {
           author_id: string | null
@@ -11892,6 +12004,10 @@ export type Database = {
       mark_portal_thread_read: {
         Args: { p_payment_id: string; p_payment_item_id?: string }
         Returns: number
+      }
+      materialize_intervention_ledger: {
+        Args: { p_payment_id: string }
+        Returns: undefined
       }
       merge_doctors_from_staging: { Args: never; Returns: Json }
       my_accessible_hospitals: {

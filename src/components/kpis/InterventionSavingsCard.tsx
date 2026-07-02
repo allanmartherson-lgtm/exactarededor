@@ -1,12 +1,24 @@
 /**
- * Card compacto "Valor ajustado por intervenção" — reusável em painéis
- * (Kpis, ExecutiveDashboard, AnalystProductivity). Busca a RPC e mostra
- * o saldo líquido com indicador de tom + link para o relatório completo.
+ * Card compacto "Valor ajustado por intervenção".
+ *
+ * Fonte: RPC `get_intervention_savings` → lê a tabela `intervention_ledger`,
+ * que só é populada quando o diretor aprova o pagamento. Nada em análise
+ * entra aqui — só valor consolidado.
+ *
+ * Filtro de período: default = mês calendário atual (baseado no
+ * `approved_at`, ou seja, quando o lote foi aprovado — não a competência).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import { ArrowRight, Scale, TrendingDown, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,19 +31,87 @@ import {
   type InterventionSavingsResult,
 } from "@/lib/interventionSavings";
 
+type PeriodKey = "mes_atual" | "mes_anterior" | "d30" | "d90";
+
+interface PeriodOption {
+  key: PeriodKey;
+  label: string;
+  shortLabel: (now: Date) => string;
+  range: (now: Date) => { start: Date; end: Date };
+}
+
+const MONTH_NAMES = [
+  "janeiro","fevereiro","março","abril","maio","junho",
+  "julho","agosto","setembro","outubro","novembro","dezembro",
+];
+
+const PERIOD_OPTIONS: PeriodOption[] = [
+  {
+    key: "mes_atual",
+    label: "Mês atual",
+    shortLabel: (now) => `Impacto em ${MONTH_NAMES[now.getMonth()]}/${now.getFullYear()}`,
+    range: (now) => ({
+      start: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
+      end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+    }),
+  },
+  {
+    key: "mes_anterior",
+    label: "Mês anterior",
+    shortLabel: (now) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return `Impacto em ${MONTH_NAMES[d.getMonth()]}/${d.getFullYear()}`;
+    },
+    range: (now) => ({
+      start: new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0),
+      end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999),
+    }),
+  },
+  {
+    key: "d30",
+    label: "Últimos 30 dias",
+    shortLabel: () => "Impacto nos últimos 30 dias",
+    range: (now) => ({
+      start: new Date(now.getTime() - 30 * 24 * 3600 * 1000),
+      end: now,
+    }),
+  },
+  {
+    key: "d90",
+    label: "Últimos 90 dias",
+    shortLabel: () => "Impacto nos últimos 90 dias",
+    range: (now) => ({
+      start: new Date(now.getTime() - 90 * 24 * 3600 * 1000),
+      end: now,
+    }),
+  },
+];
+
 interface Props {
+  /** @deprecated mantido por compatibilidade; agora o card controla o período internamente. */
   rangeDays?: number;
   className?: string;
   hideHeader?: boolean;
+  defaultPeriod?: PeriodKey;
 }
 
-export default function InterventionSavingsCard({ rangeDays = 30, className, hideHeader = false }: Props) {
+export default function InterventionSavingsCard({
+  className,
+  hideHeader = false,
+  defaultPeriod = "mes_atual",
+}: Props) {
   const { hasRole } = useAuth();
   const hospitalId = useActiveHospitalId();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
+  const [periodKey, setPeriodKey] = useState<PeriodKey>(defaultPeriod);
 
   const allowed = hasRole("diretor") || hasRole("admin") || hasRole("validador");
+
+  const period = useMemo(
+    () => PERIOD_OPTIONS.find((p) => p.key === periodKey) ?? PERIOD_OPTIONS[0],
+    [periodKey],
+  );
 
   useEffect(() => {
     if (!allowed) {
@@ -42,8 +122,8 @@ export default function InterventionSavingsCard({ rangeDays = 30, className, hid
     (async () => {
       setLoading(true);
       try {
-        const end = new Date();
-        const start = new Date(end.getTime() - rangeDays * 24 * 3600 * 1000);
+        const now = new Date();
+        const { start, end } = period.range(now);
         const { data: res, error } = await supabase.rpc("get_intervention_savings", {
           p_start: start.toISOString(),
           p_end: end.toISOString(),
@@ -61,7 +141,7 @@ export default function InterventionSavingsCard({ rangeDays = 30, className, hid
     return () => {
       cancelled = true;
     };
-  }, [rangeDays, hospitalId, allowed]);
+  }, [period, hospitalId, allowed]);
 
   if (!allowed) return null;
 
@@ -82,29 +162,38 @@ export default function InterventionSavingsCard({ rangeDays = 30, className, hid
       ? "Pagamento adicional após revisão"
       : "Sem impacto líquido no período";
 
+  const periodShort = period.shortLabel(new Date());
+
   return (
     <Card className={`shadow-card border ${ring} ${className ?? ""}`}>
       <CardContent style={{ padding: "18px 18px 20px" }}>
         <div className="flex items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0 flex-1">
             {!hideHeader && (
-              <>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Impacto das intervenções no pagamento
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Quanto a análise da equipe poupou (ou acrescentou) ao hospital — últimos {rangeDays} dias
-                </p>
-              </>
-            )}
-            {hideHeader && (
-              <p className="text-[11px] text-muted-foreground leading-tight">
-                Quanto a análise da equipe poupou (ou acrescentou) ao hospital — últimos {rangeDays} dias
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Impacto das intervenções no pagamento
               </p>
             )}
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+              {periodShort} · só lotes aprovados pelo diretor
+            </p>
           </div>
 
-          <Icon className={`h-4 w-4 ${accent}`} />
+          <div className="flex items-center gap-2 shrink-0">
+            <Select value={periodKey} onValueChange={(v) => setPeriodKey(v as PeriodKey)}>
+              <SelectTrigger className="h-7 text-xs w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((p) => (
+                  <SelectItem key={p.key} value={p.key} className="text-xs">
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Icon className={`h-4 w-4 ${accent}`} />
+          </div>
         </div>
 
         {loading ? (
@@ -134,7 +223,7 @@ export default function InterventionSavingsCard({ rangeDays = 30, className, hid
               </span>
             </div>
             <div className="text-muted-foreground/80 pt-0.5">
-              {s.qtd_itens} item(ns) impactado(s) por devolução, ajuste ou cancelamento
+              {s.qtd_itens} item(ns) impactado(s) por devolução, ajuste, glosa ou cancelamento
             </div>
           </div>
         )}
