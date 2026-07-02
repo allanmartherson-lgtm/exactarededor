@@ -35,8 +35,11 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 // voltar para o lote. Retentamos respeitando o `retryAfterMs` sugerido — mas
 // com teto — e nunca quebramos o pipeline: em último caso devolvemos 429 no
 // corpo para o chamador seguir marcando as demais fontes.
-const MAX_RETRIES = 4;
-const MAX_BACKOFF_MS = 15_000;
+// 2026-07-02 (v2): Reduzido backoff de 15s→5s e retries 4→2 para falhar rápido
+// em vez de segurar o pipeline ~150s (que estourava 504 no toast). Combinado com
+// CONCURRENCY=1 abaixo (serializa apply-company-deductions por PJ).
+const MAX_RETRIES = 2;
+const MAX_BACKOFF_MS = 5_000;
 
 async function callFn(name: string, body: unknown): Promise<{ ok: boolean; status: number; body: string }> {
   let attempt = 0;
@@ -130,7 +133,7 @@ Deno.serve(async (req) => {
       // suficiente para o Supabase disparar RateLimitError em lotes densos
       // (reimport de INSTITUTO SALUTAIRE reproduziu). 2 mantém throughput
       // aceitável e evita o backoff de ~57s sugerido pelo runtime.
-      const CONCURRENCY = 2;
+      const CONCURRENCY = 1;
       const runForCompany = async (cid: string) => {
         const summary: any = { company_id: cid };
         // 1) deductions (sequencial dentro da PJ — afeta o snapshot)
