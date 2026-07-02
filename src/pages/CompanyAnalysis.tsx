@@ -888,18 +888,49 @@ export default function CompanyAnalysis() {
         await waitForFinalizeStability(id, startedAt, 45_000);
       }
 
-      // Etapa 3 — Persistir/ler de volta os itens.
+      // Etapa 3 — Persistir/ler de volta os itens COM janela de estabilidade.
+      // Como o worker é `_async` (retorna 202 e escreve itens em background)
+      // e o finalize dispara fire-and-forget (deduções, garantia mínima,
+      // glosa), o job pode marcar `concluido` e ainda haver escritas em curso.
+      // Sem stability, o "after read" pegava snapshot intermediário — usuário
+      // via "2 continuam reprovados", dava F5 e via "1", sem clareza do porquê.
+      // Aqui: poll até 2 leituras consecutivas iguais por >= 2s OU teto de 20s.
       setReapplyStep("persistir_itens");
 
-      // Releitura direta dos itens da empresa para garantir o estado pós-motor
-      // (independente da atualização do hook usePaymentDetailData).
-      let after: PaymentItemRow[] = [];
-      if (itemIds.length > 0) {
+      const readItems = async (): Promise<PaymentItemRow[]> => {
+        if (itemIds.length === 0) return [];
         const { data: fresh } = await supabase
           .from("payment_items")
           .select("id, ai_status, applied_rule_id, expected_amount")
           .in("id", itemIds);
-        after = (fresh ?? []) as unknown as PaymentItemRow[];
+        return (fresh ?? []) as unknown as PaymentItemRow[];
+      };
+      const snapshotSig = (rows: PaymentItemRow[]): string =>
+        rows
+          .map((r) => `${r.id}|${(r as any).ai_status ?? ""}|${(r as any).applied_rule_id ?? ""}|${(r as any).expected_amount ?? ""}`)
+          .sort()
+          .join(";");
+
+      let after: PaymentItemRow[] = await readItems();
+      let stableSince: number | null = null;
+      let lastSig = snapshotSig(after);
+      const stabilityDeadline = Date.now() + 20_000;
+      const stabilityWindowMs = 2_000;
+      while (Date.now() < stabilityDeadline) {
+        await new Promise((r) => setTimeout(r, 1_200));
+        const next = await readItems();
+        const nextSig = snapshotSig(next);
+        if (nextSig === lastSig) {
+          if (stableSince == null) stableSince = Date.now();
+          if (Date.now() - stableSince >= stabilityWindowMs) {
+            after = next;
+            break;
+          }
+        } else {
+          stableSince = null;
+          lastSig = nextSig;
+          after = next;
+        }
       }
 
       const diff = diffSnapshots(reapplySnapshotRef.current, after);
