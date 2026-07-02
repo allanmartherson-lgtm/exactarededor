@@ -979,6 +979,14 @@ export default function CompanyAnalysis() {
       toast.error("Falha ao iniciar reanálise", { description: msg });
     } finally {
       setReanalyzing(false);
+      // Cooldown de 6s: botão fica "Estabilizando..." para bloquear reclique
+      // enquanto a UI termina de refletir os novos ai_status/expected.
+      setReanalyzeCooldown(true);
+      if (reanalyzeCooldownRef.current != null) window.clearTimeout(reanalyzeCooldownRef.current);
+      reanalyzeCooldownRef.current = window.setTimeout(() => {
+        setReanalyzeCooldown(false);
+        reanalyzeCooldownRef.current = null;
+      }, 6000) as unknown as number;
       // Marca como "fresco" — qualquer edição posterior reativa o banner stale.
       stale.markFresh();
     }
