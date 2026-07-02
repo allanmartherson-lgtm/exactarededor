@@ -411,6 +411,15 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
       }
 
       if (applyLinkChanges && toAdd.length > 0) {
+        // Blindagem: qualquer vínculo do médico com end_date=hoje (ex.: encerrado
+        // em tentativa anterior antes do fix) sobrepõe o daterange '[]' e barra
+        // o insert. Recua para ontem antes de inserir a nova PJ.
+        await supabase
+          .from("doctor_companies")
+          .update({ end_date: yesterday })
+          .eq("doctor_id", savedId!)
+          .eq("end_date", today);
+
         const { error: linkErr } = await supabase.from("doctor_companies").insert(
           toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today })),
         );
