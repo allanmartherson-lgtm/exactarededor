@@ -45,6 +45,27 @@ interface PaymentRow {
   analysis_mode: "padrao" | "empresa_prioritaria" | "isolado" | "confeccao" | null;
 }
 
+const RAW_SECTOR_KEYS = new Set([
+  "setor",
+  "setor atendimento",
+  "setor do atendimento",
+  "setor executante",
+  "centro de custo",
+  "centro custo",
+  "ds setor atendimento",
+  "nome setor",
+]);
+
+function rawSectorFromRawData(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!RAW_SECTOR_KEYS.has(normName(key))) continue;
+    const text = value == null ? "" : String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
 // Entry point: detecta `_async:true` no body e roda o processamento via
 // `EdgeRuntime.waitUntil`, respondendo 202 imediatamente. Isso evita o
 // IDLE_TIMEOUT (150s) da Edge Runtime — o trabalho continua em background e
