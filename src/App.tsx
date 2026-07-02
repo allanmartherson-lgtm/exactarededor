@@ -74,6 +74,7 @@ const loadAnalystCorrections = () => import("./pages/AnalystCorrections.tsx");
 const loadInterventionAudit = () => import("./pages/InterventionAudit.tsx");
 const loadCancelledPayments = () => import("./pages/CancelledPayments.tsx");
 const loadInterventionReports = () => import("./pages/InterventionReports.tsx");
+const loadLoteInterventionReport = () => import("./pages/LoteInterventionReport.tsx");
 const loadSidebarDiagnostic = () => import("./pages/SidebarDiagnostic.tsx");
 const loadOverflowAudit = () => import("./pages/OverflowAudit.tsx");
 const loadFinancialIntelligence = () => import("./pages/FinancialIntelligence.tsx");
@@ -170,6 +171,7 @@ const AnalystCorrections = lazy(loadAnalystCorrections);
 const InterventionAudit = lazy(loadInterventionAudit);
 const CancelledPayments = lazy(loadCancelledPayments);
 const InterventionReports = lazy(loadInterventionReports);
+const LoteInterventionReport = lazy(loadLoteInterventionReport);
 const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
 const OverflowAudit = lazy(loadOverflowAudit);
 const FinancialIntelligence = lazy(loadFinancialIntelligence);
@@ -315,6 +317,7 @@ const App = () => (
                   <Route path="/pagamentos/novo-manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewManualPayment /></ProtectedRoute>} />
                   <Route path="/pagamentos/novo-manual-modelo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewManualPaymentComposicao /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id/manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><ManualPaymentEntry /></ProtectedRoute>} />
+                  <Route path="/pagamentos/:id/intervencoes" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><LoteInterventionReport /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id" element={<PaymentDetail />} />
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
                   <Route path="/pagamentos/:id/pool" element={<PoolAnalysis />} />
