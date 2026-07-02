@@ -171,6 +171,7 @@ const AnalystCorrections = lazy(loadAnalystCorrections);
 const InterventionAudit = lazy(loadInterventionAudit);
 const CancelledPayments = lazy(loadCancelledPayments);
 const InterventionReports = lazy(loadInterventionReports);
+const LoteInterventionReport = lazy(loadLoteInterventionReport);
 const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
 const OverflowAudit = lazy(loadOverflowAudit);
 const FinancialIntelligence = lazy(loadFinancialIntelligence);
