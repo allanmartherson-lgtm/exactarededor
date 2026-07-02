@@ -157,37 +157,16 @@ const LINE_TYPE_LABELS: Record<LineType, string> = {
   outro: "Outro / Não identificado",
 };
 
-const COMPLEMENTO_TERMS = [
-  "bonus", "bônus", "complemento", "adicional", "diferenca", "diferença",
-  "ajuste de valor", "complemento pacote", "complemento cirurg",
-  "produtividade", "incentivo", "valor complementar",
-];
-const GLOSA_TERMS = ["glosa", "desconto", "abatimento", "devolução", "devolucao", "estorno", "ajuste negativo"];
-const REPROC_TERMS = ["retroativo", "pendência", "pendencia", "competência anterior", "competencia anterior", "ajuste mês anterior", "ajuste mes anterior"];
-const PACOTE_TERMS = ["pacote"];
-const VISITA_TERMS = ["visita"];
-const PARECER_TERMS = ["parecer"];
-const CIRURGIA_TERMS = ["cirurgia", "cirurg", "procedimento"];
-
-const containsAny = (txt: string, terms: string[]) => {
-  const t = txt.toLowerCase();
-  return terms.some((w) => t.includes(w.toLowerCase()));
-};
+// Classificação canônica: delegada ao parser único (word-boundary + exige
+// ausência de TUSS + ignora procedure_name para termos de complemento/bônus).
+// Evita falso-positivo de nomes TUSS como "... Adicional" caírem como bônus.
+import { classifyLine as canonicalClassifyLine } from "@/lib/parsePaymentFile";
 
 const classifyLine = (
   r: Omit<ParsedRow, "tipo_linha" | "line_issues">,
   paymentKind?: string | null,
-): LineType => {
-  const blob = `${r.description ?? ""} ${r.procedure_name ?? ""} ${r.doctor_role ?? ""}`;
-  if (containsAny(blob, GLOSA_TERMS) || (r.gross_amount ?? 0) < 0) return "glosa_desconto";
-  if (containsAny(blob, COMPLEMENTO_TERMS)) return "complemento_bonus";
-  if (paymentKind === "pendencia" || containsAny(blob, REPROC_TERMS)) return "reprocessamento";
-  if (containsAny(blob, PACOTE_TERMS)) return "pacote";
-  if (containsAny(blob, VISITA_TERMS)) return "visita";
-  if (containsAny(blob, PARECER_TERMS)) return "parecer";
-  if (r.procedure_code || containsAny(blob, CIRURGIA_TERMS)) return "procedimento";
-  return "outro";
-};
+): LineType => canonicalClassifyLine(r as never, paymentKind ?? null) as LineType;
+
 
 const validateLine = (
   r: Omit<ParsedRow, "line_issues">,
