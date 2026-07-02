@@ -1728,8 +1728,8 @@ export function ItemsDataGrid({
       g.totalGross += Number(it.gross_amount ?? 0);
       if ((it as any).applied_calc_method === "pacote") {
         const exp =
-          (it.ai_findings?.expected_amount as number | undefined) ??
-          ((it as any).expected_amount as number | undefined);
+          ((it as any).expected_amount as number | undefined) ??
+          (it.ai_findings?.expected_amount as number | undefined);
         if (exp != null) g.totalExpected = (g.totalExpected ?? 0) + Number(exp);
       }
       if (it.ai_status === "reprovado") g.worstStatus = "reprovado";
