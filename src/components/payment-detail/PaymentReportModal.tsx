@@ -223,7 +223,8 @@ export function PaymentReportModal({
       const matchesStatus = 
         (status === "aprovado" && statusFilter.aprovado) ||
         (status === "alerta" && statusFilter.alerta) ||
-        (status === "reprovado" && statusFilter.reprovado);
+        (status === "reprovado" && statusFilter.reprovado) ||
+        (status === "acatado" && statusFilter.acatado);
 
       return matchesSearch && matchesCompany && matchesDoctor && matchesSpecialty && matchesStatus;
     });
