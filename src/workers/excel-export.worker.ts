@@ -48,6 +48,7 @@ self.onmessage = async (e) => {
       ["Aprovados", summary.approved.count, summary.approved.value, `${summary.approved.pct.toFixed(1)}%`],
       ["Alertas", summary.alert.count, summary.alert.value, `${summary.alert.pct.toFixed(1)}%`],
       ["Reprovados", summary.rejected.count, summary.rejected.value, `${summary.rejected.pct.toFixed(1)}%`],
+      ["Acatados", summary.accepted?.count ?? 0, summary.accepted?.value ?? 0, `${(summary.accepted?.pct ?? 0).toFixed(1)}%`],
       ["", "", "", ""],
       ["Valor em Risco", "", summary.riskValue, `${((summary.riskValue / summary.totalValue) * 100 || 0).toFixed(1)}%`],
     ];
