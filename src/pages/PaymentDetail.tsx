@@ -4571,6 +4571,9 @@ const PaymentDetail = () => {
                   return it.ai_findings?.matched_priority === "sem_regra";
                 }
                 if (criticalFilter === "divergent") {
+                  // Bônus é bonificação — não conta como divergência de repasse.
+                  const isBonusLine = (it as any).tipo_linha === "complemento_bonus";
+                  if (isBonusLine) return false;
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
                 if (criticalFilter === "validation") {
@@ -4723,7 +4726,11 @@ const PaymentDetail = () => {
               const isErrorOnly = payment.analysis_mode === "empresa_prioritaria" || criticalFilter !== "all";
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
-                if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                if (criticalFilter === "divergent") {
+                  const isBonusLine = (it as any).tipo_linha === "complemento_bonus";
+                  if (isBonusLine) return false;
+                  return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                }
                 if (criticalFilter === "validation") {
                   const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
                   return Array.isArray(f) && f.length > 0;
