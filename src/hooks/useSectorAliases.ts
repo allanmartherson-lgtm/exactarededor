@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { applySectorStems } from "@/lib/sectorStems";
 
 const norm = (s: string) =>
   (s ?? "")
@@ -41,6 +42,8 @@ async function load(): Promise<SectorAliasMap> {
     }
     const lookup = <T,>(m: Map<string, T>) => (raw: string | null | undefined): T | null => {
       if (!raw) return null;
+      const stem = applySectorStems(raw);
+      if (stem && m.has(norm(stem))) return m.get(norm(stem))!;
       const n = norm(raw);
       if (!n) return null;
       if (m.has(n)) return m.get(n)!;
