@@ -135,7 +135,7 @@ self.onmessage = async (e) => {
         it.quantity ?? 1,
         it.gross_amount,
         findings?.expected_amount ?? "",
-        (Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2),
+        Number((Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2)),
         { v: status, s: statusStyle },
         it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
