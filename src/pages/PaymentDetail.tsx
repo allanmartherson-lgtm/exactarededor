@@ -2776,10 +2776,10 @@ const PaymentDetail = () => {
             )}
 
             <Button variant="outline" size="sm" asChild title="Relatório de economia/aumento por empresa do lote">
-              <RouterLink to={`/pagamentos/${payment.id}/intervencoes`}>
+              <Link to={`/pagamentos/${payment.id}/intervencoes`}>
                 <ClipboardList className="h-4 w-4 mr-1.5" />
                 Intervenções
-              </RouterLink>
+              </Link>
             </Button>
 
             {obs.some((o: any) => o.is_question) && (
