@@ -35,8 +35,11 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 // voltar para o lote. Retentamos respeitando o `retryAfterMs` sugerido — mas
 // com teto — e nunca quebramos o pipeline: em último caso devolvemos 429 no
 // corpo para o chamador seguir marcando as demais fontes.
-const MAX_RETRIES = 4;
-const MAX_BACKOFF_MS = 15_000;
+// 2026-07-02 (v2): Reduzido backoff de 15s→5s e retries 4→2 para falhar rápido
+// em vez de segurar o pipeline ~150s (que estourava 504 no toast). Combinado com
+// CONCURRENCY=1 abaixo (serializa apply-company-deductions por PJ).
+const MAX_RETRIES = 2;
+const MAX_BACKOFF_MS = 5_000;
 
 async function callFn(name: string, body: unknown): Promise<{ ok: boolean; status: number; body: string }> {
   let attempt = 0;
