@@ -63,6 +63,7 @@ self.onmessage = async (e) => {
       "✓ Aprovados": g.counts.aprovado,
       "⚠ Alertas": g.counts.alerta,
       "✗ Reprovados": g.counts.reprovado,
+      "● Acatados": g.counts.acatado ?? 0,
       "Valor Total": g.totalValue,
       "Valor em Risco (R$)": g.riskValue,
       "Valor em Risco (%)": g.totalValue > 0 ? `${((g.riskValue / g.totalValue) * 100).toFixed(1)}%` : "0%",
