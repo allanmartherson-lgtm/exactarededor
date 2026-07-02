@@ -362,29 +362,62 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     // Removidos → encerra com end_date = hoje. Adicionados → cria com start_date = hoje.
     if (savedId) {
       const today = new Date().toISOString().slice(0, 10);
+      const yDate = new Date(); yDate.setDate(yDate.getDate() - 1);
+      const yesterday = yDate.toISOString().slice(0, 10);
       const previousIds = linksByDoctor.get(savedId) ?? [];
       const toEnd = previousIds.filter((cid) => !editingCompanyIds.includes(cid));
       const toAdd = editingCompanyIds.filter((cid) => !previousIds.includes(cid));
 
-      if (toEnd.length > 0) {
-        // Encerra apenas os vínculos abertos (end_date IS NULL) das PJs removidas
-        await supabase
-          .from("doctor_companies")
-          .update({ end_date: today, end_reason: "desvinculo_manual" })
-          .eq("doctor_id", savedId)
-          .in("company_id", toEnd)
-          .is("end_date", null);
+      // Se for uma TROCA (encerra uma PJ e inicia outra na mesma data), pede
+      // confirmação explícita — a troca vale para todo o sistema a partir de hoje.
+      let applyLinkChanges = true;
+      if (toEnd.length > 0 && toAdd.length > 0) {
+        const oldNames = toEnd.map((cid) => companiesById.get(cid)?.name ?? cid).join(", ");
+        const newNames = toAdd.map((cid) => companiesById.get(cid)?.name ?? cid).join(", ");
+        applyLinkChanges = confirm(
+          `Confirmar troca de PJ do médico?\n\n` +
+          `• Encerrar vínculo com: ${oldNames}\n` +
+          `• Iniciar vínculo com: ${newNames}\n\n` +
+          `A troca passa a valer em TODO o sistema a partir de hoje (${today}).\n` +
+          `Itens de pagamentos já finalizados (pago, arquivado, cancelado, rejeitado, lancado) ` +
+          `permanecem inalterados. Pagamentos em andamento continuam apontando para a PJ antiga ` +
+          `até serem reprocessados.\n\n` +
+          `Deseja prosseguir com a troca?`
+        );
       }
 
-      if (toAdd.length > 0) {
+      if (applyLinkChanges && toEnd.length > 0) {
+        // Para permitir iniciar uma nova vigência hoje sem violar a constraint de
+        // sobreposição (daterange '[]'), encerra a antiga em "ontem". Se o vínculo
+        // antigo tiver começado hoje (sem histórico útil), deleta a linha.
+        for (const cid of toEnd) {
+          const { data: existing } = await supabase
+            .from("doctor_companies")
+            .select("id,start_date")
+            .eq("doctor_id", savedId)
+            .eq("company_id", cid)
+            .is("end_date", null)
+            .maybeSingle();
+          if (!existing) continue;
+          if (existing.start_date && existing.start_date >= today) {
+            await supabase.from("doctor_companies").delete().eq("id", existing.id);
+          } else {
+            await supabase
+              .from("doctor_companies")
+              .update({ end_date: yesterday, end_reason: toAdd.length > 0 ? "troca_pj" : "desvinculo_manual" })
+              .eq("id", existing.id);
+          }
+        }
+      }
+
+      if (applyLinkChanges && toAdd.length > 0) {
         const { error: linkErr } = await supabase.from("doctor_companies").insert(
           toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today })),
         );
         if (linkErr) {
-          // Constraint de não-sobreposição: médico já tem outra PJ vigente.
           toast({
             title: "Vínculo conflita com PJ atual",
-            description: "Encerre o vínculo anterior antes de iniciar um novo na mesma data.",
+            description: "Existe outro vínculo vigente sobreposto. Encerre-o antes de iniciar um novo na mesma data.",
             variant: "destructive",
           });
         } else {
@@ -399,6 +432,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
       }
 
     }
+
 
 
     toast({ title: editing.id ? "Médico atualizado" : "Médico criado" });
