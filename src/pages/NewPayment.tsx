@@ -2285,19 +2285,20 @@ const NewPayment = () => {
     });
   }, [allRows.length, doctorReg, convenioReg, sectorReg]);
 
-  // Quando o analista escolhe explicitamente o setor do bucket via chip
-  // ("Setor: SADT Endoscopia"), esse override DEVE prevalecer sobre o valor
-  // bruto da linha — caso contrário a planilha que veio com a coluna errada
-  // (ex.: nome da empresa caindo no campo setor) continua gerando divergência
-  // na Resolução de cadastros mesmo após o usuário corrigir.
+  // Quando a linha já traz setor, ela é a fonte de verdade. O seletor do bucket
+  // é apenas fallback para arquivo sem setor reconhecido — não pode transformar
+  // linhas de Hemodinâmica em Centro Cirúrgico só porque esse foi o setor
+  // dominante/selecionado no card do arquivo.
   const sectorForRow = (r: ParsedRow & { source_bucket_index?: number }): string | null => {
     // Tipos de pagamento por evento (parecer, visita...) não têm dimensão de setor.
     // Ignora qualquer valor capturado/override para não cair em Resolução de cadastros.
     if (paymentModelMeta?.default_function) return null;
     const bIdx = (r as any).source_bucket_index;
     const override = typeof bIdx === "number" ? buckets[bIdx]?.sectorMapping : null;
+    const rowSector = r.sector?.trim();
+    if (rowSector) return rowSector;
     if (override && override.trim()) return override;
-    return r.sector ?? null;
+    return null;
   };
 
   const resolvedRows = useMemo(() => {
@@ -2825,8 +2826,11 @@ const NewPayment = () => {
     const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => {
       const dRes = doctorReg ? resolveDoctor({ name: r.doctor_name, crm: r.doctor_document, cpf: r.doctor_document }, doctorReg) : { doctor: null, matched_by: null as any };
       const cRes = convenioReg ? resolveConvenio(r.agreement_text, convenioReg) : { convenio: null, matched_by: null as any };
-      // Override manual do bucket vence sobre o valor bruto da linha (analista corrigiu o setor para o lote inteiro).
-      const sRawForLookup = (currentBucket?.sectorMapping?.trim() || r.sector) || null;
+      // Setor da linha vence; bucket.sectorMapping é fallback apenas quando a
+      // planilha não trouxe setor para aquela linha.
+      const rowSectorRaw = r.sector?.trim() || null;
+      const fallbackSector = currentBucket?.sectorMapping?.trim() || null;
+      const sRawForLookup = rowSectorRaw || fallbackSector;
       const sRes = sectorReg ? resolveSector(sRawForLookup, sectorReg) : { sector: null, matched_by: null as any };
 
 
@@ -2916,7 +2920,7 @@ const NewPayment = () => {
       procedure_date: r.procedure_date,
       procedure_date_has_time: r.procedure_date_has_time,
       patient_name: r.patient_name,
-      sector: normalizeSector((b.sectorMapping?.trim() || r.sector) || null),
+      sector: normalizeSector((r.sector?.trim() || b.sectorMapping?.trim()) || null),
       attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
