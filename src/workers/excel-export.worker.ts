@@ -140,6 +140,7 @@ self.onmessage = async (e) => {
         it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
         validationCol,
+        findings?.calculation_explanation || "",
       ];
     });
 
