@@ -34,6 +34,7 @@ import { loadSectorAliases } from "@/hooks/useSectorAliases";
 import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
 import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type FileDecision } from "@/lib/newPaymentDraft";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
+import { applySectorStems } from "@/lib/sectorStems";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -2853,7 +2854,7 @@ const NewPayment = () => {
         procedure_date: r.procedure_date,
         procedure_date_has_time: r.procedure_date_has_time,
         patient_name: r.patient_name,
-        sector: sRes.sector?.slug ?? normalizeSector(sRawForLookup),
+        sector: applySectorStems(sRawForLookup) ?? sRes.sector?.slug ?? normalizeSector(sRawForLookup),
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
