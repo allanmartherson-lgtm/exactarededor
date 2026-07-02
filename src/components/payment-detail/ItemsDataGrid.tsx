@@ -1692,8 +1692,8 @@ export function ItemsDataGrid({
       } else if (!(it as any).package_absorbed) {
         m.count += 1;
         m.totalGross += Number(it.gross_amount ?? 0);
-        const exp = (it.ai_findings?.expected_amount as number | undefined) ??
-          ((it as any).expected_amount as number | undefined);
+        const exp = ((it as any).expected_amount as number | undefined) ??
+          (it.ai_findings?.expected_amount as number | undefined);
         if (exp != null) m.totalExpected = (m.totalExpected ?? 0) + Number(exp);
       }
       if (it.ai_status === "reprovado") m.worstStatus = "reprovado";
