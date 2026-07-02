@@ -402,8 +402,17 @@ REGRAS:
       }
       const t = await aiResp.text();
       console.error("summarize-payment AI error", aiResp.status, t);
-      return new Response(JSON.stringify({ error: "Falha ao gerar resumo" }), {
-        status: 500,
+      // Anthropic devolve 400 "credit balance too low" quando a conta zera —
+      // trata como créditos esgotados para o cliente lidar como fallback.
+      if (/credit balance is too low/i.test(t)) {
+        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace.", fallback: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Qualquer outra falha upstream: devolve 200 + fallback para NÃO derrubar a UI.
+      return new Response(JSON.stringify({ error: "Falha ao gerar resumo", fallback: true, upstream_status: aiResp.status }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
