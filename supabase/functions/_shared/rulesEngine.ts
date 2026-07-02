@@ -515,11 +515,19 @@ export function extendSectorMap(entries: Array<{ slug: string; aliases: string[]
   for (const e of entries) {
     const slug = (e.slug || "").trim();
     if (!slug) continue;
-    SECTOR_MAP[normName(slug)] = slug;
-    if (e.name) SECTOR_MAP[normName(e.name)] = slug;
+    // Quando a tabela `sectors` usa slug numérico (ex.: 1574), o motor não pode
+    // comparar esse número diretamente com as categorias de regra. Se o nome ou
+    // algum alias revela uma categoria conhecida, gravamos o mapa para a
+    // categoria canônica do engine (`hemodinamica`, `centro_cirurgico`, ...).
+    const canonical = [e.name, ...(e.aliases || []), slug]
+      .map((v) => applySectorStems(v))
+      .find(Boolean) || slug;
+
+    SECTOR_MAP[normName(slug)] = canonical;
+    if (e.name) SECTOR_MAP[normName(e.name)] = canonical;
     for (const a of e.aliases || []) {
       const k = normName(a);
-      if (k) SECTOR_MAP[k] = slug;
+      if (k) SECTOR_MAP[k] = canonical;
     }
   }
 }
