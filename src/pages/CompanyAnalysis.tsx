@@ -2495,11 +2495,11 @@ export default function CompanyAnalysis() {
           <Button
             size="sm"
             onClick={() => { void reanalyzeGroup(); }}
-            disabled={busy || reanalyzing}
+            disabled={busy || reanalyzing || reanalyzeCooldown}
             className="h-7 text-xs"
           >
-            <RefreshCcw className={`h-3 w-3 mr-1 ${reanalyzing ? "animate-spin" : ""}`} />
-            Reanalisar agora
+            <RefreshCcw className={`h-3 w-3 mr-1 ${(reanalyzing || reanalyzeCooldown) ? "animate-spin" : ""}`} />
+            {reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Reanalisar agora"}
           </Button>
         </div>
       )}
