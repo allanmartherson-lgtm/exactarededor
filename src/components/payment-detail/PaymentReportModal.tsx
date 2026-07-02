@@ -287,7 +287,7 @@ export function PaymentReportModal({
         items: [],
         totalValue: 0,
         riskValue: 0,
-        counts: { aprovado: 0, alerta: 0, reprovado: 0, pendente: 0, seguido: 0 } as any,
+        counts: { aprovado: 0, alerta: 0, reprovado: 0, acatado: 0, pendente: 0, seguido: 0 } as any,
       };
       
       group.items.push(it);
