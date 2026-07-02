@@ -236,6 +236,7 @@ export function PaymentReportModal({
       approved: { count: 0, value: 0 },
       alert: { count: 0, value: 0 },
       rejected: { count: 0, value: 0 },
+      accepted: { count: 0, value: 0 },
     };
 
     filteredItems.forEach(it => {
@@ -249,16 +250,20 @@ export function PaymentReportModal({
       } else if (it.ai_status === "reprovado") {
         stats.rejected.count++;
         stats.rejected.value += val;
+      } else if (it.ai_status === "acatado") {
+        stats.accepted.count++;
+        stats.accepted.value += val;
       }
     });
 
-    const totalValue = stats.approved.value + stats.alert.value + stats.rejected.value;
-    const totalCount = stats.approved.count + stats.alert.count + stats.rejected.count;
+    const totalValue = stats.approved.value + stats.alert.value + stats.rejected.value + stats.accepted.value;
+    const totalCount = stats.approved.count + stats.alert.count + stats.rejected.count + stats.accepted.count;
 
     return {
       approved: { ...stats.approved, pct: totalValue > 0 ? (stats.approved.value / totalValue) * 100 : 0 },
       alert: { ...stats.alert, pct: totalValue > 0 ? (stats.alert.value / totalValue) * 100 : 0 },
       rejected: { ...stats.rejected, pct: totalValue > 0 ? (stats.rejected.value / totalValue) * 100 : 0 },
+      accepted: { ...stats.accepted, pct: totalValue > 0 ? (stats.accepted.value / totalValue) * 100 : 0 },
       riskValue: stats.alert.value + stats.rejected.value,
       totalValue,
       totalCount,
