@@ -4571,6 +4571,9 @@ const PaymentDetail = () => {
                   return it.ai_findings?.matched_priority === "sem_regra";
                 }
                 if (criticalFilter === "divergent") {
+                  // Bônus é bonificação — não conta como divergência de repasse.
+                  const isBonusLine = (it as any).tipo_linha === "complemento_bonus";
+                  if (isBonusLine) return false;
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
                 if (criticalFilter === "validation") {
