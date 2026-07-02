@@ -397,6 +397,12 @@ export default function CompanyAnalysis() {
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
   const [groupDraft, setGroupDraft] = useState("");
   const [reanalyzing, setReanalyzing] = useState(false);
+  // Cooldown pós-reanálise: mantém o botão travado por alguns segundos após o
+  // motor concluir, para impedir cliques duplos enquanto realtime/hooks ainda
+  // propagam o novo estado. Sem isto, o usuário disparava 2-3 reanálises
+  // seguidas achando que a UI não tinha refletido.
+  const [reanalyzeCooldown, setReanalyzeCooldown] = useState(false);
+  const reanalyzeCooldownRef = useRef<number | null>(null);
 
   // ---- Reaplicar regras: progresso + diff antes/depois ----
   const [reapplyOpen, setReapplyOpen] = useState(false);
