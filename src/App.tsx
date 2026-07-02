@@ -317,6 +317,7 @@ const App = () => (
                   <Route path="/pagamentos/novo-manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewManualPayment /></ProtectedRoute>} />
                   <Route path="/pagamentos/novo-manual-modelo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewManualPaymentComposicao /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id/manual" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><ManualPaymentEntry /></ProtectedRoute>} />
+                  <Route path="/pagamentos/:id/intervencoes" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><LoteInterventionReport /></ProtectedRoute>} />
                   <Route path="/pagamentos/:id" element={<PaymentDetail />} />
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
                   <Route path="/pagamentos/:id/pool" element={<PoolAnalysis />} />
