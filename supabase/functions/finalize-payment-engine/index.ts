@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       // suficiente para o Supabase disparar RateLimitError em lotes densos
       // (reimport de INSTITUTO SALUTAIRE reproduziu). 2 mantém throughput
       // aceitável e evita o backoff de ~57s sugerido pelo runtime.
-      const CONCURRENCY = 2;
+      const CONCURRENCY = 1;
       const runForCompany = async (cid: string) => {
         const summary: any = { company_id: cid };
         // 1) deductions (sequencial dentro da PJ — afeta o snapshot)
