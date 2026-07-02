@@ -184,6 +184,41 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
     cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
   }
 
+  // Memória de cálculo — mostra a fórmula/explicação gerada pelo motor para
+  // cada item que tem `calculation_explanation`. Peça-chave para conferência
+  // do que a regra fez (base × multiplicador × via × qtd = valor).
+  const memoriaItems = items.filter((i) => {
+    const exp = (i.ai_findings as any)?.calculation_explanation;
+    return typeof exp === "string" && exp.trim().length > 0;
+  });
+  if (memoriaItems.length > 0) {
+    if (cursorY > 220) { doc.addPage(); cursorY = 20; }
+    doc.setFontSize(12);
+    doc.setTextColor(...REDE_DOR_BRAND_BLUE_RGB);
+    doc.text(`Memória de cálculo (${memoriaItems.length})`, marginX, cursorY);
+    doc.setTextColor(17, 24, 39);
+    autoTable(doc, {
+      startY: cursorY + 4,
+      head: [["Médico · Atend.", "Código", "Cálculo"]],
+      body: memoriaItems.map((i) => [
+        `${i.doctor_name ?? "—"}${(i as any).attendance_number ? ` · #${(i as any).attendance_number}` : ""}`,
+        (i as any).procedure_code ?? "—",
+        String((i.ai_findings as any)?.calculation_explanation ?? ""),
+      ]),
+      styles: { fontSize: 7, overflow: "linebreak", cellPadding: 1.6, valign: "top" },
+      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 55 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 105 },
+      },
+      margin: { left: marginX, right: marginX, bottom: 14 },
+      showHead: "everyPage",
+      rowPageBreak: "avoid",
+    });
+    cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
+  }
+
   // Alertas assistenciais — tabela comparativa lado a lado
   const alertItemsForPdf = items.filter((it) => {
     const vf = Array.isArray((it as any).validation_findings)

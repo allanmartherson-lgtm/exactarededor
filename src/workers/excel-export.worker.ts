@@ -88,7 +88,8 @@ self.onmessage = async (e) => {
     const detailHeaders = [
       "Atendimento", "Data", "Empresa", "Convênio", "Paciente", "Médico", "Especialidade",
       "Código", "Procedimento", "Qtd", "Valor Repasse", "Valor Esperado",
-      "Divergência (R$)", "Status", "Regra", "Motivo", "Validação Assistencial"
+      "Divergência (R$)", "Status", "Regra", "Motivo", "Validação Assistencial",
+      "Memória de cálculo"
     ];
     
     const detailRows = filteredItems.map(it => {
@@ -139,6 +140,7 @@ self.onmessage = async (e) => {
         it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
         validationCol,
+        findings?.calculation_explanation || "",
       ];
     });
 
