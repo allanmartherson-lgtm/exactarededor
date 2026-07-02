@@ -28,14 +28,41 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+// 2026-07-02: Runtime do Supabase começou a lançar `RateLimitError` do próprio
+// `fetch` interno quando o finalize dispara muitas chamadas em cascata (uma
+// reimportação de PJ grande como INSTITUTO SALUTAIRE reentra no finalize e
+// estoura o limite). Isso subia como 500 e o usuário via toast de timeout ao
+// voltar para o lote. Retentamos respeitando o `retryAfterMs` sugerido — mas
+// com teto — e nunca quebramos o pipeline: em último caso devolvemos 429 no
+// corpo para o chamador seguir marcando as demais fontes.
+const MAX_RETRIES = 4;
+const MAX_BACKOFF_MS = 15_000;
+
 async function callFn(name: string, body: unknown): Promise<{ ok: boolean; status: number; body: string }> {
-  const r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-    body: JSON.stringify(body),
-  });
-  const txt = await r.text();
-  return { ok: r.ok, status: r.status, body: txt };
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+        body: JSON.stringify(body),
+      });
+      const txt = await r.text();
+      return { ok: r.ok, status: r.status, body: txt };
+    } catch (e: any) {
+      const isRate = e?.name === "RateLimitError" || /rate limit/i.test(String(e?.message ?? ""));
+      if (!isRate || attempt >= MAX_RETRIES) {
+        console.warn(`[finalize] callFn(${name}) desistiu após ${attempt} tentativas`, e?.message ?? e);
+        return { ok: false, status: 429, body: JSON.stringify({ error: String(e?.message ?? e), rate_limited: isRate }) };
+      }
+      const suggested = Number(e?.retryAfterMs ?? 0);
+      const backoff = Math.min(MAX_BACKOFF_MS, Math.max(500 * 2 ** attempt, suggested > 0 ? Math.min(suggested, MAX_BACKOFF_MS) : 0));
+      console.warn(`[finalize] callFn(${name}) rate-limited — aguardando ${backoff}ms (tentativa ${attempt + 1}/${MAX_RETRIES})`);
+      await new Promise((r) => setTimeout(r, backoff));
+      attempt += 1;
+    }
+  }
 }
 
 async function markSource(
@@ -98,7 +125,12 @@ Deno.serve(async (req) => {
 
     const perCompany: any[] = [];
     if (companyIds.length > 0) {
-      const CONCURRENCY = 4;
+      // 2026-07-02: baixado de 4 → 2. Com 4 empresas simultâneas × 3 subcalls
+      // (deductions + mg + snapshot) = 12 fetches concorrentes contra o runtime,
+      // suficiente para o Supabase disparar RateLimitError em lotes densos
+      // (reimport de INSTITUTO SALUTAIRE reproduziu). 2 mantém throughput
+      // aceitável e evita o backoff de ~57s sugerido pelo runtime.
+      const CONCURRENCY = 2;
       const runForCompany = async (cid: string) => {
         const summary: any = { company_id: cid };
         // 1) deductions (sequencial dentro da PJ — afeta o snapshot)
