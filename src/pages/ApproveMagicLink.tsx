@@ -97,6 +97,18 @@ export default function ApproveMagicLink() {
 
   useEffect(() => {
     if (!token) return;
+    const check = checkTokenExpiration(token);
+    if (check.malformed) {
+      setError("Este link parece estar corrompido ou incompleto. Solicite um novo link.");
+      setLoading(false);
+      return;
+    }
+    if (check.expired) {
+      const when = check.expiresAt ? ` (expirou em ${check.expiresAt.toLocaleString("pt-BR")})` : "";
+      setError(`O prazo deste link já venceu${when}. Peça um novo link de aprovação para continuar.`);
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const r = await fetch(FUNCTIONS_URL, {
@@ -117,6 +129,18 @@ export default function ApproveMagicLink() {
 
   async function confirm() {
     if (!token) return;
+    const check = checkTokenExpiration(token);
+    if (check.expired) {
+      const when = check.expiresAt ? ` (expirou em ${check.expiresAt.toLocaleString("pt-BR")})` : "";
+      toast({
+        title: "Link expirado",
+        description: `O prazo deste link venceu${when}. Solicite um novo link para registrar a ação.`,
+        variant: "destructive",
+      });
+      setError(`O prazo deste link já venceu${when}. Peça um novo link de aprovação para continuar.`);
+      setPreview(null);
+      return;
+    }
     setSubmitting(true);
     try {
       const r = await fetch(FUNCTIONS_URL, {
