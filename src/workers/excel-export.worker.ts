@@ -125,6 +125,8 @@ self.onmessage = async (e) => {
           .join(" | ");
       }
 
+      const expectedVal = it.expected_amount ?? findings?.expected_amount ?? "";
+      const expectedNum = Number(expectedVal ?? 0);
       return [
         it.attendance_number,
         it.procedure_date,
@@ -137,8 +139,8 @@ self.onmessage = async (e) => {
         it.procedure_name,
         it.quantity ?? 1,
         it.gross_amount,
-        findings?.expected_amount ?? "",
-        Number((Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2)),
+        expectedVal,
+        Number((Number(it.gross_amount ?? 0) - expectedNum).toFixed(2)),
         { v: status, s: statusStyle },
         it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
