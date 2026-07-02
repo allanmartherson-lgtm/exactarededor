@@ -711,7 +711,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       // Anota fonte para persistir em ai_findings depois
       (it as any).__resolved_specialty = resolved;
       const persistedSector = it.sector ?? null;
-      const rawSector = typeof it.raw_data?.Setor === "string" ? it.raw_data.Setor : null;
+      const rawSector = rawSectorFromRawData(it.raw_data);
       const recoveredSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
         ? persistedSector
         : rawSector;
@@ -1965,7 +1965,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const originalItem = itemsById[r.item_id];
       const rawItem = itemsRawById[r.item_id];
       const persistedSector = originalItem?.sector ?? null;
-      const rawSector = typeof rawItem?.raw_data?.Setor === "string" ? rawItem.raw_data.Setor : null;
+      const rawSector = rawSectorFromRawData(rawItem?.raw_data);
       const originalSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
         ? persistedSector
         : rawSector;
