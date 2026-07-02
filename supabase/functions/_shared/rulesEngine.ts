@@ -3044,7 +3044,27 @@ export function analyzeItem(
     // fica na observação do lote). Não bloqueamos por gate aqui.
     const isParecerVisitaItem =
       isVisita(item as any) || isParecer(item as any);
-    if (!isSpecialLine && !isParecerVisitaItem && procAmount <= 0) {
+    // Bypass do gate: se existir regra específica/grupo com fonte de base
+    // independente do procedure_amount (tabela_diferenciada com reference_table,
+    // valor_fixo ou pacote), o motor deve seguir para o cálculo normal —
+    // a regra fornece a própria base. Caso contrário, o gate se aplica.
+    let ruleProvidesOwnBase = false;
+    try {
+      const sel = selectWinningRule(item, preFilteredRules, ctx);
+      const rule = sel?.rule as any;
+      if (rule) {
+        const calcs: any[] = Array.isArray(rule.calculations) && rule.calculations.length > 0
+          ? rule.calculations
+          : [rule];
+        ruleProvidesOwnBase = calcs.some((c) => {
+          const ct = (c?.calculation_type ?? "").toString();
+          if (ct === "valor_fixo" || ct === "pacote") return true;
+          if (ct === "tabela_diferenciada" && (c?.reference_table_id ?? rule?.reference_table_id)) return true;
+          return false;
+        });
+      }
+    } catch (_e) { /* fallback: mantém gate */ }
+    if (!isSpecialLine && !isParecerVisitaItem && !ruleProvidesOwnBase && procAmount <= 0) {
       return {
         item_id: item.id,
         status: "alerta",
