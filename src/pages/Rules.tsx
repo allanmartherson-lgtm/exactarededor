@@ -807,9 +807,11 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     });
     supabase
       .from("doctor_companies")
-      .select("company_id, doctors(full_name, crm, crm_uf, active)")
+      .select("company_id, end_date, doctors(full_name, crm, crm_uf, active)")
       .in("company_id", ids)
+      .is("end_date", null)
       .then((masterRes) => {
+
         const byCo: Record<string, Map<string, { name: string; crm?: string }>> = {};
         ids.forEach((id) => { byCo[id] = new Map(); });
         for (const r of (masterRes.data ?? []) as any[]) {
