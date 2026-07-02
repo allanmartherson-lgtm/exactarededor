@@ -397,6 +397,12 @@ export default function CompanyAnalysis() {
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
   const [groupDraft, setGroupDraft] = useState("");
   const [reanalyzing, setReanalyzing] = useState(false);
+  // Cooldown pós-reanálise: mantém o botão travado por alguns segundos após o
+  // motor concluir, para impedir cliques duplos enquanto realtime/hooks ainda
+  // propagam o novo estado. Sem isto, o usuário disparava 2-3 reanálises
+  // seguidas achando que a UI não tinha refletido.
+  const [reanalyzeCooldown, setReanalyzeCooldown] = useState(false);
+  const reanalyzeCooldownRef = useRef<number | null>(null);
 
   // ---- Reaplicar regras: progresso + diff antes/depois ----
   const [reapplyOpen, setReapplyOpen] = useState(false);
@@ -973,6 +979,14 @@ export default function CompanyAnalysis() {
       toast.error("Falha ao iniciar reanálise", { description: msg });
     } finally {
       setReanalyzing(false);
+      // Cooldown de 6s: botão fica "Estabilizando..." para bloquear reclique
+      // enquanto a UI termina de refletir os novos ai_status/expected.
+      setReanalyzeCooldown(true);
+      if (reanalyzeCooldownRef.current != null) window.clearTimeout(reanalyzeCooldownRef.current);
+      reanalyzeCooldownRef.current = window.setTimeout(() => {
+        setReanalyzeCooldown(false);
+        reanalyzeCooldownRef.current = null;
+      }, 6000) as unknown as number;
       // Marca como "fresco" — qualquer edição posterior reativa o banner stale.
       stale.markFresh();
     }
@@ -2481,11 +2495,11 @@ export default function CompanyAnalysis() {
           <Button
             size="sm"
             onClick={() => { void reanalyzeGroup(); }}
-            disabled={busy || reanalyzing}
+            disabled={busy || reanalyzing || reanalyzeCooldown}
             className="h-7 text-xs"
           >
-            <RefreshCcw className={`h-3 w-3 mr-1 ${reanalyzing ? "animate-spin" : ""}`} />
-            Reanalisar agora
+            <RefreshCcw className={`h-3 w-3 mr-1 ${(reanalyzing || reanalyzeCooldown) ? "animate-spin" : ""}`} />
+            {reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Reanalisar agora"}
           </Button>
         </div>
       )}
@@ -2972,11 +2986,11 @@ export default function CompanyAnalysis() {
                 <>
                   {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
                     <>
-                      <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
-                        <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
+                      <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing || reanalyzeCooldown}>
+                        <RefreshCcw className={cn("h-4 w-4 mr-2", (reanalyzing || reanalyzeCooldown) && "animate-spin")} />
                         {isConfeccao
-                          ? (reanalyzing ? "Recalculando..." : "Recalcular repasse")
-                          : (reanalyzing ? "Reaplicando..." : "Reaplicar regras")}
+                          ? (reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Recalcular repasse")
+                          : (reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Reaplicar regras")}
                       </Button>
                       {/* "Cancelar lote" removido: para desfazer um lote inteiro use Excluir lote em PaymentDetail.
                           Cancelar PJ ou item específico (não-devido) é feito pelo botão Cancelar pagamento da empresa. */}
