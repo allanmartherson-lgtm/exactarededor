@@ -101,6 +101,7 @@ export function PaymentReportModal({
     aprovado: true,
     alerta: true,
     reprovado: true,
+    acatado: true,
   });
   const [isExporting, setIsExporting] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
@@ -222,7 +223,8 @@ export function PaymentReportModal({
       const matchesStatus = 
         (status === "aprovado" && statusFilter.aprovado) ||
         (status === "alerta" && statusFilter.alerta) ||
-        (status === "reprovado" && statusFilter.reprovado);
+        (status === "reprovado" && statusFilter.reprovado) ||
+        (status === "acatado" && statusFilter.acatado);
 
       return matchesSearch && matchesCompany && matchesDoctor && matchesSpecialty && matchesStatus;
     });
@@ -234,6 +236,7 @@ export function PaymentReportModal({
       approved: { count: 0, value: 0 },
       alert: { count: 0, value: 0 },
       rejected: { count: 0, value: 0 },
+      accepted: { count: 0, value: 0 },
     };
 
     filteredItems.forEach(it => {
@@ -247,16 +250,20 @@ export function PaymentReportModal({
       } else if (it.ai_status === "reprovado") {
         stats.rejected.count++;
         stats.rejected.value += val;
+      } else if (it.ai_status === "acatado") {
+        stats.accepted.count++;
+        stats.accepted.value += val;
       }
     });
 
-    const totalValue = stats.approved.value + stats.alert.value + stats.rejected.value;
-    const totalCount = stats.approved.count + stats.alert.count + stats.rejected.count;
+    const totalValue = stats.approved.value + stats.alert.value + stats.rejected.value + stats.accepted.value;
+    const totalCount = stats.approved.count + stats.alert.count + stats.rejected.count + stats.accepted.count;
 
     return {
       approved: { ...stats.approved, pct: totalValue > 0 ? (stats.approved.value / totalValue) * 100 : 0 },
       alert: { ...stats.alert, pct: totalValue > 0 ? (stats.alert.value / totalValue) * 100 : 0 },
       rejected: { ...stats.rejected, pct: totalValue > 0 ? (stats.rejected.value / totalValue) * 100 : 0 },
+      accepted: { ...stats.accepted, pct: totalValue > 0 ? (stats.accepted.value / totalValue) * 100 : 0 },
       riskValue: stats.alert.value + stats.rejected.value,
       totalValue,
       totalCount,
@@ -280,7 +287,7 @@ export function PaymentReportModal({
         items: [],
         totalValue: 0,
         riskValue: 0,
-        counts: { aprovado: 0, alerta: 0, reprovado: 0, pendente: 0, seguido: 0 } as any,
+        counts: { aprovado: 0, alerta: 0, reprovado: 0, acatado: 0, pendente: 0, seguido: 0 } as any,
       };
       
       group.items.push(it);
@@ -816,6 +823,12 @@ export function PaymentReportModal({
                       checked={statusFilter.reprovado}
                       onCheckedChange={(c) => setStatusFilter(prev => ({ ...prev, reprovado: !!c }))}
                     /> ✗ Reprovado
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <Checkbox 
+                      checked={statusFilter.acatado}
+                      onCheckedChange={(c) => setStatusFilter(prev => ({ ...prev, acatado: !!c }))}
+                    /> ● Acatado
                   </label>
                 </div>
               </div>

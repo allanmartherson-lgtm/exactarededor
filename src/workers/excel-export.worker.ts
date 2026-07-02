@@ -48,6 +48,7 @@ self.onmessage = async (e) => {
       ["Aprovados", summary.approved.count, summary.approved.value, `${summary.approved.pct.toFixed(1)}%`],
       ["Alertas", summary.alert.count, summary.alert.value, `${summary.alert.pct.toFixed(1)}%`],
       ["Reprovados", summary.rejected.count, summary.rejected.value, `${summary.rejected.pct.toFixed(1)}%`],
+      ["Acatados", summary.accepted?.count ?? 0, summary.accepted?.value ?? 0, `${(summary.accepted?.pct ?? 0).toFixed(1)}%`],
       ["", "", "", ""],
       ["Valor em Risco", "", summary.riskValue, `${((summary.riskValue / summary.totalValue) * 100 || 0).toFixed(1)}%`],
     ];
@@ -62,6 +63,7 @@ self.onmessage = async (e) => {
       "✓ Aprovados": g.counts.aprovado,
       "⚠ Alertas": g.counts.alerta,
       "✗ Reprovados": g.counts.reprovado,
+      "● Acatados": g.counts.acatado ?? 0,
       "Valor Total": g.totalValue,
       "Valor em Risco (R$)": g.riskValue,
       "Valor em Risco (%)": g.totalValue > 0 ? `${((g.riskValue / g.totalValue) * 100).toFixed(1)}%` : "0%",
@@ -99,6 +101,7 @@ self.onmessage = async (e) => {
       if (status === "aprovado") statusStyle = { fill: { fgColor: { rgb: "D1FAE5" } } };
       else if (status === "alerta") statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } };
       else if (status === "reprovado") statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } };
+      else if (status === "acatado") statusStyle = { fill: { fgColor: { rgb: "DBEAFE" } } };
 
       let validationCol: string = typeof it.validation_summary === "string" ? it.validation_summary : "";
       if (!validationCol) {
@@ -122,6 +125,8 @@ self.onmessage = async (e) => {
           .join(" | ");
       }
 
+      const expectedVal = it.expected_amount ?? findings?.expected_amount ?? "";
+      const expectedNum = Number(expectedVal ?? 0);
       return [
         it.attendance_number,
         it.procedure_date,
@@ -134,8 +139,8 @@ self.onmessage = async (e) => {
         it.procedure_name,
         it.quantity ?? 1,
         it.gross_amount,
-        findings?.expected_amount ?? "",
-        Number((Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2)),
+        expectedVal,
+        Number((Number(it.gross_amount ?? 0) - expectedNum).toFixed(2)),
         { v: status, s: statusStyle },
         it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
