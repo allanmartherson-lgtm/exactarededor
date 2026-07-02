@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildPasswordActionLink, sendPasswordActionEmail } from "../_shared/passwordActionEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -132,6 +133,9 @@ serve(async (req) => {
 
     let newUserId: string | null = null;
     let tempPassword: string | null = null;
+    let emailSent = true;
+    let emailWarning: string | null = null;
+    let actionLink: string | null = null;
 
     const userMeta: Record<string, unknown> = {
       full_name: fullName,
@@ -139,12 +143,45 @@ serve(async (req) => {
     };
 
     if (sendInvite) {
-      const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: userMeta,
-        redirectTo,
+      // Convites oficiais passam por /auth/v1/verify e podem ser consumidos por
+      // scanners de e-mail antes do usuário abrir. Para primeiro acesso usamos
+      // usuário confirmado + link direto com token_hash, validado apenas na tela
+      // /auth/reset-password.
+      tempPassword = crypto.randomUUID().replace(/-/g, "") + "Aa1!";
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { ...userMeta, must_reset_password: true },
       });
       if (error) throw error;
       newUserId = data.user?.id ?? null;
+      tempPassword = null;
+
+      const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: redirectTo ? { redirectTo } : undefined,
+      });
+      if (linkErr) throw linkErr;
+      actionLink = buildPasswordActionLink({
+        redirectTo,
+        tokenHash: linkData?.properties?.hashed_token ?? null,
+        kind: "recovery",
+        fallbackActionLink: linkData?.properties?.action_link ?? null,
+      });
+      if (!actionLink) throw new Error("Falha ao gerar link de definição de senha");
+
+      const mailResult = await sendPasswordActionEmail({
+        supabaseUrl: SUPABASE_URL,
+        serviceRoleKey: SERVICE_ROLE,
+        to: email,
+        fullName,
+        actionLink,
+        kind: "recovery",
+      });
+      emailSent = mailResult.sent;
+      emailWarning = mailResult.warning;
     } else {
       // Create with random password; user resets on first login
       tempPassword = crypto.randomUUID().replace(/-/g, "") + "Aa1!";
@@ -218,7 +255,15 @@ serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ success: true, user_id: newUserId, temp_password: tempPassword }),
+      JSON.stringify({
+        success: true,
+        user_id: newUserId,
+        temp_password: tempPassword,
+        email_sent: emailSent,
+        warning: emailWarning,
+        action_link: emailSent ? null : actionLink,
+        kind: "recovery",
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

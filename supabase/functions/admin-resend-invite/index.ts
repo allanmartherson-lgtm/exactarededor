@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildPasswordActionLink, sendPasswordActionEmail } from "../_shared/passwordActionEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,49 +74,37 @@ serve(async (req) => {
 
     const linkType: "invite" | "recovery" = target.email_confirmed_at ? "recovery" : "invite";
 
-    // Tenta disparar o e-mail oficial. IMPORTANTE: só geramos link manual se o
-    // envio oficial falhar por rate-limit; gerar outro link invalida o e-mail.
-    let emailSent = true;
-    let emailWarning: string | null = null;
-    let appLink: string | null = null;
-    try {
-      if (linkType === "recovery") {
-        const mailer = createClient(SUPABASE_URL, ANON);
-        const { error: resetErr } = await mailer.auth.resetPasswordForEmail(email, { redirectTo });
-        if (resetErr) throw resetErr;
-      } else {
-        const { error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
-          redirectTo,
-        });
-        // 422 = usuário já existe (esperado em reenvio) — ignoramos
-        if (invErr && (invErr as any).status !== 422) throw invErr;
-      }
-    } catch (mailErr: any) {
-      const status = mailErr?.status ?? 0;
-      if (status === 429) {
-        emailSent = false;
-        emailWarning = "Limite de envio atingido. Use o link manual abaixo.";
-        const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
-          type: linkType,
-          email,
-          options: redirectTo ? { redirectTo } : undefined,
-        });
-        if (genErr) throw genErr;
-        const tokenHash = gen?.properties?.hashed_token ?? null;
-        appLink = redirectTo && tokenHash
-          ? `${redirectTo}?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(linkType)}`
-          : (gen?.properties?.action_link ?? null);
-      } else {
-        throw mailErr;
-      }
-    }
+    // Links oficiais passam por /auth/v1/verify e podem ser consumidos por
+    // scanners de e-mail. Geramos um link direto com token_hash para a tela do app.
+    const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
+      type: linkType,
+      email,
+      options: redirectTo ? { redirectTo } : undefined,
+    });
+    if (genErr) throw genErr;
+    const appLink = buildPasswordActionLink({
+      redirectTo,
+      tokenHash: gen?.properties?.hashed_token ?? null,
+      kind: linkType,
+      fallbackActionLink: gen?.properties?.action_link ?? null,
+    });
+    if (!appLink) throw new Error("Falha ao gerar link de acesso");
+
+    const mailResult = await sendPasswordActionEmail({
+      supabaseUrl: SUPABASE_URL,
+      serviceRoleKey: SERVICE_ROLE,
+      to: email,
+      fullName: target.user_metadata?.full_name ?? null,
+      actionLink: appLink,
+      kind: linkType,
+    });
 
     return new Response(JSON.stringify({
       success: true,
       kind: linkType,                 // "invite" (primeiro acesso) ou "recovery" (redefinir senha)
-      email_sent: emailSent,
-      warning: emailWarning,
-      action_link: appLink, // backup manual somente quando o e-mail não chegou
+      email_sent: mailResult.sent,
+      warning: mailResult.warning,
+      action_link: mailResult.sent ? null : appLink, // backup manual somente quando o e-mail não chegou
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("admin-resend-invite error", e);

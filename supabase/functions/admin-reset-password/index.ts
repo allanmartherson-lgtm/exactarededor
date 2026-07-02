@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildPasswordActionLink, sendPasswordActionEmail } from "../_shared/passwordActionEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -94,43 +95,39 @@ serve(async (req) => {
       },
     });
 
-    // Dispara e-mail oficial de redefinição. IMPORTANTE: não gerar outro link
-    // se o e-mail foi enviado, pois um novo token invalida o link recém-enviado.
-    let emailSent = true;
-    let emailWarning: string | null = null;
-    let appLink: string | null = null;
-    try {
-      const mailer = createClient(SUPABASE_URL, ANON);
-      const { error: resetErr } = await mailer.auth.resetPasswordForEmail(targetEmail, { redirectTo });
-      if (resetErr) throw resetErr;
-    } catch (mailErr: any) {
-      const status = mailErr?.status ?? 0;
-      if (status === 429) {
-        emailSent = false;
-        emailWarning = "Limite de envio atingido. Use o link manual abaixo para compartilhar com o usuário.";
-        const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
-          type: "recovery",
-          email: targetEmail,
-          options: redirectTo ? { redirectTo } : undefined,
-        });
-        if (genErr) throw genErr;
-        const tokenHash = gen?.properties?.hashed_token ?? null;
-        appLink = redirectTo && tokenHash
-          ? `${redirectTo}?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`
-          : (gen?.properties?.action_link ?? null);
-      } else {
-        throw mailErr;
-      }
-    }
+    // Links oficiais passam por /auth/v1/verify e podem ser consumidos por
+    // scanners de e-mail. Geramos um link direto com token_hash para a tela do app.
+    const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email: targetEmail,
+      options: redirectTo ? { redirectTo } : undefined,
+    });
+    if (genErr) throw genErr;
+    const appLink = buildPasswordActionLink({
+      redirectTo,
+      tokenHash: gen?.properties?.hashed_token ?? null,
+      kind: "recovery",
+      fallbackActionLink: gen?.properties?.action_link ?? null,
+    });
+    if (!appLink) throw new Error("Falha ao gerar link de redefinição");
+
+    const mailResult = await sendPasswordActionEmail({
+      supabaseUrl: SUPABASE_URL,
+      serviceRoleKey: SERVICE_ROLE,
+      to: targetEmail,
+      fullName: typeof prevMeta.full_name === "string" ? prevMeta.full_name : null,
+      actionLink: appLink,
+      kind: "recovery",
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
         user_id: resolvedId,
         email: targetEmail,
-        email_sent: emailSent,
-        warning: emailWarning,
-        action_link: appLink,
+        email_sent: mailResult.sent,
+        warning: mailResult.warning,
+        action_link: mailResult.sent ? null : appLink,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

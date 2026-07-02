@@ -469,7 +469,17 @@ const Users = () => {
         setTempPwd(data.temp_password);
         toast({ title: "Usuário criado", description: "Compartilhe a senha temporária abaixo." });
       } else {
-        toast({ title: "Convite enviado", description: `Enviamos um e-mail para ${form.email}.` });
+        const emailSent = data?.email_sent !== false;
+        if (data?.action_link) {
+          setManualLink({ email: parsed.data.email, link: data.action_link, kind: data?.kind === "invite" ? "invite" : "recovery" });
+        }
+        toast({
+          title: emailSent ? "Link de acesso enviado" : "Usuário criado; envio automático falhou",
+          description: emailSent
+            ? `Enviamos um e-mail para ${form.email}.`
+            : (data?.warning ?? "Use o link manual gerado para compartilhar com o usuário."),
+          variant: emailSent ? undefined : "destructive",
+        });
         setOpen(false);
         resetForm();
       }
