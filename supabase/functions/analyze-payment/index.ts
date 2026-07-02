@@ -1977,6 +1977,32 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         ? inferItemSector({ ...(originalItem as ItemInput), sector: originalSector }, ctx)
         : inferredSector;
 
+      // PRESERVAR ACATE: se o item já foi acatado pelo analista/diretor, a
+      // reanálise NÃO pode sobrescrever ai_status, expected_amount, gross_amount
+      // nem ai_findings — caso contrário o acate "some" e o item volta ao
+      // valor sugerido antigo. Ainda gravamos uma versão para auditoria.
+      const alreadyAcatado = (rawItem?.ai_status === "acatado");
+      if (alreadyAcatado) {
+        const prev = prevByItem[r.item_id];
+        const nextVersion = (prev?.version ?? 0) + 1;
+        versionRows.push({
+          payment_id,
+          item_id: r.item_id,
+          version: nextVersion,
+          ai_status: "acatado",
+          alerts: [],
+          matched_rules: [],
+          matched_rule_ids: [],
+          expected_amount: null,
+          calculation_explanation: "Reanálise preservou acate manual (ai_status=acatado).",
+          gross_amount_at_time: originalItem ? originalItem.gross_amount : null,
+          model: "engine",
+          triggered_by: triggeredBy,
+        });
+        continue;
+      }
+
+
       itemUpdates.push({
         id: r.item_id,
         ai_status: finalStatus,
