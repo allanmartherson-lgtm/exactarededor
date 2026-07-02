@@ -46,6 +46,7 @@ const SurfaceCard = ({
 
 export default function BasesConciliacaoPanel() {
   const { user } = useAuth();
+  const { hospitalId, ensure } = useRequireHospital();
   const [concBases, setConcBases] = useState<any[]>([]);
   const [uploadingConc, setUploadingConc] = useState(false);
   const concFileRef = useRef<HTMLInputElement>(null);
