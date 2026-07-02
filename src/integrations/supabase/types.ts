@@ -10858,38 +10858,6 @@ export type Database = {
           },
         ]
       }
-      v_payment_production_period: {
-        Row: {
-          itens_sem_producao_real: number | null
-          payment_id: string | null
-          production_months: string[] | null
-          production_period_end: string | null
-          production_period_start: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "mv_payments_flags"
-            referencedColumns: ["payment_id"]
-          },
-          {
-            foreignKeyName: "payment_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "payments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_items_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "v_payments_flow_scope"
-            referencedColumns: ["payment_id"]
-          },
-        ]
-      }
       v_payments_flow_scope: {
         Row: {
           created_at: string | null

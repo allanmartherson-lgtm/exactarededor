@@ -1,1 +1,0 @@
-ALTER VIEW public.v_payment_production_period SET (security_invoker = true);
