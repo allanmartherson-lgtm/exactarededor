@@ -58,15 +58,22 @@ export default function RemessaCompetenceBuckets({ paymentId, competenceRegime }
     }
     setLoading(true);
 
-    // Distribuição agregada
+    // Distribuição agregada — em remessa, tratamos como "sem competência real"
+    // tanto o bucket `sem_data` (item sem procedure_date) quanto `payment_month`
+    // (item que herdou o mês do lote porque veio de conversão produção→remessa,
+    // sem re-derivação por procedure_date).
     const { data: agg } = await supabase
       .from("payment_items")
-      .select("item_competence")
+      .select("item_competence, competence_source")
       .eq("payment_id", paymentId);
 
     const map = new Map<string | null, number>();
     (agg ?? []).forEach((r: any) => {
-      const k = r.item_competence ? String(r.item_competence).slice(0, 10) : null;
+      const isPending =
+        r.competence_source === "sem_data" || r.competence_source === "payment_month";
+      const k = isPending || !r.item_competence
+        ? null
+        : String(r.item_competence).slice(0, 10);
       map.set(k, (map.get(k) ?? 0) + 1);
     });
     const arr = Array.from(map.entries())
@@ -78,12 +85,12 @@ export default function RemessaCompetenceBuckets({ paymentId, competenceRegime }
       });
     setBuckets(arr);
 
-    // Lista de itens sem data (até 100 para revisão)
+    // Lista de itens pendentes de competência real (até 100 para revisão)
     const { data: pending } = await supabase
       .from("payment_items")
       .select("id, doctor_name, procedure_name, attendance_number, raw_data")
       .eq("payment_id", paymentId)
-      .eq("competence_source", "sem_data")
+      .in("competence_source", ["sem_data", "payment_month"])
       .limit(100);
     setSemDataItems((pending ?? []) as Row[]);
     setLoading(false);
