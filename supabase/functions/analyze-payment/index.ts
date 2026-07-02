@@ -1117,9 +1117,12 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
             if (usedCalcIds.has(calc.calc_id)) continue;
             usedCalcIds.add(calc.calc_id);
 
-            // Apenas o item âncora (procedure_code === triggerCode) recebe o pacote.
-            // Itens "secundários" só são tratados como absorvidos quando o analista
-            // clicar em absorção (package_absorbed = true vindo do banco).
+            // Âncora (triggerCode) recebe a distribuição do pacote.
+            // Itens cujo code está em package_included_codes são AUTO-absorvidos
+            // pelo motor (foram declarados pelo analista na regra como parte do
+            // pacote → expected=0, aprovado). Demais códigos do atendimento só
+            // ficam absorvidos se o analista clicar manualmente no painel.
+            const includedSet = new Set(calc.package_included_codes.map((c) => String(c).trim()));
             const absorbedCodes = new Set([triggerCode, ...includedFound]);
             const primaryItemByRole = buildPrimaryItemByRole(attItems as any, new Set([triggerCode]), triggerCode);
 
@@ -1127,16 +1130,16 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
               const code = (it.procedure_code ?? "").toString().trim();
               const rawIt = (itemsRaw ?? []).find((x: any) => x.id === it.id);
               const manuallyAbsorbed = rawIt?.package_absorbed === true;
+              const autoAbsorbed = code !== triggerCode && includedSet.has(code);
 
-              // Só toca em: (a) o item âncora ou (b) itens marcados manualmente como absorvidos.
-              if (code !== triggerCode && !manuallyAbsorbed) continue;
-              // Manual absorption só vale se o código pertence a este pacote.
+              // Só toca em: (a) âncora, (b) auto-absorvido pela regra, ou (c) manual.
+              if (code !== triggerCode && !autoAbsorbed && !manuallyAbsorbed) continue;
               if (manuallyAbsorbed && code !== triggerCode && !absorbedCodes.has(code)) continue;
 
               const r = resultById[it.id];
               if (!r) continue;
 
-              if (manuallyAbsorbed && code !== triggerCode) {
+              if ((autoAbsorbed || manuallyAbsorbed) && code !== triggerCode) {
                 r.matched_rule_id = calc.rule_id;
                 r.matched_rule_name = `${calc.rule_name} — Pacote`;
                 (r as any).calculation_type_used = "pacote";
@@ -1150,9 +1153,9 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
                 r.alerts = r.alerts.filter((a) =>
                   !a.toLowerCase().includes("sem regra") && !a.toLowerCase().includes("no rule"),
                 );
-                r.calculation_explanation =
-                  `Atendimento ${att}: código ${code} absorvido manualmente pelo analista ` +
-                  `no pacote ${triggerCode} (${calc.rule_name}).`;
+                r.calculation_explanation = autoAbsorbed
+                  ? `Atendimento ${att}: código ${code} absorvido automaticamente pelo pacote ${triggerCode} (${calc.rule_name}) — declarado em package_included_codes.`
+                  : `Atendimento ${att}: código ${code} absorvido manualmente pelo analista no pacote ${triggerCode} (${calc.rule_name}).`;
                 continue;
               }
 
