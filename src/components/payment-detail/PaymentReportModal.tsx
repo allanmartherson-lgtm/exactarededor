@@ -101,6 +101,7 @@ export function PaymentReportModal({
     aprovado: true,
     alerta: true,
     reprovado: true,
+    acatado: true,
   });
   const [isExporting, setIsExporting] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
