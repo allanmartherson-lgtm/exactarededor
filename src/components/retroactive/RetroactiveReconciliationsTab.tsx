@@ -978,6 +978,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
 }
 
 function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) {
+  const hospitalId = useActiveHospitalId();
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
   const [companyName, setCompanyName] = useState<string>("");
@@ -988,10 +989,32 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [generating, setGenerating] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; aliases: string[] }>>([]);
   const [wizard, setWizard] = useState<
     | { open: false }
     | { open: true; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
   >({ open: false });
+
+  // Todas as PJs do hospital ativo — usadas no passo "Vincular PJs" do wizard
+  // e alimentadas com os mesmos `aliases` que o cruzamento do lote aprende.
+  useEffect(() => {
+    if (!hospitalId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("companies")
+        .select("id, name, aliases")
+        .eq("hospital_id", hospitalId)
+        .order("name");
+      if (cancelled) return;
+      setCompanies(((data ?? []) as Array<{ id: string; name: string; aliases: string[] | null }>).map((c) => ({
+        id: c.id,
+        name: c.name,
+        aliases: c.aliases ?? [],
+      })));
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
 
   const load = async () => {
     const { data: r } = await supabase
