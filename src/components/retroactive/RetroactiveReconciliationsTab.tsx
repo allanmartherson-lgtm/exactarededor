@@ -2526,13 +2526,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setTasyFileTotals(row?.summary?.tasy_file_totals ?? null);
     setTasyDroppedExamples(row?.summary?.tasy_dropped_examples ?? []);
 
-    const { data: savedItems } = await supabase
-      .from("retroactive_reconciliation_items" as never)
-      .select("raw")
-      .eq("reconciliation_id", id)
-      .eq("source", TVR_SOURCE)
-      .order("created_at", { ascending: true });
-    const savedResults = ((savedItems ?? []) as Array<{ raw?: { tvr_result?: unknown } }>)
+    // Pagina para escapar do teto default de 1000 linhas do PostgREST — sem
+    // isso, apurações grandes ficam truncadas em "1000 de 1000".
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const savedItems = await fetchAllPaginated<{ raw?: { tvr_result?: unknown } }>((from, to) =>
+      supabase
+        .from("retroactive_reconciliation_items" as never)
+        .select("raw")
+        .eq("reconciliation_id", id)
+        .eq("source", TVR_SOURCE)
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    );
+    const savedResults = savedItems
       .map((item) => item.raw?.tvr_result)
       .filter(isTvrResult);
     if (savedResults.length > 0) {
