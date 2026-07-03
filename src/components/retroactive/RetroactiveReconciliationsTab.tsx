@@ -2820,8 +2820,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   }, [tasyRows, pagRows]);
 
 
-  const process = () => {
-    if (tasyRows.length === 0 || pagRows.length === 0) {
+  const process = (pagRowsOverride?: PagRow[]) => {
+    const effectivePagRows = pagRowsOverride ?? pagRows;
+    if (tasyRows.length === 0 || effectivePagRows.length === 0) {
       toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
       return;
     }
