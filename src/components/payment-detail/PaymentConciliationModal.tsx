@@ -1895,23 +1895,37 @@ export function PaymentConciliationModal({
         // `doctor_aliases`. Logo, "Dr. João S." na produção e "João Silva" na
         // Exacta resolvem ao MESMO doctor_id se houver alias cadastrado.
         //
-        // FILTRO DURO DE DATA (date-only): a chave canônica é
-        // atendimento + médico + DATA. Um mesmo paciente pode ter procedimentos
-        // em dias distintos com o mesmo TUSS — sem o filtro de data, casaríamos
-        // o item errado. Comparação é YYYY-MM-DD (toDateStr já descarta horário
-        // dos dois lados); se uma das datas está ausente, não rejeita (defesa).
+        // FILTRO DE DATA com TOLERÂNCIA DE ±1 DIA: a chave canônica é
+        // atendimento + médico + DATA, mas hospital e Exacta frequentemente
+        // registram datas diferentes por 1 dia (hospital = data do faturamento
+        // / alta; Exacta = data do procedimento; virada de meia-noite no centro
+        // cirúrgico). Igualdade exata gerava falsos "só no hospital" mesmo
+        // quando atend+TUSS+médico+empresa batiam. Divergências >1 dia
+        // continuam rejeitadas (procedimento realmente em outro dia).
+        // Rastreamos o offset por candidato para sinalizar em ia_obs/diagnostics.
         const onlyDate = (v: unknown): string | null => {
           if (!v) return null;
           const s = String(v);
           const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
           return m ? m[1] : toDateStr(v);
         };
+        const daysBetween = (a: string, b: string): number => {
+          const da = new Date(`${a}T00:00:00Z`).getTime();
+          const db = new Date(`${b}T00:00:00Z`).getTime();
+          if (!Number.isFinite(da) || !Number.isFinite(db)) return Number.POSITIVE_INFINITY;
+          return Math.abs(Math.round((da - db) / 86400000));
+        };
         const hospDateOnly = dateStr; // toDateStr já normaliza
+        const dateOffsetById = new Map<string, number>(); // 0 = igual, 1 = ±1 dia
         const available = candidates.filter((m) => {
           if (matchedExactaIds.has(m.id)) return false;
           if (hospDateOnly) {
             const medDateOnly = onlyDate((m as any).procedure_date);
-            if (medDateOnly && medDateOnly !== hospDateOnly) return false;
+            if (medDateOnly) {
+              const diff = daysBetween(hospDateOnly, medDateOnly);
+              if (diff > 1) return false;
+              dateOffsetById.set(m.id, diff);
+            }
           }
           return true;
         });
