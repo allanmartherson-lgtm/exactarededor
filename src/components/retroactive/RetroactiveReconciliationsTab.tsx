@@ -604,7 +604,7 @@ function NewView({
         company_id: isMulti ? null : (companyId || null),
         period_start: effStart,
         period_end: effEnd,
-        title: title || null,
+        title: title.trim(),
         summary,
         created_by: userId,
       })
