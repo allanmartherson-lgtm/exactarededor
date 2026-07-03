@@ -433,7 +433,7 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
                   </TableCell>
                   <TableCell className="font-medium">{scope || "—"}</TableCell>
                   <TableCell className="text-[12.5px]">
-                    {format(new Date(r.period_start), "dd/MM/yy")} → {format(new Date(r.period_end), "dd/MM/yy")}
+                    {format(parseYmdLocal(r.period_start), "dd/MM/yy")} → {format(parseYmdLocal(r.period_end), "dd/MM/yy")}
                   </TableCell>
                   <TableCell>{r.summary?.total ?? 0}</TableCell>
                   <TableCell className="font-semibold">{brl(r.summary?.total_gap)}</TableCell>
@@ -1059,8 +1059,8 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               {recon.title ?? "Apuração retroativa"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {[doctorName, companyName].filter(Boolean).join(" · ") || "—"} · {format(new Date(recon.period_start), "dd/MM/yy")} →{" "}
-              {format(new Date(recon.period_end), "dd/MM/yy")}
+              {[doctorName, companyName].filter(Boolean).join(" · ") || "—"} · {format(parseYmdLocal(recon.period_start), "dd/MM/yy")} →{" "}
+              {format(parseYmdLocal(recon.period_end), "dd/MM/yy")}
             </p>
           </div>
         </div>
@@ -1662,6 +1662,19 @@ function dbDateOrNull(value: string): string | null {
   return null;
 }
 
+/**
+ * Parse "YYYY-MM-DD" (ou ISO com hora) como data LOCAL — evita o shift de
+ * fuso horário do `new Date("2026-04-01")`, que em UTC-3 vira 31/03 21:00.
+ * Usado em toda formatação/cálculo de janelas de período.
+ */
+function parseYmdLocal(value: string | null | undefined): Date {
+  const s = String(value ?? "").slice(0, 10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(value ?? "");
+}
+
+
 function formatTvrDate(value: string | null | undefined): string {
   if (!value) return "—";
   const s = String(value).slice(0, 10);
@@ -1864,8 +1877,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setLoadingPayments(true);
     setPaymentsLoaded(false);
     try {
-      const start = new Date(r.period_start);
-      const end = new Date(r.period_end);
+      const start = parseYmdLocal(r.period_start);
+      const end = parseYmdLocal(r.period_end);
       start.setDate(start.getDate() - 90);
       end.setDate(end.getDate() + 90);
 
