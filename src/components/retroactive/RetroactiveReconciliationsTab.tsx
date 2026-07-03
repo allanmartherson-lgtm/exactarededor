@@ -3344,6 +3344,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       let tasyMissingDateRemoved = 0;
       let tasyMissingCompany = 0;
       let tasyUnresolvedCompany = 0;
+      // Amostragem por valor cru da coluna Empresa/PJ — alimenta o painel de
+      // mapeamento inline quando o motor bloqueia por escopo inseguro.
+      const unresolvedByRaw = new Map<string, { count: number; missing: boolean }>();
       for (const r of tasyRows) {
         const ymd = dbDateOrNull(r.tasy_data);
         if (!ymd) {
@@ -3357,12 +3360,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const cid = resolveTasyCompany(r);
         tasyCompanyByRow.set(r, cid);
         if (scopedCompanyIds.size > 0) {
-          if (!String(r.tasy_empresa ?? "").trim()) {
+          const rawEmpresa = String(r.tasy_empresa ?? "").trim();
+          if (!rawEmpresa) {
             tasyMissingCompany++;
+            const key = "(vazio)";
+            const cur = unresolvedByRaw.get(key) ?? { count: 0, missing: true };
+            unresolvedByRaw.set(key, { count: cur.count + 1, missing: true });
             continue;
           }
           if (!cid) {
             tasyUnresolvedCompany++;
+            const cur = unresolvedByRaw.get(rawEmpresa) ?? { count: 0, missing: false };
+            unresolvedByRaw.set(rawEmpresa, { count: cur.count + 1, missing: false });
             continue;
           }
           if (!scopedCompanyIds.has(cid)) {
@@ -3374,14 +3383,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
 
       if (tasyMissingCompany > 0 || tasyUnresolvedCompany > 0) {
+        const samples = Array.from(unresolvedByRaw.entries())
+          .map(([raw, v]) => ({ raw, count: v.count, missing: v.missing }))
+          .sort((a, b) => b.count - a.count);
+        setUnresolvedPjPanel(samples);
+        setPjMapDraft({});
         toast({
           title: "TASY fora do escopo seguro do lote",
-          description: `${tasyMissingCompany} linha(s) sem PJ e ${tasyUnresolvedCompany} linha(s) com PJ não cadastrada/sem alias. Mapeie/vincule a coluna Empresa/PJ para isolar o lote antes de processar.`,
+          description: `${tasyMissingCompany} linha(s) sem PJ e ${tasyUnresolvedCompany} linha(s) com PJ não cadastrada/sem alias. Use o painel abaixo para vincular direto.`,
           variant: "destructive",
         });
         setProcessing(false);
         return;
       }
+      // Limpa painel se processou limpo desta vez.
+      setUnresolvedPjPanel([]);
 
       if (effectiveTasyRows.length === 0) {
         toast({
