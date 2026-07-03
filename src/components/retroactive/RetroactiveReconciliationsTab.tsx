@@ -2867,7 +2867,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       };
       const pMap = new Map<string, PAgg>();
       const isPrincipal = (fn: string) => /cirurgi[aã]o\s*principal/i.test(fn);
-      for (const r of pagRows) {
+      for (const r of effectivePagRows) {
         if (isExcludedTvrTuss(r.pag_tuss, excluded)) continue;
         if (isExcludedConv(r.pag_convenio)) { convPagRemoved++; continue; }
         const key = tvrMatchKey(r.pag_atendimento, r.pag_data, r.pag_tuss, r.pag_doctor_id, r.pag_medico, nameToDoctorId);
