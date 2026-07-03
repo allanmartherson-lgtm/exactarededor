@@ -1974,6 +1974,9 @@ export function PaymentConciliationModal({
           if (routeHospN && routeMedN && routeHospN === routeMedN) { s += 500; routeOk = true; }
           else if (routeHospN && routeMedN) { s -= 400; routeConflict = true; }
           if (qtyHospN === qtyMedN) s += 50;
+          // Preferir data exata quando houver múltiplos candidatos com ±1 dia.
+          const dOff = dateOffsetById.get(m.id) ?? 0;
+          if (dOff === 1) s -= 25;
           const diff = Math.abs(getConvenioValue(m) - valHosp);
           s += Math.max(0, 30 - Math.min(30, (diff / Math.max(1, valHosp)) * 30));
           return { score: s, docOk, roleOk, routeOk, docConflict, roleConflict, routeConflict };
