@@ -1981,6 +1981,7 @@ type TasyRow = {
   tasy_convenio?: string;
   tasy_medico?: string;
   tasy_funcao?: string;
+  tasy_empresa?: string;
 };
 
 type PagRow = {
@@ -2759,6 +2760,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_convenio: d.tasy_convenio,
         tasy_medico: d.tasy_medico,
         tasy_funcao: d.tasy_funcao,
+        tasy_empresa: d.tasy_empresa,
       }))
       .filter((r) => r.tasy_atendimento && r.tasy_tuss);
     setTasyRows(filtered);
