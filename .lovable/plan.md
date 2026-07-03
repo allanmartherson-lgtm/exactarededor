@@ -1,69 +1,52 @@
-# Ledger de intervenções + filtro de período
-
 ## Objetivo
+Reaproveitar o mesmo padrão de UX do "mapeamento de empresas" do cruzamento do lote (`PaymentConciliationModal`) em dois pontos da retroativa:
 
-Trocar a fonte do KPI "Valor ajustado por intervenção" de uma RPC que lê observações vivas para uma **tabela materializada no momento da aprovação do diretor**. Assim o card só reflete valor consolidado — nada em análise entra — e ganha um filtro de período baseado em quando o lote foi aprovado (data de trabalho), não na competência.
+1. **Upload da base TASY** (dentro de `RetroactiveMappingWizard`) — quando a planilha traz coluna "Terceiro/PJ/Empresa", mostrar o mesmo modal para vincular cada texto encontrado a uma PJ cadastrada, com aliases e auto-match (hoje isso não existe na retroativa: qualquer valor entra cru).
+2. **Criação de "TASY vs Repasse" com escopo Múltiplas empresas** — trocar os dois pickers atuais (Command multi-select de PJs + Command multi-select de médicos) por uma tabela idêntica ao lote: linha por PJ, com dot de status, badge, e coluna para escolher os médicos daquela PJ (usando `doctor_companies`).
 
-## Regras confirmadas
+## O que muda por arquivo
 
-1. **Ajuste manual sem observação conta** como `ajuste_manual` (detectado por edição em `gross_amount` no audit log).
-2. **Reprovação de lote já aprovado** → linhas do ledger ficam `reverted_at IS NOT NULL`. Somem do card, permanecem para auditoria.
-3. **Filtro de período no card**: default = mês calendário atual (baseado em `approved_at`, não competência). Opções: mês atual, mês anterior, últimos 30/60/90 dias, custom.
+### `src/components/shared/CompanyMappingList.tsx` (novo)
+Componente presentacional extraído de `PaymentConciliationModal` (linhas ~4090-4180). Recebe:
+- `rows: { key: string; rawLabel: string; suggestedId: string|null; level: 'exact'|'high'|'medium'|null }[]`
+- `options: { id: string; name: string }[]`
+- `value: Record<key, string|null>` (mapping)
+- `onChange(key, id|null)`
+- `onConfirm(key)` (aceita sugestão medium)
+- Slot opcional `extraColumn(key)` para renderizar coluna extra à direita (usada na criação: multi-select de médicos daquela PJ).
 
-## O que muda
+Sem lógica de aliases/auditoria: quem chama decide o que fazer no `onChange`. Isso mantém o batch com sua auditoria por `paymentId` intacta.
 
-### 1. Nova tabela `intervention_ledger`
-Uma linha por item de lote aprovado. Colunas principais: `payment_id`, `item_id`, `approved_at`, `approved_by`, `valor_regra`, `valor_pago_final`, `delta`, `fonte`, `autor_id`, `hospital_id`, `reverted_at`, `reverted_reason`. Índices em `(hospital_id, approved_at)` e `(payment_id)`.
+### `src/components/payment-detail/PaymentConciliationModal.tsx`
+Substituir o bloco atual pelo `CompanyMappingList` mantendo os handlers já existentes (aliases + `logCompanyMapping`). Nada de comportamento muda.
 
-### 2. Trigger `on_payment_approval_change`
-Em `AFTER UPDATE ON payments`:
-- Se `status` mudou para `aprovado`: apaga linhas antigas do payment (segurança) e insere uma linha por item, classificando `fonte` na ordem: cancelamento → glosa → ajuste_manual → aceite_pago → aceite_esperado → sem_intervencao.
-- Se `status` mudou **de** `aprovado` para outro: marca linhas com `reverted_at = now()` e `reverted_reason = novo_status`.
+### `src/components/retroactive/RetroactiveMappingWizard.tsx`
+- Após o mapeamento de colunas, se a coluna `company_hint` estiver definida, entrar em um passo novo **"Vincular PJs"** usando `CompanyMappingList`.
+- Auto-match com `companies.aliases` + fuzzy (mesma função `findMatch` do batch — extrair para `src/lib/companyMatching.ts`).
+- Persistir aliases confirmados em `companies.aliases` (mesmo padrão do batch, sem auditoria por payment).
+- Salvar o mapping resolvido em `retroactive_reconciliations.summary.company_mapping` para o motor usar depois.
 
-### 3. Refactor de `get_intervention_savings`
-Passa a ler `intervention_ledger` filtrado por `approved_at BETWEEN p_start AND p_end AND reverted_at IS NULL AND hospital_id = ?`. Mantém o mesmo shape de retorno — front não muda.
+### `src/components/retroactive/RetroactiveReconciliationsTab.tsx` (tela de criação)
+Quando `mode = tasy_vs_repasse` e `scope = multi_pj`:
+- Remover os dois Popover/Command atuais (PJs e Médicos).
+- Renderizar `CompanyMappingList` alimentado com **todas as PJs do hospital** (checkbox por linha para incluir/excluir, no lugar do select terceiro→PJ). Coluna extra à direita = médicos daquela PJ (via `doctor_companies`), com checkboxes.
+- Estado salvo continua em `multi_company_ids` e `multi_doctor_ids`.
 
-### 4. Backfill único
-Migration popula o ledger para todos os `payments` com `status='aprovado'` do hospital ativo (sem limite de tempo — histórico completo, é one-shot).
-
-### 5. Filtro no card
-`InterventionSavingsCard` ganha um dropdown compacto no header:
-- **Mês atual** (default)
-- Mês anterior
-- Últimos 30 dias
-- Últimos 90 dias
-- Personalizado (abre popover com dois date pickers)
-
-O período fica em `useState` local; o valor selecionado alimenta `p_start`/`p_end` na RPC. Rótulo do card atualiza junto ("Impacto em julho/2026", "Impacto nos últimos 30 dias" etc.).
+### `src/lib/companyMatching.ts` (novo)
+Extrair `findMatch`, `getIdentifiers`, `normFull` de `PaymentConciliationModal.tsx` para reuso entre batch e wizard.
 
 ## Detalhes técnicos
+- `CompanyMappingList` fica em `src/components/shared/` (novo diretório) por ser cross-feature.
+- O componente é 100% controlado — não faz fetch, não persiste nada. Toda regra de negócio (aliases, audit log, mapping storage) fica em quem consome.
+- Auto-match do wizard usa as MESMAS `companies.aliases` do batch, então um alias aprendido em um fluxo vale para o outro.
+- Zero mudança de schema.
 
-**Classificação da fonte no trigger** (por item):
-```
-IF item.cancelled_at IS NOT NULL          → 'cancelamento'
-ELSIF EXISTS glosa_payment_applications   → 'glosa'
-ELSIF audit_log tem UPDATE em gross_amount por diretor/validador → 'ajuste_manual'
-ELSIF última observação acatada = 'aceitar_valor_pago'     → 'aceite_pago'
-ELSIF última observação acatada = 'aceitar_valor_esperado' → 'aceite_esperado'
-ELSIF ABS(delta) < 0.01                   → 'sem_intervencao'
-ELSE                                       → 'ajuste_manual'  -- fallback
-```
+## Fora do escopo
+- Não mexer no motor de matching TASY×Repasse (já é canônico Atend+Data+TUSS+Médico).
+- Não mexer no fluxo de "Alegação do médico" (permanece individual).
 
-**Delta** = `valor_regra − valor_pago_final` (mantém a convenção atual: positivo = economia).
-
-**Reversão** não deleta — preserva histórico para auditar oscilação aprovar/reprovar. Reaprovação: apaga linhas antigas e reinsere estado atual.
-
-**Front:** só `InterventionSavingsCard.tsx` e `InterventionReports.tsx` recebem o dropdown de período; RPC signature preservada; testes existentes de `interventionSavings.ts` continuam válidos (lógica pura de resumo não muda).
-
-## Passos de implementação
-
-1. Migration: cria `intervention_ledger` (com grants + RLS por `hospital_id`), trigger de aprovação/reversão, refactor da RPC, backfill.
-2. Ajuste do card: dropdown de período + label dinâmico.
-3. Ajuste do relatório de intervenções: mesmo dropdown, aproveitando o hook existente.
-4. Verificação: rodar `bunx vitest run interventionSavings` e conferir que valores do card batem com o histórico backfillado.
-
-## Fora de escopo
-
-- Não mexe em layout do card nem do relatório (só adiciona o filtro).
-- Não altera semântica de cancelamento neutro (motivos operacionais continuam valendo dentro de `fonte='cancelamento'`).
-- Não cria notificação de reversão — reversão silenciosa, some do card.
+## Checagem final
+- `tsgo` limpo.
+- Fluxo do lote (`PaymentConciliationModal`) segue idêntico visualmente.
+- Wizard retroativo ganha passo novo apenas quando há coluna de empresa mapeada.
+- Criação "Múltiplas empresas" mostra a mesma tabela do lote.
