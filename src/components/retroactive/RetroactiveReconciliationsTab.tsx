@@ -4437,6 +4437,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       })()}
                     </TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead title="Valor = regra % sobre convênio (compara R$). Quantidade = tabela própria (pacote/valor fixo/tabela diferenciada) — compara só quantidade.">Tipo Análise</TableHead>
                     <TableHead>Atend.</TableHead>
                     <TableHead>TUSS</TableHead>
                     <TableHead>Procedimento</TableHead>
