@@ -2145,6 +2145,39 @@ export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementa
   return { totalComplementar, totalRetirar };
 }
 
+function computeTvrAgreementTotals(list: TvrResult[]): { totalComplementarAcordo: number; totalRetirarAcordo: number } {
+  return list.reduce(
+    (acc, r) => {
+      const ajuste = r.ajuste_acordo ?? 0;
+      if (ajuste < -0.5) acc.totalComplementarAcordo += Math.abs(ajuste);
+      if (ajuste > 0.5) acc.totalRetirarAcordo += ajuste;
+      return acc;
+    },
+    { totalComplementarAcordo: 0, totalRetirarAcordo: 0 },
+  );
+}
+
+function isYmdWithinInclusive(value: string | null, start: string, end: string): boolean {
+  if (!value) return false;
+  return value >= start.slice(0, 10) && value <= end.slice(0, 10);
+}
+
+function detectTvrSuspiciousTasyScale(tasyRows: TasyRow[], pagRows: PagRow[]) {
+  const tasyValues = tasyRows.map((r) => num(r.tasy_valor_unit)).filter((v) => Math.abs(v) > 0.5);
+  const pagTotal = pagRows.reduce((sum, r) => sum + Math.abs(num(r.pag_valor_base)), 0);
+  const tasyTotal = tasyValues.reduce((sum, v) => sum + Math.abs(v), 0);
+  const suspiciousIntegerCount = tasyValues.filter((v) => Number.isInteger(v) && Math.abs(v) >= 100000).length;
+  const ratio = pagTotal > 0 ? tasyTotal / pagTotal : 0;
+
+  return {
+    isSuspicious: suspiciousIntegerCount >= 10 && ratio >= 5,
+    tasyTotal,
+    pagTotal,
+    suspiciousIntegerCount,
+    ratio,
+  };
+}
+
 export function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   // Grava o status TVR direto (sem CHECK constraint na coluna).
   // Único alias: "ok" -> "ok_pago" (equivalente, mantido por compatibilidade com relatórios).
@@ -2586,6 +2619,14 @@ function LoteScopeFilter({
 
   const toggleLote = async (pid: string, include: boolean) => {
     if (!recon) return;
+    if (persistedIds.size === 0) {
+      toast({
+        title: "Filtro de lote não salvo",
+        description: "Volte e crie a apuração selecionando o lote; não vamos inferir escopo por linhas carregadas.",
+        variant: "destructive",
+      });
+      return;
+    }
     const currentIds = persistedIds.size > 0
       ? new Set(persistedIds)
       : new Set(lotesLoaded.map((l) => l.id));
@@ -2898,6 +2939,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const endYmd = hasSelectedLotes
         ? String(r.period_end).slice(0, 10)
         : (addDaysYmd(r.period_end, 90) ?? String(r.period_end).slice(0, 10));
+      const endExclusiveYmd = addDaysYmd(endYmd, 1) ?? endYmd;
 
       if (!hasScope && tasyAttendances.length === 0) {
         toast({
@@ -2921,7 +2963,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 .from("payment_items" as never)
                 .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method")
                 .gte("procedure_date", startYmd)
-                .lte("procedure_date", endYmd)
+                .lt("procedure_date", endExclusiveYmd)
                 .in("attendance_number", chunk)
                 .range(from, to),
             );
@@ -2933,12 +2975,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               .from("payment_items" as never)
               .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method");
             if (hasSelectedLotes) {
-              // Lote fixado é o universo: filtra só por payment_id (sem janela
-              // de data e sem filtro por competência depois). Isso pega itens
-              // retroativos dentro do próprio lote sem perder nada.
-              q = q.in("payment_id", selectedPidsPre);
+              // Lote + período formam o universo. O payment_id evita misturar
+              // bases; a janela evita puxar produção retroativa fora do período
+              // que o analista delimitou para esta apuração.
+              q = q.in("payment_id", selectedPidsPre).gte("procedure_date", startYmd).lt("procedure_date", endExclusiveYmd);
             } else {
-              q = q.gte("procedure_date", startYmd).lte("procedure_date", endYmd);
+              q = q.gte("procedure_date", startYmd).lt("procedure_date", endExclusiveYmd);
             }
             if (isMulti) {
               if (multiCompanyIds.length > 0) q = q.in("company_id", multiCompanyIds);
@@ -3076,6 +3118,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
   const clearAll = async () => {
+    const preservedSummary = (recon?.summary ?? {}) as Record<string, unknown>;
     setTasyRows([]);
     setTasyFile("");
     setTasyFileTotals(null);
@@ -3094,6 +3137,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .from("retroactive_reconciliations" as never)
       .update({
         summary: {
+          ...preservedSummary,
           mode: "tasy_vs_repasse",
           total: 0,
           total_gap: 0,
@@ -3181,7 +3225,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         const { data: companiesData } = await supabase
           .from("companies" as never)
-          .select("id, name, document")
+          .select("id, name, document, aliases")
           .eq("hospital_id", recon?.hospital_id ?? "");
         for (const c of (companiesData ?? []) as Array<Record<string, unknown>>) {
           const docDigits = String(c.document ?? "").replace(/\D+/g, "");
@@ -3190,6 +3234,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (docDigits) companyByDoc.set(docDigits, cid);
           const nn = normCompanyName(c.name);
           if (nn && !companyByName.has(nn)) companyByName.set(nn, cid);
+          const aliases = Array.isArray(c.aliases) ? c.aliases : [];
+          for (const alias of aliases) {
+            const aliasKey = normCompanyName(alias);
+            if (aliasKey && !companyByName.has(aliasKey)) companyByName.set(aliasKey, cid);
+          }
         }
       } catch (e) {
         console.warn("TVR: falha carregando companies para resolver empresa do TASY", e);
@@ -3207,8 +3256,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       };
 
       // Escopo de PJs da apuração — usado pra filtrar linhas TASY que sejam de
-      // empresas fora do escopo (só descarta quando conseguimos resolver o
-      // empresa da linha; linhas sem `tasy_empresa` seguem no cruzamento).
+      // empresas fora do escopo. Em TVR com lote fixado, linha TASY sem PJ
+      // resolvida não pode virar "Não Pago", porque não há como provar que
+      // pertence ao universo do lote escolhido.
       const scopedCompanyIds = new Set<string>();
       const summaryScope = (recon?.summary as Record<string, unknown> | null) ?? {};
       const reconMultiCompanyIds = ((summaryScope.multi_company_ids as string[] | undefined) ?? []).filter(Boolean);
@@ -3223,14 +3273,57 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       const tasyCompanyByRow = new Map<TasyRow, string | null>();
       const effectiveTasyRows: TasyRow[] = [];
+      let tasyOutOfPeriodRemoved = 0;
+      let tasyMissingDateRemoved = 0;
+      let tasyMissingCompany = 0;
+      let tasyUnresolvedCompany = 0;
       for (const r of tasyRows) {
-        const cid = resolveTasyCompany(r.tasy_empresa);
-        tasyCompanyByRow.set(r, cid);
-        if (r.tasy_empresa && cid && scopedCompanyIds.size > 0 && !scopedCompanyIds.has(cid)) {
-          companyTasyRemoved++;
+        const ymd = dbDateOrNull(r.tasy_data);
+        if (!ymd) {
+          tasyMissingDateRemoved++;
           continue;
         }
+        if (recon && !isYmdWithinInclusive(ymd, recon.period_start, recon.period_end)) {
+          tasyOutOfPeriodRemoved++;
+          continue;
+        }
+        const cid = resolveTasyCompany(r.tasy_empresa);
+        tasyCompanyByRow.set(r, cid);
+        if (scopedCompanyIds.size > 0) {
+          if (!String(r.tasy_empresa ?? "").trim()) {
+            tasyMissingCompany++;
+            continue;
+          }
+          if (!cid) {
+            tasyUnresolvedCompany++;
+            continue;
+          }
+          if (!scopedCompanyIds.has(cid)) {
+            companyTasyRemoved++;
+            continue;
+          }
+        }
         effectiveTasyRows.push(r);
+      }
+
+      if (tasyMissingCompany > 0 || tasyUnresolvedCompany > 0) {
+        toast({
+          title: "TASY fora do escopo seguro do lote",
+          description: `${tasyMissingCompany} linha(s) sem PJ e ${tasyUnresolvedCompany} linha(s) com PJ não cadastrada/sem alias. Mapeie/vincule a coluna Empresa/PJ para isolar o lote antes de processar.`,
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
+      }
+
+      if (effectiveTasyRows.length === 0) {
+        toast({
+          title: "Nenhuma linha TASY dentro do escopo",
+          description: "Revise o período selecionado e a coluna de data da planilha antes de processar.",
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
       }
 
       // Resolve doctor_id da linha TASY: PJ+nome tem prioridade sobre só-nome.
@@ -3319,6 +3412,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             doctor_principal_id: did && isPrincipal(fn) ? did : null,
           });
         }
+      }
+
+      const scaleAudit = detectTvrSuspiciousTasyScale(effectiveTasyRows, effectivePagRows);
+      if (scaleAudit.isSuspicious) {
+        toast({
+          title: "Valores TASY com escala suspeita",
+          description: `TASY soma ${brl(scaleAudit.tasyTotal)} contra ${brl(scaleAudit.pagTotal)} no lote/período. Há ${scaleAudit.suspiciousIntegerCount} valores inteiros muito altos; revise/reimporte a coluna Valor antes de processar.`,
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
       }
 
       // Aggregate TASY by (atendimento, tuss). O arquivo TASY pode trazer a coluna
@@ -3555,7 +3659,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         setSelectedKeys(new Set());
         await loadTvrReconciliation();
         const companyMsg = companyTasyRemoved > 0 ? ` · ${companyTasyRemoved} linha(s) TASY fora do escopo de PJ` : "";
-        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas${companyMsg}` });
+        const periodMsg = tasyOutOfPeriodRemoved + tasyMissingDateRemoved > 0
+          ? ` · ${tasyOutOfPeriodRemoved + tasyMissingDateRemoved} linha(s) TASY fora do período/sem data`
+          : "";
+        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas${companyMsg}${periodMsg}` });
       } catch (e) {
         const msg = e instanceof Error
           ? e.message
@@ -4376,10 +4483,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       <div className="flex items-center gap-2 flex-wrap">
         <Button
           onClick={async () => {
-            let rowsForProcess: PagRow[] | undefined = undefined;
-            if (tasyRows.length > 0 && pagRows.length === 0 && !loadingPayments) {
-              rowsForProcess = await loadPaymentItems(recon);
-            }
+            if (tasyRows.length === 0 || loadingPayments) return;
+            // Reprocessamento sempre recarrega o repasse do backend pelo lote/período
+            // atual. Reutilizar `pagRows` salvo de rodada anterior reintroduzia itens
+            // fora do escopo quando o analista ajustava o lote e clicava Processar.
+            const rowsForProcess = await loadPaymentItems(recon);
             process(rowsForProcess);
           }}
           disabled={isLocked || processing || loadingPayments || tasyRows.length === 0}
@@ -4487,17 +4595,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
           {(() => {
-            const totalComplementar = results.reduce((sum, r) => {
-              if (r.status === "ok" || r.status === "ausente_tasy") return sum;
-              if (r.status === "nao_pago") return sum + r.valor_total_tasy;
-              if (r.dif_valor > 0.5) return sum + r.dif_valor;
-              return sum;
-            }, 0);
-            const totalRetirar = results.reduce((sum, r) => {
-              if (r.status === "ausente_tasy") return sum + r.valor_pago_base;
-              if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
-              return sum;
-            }, 0);
+            const { totalComplementar, totalRetirar } = computeTvrFinancialTotals(results);
+            const { totalComplementarAcordo, totalRetirarAcordo } = computeTvrAgreementTotals(results);
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
@@ -4505,40 +4604,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className={cn("text-2xl font-bold", totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
                     {totalComplementar > 0 ? brl(totalComplementar) : "R$ -"}
                   </div>
-                  {(() => {
-                    const totalComplementarAcordo = results.reduce(
-                      (sum, r) => sum + Math.max(0, -(r.ajuste_acordo ?? 0)),
-                      0,
-                    );
-                    return (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Base: {brl(totalComplementar)} ·{" "}
-                        <span className="font-semibold text-orange-600">
-                          C/ acordo: {brl(totalComplementarAcordo)}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Base: {brl(totalComplementar)} ·{" "}
+                    <span className="font-semibold text-orange-600">
+                      C/ acordo: {brl(totalComplementarAcordo)}
+                    </span>
+                  </div>
                 </div>
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
                   <div className={cn("text-2xl font-bold", totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
                     {totalRetirar > 0 ? brl(totalRetirar) : "R$ -"}
                   </div>
-                  {(() => {
-                    const totalRecuperarAcordo = results.reduce(
-                      (sum, r) => sum + Math.max(0, r.ajuste_acordo ?? 0),
-                      0,
-                    );
-                    return (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Base: {brl(totalRetirar)} ·{" "}
-                        <span className="font-semibold text-destructive">
-                          C/ acordo: {brl(totalRecuperarAcordo)}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Base: {brl(totalRetirar)} ·{" "}
+                    <span className="font-semibold text-destructive">
+                      C/ acordo: {brl(totalRetirarAcordo)}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
