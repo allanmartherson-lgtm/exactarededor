@@ -559,18 +559,17 @@ function NewView({
     const today = new Date().toISOString().slice(0, 10);
     const effStart = mode === "tasy_vs_repasse" ? (start || today) : start;
     const effEnd = mode === "tasy_vs_repasse" ? (end || today) : end;
-    const isMulti = scope === "multi_pj";
+    // "Múltiplas empresas" só existe em TASY vs Repasse. Em Alegação do
+    // médico o escopo é sempre individual (1 médico e/ou 1 PJ).
+    const isMulti = mode === "tasy_vs_repasse" && scope === "multi_pj";
     if (mode === "alegacao_medico") {
-      if (!isMulti && ((!doctorId && !companyId) || !start || !end)) {
+      if ((!doctorId && !companyId) || !start || !end) {
         toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
         return;
       }
-      if (isMulti && (multiCompanyIds.length === 0 && multiDoctorIds.length === 0)) {
+    } else if (mode === "tasy_vs_repasse" && isMulti) {
+      if (multiCompanyIds.length === 0 && multiDoctorIds.length === 0) {
         toast({ title: "Selecione ao menos uma PJ ou médico no mapeamento", variant: "destructive" });
-        return;
-      }
-      if (isMulti && (!start || !end)) {
-        toast({ title: "Informe o período", variant: "destructive" });
         return;
       }
     }
