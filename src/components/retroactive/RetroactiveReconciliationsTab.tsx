@@ -2054,6 +2054,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (error) toast({ title: "Erro ao limpar resultado salvo", description: error.message, variant: "destructive" });
   };
 
+  // Normalização de convênio para comparação/exclusão (sem acento, minúsculo,
+  // só alfanumérico). Espelha o filtro da conciliação por lote.
+  const normConv = (s: unknown): string =>
+    String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const availableConvenios = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number }>();
+    const add = (raw: unknown) => {
+      const label = String(raw ?? "").trim();
+      if (!label) return;
+      const key = normConv(label);
+      if (!key) return;
+      const cur = map.get(key);
+      if (cur) { cur.count += 1; }
+      else { map.set(key, { key, label, count: 1 }); }
+    };
+    for (const r of tasyRows) add(r.tasy_convenio);
+    for (const r of pagRows) add(r.pag_convenio);
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [tasyRows, pagRows]);
+
+
   const process = () => {
     if (tasyRows.length === 0 || pagRows.length === 0) {
       toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
