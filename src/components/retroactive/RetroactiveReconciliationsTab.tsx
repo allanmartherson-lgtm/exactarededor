@@ -2504,7 +2504,6 @@ function LoteScopeFilter({
   pagRows: PagRow[];
   onChanged: () => void;
 }) {
-  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
   // Agrupa itens carregados por lote (payment_id) para mostrar o que está no escopo.
