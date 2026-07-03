@@ -2151,7 +2151,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       let convTasyRemoved = 0;
       let convPagRemoved = 0;
 
-      // Aggregate Repasse by (atendimento, tuss)
+      // Índice nome→doctor_id extraído do lado Repasse. Permite ao lado TASY
+      // (que só tem o nome) cair em `d:<id>` e casar com o Repasse.
+      const nameToDoctorId = new Map<string, string>();
+      for (const r of pagRows) {
+        const did = (r.pag_doctor_id ?? "").trim();
+        const nn = normDoctorName(r.pag_medico);
+        if (did && nn && !nameToDoctorId.has(nn)) nameToDoctorId.set(nn, did);
+      }
+
+      // Aggregate Repasse by (atendimento, data, tuss8, médico)
       type PAgg = {
         atendimento: string;
         tuss: string;
