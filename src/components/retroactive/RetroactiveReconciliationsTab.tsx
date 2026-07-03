@@ -136,6 +136,11 @@ type ReconRow = {
     tvr_validation_history?: Array<Record<string, unknown>>;
     tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number };
     tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
+    // Escopo de PJ na criação
+    scope?: "individual" | "multi_pj";
+    multi_company_ids?: string[];
+    multi_doctor_ids?: string[];
+    multi_labels?: { companies?: string[]; doctors?: string[] };
     handoff?: {
       status: "encaminhada";
       payment_id?: string | null;
@@ -422,10 +427,15 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
               </TableRow>
             )}
             {!loading && items.map((r) => {
-              const scope = [
-                r.doctor_id ? doctors[r.doctor_id] ?? "Médico" : null,
-                r.company_id ? companies[r.company_id] ?? "PJ" : null,
-              ].filter(Boolean).join(" · ");
+              const isMultiScope = r.summary?.scope === "multi_pj";
+              const multiCompanyCount = r.summary?.multi_company_ids?.length ?? 0;
+              const multiDoctorCount = r.summary?.multi_doctor_ids?.length ?? 0;
+              const scope = isMultiScope
+                ? `Múltiplas empresas · ${multiCompanyCount} PJ${multiCompanyCount === 1 ? "" : "s"}${multiDoctorCount > 0 ? ` · ${multiDoctorCount} médico${multiDoctorCount === 1 ? "" : "s"}` : ""}`
+                : [
+                    r.doctor_id ? doctors[r.doctor_id] ?? "Médico" : null,
+                    r.company_id ? companies[r.company_id] ?? "PJ" : null,
+                  ].filter(Boolean).join(" · ");
               const deletable = canDelete(r);
               return (
                 <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onOpen(r.id)}>
@@ -496,8 +506,13 @@ function NewView({
 }) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [scope, setScope] = useState<"individual" | "multi_pj">("individual");
   const [doctorId, setDoctorId] = useState("");
   const [companyId, setCompanyId] = useState("");
+  const [multiCompanyIds, setMultiCompanyIds] = useState<string[]>([]);
+  const [multiDoctorIds, setMultiDoctorIds] = useState<string[]>([]);
+  const [multiCompOpen, setMultiCompOpen] = useState(false);
+  const [multiDocOpen, setMultiDocOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
   const [compOpen, setCompOpen] = useState(false);
   const [start, setStart] = useState("");
@@ -544,11 +559,31 @@ function NewView({
     const today = new Date().toISOString().slice(0, 10);
     const effStart = mode === "tasy_vs_repasse" ? (start || today) : start;
     const effEnd = mode === "tasy_vs_repasse" ? (end || today) : end;
-    if (mode === "alegacao_medico" && ((!doctorId && !companyId) || !start || !end)) {
-      toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
-      return;
+    const isMulti = scope === "multi_pj";
+    if (mode === "alegacao_medico") {
+      if (!isMulti && ((!doctorId && !companyId) || !start || !end)) {
+        toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
+        return;
+      }
+      if (isMulti && (multiCompanyIds.length === 0 && multiDoctorIds.length === 0)) {
+        toast({ title: "Selecione ao menos uma PJ ou médico no mapeamento", variant: "destructive" });
+        return;
+      }
+      if (isMulti && (!start || !end)) {
+        toast({ title: "Informe o período", variant: "destructive" });
+        return;
+      }
     }
     setSaving(true);
+    const summary: Record<string, unknown> = { mode, scope };
+    if (isMulti) {
+      summary.multi_company_ids = multiCompanyIds;
+      summary.multi_doctor_ids = multiDoctorIds;
+      summary.multi_labels = {
+        companies: multiCompanyIds.map((cid) => companies.find((c) => c.id === cid)?.name).filter(Boolean),
+        doctors: multiDoctorIds.map((did) => doctors.find((d) => d.id === did)?.full_name).filter(Boolean),
+      };
+    }
     const { data, error } = await (supabase as unknown as {
       from: (t: string) => {
         insert: (v: Record<string, unknown>) => {
@@ -559,12 +594,12 @@ function NewView({
       .from("retroactive_reconciliations")
       .insert({
         hospital_id: hospitalId,
-        doctor_id: doctorId || null,
-        company_id: companyId || null,
+        doctor_id: isMulti ? null : (doctorId || null),
+        company_id: isMulti ? null : (companyId || null),
         period_start: effStart,
         period_end: effEnd,
         title: title || null,
-        summary: { mode },
+        summary,
         created_by: userId,
       })
       .select("id")
@@ -612,119 +647,266 @@ function NewView({
         </div>
       </div>
 
+      {mode === "alegacao_medico" && (
+        <div className="rounded-lg border border-border bg-card p-3">
+          <Label className="text-xs">Escopo da apuração</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
+            {([
+              ["individual", "Análise individual", "1 médico e/ou 1 PJ. Cruzamento restrito a esse par."],
+              ["multi_pj", "Múltiplas empresas", "Várias PJs de vários médicos. Você seleciona o mapeamento manual."],
+            ] as const).map(([k, lbl, desc]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setScope(k)}
+                className={cn(
+                  "text-left rounded-md border px-3 py-2 transition-colors",
+                  scope === k ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+                )}
+              >
+                <div className="text-sm font-medium flex items-center gap-2">
+                  {scope === k && <CheckIcon className="h-3.5 w-3.5 text-primary" />}
+                  {lbl}
+                </div>
+                <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground -mt-1">
         {mode === "alegacao_medico"
-          ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
+          ? (scope === "multi_pj"
+              ? "Selecione todas as PJs envolvidas e (opcional) restrinja aos médicos desejados. O cruzamento buscará payment_items em qualquer combinação."
+              : "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa.")
           : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração."}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-        <div className="md:col-span-2">
-          <Label>Médico</Label>
-          <Popover open={docOpen} onOpenChange={setDocOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between font-normal"
-              >
-                <span className={cn("truncate", !selectedDoctor && "text-muted-foreground")}>
-                  {selectedDoctor
-                    ? `${selectedDoctor.full_name} (${selectedDoctor.crm}/${selectedDoctor.crm_uf})`
-                    : "Buscar médico por nome ou CRM…"}
-                </span>
-                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command
-                filter={(value, search) => {
-                  const s = search.toLowerCase();
-                  return value.toLowerCase().includes(s) ? 1 : 0;
-                }}
-              >
-                <CommandInput placeholder="Digite nome ou CRM…" />
-                <CommandList>
-                  <CommandEmpty>Nenhum médico.</CommandEmpty>
-                  <CommandGroup>
-                    {doctorId && (
-                      <CommandItem
-                        value="__clear__"
-                        onSelect={() => { setDoctorId(""); setDocOpen(false); }}
-                      >
-                        <span className="text-muted-foreground">Limpar seleção</span>
-                      </CommandItem>
-                    )}
-                    {doctors.map((d) => {
-                      const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
-                      return (
+        {scope === "individual" && (
+          <div className="md:col-span-2">
+            <Label>Médico</Label>
+            <Popover open={docOpen} onOpenChange={setDocOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                >
+                  <span className={cn("truncate", !selectedDoctor && "text-muted-foreground")}>
+                    {selectedDoctor
+                      ? `${selectedDoctor.full_name} (${selectedDoctor.crm}/${selectedDoctor.crm_uf})`
+                      : "Buscar médico por nome ou CRM…"}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command
+                  filter={(value, search) => {
+                    const s = search.toLowerCase();
+                    return value.toLowerCase().includes(s) ? 1 : 0;
+                  }}
+                >
+                  <CommandInput placeholder="Digite nome ou CRM…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum médico.</CommandEmpty>
+                    <CommandGroup>
+                      {doctorId && (
                         <CommandItem
-                          key={d.id}
-                          value={v}
-                          onSelect={() => { setDoctorId(d.id); setDocOpen(false); }}
+                          value="__clear__"
+                          onSelect={() => { setDoctorId(""); setDocOpen(false); }}
                         >
-                          <CheckIcon className={cn("h-4 w-4 mr-2", doctorId === d.id ? "opacity-100" : "opacity-0")} />
-                          {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                          <span className="text-muted-foreground">Limpar seleção</span>
                         </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="md:col-span-2">
-          <Label>PJ / Empresa</Label>
-          <Popover open={compOpen} onOpenChange={setCompOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between font-normal"
-              >
-                <span className={cn("truncate", !selectedCompany && "text-muted-foreground")}>
-                  {selectedCompany
-                    ? `${selectedCompany.name}${selectedCompany.document ? ` · ${selectedCompany.document}` : ""}`
-                    : "Buscar PJ por nome ou CNPJ…"}
-                </span>
-                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Digite nome ou CNPJ…" />
-                <CommandList>
-                  <CommandEmpty>Nenhuma PJ.</CommandEmpty>
-                  <CommandGroup>
-                    {companyId && (
-                      <CommandItem
-                        value="__clear__"
-                        onSelect={() => { setCompanyId(""); setCompOpen(false); }}
-                      >
-                        <span className="text-muted-foreground">Limpar seleção</span>
-                      </CommandItem>
-                    )}
-                    {companies.map((c) => {
-                      const v = `${c.name} ${c.document ?? ""}`;
-                      return (
+                      )}
+                      {doctors.map((d) => {
+                        const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
+                        return (
+                          <CommandItem
+                            key={d.id}
+                            value={v}
+                            onSelect={() => { setDoctorId(d.id); setDocOpen(false); }}
+                          >
+                            <CheckIcon className={cn("h-4 w-4 mr-2", doctorId === d.id ? "opacity-100" : "opacity-0")} />
+                            {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+        {scope === "individual" && (
+          <div className="md:col-span-2">
+            <Label>PJ / Empresa</Label>
+            <Popover open={compOpen} onOpenChange={setCompOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                >
+                  <span className={cn("truncate", !selectedCompany && "text-muted-foreground")}>
+                    {selectedCompany
+                      ? `${selectedCompany.name}${selectedCompany.document ? ` · ${selectedCompany.document}` : ""}`
+                      : "Buscar PJ por nome ou CNPJ…"}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Digite nome ou CNPJ…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma PJ.</CommandEmpty>
+                    <CommandGroup>
+                      {companyId && (
                         <CommandItem
-                          key={c.id}
-                          value={v}
-                          onSelect={() => { setCompanyId(c.id); setCompOpen(false); }}
+                          value="__clear__"
+                          onSelect={() => { setCompanyId(""); setCompOpen(false); }}
                         >
-                          <CheckIcon className={cn("h-4 w-4 mr-2", companyId === c.id ? "opacity-100" : "opacity-0")} />
-                          {c.name}
-                          {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                          <span className="text-muted-foreground">Limpar seleção</span>
                         </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
+                      )}
+                      {companies.map((c) => {
+                        const v = `${c.name} ${c.document ?? ""}`;
+                        return (
+                          <CommandItem
+                            key={c.id}
+                            value={v}
+                            onSelect={() => { setCompanyId(c.id); setCompOpen(false); }}
+                          >
+                            <CheckIcon className={cn("h-4 w-4 mr-2", companyId === c.id ? "opacity-100" : "opacity-0")} />
+                            {c.name}
+                            {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {scope === "multi_pj" && (
+          <div className="md:col-span-2">
+            <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
+            <Popover open={multiCompOpen} onOpenChange={setMultiCompOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                  <span className={cn("truncate", multiCompanyIds.length === 0 && "text-muted-foreground")}>
+                    {multiCompanyIds.length === 0
+                      ? "Selecione as PJs envolvidas…"
+                      : multiCompanyIds
+                          .map((cid) => companies.find((c) => c.id === cid)?.name ?? "?")
+                          .join(", ")}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar PJ por nome ou CNPJ…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma PJ.</CommandEmpty>
+                    <CommandGroup>
+                      {multiCompanyIds.length > 0 && (
+                        <CommandItem value="__clear__" onSelect={() => setMultiCompanyIds([])}>
+                          <span className="text-muted-foreground">Limpar todas</span>
+                        </CommandItem>
+                      )}
+                      {companies.map((c) => {
+                        const checked = multiCompanyIds.includes(c.id);
+                        const v = `${c.name} ${c.document ?? ""}`;
+                        return (
+                          <CommandItem
+                            key={c.id}
+                            value={v}
+                            onSelect={() =>
+                              setMultiCompanyIds((cur) =>
+                                cur.includes(c.id) ? cur.filter((x) => x !== c.id) : [...cur, c.id],
+                              )
+                            }
+                          >
+                            <Checkbox checked={checked} className="mr-2" />
+                            {c.name}
+                            {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {scope === "multi_pj" && (
+          <div className="md:col-span-2">
+            <Label>Médicos ({multiDoctorIds.length}) <span className="text-muted-foreground font-normal">— opcional</span></Label>
+            <Popover open={multiDocOpen} onOpenChange={setMultiDocOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                  <span className={cn("truncate", multiDoctorIds.length === 0 && "text-muted-foreground")}>
+                    {multiDoctorIds.length === 0
+                      ? "Deixe vazio para incluir todos os médicos das PJs selecionadas"
+                      : multiDoctorIds
+                          .map((did) => doctors.find((d) => d.id === did)?.full_name ?? "?")
+                          .join(", ")}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command
+                  filter={(value, search) => {
+                    const s = search.toLowerCase();
+                    return value.toLowerCase().includes(s) ? 1 : 0;
+                  }}
+                >
+                  <CommandInput placeholder="Digite nome ou CRM…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum médico.</CommandEmpty>
+                    <CommandGroup>
+                      {multiDoctorIds.length > 0 && (
+                        <CommandItem value="__clear__" onSelect={() => setMultiDoctorIds([])}>
+                          <span className="text-muted-foreground">Limpar todos</span>
+                        </CommandItem>
+                      )}
+                      {doctors.map((d) => {
+                        const checked = multiDoctorIds.includes(d.id);
+                        const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
+                        return (
+                          <CommandItem
+                            key={d.id}
+                            value={v}
+                            onSelect={() =>
+                              setMultiDoctorIds((cur) =>
+                                cur.includes(d.id) ? cur.filter((x) => x !== d.id) : [...cur, d.id],
+                              )
+                            }
+                          >
+                            <Checkbox checked={checked} className="mr-2" />
+                            {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
         <div>
           <Label>De</Label>
           <DateInput value={start} onChange={setStart} />
@@ -1717,22 +1899,63 @@ function normTuss(v: string | undefined): string {
 }
 
 function tvrTussKey(v: string | undefined): string {
-  const digits = normTuss(v);
-  // Alguns relatórios TASY exportam o TUSS com 7 dígitos, enquanto o repasse
-  // fica gravado com 8. Para a conciliação retroativa TVR, a chave usa o
-  // prefixo operacional comum para não transformar item pago em "não pago".
-  return digits.length >= 7 ? digits.slice(0, 7) : digits;
+  // Chave TUSS estrita em 8 dígitos (usuário confirmou uso da coluna 8d).
+  // Se vier com menos dígitos, mantém o que houver — nunca "encurta" para 7.
+  return normTuss(v);
 }
 
 function isExcludedTvrTuss(v: string | undefined, excluded: Set<string>): boolean {
   const full = normTuss(v);
-  const key = tvrTussKey(v);
-  if (!full && !key) return false;
-  return excluded.has(full) || excluded.has(key) || Array.from(excluded).some((x) => tvrTussKey(x) === key);
+  if (!full) return false;
+  return excluded.has(full);
 }
 
 function normAtt(v: string | undefined): string {
   return String(v ?? "").trim();
+}
+
+// Normaliza nome do médico: remove acentos, prefixos ("dr", "dra"), pontuação e
+// colapsa espaços. Usada só como fallback quando não há doctor_id do lado TASY.
+function normDoctorName(v: string | undefined): string {
+  return String(v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\bdr[a]?\.?\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+// Prefere doctor_id (confiável). Cai para nome normalizado quando id ausente.
+// `nameToId` é um índice compartilhado (construído a partir do lado Repasse) que
+// permite ao lado TASY também "cair" em `d:<id>` quando o nome bate.
+function doctorKeyPart(id: string | undefined, name: string | undefined, nameToId?: Map<string, string>): string {
+  const did = (id ?? "").trim();
+  if (did) return `d:${did}`;
+  const n = normDoctorName(name);
+  if (!n) return "";
+  const mapped = nameToId?.get(n);
+  if (mapped) return `d:${mapped}`;
+  return `n:${n}`;
+}
+
+// Extrai Y-M-D puro sem passar por fuso. Aceita "YYYY-MM-DD[Thh:mm...]" ou
+// "DD/MM/YYYY". Retorna "" quando não conseguir identificar.
+function dateKeyPart(v: string | undefined): string {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return "";
+}
+
+// Compõe a chave canônica de cruzamento TASY×Repasse.
+// Atendimento + Data (Y-M-D) + TUSS (8d) + Médico (doctor_id ou nome normalizado).
+function tvrMatchKey(att: string | undefined, date: string | undefined, tuss: string | undefined, doctorId: string | undefined, doctorName: string | undefined, nameToId?: Map<string, string>): string {
+  return `${normAtt(att)}|${dateKeyPart(date)}|${tvrTussKey(tuss)}|${doctorKeyPart(doctorId, doctorName, nameToId)}`;
 }
 
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
@@ -1875,9 +2098,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const startYmd = addDaysYmd(r.period_start, -90) ?? String(r.period_start).slice(0, 10);
       const endYmd = addDaysYmd(r.period_end, 90) ?? String(r.period_end).slice(0, 10);
 
-      // Escopo: se a apuração não tem médico/PJ, usa os atendimentos do TASY como filtro
-      // para evitar puxar dezenas de milhares de itens do hospital inteiro.
-      const hasScope = Boolean(r.doctor_id || r.company_id);
+      // Escopo: individual (doctor/company do próprio row) ou multi_pj
+      // (arrays em summary.multi_company_ids / summary.multi_doctor_ids).
+      const multiCompanyIds = (r.summary?.multi_company_ids ?? []).filter(Boolean);
+      const multiDoctorIds = (r.summary?.multi_doctor_ids ?? []).filter(Boolean);
+      const isMulti = (r.summary?.scope === "multi_pj") && (multiCompanyIds.length > 0 || multiDoctorIds.length > 0);
+      const hasScope = Boolean(r.doctor_id || r.company_id) || isMulti;
       const tasyAttendances = Array.from(new Set(sourceTasyRows.map((t) => t.tasy_atendimento).filter(Boolean)));
 
       if (!hasScope && tasyAttendances.length === 0) {
@@ -1915,8 +2141,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
               .gte("procedure_date", startYmd)
               .lte("procedure_date", endYmd);
-            if (r.doctor_id) q = q.eq("doctor_id", r.doctor_id);
-            if (r.company_id) q = q.eq("company_id", r.company_id);
+            if (isMulti) {
+              if (multiCompanyIds.length > 0) q = q.in("company_id", multiCompanyIds);
+              if (multiDoctorIds.length > 0) q = q.in("doctor_id", multiDoctorIds);
+            } else {
+              if (r.doctor_id) q = q.eq("doctor_id", r.doctor_id);
+              if (r.company_id) q = q.eq("company_id", r.company_id);
+            }
             return q.range(from, to);
           });
         }
@@ -1924,6 +2155,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         toast({ title: "Erro ao buscar pagamentos", description: error?.message ?? String(error), variant: "destructive" });
         return;
       }
+
 
       const rawItemsAll = data;
       const paymentIds = Array.from(new Set(rawItemsAll.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
@@ -2105,7 +2337,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       let convTasyRemoved = 0;
       let convPagRemoved = 0;
 
-      // Aggregate Repasse by (atendimento, tuss)
+      // Índice nome→doctor_id extraído do lado Repasse. Permite ao lado TASY
+      // (que só tem o nome) cair em `d:<id>` e casar com o Repasse.
+      const nameToDoctorId = new Map<string, string>();
+      for (const r of pagRows) {
+        const did = (r.pag_doctor_id ?? "").trim();
+        const nn = normDoctorName(r.pag_medico);
+        if (did && nn && !nameToDoctorId.has(nn)) nameToDoctorId.set(nn, did);
+      }
+
+      // Aggregate Repasse by (atendimento, data, tuss8, médico)
       type PAgg = {
         atendimento: string;
         tuss: string;
@@ -2125,7 +2366,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const r of pagRows) {
         if (isExcludedTvrTuss(r.pag_tuss, excluded)) continue;
         if (isExcludedConv(r.pag_convenio)) { convPagRemoved++; continue; }
-        const key = `${r.pag_atendimento}|${tvrTussKey(r.pag_tuss)}`;
+        const key = tvrMatchKey(r.pag_atendimento, r.pag_data, r.pag_tuss, r.pag_doctor_id, r.pag_medico, nameToDoctorId);
         const q = num(r.pag_qtd) || 1;
         const vb = num(r.pag_valor_base);
         const va = num(r.pag_valor_com_acordo);
@@ -2189,7 +2430,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
         if (isExcludedConv(r.tasy_convenio)) continue;
-        const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
+        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, undefined, r.tasy_medico, nameToDoctorId);
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const cur = candidates.get(key);
@@ -2217,7 +2458,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
         if (isExcludedConv(r.tasy_convenio)) { convTasyRemoved++; continue; }
-        const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
+        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, undefined, r.tasy_medico, nameToDoctorId);
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const lineTotal = tasyValueIsLineTotal ? v : v * q;
