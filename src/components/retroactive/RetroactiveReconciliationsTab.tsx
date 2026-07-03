@@ -611,10 +611,12 @@ function NewView({
     })();
   }, []);
 
-  // Busca lotes elegíveis no período (TASY vs Repasse / multi_pj).
+  // Busca lotes elegíveis no período (qualquer escopo de TASY vs Repasse).
   // Um lote é elegível quando seu competence_month cai entre start..end.
+  // Necessário também no escopo individual para o analista fixar o universo —
+  // sem lote fixo, o motor cai no fallback por competência e mistura outros lotes.
   useEffect(() => {
-    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") {
+    if (mode !== "tasy_vs_repasse") {
       setAvailableLotes([]);
       setSelectedPaymentIds([]);
       return;
@@ -697,7 +699,7 @@ function NewView({
       }
     })();
     return () => { cancelled = true; };
-  }, [mode, scope, hospitalId, start, end]);
+  }, [mode, hospitalId, start, end]);
 
   // Deriva PJs/médicos candidatos a partir dos lotes selecionados.
   // PJs padrão = todas dos lotes escolhidos; médicos padrão = nenhum (opcional).
@@ -883,8 +885,9 @@ function NewView({
               : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
 
-      {/* Passo Data — sempre visível, primeiro campo em TASY vs Repasse/multi_pj */}
-      {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
+      {/* Passo Data — visível em qualquer TASY vs Repasse (individual e multi_pj).
+          Data é pré-requisito pra listar os lotes elegíveis abaixo. */}
+      {mode === "tasy_vs_repasse" && (
         <div className="rounded-lg border border-border bg-card p-3 space-y-2">
           <Label className="text-xs">1. Período da apuração</Label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -900,8 +903,10 @@ function NewView({
         </div>
       )}
 
-      {/* Passo Lotes — só aparece em multi_pj após período preenchido */}
-      {mode === "tasy_vs_repasse" && scope === "multi_pj" && start && end && (
+      {/* Passo Lotes — visível em qualquer TASY vs Repasse após período preenchido.
+          Sem lote fixado, o motor cai no fallback por competência do mês e
+          contamina os totais com outros lotes — por isso é obrigatório. */}
+      {mode === "tasy_vs_repasse" && start && end && (
         <div className="rounded-lg border border-border bg-card p-3 space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs">
