@@ -240,6 +240,10 @@ type DraftItem = {
   procedure_name: string;
   claimed_amount: string;
   claimed_quantity: string;
+  /** Nome bruto da PJ vindo da planilha (quando a coluna foi mapeada). */
+  company_hint?: string;
+  /** id da PJ cadastrada resolvida no passo "Vincular PJs" do wizard. */
+  resolved_company_id?: string | null;
 };
 
 const CLASS_LABEL: Record<ItemRow["classification"], string> = {
