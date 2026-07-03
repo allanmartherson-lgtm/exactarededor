@@ -198,6 +198,10 @@ type ReconRow = {
       total_retirar?: number;
       item_keys?: string[];
     };
+    // Lotes (payment_ids) que o analista fixou como universo da apuração.
+    // Quando presente, o motor filtra por eles em vez do fallback por competência.
+    selected_payment_ids?: string[];
+    selected_payment_labels?: string[];
   } | null;
   adjustment_ids: string[];
   created_at: string;
