@@ -5,6 +5,7 @@ import {
   computeTvrFinancialTotals,
   type TvrResult,
 } from "../RetroactiveReconciliationsTab";
+import { parseCellMoney } from "../RetroactiveMappingWizard";
 
 /**
  * Factory minimal — preenche apenas campos relevantes para os cálculos
@@ -160,5 +161,17 @@ describe("Reprocessar mantém cards financeiros e exportação Excel idênticos"
     expect(b.total_gap).toBe(a.total_gap);
     expect(b.total_excess).toBe(a.total_excess);
     expect(b.tvr_counts).toEqual(a.tvr_counts);
+  });
+});
+
+describe("parseCellMoney — não infla valores TASY", () => {
+  it("mantém ponto decimal único como decimal real", () => {
+    expect(parseCellMoney("6297.65")).toBe("6297.65");
+    expect(parseCellMoney("629.765")).toBe("629.765");
+  });
+
+  it("interpreta formatos BR e US com separador de milhar", () => {
+    expect(parseCellMoney("1.234,56")).toBe("1234.56");
+    expect(parseCellMoney("1,234.56")).toBe("1234.56");
   });
 });

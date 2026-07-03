@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
 
     const { data: recon, error: reconErr } = await supabase
       .from("retroactive_reconciliations")
-      .select("id, hospital_id, doctor_id, company_id, period_start, period_end")
+      .select("id, hospital_id, doctor_id, company_id, period_start, period_end, summary")
       .eq("id", reconciliation_id)
       .single();
     if (reconErr || !recon) {
@@ -83,6 +83,15 @@ Deno.serve(async (req) => {
     if (!recon.doctor_id && !recon.company_id) {
       return new Response(
         JSON.stringify({ error: "apuração precisa de médico ou PJ" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    if ((recon.summary as Record<string, unknown> | null)?.mode === "tasy_vs_repasse") {
+      return new Response(
+        JSON.stringify({
+          error: "TASY vs Repasse deve ser reprocessado pelo motor com lote selecionado.",
+          detail: "A função retroativa legada usa janela ampliada e não garante isolamento por selected_payment_ids.",
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

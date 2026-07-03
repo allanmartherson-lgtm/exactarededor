@@ -80,13 +80,42 @@ function autoSuggest(headers: string[], targets: TargetField[]): Record<string, 
   return out;
 }
 
-function parseCellMoney(v: unknown): string {
+export function parseCellMoney(v: unknown): string {
   if (v == null || v === "") return "";
   if (typeof v === "number") return String(v);
-  return String(v)
-    .replace(/[^\d,.-]/g, "")
-    .replace(/\.(?=\d{3}(\D|$))/g, "")
-    .replace(",", ".");
+  const raw = String(v).trim();
+  const sign = raw.includes("-") ? "-" : "";
+  const cleaned = raw.replace(/[^\d,.]/g, "");
+  if (!cleaned) return "";
+
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Usa o último separador como decimal para suportar BR (1.234,56) e US (1,234.56).
+    const decimalSeparator = lastComma > lastDot ? "," : ".";
+    const thousandSeparator = decimalSeparator === "," ? "." : ",";
+    return sign + cleaned.replace(new RegExp(`\\${thousandSeparator}`, "g"), "").replace(decimalSeparator, ".");
+  }
+
+  if (lastComma >= 0) {
+    const parts = cleaned.split(",");
+    if (parts.length > 2) {
+      const decimal = parts.pop() ?? "";
+      return sign + parts.join("") + (decimal ? `.${decimal}` : "");
+    }
+    return sign + cleaned.replace(",", ".");
+  }
+
+  const dotParts = cleaned.split(".");
+  if (dotParts.length > 2) {
+    const decimal = dotParts.pop() ?? "";
+    return sign + dotParts.join("") + (decimal ? `.${decimal}` : "");
+  }
+
+  // Um único ponto em exportações TASY costuma representar decimal real (ex.: 629.765),
+  // não milhar. Não remover esse ponto evita inflar valores 1000x.
+  return sign + cleaned;
 }
 
 function parseCellDate(v: unknown): string {
