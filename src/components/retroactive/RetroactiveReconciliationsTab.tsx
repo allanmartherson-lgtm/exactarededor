@@ -433,7 +433,7 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
                   </TableCell>
                   <TableCell className="font-medium">{scope || "—"}</TableCell>
                   <TableCell className="text-[12.5px]">
-                    {format(new Date(r.period_start), "dd/MM/yy")} → {format(new Date(r.period_end), "dd/MM/yy")}
+                    {format(parseYmdLocal(r.period_start), "dd/MM/yy")} → {format(parseYmdLocal(r.period_end), "dd/MM/yy")}
                   </TableCell>
                   <TableCell>{r.summary?.total ?? 0}</TableCell>
                   <TableCell className="font-semibold">{brl(r.summary?.total_gap)}</TableCell>
