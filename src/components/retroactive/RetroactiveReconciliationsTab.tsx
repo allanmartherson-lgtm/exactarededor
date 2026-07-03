@@ -3273,8 +3273,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         }
       }
 
-      // Resolver PJ (Terceiro) do TASY → company_id. Aceita CNPJ (dígitos) ou
-      // razão social; casa contra `companies` do hospital da apuração.
+      // Resolver PJ (Terceiro) do TASY → company_id. Aceita vínculo manual do
+      // wizard, CNPJ (dígitos), razão social ou alias do cadastro estadual.
       const normCompanyName = (s: unknown) =>
         String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
       const companyByDoc = new Map<string, string>();
@@ -3282,8 +3282,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         const { data: companiesData } = await supabase
           .from("companies" as never)
-          .select("id, name, document, aliases")
-          .eq("hospital_id", recon?.hospital_id ?? "");
+          .select("id, name, document, aliases");
         for (const c of (companiesData ?? []) as Array<Record<string, unknown>>) {
           const docDigits = String(c.document ?? "").replace(/\D+/g, "");
           const cid = String(c.id ?? "");
@@ -3300,7 +3299,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       } catch (e) {
         console.warn("TVR: falha carregando companies para resolver empresa do TASY", e);
       }
-      const resolveTasyCompany = (raw: string | undefined): string | null => {
+      const resolveTasyCompany = (row: TasyRow): string | null => {
+        const manualId = String(row.tasy_resolved_company_id ?? "").trim();
+        if (manualId) return manualId;
+        const raw = row.tasy_empresa;
         const s = String(raw ?? "").trim();
         if (!s) return null;
         const digits = s.replace(/\D+/g, "");
@@ -3344,7 +3346,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           tasyOutOfPeriodRemoved++;
           continue;
         }
-        const cid = resolveTasyCompany(r.tasy_empresa);
+        const cid = resolveTasyCompany(r);
         tasyCompanyByRow.set(r, cid);
         if (scopedCompanyIds.size > 0) {
           if (!String(r.tasy_empresa ?? "").trim()) {
