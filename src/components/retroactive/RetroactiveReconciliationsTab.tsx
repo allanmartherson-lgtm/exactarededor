@@ -4536,28 +4536,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className={cn("text-center", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
                         {r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}
                       </TableCell>
-                      <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
-                        {brl(r.dif_valor)}
+                      <TableCell className={cn(r.tipo_analise === "valor" && Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700", r.tipo_analise === "quantidade" && "text-muted-foreground/60")}>
+                        {r.tipo_analise === "quantidade" ? "n/a" : brl(r.dif_valor)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo_recalc)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {r.tipo_analise === "quantidade" ? <span className="text-muted-foreground/60">n/a</span> : brl(r.valor_com_acordo_recalc)}
+                      </TableCell>
                       <TableCell
                         className={cn(
                           r.ajuste_acordo > 0.5 && "font-semibold text-destructive",
                           r.ajuste_acordo < -0.5 && "font-semibold text-orange-600",
                         )}
                         title={
-                          r.ajuste_acordo > 0.5
-                            ? "A recuperar (paguei a mais que o acordo aplicado sobre TASY)"
-                            : r.ajuste_acordo < -0.5
-                              ? "A complementar (paguei a menos que o acordo aplicado sobre TASY)"
-                              : undefined
+                          r.sem_lastro_tasy
+                            ? "Item ausente no TASY em regra de tabela própria — sem cálculo de R$; validar manualmente."
+                            : r.tipo_analise === "quantidade"
+                              ? "Ajuste proporcional pela quantidade faltante no TASY."
+                              : r.ajuste_acordo > 0.5
+                                ? "A recuperar (paguei a mais que o acordo aplicado sobre TASY)"
+                                : r.ajuste_acordo < -0.5
+                                  ? "A complementar (paguei a menos que o acordo aplicado sobre TASY)"
+                                  : undefined
                         }
                       >
-                        {r.ajuste_acordo > 0.5
-                          ? `↓ ${brl(r.ajuste_acordo)}`
-                          : r.ajuste_acordo < -0.5
-                            ? `↑ ${brl(Math.abs(r.ajuste_acordo))}`
-                            : "—"}
+                        {r.sem_lastro_tasy
+                          ? <span className="text-amber-700">— validar</span>
+                          : r.ajuste_acordo > 0.5
+                            ? `↓ ${brl(r.ajuste_acordo)}`
+                            : r.ajuste_acordo < -0.5
+                              ? `↑ ${brl(Math.abs(r.ajuste_acordo))}`
+                              : "—"}
                       </TableCell>
                     </TableRow>
                     );
