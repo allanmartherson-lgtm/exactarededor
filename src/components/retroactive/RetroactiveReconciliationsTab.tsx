@@ -3062,10 +3062,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const tasyValueIsLineTotal = comparable > 0 && lineTotalDelta < unitValueDelta;
 
       const tMap = new Map<string, TAgg>();
-      for (const r of tasyRows) {
+      for (const r of effectiveTasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
         if (isExcludedConv(r.tasy_convenio)) { convTasyRemoved++; continue; }
-        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, undefined, r.tasy_medico, nameToDoctorId);
+        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, resolveTasyDoctorId(r), r.tasy_medico, nameToDoctorId);
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const lineTotal = tasyValueIsLineTotal ? v : v * q;
