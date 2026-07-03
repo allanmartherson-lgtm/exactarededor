@@ -1751,11 +1751,16 @@ function normDoctorName(v: string | undefined): string {
 }
 
 // Prefere doctor_id (confiável). Cai para nome normalizado quando id ausente.
-function doctorKeyPart(id: string | undefined, name: string | undefined): string {
+// `nameToId` é um índice compartilhado (construído a partir do lado Repasse) que
+// permite ao lado TASY também "cair" em `d:<id>` quando o nome bate.
+function doctorKeyPart(id: string | undefined, name: string | undefined, nameToId?: Map<string, string>): string {
   const did = (id ?? "").trim();
   if (did) return `d:${did}`;
   const n = normDoctorName(name);
-  return n ? `n:${n}` : "";
+  if (!n) return "";
+  const mapped = nameToId?.get(n);
+  if (mapped) return `d:${mapped}`;
+  return `n:${n}`;
 }
 
 // Extrai Y-M-D puro sem passar por fuso. Aceita "YYYY-MM-DD[Thh:mm...]" ou
