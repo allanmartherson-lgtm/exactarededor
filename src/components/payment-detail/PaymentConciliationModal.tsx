@@ -2068,6 +2068,11 @@ export function PaymentConciliationModal({
             fields.push({ label: "Médico", hospital: docHospStr, exacta: docMed, ok: cmp(docHospN, normName(docMed)) });
             fields.push({ label: "Função", hospital: roleHospStr, exacta: roleMed, ok: cmp(roleHospN, normRole(roleMed)) });
             fields.push({ label: "Via de acesso", hospital: routeHospStr, exacta: routeMed, ok: cmp(routeHospN, normRoute(routeMed)) });
+            // Sinaliza data — ok=true quando igual, false quando diferiu ±1 dia
+            // (candidato só é considerado se diff ≤1; >1 é rejeitado antes).
+            const medDate = onlyDate((match as any).procedure_date);
+            const dateOff = match ? (dateOffsetById.get(match.id) ?? 0) : 0;
+            fields.push({ label: "Data", hospital: hospDateOnly ?? null, exacta: medDate, ok: hospDateOnly && medDate ? dateOff === 0 : null });
             fields.push({ label: "Valor (convênio)", hospital: formatCurrency(valHosp), exacta: formatCurrency(valMed), ok: Math.abs(valHosp - valMed) < 0.02 });
           }
           return {
