@@ -2307,6 +2307,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         await persistResults(out);
         setResults(out);
+        setConvenioFilterStats(excludedConvSet.size > 0 ? { tasyRemoved: convTasyRemoved, pagRemoved: convPagRemoved } : null);
         setSelectedKeys(new Set());
         await loadTvrReconciliation();
         toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
