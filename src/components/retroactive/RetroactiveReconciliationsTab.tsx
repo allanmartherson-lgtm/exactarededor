@@ -842,116 +842,89 @@ function NewView({
         )}
 
         {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
-          <div className="md:col-span-2">
-            <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
-            <Popover open={multiCompOpen} onOpenChange={setMultiCompOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-                  <span className={cn("truncate", multiCompanyIds.length === 0 && "text-muted-foreground")}>
-                    {multiCompanyIds.length === 0
-                      ? "Selecione as PJs envolvidas…"
-                      : multiCompanyIds
-                          .map((cid) => companies.find((c) => c.id === cid)?.name ?? "?")
-                          .join(", ")}
-                  </span>
-                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Buscar PJ por nome ou CNPJ…" />
-                  <CommandList>
-                    <CommandEmpty>Nenhuma PJ.</CommandEmpty>
-                    <CommandGroup>
-                      {multiCompanyIds.length > 0 && (
-                        <CommandItem value="__clear__" onSelect={() => setMultiCompanyIds([])}>
-                          <span className="text-muted-foreground">Limpar todas</span>
-                        </CommandItem>
-                      )}
-                      {companies.map((c) => {
-                        const checked = multiCompanyIds.includes(c.id);
-                        const v = `${c.name} ${c.document ?? ""}`;
-                        return (
-                          <CommandItem
-                            key={c.id}
-                            value={v}
-                            onSelect={() =>
-                              setMultiCompanyIds((cur) =>
-                                cur.includes(c.id) ? cur.filter((x) => x !== c.id) : [...cur, c.id],
-                              )
-                            }
-                          >
-                            <Checkbox checked={checked} className="mr-2" />
-                            {c.name}
-                            {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+          <div className="md:col-span-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setMultiCompanyIds(companies.map((c) => c.id))}
+                >
+                  Marcar todas
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setMultiCompanyIds([])}
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+            <CompanyMappingList
+              variant="checkbox"
+              rows={companies.map((c) => ({
+                key: c.id,
+                rawLabel: c.document ? `${c.name} · ${c.document}` : c.name,
+                level: null,
+              }))}
+              value={Object.fromEntries(companies.map((c) => [c.id, multiCompanyIds.includes(c.id) ? c.id : null]))}
+              onChange={(cid, next) =>
+                setMultiCompanyIds((cur) =>
+                  next ? (cur.includes(cid) ? cur : [...cur, cid]) : cur.filter((x) => x !== cid),
+                )
+              }
+              maxHeight={220}
+            />
           </div>
         )}
 
         {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
-          <div className="md:col-span-2">
-            <Label>Médicos ({multiDoctorIds.length}) <span className="text-muted-foreground font-normal">— opcional</span></Label>
-            <Popover open={multiDocOpen} onOpenChange={setMultiDocOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-                  <span className={cn("truncate", multiDoctorIds.length === 0 && "text-muted-foreground")}>
-                    {multiDoctorIds.length === 0
-                      ? "Deixe vazio para incluir todos os médicos das PJs selecionadas"
-                      : multiDoctorIds
-                          .map((did) => doctors.find((d) => d.id === did)?.full_name ?? "?")
-                          .join(", ")}
-                  </span>
-                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command
-                  filter={(value, search) => {
-                    const s = search.toLowerCase();
-                    return value.toLowerCase().includes(s) ? 1 : 0;
-                  }}
+          <div className="md:col-span-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>
+                Médicos ({multiDoctorIds.length}){" "}
+                <span className="text-muted-foreground font-normal">— opcional</span>
+              </Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setMultiDoctorIds(doctors.map((d) => d.id))}
                 >
-                  <CommandInput placeholder="Digite nome ou CRM…" />
-                  <CommandList>
-                    <CommandEmpty>Nenhum médico.</CommandEmpty>
-                    <CommandGroup>
-                      {multiDoctorIds.length > 0 && (
-                        <CommandItem value="__clear__" onSelect={() => setMultiDoctorIds([])}>
-                          <span className="text-muted-foreground">Limpar todos</span>
-                        </CommandItem>
-                      )}
-                      {doctors.map((d) => {
-                        const checked = multiDoctorIds.includes(d.id);
-                        const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
-                        return (
-                          <CommandItem
-                            key={d.id}
-                            value={v}
-                            onSelect={() =>
-                              setMultiDoctorIds((cur) =>
-                                cur.includes(d.id) ? cur.filter((x) => x !== d.id) : [...cur, d.id],
-                              )
-                            }
-                          >
-                            <Checkbox checked={checked} className="mr-2" />
-                            {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                  Marcar todos
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setMultiDoctorIds([])}
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Deixe todos desmarcados para incluir todos os médicos das PJs selecionadas.
+            </p>
+            <CompanyMappingList
+              variant="checkbox"
+              rows={doctors.map((d) => ({
+                key: d.id,
+                rawLabel: `${d.full_name} (${d.crm}/${d.crm_uf})`,
+                level: null,
+              }))}
+              value={Object.fromEntries(doctors.map((d) => [d.id, multiDoctorIds.includes(d.id) ? d.id : null]))}
+              onChange={(did, next) =>
+                setMultiDoctorIds((cur) =>
+                  next ? (cur.includes(did) ? cur : [...cur, did]) : cur.filter((x) => x !== did),
+                )
+              }
+              maxHeight={220}
+            />
           </div>
         )}
+
 
         <div>
           <Label>De</Label>
