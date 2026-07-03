@@ -2003,6 +2003,10 @@ type PagRow = {
   pag_payment_id?: string;
   pag_doctor_id?: string;
   pag_company_id?: string;
+  pag_applied_rule_id?: string;
+  pag_applied_rule_label?: string;
+  pag_applied_calc_id?: string;
+  pag_applied_calc_method?: string;
 };
 
 
@@ -2035,6 +2039,10 @@ export type TvrResult = {
   matched_payment_id?: string;
   matched_doctor_id?: string;
   matched_doctor_ids?: string[];
+  matched_company_id?: string;
+  pj_conciliada?: string;
+  regra_aplicada?: string;
+  calculo_aplicado?: string;
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
   key_audit?: {
     att: string;
@@ -2638,7 +2646,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             const part = await fetchAllPaginated<Record<string, unknown>>((from, to) =>
               supabase
                 .from("payment_items" as never)
-                .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id")
+                .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method")
                 .gte("procedure_date", startYmd)
                 .lte("procedure_date", endYmd)
                 .in("attendance_number", chunk)
@@ -2650,7 +2658,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           data = await fetchAllPaginated<Record<string, unknown>>((from, to) => {
             let q = supabase
               .from("payment_items" as never)
-              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id")
+              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method")
               .gte("procedure_date", startYmd)
               .lte("procedure_date", endYmd);
             if (isMulti) {
@@ -2728,6 +2736,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_payment_id: row.payment_id ? String(row.payment_id) : "",
         pag_doctor_id: row.doctor_id ? String(row.doctor_id) : "",
         pag_company_id: row.company_id ? String(row.company_id) : "",
+        pag_applied_rule_id: row.applied_rule_id ? String(row.applied_rule_id) : "",
+        pag_applied_rule_label: row.applied_rule_label ? String(row.applied_rule_label) : "",
+        pag_applied_calc_id: row.applied_calc_id ? String(row.applied_calc_id) : "",
+        pag_applied_calc_method: row.applied_calc_method ? String(row.applied_calc_method) : "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
 
       setPagRows(rows);
@@ -3003,6 +3015,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (!s.pag_procedimento && r.pag_procedimento) s.pag_procedimento = r.pag_procedimento;
           if (!s.pag_data && r.pag_data) s.pag_data = r.pag_data;
           if (!s.pag_funcao && r.pag_funcao) s.pag_funcao = r.pag_funcao;
+          if (!s.pag_company_id && r.pag_company_id) s.pag_company_id = r.pag_company_id;
+          if (!s.pag_applied_rule_id && r.pag_applied_rule_id) s.pag_applied_rule_id = r.pag_applied_rule_id;
+          if (!s.pag_applied_rule_label && r.pag_applied_rule_label) s.pag_applied_rule_label = r.pag_applied_rule_label;
+          if (!s.pag_applied_calc_id && r.pag_applied_calc_id) s.pag_applied_calc_id = r.pag_applied_calc_id;
+          if (!s.pag_applied_calc_method && r.pag_applied_calc_method) s.pag_applied_calc_method = r.pag_applied_calc_method;
         } else {
           const funcs = new Set<string>();
           const lotes = new Set<string>();
@@ -3173,6 +3190,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           matched_payment_id: p?.payment_id_first || undefined,
           matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
           matched_doctor_ids: p && p.doctor_ids_order.length > 0 ? [...p.doctor_ids_order] : undefined,
+          matched_company_id: p?.sample.pag_company_id || undefined,
+          regra_aplicada: p?.sample.pag_applied_rule_label || undefined,
+          calculo_aplicado: undefined, // preenchido depois via lookup em rule_calculations
           key_audit: {
             att: auditAtt,
             date: auditDate,
@@ -3195,6 +3215,37 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (a.atendimento !== b.atendimento) return a.atendimento.localeCompare(b.atendimento);
         return a.tuss.localeCompare(b.tuss);
       });
+
+      // Enriquecer com nome da PJ e label da linha de cálculo aplicada
+      try {
+        const companyIds = Array.from(new Set(out.map((r) => r.matched_company_id).filter(Boolean))) as string[];
+        const calcIds = Array.from(new Set(out.map((r) => (pMap.get(r.key)?.sample.pag_applied_calc_id || "")).filter(Boolean))) as string[];
+        const companyNameById = new Map<string, string>();
+        const calcLabelById = new Map<string, string>();
+        if (companyIds.length > 0) {
+          const { data: comps } = await supabase.from("companies").select("id, name").in("id", companyIds);
+          for (const c of comps ?? []) if (c?.id) companyNameById.set(String(c.id), String((c as { name?: string }).name ?? ""));
+        }
+        if (calcIds.length > 0) {
+          const { data: calcs } = await supabase.from("rule_calculations").select("id, label, sort_order, calculation_type").in("id", calcIds);
+          for (const c of calcs ?? []) {
+            if (!c?.id) continue;
+            const cc = c as { id: string; label?: string | null; sort_order?: number | null; calculation_type?: string | null };
+            const label = (cc.label ?? "").trim();
+            const idx = typeof cc.sort_order === "number" ? cc.sort_order + 1 : null;
+            const method = cc.calculation_type ?? "";
+            calcLabelById.set(String(cc.id), [idx ? `#${idx}` : "", label, method ? `(${method})` : ""].filter(Boolean).join(" "));
+          }
+        }
+        for (const r of out) {
+          if (r.matched_company_id) r.pj_conciliada = companyNameById.get(r.matched_company_id) || undefined;
+          const cid = pMap.get(r.key)?.sample.pag_applied_calc_id;
+          if (cid) r.calculo_aplicado = calcLabelById.get(cid) || undefined;
+        }
+      } catch (e) {
+        // não bloqueia processamento se enriquecimento falhar
+        console.warn("Falha ao enriquecer PJ/regra:", e);
+      }
 
       try {
         await persistResults(out);
@@ -3280,6 +3331,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   }, [results]);
 
   const buildExportRows = (list: TvrResult[]) => list.map((r) => ({
+    "PJ Conciliada": r.pj_conciliada ?? "",
+    Médico: r.medico,
     Status: TVR_STATUS_LABEL[r.status],
     Atendimento: r.atendimento,
     "Cód. TUSS": r.tuss,
@@ -3287,7 +3340,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     Paciente: r.paciente,
     Data: formatTvrDate(r.data),
     Convênio: r.convenio,
-    Médico: r.medico,
     Função: r.funcao,
     "Qtd TASY": r.qtd_tasy,
     "Valor Unit. TASY": r.valor_unit_tasy,
@@ -3298,6 +3350,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Lote(s)": r.lotes,
     "Valor Pago Base": r.valor_pago_base,
     "Valor c/ Acordo": r.valor_com_acordo,
+    "Regra Aplicada": r.regra_aplicada ?? "",
+    "Linha do Cálculo": r.calculo_aplicado ?? "",
     "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
     "Dif. Valor": Number(r.dif_valor.toFixed(2)),
     "A Recuperar (c/ acordo)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
@@ -3333,6 +3387,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     const wb = XLSX.utils.book_new();
+    // Congela as duas primeiras colunas (PJ Conciliada, Médico) e o cabeçalho
+    (ws as unknown as { "!freeze"?: unknown })["!freeze"] = { xSplit: 2, ySplit: 1 };
+    (ws as unknown as { "!views"?: unknown[] })["!views"] = [{ state: "frozen", xSplit: 2, ySplit: 1, topLeftCell: "C2", activePane: "bottomRight" }];
+    // Largura mínima para as colunas fixas
+    (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = [{ wch: 28 }, { wch: 26 }];
     XLSX.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
