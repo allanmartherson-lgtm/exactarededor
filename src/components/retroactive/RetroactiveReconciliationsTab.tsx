@@ -3190,6 +3190,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           matched_payment_id: p?.payment_id_first || undefined,
           matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
           matched_doctor_ids: p && p.doctor_ids_order.length > 0 ? [...p.doctor_ids_order] : undefined,
+          matched_company_id: p?.sample.pag_company_id || undefined,
+          regra_aplicada: p?.sample.pag_applied_rule_label || undefined,
+          calculo_aplicado: undefined, // preenchido depois via lookup em rule_calculations
           key_audit: {
             att: auditAtt,
             date: auditDate,
