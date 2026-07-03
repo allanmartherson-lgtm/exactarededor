@@ -1777,8 +1777,8 @@ function dateKeyPart(v: string | undefined): string {
 
 // Compõe a chave canônica de cruzamento TASY×Repasse.
 // Atendimento + Data (Y-M-D) + TUSS (8d) + Médico (doctor_id ou nome normalizado).
-function tvrMatchKey(att: string | undefined, date: string | undefined, tuss: string | undefined, doctorId: string | undefined, doctorName: string | undefined): string {
-  return `${normAtt(att)}|${dateKeyPart(date)}|${tvrTussKey(tuss)}|${doctorKeyPart(doctorId, doctorName)}`;
+function tvrMatchKey(att: string | undefined, date: string | undefined, tuss: string | undefined, doctorId: string | undefined, doctorName: string | undefined, nameToId?: Map<string, string>): string {
+  return `${normAtt(att)}|${dateKeyPart(date)}|${tvrTussKey(tuss)}|${doctorKeyPart(doctorId, doctorName, nameToId)}`;
 }
 
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
