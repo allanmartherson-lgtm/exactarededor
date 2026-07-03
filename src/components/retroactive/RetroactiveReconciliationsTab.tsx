@@ -724,7 +724,7 @@ function NewView({
         {mode === "alegacao_medico"
           ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
           : (scope === "multi_pj"
-              ? "Selecione todas as PJs envolvidas e (opcional) restrinja aos médicos desejados. O cruzamento buscará payment_items em qualquer combinação."
+              ? "Selecione ao menos uma PJ (obrigatório) e, opcionalmente, restrinja aos médicos desejados. Sem PJ/médico selecionado, o sistema NÃO faz cruzamento em todas as PJs do hospital — a criação é bloqueada."
               : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
