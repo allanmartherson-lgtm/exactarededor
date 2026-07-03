@@ -2513,16 +2513,47 @@ function LoteScopeFilter({
 }) {
   const [saving, setSaving] = useState(false);
 
-  // Agrupa itens carregados por lote (payment_id) para mostrar o que está no escopo.
+  // Agrupa itens carregados por lote (payment_id) — conta linhas, atendimentos
+  // distintos, quantidade total e valores base/acordo. Serve tanto para o filtro
+  // (checkboxes) quanto para o resumo por lote mostrado abaixo.
   const lotesLoaded = useMemo(() => {
-    const map = new Map<string, { id: string; label: string; count: number }>();
+    const map = new Map<string, {
+      id: string;
+      label: string;
+      count: number;
+      atendimentos: Set<string>;
+      qtd_total: number;
+      valor_base: number;
+      valor_com_acordo: number;
+    }>();
     for (const r of pagRows) {
       const pid = (r.pag_payment_id ?? "").trim();
       if (!pid) continue;
       const label = (r.pag_lote ?? "").trim() || pid.slice(0, 8);
+      const qtd = num(r.pag_qtd) || 1;
+      const vb = num(r.pag_valor_base);
+      const va = num(r.pag_valor_com_acordo);
+      const att = (r.pag_atendimento ?? "").trim();
       const cur = map.get(pid);
-      if (cur) cur.count += 1;
-      else map.set(pid, { id: pid, label, count: 1 });
+      if (cur) {
+        cur.count += 1;
+        cur.qtd_total += qtd;
+        cur.valor_base += vb;
+        cur.valor_com_acordo += va;
+        if (att) cur.atendimentos.add(att);
+      } else {
+        const atts = new Set<string>();
+        if (att) atts.add(att);
+        map.set(pid, {
+          id: pid,
+          label,
+          count: 1,
+          atendimentos: atts,
+          qtd_total: qtd,
+          valor_base: vb,
+          valor_com_acordo: va,
+        });
+      }
     }
     return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [pagRows]);
