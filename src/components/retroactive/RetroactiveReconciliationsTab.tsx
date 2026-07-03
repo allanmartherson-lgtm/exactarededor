@@ -2000,6 +2000,7 @@ type PagRow = {
   pag_payment_item_id?: string;
   pag_payment_id?: string;
   pag_doctor_id?: string;
+  pag_company_id?: string;
 };
 
 
