@@ -4026,14 +4026,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       </div>
 
       {/* Step 2 — Repasse (auto, do sistema) */}
-      <div className={cn("rounded-lg border border-border bg-card p-4 space-y-2", tasyRows.length === 0 && "opacity-60 pointer-events-none")}>
+      <div className={cn("rounded-lg border border-border bg-card p-4 space-y-3", tasyRows.length === 0 && "opacity-60 pointer-events-none")}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h4 className="text-sm font-semibold">2. Repasse do sistema</h4>
             <p className="text-[11px] text-muted-foreground">
-              Buscado em <code>payment_items</code> e filtrado estritamente pela <strong>competência do lote</strong> (mês do período da apuração). Se há médico/PJ, filtra por eles; caso contrário, usa os atendimentos da base TASY. Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
+              Buscado em <code>payment_items</code>. Se lotes específicos foram selecionados na apuração, o motor
+              filtra <strong>estritamente por eles</strong>; caso contrário, cai no mês da competência (pode misturar outros lotes).
+              Use o filtro abaixo para restringir. Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
             </p>
-
           </div>
           <div className="flex items-center gap-2">
             {loadingPayments && (
@@ -4051,6 +4052,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             )}
           </div>
         </div>
+        {paymentsLoaded && <LoteScopeFilter recon={recon} pagRows={pagRows} onChanged={() => void loadPaymentItems(recon)} />}
       </div>
 
       {/* Filtro: convênios excluídos da análise */}
