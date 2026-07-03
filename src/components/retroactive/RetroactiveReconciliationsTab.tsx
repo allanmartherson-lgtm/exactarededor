@@ -4129,17 +4129,58 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   />
                   Apenas com pagamento
                 </label>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-                  <SelectTrigger className="h-8 w-[180px] text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos (exceto OK)</SelectItem>
-                    {TVR_STATUS_ORDER.map((s) => (
-                      <SelectItem key={s} value={s}>{TVR_STATUS_LABEL[s]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-[200px] text-xs justify-between font-normal">
+                      <span className="truncate">
+                        {statusFilter.size === 0
+                          ? "Todos (exceto OK)"
+                          : statusFilter.size === 1
+                          ? TVR_STATUS_LABEL[Array.from(statusFilter)[0]]
+                          : `${statusFilter.size} status selecionados`}
+                      </span>
+                      <ChevronDownIcon className="h-3.5 w-3.5 opacity-50 ml-1 shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[220px] p-2" align="end">
+                    <div className="flex items-center justify-between px-1 pb-2 mb-1 border-b border-border">
+                      <span className="text-[11px] font-medium text-muted-foreground">Filtrar status</span>
+                      {statusFilter.size > 0 && (
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary hover:underline"
+                          onClick={() => setStatusFilter(new Set())}
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      {TVR_STATUS_ORDER.map((s) => {
+                        const checked = statusFilter.has(s);
+                        return (
+                          <label
+                            key={s}
+                            className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                setStatusFilter((prev) => {
+                                  const next = new Set(prev);
+                                  if (v) next.add(s);
+                                  else next.delete(s);
+                                  return next;
+                                });
+                              }}
+                            />
+                            <span>{TVR_STATUS_LABEL[s]}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setKeyAuditOpen(true)}>
                   Auditoria de chave
                 </Button>
