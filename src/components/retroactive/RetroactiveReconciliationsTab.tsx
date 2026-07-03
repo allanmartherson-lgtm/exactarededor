@@ -3366,6 +3366,61 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
     const stamp = format(new Date(), "yyyyMMdd_HHmm");
     const baseName = `tasy-vs-repasse_${scope === "visible" ? "filtrado_" : ""}${stamp}`;
+
+    // Fallback: enriquece PJ Conciliada / Regra / Cálculo para resultados
+    // carregados do banco antes desta funcionalidade existir. Busca por
+    // matched_payment_item_id → payment_items → companies / rule_calculations.
+    const missing = list.filter((r) => r.matched_payment_item_id && (!r.pj_conciliada || !r.regra_aplicada || !r.calculo_aplicado));
+    if (missing.length > 0) {
+      try {
+        const pii = Array.from(new Set(missing.map((r) => r.matched_payment_item_id!).filter(Boolean)));
+        const CHUNK = 300;
+        const piMap = new Map<string, { company_id?: string; applied_rule_label?: string; applied_calc_id?: string }>();
+        for (let i = 0; i < pii.length; i += CHUNK) {
+          const { data } = await supabase
+            .from("payment_items" as never)
+            .select("id, company_id, applied_rule_label, applied_calc_id")
+            .in("id", pii.slice(i, i + CHUNK) as never);
+          for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+            piMap.set(String(row.id), {
+              company_id: row.company_id ? String(row.company_id) : undefined,
+              applied_rule_label: row.applied_rule_label ? String(row.applied_rule_label) : undefined,
+              applied_calc_id: row.applied_calc_id ? String(row.applied_calc_id) : undefined,
+            });
+          }
+        }
+        const compIds = Array.from(new Set(Array.from(piMap.values()).map((v) => v.company_id).filter(Boolean))) as string[];
+        const calcIds = Array.from(new Set(Array.from(piMap.values()).map((v) => v.applied_calc_id).filter(Boolean))) as string[];
+        const companyNameById = new Map<string, string>();
+        const calcLabelById = new Map<string, string>();
+        if (compIds.length > 0) {
+          const { data: comps } = await supabase.from("companies").select("id, name").in("id", compIds);
+          for (const c of comps ?? []) if (c?.id) companyNameById.set(String(c.id), String((c as { name?: string }).name ?? ""));
+        }
+        if (calcIds.length > 0) {
+          const { data: calcs } = await supabase.from("rule_calculations").select("id, label, sort_order, calculation_type").in("id", calcIds);
+          for (const c of calcs ?? []) {
+            if (!c?.id) continue;
+            const cc = c as { id: string; label?: string | null; sort_order?: number | null; calculation_type?: string | null };
+            const label = (cc.label ?? "").trim();
+            const idx = typeof cc.sort_order === "number" ? cc.sort_order + 1 : null;
+            const method = cc.calculation_type ?? "";
+            calcLabelById.set(String(cc.id), [idx ? `#${idx}` : "", label, method ? `(${method})` : ""].filter(Boolean).join(" "));
+          }
+        }
+        for (const r of missing) {
+          const info = piMap.get(r.matched_payment_item_id!);
+          if (!info) continue;
+          if (!r.pj_conciliada && info.company_id) r.pj_conciliada = companyNameById.get(info.company_id) || undefined;
+          if (!r.regra_aplicada && info.applied_rule_label) r.regra_aplicada = info.applied_rule_label;
+          if (!r.calculo_aplicado && info.applied_calc_id) r.calculo_aplicado = calcLabelById.get(info.applied_calc_id) || undefined;
+          if (!r.matched_company_id && info.company_id) r.matched_company_id = info.company_id;
+        }
+      } catch (e) {
+        console.warn("Falha ao enriquecer PJ/regra no export:", e);
+      }
+    }
+
     if (fmt === "json") {
       const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
