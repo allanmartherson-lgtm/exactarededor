@@ -3015,6 +3015,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (!s.pag_procedimento && r.pag_procedimento) s.pag_procedimento = r.pag_procedimento;
           if (!s.pag_data && r.pag_data) s.pag_data = r.pag_data;
           if (!s.pag_funcao && r.pag_funcao) s.pag_funcao = r.pag_funcao;
+          if (!s.pag_company_id && r.pag_company_id) s.pag_company_id = r.pag_company_id;
+          if (!s.pag_applied_rule_id && r.pag_applied_rule_id) s.pag_applied_rule_id = r.pag_applied_rule_id;
+          if (!s.pag_applied_rule_label && r.pag_applied_rule_label) s.pag_applied_rule_label = r.pag_applied_rule_label;
+          if (!s.pag_applied_calc_id && r.pag_applied_calc_id) s.pag_applied_calc_id = r.pag_applied_calc_id;
+          if (!s.pag_applied_calc_method && r.pag_applied_calc_method) s.pag_applied_calc_method = r.pag_applied_calc_method;
         } else {
           const funcs = new Set<string>();
           const lotes = new Set<string>();
