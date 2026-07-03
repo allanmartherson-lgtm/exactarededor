@@ -867,9 +867,96 @@ function NewView({
         {mode === "alegacao_medico"
           ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
           : (scope === "multi_pj"
-              ? "Selecione ao menos uma PJ (obrigatório) e, opcionalmente, restrinja aos médicos desejados. Sem PJ/médico selecionado, o sistema NÃO faz cruzamento em todas as PJs do hospital — a criação é bloqueada."
+              ? "Escolha primeiro o período. O sistema traz os lotes elegíveis; ao selecionar um ou mais, PJs e médicos ficam restritos ao universo desses lotes."
               : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
+
+      {/* Passo Data — sempre visível, primeiro campo em TASY vs Repasse/multi_pj */}
+      {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+          <Label className="text-xs">1. Período da apuração</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">De</Label>
+              <DatePickerCombo value={start} onChange={setStart} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Até</Label>
+              <DatePickerCombo value={end} onChange={setEnd} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Passo Lotes — só aparece em multi_pj após período preenchido */}
+      {mode === "tasy_vs_repasse" && scope === "multi_pj" && start && end && (
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">
+              2. Lote(s) a analisar {availableLotes.length > 0 && (
+                <span className="text-muted-foreground font-normal">
+                  · {selectedPaymentIds.length}/{availableLotes.length} selecionado{selectedPaymentIds.length === 1 ? "" : "s"}
+                </span>
+              )}
+            </Label>
+            {availableLotes.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setSelectedPaymentIds(availableLotes.map((l) => l.id))}
+                >
+                  Marcar todos
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setSelectedPaymentIds([])}
+                >
+                  Limpar
+                </button>
+              </div>
+            )}
+          </div>
+          {loadingLotes ? (
+            <div className="text-xs text-muted-foreground py-4 text-center">Buscando lotes no período…</div>
+          ) : availableLotes.length === 0 ? (
+            <div className="text-xs text-muted-foreground py-4 text-center">
+              Nenhum lote encontrado com competência entre {start.slice(0, 7)} e {end.slice(0, 7)}.
+            </div>
+          ) : (
+            <div className="max-h-56 overflow-y-auto border rounded-md divide-y">
+              {availableLotes.map((l) => {
+                const checked = selectedPaymentIds.includes(l.id);
+                return (
+                  <label
+                    key={l.id}
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-muted/40 cursor-pointer text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setSelectedPaymentIds((cur) =>
+                          e.target.checked ? [...cur, l.id] : cur.filter((x) => x !== l.id),
+                        );
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{l.label}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {l.company_ids.length} PJ{l.company_ids.length === 1 ? "" : "s"} · {l.doctor_ids.length} médico{l.doctor_ids.length === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
         {(mode === "alegacao_medico" || scope === "individual") && (
@@ -983,99 +1070,117 @@ function NewView({
           </div>
         )}
 
-        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
-          <div className="md:col-span-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiCompanyIds(companies.map((c) => c.id))}
-                >
-                  Marcar todas
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiCompanyIds([])}
-                >
-                  Limpar
-                </button>
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && selectedPaymentIds.length > 0 && (() => {
+          const loteCompanyIds = new Set<string>();
+          for (const l of availableLotes) {
+            if (!selectedPaymentIds.includes(l.id)) continue;
+            for (const cid of l.company_ids) loteCompanyIds.add(cid);
+          }
+          const scopedCompanies = companies.filter((c) => loteCompanyIds.has(c.id));
+          return (
+            <div className="md:col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>3. PJs incluídas ({multiCompanyIds.length}/{scopedCompanies.length})</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiCompanyIds(scopedCompanies.map((c) => c.id))}
+                  >
+                    Marcar todas
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiCompanyIds([])}
+                  >
+                    Limpar
+                  </button>
+                </div>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                PJs derivadas do(s) lote(s) selecionado(s). Padrão: todas incluídas.
+              </p>
+              <CompanyMappingList
+                variant="checkbox"
+                rows={scopedCompanies.map((c) => ({
+                  key: c.id,
+                  rawLabel: c.document ? `${c.name} · ${c.document}` : c.name,
+                  level: null,
+                }))}
+                value={Object.fromEntries(scopedCompanies.map((c) => [c.id, multiCompanyIds.includes(c.id) ? c.id : null]))}
+                onChange={(cid, next) =>
+                  setMultiCompanyIds((cur) =>
+                    next ? (cur.includes(cid) ? cur : [...cur, cid]) : cur.filter((x) => x !== cid),
+                  )
+                }
+                maxHeight={220}
+              />
             </div>
-            <CompanyMappingList
-              variant="checkbox"
-              rows={companies.map((c) => ({
-                key: c.id,
-                rawLabel: c.document ? `${c.name} · ${c.document}` : c.name,
-                level: null,
-              }))}
-              value={Object.fromEntries(companies.map((c) => [c.id, multiCompanyIds.includes(c.id) ? c.id : null]))}
-              onChange={(cid, next) =>
-                setMultiCompanyIds((cur) =>
-                  next ? (cur.includes(cid) ? cur : [...cur, cid]) : cur.filter((x) => x !== cid),
-                )
-              }
-              maxHeight={220}
-            />
-          </div>
-        )}
+          );
+        })()}
 
-        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
-          <div className="md:col-span-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label>
-                Médicos ({multiDoctorIds.length}){" "}
-                <span className="text-muted-foreground font-normal">— opcional</span>
-              </Label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiDoctorIds(doctors.map((d) => d.id))}
-                >
-                  Marcar todos
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiDoctorIds([])}
-                >
-                  Limpar
-                </button>
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && selectedPaymentIds.length > 0 && (() => {
+          const scopedDoctors = doctors.filter((d) => candidateDoctorIds.has(d.id));
+          return (
+            <div className="md:col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>
+                  4. Médicos ({multiDoctorIds.length}/{scopedDoctors.length}){" "}
+                  <span className="text-muted-foreground font-normal">— opcional</span>
+                </Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiDoctorIds(scopedDoctors.map((d) => d.id))}
+                  >
+                    Marcar todos
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiDoctorIds([])}
+                  >
+                    Limpar
+                  </button>
+                </div>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                Médicos derivados do(s) lote(s). Deixe todos desmarcados para incluir todos.
+              </p>
+              <CompanyMappingList
+                variant="checkbox"
+                rows={scopedDoctors.map((d) => ({
+                  key: d.id,
+                  rawLabel: `${d.full_name} (${d.crm}/${d.crm_uf})`,
+                  level: null,
+                }))}
+                value={Object.fromEntries(scopedDoctors.map((d) => [d.id, multiDoctorIds.includes(d.id) ? d.id : null]))}
+                onChange={(did, next) =>
+                  setMultiDoctorIds((cur) =>
+                    next ? (cur.includes(did) ? cur : [...cur, did]) : cur.filter((x) => x !== did),
+                  )
+                }
+                maxHeight={220}
+              />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Deixe todos desmarcados para incluir todos os médicos das PJs selecionadas.
-            </p>
-            <CompanyMappingList
-              variant="checkbox"
-              rows={doctors.map((d) => ({
-                key: d.id,
-                rawLabel: `${d.full_name} (${d.crm}/${d.crm_uf})`,
-                level: null,
-              }))}
-              value={Object.fromEntries(doctors.map((d) => [d.id, multiDoctorIds.includes(d.id) ? d.id : null]))}
-              onChange={(did, next) =>
-                setMultiDoctorIds((cur) =>
-                  next ? (cur.includes(did) ? cur : [...cur, did]) : cur.filter((x) => x !== did),
-                )
-              }
-              maxHeight={220}
-            />
-          </div>
+          );
+        })()}
+
+        {/* Datas em modos que não usam o passo de lotes (alegação ou individual) */}
+        {!(mode === "tasy_vs_repasse" && scope === "multi_pj") && (
+          <>
+            <div>
+              <Label>De</Label>
+              <DatePickerCombo value={start} onChange={setStart} />
+            </div>
+            <div>
+              <Label>Até</Label>
+              <DatePickerCombo value={end} onChange={setEnd} />
+            </div>
+          </>
         )}
-
-
-        <div>
-          <Label>De</Label>
-          <DatePickerCombo value={start} onChange={setStart} />
-        </div>
-        <div>
-          <Label>Até</Label>
-          <DatePickerCombo value={end} onChange={setEnd} />
-        </div>
         <div className="md:col-span-2">
           <Label>Título <span className="text-destructive">*</span></Label>
           <Input
