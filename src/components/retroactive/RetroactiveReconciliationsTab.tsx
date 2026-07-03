@@ -566,6 +566,18 @@ function NewView({
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<ReconMode>("alegacao_medico");
+  // Lotes elegíveis no período (só usado em TASY vs Repasse).
+  type LoteOpt = {
+    id: string;
+    label: string;
+    competence: string;
+    reference: string;
+    company_ids: string[];
+    doctor_ids: string[];
+  };
+  const [availableLotes, setAvailableLotes] = useState<LoteOpt[]>([]);
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<string[]>([]);
+  const [loadingLotes, setLoadingLotes] = useState(false);
 
   useEffect(() => {
     void (async () => {
