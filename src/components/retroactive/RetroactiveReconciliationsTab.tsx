@@ -4400,7 +4400,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
                     <TableHead>Dif. Valor</TableHead>
-                    <TableHead>A Recuperar (c/ acordo)</TableHead>
+                    <TableHead>Vlr c/ Acordo (recalc)</TableHead>
+                    <TableHead>Ajuste (c/ acordo)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
