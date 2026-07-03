@@ -564,6 +564,10 @@ function NewView({
     // "Múltiplas empresas" só existe em TASY vs Repasse. Em Alegação do
     // médico o escopo é sempre individual (1 médico e/ou 1 PJ).
     const isMulti = mode === "tasy_vs_repasse" && scope === "multi_pj";
+    if (!title.trim()) {
+      toast({ title: "Informe um título para a apuração", variant: "destructive" });
+      return;
+    }
     if (mode === "alegacao_medico") {
       if ((!doctorId && !companyId) || !start || !end) {
         toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
