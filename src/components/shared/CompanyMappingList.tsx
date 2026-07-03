@@ -20,8 +20,9 @@ export type MappingOption = {
 
 export interface CompanyMappingListProps {
   rows: MappingRow[];
-  options: MappingOption[];
-  /** Mapping row.key → option.id (ou null = "Ignorar"). */
+  /** Opções do select. Ignorado em variant="checkbox". */
+  options?: MappingOption[];
+  /** Mapping row.key → option.id (ou null = "Ignorar"). Em checkbox mode, valor não-null = incluído. */
   value: Record<string, string | null>;
   onChange: (key: string, optionId: string | null) => void;
   /** Chamado quando o analista aceita uma sugestão "medium". */
@@ -34,6 +35,11 @@ export interface CompanyMappingListProps {
   maxHeight?: number;
   /** Rodapé com contadores customizado. Se ausente, exibe o padrão. */
   footer?: React.ReactNode;
+  /**
+   * "select" (default): dropdown de opções por linha, uso clássico do batch.
+   * "checkbox": só liga/desliga a linha (usado quando não há mapeamento N-para-1).
+   */
+  variant?: "select" | "checkbox";
   className?: string;
 }
 
