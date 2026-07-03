@@ -254,6 +254,74 @@ export default function RetroactiveMappingWizard({
     (t) => t.required && (!mapping[t.key] || mapping[t.key] === NONE),
   );
 
+  /** Nomes brutos únicos de PJ presentes nas linhas válidas (para o passo 2). */
+  const rawCompanyNames = useMemo(() => {
+    if (!hasCompanyStep) return [] as string[];
+    const set = new Set<string>();
+    for (const d of valid) {
+      const raw = (d[companyHintKey] ?? "").trim();
+      if (raw) set.add(raw);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [valid, hasCompanyStep, companyHintKey]);
+
+  const aliasMap: AliasMap = useMemo(() => {
+    const m: AliasMap = {};
+    if (!companyMappingConfig) return m;
+    for (const c of companyMappingConfig.companies) {
+      m[c.name] = { aliases: c.aliases ?? [] };
+    }
+    return m;
+  }, [companyMappingConfig]);
+
+  const candidateNames = useMemo(
+    () => (companyMappingConfig?.companies ?? []).map((c) => c.name),
+    [companyMappingConfig],
+  );
+  const idByName = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of companyMappingConfig?.companies ?? []) m[c.name] = c.id;
+    return m;
+  }, [companyMappingConfig]);
+
+  // Sementeia auto-match ao entrar no passo de PJs (ou quando lista muda).
+  useEffect(() => {
+    if (step !== "companies" || !hasCompanyStep) return;
+    setCompanyMapping((prev) => {
+      const next: Record<string, string | null> = { ...prev };
+      for (const raw of rawCompanyNames) {
+        if (next[raw] !== undefined) continue;
+        const hit = findCompanyMatch(raw, candidateNames, aliasMap);
+        // medium = precisa confirmação → começa em null
+        next[raw] = hit.level === "exact" || hit.level === "high"
+          ? (hit.company ? idByName[hit.company] ?? null : null)
+          : null;
+      }
+      return next;
+    });
+  }, [step, hasCompanyStep, rawCompanyNames, candidateNames, aliasMap, idByName]);
+
+  const mappingRows: MappingRow[] = useMemo(() => {
+    return rawCompanyNames.map((raw) => {
+      const hit = findCompanyMatch(raw, candidateNames, aliasMap);
+      return { key: raw, rawLabel: raw, level: hit.level };
+    });
+  }, [rawCompanyNames, candidateNames, aliasMap]);
+
+  const companyOptions = useMemo(
+    () => (companyMappingConfig?.companies ?? []).map((c) => ({ id: c.id, label: c.name })),
+    [companyMappingConfig],
+  );
+
+  const finalize = () => {
+    onConfirm(valid, {
+      mapping,
+      totals: { file: rows.length, valid: valid.length, excluded, dropped },
+      droppedExamples,
+      companyMapping: hasCompanyStep ? companyMapping : undefined,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
