@@ -1598,6 +1598,7 @@ export function buildTvrReplaceSummary(
     tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number } | null;
     tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
     exclude_tuss?: string;
+    excluded_convenios?: string[];
     processed_at?: string;
   },
 ): Record<string, unknown> {
