@@ -3220,10 +3220,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [onlyWithPayment, setOnlyWithPayment] = useState(false);
 
   const visible = useMemo(() => {
-    const list = (results ?? []).filter((r) => r.status !== "ok" || statusFilter === "ok");
+    const hasFilter = statusFilter.size > 0;
+    const showOk = statusFilter.has("ok");
+    const list = (results ?? []).filter((r) => r.status !== "ok" || showOk);
     const q = search.trim().toLowerCase();
     return list.filter((r) => {
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (hasFilter && !statusFilter.has(r.status)) return false;
       if (onlyWithPayment && r.status === "nao_pago") return false;
       if (q) {
         const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
