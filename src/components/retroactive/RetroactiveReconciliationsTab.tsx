@@ -605,6 +605,120 @@ function NewView({
     })();
   }, []);
 
+  // Busca lotes elegíveis no período (TASY vs Repasse / multi_pj).
+  // Um lote é elegível quando seu competence_month cai entre start..end.
+  useEffect(() => {
+    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") {
+      setAvailableLotes([]);
+      setSelectedPaymentIds([]);
+      return;
+    }
+    if (!hospitalId || !start || !end) {
+      setAvailableLotes([]);
+      setSelectedPaymentIds([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingLotes(true);
+    void (async () => {
+      try {
+        const startComp = start.slice(0, 7);
+        const endComp = end.slice(0, 7);
+        const { data: payments } = await supabase
+          .from("payments")
+          .select("id, reference, competence_month")
+          .eq("hospital_id", hospitalId)
+          .gte("competence_month", `${startComp}-01`)
+          .lte("competence_month", `${endComp}-01`)
+          .order("competence_month", { ascending: false })
+          .order("reference", { ascending: true });
+        if (cancelled) return;
+        const paymentRows = (payments ?? []) as Array<{
+          id: string; reference: string | null; competence_month: string | null;
+        }>;
+        if (paymentRows.length === 0) {
+          setAvailableLotes([]);
+          setSelectedPaymentIds([]);
+          setLoadingLotes(false);
+          return;
+        }
+        const paymentIds = paymentRows.map((p) => p.id);
+        const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+        const items = await fetchAllPaginated<{ payment_id: string; company_id: string | null; doctor_id: string | null }>(
+          (from, to) =>
+            supabase
+              .from("payment_items")
+              .select("payment_id, company_id, doctor_id")
+              .in("payment_id", paymentIds)
+              .range(from, to),
+        );
+        if (cancelled) return;
+        const compsByPayment = new Map<string, Set<string>>();
+        const docsByPayment = new Map<string, Set<string>>();
+        for (const it of items) {
+          if (!it.payment_id) continue;
+          if (it.company_id) {
+            const s = compsByPayment.get(it.payment_id) ?? new Set<string>();
+            s.add(it.company_id);
+            compsByPayment.set(it.payment_id, s);
+          }
+          if (it.doctor_id) {
+            const s = docsByPayment.get(it.payment_id) ?? new Set<string>();
+            s.add(it.doctor_id);
+            docsByPayment.set(it.payment_id, s);
+          }
+        }
+        const opts: LoteOpt[] = paymentRows.map((p) => {
+          const comp = p.competence_month ? String(p.competence_month).slice(0, 7) : "";
+          const ref = String(p.reference ?? "").trim();
+          const label = ref
+            ? `${comp || "?"} · ${ref}`
+            : `${comp || "?"} · ${p.id.slice(0, 8)}`;
+          return {
+            id: p.id,
+            label,
+            competence: comp,
+            reference: ref,
+            company_ids: Array.from(compsByPayment.get(p.id) ?? []),
+            doctor_ids: Array.from(docsByPayment.get(p.id) ?? []),
+          };
+        });
+        setAvailableLotes(opts);
+        // Padrão: nenhum lote pré-selecionado — analista decide.
+        setSelectedPaymentIds([]);
+      } finally {
+        if (!cancelled) setLoadingLotes(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mode, scope, hospitalId, start, end]);
+
+  // Deriva PJs/médicos candidatos a partir dos lotes selecionados.
+  // PJs padrão = todas dos lotes escolhidos; médicos padrão = nenhum (opcional).
+  useEffect(() => {
+    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") return;
+    if (selectedPaymentIds.length === 0) {
+      setMultiCompanyIds([]);
+      setMultiDoctorIds([]);
+      return;
+    }
+    const selected = availableLotes.filter((l) => selectedPaymentIds.includes(l.id));
+    const comps = new Set<string>();
+    for (const l of selected) for (const cid of l.company_ids) comps.add(cid);
+    setMultiCompanyIds(Array.from(comps));
+    setMultiDoctorIds([]);
+  }, [selectedPaymentIds, availableLotes, mode, scope]);
+
+  // Médicos candidatos derivados dos lotes selecionados.
+  const candidateDoctorIds = React.useMemo(() => {
+    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") return new Set<string>();
+    const set = new Set<string>();
+    for (const l of availableLotes) {
+      if (!selectedPaymentIds.includes(l.id)) continue;
+      for (const did of l.doctor_ids) set.add(did);
+    }
+    return set;
+  }, [availableLotes, selectedPaymentIds, mode, scope]);
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId);
   const selectedCompany = companies.find((c) => c.id === companyId);
