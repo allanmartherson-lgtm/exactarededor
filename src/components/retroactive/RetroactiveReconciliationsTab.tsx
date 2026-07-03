@@ -1722,22 +1722,58 @@ function normTuss(v: string | undefined): string {
 }
 
 function tvrTussKey(v: string | undefined): string {
-  const digits = normTuss(v);
-  // Alguns relatórios TASY exportam o TUSS com 7 dígitos, enquanto o repasse
-  // fica gravado com 8. Para a conciliação retroativa TVR, a chave usa o
-  // prefixo operacional comum para não transformar item pago em "não pago".
-  return digits.length >= 7 ? digits.slice(0, 7) : digits;
+  // Chave TUSS estrita em 8 dígitos (usuário confirmou uso da coluna 8d).
+  // Se vier com menos dígitos, mantém o que houver — nunca "encurta" para 7.
+  return normTuss(v);
 }
 
 function isExcludedTvrTuss(v: string | undefined, excluded: Set<string>): boolean {
   const full = normTuss(v);
-  const key = tvrTussKey(v);
-  if (!full && !key) return false;
-  return excluded.has(full) || excluded.has(key) || Array.from(excluded).some((x) => tvrTussKey(x) === key);
+  if (!full) return false;
+  return excluded.has(full);
 }
 
 function normAtt(v: string | undefined): string {
   return String(v ?? "").trim();
+}
+
+// Normaliza nome do médico: remove acentos, prefixos ("dr", "dra"), pontuação e
+// colapsa espaços. Usada só como fallback quando não há doctor_id do lado TASY.
+function normDoctorName(v: string | undefined): string {
+  return String(v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\bdr[a]?\.?\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+// Prefere doctor_id (confiável). Cai para nome normalizado quando id ausente.
+function doctorKeyPart(id: string | undefined, name: string | undefined): string {
+  const did = (id ?? "").trim();
+  if (did) return `d:${did}`;
+  const n = normDoctorName(name);
+  return n ? `n:${n}` : "";
+}
+
+// Extrai Y-M-D puro sem passar por fuso. Aceita "YYYY-MM-DD[Thh:mm...]" ou
+// "DD/MM/YYYY". Retorna "" quando não conseguir identificar.
+function dateKeyPart(v: string | undefined): string {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return "";
+}
+
+// Compõe a chave canônica de cruzamento TASY×Repasse.
+// Atendimento + Data (Y-M-D) + TUSS (8d) + Médico (doctor_id ou nome normalizado).
+function tvrMatchKey(att: string | undefined, date: string | undefined, tuss: string | undefined, doctorId: string | undefined, doctorName: string | undefined): string {
+  return `${normAtt(att)}|${dateKeyPart(date)}|${tvrTussKey(tuss)}|${doctorKeyPart(doctorId, doctorName)}`;
 }
 
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
