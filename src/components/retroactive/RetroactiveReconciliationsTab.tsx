@@ -3201,6 +3201,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           dif_qtd,
           dif_valor,
           valor_recuperar_acordo,
+          valor_com_acordo_recalc,
+          ajuste_acordo,
           matched_payment_item_id: p?.payment_item_id_first || undefined,
           matched_payment_id: p?.payment_id_first || undefined,
           matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
