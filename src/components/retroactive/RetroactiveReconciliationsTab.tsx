@@ -1627,6 +1627,7 @@ export function buildTvrReplaceSummary(
     tasy_file_totals: ctx.tasy_file_totals ?? null,
     tasy_dropped_examples: ctx.tasy_dropped_examples ?? [],
     exclude_tuss: ctx.exclude_tuss ?? "",
+    excluded_convenios: ctx.excluded_convenios ?? [],
     processed_at: ctx.processed_at ?? new Date().toISOString(),
     tvr_counts: tvrCounts,
     tvr_ausente_incomplete: incompleteAusente.length,
