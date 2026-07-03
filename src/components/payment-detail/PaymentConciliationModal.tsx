@@ -2134,6 +2134,14 @@ export function PaymentConciliationModal({
           // gross_amount = valor PAGO ao médico pós-acordo (ex: base × 200%);
           // procedure_amount fallback é o valor cru de matching. Coluna informativa.
           base.valor_pago_exacta = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || 0;
+          // Sinaliza divergência de data ±1 dia — match aceito, mas analista
+          // vê no card/relatório que houve deslocamento (hosp = alta/fatura,
+          // Exacta = procedimento; virada de meia-noite no centro cirúrgico).
+          const _dateOff = dateOffsetById.get(match.id) ?? 0;
+          if (_dateOff === 1) {
+            const _medDate = onlyDate((match as any).procedure_date);
+            base.ia_obs = `⚠ Data divergente (±1 dia): hospital ${hospDateOnly ?? '—'} vs Exacta ${_medDate ?? '—'} · match aceito`;
+          }
 
           const calcMethod = (match as any).applied_calc_method as string | null;
           const ruleLabel = String((match as any).applied_rule_label ?? '');
