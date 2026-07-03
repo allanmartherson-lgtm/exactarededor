@@ -3218,6 +3218,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const [onlyWithPayment, setOnlyWithPayment] = useState(false);
 
+  const visible = useMemo(() => {
+    const list = (results ?? []).filter((r) => r.status !== "ok" || statusFilter === "ok");
+    const q = search.trim().toLowerCase();
+    return list.filter((r) => {
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (onlyWithPayment && r.status === "nao_pago") return false;
+      if (q) {
+        const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [results, statusFilter, search, onlyWithPayment]);
+
   useEffect(() => {
     if (!results) return;
     const scrollEl = resultTableScrollRef.current;
@@ -3248,20 +3262,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (source === "top") table.scrollLeft = top.scrollLeft;
     else top.scrollLeft = table.scrollLeft;
   };
-
-  const visible = useMemo(() => {
-    const list = (results ?? []).filter((r) => r.status !== "ok" || statusFilter === "ok");
-    const q = search.trim().toLowerCase();
-    return list.filter((r) => {
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (onlyWithPayment && r.status === "nao_pago") return false;
-      if (q) {
-        const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [results, statusFilter, search, onlyWithPayment]);
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
