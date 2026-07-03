@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +48,9 @@ import {
   SendIcon,
   LockIcon,
   ExternalLinkIcon,
+  CalendarIcon,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Command,
   CommandEmpty,
@@ -91,6 +94,44 @@ import RetroactiveMappingWizard, {
   type TargetField,
 } from "./RetroactiveMappingWizard";
 import { DateInput } from "@/components/ui/date-input";
+
+/** Campo de data com input mascarado dd/mm/aaaa + botão de calendário. */
+function DatePickerCombo({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+  const [open, setOpen] = React.useState(false);
+  const selected = value ? parseYmdLocal(value) : undefined;
+  return (
+    <div className="flex gap-1">
+      <DateInput value={value} onChange={onChange} className="flex-1" />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" size="icon" aria-label="Abrir calendário">
+            <CalendarIcon className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="end">
+          <Calendar
+            mode="single"
+            selected={selected}
+            onSelect={(d) => {
+              if (d) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                onChange(`${y}-${m}-${dd}`);
+              } else {
+                onChange("");
+              }
+              setOpen(false);
+            }}
+            initialFocus
+            className="pointer-events-auto p-3"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 
 type ReconMode = "alegacao_medico" | "tasy_vs_repasse";
 const MODE_STORAGE_PREFIX = "retro_mode__";
@@ -562,6 +603,10 @@ function NewView({
     // "Múltiplas empresas" só existe em TASY vs Repasse. Em Alegação do
     // médico o escopo é sempre individual (1 médico e/ou 1 PJ).
     const isMulti = mode === "tasy_vs_repasse" && scope === "multi_pj";
+    if (!title.trim()) {
+      toast({ title: "Informe um título para a apuração", variant: "destructive" });
+      return;
+    }
     if (mode === "alegacao_medico") {
       if ((!doctorId && !companyId) || !start || !end) {
         toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
@@ -598,7 +643,7 @@ function NewView({
         company_id: isMulti ? null : (companyId || null),
         period_start: effStart,
         period_end: effEnd,
-        title: title || null,
+        title: title.trim(),
         summary,
         created_by: userId,
       })
@@ -679,7 +724,7 @@ function NewView({
         {mode === "alegacao_medico"
           ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
           : (scope === "multi_pj"
-              ? "Selecione todas as PJs envolvidas e (opcional) restrinja aos médicos desejados. O cruzamento buscará payment_items em qualquer combinação."
+              ? "Selecione ao menos uma PJ (obrigatório) e, opcionalmente, restrinja aos médicos desejados. Sem PJ/médico selecionado, o sistema NÃO faz cruzamento em todas as PJs do hospital — a criação é bloqueada."
               : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -909,18 +954,19 @@ function NewView({
 
         <div>
           <Label>De</Label>
-          <DateInput value={start} onChange={setStart} />
+          <DatePickerCombo value={start} onChange={setStart} />
         </div>
         <div>
           <Label>Até</Label>
-          <DateInput value={end} onChange={setEnd} />
+          <DatePickerCombo value={end} onChange={setEnd} />
         </div>
         <div className="md:col-span-2">
-          <Label>Título (opcional)</Label>
+          <Label>Título <span className="text-destructive">*</span></Label>
           <Input
             placeholder="Ex.: Falta de pagamentos março/2026"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            required
           />
         </div>
       </div>
