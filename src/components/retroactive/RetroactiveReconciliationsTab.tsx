@@ -4626,6 +4626,86 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </details>
 
+      {/* Painel bloqueante — PJs TASY sem vínculo no cadastro estadual */}
+      {unresolvedPjPanel.length > 0 && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div>
+              <div className="text-sm font-medium text-destructive">
+                PJs TASY não vinculadas ({unresolvedPjPanel.reduce((s, x) => s + x.count, 0)} linha(s) bloqueadas)
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Vincule cada valor cru da coluna Empresa/PJ da planilha a uma PJ do cadastro. O vínculo é aprendido como apelido — nas próximas importações resolve automaticamente.
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => void applyPjMapDraft()}
+                disabled={pjMapApplying || Object.values(pjMapDraft).filter(Boolean).length === 0}
+              >
+                {pjMapApplying ? "Aplicando…" : "Aplicar vínculos"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setUnresolvedPjPanel([]);
+                  setPjMapDraft({});
+                }}
+                disabled={pjMapApplying}
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+          <div className="max-h-[320px] overflow-auto rounded border bg-background">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[45%]">PJ na planilha (Empresa/Terceiro)</TableHead>
+                  <TableHead className="w-[10%] text-right">Linhas</TableHead>
+                  <TableHead>Vincular a PJ do cadastro</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unresolvedPjPanel.map((s) => (
+                  <TableRow key={s.raw}>
+                    <TableCell className="font-mono text-xs">
+                      {s.missing ? <span className="italic text-muted-foreground">(coluna Empresa vazia)</span> : s.raw}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{s.count}</TableCell>
+                    <TableCell>
+                      {s.missing ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Corrija a coluna na planilha e reimporte — sem PJ crua não dá para vincular.
+                        </span>
+                      ) : (
+                        <Select
+                          value={pjMapDraft[s.raw] ?? ""}
+                          onValueChange={(v) => setPjMapDraft((prev) => ({ ...prev, [s.raw]: v }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione a PJ…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {companies.map((c) => (
+                              <SelectItem key={c.id} value={c.id} className="text-xs">
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
       {/* Step 3 — Process */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button
