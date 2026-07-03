@@ -647,7 +647,7 @@ function NewView({
         </div>
       </div>
 
-      {mode === "alegacao_medico" && (
+      {mode === "tasy_vs_repasse" && (
         <div className="rounded-lg border border-border bg-card p-3">
           <Label className="text-xs">Escopo da apuração</Label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
@@ -677,10 +677,10 @@ function NewView({
 
       <p className="text-xs text-muted-foreground -mt-1">
         {mode === "alegacao_medico"
-          ? (scope === "multi_pj"
+          ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
+          : (scope === "multi_pj"
               ? "Selecione todas as PJs envolvidas e (opcional) restrinja aos médicos desejados. O cruzamento buscará payment_items em qualquer combinação."
-              : "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa.")
-          : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração."}
+              : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
