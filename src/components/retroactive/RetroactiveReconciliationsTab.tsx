@@ -749,16 +749,18 @@ function NewView({
         toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
         return;
       }
-    } else if (mode === "tasy_vs_repasse" && isMulti) {
+    } else if (mode === "tasy_vs_repasse") {
       if (!start || !end) {
         toast({ title: "Selecione o período (De/Até) antes de continuar", variant: "destructive" });
         return;
       }
+      // Sem lote fixo, o motor cai no fallback por competência do mês e
+      // mistura outros lotes na conta — bloqueamos a criação até o analista escolher.
       if (selectedPaymentIds.length === 0) {
         toast({ title: "Selecione ao menos um lote a analisar", variant: "destructive" });
         return;
       }
-      if (multiCompanyIds.length === 0 && multiDoctorIds.length === 0) {
+      if (isMulti && multiCompanyIds.length === 0 && multiDoctorIds.length === 0) {
         toast({ title: "Selecione ao menos uma PJ ou médico no mapeamento", variant: "destructive" });
         return;
       }
