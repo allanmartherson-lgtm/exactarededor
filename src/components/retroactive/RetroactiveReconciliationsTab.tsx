@@ -1913,9 +1913,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         return;
       }
 
-      const rawItems = data;
-      const paymentIds = Array.from(new Set(rawItems.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
+      const rawItemsAll = data;
+      const paymentIds = Array.from(new Set(rawItemsAll.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
       const loteByPaymentId = new Map<string, string>();
+      const compByPaymentId = new Map<string, string>();
       if (paymentIds.length > 0) {
         const { data: paymentsData } = await supabase
           .from("payments" as never)
@@ -1926,8 +1927,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const comp = p.competence_month ? String(p.competence_month).slice(0, 7) : "";
           const label = ref || (comp ? `Comp. ${comp}` : String(p.id).slice(0, 8));
           loteByPaymentId.set(String(p.id), label);
+          if (comp) compByPaymentId.set(String(p.id), comp);
         }
       }
+
+      // Filtra sistema estritamente pela competência do lote (mês do period_start da apuração).
+      // Ex.: apuração de abril → só considera itens de payments com competence_month = 'YYYY-04'.
+      const targetCompetence = String(r.period_start ?? "").slice(0, 7);
+      const rawItems = targetCompetence
+        ? rawItemsAll.filter((it) => {
+            const pid = String(it.payment_id ?? "");
+            if (!pid) return false;
+            return compByPaymentId.get(pid) === targetCompetence;
+          })
+        : rawItemsAll;
+      const droppedByCompetence = rawItemsAll.length - rawItems.length;
+
       const rows: PagRow[] = rawItems.map((row) => ({
         pag_atendimento: normAtt(String(row.attendance_number ?? "")),
         pag_tuss: normTuss(String(row.procedure_code ?? "")),
@@ -1948,7 +1963,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       setPagRows(rows);
       setPaymentsLoaded(true);
-      toast({ title: `${rows.length} item(ns) carregados do sistema` });
+      const suffix = droppedByCompetence > 0
+        ? ` · ${droppedByCompetence} descartado(s) fora da competência ${targetCompetence}`
+        : "";
+      toast({ title: `${rows.length} item(ns) carregados do sistema${suffix}` });
     } finally {
       setLoadingPayments(false);
     }
@@ -2867,7 +2885,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <div>
             <h4 className="text-sm font-semibold">2. Repasse do sistema</h4>
             <p className="text-[11px] text-muted-foreground">
-              Buscado automaticamente em <code>payment_items</code> no período ±90 dias. Se a apuração tem médico/PJ, filtra por eles; caso contrário, usa os atendimentos da base TASY como filtro. Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
+              Buscado em <code>payment_items</code> e filtrado estritamente pela <strong>competência do lote</strong> (mês do período da apuração). Se há médico/PJ, filtra por eles; caso contrário, usa os atendimentos da base TASY. Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
             </p>
 
           </div>
