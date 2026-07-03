@@ -684,7 +684,7 @@ function NewView({
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-        {scope === "individual" && (
+        {(mode === "alegacao_medico" || scope === "individual") && (
           <div className="md:col-span-2">
             <Label>Médico</Label>
             <Popover open={docOpen} onOpenChange={setDocOpen}>
@@ -741,7 +741,7 @@ function NewView({
             </Popover>
           </div>
         )}
-        {scope === "individual" && (
+        {(mode === "alegacao_medico" || scope === "individual") && (
           <div className="md:col-span-2">
             <Label>PJ / Empresa</Label>
             <Popover open={compOpen} onOpenChange={setCompOpen}>
@@ -795,7 +795,7 @@ function NewView({
           </div>
         )}
 
-        {scope === "multi_pj" && (
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
           <div className="md:col-span-2">
             <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
             <Popover open={multiCompOpen} onOpenChange={setMultiCompOpen}>
@@ -849,7 +849,7 @@ function NewView({
           </div>
         )}
 
-        {scope === "multi_pj" && (
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
           <div className="md:col-span-2">
             <Label>Médicos ({multiDoctorIds.length}) <span className="text-muted-foreground font-normal">— opcional</span></Label>
             <Popover open={multiDocOpen} onOpenChange={setMultiDocOpen}>
