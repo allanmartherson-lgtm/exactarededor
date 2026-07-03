@@ -198,11 +198,36 @@ export default function RetroactiveMappingWizard({
   const [excludeConsultas, setExcludeConsultas] = useState(true);
   const [step, setStep] = useState<"columns" | "companies">("columns");
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
 
   const companyHintKey = companyMappingConfig?.companyHintKey ?? "company_hint";
   const companyHintCol = mapping[companyHintKey];
   const hasCompanyStep =
     !!companyMappingConfig && !!companyHintCol && companyHintCol !== NONE;
+
+  // Detecta coluna de setor / centro de custo (mesma heurística da conciliação do lote)
+  const sectorCol = useMemo(() => {
+    return headers.find((k) => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("setor") || n.includes("centro") || n.includes("custos");
+    }) ?? null;
+  }, [headers]);
+
+  const availableSectors = useMemo(() => {
+    if (!sectorCol) return [] as string[];
+    const set = new Set<string>();
+    for (const r of rows) {
+      const v = String(r[sectorCol] ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [rows, sectorCol]);
+
+  // Linhas efetivas após o filtro de setor — aplicado antes do mapeamento e contagens.
+  const filteredRows = useMemo(() => {
+    if (!sectorCol || selectedSectors.length === 0) return rows;
+    return rows.filter((r) => selectedSectors.includes(String(r[sectorCol] ?? "").trim()));
+  }, [rows, sectorCol, selectedSectors]);
 
   useEffect(() => {
     if (open) {
@@ -214,11 +239,12 @@ export default function RetroactiveMappingWizard({
         }
       }
       setMapping(seed);
+      setSelectedSectors([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, headers]);
 
-  const preview = useMemo(() => rows.slice(0, 3), [rows]);
+  const preview = useMemo(() => filteredRows.slice(0, 3), [filteredRows]);
 
   const { valid, dropped, excluded, droppedExamples } = useMemo(() => {
     if (Object.keys(mapping).length === 0)
@@ -230,8 +256,8 @@ export default function RetroactiveMappingWizard({
     let droppedCount = 0;
     const examples: Array<{ row_index: number; missing: string[] }> = [];
     const requiredTargets = targets.filter((t) => t.required);
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
+    for (let i = 0; i < filteredRows.length; i++) {
+      const r = filteredRows[i];
       if (showExcludeConsultas && excludeConsultas && descCol && descCol !== NONE) {
         const desc = String(r[descCol] ?? "");
         if (EXCLUDE_REGEX.test(desc)) {
@@ -248,7 +274,7 @@ export default function RetroactiveMappingWizard({
       }
     }
     return { valid: built, dropped: droppedCount, excluded: excludedCount, droppedExamples: examples };
-  }, [rows, mapping, excludeConsultas, targets, showExcludeConsultas]);
+  }, [filteredRows, mapping, excludeConsultas, targets, showExcludeConsultas]);
 
   const missingRequired = targets.filter(
     (t) => t.required && (!mapping[t.key] || mapping[t.key] === NONE),
@@ -426,6 +452,68 @@ export default function RetroactiveMappingWizard({
                 </div>
               )}
 
+              {sectorCol && availableSectors.length > 0 && (
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Filtrar por setor / centro de custo</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Coluna detectada: <span className="font-mono">{sectorCol}</span>. Selecione apenas os setores pertinentes — deixe todos desmarcados para incluir a base completa.
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[11px]"
+                        onClick={() => setSelectedSectors(availableSectors)}
+                      >
+                        Todos
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[11px]"
+                        onClick={() => setSelectedSectors([])}
+                      >
+                        Limpar
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {availableSectors.map((sector) => {
+                      const checked = selectedSectors.includes(sector);
+                      const count = rows.filter((r) => String(r[sectorCol] ?? "").trim() === sector).length;
+                      return (
+                        <label
+                          key={sector}
+                          className={`flex items-center gap-2 rounded px-2 py-1 cursor-pointer text-xs ${
+                            checked ? "bg-primary/10" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() =>
+                              setSelectedSectors((prev) =>
+                                checked ? prev.filter((s) => s !== sector) : [...prev, sector],
+                              )
+                            }
+                          />
+                          <span className="flex-1 truncate">{sector}</span>
+                          <span className="text-[10px] text-muted-foreground">{count}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    <strong>{selectedSectors.length}</strong> setor(es) selecionado(s) ·{" "}
+                    <strong className="text-foreground">{filteredRows.length}</strong> de {rows.length} linha(s) considerada(s)
+                  </p>
+                </div>
+              )}
+
               {extraConfig}
 
               <div>
@@ -462,6 +550,14 @@ export default function RetroactiveMappingWizard({
                 <Badge variant="outline" className="text-[10px]">
                   {rows.length} no arquivo
                 </Badge>
+                {sectorCol && selectedSectors.length > 0 && (
+                  <>
+                    <span className="text-muted-foreground">→</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {filteredRows.length} após filtro de setor
+                    </Badge>
+                  </>
+                )}
                 <span className="text-muted-foreground">=</span>
                 <Badge variant="default" className="text-[10px]">{valid.length} válidas</Badge>
                 <span className="text-muted-foreground">+</span>
