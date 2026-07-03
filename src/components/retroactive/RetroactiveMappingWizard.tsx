@@ -198,11 +198,36 @@ export default function RetroactiveMappingWizard({
   const [excludeConsultas, setExcludeConsultas] = useState(true);
   const [step, setStep] = useState<"columns" | "companies">("columns");
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
 
   const companyHintKey = companyMappingConfig?.companyHintKey ?? "company_hint";
   const companyHintCol = mapping[companyHintKey];
   const hasCompanyStep =
     !!companyMappingConfig && !!companyHintCol && companyHintCol !== NONE;
+
+  // Detecta coluna de setor / centro de custo (mesma heurística da conciliação do lote)
+  const sectorCol = useMemo(() => {
+    return headers.find((k) => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("setor") || n.includes("centro") || n.includes("custos");
+    }) ?? null;
+  }, [headers]);
+
+  const availableSectors = useMemo(() => {
+    if (!sectorCol) return [] as string[];
+    const set = new Set<string>();
+    for (const r of rows) {
+      const v = String(r[sectorCol] ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [rows, sectorCol]);
+
+  // Linhas efetivas após o filtro de setor — aplicado antes do mapeamento e contagens.
+  const filteredRows = useMemo(() => {
+    if (!sectorCol || selectedSectors.length === 0) return rows;
+    return rows.filter((r) => selectedSectors.includes(String(r[sectorCol] ?? "").trim()));
+  }, [rows, sectorCol, selectedSectors]);
 
   useEffect(() => {
     if (open) {
@@ -214,6 +239,7 @@ export default function RetroactiveMappingWizard({
         }
       }
       setMapping(seed);
+      setSelectedSectors([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, headers]);
