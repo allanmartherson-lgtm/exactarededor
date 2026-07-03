@@ -978,7 +978,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
 }
 
 function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) {
-  const hospitalId = useActiveHospitalId();
+  // hospitalId não usado neste view — companies aqui é cadastro estadual (sem escopo por hospital)
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
   const [companyName, setCompanyName] = useState<string>("");
