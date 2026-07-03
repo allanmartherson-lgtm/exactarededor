@@ -3803,11 +3803,25 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       </details>
 
       {/* Step 3 — Process */}
-      <div className="flex items-center gap-2">
-        <Button onClick={process} disabled={isLocked || processing || tasyRows.length === 0 || pagRows.length === 0}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          onClick={async () => {
+            if (tasyRows.length > 0 && pagRows.length === 0 && !loadingPayments) {
+              await loadPaymentItems(recon);
+            }
+            void process();
+          }}
+          disabled={isLocked || processing || loadingPayments || tasyRows.length === 0}
+        >
           <PlayIcon className="h-4 w-4 mr-1" />
-          {processing ? "Processando…" : "Processar"}
+          {processing ? "Processando…" : loadingPayments ? "Buscando repasse…" : "Processar"}
         </Button>
+        {tasyRows.length === 0 && (
+          <span className="text-[11px] text-muted-foreground">Carregue a base TASY (etapa 1) para habilitar.</span>
+        )}
+        {tasyRows.length > 0 && pagRows.length === 0 && !loadingPayments && (
+          <span className="text-[11px] text-muted-foreground">Repasse ainda não buscado — vamos buscar automaticamente ao processar.</span>
+        )}
         {(tasyRows.length > 0 || pagRows.length > 0) && (
           <Button variant="outline" size="sm" onClick={() => void clearAll()} disabled={isLocked}>Limpar tudo</Button>
         )}
