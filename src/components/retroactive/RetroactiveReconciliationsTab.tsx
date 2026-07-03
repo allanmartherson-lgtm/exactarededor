@@ -915,18 +915,19 @@ function NewView({
 
         <div>
           <Label>De</Label>
-          <DateInput value={start} onChange={setStart} />
+          <DatePickerCombo value={start} onChange={setStart} />
         </div>
         <div>
           <Label>Até</Label>
-          <DateInput value={end} onChange={setEnd} />
+          <DatePickerCombo value={end} onChange={setEnd} />
         </div>
         <div className="md:col-span-2">
-          <Label>Título (opcional)</Label>
+          <Label>Título <span className="text-destructive">*</span></Label>
           <Input
             placeholder="Ex.: Falta de pagamentos março/2026"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            required
           />
         </div>
       </div>
