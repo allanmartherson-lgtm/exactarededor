@@ -34,6 +34,8 @@ function r(overrides: Partial<TvrResult>): TvrResult {
     dif_qtd: 0,
     dif_valor: 0,
     valor_recuperar_acordo: 0,
+    valor_com_acordo_recalc: 0,
+    ajuste_acordo: 0,
     status: "ok",
     ...overrides,
   };
