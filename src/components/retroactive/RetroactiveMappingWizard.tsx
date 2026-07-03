@@ -550,6 +550,14 @@ export default function RetroactiveMappingWizard({
                 <Badge variant="outline" className="text-[10px]">
                   {rows.length} no arquivo
                 </Badge>
+                {sectorCol && selectedSectors.length > 0 && (
+                  <>
+                    <span className="text-muted-foreground">→</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {filteredRows.length} após filtro de setor
+                    </Badge>
+                  </>
+                )}
                 <span className="text-muted-foreground">=</span>
                 <Badge variant="default" className="text-[10px]">{valid.length} válidas</Badge>
                 <span className="text-muted-foreground">+</span>
