@@ -549,7 +549,7 @@ export const TASY_TARGETS: TargetField[] = [
   { key: "tasy_atendimento", label: "Número do atendimento", required: true, aliases: ["atendiment", "atend", "guia", "natendimento", "nratendimento"] },
   { key: "tasy_tuss", label: "Código TUSS (8 dígitos)", required: true, aliases: ["tuss", "codtuss", "codprocedi", "codigoprocedimento", "codigo"] },
   { key: "tasy_qtd", label: "Quantidade", required: true, aliases: ["quantidade", "qtd", "qtde", "qtditem"] },
-  { key: "tasy_valor_unit", label: "Valor unitário (base 100%)", required: true, aliases: ["valorunit", "valorunitario", "vlrunit", "vlrunitario", "unitario", "valor"] },
+  { key: "tasy_valor_unit", label: "Valor total da linha (valor × qtd, base 100%)", required: true, aliases: ["valortotal", "vlrtotal", "valorlinha", "valor", "valorunit", "valorunitario", "vlrunit", "vlrunitario", "unitario"] },
   { key: "tasy_procedimento", label: "Descrição do procedimento", required: false, aliases: ["procedimento", "descricao", "descrprocedi", "nomeprocedimento", "matmed"] },
   { key: "tasy_paciente", label: "Nome do paciente", required: false, aliases: ["paciente", "nomepaciente", "nmpaciente"] },
   { key: "tasy_data", label: "Data do procedimento", required: false, aliases: ["datacir", "dataprocedi", "datacirurgia", "data"] },

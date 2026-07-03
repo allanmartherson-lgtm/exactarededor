@@ -3064,34 +3064,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         valor_unit_first: number;
         sample: TasyRow;
       };
-      type TasyCandidate = { qtd: number; asLineTotal: number; asUnitValue: number };
-      const candidates = new Map<string, TasyCandidate>();
-      for (const r of effectiveTasyRows) {
-        if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
-        if (isExcludedConv(r.tasy_convenio)) continue;
-        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, resolveTasyDoctorId(r), r.tasy_medico, nameToDoctorId);
-        const q = num(r.tasy_qtd) || 1;
-        const v = num(r.tasy_valor_unit);
-        const cur = candidates.get(key);
-        if (cur) {
-          cur.qtd += q;
-          cur.asLineTotal += v;
-          cur.asUnitValue += v * q;
-        } else {
-          candidates.set(key, { qtd: q, asLineTotal: v, asUnitValue: v * q });
-        }
-      }
-      let lineTotalDelta = 0;
-      let unitValueDelta = 0;
-      let comparable = 0;
-      for (const [key, c] of candidates) {
-        const paidBase = pMap.get(key)?.valor_base ?? 0;
-        if (paidBase <= 0 || Math.abs(c.asLineTotal - c.asUnitValue) <= 0.01) continue;
-        lineTotalDelta += Math.abs(c.asLineTotal - paidBase);
-        unitValueDelta += Math.abs(c.asUnitValue - paidBase);
-        comparable++;
-      }
-      const tasyValueIsLineTotal = comparable > 0 && lineTotalDelta < unitValueDelta;
+      // Coluna "Valor" do relatório TASY é o TOTAL da linha (já multiplicado por qtd).
+      // Nunca multiplicar novamente por quantidade — inflacionaria totais e complementos.
+      const tasyValueIsLineTotal = true;
 
       const tMap = new Map<string, TAgg>();
       for (const r of effectiveTasyRows) {
@@ -3110,6 +3085,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           tMap.set(key, { atendimento: r.tasy_atendimento, tuss: r.tasy_tuss, qtd: q, valor_total: lineTotal, valor_unit_first: unitValue, sample: r });
         }
       }
+
 
       const allKeys = new Set<string>([...tMap.keys(), ...pMap.keys()]);
       const out: TvrResult[] = [];
