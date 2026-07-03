@@ -129,21 +129,33 @@ export function CompanyMappingList({
                   Confirmar
                 </Button>
               )}
-              <select
-                value={mapped ?? "__ignore__"}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  onChange(row.key, val === "__ignore__" ? null : val);
-                }}
-                className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[260px]"
-              >
-                <option value="__ignore__">{ignoreLabel}</option>
-                {options.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {variant === "select" ? (
+                <select
+                  value={mapped ?? "__ignore__"}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onChange(row.key, val === "__ignore__" ? null : val);
+                  }}
+                  className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[260px]"
+                >
+                  <option value="__ignore__">{ignoreLabel}</option>
+                  {options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <label className="flex items-center gap-2 text-xs shrink-0 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={mapped != null}
+                    onChange={(e) => onChange(row.key, e.target.checked ? row.key : null)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Incluir
+                </label>
+              )}
               {extraColumn && <div className="shrink-0">{extraColumn(row)}</div>}
             </div>
           );
