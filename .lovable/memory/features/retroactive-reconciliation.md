@@ -15,7 +15,7 @@ Em /pendencias → aba "Conciliação retroativa", o analista escolhe o modo ao 
 **Modo 2 — tasy_vs_repasse** (TASY externo + repasse do sistema):
 - Compara base TASY (realizado, upload .xlsx/.csv) com o repasse **já gravado no sistema**: após o analista confirmar o mapeamento do TASY, o componente faz query automática em `payment_items` (filtros: doctor_id e/ou company_id da apuração + procedure_date entre period_start−90d e period_end+90d, limit 5000) e usa o resultado como fonte de repasse.
 - Coluna usada como valor base de repasse: `procedure_amount` (valor 100% sem acordo). `expected_amount` e `gross_amount` carregam o acordo e NÃO são usados nesta comparação.
-- Chave: `attendance_number + procedure_code(8d)`.
+- Chave TVR: `attendance_number + procedure_code` normalizado pelo prefixo comum de 7 dígitos, porque alguns relatórios TASY exportam TUSS com 7 dígitos enquanto `payment_items` grava o código completo com 8. O display pode manter o TUSS original, mas matching/agregação/filtro de exclusão usam a chave compatível.
 - TASY agregado: Qtd_TASY = SUM(qtd); Valor_TASY = SUM(valor_unit × qtd).
 - Repasse agregado: Qtd_Pag_Total, N_Funcs = COUNT DISTINCT(doctor_role), Qtd_por_Func = Qtd_Pag_Total / N_Funcs, Valor_Pag = SUM(procedure_amount).
 - Status TVR (nomes canônicos, gravados direto em `retroactive_reconciliation_items.classification` — não há CHECK constraint): `nao_pago`, `div_qtd_valor`, `div_valor`, `pago_a_mais`, `ausente_tasy`, `ok` (gravado como `ok_pago` por compatibilidade). Rótulos UI: "Não Pago", "Div. Qtd / Valor", "Div. Valor", "Pago a mais", "Ausente TASY", "OK". Div. Qtd isolada (qtd diverge mas valor bate) cai em OK — não é acionável e gera falso positivo em multi-segmento/vias de acesso.
