@@ -2646,7 +2646,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             const part = await fetchAllPaginated<Record<string, unknown>>((from, to) =>
               supabase
                 .from("payment_items" as never)
-                .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id")
+                .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method")
                 .gte("procedure_date", startYmd)
                 .lte("procedure_date", endYmd)
                 .in("attendance_number", chunk)
@@ -2658,7 +2658,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           data = await fetchAllPaginated<Record<string, unknown>>((from, to) => {
             let q = supabase
               .from("payment_items" as never)
-              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id")
+              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method")
               .gte("procedure_date", startYmd)
               .lte("procedure_date", endYmd);
             if (isMulti) {
