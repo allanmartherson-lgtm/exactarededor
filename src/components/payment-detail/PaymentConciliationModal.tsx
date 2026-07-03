@@ -1228,14 +1228,20 @@ export function PaymentConciliationModal({
       // Convênios listados pelo analista (ex.: Sul América/Particular que operam
       // por pacote/tratativa manual). Itens desses convênios são removidos das
       // DUAS bases antes do cruzamento — não geram só_hospital/só_exacta.
-      const excludedConvNorm = new Set(excludedConvenios.map(normAgreement).filter(Boolean));
+      // === FILTRO — Convênios excluídos da análise ===
+      // Convênios listados pelo analista (ex.: Sul América/Particular que operam
+      // por pacote/tratativa manual). Itens desses convênios são removidos das
+      // DUAS bases antes do cruzamento — não geram só_hospital/só_exacta.
+      // A chave usada aqui é canônica (slug do cadastro quando disponível),
+      // então "Sul América" e "SUL AMERICA SAUDE S/A" batem no mesmo bucket.
+      const excludedConvKeys = new Set(excludedConvenios);
       let exactaRemovedByConvenio = 0;
-      if (excludedConvNorm.size > 0) {
+      if (excludedConvKeys.size > 0) {
         const before = exactaItemsForRun.length;
         const kept = exactaItemsForRun.filter((it) => {
-          const n = normAgreement((it as any).agreement_text);
-          if (!n) return true; // sem convênio informado → não descarta
-          return !excludedConvNorm.has(n);
+          const resolved = resolveConvenioKey((it as any).agreement_text);
+          if (!resolved) return true; // sem convênio informado → não descarta
+          return !excludedConvKeys.has(resolved.key);
         });
         exactaRemovedByConvenio = before - kept.length;
         if (exactaRemovedByConvenio > 0) {
