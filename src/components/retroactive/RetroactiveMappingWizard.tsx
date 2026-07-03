@@ -244,7 +244,7 @@ export default function RetroactiveMappingWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, headers]);
 
-  const preview = useMemo(() => rows.slice(0, 3), [rows]);
+  const preview = useMemo(() => filteredRows.slice(0, 3), [filteredRows]);
 
   const { valid, dropped, excluded, droppedExamples } = useMemo(() => {
     if (Object.keys(mapping).length === 0)
@@ -256,8 +256,8 @@ export default function RetroactiveMappingWizard({
     let droppedCount = 0;
     const examples: Array<{ row_index: number; missing: string[] }> = [];
     const requiredTargets = targets.filter((t) => t.required);
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
+    for (let i = 0; i < filteredRows.length; i++) {
+      const r = filteredRows[i];
       if (showExcludeConsultas && excludeConsultas && descCol && descCol !== NONE) {
         const desc = String(r[descCol] ?? "");
         if (EXCLUDE_REGEX.test(desc)) {
@@ -274,7 +274,7 @@ export default function RetroactiveMappingWizard({
       }
     }
     return { valid: built, dropped: droppedCount, excluded: excludedCount, droppedExamples: examples };
-  }, [rows, mapping, excludeConsultas, targets, showExcludeConsultas]);
+  }, [filteredRows, mapping, excludeConsultas, targets, showExcludeConsultas]);
 
   const missingRequired = targets.filter(
     (t) => t.required && (!mapping[t.key] || mapping[t.key] === NONE),
