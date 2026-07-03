@@ -4105,7 +4105,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[65vh] rounded border border-border">
+
               <Table>
                 <TableHeader>
                   <TableRow>
