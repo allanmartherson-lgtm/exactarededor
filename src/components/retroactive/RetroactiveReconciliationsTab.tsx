@@ -574,7 +574,8 @@ function NewView({
       }
     }
     setSaving(true);
-    const summary: Record<string, unknown> = { mode, scope };
+    const effectiveScope: "individual" | "multi_pj" = isMulti ? "multi_pj" : "individual";
+    const summary: Record<string, unknown> = { mode, scope: effectiveScope };
     if (isMulti) {
       summary.multi_company_ids = multiCompanyIds;
       summary.multi_doctor_ids = multiDoctorIds;
