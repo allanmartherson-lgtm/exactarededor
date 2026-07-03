@@ -556,6 +556,7 @@ export const TASY_TARGETS: TargetField[] = [
   { key: "tasy_convenio", label: "Convênio", required: false, aliases: ["convenio", "plano", "operadora"] },
   { key: "tasy_medico", label: "Médico executante", required: false, aliases: ["medico", "executante", "executor", "nomemedico"] },
   { key: "tasy_funcao", label: "Função", required: false, aliases: ["funcao", "papel"] },
+  { key: "tasy_empresa", label: "Empresa / PJ (Terceiro)", required: false, aliases: ["empresa", "pj", "terceiro", "prestador", "razaosocial", "cnpj", "fornecedor"] },
 ];
 
 export const REPASSE_TARGETS: TargetField[] = [
