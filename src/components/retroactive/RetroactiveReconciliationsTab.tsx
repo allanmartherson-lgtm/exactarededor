@@ -1913,9 +1913,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         return;
       }
 
-      const rawItems = data;
-      const paymentIds = Array.from(new Set(rawItems.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
+      const rawItemsAll = data;
+      const paymentIds = Array.from(new Set(rawItemsAll.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
       const loteByPaymentId = new Map<string, string>();
+      const compByPaymentId = new Map<string, string>();
       if (paymentIds.length > 0) {
         const { data: paymentsData } = await supabase
           .from("payments" as never)
@@ -1926,8 +1927,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const comp = p.competence_month ? String(p.competence_month).slice(0, 7) : "";
           const label = ref || (comp ? `Comp. ${comp}` : String(p.id).slice(0, 8));
           loteByPaymentId.set(String(p.id), label);
+          if (comp) compByPaymentId.set(String(p.id), comp);
         }
       }
+
+      // Filtra sistema estritamente pela competência do lote (mês do period_start da apuração).
+      // Ex.: apuração de abril → só considera itens de payments com competence_month = 'YYYY-04'.
+      const targetCompetence = String(r.period_start ?? "").slice(0, 7);
+      const rawItems = targetCompetence
+        ? rawItemsAll.filter((it) => {
+            const pid = String(it.payment_id ?? "");
+            if (!pid) return false;
+            return compByPaymentId.get(pid) === targetCompetence;
+          })
+        : rawItemsAll;
+      const droppedByCompetence = rawItemsAll.length - rawItems.length;
+
       const rows: PagRow[] = rawItems.map((row) => ({
         pag_atendimento: normAtt(String(row.attendance_number ?? "")),
         pag_tuss: normTuss(String(row.procedure_code ?? "")),
