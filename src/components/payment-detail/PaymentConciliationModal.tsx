@@ -564,6 +564,17 @@ export function PaymentConciliationModal({
     keepCompanies: string[];
   } | null>(null);
 
+  // Convênios excluídos da análise de conciliação.
+  // Uso típico: convênios que operam por pacote/tratativa manual (Sul América,
+  // Particular, etc.). Itens desses convênios são removidos das duas bases
+  // (Exacta e hospitalar) antes do cruzamento — não geram só_hospital/só_exacta.
+  const [excludedConvenios, setExcludedConvenios] = useState<string[]>([]);
+  const [convenioFilterStats, setConvenioFilterStats] = useState<{
+    excluded: string[];
+    exactaRemoved: number;
+    hospitalRemoved: number;
+  } | null>(null);
+
   const loteCompanies = useMemo(
     () =>
       Array.from(
@@ -571,6 +582,26 @@ export function PaymentConciliationModal({
       ).sort(),
     [paymentItems],
   );
+
+  // Convênios distintos presentes na base Exacta deste pagamento.
+  // Usado para popular o multi-select de exclusão.
+  const availableConvenios = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of paymentItems) {
+      const raw = ((it as any).agreement_text ?? "").toString().trim();
+      if (raw) set.add(raw);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [paymentItems]);
+
+  // Normalização usada para comparar convênios entre bases: sem acento,
+  // minúsculo, só alfanumérico. Ex.: "Sul América" == "SUL AMERICA" == "SulAmerica".
+  const normAgreement = (s: unknown): string =>
+    String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
 
   // Resolução nome→id (gravar exacta_company_id no histórico).
   const companyNameToId = useMemo(() => {
@@ -1139,9 +1170,37 @@ export function PaymentConciliationModal({
         exactaItemsForRun.length = 0;
         exactaItemsForRun.push(...kept);
       }
-      if (exactaItemsForRun.length === 0) {
-        throw new Error("Não encontrei itens Exacta elegíveis para conciliação (após filtrar bônus/complemento/manuais).");
+
+      // === FILTRO — Convênios excluídos da análise ===
+      // Convênios listados pelo analista (ex.: Sul América/Particular que operam
+      // por pacote/tratativa manual). Itens desses convênios são removidos das
+      // DUAS bases antes do cruzamento — não geram só_hospital/só_exacta.
+      const excludedConvNorm = new Set(excludedConvenios.map(normAgreement).filter(Boolean));
+      let exactaRemovedByConvenio = 0;
+      if (excludedConvNorm.size > 0) {
+        const before = exactaItemsForRun.length;
+        const kept = exactaItemsForRun.filter((it) => {
+          const n = normAgreement((it as any).agreement_text);
+          if (!n) return true; // sem convênio informado → não descarta
+          return !excludedConvNorm.has(n);
+        });
+        exactaRemovedByConvenio = before - kept.length;
+        if (exactaRemovedByConvenio > 0) {
+          console.log('[Conciliação] Convênios excluídos (Exacta):', {
+            excluded: Array.from(excludedConvenios),
+            before,
+            removed: exactaRemovedByConvenio,
+            restantes: kept.length,
+          });
+        }
+        exactaItemsForRun.length = 0;
+        exactaItemsForRun.push(...kept);
       }
+
+      if (exactaItemsForRun.length === 0) {
+        throw new Error("Não encontrei itens Exacta elegíveis para conciliação (após filtros de bônus/complemento/manuais/convênios excluídos).");
+      }
+
 
       // === FILTRO DE COMPETÊNCIA — Pagamentos por remessa ===
       // Regra de negócio (Rede D'Or):
@@ -1392,6 +1451,38 @@ export function PaymentConciliationModal({
       } else {
         console.warn('[Conciliação] filtro de competência DESLIGADO — Exacta sem procedure_date ou produção sem coluna de data mapeada.');
       }
+
+      // Aplica exclusão de convênios também na base hospitalar (mesmo conjunto
+      // usado para a Exacta acima). Sem coluna de convênio mapeada, avisa e
+      // segue sem filtrar o hospital.
+      let hospitalRemovedByConvenio = 0;
+      if (excludedConvNorm.size > 0) {
+        const colAgr = srcColMap['agreement'] ?? null;
+        if (colAgr) {
+          const before = rowsParaCruzamento.length;
+          rowsParaCruzamento = rowsParaCruzamento.filter((row) => {
+            const n = normAgreement(row[colAgr]);
+            if (!n) return true;
+            return !excludedConvNorm.has(n);
+          });
+          hospitalRemovedByConvenio = before - rowsParaCruzamento.length;
+          console.log('[Conciliação] Convênios excluídos (Hospital):', {
+            excluded: Array.from(excludedConvenios),
+            before,
+            removed: hospitalRemovedByConvenio,
+            restantes: rowsParaCruzamento.length,
+          });
+        } else {
+          console.warn('[Conciliação] Convênios excluídos: coluna de convênio NÃO mapeada na produção — filtro aplicado só na Exacta.');
+        }
+      }
+      setConvenioFilterStats({
+        excluded: Array.from(excludedConvenios),
+        exactaRemoved: exactaRemovedByConvenio,
+        hospitalRemoved: hospitalRemovedByConvenio,
+      });
+
+
 
 
 
@@ -4197,6 +4288,82 @@ export function PaymentConciliationModal({
                   </div>
                 </div>
               )}
+
+              {/* Filtro: convênios excluídos da análise */}
+              <details className="border border-border rounded-lg text-xs bg-card">
+                <summary className="cursor-pointer px-4 py-2.5 flex items-center gap-2 select-none">
+                  <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="font-medium text-foreground">Excluir convênios da análise</span>
+                  {excludedConvenios.length > 0 ? (
+                    <span className="ml-auto px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                      {excludedConvenios.length} convênio(s) excluído(s)
+                    </span>
+                  ) : (
+                    <span className="ml-auto text-muted-foreground text-[11px]">nenhum</span>
+                  )}
+                </summary>
+                <div className="px-4 py-3 space-y-3 border-t border-border">
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    Selecione convênios que operam por <strong>pacote / tratativa manual</strong> (ex.: Sul América, Particular).
+                    Itens desses convênios são <strong>removidos das duas bases</strong> antes do cruzamento — não geram
+                    "só no hospital" nem "só no Exacta". Após alterar, clique em <strong>Reprocessar agora</strong>.
+                  </p>
+                  {availableConvenios.length === 0 ? (
+                    <p className="text-muted-foreground italic">Nenhum convênio identificado na base Exacta.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                      {availableConvenios.map((conv) => {
+                        const checked = excludedConvenios.includes(conv);
+                        const count = paymentItems.filter(
+                          (it) => ((it as any).agreement_text ?? "").toString().trim() === conv,
+                        ).length;
+                        return (
+                          <label
+                            key={conv}
+                            className={cn(
+                              "flex items-center gap-2 px-2.5 py-1.5 rounded border cursor-pointer transition-colors",
+                              checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setExcludedConvenios((prev) =>
+                                  checked ? prev.filter((c) => c !== conv) : [...prev, conv],
+                                )
+                              }
+                              className="h-3.5 w-3.5 rounded"
+                              style={{ accentColor: "hsl(var(--primary))" }}
+                            />
+                            <span className="flex-1 truncate text-[11px]">{conv}</span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">{count}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {excludedConvenios.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                        onClick={() => setExcludedConvenios([])}
+                      >
+                        Limpar seleção
+                      </button>
+                      {convenioFilterStats && convenioFilterStats.excluded.length > 0 && (
+                        <span className="text-[11px] text-muted-foreground">
+                          Último processamento: <strong className="text-foreground">{convenioFilterStats.exactaRemoved}</strong> item(ns) Exacta e{' '}
+                          <strong className="text-foreground">{convenioFilterStats.hospitalRemoved}</strong> item(ns) hospital removido(s).
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </details>
+
+
 
 
 
