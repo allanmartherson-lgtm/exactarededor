@@ -155,6 +155,7 @@ type ReconRow = {
   id: string;
   doctor_id: string | null;
   company_id: string | null;
+  hospital_id?: string | null;
   period_start: string;
   period_end: string;
   status: "em_analise" | "concluida" | "cancelada";
@@ -2000,6 +2001,7 @@ type PagRow = {
   pag_payment_item_id?: string;
   pag_payment_id?: string;
   pag_doctor_id?: string;
+  pag_company_id?: string;
 };
 
 
@@ -2632,7 +2634,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             const part = await fetchAllPaginated<Record<string, unknown>>((from, to) =>
               supabase
                 .from("payment_items" as never)
-                .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
+                .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id")
                 .gte("procedure_date", startYmd)
                 .lte("procedure_date", endYmd)
                 .in("attendance_number", chunk)
@@ -2644,7 +2646,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           data = await fetchAllPaginated<Record<string, unknown>>((from, to) => {
             let q = supabase
               .from("payment_items" as never)
-              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
+              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id")
               .gte("procedure_date", startYmd)
               .lte("procedure_date", endYmd);
             if (isMulti) {
@@ -2721,6 +2723,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_payment_item_id: row.id ? String(row.id) : "",
         pag_payment_id: row.payment_id ? String(row.payment_id) : "",
         pag_doctor_id: row.doctor_id ? String(row.doctor_id) : "",
+        pag_company_id: row.company_id ? String(row.company_id) : "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
 
       setPagRows(rows);
@@ -2854,15 +2857,100 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const isExcludedConv = (raw: unknown) => excludedConvSet.size > 0 && excludedConvSet.has(normConv(raw));
       let convTasyRemoved = 0;
       let convPagRemoved = 0;
+      let companyTasyRemoved = 0;
 
       // Índice nome→doctor_id extraído do lado Repasse. Permite ao lado TASY
       // (que só tem o nome) cair em `d:<id>` e casar com o Repasse.
       const nameToDoctorId = new Map<string, string>();
+      // Índice `${company_id}|${nomeNorm}` → doctor_id. Serve pra desambiguar
+      // médicos homônimos que atendem por PJs diferentes — quando a linha TASY
+      // trouxer a empresa, priorizamos o doctor_id daquela PJ.
+      const nameByCompanyToDoctor = new Map<string, string>();
       for (const r of effectivePagRows) {
         const did = (r.pag_doctor_id ?? "").trim();
         const nn = normDoctorName(r.pag_medico);
+        const cid = (r.pag_company_id ?? "").trim();
         if (did && nn && !nameToDoctorId.has(nn)) nameToDoctorId.set(nn, did);
+        if (did && nn && cid) {
+          const k = `${cid}|${nn}`;
+          if (!nameByCompanyToDoctor.has(k)) nameByCompanyToDoctor.set(k, did);
+        }
       }
+
+      // Resolver PJ (Terceiro) do TASY → company_id. Aceita CNPJ (dígitos) ou
+      // razão social; casa contra `companies` do hospital da apuração.
+      const normCompanyName = (s: unknown) =>
+        String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const companyByDoc = new Map<string, string>();
+      const companyByName = new Map<string, string>();
+      try {
+        const { data: companiesData } = await supabase
+          .from("companies" as never)
+          .select("id, name, document")
+          .eq("hospital_id", recon?.hospital_id ?? "");
+        for (const c of (companiesData ?? []) as Array<Record<string, unknown>>) {
+          const docDigits = String(c.document ?? "").replace(/\D+/g, "");
+          const cid = String(c.id ?? "");
+          if (!cid) continue;
+          if (docDigits) companyByDoc.set(docDigits, cid);
+          const nn = normCompanyName(c.name);
+          if (nn && !companyByName.has(nn)) companyByName.set(nn, cid);
+        }
+      } catch (e) {
+        console.warn("TVR: falha carregando companies para resolver empresa do TASY", e);
+      }
+      const resolveTasyCompany = (raw: string | undefined): string | null => {
+        const s = String(raw ?? "").trim();
+        if (!s) return null;
+        const digits = s.replace(/\D+/g, "");
+        if (digits.length >= 11) {
+          const hit = companyByDoc.get(digits) || (digits.length > 14 ? companyByDoc.get(digits.slice(-14)) : undefined);
+          if (hit) return hit;
+        }
+        const nn = normCompanyName(s);
+        return companyByName.get(nn) ?? null;
+      };
+
+      // Escopo de PJs da apuração — usado pra filtrar linhas TASY que sejam de
+      // empresas fora do escopo (só descarta quando conseguimos resolver o
+      // empresa da linha; linhas sem `tasy_empresa` seguem no cruzamento).
+      const scopedCompanyIds = new Set<string>();
+      const summaryScope = (recon?.summary as Record<string, unknown> | null) ?? {};
+      const reconMultiCompanyIds = ((summaryScope.multi_company_ids as string[] | undefined) ?? []).filter(Boolean);
+      const reconIsMulti = summaryScope.scope === "multi_pj" && reconMultiCompanyIds.length > 0;
+      if (reconIsMulti) {
+        for (const cid of reconMultiCompanyIds) if (cid) scopedCompanyIds.add(String(cid));
+      } else if (recon?.company_id) {
+        scopedCompanyIds.add(String(recon.company_id));
+      } else {
+        for (const r of effectivePagRows) if (r.pag_company_id) scopedCompanyIds.add(r.pag_company_id);
+      }
+
+      const tasyCompanyByRow = new Map<TasyRow, string | null>();
+      const effectiveTasyRows: TasyRow[] = [];
+      for (const r of tasyRows) {
+        const cid = resolveTasyCompany(r.tasy_empresa);
+        tasyCompanyByRow.set(r, cid);
+        if (r.tasy_empresa && cid && scopedCompanyIds.size > 0 && !scopedCompanyIds.has(cid)) {
+          companyTasyRemoved++;
+          continue;
+        }
+        effectiveTasyRows.push(r);
+      }
+
+      // Resolve doctor_id da linha TASY: PJ+nome tem prioridade sobre só-nome.
+      const resolveTasyDoctorId = (row: TasyRow): string | undefined => {
+        const nn = normDoctorName(row.tasy_medico);
+        if (!nn) return undefined;
+        const cid = tasyCompanyByRow.get(row);
+        if (cid) {
+          const v = nameByCompanyToDoctor.get(`${cid}|${nn}`);
+          if (v) return v;
+        }
+        return nameToDoctorId.get(nn);
+      };
+
+
 
 
       // Aggregate Repasse by (atendimento, data, tuss8, médico)
@@ -2946,10 +3034,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       };
       type TasyCandidate = { qtd: number; asLineTotal: number; asUnitValue: number };
       const candidates = new Map<string, TasyCandidate>();
-      for (const r of tasyRows) {
+      for (const r of effectiveTasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
         if (isExcludedConv(r.tasy_convenio)) continue;
-        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, undefined, r.tasy_medico, nameToDoctorId);
+        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, resolveTasyDoctorId(r), r.tasy_medico, nameToDoctorId);
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const cur = candidates.get(key);
@@ -2974,10 +3062,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const tasyValueIsLineTotal = comparable > 0 && lineTotalDelta < unitValueDelta;
 
       const tMap = new Map<string, TAgg>();
-      for (const r of tasyRows) {
+      for (const r of effectiveTasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
         if (isExcludedConv(r.tasy_convenio)) { convTasyRemoved++; continue; }
-        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, undefined, r.tasy_medico, nameToDoctorId);
+        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, resolveTasyDoctorId(r), r.tasy_medico, nameToDoctorId);
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const lineTotal = tasyValueIsLineTotal ? v : v * q;
@@ -3110,7 +3198,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         setConvenioFilterStats(excludedConvSet.size > 0 ? { tasyRemoved: convTasyRemoved, pagRemoved: convPagRemoved } : null);
         setSelectedKeys(new Set());
         await loadTvrReconciliation();
-        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
+        const companyMsg = companyTasyRemoved > 0 ? ` · ${companyTasyRemoved} linha(s) TASY fora do escopo de PJ` : "";
+        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas${companyMsg}` });
       } catch (e) {
         const msg = e instanceof Error
           ? e.message
