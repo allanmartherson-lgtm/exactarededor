@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRequireHospital } from "@/hooks/useRequireHospital";
 import { toast } from "sonner";
+import { parseYmdLocal } from "@/lib/dateUtils";
 import {
   Upload,
   CheckCircle2,
