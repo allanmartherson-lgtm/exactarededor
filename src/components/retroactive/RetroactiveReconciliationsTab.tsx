@@ -1700,6 +1700,22 @@ export type TvrResult = {
   matched_payment_id?: string;
   matched_doctor_id?: string;
   matched_doctor_ids?: string[];
+  // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
+  key_audit?: {
+    att: string;
+    date: string;
+    tuss8: string;
+    doctor: {
+      // 'repasse_id' = doctor_id veio direto do payment_items.
+      // 'name_to_id' = TASY só tinha nome, resolveu para id via índice do Repasse.
+      // 'name_only'  = casou por nome normalizado dos dois lados (sem id).
+      // 'missing'    = não foi possível compor a parte do médico.
+      source: "repasse_id" | "name_to_id" | "name_only" | "missing";
+      id?: string;
+      name_raw?: string;
+      name_norm?: string;
+    };
+  };
   status: TvrStatus;
 };
 
