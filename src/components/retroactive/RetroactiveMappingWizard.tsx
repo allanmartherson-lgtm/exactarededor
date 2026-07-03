@@ -452,6 +452,68 @@ export default function RetroactiveMappingWizard({
                 </div>
               )}
 
+              {sectorCol && availableSectors.length > 0 && (
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Filtrar por setor / centro de custo</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Coluna detectada: <span className="font-mono">{sectorCol}</span>. Selecione apenas os setores pertinentes — deixe todos desmarcados para incluir a base completa.
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[11px]"
+                        onClick={() => setSelectedSectors(availableSectors)}
+                      >
+                        Todos
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[11px]"
+                        onClick={() => setSelectedSectors([])}
+                      >
+                        Limpar
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {availableSectors.map((sector) => {
+                      const checked = selectedSectors.includes(sector);
+                      const count = rows.filter((r) => String(r[sectorCol] ?? "").trim() === sector).length;
+                      return (
+                        <label
+                          key={sector}
+                          className={`flex items-center gap-2 rounded px-2 py-1 cursor-pointer text-xs ${
+                            checked ? "bg-primary/10" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() =>
+                              setSelectedSectors((prev) =>
+                                checked ? prev.filter((s) => s !== sector) : [...prev, sector],
+                              )
+                            }
+                          />
+                          <span className="flex-1 truncate">{sector}</span>
+                          <span className="text-[10px] text-muted-foreground">{count}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    <strong>{selectedSectors.length}</strong> setor(es) selecionado(s) ·{" "}
+                    <strong className="text-foreground">{filteredRows.length}</strong> de {rows.length} linha(s) considerada(s)
+                  </p>
+                </div>
+              )}
+
               {extraConfig}
 
               <div>
