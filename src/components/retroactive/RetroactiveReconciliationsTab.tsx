@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
@@ -2472,6 +2472,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const resultTopScrollRef = useRef<HTMLDivElement | null>(null);
+  const resultTableScrollRef = useRef<HTMLDivElement | null>(null);
+  const [resultScrollWidth, setResultScrollWidth] = useState(1);
   const [doctorInfo, setDoctorInfo] = useState<{ id: string | null; name: string | null; crm: string | null }>({ id: null, name: null, crm: null });
   const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
   const [encaminharOpen, setEncaminharOpen] = useState(false);
@@ -3214,6 +3217,37 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const [onlyWithPayment, setOnlyWithPayment] = useState(false);
+
+  useEffect(() => {
+    if (!results) return;
+    const scrollEl = resultTableScrollRef.current;
+    if (!scrollEl) return;
+
+    const updateScrollWidth = () => {
+      setResultScrollWidth(Math.max(scrollEl.scrollWidth, scrollEl.clientWidth, 1));
+      if (resultTopScrollRef.current) resultTopScrollRef.current.scrollLeft = scrollEl.scrollLeft;
+    };
+
+    updateScrollWidth();
+
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateScrollWidth) : null;
+    resizeObserver?.observe(scrollEl);
+    if (scrollEl.firstElementChild) resizeObserver?.observe(scrollEl.firstElementChild);
+    window.addEventListener("resize", updateScrollWidth);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateScrollWidth);
+    };
+  }, [results, visible.length, statusFilter, search, onlyWithPayment]);
+
+  const syncResultScroll = (source: "top" | "table") => {
+    const top = resultTopScrollRef.current;
+    const table = resultTableScrollRef.current;
+    if (!top || !table) return;
+    if (source === "top") table.scrollLeft = top.scrollLeft;
+    else top.scrollLeft = table.scrollLeft;
+  };
 
   const visible = useMemo(() => {
     const list = (results ?? []).filter((r) => r.status !== "ok" || statusFilter === "ok");
