@@ -2584,12 +2584,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setLoadingPayments(true);
     setPaymentsLoaded(false);
     try {
-      // Janela ±90d operada 100% em Y-M-D — nunca passa por `new Date` para
+      // Janela operada 100% em Y-M-D — nunca passa por `new Date` para
       // evitar shift de fuso (ver `assertYmd` + `addDaysYmd` em dateUtils).
       assertYmd(r.period_start, "loadPaymentItems.period_start");
       assertYmd(r.period_end, "loadPaymentItems.period_end");
-      const startYmd = addDaysYmd(r.period_start, -90) ?? String(r.period_start).slice(0, 10);
-      const endYmd = addDaysYmd(r.period_end, 90) ?? String(r.period_end).slice(0, 10);
 
       // Escopo: individual (doctor/company do próprio row) ou multi_pj
       // (arrays em summary.multi_company_ids / summary.multi_doctor_ids).
@@ -2598,6 +2596,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const isMulti = (r.summary?.scope === "multi_pj") && (multiCompanyIds.length > 0 || multiDoctorIds.length > 0);
       const hasScope = Boolean(r.doctor_id || r.company_id) || isMulti;
       const tasyAttendances = Array.from(new Set(sourceTasyRows.map((t) => t.tasy_atendimento).filter(Boolean)));
+
+      // Se o analista fixou os lotes na apuração, apertamos a janela ao
+      // período do lote (sem ±90d) — os payment_ids selecionados já delimitam
+      // o universo, então ampliar a data só faz o Postgres varrer linhas
+      // que serão descartadas depois. Sem lotes selecionados (compat antigo),
+      // mantemos ±90d para pegar "pago em outro mês".
+      const selectedPidsPre = (((r.summary as Record<string, unknown> | null)?.selected_payment_ids ?? []) as string[]).filter(Boolean);
+      const hasSelectedLotes = selectedPidsPre.length > 0;
+      const startYmd = hasSelectedLotes
+        ? String(r.period_start).slice(0, 10)
+        : (addDaysYmd(r.period_start, -90) ?? String(r.period_start).slice(0, 10));
+      const endYmd = hasSelectedLotes
+        ? String(r.period_end).slice(0, 10)
+        : (addDaysYmd(r.period_end, 90) ?? String(r.period_end).slice(0, 10));
 
       if (!hasScope && tasyAttendances.length === 0) {
         toast({
