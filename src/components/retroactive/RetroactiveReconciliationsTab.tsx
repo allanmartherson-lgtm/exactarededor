@@ -2182,6 +2182,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const candidates = new Map<string, TasyCandidate>();
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
+        if (isExcludedConv(r.tasy_convenio)) continue;
         const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
