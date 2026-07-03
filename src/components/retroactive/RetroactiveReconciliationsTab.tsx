@@ -2736,6 +2736,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_payment_id: row.payment_id ? String(row.payment_id) : "",
         pag_doctor_id: row.doctor_id ? String(row.doctor_id) : "",
         pag_company_id: row.company_id ? String(row.company_id) : "",
+        pag_applied_rule_id: row.applied_rule_id ? String(row.applied_rule_id) : "",
+        pag_applied_rule_label: row.applied_rule_label ? String(row.applied_rule_label) : "",
+        pag_applied_calc_id: row.applied_calc_id ? String(row.applied_calc_id) : "",
+        pag_applied_calc_method: row.applied_calc_method ? String(row.applied_calc_method) : "",
       })).filter((x) => x.pag_atendimento && x.pag_tuss);
 
       setPagRows(rows);
