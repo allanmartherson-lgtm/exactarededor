@@ -2166,7 +2166,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const r of pagRows) {
         if (isExcludedTvrTuss(r.pag_tuss, excluded)) continue;
         if (isExcludedConv(r.pag_convenio)) { convPagRemoved++; continue; }
-        const key = `${r.pag_atendimento}|${tvrTussKey(r.pag_tuss)}`;
+        const key = tvrMatchKey(r.pag_atendimento, r.pag_data, r.pag_tuss, r.pag_doctor_id, r.pag_medico);
         const q = num(r.pag_qtd) || 1;
         const vb = num(r.pag_valor_base);
         const va = num(r.pag_valor_com_acordo);
@@ -2230,7 +2230,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
         if (isExcludedConv(r.tasy_convenio)) continue;
-        const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
+        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, undefined, r.tasy_medico);
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const cur = candidates.get(key);
@@ -2258,7 +2258,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
         if (isExcludedConv(r.tasy_convenio)) { convTasyRemoved++; continue; }
-        const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
+        const key = tvrMatchKey(r.tasy_atendimento, r.tasy_data, r.tasy_tuss, undefined, r.tasy_medico);
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const lineTotal = tasyValueIsLineTotal ? v : v * q;
