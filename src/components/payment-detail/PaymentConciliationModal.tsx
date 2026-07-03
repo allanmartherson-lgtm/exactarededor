@@ -4289,6 +4289,82 @@ export function PaymentConciliationModal({
                 </div>
               )}
 
+              {/* Filtro: convênios excluídos da análise */}
+              <details className="border border-border rounded-lg text-xs bg-card">
+                <summary className="cursor-pointer px-4 py-2.5 flex items-center gap-2 select-none">
+                  <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="font-medium text-foreground">Excluir convênios da análise</span>
+                  {excludedConvenios.length > 0 ? (
+                    <span className="ml-auto px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                      {excludedConvenios.length} convênio(s) excluído(s)
+                    </span>
+                  ) : (
+                    <span className="ml-auto text-muted-foreground text-[11px]">nenhum</span>
+                  )}
+                </summary>
+                <div className="px-4 py-3 space-y-3 border-t border-border">
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    Selecione convênios que operam por <strong>pacote / tratativa manual</strong> (ex.: Sul América, Particular).
+                    Itens desses convênios são <strong>removidos das duas bases</strong> antes do cruzamento — não geram
+                    "só no hospital" nem "só no Exacta". Após alterar, clique em <strong>Reprocessar agora</strong>.
+                  </p>
+                  {availableConvenios.length === 0 ? (
+                    <p className="text-muted-foreground italic">Nenhum convênio identificado na base Exacta.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                      {availableConvenios.map((conv) => {
+                        const checked = excludedConvenios.includes(conv);
+                        const count = paymentItems.filter(
+                          (it) => ((it as any).agreement_text ?? "").toString().trim() === conv,
+                        ).length;
+                        return (
+                          <label
+                            key={conv}
+                            className={cn(
+                              "flex items-center gap-2 px-2.5 py-1.5 rounded border cursor-pointer transition-colors",
+                              checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setExcludedConvenios((prev) =>
+                                  checked ? prev.filter((c) => c !== conv) : [...prev, conv],
+                                )
+                              }
+                              className="h-3.5 w-3.5 rounded"
+                              style={{ accentColor: "hsl(var(--primary))" }}
+                            />
+                            <span className="flex-1 truncate text-[11px]">{conv}</span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">{count}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {excludedConvenios.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                        onClick={() => setExcludedConvenios([])}
+                      >
+                        Limpar seleção
+                      </button>
+                      {convenioFilterStats && convenioFilterStats.excluded.length > 0 && (
+                        <span className="text-[11px] text-muted-foreground">
+                          Último processamento: <strong className="text-foreground">{convenioFilterStats.exactaRemoved}</strong> item(ns) Exacta e{' '}
+                          <strong className="text-foreground">{convenioFilterStats.hospitalRemoved}</strong> item(ns) hospital removido(s).
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </details>
+
+
+
 
 
               {/* Aviso de defasagem: detecta reanálise do lote, atualização de regras
