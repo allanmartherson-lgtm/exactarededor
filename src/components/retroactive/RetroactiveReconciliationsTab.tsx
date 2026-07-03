@@ -4457,8 +4457,25 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
                         {brl(r.dif_valor)}
                       </TableCell>
-                      <TableCell className={cn((r.valor_recuperar_acordo ?? 0) > 0.5 && "font-semibold text-destructive")}>
-                        {(r.valor_recuperar_acordo ?? 0) > 0.5 ? brl(r.valor_recuperar_acordo) : "—"}
+                      <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo_recalc)}</TableCell>
+                      <TableCell
+                        className={cn(
+                          r.ajuste_acordo > 0.5 && "font-semibold text-destructive",
+                          r.ajuste_acordo < -0.5 && "font-semibold text-orange-600",
+                        )}
+                        title={
+                          r.ajuste_acordo > 0.5
+                            ? "A recuperar (paguei a mais que o acordo aplicado sobre TASY)"
+                            : r.ajuste_acordo < -0.5
+                              ? "A complementar (paguei a menos que o acordo aplicado sobre TASY)"
+                              : undefined
+                        }
+                      >
+                        {r.ajuste_acordo > 0.5
+                          ? `↓ ${brl(r.ajuste_acordo)}`
+                          : r.ajuste_acordo < -0.5
+                            ? `↑ ${brl(Math.abs(r.ajuste_acordo))}`
+                            : "—"}
                       </TableCell>
                     </TableRow>
                     );
