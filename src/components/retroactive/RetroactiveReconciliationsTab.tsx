@@ -3144,7 +3144,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         // Negativo => paguei a menos (a complementar).
         let ajuste_acordo = 0;
         if (status === "ausente_tasy") {
-          ajuste_acordo = valor_com_acordo; // TASY zerado/inexistente => tudo a recuperar
+          // TASY zerado/inexistente => item não deveria ter sido pago.
+          // Recupera o valor BRUTO pago (base), coerente com o KPI
+          // "Total a retirar" que também soma valor_pago_base.
+          ajuste_acordo = valor_pago_base;
         } else if (status === "nao_pago") {
           ajuste_acordo = 0; // sem base de acordo — tratado na tela de confecção
         } else if (valor_pago_base > 0) {
