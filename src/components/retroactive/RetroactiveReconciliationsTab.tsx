@@ -1996,6 +1996,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [doctorInfo, setDoctorInfo] = useState<{ id: string | null; name: string | null; crm: string | null }>({ id: null, name: null, crm: null });
   const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
   const [encaminharOpen, setEncaminharOpen] = useState(false);
+  const [keyAuditOpen, setKeyAuditOpen] = useState(false);
   const [encaminharBusy, setEncaminharBusy] = useState(false);
   const [groupDoctorsMap, setGroupDoctorsMap] = useState<Record<string, { full_name: string; crm: string | null }>>({});
 
