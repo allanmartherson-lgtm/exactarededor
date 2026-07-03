@@ -642,119 +642,266 @@ function NewView({
         </div>
       </div>
 
+      {mode === "alegacao_medico" && (
+        <div className="rounded-lg border border-border bg-card p-3">
+          <Label className="text-xs">Escopo da apuração</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
+            {([
+              ["individual", "Análise individual", "1 médico e/ou 1 PJ. Cruzamento restrito a esse par."],
+              ["multi_pj", "Múltiplas empresas", "Várias PJs de vários médicos. Você seleciona o mapeamento manual."],
+            ] as const).map(([k, lbl, desc]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setScope(k)}
+                className={cn(
+                  "text-left rounded-md border px-3 py-2 transition-colors",
+                  scope === k ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+                )}
+              >
+                <div className="text-sm font-medium flex items-center gap-2">
+                  {scope === k && <CheckIcon className="h-3.5 w-3.5 text-primary" />}
+                  {lbl}
+                </div>
+                <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground -mt-1">
         {mode === "alegacao_medico"
-          ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
+          ? (scope === "multi_pj"
+              ? "Selecione todas as PJs envolvidas e (opcional) restrinja aos médicos desejados. O cruzamento buscará payment_items em qualquer combinação."
+              : "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa.")
           : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração."}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-        <div className="md:col-span-2">
-          <Label>Médico</Label>
-          <Popover open={docOpen} onOpenChange={setDocOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between font-normal"
-              >
-                <span className={cn("truncate", !selectedDoctor && "text-muted-foreground")}>
-                  {selectedDoctor
-                    ? `${selectedDoctor.full_name} (${selectedDoctor.crm}/${selectedDoctor.crm_uf})`
-                    : "Buscar médico por nome ou CRM…"}
-                </span>
-                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command
-                filter={(value, search) => {
-                  const s = search.toLowerCase();
-                  return value.toLowerCase().includes(s) ? 1 : 0;
-                }}
-              >
-                <CommandInput placeholder="Digite nome ou CRM…" />
-                <CommandList>
-                  <CommandEmpty>Nenhum médico.</CommandEmpty>
-                  <CommandGroup>
-                    {doctorId && (
-                      <CommandItem
-                        value="__clear__"
-                        onSelect={() => { setDoctorId(""); setDocOpen(false); }}
-                      >
-                        <span className="text-muted-foreground">Limpar seleção</span>
-                      </CommandItem>
-                    )}
-                    {doctors.map((d) => {
-                      const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
-                      return (
+        {scope === "individual" && (
+          <div className="md:col-span-2">
+            <Label>Médico</Label>
+            <Popover open={docOpen} onOpenChange={setDocOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                >
+                  <span className={cn("truncate", !selectedDoctor && "text-muted-foreground")}>
+                    {selectedDoctor
+                      ? `${selectedDoctor.full_name} (${selectedDoctor.crm}/${selectedDoctor.crm_uf})`
+                      : "Buscar médico por nome ou CRM…"}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command
+                  filter={(value, search) => {
+                    const s = search.toLowerCase();
+                    return value.toLowerCase().includes(s) ? 1 : 0;
+                  }}
+                >
+                  <CommandInput placeholder="Digite nome ou CRM…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum médico.</CommandEmpty>
+                    <CommandGroup>
+                      {doctorId && (
                         <CommandItem
-                          key={d.id}
-                          value={v}
-                          onSelect={() => { setDoctorId(d.id); setDocOpen(false); }}
+                          value="__clear__"
+                          onSelect={() => { setDoctorId(""); setDocOpen(false); }}
                         >
-                          <CheckIcon className={cn("h-4 w-4 mr-2", doctorId === d.id ? "opacity-100" : "opacity-0")} />
-                          {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                          <span className="text-muted-foreground">Limpar seleção</span>
                         </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="md:col-span-2">
-          <Label>PJ / Empresa</Label>
-          <Popover open={compOpen} onOpenChange={setCompOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between font-normal"
-              >
-                <span className={cn("truncate", !selectedCompany && "text-muted-foreground")}>
-                  {selectedCompany
-                    ? `${selectedCompany.name}${selectedCompany.document ? ` · ${selectedCompany.document}` : ""}`
-                    : "Buscar PJ por nome ou CNPJ…"}
-                </span>
-                <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Digite nome ou CNPJ…" />
-                <CommandList>
-                  <CommandEmpty>Nenhuma PJ.</CommandEmpty>
-                  <CommandGroup>
-                    {companyId && (
-                      <CommandItem
-                        value="__clear__"
-                        onSelect={() => { setCompanyId(""); setCompOpen(false); }}
-                      >
-                        <span className="text-muted-foreground">Limpar seleção</span>
-                      </CommandItem>
-                    )}
-                    {companies.map((c) => {
-                      const v = `${c.name} ${c.document ?? ""}`;
-                      return (
+                      )}
+                      {doctors.map((d) => {
+                        const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
+                        return (
+                          <CommandItem
+                            key={d.id}
+                            value={v}
+                            onSelect={() => { setDoctorId(d.id); setDocOpen(false); }}
+                          >
+                            <CheckIcon className={cn("h-4 w-4 mr-2", doctorId === d.id ? "opacity-100" : "opacity-0")} />
+                            {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+        {scope === "individual" && (
+          <div className="md:col-span-2">
+            <Label>PJ / Empresa</Label>
+            <Popover open={compOpen} onOpenChange={setCompOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                >
+                  <span className={cn("truncate", !selectedCompany && "text-muted-foreground")}>
+                    {selectedCompany
+                      ? `${selectedCompany.name}${selectedCompany.document ? ` · ${selectedCompany.document}` : ""}`
+                      : "Buscar PJ por nome ou CNPJ…"}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Digite nome ou CNPJ…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma PJ.</CommandEmpty>
+                    <CommandGroup>
+                      {companyId && (
                         <CommandItem
-                          key={c.id}
-                          value={v}
-                          onSelect={() => { setCompanyId(c.id); setCompOpen(false); }}
+                          value="__clear__"
+                          onSelect={() => { setCompanyId(""); setCompOpen(false); }}
                         >
-                          <CheckIcon className={cn("h-4 w-4 mr-2", companyId === c.id ? "opacity-100" : "opacity-0")} />
-                          {c.name}
-                          {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                          <span className="text-muted-foreground">Limpar seleção</span>
                         </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
+                      )}
+                      {companies.map((c) => {
+                        const v = `${c.name} ${c.document ?? ""}`;
+                        return (
+                          <CommandItem
+                            key={c.id}
+                            value={v}
+                            onSelect={() => { setCompanyId(c.id); setCompOpen(false); }}
+                          >
+                            <CheckIcon className={cn("h-4 w-4 mr-2", companyId === c.id ? "opacity-100" : "opacity-0")} />
+                            {c.name}
+                            {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {scope === "multi_pj" && (
+          <div className="md:col-span-2">
+            <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
+            <Popover open={multiCompOpen} onOpenChange={setMultiCompOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                  <span className={cn("truncate", multiCompanyIds.length === 0 && "text-muted-foreground")}>
+                    {multiCompanyIds.length === 0
+                      ? "Selecione as PJs envolvidas…"
+                      : multiCompanyIds
+                          .map((cid) => companies.find((c) => c.id === cid)?.name ?? "?")
+                          .join(", ")}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar PJ por nome ou CNPJ…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma PJ.</CommandEmpty>
+                    <CommandGroup>
+                      {multiCompanyIds.length > 0 && (
+                        <CommandItem value="__clear__" onSelect={() => setMultiCompanyIds([])}>
+                          <span className="text-muted-foreground">Limpar todas</span>
+                        </CommandItem>
+                      )}
+                      {companies.map((c) => {
+                        const checked = multiCompanyIds.includes(c.id);
+                        const v = `${c.name} ${c.document ?? ""}`;
+                        return (
+                          <CommandItem
+                            key={c.id}
+                            value={v}
+                            onSelect={() =>
+                              setMultiCompanyIds((cur) =>
+                                cur.includes(c.id) ? cur.filter((x) => x !== c.id) : [...cur, c.id],
+                              )
+                            }
+                          >
+                            <Checkbox checked={checked} className="mr-2" />
+                            {c.name}
+                            {c.document && <span className="ml-1 text-muted-foreground">· {c.document}</span>}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {scope === "multi_pj" && (
+          <div className="md:col-span-2">
+            <Label>Médicos ({multiDoctorIds.length}) <span className="text-muted-foreground font-normal">— opcional</span></Label>
+            <Popover open={multiDocOpen} onOpenChange={setMultiDocOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                  <span className={cn("truncate", multiDoctorIds.length === 0 && "text-muted-foreground")}>
+                    {multiDoctorIds.length === 0
+                      ? "Deixe vazio para incluir todos os médicos das PJs selecionadas"
+                      : multiDoctorIds
+                          .map((did) => doctors.find((d) => d.id === did)?.full_name ?? "?")
+                          .join(", ")}
+                  </span>
+                  <ChevronsUpDownIcon className="h-4 w-4 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command
+                  filter={(value, search) => {
+                    const s = search.toLowerCase();
+                    return value.toLowerCase().includes(s) ? 1 : 0;
+                  }}
+                >
+                  <CommandInput placeholder="Digite nome ou CRM…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum médico.</CommandEmpty>
+                    <CommandGroup>
+                      {multiDoctorIds.length > 0 && (
+                        <CommandItem value="__clear__" onSelect={() => setMultiDoctorIds([])}>
+                          <span className="text-muted-foreground">Limpar todos</span>
+                        </CommandItem>
+                      )}
+                      {doctors.map((d) => {
+                        const checked = multiDoctorIds.includes(d.id);
+                        const v = `${d.full_name} ${d.crm} ${d.crm_uf}`;
+                        return (
+                          <CommandItem
+                            key={d.id}
+                            value={v}
+                            onSelect={() =>
+                              setMultiDoctorIds((cur) =>
+                                cur.includes(d.id) ? cur.filter((x) => x !== d.id) : [...cur, d.id],
+                              )
+                            }
+                          >
+                            <Checkbox checked={checked} className="mr-2" />
+                            {d.full_name} <span className="ml-1 text-muted-foreground">({d.crm}/{d.crm_uf})</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
         <div>
           <Label>De</Label>
           <DateInput value={start} onChange={setStart} />
