@@ -4372,13 +4372,16 @@ export function PaymentConciliationModal({
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
                       {availableConvenios.map((conv) => {
-                        const checked = excludedConvenios.includes(conv);
-                        const count = paymentItems.filter(
-                          (it) => ((it as any).agreement_text ?? "").toString().trim() === conv,
-                        ).length;
+                        const checked = excludedConvenios.includes(conv.key);
+                        const variantCount = conv.variants.size;
+                        const resolvedToSlug = conv.key.startsWith("slug:");
+                        const title = variantCount > 1
+                          ? `${variantCount} variações na base Exacta: ${Array.from(conv.variants).join(" · ")}`
+                          : Array.from(conv.variants)[0] ?? conv.label;
                         return (
                           <label
-                            key={conv}
+                            key={conv.key}
+                            title={title}
                             className={cn(
                               "flex items-center gap-2 px-2.5 py-1.5 rounded border cursor-pointer transition-colors",
                               checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40",
@@ -4389,14 +4392,22 @@ export function PaymentConciliationModal({
                               checked={checked}
                               onChange={() =>
                                 setExcludedConvenios((prev) =>
-                                  checked ? prev.filter((c) => c !== conv) : [...prev, conv],
+                                  checked ? prev.filter((c) => c !== conv.key) : [...prev, conv.key],
                                 )
                               }
                               className="h-3.5 w-3.5 rounded"
                               style={{ accentColor: "hsl(var(--primary))" }}
                             />
-                            <span className="flex-1 truncate text-[11px]">{conv}</span>
-                            <span className="text-[10px] text-muted-foreground shrink-0">{count}</span>
+                            <span className="flex-1 truncate text-[11px]">
+                              {conv.label}
+                              {resolvedToSlug && variantCount > 1 ? (
+                                <span className="ml-1 text-[9px] text-muted-foreground">· {variantCount} variações</span>
+                              ) : null}
+                              {!resolvedToSlug ? (
+                                <span className="ml-1 text-[9px] text-amber-600" title="Sem cadastro em convenios — filtro cai em match textual">·  sem cadastro</span>
+                              ) : null}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">{conv.count}</span>
                           </label>
                         );
                       })}
