@@ -4026,17 +4026,7 @@ export function PaymentConciliationModal({
                 </div>
               </TooltipProvider>
 
-              <div className="flex gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-success" /> Auto-vinculado
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-warning" /> Confirmar sugestão
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Não encontrado
-                </span>
-              </div>
+              {/* Legenda agora vive dentro do CompanyMappingList abaixo. */}
 
 
               <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-lg">
