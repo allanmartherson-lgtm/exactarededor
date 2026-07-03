@@ -4139,7 +4139,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                           ? TVR_STATUS_LABEL[Array.from(statusFilter)[0]]
                           : `${statusFilter.size} status selecionados`}
                       </span>
-                      <ChevronDownIcon className="h-3.5 w-3.5 opacity-50 ml-1 shrink-0" />
+                      <ChevronsUpDownIcon className="h-3.5 w-3.5 opacity-50 ml-1 shrink-0" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[220px] p-2" align="end">
