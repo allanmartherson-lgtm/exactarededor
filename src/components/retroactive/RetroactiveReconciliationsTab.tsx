@@ -1852,7 +1852,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const loadPaymentItems = async (currentRecon: ReconRow | null) => {
+  const loadPaymentItems = async (currentRecon: ReconRow | null, sourceTasyRows = tasyRows) => {
     const r = currentRecon ?? recon;
     if (!r) return;
     setLoadingPayments(true);
@@ -1866,7 +1866,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       // Escopo: se a apuração não tem médico/PJ, usa os atendimentos do TASY como filtro
       // para evitar puxar dezenas de milhares de itens do hospital inteiro.
       const hasScope = Boolean(r.doctor_id || r.company_id);
-      const tasyAttendances = Array.from(new Set(tasyRows.map((t) => t.tasy_atendimento).filter(Boolean)));
+      const tasyAttendances = Array.from(new Set(sourceTasyRows.map((t) => t.tasy_atendimento).filter(Boolean)));
 
       if (!hasScope && tasyAttendances.length === 0) {
         toast({
@@ -1993,7 +1993,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setWizard({ kind: "none" });
     toast({ title: `TASY: ${filtered.length} de ${meta?.totals.file ?? filtered.length} linha(s) carregadas` });
     // Dispara busca automática dos payment_items
-    void loadPaymentItems(recon);
+    void loadPaymentItems(recon, filtered);
   };
 
 
