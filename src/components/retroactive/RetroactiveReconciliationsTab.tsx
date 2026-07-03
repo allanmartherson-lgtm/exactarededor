@@ -3389,6 +3389,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "PJ Conciliada": r.pj_conciliada ?? "",
     Médico: r.medico,
     Status: TVR_STATUS_LABEL[r.status],
+    "Tipo de Análise": r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)",
+    "Sem lastro TASY": r.sem_lastro_tasy ? "Sim" : "",
     Atendimento: r.atendimento,
     "Cód. TUSS": r.tuss,
     Procedimento: r.procedimento,
