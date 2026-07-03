@@ -1855,8 +1855,21 @@ export function PaymentConciliationModal({
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = srcMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
+        // Empresa NÃO entra na chave canônica (Atend + TUSS + Médico). Este guard
+        // existe só pra evitar cruzar linha de OUTRA PJ que apareceu no mesmo lote.
+        // Aceita match por igualdade OU por prefixo em qualquer direção — cobre
+        // grafia truncada no Excel, "LTDA/ME", pontuação/traço ("C.O.B -" vs "COB"),
+        // e sufixos de razão social ausentes num dos lados. Sem isso, casos onde
+        // atend + TUSS + médico batem viravam "só no hospital" só porque o nome
+        // longo da PJ diferia em um sufixo.
+        const hospCompNorm = normCompany(mappedCompany);
         const companyMissing = hospitalCompanySet.size > 0 && exactaCompanySet.size > 0
-          && normCompany(mappedCompany) !== "" && !exactaCompanySet.has(normCompany(mappedCompany));
+          && hospCompNorm !== ""
+          && !exactaCompanySet.has(hospCompNorm)
+          && !Array.from(exactaCompanySet).some((ec) =>
+            ec.length >= 4 && hospCompNorm.length >= 4 &&
+            (ec.startsWith(hospCompNorm) || hospCompNorm.startsWith(ec))
+          );
         const attMissing = !att || normAtt(att) === "";
         // Tenta TODAS as variantes do código (7d / 8d) — pega o primeiro
         // bucket com candidatos. Itens já matchados são filtrados depois.
