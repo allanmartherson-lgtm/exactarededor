@@ -94,6 +94,7 @@ import RetroactiveMappingWizard, {
   type TargetField,
 } from "./RetroactiveMappingWizard";
 import { DateInput } from "@/components/ui/date-input";
+import { CompanyMappingList } from "@/components/shared/CompanyMappingList";
 
 /** Campo de data com input mascarado dd/mm/aaaa + botão de calendário. */
 function DatePickerCombo({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
