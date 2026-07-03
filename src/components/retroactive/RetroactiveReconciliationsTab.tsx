@@ -2663,13 +2663,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           data = await fetchAllPaginated<Record<string, unknown>>((from, to) => {
             let q = supabase
               .from("payment_items" as never)
-              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method")
-              .gte("procedure_date", startYmd)
-              .lte("procedure_date", endYmd);
-            // Quando o analista fixou os lotes, filtra direto por payment_id —
-            // evita puxar itens de outros lotes das mesmas PJs/médicos que
-            // depois seriam descartados pelo filtro de competência.
-            if (hasSelectedLotes) q = q.in("payment_id", selectedPidsPre);
+              .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method");
+            if (hasSelectedLotes) {
+              // Lote fixado é o universo: filtra só por payment_id (sem janela
+              // de data e sem filtro por competência depois). Isso pega itens
+              // retroativos dentro do próprio lote sem perder nada.
+              q = q.in("payment_id", selectedPidsPre);
+            } else {
+              q = q.gte("procedure_date", startYmd).lte("procedure_date", endYmd);
+            }
             if (isMulti) {
               if (multiCompanyIds.length > 0) q = q.in("company_id", multiCompanyIds);
               if (multiDoctorIds.length > 0) q = q.in("doctor_id", multiDoctorIds);
