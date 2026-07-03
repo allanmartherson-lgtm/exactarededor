@@ -1515,14 +1515,14 @@ export function PaymentConciliationModal({
       // usado para a Exacta acima). Sem coluna de convênio mapeada, avisa e
       // segue sem filtrar o hospital.
       let hospitalRemovedByConvenio = 0;
-      if (excludedConvNorm.size > 0) {
+      if (excludedConvKeys.size > 0) {
         const colAgr = srcColMap['agreement'] ?? null;
         if (colAgr) {
           const before = rowsParaCruzamento.length;
           rowsParaCruzamento = rowsParaCruzamento.filter((row) => {
-            const n = normAgreement(row[colAgr]);
-            if (!n) return true;
-            return !excludedConvNorm.has(n);
+            const resolved = resolveConvenioKey(row[colAgr]);
+            if (!resolved) return true;
+            return !excludedConvKeys.has(resolved.key);
           });
           hospitalRemovedByConvenio = before - rowsParaCruzamento.length;
           console.log('[Conciliação] Convênios excluídos (Hospital):', {
