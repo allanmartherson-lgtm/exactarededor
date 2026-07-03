@@ -1452,6 +1452,38 @@ export function PaymentConciliationModal({
         console.warn('[Conciliação] filtro de competência DESLIGADO — Exacta sem procedure_date ou produção sem coluna de data mapeada.');
       }
 
+      // Aplica exclusão de convênios também na base hospitalar (mesmo conjunto
+      // usado para a Exacta acima). Sem coluna de convênio mapeada, avisa e
+      // segue sem filtrar o hospital.
+      let hospitalRemovedByConvenio = 0;
+      if (excludedConvNorm.size > 0) {
+        const colAgr = srcColMap['agreement'] ?? null;
+        if (colAgr) {
+          const before = rowsParaCruzamento.length;
+          rowsParaCruzamento = rowsParaCruzamento.filter((row) => {
+            const n = normAgreement(row[colAgr]);
+            if (!n) return true;
+            return !excludedConvNorm.has(n);
+          });
+          hospitalRemovedByConvenio = before - rowsParaCruzamento.length;
+          console.log('[Conciliação] Convênios excluídos (Hospital):', {
+            excluded: Array.from(excludedConvenios),
+            before,
+            removed: hospitalRemovedByConvenio,
+            restantes: rowsParaCruzamento.length,
+          });
+        } else {
+          console.warn('[Conciliação] Convênios excluídos: coluna de convênio NÃO mapeada na produção — filtro aplicado só na Exacta.');
+        }
+      }
+      setConvenioFilterStats({
+        excluded: Array.from(excludedConvenios),
+        exactaRemoved: exactaRemovedByConvenio,
+        hospitalRemoved: hospitalRemovedByConvenio,
+      });
+
+
+
 
 
       const sampleRow = rowsParaCruzamento[0];
