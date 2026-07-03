@@ -2793,6 +2793,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<Set<TvrStatus>>(new Set());
   const [search, setSearch] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  // Painel bloqueante — quando o motor identifica linhas TASY sem PJ resolvida,
+  // listamos aqui os valores crus da coluna Empresa/PJ + contagem, para o analista
+  // vincular direto sem reabrir o wizard.
+  const [unresolvedPjPanel, setUnresolvedPjPanel] = useState<
+    Array<{ raw: string; count: number; missing: boolean }>
+  >([]);
+  const [pjMapDraft, setPjMapDraft] = useState<Record<string, string>>({});
+  const [pjMapApplying, setPjMapApplying] = useState(false);
   const resultTopScrollRef = useRef<HTMLDivElement | null>(null);
   const resultTableScrollRef = useRef<HTMLDivElement | null>(null);
   const [resultScrollWidth, setResultScrollWidth] = useState(1);
