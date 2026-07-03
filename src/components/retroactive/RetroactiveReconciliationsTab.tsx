@@ -1777,6 +1777,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
     setExcludeTuss(row?.summary?.exclude_tuss ?? "");
     setPendingTussExclude(row?.summary?.exclude_tuss ?? "");
+    setExcludedConvenios(row?.summary?.excluded_convenios ?? []);
     setTasyFile(row?.summary?.tasy_file ?? "");
     setTasyFileTotals(row?.summary?.tasy_file_totals ?? null);
     setTasyDroppedExamples(row?.summary?.tasy_dropped_examples ?? []);
