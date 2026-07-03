@@ -1713,6 +1713,7 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           fileName={wizard.fileName}
           headers={wizard.headers}
           rows={wizard.rows}
+          companyMappingConfig={companies.length > 0 ? { companies } : undefined}
           onCancel={() => setWizard({ open: false })}
           onConfirm={applyMapping}
         />
