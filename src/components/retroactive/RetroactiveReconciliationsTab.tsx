@@ -2848,8 +2848,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <div>
             <h4 className="text-sm font-semibold">2. Repasse do sistema</h4>
             <p className="text-[11px] text-muted-foreground">
-              Buscado automaticamente em <code>payment_items</code> com base no escopo da apuração (médico/PJ + período ±90 dias). Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
+              Buscado automaticamente em <code>payment_items</code> no período ±90 dias. Se a apuração tem médico/PJ, filtra por eles; caso contrário, usa os atendimentos da base TASY como filtro. Usa <code>procedure_amount</code> (valor base 100%, sem acordo).
             </p>
+
           </div>
           <div className="flex items-center gap-2">
             {loadingPayments && (
