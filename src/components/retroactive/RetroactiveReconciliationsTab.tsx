@@ -3809,10 +3809,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       <div className="flex items-center gap-2 flex-wrap">
         <Button
           onClick={async () => {
+            let rowsForProcess: PagRow[] | undefined = undefined;
             if (tasyRows.length > 0 && pagRows.length === 0 && !loadingPayments) {
-              await loadPaymentItems(recon);
+              rowsForProcess = await loadPaymentItems(recon);
             }
-            void process();
+            process(rowsForProcess);
           }}
           disabled={isLocked || processing || loadingPayments || tasyRows.length === 0}
         >
