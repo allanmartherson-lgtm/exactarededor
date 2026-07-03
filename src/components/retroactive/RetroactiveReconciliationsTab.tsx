@@ -95,6 +95,7 @@ import RetroactiveMappingWizard, {
 } from "./RetroactiveMappingWizard";
 import { DateInput } from "@/components/ui/date-input";
 import { CompanyMappingList } from "@/components/shared/CompanyMappingList";
+import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
 
 /** Campo de data com input mascarado dd/mm/aaaa + botão de calendário. */
 function DatePickerCombo({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
@@ -239,6 +240,10 @@ type DraftItem = {
   procedure_name: string;
   claimed_amount: string;
   claimed_quantity: string;
+  /** Nome bruto da PJ vindo da planilha (quando a coluna foi mapeada). */
+  company_hint?: string;
+  /** id da PJ cadastrada resolvida no passo "Vincular PJs" do wizard. */
+  resolved_company_id?: string | null;
 };
 
 const CLASS_LABEL: Record<ItemRow["classification"], string> = {
@@ -977,6 +982,7 @@ function DetailView({ id, onBack }: { id: string; onBack: () => void }) {
 }
 
 function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) {
+  // hospitalId não usado neste view — companies aqui é cadastro estadual (sem escopo por hospital)
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
   const [companyName, setCompanyName] = useState<string>("");
@@ -987,10 +993,32 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [generating, setGenerating] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; aliases: string[] }>>([]);
   const [wizard, setWizard] = useState<
     | { open: false }
     | { open: true; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
   >({ open: false });
+
+  // Universo de PJs candidatas para o passo "Vincular PJs" do wizard.
+  // companies é tabela de cadastro estadual (sem hospital_id) — alinhado ao
+  // resto do fluxo de criação (linhas 577-585).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("companies")
+        .select("id, name, aliases")
+        .eq("active", true)
+        .order("name");
+      if (cancelled) return;
+      setCompanies(((data ?? []) as Array<{ id: string; name: string; aliases: string[] | null }>).map((c) => ({
+        id: c.id,
+        name: c.name,
+        aliases: c.aliases ?? [],
+      })));
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const load = async () => {
     const { data: r } = await supabase
@@ -1067,21 +1095,61 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     }
   };
 
-  const applyMapping = (mapped: Record<string, string>[]) => {
-    const newDrafts: DraftItem[] = mapped.map((m) => ({
-      _localId: crypto.randomUUID(),
-      source: "upload",
-      attendance: m.attendance ?? "",
-      tuss_code: m.tuss_code ?? "",
-      procedure_date: m.procedure_date ?? "",
-      patient_name: m.patient_name ?? "",
-      function_label: m.function_label ?? "",
-      procedure_name: m.procedure_name ?? "",
-      claimed_amount: m.claimed_amount ?? "",
-      claimed_quantity: m.claimed_quantity ?? "",
-    }));
+  const applyMapping = (
+    mapped: Record<string, string>[],
+    meta?: { companyMapping?: Record<string, string | null> },
+  ) => {
+    const cMap = meta?.companyMapping ?? {};
+    const newDrafts: DraftItem[] = mapped.map((m) => {
+      const raw = (m.company_hint ?? "").trim();
+      const resolvedCompanyId = raw ? cMap[raw] ?? null : null;
+      return {
+        _localId: crypto.randomUUID(),
+        source: "upload",
+        attendance: m.attendance ?? "",
+        tuss_code: m.tuss_code ?? "",
+        procedure_date: m.procedure_date ?? "",
+        patient_name: m.patient_name ?? "",
+        function_label: m.function_label ?? "",
+        procedure_name: m.procedure_name ?? "",
+        claimed_amount: m.claimed_amount ?? "",
+        claimed_quantity: m.claimed_quantity ?? "",
+        company_hint: raw,
+        resolved_company_id: resolvedCompanyId,
+      };
+    });
     setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
     setWizard({ open: false });
+
+    // Persiste vínculos aprendidos (alias) + salva mapping no summary da reconciliação.
+    void (async () => {
+      if (!meta?.companyMapping) return;
+      const entries = Object.entries(meta.companyMapping);
+      let learned = 0;
+      for (const [raw, companyId] of entries) {
+        if (!companyId) continue;
+        const company = companies.find((c) => c.id === companyId);
+        if (!company) continue;
+        if (!shouldLearnAlias(raw, company)) continue;
+        const res = await learnCompanyAlias(supabase, { companyId, rawName: raw });
+        if (res.ok) learned++;
+      }
+      // Persistir mapping no summary (auditoria, reaproveitamento).
+      if (recon) {
+        const nextSummary = {
+          ...(recon.summary ?? {}),
+          company_mapping: meta.companyMapping,
+        };
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({ summary: nextSummary } as never)
+          .eq("id", id);
+      }
+      if (learned > 0) {
+        toast({ title: `${learned} apelido(s) de PJ aprendido(s) para próximas importações` });
+      }
+    })();
+
     toast({ title: `${newDrafts.length} linha(s) carregadas da planilha` });
   };
 
@@ -1645,6 +1713,7 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           fileName={wizard.fileName}
           headers={wizard.headers}
           rows={wizard.rows}
+          companyMappingConfig={companies.length > 0 ? { companies } : undefined}
           onCancel={() => setWizard({ open: false })}
           onConfirm={applyMapping}
         />
