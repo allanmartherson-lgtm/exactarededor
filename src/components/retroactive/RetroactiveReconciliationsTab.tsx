@@ -2034,7 +2034,12 @@ export type TvrResult = {
   valor_com_acordo: number;
   dif_qtd: number;
   dif_valor: number;
-  valor_recuperar_acordo: number;
+  valor_recuperar_acordo: number; // legado: max(0, ajuste_acordo)
+  // Valor que a regra pagaria HOJE aplicando o mesmo % de acordo sobre a base TASY.
+  valor_com_acordo_recalc: number;
+  // valor_com_acordo (histórico) − valor_com_acordo_recalc.
+  // Positivo = a recuperar (paguei a mais). Negativo = a complementar (paguei a menos).
+  ajuste_acordo: number;
   matched_payment_item_id?: string;
   matched_payment_id?: string;
   matched_doctor_id?: string;
@@ -3132,13 +3137,23 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
 
-        let valor_recuperar_acordo = 0;
+        // Comparação: valor com acordo pago no histórico (Exacta) vs
+        // valor que o mesmo acordo pagaria HOJE se aplicado sobre a base TASY.
+        // fator_acordo é o % de acordo que a regra praticou no lote
+        // (ex.: 100%, 88% para hemo, 27,51% para valor_fixo etc.).
+        const fator_acordo = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 0;
+        const valor_com_acordo_recalc = valor_total_tasy * fator_acordo;
+        // Positivo => paguei a mais (a recuperar).
+        // Negativo => paguei a menos (a complementar).
+        let ajuste_acordo = 0;
         if (status === "ausente_tasy") {
-          valor_recuperar_acordo = valor_com_acordo;
-        } else if (dif_valor < -0.5) {
-          const fator = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 1;
-          valor_recuperar_acordo = Math.abs(dif_valor) * fator;
+          ajuste_acordo = valor_com_acordo; // TASY zerado/inexistente => tudo a recuperar
+        } else if (status === "nao_pago") {
+          ajuste_acordo = 0; // sem base de acordo — tratado na tela de confecção
+        } else if (valor_pago_base > 0) {
+          ajuste_acordo = valor_com_acordo - valor_com_acordo_recalc;
         }
+        const valor_recuperar_acordo = Math.max(0, ajuste_acordo);
 
         // ---- Auditoria da chave ----
         const auditAtt = normAtt(t?.atendimento ?? p?.atendimento ?? "");
@@ -3186,6 +3201,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           dif_qtd,
           dif_valor,
           valor_recuperar_acordo,
+          valor_com_acordo_recalc,
+          ajuste_acordo,
           matched_payment_item_id: p?.payment_item_id_first || undefined,
           matched_payment_id: p?.payment_id_first || undefined,
           matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
@@ -3352,7 +3369,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Valor c/ Acordo": r.valor_com_acordo,
     "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
     "Dif. Valor": Number(r.dif_valor.toFixed(2)),
+    "Valor c/ Acordo (recalc)": Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)),
+    "Ajuste (c/ acordo)": Number((r.ajuste_acordo ?? 0).toFixed(2)),
     "A Recuperar (c/ acordo)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+    "A Complementar (c/ acordo)": Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)),
     "Regra Aplicada": r.regra_aplicada ?? "",
     "Linha do Cálculo": r.calculo_aplicado ?? "",
 
@@ -4197,7 +4217,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className={cn("text-2xl font-bold", totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
                     {totalComplementar > 0 ? brl(totalComplementar) : "R$ -"}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Não pago + subpagamentos</div>
+                  {(() => {
+                    const totalComplementarAcordo = results.reduce(
+                      (sum, r) => sum + Math.max(0, -(r.ajuste_acordo ?? 0)),
+                      0,
+                    );
+                    return (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Base: {brl(totalComplementar)} ·{" "}
+                        <span className="font-semibold text-orange-600">
+                          C/ acordo: {brl(totalComplementarAcordo)}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
@@ -4206,7 +4239,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   </div>
                   {(() => {
                     const totalRecuperarAcordo = results.reduce(
-                      (sum, r) => sum + (r.valor_recuperar_acordo ?? 0),
+                      (sum, r) => sum + Math.max(0, r.ajuste_acordo ?? 0),
                       0,
                     );
                     return (
@@ -4383,12 +4416,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Vlr c/ Acordo</TableHead>
                     <TableHead className="text-center">Dif. Qtd</TableHead>
                     <TableHead>Dif. Valor</TableHead>
-                    <TableHead>A Recuperar (c/ acordo)</TableHead>
+                    <TableHead>Vlr c/ Acordo (recalc)</TableHead>
+                    <TableHead>Ajuste (c/ acordo)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={22} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={23} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => {
                     const selectable = isActionableTvr(r) && !isLocked;
@@ -4439,8 +4473,25 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
                         {brl(r.dif_valor)}
                       </TableCell>
-                      <TableCell className={cn((r.valor_recuperar_acordo ?? 0) > 0.5 && "font-semibold text-destructive")}>
-                        {(r.valor_recuperar_acordo ?? 0) > 0.5 ? brl(r.valor_recuperar_acordo) : "—"}
+                      <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo_recalc)}</TableCell>
+                      <TableCell
+                        className={cn(
+                          r.ajuste_acordo > 0.5 && "font-semibold text-destructive",
+                          r.ajuste_acordo < -0.5 && "font-semibold text-orange-600",
+                        )}
+                        title={
+                          r.ajuste_acordo > 0.5
+                            ? "A recuperar (paguei a mais que o acordo aplicado sobre TASY)"
+                            : r.ajuste_acordo < -0.5
+                              ? "A complementar (paguei a menos que o acordo aplicado sobre TASY)"
+                              : undefined
+                        }
+                      >
+                        {r.ajuste_acordo > 0.5
+                          ? `↓ ${brl(r.ajuste_acordo)}`
+                          : r.ajuste_acordo < -0.5
+                            ? `↑ ${brl(Math.abs(r.ajuste_acordo))}`
+                            : "—"}
                       </TableCell>
                     </TableRow>
                     );

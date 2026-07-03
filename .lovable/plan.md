@@ -1,53 +1,76 @@
-## Novo fluxo de criação — apuração retroativa (TASY vs Repasse)
 
-### Ideia
-Hoje o modal pede médico/empresa antes de qualquer coisa, o que obriga o analista a "adivinhar" quais PJs fazem sentido. O novo fluxo inverte a ordem: **data → lote(s) → PJs/médicos**. Assim o sistema restringe as opções automaticamente ao universo do(s) lote(s) escolhido(s) e já sabe com qual base cruzar.
+## Objetivo
+Deixar a coluna "A Recuperar" refletir de forma explícita a comparação **valor com acordo (recalculado a partir do TASY) vs valor pago histórico no Exacta**, e não só o caso de "pago a mais". Passa a suportar também "a complementar" (pago a menos).
 
-### Novo passo a passo do modal
+## Diagnóstico do que existe hoje
+Arquivo: `src/components/retroactive/RetroactiveReconciliationsTab.tsx` (linhas ~3119-3141).
 
-```text
-1. Modo de apuração          [Alegação do médico] [TASY vs Repasse ✓]
-2. Escopo                    [Individual] [Múltiplas empresas ✓]
-3. Período (De / Até)        dd/mm/aaaa   dd/mm/aaaa
-   └─ ao completar, dispara busca de lotes elegíveis
-4. Lote(s) a analisar        lista de payments no período
-   ☑ Lote 2026-04 · Ref 1234 · 12 PJs · R$ 320k
-   ☑ Lote 2026-04 · Ref 1235 · 4 PJs  · R$ 88k
-   ☐ Lote 2026-03 · Ref 1200 · ...
-5. PJs incluídas             (auto-preenchido com PJs dos lotes; editável)
-6. Médicos                   (auto-preenchido; opcional restringir)
-7. Título *                  Ex.: Falta de pagamentos abril/2026
-[Criar e seguir]
+Hoje:
+```
+fator = valor_com_acordo / valor_pago_base   // % de acordo praticado no lote
+a_recuperar = |dif_valor| × fator            // só quando dif_valor < 0 (pago a mais)
+             = fator × (valor_pago_base − valor_total_tasy)
 ```
 
-- O passo 5/6 só aparece depois que ≥1 lote for marcado.
-- "Marcar todas / Limpar" continua funcionando; a lista base agora vem dos lotes, não do hospital inteiro.
-- Se o analista desmarcar todos os lotes, os passos 5/6 escondem e o botão fica desabilitado.
+Matematicamente isso é **idêntico** a:
+```
+valor_com_acordo_recalc = valor_total_tasy × fator   // TASY convertido p/ o mesmo % de acordo
+a_recuperar = valor_com_acordo (original do lote) − valor_com_acordo_recalc
+```
 
-### Regras
-- **Data primeiro:** enquanto `start`/`end` não estiverem preenchidos, os passos 4-6 ficam ocultos ou desabilitados.
-- **Lotes elegíveis:** `payments` do hospital ativo cujo `competence_month` (ou intervalo do lote) intersecta `[start, end]`. Ordena por competência desc / referência.
-- **PJs candidatas:** união das PJs presentes em `payment_items` dos lotes selecionados (companies distintas). Padrão: todas marcadas.
-- **Médicos candidatos:** união dos médicos presentes nos mesmos itens. Padrão: nenhum marcado (opcional).
-- **Ids do(s) lote(s)** ficam salvos em `summary.selected_payment_ids: string[]`.
-- **Cruzamento fica focado:** `loadPaymentItems` passa a filtrar `payment_items.payment_id IN summary.selected_payment_ids` (quando presente), em vez de filtrar por competência derivada. Se `selected_payment_ids` estiver ausente (apurações antigas), mantém o comportamento atual — retrocompat total.
+Ou seja: já cobre o caso "acordo 100% → base TASY" e "acordo 88% → TASY × 88%" que você descreveu. O problema é conceitual/apresentação:
 
-### Modo "Alegação do médico"
-Continua individual (1 médico e/ou 1 PJ). O passo de lotes **não** aparece nesse modo — a alegação segue cruzando com a janela ±90d por médico. Fica claro visualmente que o passo 4 é exclusivo de TASY vs Repasse.
+1. Só calcula quando `dif_valor < 0` (pago a mais). Se o TASY mostrar volume maior que o lote (pago a menos), não gera "a complementar".
+2. A fórmula escrita no código não é legível — quem lê `|dif_valor| × fator` não entende que é acordo vs acordo.
+3. O rótulo "A Recuperar" é assimétrico; precisa acomodar valores negativos (complemento).
 
-### Detalhes técnicos
-- Arquivo: `src/components/retroactive/RetroactiveReconciliationsTab.tsx` (componente `NewRecon`).
-- Reordenar JSX: seções "Período", "Lotes", "PJs", "Médicos", "Título".
-- Novo estado: `selectedPaymentIds: string[]`, `availableLotes: Array<{id, label, competence, company_ids, doctor_ids}>`, `loadingLotes: boolean`.
-- Nova query (dispara em `useEffect([start, end, hospitalId, mode, scope])`, com debounce simples):
-  1. `payments` do hospital com `competence_month` no intervalo (ou `period_start/period_end` interseccionando).
-  2. `payment_items` desses ids projetando `payment_id, company_id, doctor_id, doctor_name` (paginado via `fetchAllPaginated`, campos mínimos).
-  3. Agregação em memória → monta a lista.
-- `submit`: `multiCompanyIds`/`multiDoctorIds` continuam sendo o output; passam a ser inicializados a partir dos lotes. Persistir `summary.selected_payment_ids` e `summary.selected_payment_labels`.
-- `loadPaymentItems` (linha ~2410): se `r.summary?.selected_payment_ids?.length`, filtrar direto por `payment_id IN (...)` e pular o filtro por competência (já implícito no lote).
-- Sem migração de banco — tudo cabe em `summary` JSONB.
+## Mudança proposta
 
-### Fora do escopo
-- Reprocessar apurações antigas.
-- Mudar o motor TASY×Repasse.
-- Alterar "Alegação do médico".
+### 1. Recalcular explicitamente (linhas ~3135-3141)
+```ts
+// % de acordo efetivamente praticado no lote (ex: 100%, 88%, 27,51%)
+const fator_acordo = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 1;
+
+// Valor que a regra pagaria HOJE se aplicasse o mesmo acordo sobre a base TASY
+const valor_com_acordo_recalc = valor_total_tasy * fator_acordo;
+
+// Positivo = paguei a mais (a recuperar). Negativo = paguei a menos (a complementar).
+const ajuste_acordo = valor_com_acordo - valor_com_acordo_recalc;
+```
+
+Casos:
+- `ausente_tasy` (TASY = 0, glosa ou linha inexistente): `valor_com_acordo_recalc = 0` → ajuste = `valor_com_acordo` inteiro a recuperar. Mesmo resultado de hoje.
+- `pago_a_mais` (TASY < base): ajuste positivo, mesmo número de hoje.
+- `div_valor` / `div_qtd_valor` com TASY > base (**caso novo**): ajuste negativo → complemento devido ao médico.
+- `nao_pago` (só TASY, sem base): não temos `fator_acordo` — mantém regra atual da tela de confecção (pré-carga com `valor_total_tasy`), não entra em "a recuperar".
+- `ok`: ajuste ≈ 0.
+
+### 2. Nomear e mostrar
+- Renomear campo interno `valor_recuperar_acordo` → `ajuste_acordo` (com getter `valor_recuperar_acordo` legado retornando `max(0, ajuste_acordo)` para não quebrar exports/glosa).
+- Coluna da tabela: título "Ajuste (c/ acordo)". Formatação:
+  - `> 0.5` → vermelho, prefixo "A recuperar"
+  - `< -0.5` → laranja, prefixo "A complementar"
+  - senão "—"
+- Manter a linha do "cálculo aplicado" (regra/fator) logo abaixo, como você pediu antes.
+
+### 3. Downstream — nada muda de comportamento hoje
+- Glosa de auditoria: continua filtrando `ajuste_acordo > 0.5` (só recuperação vira glosa). Confecção continua tratando `nao_pago` + diferenças positivas de qtd/valor.
+- Complemento (`ajuste_acordo < -0.5`) por enquanto **só exibe** na tela e no export. Encaminhamento automático para adjustment de complemento fica fora deste plano — pedir depois se quiser.
+
+### 4. Export xlsx
+Adicionar 2 colunas: "Valor c/ Acordo (recalc)" e "Ajuste (c/ acordo)". Manter "A Recuperar (c/ acordo)" por retrocompat lendo `max(0, ajuste_acordo)`.
+
+### 5. Onde o "apoio de IA" entra
+Você mencionou IA para casos de acordo variável. **Neste plano não precisa** — o `fator_acordo` já é observável no lote (razão entre `valor_com_acordo` e `valor_pago_base` que o motor gravou). IA só seria útil se um item tivesse acordo desconhecido (ex: `valor_pago_base = 0` ou item sem regra aplicada). Nesse caso, ao invés de chutar, marco `ajuste_acordo = null` e mostro "sem base de acordo — revisar" (o analista decide). Se quiser, num passo futuro plugo o `useCopilot` para sugerir o fator olhando itens vizinhos do mesmo convênio/função/PJ.
+
+## Fora do escopo
+- Criar `company_financial_adjustments` de complemento automático para `ajuste_acordo < 0`.
+- Mudar regras de status TVR (`nao_pago`, `pago_a_mais` etc.) — mantidos.
+- Mudar motor de conciliação do lote.
+
+## Riscos
+- Baixo. Numericamente o valor de "a recuperar" para itens já classificados como `pago_a_mais`/`ausente_tasy` continua idêntico. A novidade é passar a mostrar valor negativo em itens `div_valor` que hoje mostram "—".
+- Contar dobrado: garantir que totalizadores continuam somando só `> 0.5` para "recuperar" e adicionar linha separada "a complementar" no rodapé.
+
+## Confirma?
+Se OK, implemento: (a) refator do cálculo + campo `ajuste_acordo`, (b) rótulo/coluna bicolor, (c) export xlsx com as 2 colunas novas, (d) rodapé da tabela com totais separados de recuperar/complementar.
