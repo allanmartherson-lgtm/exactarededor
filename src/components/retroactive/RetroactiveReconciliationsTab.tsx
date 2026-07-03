@@ -744,6 +744,14 @@ function NewView({
         return;
       }
     } else if (mode === "tasy_vs_repasse" && isMulti) {
+      if (!start || !end) {
+        toast({ title: "Selecione o período (De/Até) antes de continuar", variant: "destructive" });
+        return;
+      }
+      if (selectedPaymentIds.length === 0) {
+        toast({ title: "Selecione ao menos um lote a analisar", variant: "destructive" });
+        return;
+      }
       if (multiCompanyIds.length === 0 && multiDoctorIds.length === 0) {
         toast({ title: "Selecione ao menos uma PJ ou médico no mapeamento", variant: "destructive" });
         return;
@@ -759,6 +767,10 @@ function NewView({
         companies: multiCompanyIds.map((cid) => companies.find((c) => c.id === cid)?.name).filter(Boolean),
         doctors: multiDoctorIds.map((did) => doctors.find((d) => d.id === did)?.full_name).filter(Boolean),
       };
+      summary.selected_payment_ids = selectedPaymentIds;
+      summary.selected_payment_labels = availableLotes
+        .filter((l) => selectedPaymentIds.includes(l.id))
+        .map((l) => l.label);
     }
     const { data, error } = await (supabase as unknown as {
       from: (t: string) => {
