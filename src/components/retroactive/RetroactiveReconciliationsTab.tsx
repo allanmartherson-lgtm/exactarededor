@@ -2039,6 +2039,10 @@ export type TvrResult = {
   matched_payment_id?: string;
   matched_doctor_id?: string;
   matched_doctor_ids?: string[];
+  matched_company_id?: string;
+  pj_conciliada?: string;
+  regra_aplicada?: string;
+  calculo_aplicado?: string;
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
   key_audit?: {
     att: string;
