@@ -47,7 +47,9 @@ import {
   SendIcon,
   LockIcon,
   ExternalLinkIcon,
+  CalendarIcon,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Command,
   CommandEmpty,
