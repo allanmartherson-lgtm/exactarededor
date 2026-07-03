@@ -1091,21 +1091,61 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     }
   };
 
-  const applyMapping = (mapped: Record<string, string>[]) => {
-    const newDrafts: DraftItem[] = mapped.map((m) => ({
-      _localId: crypto.randomUUID(),
-      source: "upload",
-      attendance: m.attendance ?? "",
-      tuss_code: m.tuss_code ?? "",
-      procedure_date: m.procedure_date ?? "",
-      patient_name: m.patient_name ?? "",
-      function_label: m.function_label ?? "",
-      procedure_name: m.procedure_name ?? "",
-      claimed_amount: m.claimed_amount ?? "",
-      claimed_quantity: m.claimed_quantity ?? "",
-    }));
+  const applyMapping = (
+    mapped: Record<string, string>[],
+    meta?: { companyMapping?: Record<string, string | null> },
+  ) => {
+    const cMap = meta?.companyMapping ?? {};
+    const newDrafts: DraftItem[] = mapped.map((m) => {
+      const raw = (m.company_hint ?? "").trim();
+      const resolvedCompanyId = raw ? cMap[raw] ?? null : null;
+      return {
+        _localId: crypto.randomUUID(),
+        source: "upload",
+        attendance: m.attendance ?? "",
+        tuss_code: m.tuss_code ?? "",
+        procedure_date: m.procedure_date ?? "",
+        patient_name: m.patient_name ?? "",
+        function_label: m.function_label ?? "",
+        procedure_name: m.procedure_name ?? "",
+        claimed_amount: m.claimed_amount ?? "",
+        claimed_quantity: m.claimed_quantity ?? "",
+        company_hint: raw,
+        resolved_company_id: resolvedCompanyId,
+      };
+    });
     setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
     setWizard({ open: false });
+
+    // Persiste vínculos aprendidos (alias) + salva mapping no summary da reconciliação.
+    void (async () => {
+      if (!meta?.companyMapping) return;
+      const entries = Object.entries(meta.companyMapping);
+      let learned = 0;
+      for (const [raw, companyId] of entries) {
+        if (!companyId) continue;
+        const company = companies.find((c) => c.id === companyId);
+        if (!company) continue;
+        if (!shouldLearnAlias(raw, company)) continue;
+        const res = await learnCompanyAlias(supabase, { companyId, rawName: raw });
+        if (res.ok) learned++;
+      }
+      // Persistir mapping no summary (auditoria, reaproveitamento).
+      if (recon) {
+        const nextSummary = {
+          ...(recon.summary ?? {}),
+          company_mapping: meta.companyMapping,
+        };
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({ summary: nextSummary } as never)
+          .eq("id", id);
+      }
+      if (learned > 0) {
+        toast({ title: `${learned} apelido(s) de PJ aprendido(s) para próximas importações` });
+      }
+    })();
+
     toast({ title: `${newDrafts.length} linha(s) carregadas da planilha` });
   };
 
