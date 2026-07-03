@@ -2004,6 +2004,7 @@ type TasyRow = {
   tasy_medico?: string;
   tasy_funcao?: string;
   tasy_empresa?: string;
+  tasy_resolved_company_id?: string | null;
 };
 
 type PagRow = {
@@ -2072,6 +2073,8 @@ export type TvrResult = {
   matched_doctor_id?: string;
   matched_doctor_ids?: string[];
   matched_company_id?: string;
+  tasy_empresa?: string;
+  tasy_resolved_company_id?: string | null;
   pj_conciliada?: string;
   regra_aplicada?: string;
   calculo_aplicado?: string;
@@ -2773,6 +2776,7 @@ function LoteScopeFilter({
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const navigate = useNavigate();
   const [recon, setRecon] = useState<ReconRow | null>(null);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; aliases: string[] }>>([]);
   const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
   const [tasyFile, setTasyFile] = useState<string>("");
   const [tasyFileTotals, setTasyFileTotals] = useState<{ file: number; valid: number; excluded: number; dropped: number } | null>(null);
@@ -2853,6 +2857,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_convenio: r.convenio,
         tasy_medico: r.medico,
         tasy_funcao: r.funcao,
+        tasy_empresa: r.tasy_empresa,
+        tasy_resolved_company_id: r.tasy_resolved_company_id ?? null,
       })));
       setPagRows(savedResults.filter((r) => r.status !== "nao_pago").map<PagRow>((r) => ({
         pag_atendimento: r.atendimento,
@@ -2888,6 +2894,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       setDoctorInfo({ id: null, name: null, crm: null });
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const rows = await fetchAllPaginated<{ id: string; name: string; aliases: string[] | null }>((from, to) =>
+        supabase
+          .from("companies")
+          .select("id, name, aliases")
+          .eq("active", true)
+          .order("name")
+          .range(from, to),
+      );
+      if (cancelled) return;
+      setCompanies(rows.map((c) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] })));
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     void loadTvrReconciliation();
@@ -3078,8 +3102,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       mapping: Record<string, string>;
       totals: { file: number; valid: number; excluded: number; dropped: number };
       droppedExamples: Array<{ row_index: number; missing: string[] }>;
+      companyMapping?: Record<string, string | null>;
     },
   ) => {
+    const companyMapping = meta?.companyMapping ?? {};
     const excluded = new Set(
       pendingTussExclude
         .split(",")
@@ -3101,6 +3127,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_medico: d.tasy_medico,
         tasy_funcao: d.tasy_funcao,
         tasy_empresa: d.tasy_empresa,
+        tasy_resolved_company_id: d.tasy_empresa ? companyMapping[d.tasy_empresa] ?? null : null,
       }))
       .filter((r) => r.tasy_atendimento && r.tasy_tuss);
     setTasyRows(filtered);
@@ -3111,6 +3138,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setResults(null);
     setWizard({ kind: "none" });
     toast({ title: `TASY: ${filtered.length} de ${meta?.totals.file ?? filtered.length} linha(s) carregadas` });
+    void (async () => {
+      if (!meta?.companyMapping) return;
+      const entries = Object.entries(meta.companyMapping);
+      let learned = 0;
+      const { data: companyRows } = await supabase
+        .from("companies" as never)
+        .select("id, name, aliases")
+        .in("id", entries.map(([, companyId]) => companyId).filter(Boolean) as string[]);
+      const companyById = new Map(
+        ((companyRows ?? []) as Array<{ id: string; name: string; aliases: string[] | null }>).map((c) => [c.id, c]),
+      );
+      for (const [rawName, companyId] of entries) {
+        if (!companyId) continue;
+        const company = companyById.get(companyId);
+        if (!company || !shouldLearnAlias(rawName, company)) continue;
+        const res = await learnCompanyAlias(supabase, { companyId, rawName });
+        if (res.ok) learned++;
+      }
+      if (recon && entries.length > 0) {
+        const nextSummary = {
+          ...(recon.summary ?? {}),
+          tasy_company_mapping: meta.companyMapping,
+        };
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({ summary: nextSummary } as never)
+          .eq("id", id);
+      }
+      if (learned > 0) toast({ title: `${learned} apelido(s) de PJ aprendido(s) para próximas importações` });
+    })();
     // Dispara busca automática dos payment_items
     void loadPaymentItems(recon, filtered);
   };
@@ -3216,8 +3273,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         }
       }
 
-      // Resolver PJ (Terceiro) do TASY → company_id. Aceita CNPJ (dígitos) ou
-      // razão social; casa contra `companies` do hospital da apuração.
+      // Resolver PJ (Terceiro) do TASY → company_id. Aceita vínculo manual do
+      // wizard, CNPJ (dígitos), razão social ou alias do cadastro estadual.
       const normCompanyName = (s: unknown) =>
         String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
       const companyByDoc = new Map<string, string>();
@@ -3225,8 +3282,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         const { data: companiesData } = await supabase
           .from("companies" as never)
-          .select("id, name, document, aliases")
-          .eq("hospital_id", recon?.hospital_id ?? "");
+          .select("id, name, document, aliases");
         for (const c of (companiesData ?? []) as Array<Record<string, unknown>>) {
           const docDigits = String(c.document ?? "").replace(/\D+/g, "");
           const cid = String(c.id ?? "");
@@ -3243,7 +3299,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       } catch (e) {
         console.warn("TVR: falha carregando companies para resolver empresa do TASY", e);
       }
-      const resolveTasyCompany = (raw: string | undefined): string | null => {
+      const resolveTasyCompany = (row: TasyRow): string | null => {
+        const manualId = String(row.tasy_resolved_company_id ?? "").trim();
+        if (manualId) return manualId;
+        const raw = row.tasy_empresa;
         const s = String(raw ?? "").trim();
         if (!s) return null;
         const digits = s.replace(/\D+/g, "");
@@ -3287,7 +3346,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           tasyOutOfPeriodRemoved++;
           continue;
         }
-        const cid = resolveTasyCompany(r.tasy_empresa);
+        const cid = resolveTasyCompany(r);
         tasyCompanyByRow.set(r, cid);
         if (scopedCompanyIds.size > 0) {
           if (!String(r.tasy_empresa ?? "").trim()) {
@@ -3596,6 +3655,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
           matched_doctor_ids: p && p.doctor_ids_order.length > 0 ? [...p.doctor_ids_order] : undefined,
           matched_company_id: p?.sample.pag_company_id || undefined,
+          tasy_empresa: t?.sample.tasy_empresa || undefined,
+          tasy_resolved_company_id: t ? tasyCompanyByRow.get(t.sample) ?? null : null,
           regra_aplicada: p?.sample.pag_applied_rule_label || undefined,
           calculo_aplicado: undefined, // preenchido depois via lookup em rule_calculations
           key_audit: {
@@ -4916,6 +4977,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           rows={wizard.rows}
           targets={TASY_TARGETS}
           dialogTitle="Mapear colunas — Base TASY"
+          companyMappingConfig={companies.length > 0 ? { companies, companyHintKey: "tasy_empresa" } : undefined}
           extraConfig={
             <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
               <Label className="text-[11px] text-muted-foreground">Códigos TUSS a excluir (separados por vírgula)</Label>
