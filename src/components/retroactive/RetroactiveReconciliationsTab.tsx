@@ -128,6 +128,7 @@ type ReconRow = {
     total_excess?: number;
     tasy_file?: string;
     exclude_tuss?: string;
+    excluded_convenios?: string[];
     processed_at?: string;
     tvr_counts?: Partial<Record<TvrStatus, number>>;
     tvr_ausente_incomplete?: number;
