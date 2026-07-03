@@ -3219,7 +3219,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       // Enriquecer com nome da PJ e label da linha de cálculo aplicada
       try {
         const companyIds = Array.from(new Set(out.map((r) => r.matched_company_id).filter(Boolean))) as string[];
-        const calcIds = Array.from(new Set(out.map((r) => (p_calc_id_by_key.get(r.key) || "")).filter(Boolean))) as string[];
+        const calcIds = Array.from(new Set(out.map((r) => (pMap.get(r.key)?.sample.pag_applied_calc_id || "")).filter(Boolean))) as string[];
         const companyNameById = new Map<string, string>();
         const calcLabelById = new Map<string, string>();
         if (companyIds.length > 0) {
@@ -3239,7 +3239,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         }
         for (const r of out) {
           if (r.matched_company_id) r.pj_conciliada = companyNameById.get(r.matched_company_id) || undefined;
-          const cid = p_calc_id_by_key.get(r.key);
+          const cid = pMap.get(r.key)?.sample.pag_applied_calc_id;
           if (cid) r.calculo_aplicado = calcLabelById.get(cid) || undefined;
         }
       } catch (e) {
