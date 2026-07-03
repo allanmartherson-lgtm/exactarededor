@@ -128,6 +128,7 @@ type ReconRow = {
     total_excess?: number;
     tasy_file?: string;
     exclude_tuss?: string;
+    excluded_convenios?: string[];
     processed_at?: string;
     tvr_counts?: Partial<Record<TvrStatus, number>>;
     tvr_ausente_incomplete?: number;
@@ -1597,6 +1598,7 @@ export function buildTvrReplaceSummary(
     tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number } | null;
     tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
     exclude_tuss?: string;
+    excluded_convenios?: string[];
     processed_at?: string;
   },
 ): Record<string, unknown> {
@@ -1625,6 +1627,7 @@ export function buildTvrReplaceSummary(
     tasy_file_totals: ctx.tasy_file_totals ?? null,
     tasy_dropped_examples: ctx.tasy_dropped_examples ?? [],
     exclude_tuss: ctx.exclude_tuss ?? "",
+    excluded_convenios: ctx.excluded_convenios ?? [],
     processed_at: ctx.processed_at ?? new Date().toISOString(),
     tvr_counts: tvrCounts,
     tvr_ausente_incomplete: incompleteAusente.length,
@@ -1740,6 +1743,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [paymentsLoaded, setPaymentsLoaded] = useState(false);
   const [excludeTuss, setExcludeTuss] = useState<string>("");
   const [pendingTussExclude, setPendingTussExclude] = useState<string>("");
+  const [excludedConvenios, setExcludedConvenios] = useState<string[]>([]);
+  const [convenioFilterStats, setConvenioFilterStats] = useState<{ tasyRemoved: number; pagRemoved: number } | null>(null);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState<TvrResult[] | null>(null);
   const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
@@ -1772,6 +1777,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
     setExcludeTuss(row?.summary?.exclude_tuss ?? "");
     setPendingTussExclude(row?.summary?.exclude_tuss ?? "");
+    setExcludedConvenios(row?.summary?.excluded_convenios ?? []);
     setTasyFile(row?.summary?.tasy_file ?? "");
     setTasyFileTotals(row?.summary?.tasy_file_totals ?? null);
     setTasyDroppedExamples(row?.summary?.tasy_dropped_examples ?? []);
@@ -2048,6 +2054,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (error) toast({ title: "Erro ao limpar resultado salvo", description: error.message, variant: "destructive" });
   };
 
+  // Normalização de convênio para comparação/exclusão (sem acento, minúsculo,
+  // só alfanumérico). Espelha o filtro da conciliação por lote.
+  const normConv = (s: unknown): string =>
+    String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const availableConvenios = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number }>();
+    const add = (raw: unknown) => {
+      const label = String(raw ?? "").trim();
+      if (!label) return;
+      const key = normConv(label);
+      if (!key) return;
+      const cur = map.get(key);
+      if (cur) { cur.count += 1; }
+      else { map.set(key, { key, label, count: 1 }); }
+    };
+    for (const r of tasyRows) add(r.tasy_convenio);
+    for (const r of pagRows) add(r.pag_convenio);
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [tasyRows, pagRows]);
+
+
   const process = () => {
     if (tasyRows.length === 0 || pagRows.length === 0) {
       toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
@@ -2062,6 +2094,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           return [full, key].filter(Boolean);
         }),
       );
+      const excludedConvSet = new Set(excludedConvenios.map((k) => normConv(k)).filter(Boolean));
+      const isExcludedConv = (raw: unknown) => excludedConvSet.size > 0 && excludedConvSet.has(normConv(raw));
+      let convTasyRemoved = 0;
+      let convPagRemoved = 0;
 
       // Aggregate Repasse by (atendimento, tuss)
       type PAgg = {
@@ -2082,6 +2118,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const isPrincipal = (fn: string) => /cirurgi[aã]o\s*principal/i.test(fn);
       for (const r of pagRows) {
         if (isExcludedTvrTuss(r.pag_tuss, excluded)) continue;
+        if (isExcludedConv(r.pag_convenio)) { convPagRemoved++; continue; }
         const key = `${r.pag_atendimento}|${tvrTussKey(r.pag_tuss)}`;
         const q = num(r.pag_qtd) || 1;
         const vb = num(r.pag_valor_base);
@@ -2145,6 +2182,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const candidates = new Map<string, TasyCandidate>();
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
+        if (isExcludedConv(r.tasy_convenio)) continue;
         const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
@@ -2172,6 +2210,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const tMap = new Map<string, TAgg>();
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
+        if (isExcludedConv(r.tasy_convenio)) { convTasyRemoved++; continue; }
         const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
@@ -2268,6 +2307,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         await persistResults(out);
         setResults(out);
+        setConvenioFilterStats(excludedConvSet.size > 0 ? { tasyRemoved: convTasyRemoved, pagRemoved: convPagRemoved } : null);
         setSelectedKeys(new Set());
         await loadTvrReconciliation();
         toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
@@ -2418,6 +2458,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       tasy_file_totals: tasyFileTotals,
       tasy_dropped_examples: tasyDroppedExamples,
       exclude_tuss: excludeTuss,
+      excluded_convenios: excludedConvenios,
     });
     // Enriquecimento extra (não relevante para o teste de replace): chaves dos
     // ausentes incompletos, anexadas à última entrada do histórico.
@@ -2906,6 +2947,77 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         </div>
       </div>
+
+      {/* Filtro: convênios excluídos da análise */}
+      <details className={cn("border border-border rounded-lg text-xs bg-card", (tasyRows.length === 0 && pagRows.length === 0) && "opacity-60 pointer-events-none")}>
+        <summary className="cursor-pointer px-4 py-2.5 flex items-center gap-2 select-none">
+          <span className="font-medium text-foreground">Excluir convênios da análise</span>
+          {excludedConvenios.length > 0 ? (
+            <span className="ml-auto px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+              {excludedConvenios.length} convênio(s) excluído(s)
+            </span>
+          ) : (
+            <span className="ml-auto text-muted-foreground text-[11px]">nenhum</span>
+          )}
+        </summary>
+        <div className="px-4 py-3 space-y-3 border-t border-border">
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            Selecione convênios que operam por <strong>pacote / tratativa manual</strong> (ex.: Sul América, Particular).
+            Itens desses convênios são <strong>removidos das duas bases</strong> (TASY e Repasse) antes do cruzamento —
+            não geram "não pago" nem "ausente TASY". Após alterar, clique em <strong>Processar</strong>.
+          </p>
+          {availableConvenios.length === 0 ? (
+            <p className="text-muted-foreground italic">Nenhum convênio identificado nas bases carregadas.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+              {availableConvenios.map((conv) => {
+                const checked = excludedConvenios.includes(conv.key);
+                return (
+                  <label
+                    key={conv.key}
+                    title={conv.label}
+                    className={cn(
+                      "flex items-center gap-2 px-2.5 py-1.5 rounded border cursor-pointer transition-colors",
+                      checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setExcludedConvenios((prev) =>
+                          checked ? prev.filter((c) => c !== conv.key) : [...prev, conv.key],
+                        )
+                      }
+                      className="h-3.5 w-3.5 rounded"
+                      style={{ accentColor: "hsl(var(--primary))" }}
+                    />
+                    <span className="flex-1 truncate text-[11px]">{conv.label}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{conv.count}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          {excludedConvenios.length > 0 && (
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                onClick={() => setExcludedConvenios([])}
+              >
+                Limpar seleção
+              </button>
+              {convenioFilterStats && (
+                <span className="text-[11px] text-muted-foreground">
+                  Último processamento: <strong className="text-foreground">{convenioFilterStats.tasyRemoved}</strong> linha(s) TASY e{' '}
+                  <strong className="text-foreground">{convenioFilterStats.pagRemoved}</strong> linha(s) Repasse removida(s).
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </details>
 
       {/* Step 3 — Process */}
       <div className="flex items-center gap-2">
