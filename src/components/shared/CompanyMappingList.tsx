@@ -68,15 +68,28 @@ export function CompanyMappingList({
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-success" /> Auto-vinculado
-        </span>
-        <span className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-warning" /> Confirmar sugestão
-        </span>
-        <span className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Não encontrado
-        </span>
+        {variant === "select" ? (
+          <>
+            <span className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-success" /> Auto-vinculado
+            </span>
+            <span className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-warning" /> Confirmar sugestão
+            </span>
+            <span className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Não encontrado
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-success" /> Incluído
+            </span>
+            <span className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Ignorado
+            </span>
+          </>
+        )}
       </div>
 
       <div className="space-y-1.5 overflow-y-auto pr-1" style={{ maxHeight }}>
