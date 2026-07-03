@@ -564,6 +564,17 @@ export function PaymentConciliationModal({
     keepCompanies: string[];
   } | null>(null);
 
+  // Convênios excluídos da análise de conciliação.
+  // Uso típico: convênios que operam por pacote/tratativa manual (Sul América,
+  // Particular, etc.). Itens desses convênios são removidos das duas bases
+  // (Exacta e hospitalar) antes do cruzamento — não geram só_hospital/só_exacta.
+  const [excludedConvenios, setExcludedConvenios] = useState<string[]>([]);
+  const [convenioFilterStats, setConvenioFilterStats] = useState<{
+    excluded: string[];
+    exactaRemoved: number;
+    hospitalRemoved: number;
+  } | null>(null);
+
   const loteCompanies = useMemo(
     () =>
       Array.from(
@@ -571,6 +582,26 @@ export function PaymentConciliationModal({
       ).sort(),
     [paymentItems],
   );
+
+  // Convênios distintos presentes na base Exacta deste pagamento.
+  // Usado para popular o multi-select de exclusão.
+  const availableConvenios = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of paymentItems) {
+      const raw = ((it as any).agreement_text ?? "").toString().trim();
+      if (raw) set.add(raw);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [paymentItems]);
+
+  // Normalização usada para comparar convênios entre bases: sem acento,
+  // minúsculo, só alfanumérico. Ex.: "Sul América" == "SUL AMERICA" == "SulAmerica".
+  const normAgreement = (s: unknown): string =>
+    String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
 
   // Resolução nome→id (gravar exacta_company_id no histórico).
   const companyNameToId = useMemo(() => {
