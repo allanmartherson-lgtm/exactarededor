@@ -4217,7 +4217,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className={cn("text-2xl font-bold", totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
                     {totalComplementar > 0 ? brl(totalComplementar) : "R$ -"}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Não pago + subpagamentos</div>
+                  {(() => {
+                    const totalComplementarAcordo = results.reduce(
+                      (sum, r) => sum + Math.max(0, -(r.ajuste_acordo ?? 0)),
+                      0,
+                    );
+                    return (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Base: {brl(totalComplementar)} ·{" "}
+                        <span className="font-semibold text-orange-600">
+                          C/ acordo: {brl(totalComplementarAcordo)}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
@@ -4226,7 +4239,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   </div>
                   {(() => {
                     const totalRecuperarAcordo = results.reduce(
-                      (sum, r) => sum + (r.valor_recuperar_acordo ?? 0),
+                      (sum, r) => sum + Math.max(0, r.ajuste_acordo ?? 0),
                       0,
                     );
                     return (
