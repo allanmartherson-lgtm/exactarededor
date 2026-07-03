@@ -1709,6 +1709,21 @@ function normTuss(v: string | undefined): string {
   return String(v ?? "").replace(/\D/g, "").slice(0, 8);
 }
 
+function tvrTussKey(v: string | undefined): string {
+  const digits = normTuss(v);
+  // Alguns relatórios TASY exportam o TUSS com 7 dígitos, enquanto o repasse
+  // fica gravado com 8. Para a conciliação retroativa TVR, a chave usa o
+  // prefixo operacional comum para não transformar item pago em "não pago".
+  return digits.length >= 7 ? digits.slice(0, 7) : digits;
+}
+
+function isExcludedTvrTuss(v: string | undefined, excluded: Set<string>): boolean {
+  const full = normTuss(v);
+  const key = tvrTussKey(v);
+  if (!full && !key) return false;
+  return excluded.has(full) || excluded.has(key) || Array.from(excluded).some((x) => tvrTussKey(x) === key);
+}
+
 function normAtt(v: string | undefined): string {
   return String(v ?? "").trim();
 }
@@ -1950,12 +1965,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const excluded = new Set(
       pendingTussExclude
         .split(",")
-        .map((s) => normTuss(s.trim()))
+          .map((s) => normTuss(s.trim()))
         .filter(Boolean),
     );
     setExcludeTuss(pendingTussExclude);
     const filtered = drafts
-      .filter((d) => !excluded.has(normTuss(d.tuss_code)))
+      .filter((d) => !isExcludedTvrTuss(d.tuss_code, excluded))
       .map<TasyRow>((d) => ({
         tasy_atendimento: normAtt(d.tasy_atendimento || d.attendance),
         tasy_tuss: normTuss(d.tasy_tuss || d.tuss_code),
@@ -2023,7 +2038,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setProcessing(true);
     setTimeout(async () => {
       const excluded = new Set(
-        excludeTuss.split(",").map((s) => normTuss(s.trim())).filter(Boolean),
+        excludeTuss.split(",").flatMap((s) => {
+          const full = normTuss(s.trim());
+          const key = tvrTussKey(full);
+          return [full, key].filter(Boolean);
+        }),
       );
 
       // Aggregate Repasse by (atendimento, tuss)
@@ -2044,8 +2063,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const pMap = new Map<string, PAgg>();
       const isPrincipal = (fn: string) => /cirurgi[aã]o\s*principal/i.test(fn);
       for (const r of pagRows) {
-        if (excluded.has(r.pag_tuss)) continue;
-        const key = `${r.pag_atendimento}|${r.pag_tuss}`;
+        if (isExcludedTvrTuss(r.pag_tuss, excluded)) continue;
+        const key = `${r.pag_atendimento}|${tvrTussKey(r.pag_tuss)}`;
         const q = num(r.pag_qtd) || 1;
         const vb = num(r.pag_valor_base);
         const va = num(r.pag_valor_com_acordo);
@@ -2107,8 +2126,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       type TasyCandidate = { qtd: number; asLineTotal: number; asUnitValue: number };
       const candidates = new Map<string, TasyCandidate>();
       for (const r of tasyRows) {
-        if (excluded.has(r.tasy_tuss)) continue;
-        const key = `${r.tasy_atendimento}|${r.tasy_tuss}`;
+        if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
+        const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const cur = candidates.get(key);
@@ -2134,8 +2153,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       const tMap = new Map<string, TAgg>();
       for (const r of tasyRows) {
-        if (excluded.has(r.tasy_tuss)) continue;
-        const key = `${r.tasy_atendimento}|${r.tasy_tuss}`;
+        if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
+        const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
         const lineTotal = tasyValueIsLineTotal ? v : v * q;
