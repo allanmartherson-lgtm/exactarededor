@@ -1,0 +1,1 @@
+ALTER TABLE public.retroactive_reconciliations DROP CONSTRAINT IF EXISTS retro_recon_scope_chk;
