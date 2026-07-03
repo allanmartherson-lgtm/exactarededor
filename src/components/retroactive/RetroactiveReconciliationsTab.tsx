@@ -2793,6 +2793,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<Set<TvrStatus>>(new Set());
   const [search, setSearch] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  // Painel bloqueante — quando o motor identifica linhas TASY sem PJ resolvida,
+  // listamos aqui os valores crus da coluna Empresa/PJ + contagem, para o analista
+  // vincular direto sem reabrir o wizard.
+  const [unresolvedPjPanel, setUnresolvedPjPanel] = useState<
+    Array<{ raw: string; count: number; missing: boolean }>
+  >([]);
+  const [pjMapDraft, setPjMapDraft] = useState<Record<string, string>>({});
+  const [pjMapApplying, setPjMapApplying] = useState(false);
   const resultTopScrollRef = useRef<HTMLDivElement | null>(null);
   const resultTableScrollRef = useRef<HTMLDivElement | null>(null);
   const [resultScrollWidth, setResultScrollWidth] = useState(1);
@@ -3174,6 +3182,68 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
 
+  /**
+   * Aplica o mapeamento manual feito no painel "PJs TASY não vinculadas":
+   * atualiza tasy_resolved_company_id em memória, aprende aliases no cadastro
+   * e persiste em summary.tasy_company_mapping — sem reabrir o wizard.
+   */
+  const applyPjMapDraft = async () => {
+    const entries = Object.entries(pjMapDraft).filter(([raw, cid]) => raw && cid && raw !== "(vazio)");
+    if (entries.length === 0) {
+      toast({ title: "Selecione ao menos uma PJ para vincular", variant: "destructive" });
+      return;
+    }
+    setPjMapApplying(true);
+    try {
+      const rawToCid = new Map(entries);
+      // 1) Atualiza tasyRows em memória
+      setTasyRows((prev) =>
+        prev.map((r) => {
+          const rawEmp = String(r.tasy_empresa ?? "").trim();
+          const cid = rawEmp ? rawToCid.get(rawEmp) : undefined;
+          return cid ? { ...r, tasy_resolved_company_id: cid } : r;
+        }),
+      );
+      // 2) Aprende alias no cadastro estadual (para próximas importações)
+      const companyIds = Array.from(new Set(entries.map(([, cid]) => cid).filter(Boolean)));
+      const { data: companyRows } = await supabase
+        .from("companies" as never)
+        .select("id, name, aliases")
+        .in("id", companyIds);
+      const companyById = new Map(
+        ((companyRows ?? []) as Array<{ id: string; name: string; aliases: string[] | null }>).map((c) => [c.id, c]),
+      );
+      let learned = 0;
+      for (const [rawName, companyId] of entries) {
+        const company = companyById.get(companyId);
+        if (!company || !shouldLearnAlias(rawName, company)) continue;
+        const res = await learnCompanyAlias(supabase, { companyId, rawName });
+        if (res.ok) learned++;
+      }
+      // 3) Persiste no summary da apuração para sobreviver a recarregamentos
+      if (recon) {
+        const prevMap = ((recon.summary as Record<string, unknown> | null)?.tasy_company_mapping ?? {}) as Record<string, string>;
+        const nextMap = { ...prevMap, ...Object.fromEntries(entries) };
+        const nextSummary = { ...(recon.summary ?? {}), tasy_company_mapping: nextMap };
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({ summary: nextSummary } as never)
+          .eq("id", id);
+      }
+      setUnresolvedPjPanel([]);
+      setPjMapDraft({});
+      toast({
+        title: `${entries.length} PJ(s) vinculada(s)${learned > 0 ? ` · ${learned} apelido(s) aprendido(s)` : ""}`,
+        description: "Clique em Processar para rodar novamente com o escopo corrigido.",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao aplicar mapeamentos", description: msg, variant: "destructive" });
+    } finally {
+      setPjMapApplying(false);
+    }
+  };
+
   const clearAll = async () => {
     const preservedSummary = (recon?.summary ?? {}) as Record<string, unknown>;
     setTasyRows([]);
@@ -3336,6 +3406,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       let tasyMissingDateRemoved = 0;
       let tasyMissingCompany = 0;
       let tasyUnresolvedCompany = 0;
+      // Amostragem por valor cru da coluna Empresa/PJ — alimenta o painel de
+      // mapeamento inline quando o motor bloqueia por escopo inseguro.
+      const unresolvedByRaw = new Map<string, { count: number; missing: boolean }>();
       for (const r of tasyRows) {
         const ymd = dbDateOrNull(r.tasy_data);
         if (!ymd) {
@@ -3349,12 +3422,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const cid = resolveTasyCompany(r);
         tasyCompanyByRow.set(r, cid);
         if (scopedCompanyIds.size > 0) {
-          if (!String(r.tasy_empresa ?? "").trim()) {
+          const rawEmpresa = String(r.tasy_empresa ?? "").trim();
+          if (!rawEmpresa) {
             tasyMissingCompany++;
+            const key = "(vazio)";
+            const cur = unresolvedByRaw.get(key) ?? { count: 0, missing: true };
+            unresolvedByRaw.set(key, { count: cur.count + 1, missing: true });
             continue;
           }
           if (!cid) {
             tasyUnresolvedCompany++;
+            const cur = unresolvedByRaw.get(rawEmpresa) ?? { count: 0, missing: false };
+            unresolvedByRaw.set(rawEmpresa, { count: cur.count + 1, missing: false });
             continue;
           }
           if (!scopedCompanyIds.has(cid)) {
@@ -3366,14 +3445,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
 
       if (tasyMissingCompany > 0 || tasyUnresolvedCompany > 0) {
+        const samples = Array.from(unresolvedByRaw.entries())
+          .map(([raw, v]) => ({ raw, count: v.count, missing: v.missing }))
+          .sort((a, b) => b.count - a.count);
+        setUnresolvedPjPanel(samples);
+        setPjMapDraft({});
         toast({
           title: "TASY fora do escopo seguro do lote",
-          description: `${tasyMissingCompany} linha(s) sem PJ e ${tasyUnresolvedCompany} linha(s) com PJ não cadastrada/sem alias. Mapeie/vincule a coluna Empresa/PJ para isolar o lote antes de processar.`,
+          description: `${tasyMissingCompany} linha(s) sem PJ e ${tasyUnresolvedCompany} linha(s) com PJ não cadastrada/sem alias. Use o painel abaixo para vincular direto.`,
           variant: "destructive",
         });
         setProcessing(false);
         return;
       }
+      // Limpa painel se processou limpo desta vez.
+      setUnresolvedPjPanel([]);
 
       if (effectiveTasyRows.length === 0) {
         toast({
@@ -4539,6 +4625,86 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           )}
         </div>
       </details>
+
+      {/* Painel bloqueante — PJs TASY sem vínculo no cadastro estadual */}
+      {unresolvedPjPanel.length > 0 && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div>
+              <div className="text-sm font-medium text-destructive">
+                PJs TASY não vinculadas ({unresolvedPjPanel.reduce((s, x) => s + x.count, 0)} linha(s) bloqueadas)
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Vincule cada valor cru da coluna Empresa/PJ da planilha a uma PJ do cadastro. O vínculo é aprendido como apelido — nas próximas importações resolve automaticamente.
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => void applyPjMapDraft()}
+                disabled={pjMapApplying || Object.values(pjMapDraft).filter(Boolean).length === 0}
+              >
+                {pjMapApplying ? "Aplicando…" : "Aplicar vínculos"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setUnresolvedPjPanel([]);
+                  setPjMapDraft({});
+                }}
+                disabled={pjMapApplying}
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+          <div className="max-h-[320px] overflow-auto rounded border bg-background">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[45%]">PJ na planilha (Empresa/Terceiro)</TableHead>
+                  <TableHead className="w-[10%] text-right">Linhas</TableHead>
+                  <TableHead>Vincular a PJ do cadastro</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unresolvedPjPanel.map((s) => (
+                  <TableRow key={s.raw}>
+                    <TableCell className="font-mono text-xs">
+                      {s.missing ? <span className="italic text-muted-foreground">(coluna Empresa vazia)</span> : s.raw}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{s.count}</TableCell>
+                    <TableCell>
+                      {s.missing ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Corrija a coluna na planilha e reimporte — sem PJ crua não dá para vincular.
+                        </span>
+                      ) : (
+                        <Select
+                          value={pjMapDraft[s.raw] ?? ""}
+                          onValueChange={(v) => setPjMapDraft((prev) => ({ ...prev, [s.raw]: v }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione a PJ…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {companies.map((c) => (
+                              <SelectItem key={c.id} value={c.id} className="text-xs">
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
 
       {/* Step 3 — Process */}
       <div className="flex items-center gap-2 flex-wrap">
