@@ -1981,6 +1981,7 @@ type TasyRow = {
   tasy_convenio?: string;
   tasy_medico?: string;
   tasy_funcao?: string;
+  tasy_empresa?: string;
 };
 
 type PagRow = {
