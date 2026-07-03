@@ -1662,6 +1662,19 @@ function dbDateOrNull(value: string): string | null {
   return null;
 }
 
+/**
+ * Parse "YYYY-MM-DD" (ou ISO com hora) como data LOCAL — evita o shift de
+ * fuso horário do `new Date("2026-04-01")`, que em UTC-3 vira 31/03 21:00.
+ * Usado em toda formatação/cálculo de janelas de período.
+ */
+function parseYmdLocal(value: string | null | undefined): Date {
+  const s = String(value ?? "").slice(0, 10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(value ?? "");
+}
+
+
 function formatTvrDate(value: string | null | undefined): string {
   if (!value) return "—";
   const s = String(value).slice(0, 10);
