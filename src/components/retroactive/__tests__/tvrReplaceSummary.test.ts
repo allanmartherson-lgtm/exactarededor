@@ -164,6 +164,95 @@ describe("Reprocessar mantém cards financeiros e exportação Excel idênticos"
   });
 });
 
+describe("buildTvrReplaceSummary — preserva escopo do lote em reprocessos repetidos", () => {
+  const scopedPrevious = {
+    mode: "tasy_vs_repasse",
+    scope: "selected_payments",
+    selected_payment_ids: ["p-1", "p-2"],
+    selected_payment_labels: ["Lote A", "Lote B"],
+    multi_company_ids: ["c-1"],
+    multi_doctor_ids: ["d-1", "d-2"],
+    multi_labels: { companies: ["Empresa X"], doctors: ["Dr. A", "Dr. B"] },
+    handoff: { payment_id: "p-1", sent_at: "2026-06-09T10:00:00Z" },
+    tvr_counts: { div_qtd: 7, pago_sem_tasy: 3 },
+    total: 42,
+  };
+
+  it("mantém selected_payment_ids/scope/multi_* no primeiro reprocesso (trigger enforce não rejeita)", () => {
+    const list: TvrResult[] = [r({ status: "ok" }), r({ status: "nao_pago", valor_total_tasy: 100 })];
+    const next = buildTvrReplaceSummary(list, scopedPrevious, { processed_at: "2026-06-10T00:00:00Z" });
+
+    expect(next.scope).toBe("selected_payments");
+    expect(next.selected_payment_ids).toEqual(["p-1", "p-2"]);
+    expect(next.selected_payment_labels).toEqual(["Lote A", "Lote B"]);
+    expect(next.multi_company_ids).toEqual(["c-1"]);
+    expect(next.multi_doctor_ids).toEqual(["d-1", "d-2"]);
+    expect(next.multi_labels).toEqual({ companies: ["Empresa X"], doctors: ["Dr. A", "Dr. B"] });
+    expect((next as { handoff?: unknown }).handoff).toEqual(scopedPrevious.handoff);
+  });
+
+  it("N reprocessos consecutivos não perdem escopo e não inflam totais", () => {
+    const list: TvrResult[] = [
+      r({ status: "nao_pago", valor_total_tasy: 1000 }),
+      r({ status: "div_valor", dif_valor: 250, valor_pago_base: 750 }),
+      r({ status: "ausente_tasy", valor_pago_base: 420 }),
+    ];
+
+    let summary: Record<string, unknown> = scopedPrevious;
+    const snapshots: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < 5; i++) {
+      summary = buildTvrReplaceSummary(list, summary, {
+        processed_at: `2026-06-1${i}T00:00:00Z`,
+      });
+      snapshots.push(summary);
+    }
+
+    // Totais estáveis em todos os reprocessos — nada infla.
+    for (const s of snapshots) {
+      expect(s.total).toBe(3);
+      expect(s.total_gap).toBeCloseTo(1250, 2);
+      expect(s.total_excess).toBeCloseTo(420, 2);
+      expect(s.selected_payment_ids).toEqual(["p-1", "p-2"]);
+      expect(s.scope).toBe("selected_payments");
+      expect(s.multi_company_ids).toEqual(["c-1"]);
+    }
+
+    // Histórico cresce em cada reprocesso (append, sem duplicar counters legados).
+    const history = snapshots[4].tvr_validation_history as Array<Record<string, unknown>>;
+    expect(history.length).toBe(5);
+    expect((snapshots[4].tvr_counts as Record<string, unknown>).div_qtd).toBeUndefined();
+    expect((snapshots[4].tvr_counts as Record<string, unknown>).pago_sem_tasy).toBeUndefined();
+  });
+
+  it("cenário 'Limpar tudo' — lista vazia zera totais mas mantém escopo do lote", () => {
+    const cleared = buildTvrReplaceSummary([], scopedPrevious, {
+      processed_at: "2026-06-10T00:00:00Z",
+    });
+    expect(cleared.total).toBe(0);
+    expect(cleared.total_gap).toBe(0);
+    expect(cleared.total_excess).toBe(0);
+    // Escopo obrigatório para o trigger continua no summary.
+    expect(cleared.selected_payment_ids).toEqual(["p-1", "p-2"]);
+    expect(cleared.scope).toBe("selected_payments");
+    // Todos os counters zeram — nada legado sobrevive.
+    expect(cleared.tvr_counts).toEqual({
+      nao_pago: 0,
+      div_qtd_valor: 0,
+      div_valor: 0,
+      pago_a_mais: 0,
+      ausente_tasy: 0,
+      ok: 0,
+    });
+  });
+
+  it("previousSummary sem escopo não injeta chaves undefined (evita quebra do trigger)", () => {
+    const next = buildTvrReplaceSummary([r({ status: "ok" })], {}, {});
+    expect("selected_payment_ids" in next).toBe(false);
+    expect("scope" in next).toBe(false);
+    expect("multi_company_ids" in next).toBe(false);
+  });
+});
+
 describe("parseCellMoney — não infla valores TASY", () => {
   it("mantém ponto decimal único como decimal real", () => {
     expect(parseCellMoney("6297.65")).toBe("6297.65");
@@ -173,5 +262,39 @@ describe("parseCellMoney — não infla valores TASY", () => {
   it("interpreta formatos BR e US com separador de milhar", () => {
     expect(parseCellMoney("1.234,56")).toBe("1234.56");
     expect(parseCellMoney("1,234.56")).toBe("1234.56");
+  });
+
+  it("preserva números puros e zero", () => {
+    expect(parseCellMoney(1234.56)).toBe("1234.56");
+    expect(parseCellMoney(0)).toBe("0");
+    expect(parseCellMoney("")).toBe("");
+    expect(parseCellMoney(null)).toBe("");
+    expect(parseCellMoney(undefined)).toBe("");
+  });
+
+  it("mantém sinal negativo (glosas/estornos não viram positivo)", () => {
+    expect(parseCellMoney("-1.234,56")).toBe("-1234.56");
+    expect(parseCellMoney("-500")).toBe("-500");
+    expect(parseCellMoney("R$ -1.234,56")).toBe("-1234.56");
+  });
+
+  it("aceita símbolos monetários e espaços sem inflar", () => {
+    expect(parseCellMoney("R$ 1.234,56")).toBe("1234.56");
+    expect(parseCellMoney(" 1234,56 ")).toBe("1234.56");
+    expect(parseCellMoney("BRL 200.00")).toBe("200.00");
+  });
+
+  it("múltiplos separadores de milhar — não perde dígitos e não multiplica", () => {
+    expect(parseCellMoney("1.234.567,89")).toBe("1234567.89");
+    expect(parseCellMoney("1,234,567.89")).toBe("1234567.89");
+    // Só vírgulas, mais de duas → todas viram milhar exceto a última (decimal).
+    expect(parseCellMoney("1,234,567")).toBe("1234.567");
+  });
+
+  it("regressão — 6297.65 NÃO pode virar 6297650 (bug de inflar 1000x)", () => {
+    // Parse + Number: valor final coerente com a planilha TASY original.
+    expect(Number(parseCellMoney("6297.65"))).toBeCloseTo(6297.65, 2);
+    expect(Number(parseCellMoney("629.765"))).toBeCloseTo(629.765, 3);
+    expect(Number(parseCellMoney("1.234,56"))).toBeCloseTo(1234.56, 2);
   });
 });
