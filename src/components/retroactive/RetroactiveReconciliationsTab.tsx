@@ -3369,7 +3369,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Valor c/ Acordo": r.valor_com_acordo,
     "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
     "Dif. Valor": Number(r.dif_valor.toFixed(2)),
+    "Valor c/ Acordo (recalc)": Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)),
+    "Ajuste (c/ acordo)": Number((r.ajuste_acordo ?? 0).toFixed(2)),
     "A Recuperar (c/ acordo)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+    "A Complementar (c/ acordo)": Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)),
     "Regra Aplicada": r.regra_aplicada ?? "",
     "Linha do Cálculo": r.calculo_aplicado ?? "",
 
