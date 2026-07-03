@@ -2856,6 +2856,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_convenio: r.convenio,
         tasy_medico: r.medico,
         tasy_funcao: r.funcao,
+        tasy_empresa: r.tasy_empresa,
+        tasy_resolved_company_id: r.tasy_resolved_company_id ?? null,
       })));
       setPagRows(savedResults.filter((r) => r.status !== "nao_pago").map<PagRow>((r) => ({
         pag_atendimento: r.atendimento,
@@ -3081,8 +3083,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       mapping: Record<string, string>;
       totals: { file: number; valid: number; excluded: number; dropped: number };
       droppedExamples: Array<{ row_index: number; missing: string[] }>;
+      companyMapping?: Record<string, string | null>;
     },
   ) => {
+    const companyMapping = meta?.companyMapping ?? {};
     const excluded = new Set(
       pendingTussExclude
         .split(",")
@@ -3104,6 +3108,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_medico: d.tasy_medico,
         tasy_funcao: d.tasy_funcao,
         tasy_empresa: d.tasy_empresa,
+        tasy_resolved_company_id: d.tasy_empresa ? companyMapping[d.tasy_empresa] ?? null : null,
       }))
       .filter((r) => r.tasy_atendimento && r.tasy_tuss);
     setTasyRows(filtered);
@@ -3114,6 +3119,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setResults(null);
     setWizard({ kind: "none" });
     toast({ title: `TASY: ${filtered.length} de ${meta?.totals.file ?? filtered.length} linha(s) carregadas` });
+    void (async () => {
+      if (!meta?.companyMapping) return;
+      const entries = Object.entries(meta.companyMapping);
+      let learned = 0;
+      const { data: companyRows } = await supabase
+        .from("companies" as never)
+        .select("id, name, aliases")
+        .in("id", entries.map(([, companyId]) => companyId).filter(Boolean) as string[]);
+      const companyById = new Map(
+        ((companyRows ?? []) as Array<{ id: string; name: string; aliases: string[] | null }>).map((c) => [c.id, c]),
+      );
+      for (const [rawName, companyId] of entries) {
+        if (!companyId) continue;
+        const company = companyById.get(companyId);
+        if (!company || !shouldLearnAlias(rawName, company)) continue;
+        const res = await learnCompanyAlias(supabase, { companyId, rawName });
+        if (res.ok) learned++;
+      }
+      if (recon && entries.length > 0) {
+        const nextSummary = {
+          ...(recon.summary ?? {}),
+          tasy_company_mapping: meta.companyMapping,
+        };
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({ summary: nextSummary } as never)
+          .eq("id", id);
+      }
+      if (learned > 0) toast({ title: `${learned} apelido(s) de PJ aprendido(s) para próximas importações` });
+    })();
     // Dispara busca automática dos payment_items
     void loadPaymentItems(recon, filtered);
   };
