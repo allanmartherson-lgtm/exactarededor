@@ -2093,9 +2093,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const startYmd = addDaysYmd(r.period_start, -90) ?? String(r.period_start).slice(0, 10);
       const endYmd = addDaysYmd(r.period_end, 90) ?? String(r.period_end).slice(0, 10);
 
-      // Escopo: se a apuração não tem médico/PJ, usa os atendimentos do TASY como filtro
-      // para evitar puxar dezenas de milhares de itens do hospital inteiro.
-      const hasScope = Boolean(r.doctor_id || r.company_id);
+      // Escopo: individual (doctor/company do próprio row) ou multi_pj
+      // (arrays em summary.multi_company_ids / summary.multi_doctor_ids).
+      const multiCompanyIds = (r.summary?.multi_company_ids ?? []).filter(Boolean);
+      const multiDoctorIds = (r.summary?.multi_doctor_ids ?? []).filter(Boolean);
+      const isMulti = (r.summary?.scope === "multi_pj") && (multiCompanyIds.length > 0 || multiDoctorIds.length > 0);
+      const hasScope = Boolean(r.doctor_id || r.company_id) || isMulti;
       const tasyAttendances = Array.from(new Set(sourceTasyRows.map((t) => t.tasy_atendimento).filter(Boolean)));
 
       if (!hasScope && tasyAttendances.length === 0) {
@@ -2133,8 +2136,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
               .gte("procedure_date", startYmd)
               .lte("procedure_date", endYmd);
-            if (r.doctor_id) q = q.eq("doctor_id", r.doctor_id);
-            if (r.company_id) q = q.eq("company_id", r.company_id);
+            if (isMulti) {
+              if (multiCompanyIds.length > 0) q = q.in("company_id", multiCompanyIds);
+              if (multiDoctorIds.length > 0) q = q.in("doctor_id", multiDoctorIds);
+            } else {
+              if (r.doctor_id) q = q.eq("doctor_id", r.doctor_id);
+              if (r.company_id) q = q.eq("company_id", r.company_id);
+            }
             return q.range(from, to);
           });
         }
@@ -2142,6 +2150,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         toast({ title: "Erro ao buscar pagamentos", description: error?.message ?? String(error), variant: "destructive" });
         return;
       }
+
 
       const rawItemsAll = data;
       const paymentIds = Array.from(new Set(rawItemsAll.map((it) => String(it.payment_id ?? "")).filter(Boolean)));
