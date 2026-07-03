@@ -3137,13 +3137,23 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
 
-        let valor_recuperar_acordo = 0;
+        // Comparação: valor com acordo pago no histórico (Exacta) vs
+        // valor que o mesmo acordo pagaria HOJE se aplicado sobre a base TASY.
+        // fator_acordo é o % de acordo que a regra praticou no lote
+        // (ex.: 100%, 88% para hemo, 27,51% para valor_fixo etc.).
+        const fator_acordo = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 0;
+        const valor_com_acordo_recalc = valor_total_tasy * fator_acordo;
+        // Positivo => paguei a mais (a recuperar).
+        // Negativo => paguei a menos (a complementar).
+        let ajuste_acordo = 0;
         if (status === "ausente_tasy") {
-          valor_recuperar_acordo = valor_com_acordo;
-        } else if (dif_valor < -0.5) {
-          const fator = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 1;
-          valor_recuperar_acordo = Math.abs(dif_valor) * fator;
+          ajuste_acordo = valor_com_acordo; // TASY zerado/inexistente => tudo a recuperar
+        } else if (status === "nao_pago") {
+          ajuste_acordo = 0; // sem base de acordo — tratado na tela de confecção
+        } else if (valor_pago_base > 0) {
+          ajuste_acordo = valor_com_acordo - valor_com_acordo_recalc;
         }
+        const valor_recuperar_acordo = Math.max(0, ajuste_acordo);
 
         // ---- Auditoria da chave ----
         const auditAtt = normAtt(t?.atendimento ?? p?.atendimento ?? "");
