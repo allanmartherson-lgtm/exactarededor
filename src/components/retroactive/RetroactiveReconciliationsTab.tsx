@@ -4977,6 +4977,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           rows={wizard.rows}
           targets={TASY_TARGETS}
           dialogTitle="Mapear colunas — Base TASY"
+          companyMappingConfig={companies.length > 0 ? { companies, companyHintKey: "tasy_empresa" } : undefined}
           extraConfig={
             <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
               <Label className="text-[11px] text-muted-foreground">Códigos TUSS a excluir (separados por vírgula)</Label>
