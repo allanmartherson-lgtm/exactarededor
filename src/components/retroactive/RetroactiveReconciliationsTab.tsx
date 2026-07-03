@@ -2003,6 +2003,10 @@ type PagRow = {
   pag_payment_id?: string;
   pag_doctor_id?: string;
   pag_company_id?: string;
+  pag_applied_rule_id?: string;
+  pag_applied_rule_label?: string;
+  pag_applied_calc_id?: string;
+  pag_applied_calc_method?: string;
 };
 
 
