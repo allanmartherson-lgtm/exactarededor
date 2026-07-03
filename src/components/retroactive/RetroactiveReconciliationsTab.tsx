@@ -1662,9 +1662,6 @@ function dbDateOrNull(value: string): string | null {
   return null;
 }
 
-// Datas de competência sem shift de fuso — reexporta o helper canônico do
-// projeto para uso interno neste módulo (ver docs em `@/lib/dateUtils`).
-import { parseYmdLocal, addDaysYmd, competenceOfYmd, assertYmd } from "@/lib/dateUtils";
 
 
 
