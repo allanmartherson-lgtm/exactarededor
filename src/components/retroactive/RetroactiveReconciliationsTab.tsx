@@ -1963,7 +1963,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       setPagRows(rows);
       setPaymentsLoaded(true);
-      toast({ title: `${rows.length} item(ns) carregados do sistema` });
+      const suffix = droppedByCompetence > 0
+        ? ` · ${droppedByCompetence} descartado(s) fora da competência ${targetCompetence}`
+        : "";
+      toast({ title: `${rows.length} item(ns) carregados do sistema${suffix}` });
     } finally {
       setLoadingPayments(false);
     }
