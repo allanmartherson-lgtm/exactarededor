@@ -2528,6 +2528,29 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           valor_recuperar_acordo = Math.abs(dif_valor) * fator;
         }
 
+        // ---- Auditoria da chave ----
+        const auditAtt = normAtt(t?.atendimento ?? p?.atendimento ?? "");
+        const auditDate = dateKeyPart(t?.sample.tasy_data || p?.sample.pag_data || "");
+        const auditTuss8 = tvrTussKey(t?.tuss ?? p?.tuss ?? "");
+        const pagDoctorIdRaw = (p?.sample.pag_doctor_id ?? "").trim();
+        const tasyName = t?.sample.tasy_medico ?? "";
+        const pagName = p?.sample.pag_medico ?? "";
+        const nameRawForAudit = tasyName || pagName;
+        const nameNormForAudit = normDoctorName(nameRawForAudit);
+        let doctorSource: "repasse_id" | "name_to_id" | "name_only" | "missing";
+        let doctorIdForAudit: string | undefined;
+        if (pagDoctorIdRaw) {
+          doctorSource = "repasse_id";
+          doctorIdForAudit = pagDoctorIdRaw;
+        } else if (nameNormForAudit && nameToDoctorId.get(nameNormForAudit)) {
+          doctorSource = "name_to_id";
+          doctorIdForAudit = nameToDoctorId.get(nameNormForAudit);
+        } else if (nameNormForAudit) {
+          doctorSource = "name_only";
+        } else {
+          doctorSource = "missing";
+        }
+
         out.push({
           key,
           atendimento,
@@ -2555,6 +2578,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           matched_payment_id: p?.payment_id_first || undefined,
           matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
           matched_doctor_ids: p && p.doctor_ids_order.length > 0 ? [...p.doctor_ids_order] : undefined,
+          key_audit: {
+            att: auditAtt,
+            date: auditDate,
+            tuss8: auditTuss8,
+            doctor: {
+              source: doctorSource,
+              id: doctorIdForAudit,
+              name_raw: nameRawForAudit || undefined,
+              name_norm: nameNormForAudit || undefined,
+            },
+          },
           status,
         });
       }
