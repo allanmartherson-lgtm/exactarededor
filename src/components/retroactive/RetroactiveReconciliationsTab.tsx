@@ -3331,6 +3331,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   }, [results]);
 
   const buildExportRows = (list: TvrResult[]) => list.map((r) => ({
+    "PJ Conciliada": r.pj_conciliada ?? "",
+    Médico: r.medico,
     Status: TVR_STATUS_LABEL[r.status],
     Atendimento: r.atendimento,
     "Cód. TUSS": r.tuss,
@@ -3338,7 +3340,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     Paciente: r.paciente,
     Data: formatTvrDate(r.data),
     Convênio: r.convenio,
-    Médico: r.medico,
     Função: r.funcao,
     "Qtd TASY": r.qtd_tasy,
     "Valor Unit. TASY": r.valor_unit_tasy,
@@ -3349,6 +3350,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "Lote(s)": r.lotes,
     "Valor Pago Base": r.valor_pago_base,
     "Valor c/ Acordo": r.valor_com_acordo,
+    "Regra Aplicada": r.regra_aplicada ?? "",
+    "Linha do Cálculo": r.calculo_aplicado ?? "",
     "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
     "Dif. Valor": Number(r.dif_valor.toFixed(2)),
     "A Recuperar (c/ acordo)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
