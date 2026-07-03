@@ -554,11 +554,31 @@ function NewView({
     const today = new Date().toISOString().slice(0, 10);
     const effStart = mode === "tasy_vs_repasse" ? (start || today) : start;
     const effEnd = mode === "tasy_vs_repasse" ? (end || today) : end;
-    if (mode === "alegacao_medico" && ((!doctorId && !companyId) || !start || !end)) {
-      toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
-      return;
+    const isMulti = scope === "multi_pj";
+    if (mode === "alegacao_medico") {
+      if (!isMulti && ((!doctorId && !companyId) || !start || !end)) {
+        toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
+        return;
+      }
+      if (isMulti && (multiCompanyIds.length === 0 && multiDoctorIds.length === 0)) {
+        toast({ title: "Selecione ao menos uma PJ ou médico no mapeamento", variant: "destructive" });
+        return;
+      }
+      if (isMulti && (!start || !end)) {
+        toast({ title: "Informe o período", variant: "destructive" });
+        return;
+      }
     }
     setSaving(true);
+    const summary: Record<string, unknown> = { mode, scope };
+    if (isMulti) {
+      summary.multi_company_ids = multiCompanyIds;
+      summary.multi_doctor_ids = multiDoctorIds;
+      summary.multi_labels = {
+        companies: multiCompanyIds.map((cid) => companies.find((c) => c.id === cid)?.name).filter(Boolean),
+        doctors: multiDoctorIds.map((did) => doctors.find((d) => d.id === did)?.full_name).filter(Boolean),
+      };
+    }
     const { data, error } = await (supabase as unknown as {
       from: (t: string) => {
         insert: (v: Record<string, unknown>) => {
@@ -569,12 +589,12 @@ function NewView({
       .from("retroactive_reconciliations")
       .insert({
         hospital_id: hospitalId,
-        doctor_id: doctorId || null,
-        company_id: companyId || null,
+        doctor_id: isMulti ? null : (doctorId || null),
+        company_id: isMulti ? null : (companyId || null),
         period_start: effStart,
         period_end: effEnd,
         title: title || null,
-        summary: { mode },
+        summary,
         created_by: userId,
       })
       .select("id")
