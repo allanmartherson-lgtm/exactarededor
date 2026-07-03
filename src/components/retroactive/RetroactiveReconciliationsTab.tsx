@@ -2004,6 +2004,7 @@ type TasyRow = {
   tasy_medico?: string;
   tasy_funcao?: string;
   tasy_empresa?: string;
+  tasy_resolved_company_id?: string | null;
 };
 
 type PagRow = {
@@ -2072,6 +2073,8 @@ export type TvrResult = {
   matched_doctor_id?: string;
   matched_doctor_ids?: string[];
   matched_company_id?: string;
+  tasy_empresa?: string;
+  tasy_resolved_company_id?: string | null;
   pj_conciliada?: string;
   regra_aplicada?: string;
   calculo_aplicado?: string;
