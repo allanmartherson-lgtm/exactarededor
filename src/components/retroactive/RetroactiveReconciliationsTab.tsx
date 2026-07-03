@@ -1877,8 +1877,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setLoadingPayments(true);
     setPaymentsLoaded(false);
     try {
-      const start = new Date(r.period_start);
-      const end = new Date(r.period_end);
+      const start = parseYmdLocal(r.period_start);
+      const end = parseYmdLocal(r.period_end);
       start.setDate(start.getDate() - 90);
       end.setDate(end.getDate() + 90);
 
