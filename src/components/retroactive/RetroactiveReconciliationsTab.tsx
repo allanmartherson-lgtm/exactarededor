@@ -559,23 +559,23 @@ function NewView({
     const today = new Date().toISOString().slice(0, 10);
     const effStart = mode === "tasy_vs_repasse" ? (start || today) : start;
     const effEnd = mode === "tasy_vs_repasse" ? (end || today) : end;
-    const isMulti = scope === "multi_pj";
+    // "Múltiplas empresas" só existe em TASY vs Repasse. Em Alegação do
+    // médico o escopo é sempre individual (1 médico e/ou 1 PJ).
+    const isMulti = mode === "tasy_vs_repasse" && scope === "multi_pj";
     if (mode === "alegacao_medico") {
-      if (!isMulti && ((!doctorId && !companyId) || !start || !end)) {
+      if ((!doctorId && !companyId) || !start || !end) {
         toast({ title: "Selecione médico e/ou PJ e o período", variant: "destructive" });
         return;
       }
-      if (isMulti && (multiCompanyIds.length === 0 && multiDoctorIds.length === 0)) {
+    } else if (mode === "tasy_vs_repasse" && isMulti) {
+      if (multiCompanyIds.length === 0 && multiDoctorIds.length === 0) {
         toast({ title: "Selecione ao menos uma PJ ou médico no mapeamento", variant: "destructive" });
-        return;
-      }
-      if (isMulti && (!start || !end)) {
-        toast({ title: "Informe o período", variant: "destructive" });
         return;
       }
     }
     setSaving(true);
-    const summary: Record<string, unknown> = { mode, scope };
+    const effectiveScope: "individual" | "multi_pj" = isMulti ? "multi_pj" : "individual";
+    const summary: Record<string, unknown> = { mode, scope: effectiveScope };
     if (isMulti) {
       summary.multi_company_ids = multiCompanyIds;
       summary.multi_doctor_ids = multiDoctorIds;
@@ -647,7 +647,7 @@ function NewView({
         </div>
       </div>
 
-      {mode === "alegacao_medico" && (
+      {mode === "tasy_vs_repasse" && (
         <div className="rounded-lg border border-border bg-card p-3">
           <Label className="text-xs">Escopo da apuração</Label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1.5">
@@ -677,14 +677,14 @@ function NewView({
 
       <p className="text-xs text-muted-foreground -mt-1">
         {mode === "alegacao_medico"
-          ? (scope === "multi_pj"
+          ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
+          : (scope === "multi_pj"
               ? "Selecione todas as PJs envolvidas e (opcional) restrinja aos médicos desejados. O cruzamento buscará payment_items em qualquer combinação."
-              : "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa.")
-          : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração."}
+              : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-        {scope === "individual" && (
+        {(mode === "alegacao_medico" || scope === "individual") && (
           <div className="md:col-span-2">
             <Label>Médico</Label>
             <Popover open={docOpen} onOpenChange={setDocOpen}>
@@ -741,7 +741,7 @@ function NewView({
             </Popover>
           </div>
         )}
-        {scope === "individual" && (
+        {(mode === "alegacao_medico" || scope === "individual") && (
           <div className="md:col-span-2">
             <Label>PJ / Empresa</Label>
             <Popover open={compOpen} onOpenChange={setCompOpen}>
@@ -795,7 +795,7 @@ function NewView({
           </div>
         )}
 
-        {scope === "multi_pj" && (
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
           <div className="md:col-span-2">
             <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
             <Popover open={multiCompOpen} onOpenChange={setMultiCompOpen}>
@@ -849,7 +849,7 @@ function NewView({
           </div>
         )}
 
-        {scope === "multi_pj" && (
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
           <div className="md:col-span-2">
             <Label>Médicos ({multiDoctorIds.length}) <span className="text-muted-foreground font-normal">— opcional</span></Label>
             <Popover open={multiDocOpen} onOpenChange={setMultiDocOpen}>
