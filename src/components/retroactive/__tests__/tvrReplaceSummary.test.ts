@@ -36,6 +36,7 @@ function r(overrides: Partial<TvrResult>): TvrResult {
     valor_recuperar_acordo: 0,
     valor_com_acordo_recalc: 0,
     ajuste_acordo: 0,
+    tipo_analise: "valor",
     status: "ok",
     ...overrides,
   };

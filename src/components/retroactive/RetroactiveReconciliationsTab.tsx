@@ -2049,6 +2049,13 @@ export type TvrResult = {
   // valor_com_acordo (histórico) − valor_com_acordo_recalc.
   // Positivo = a recuperar (paguei a mais). Negativo = a complementar (paguei a menos).
   ajuste_acordo: number;
+  // "valor" = regra é % sobre convênio (TASY e Exacta compartilham base) → compara R$.
+  // "quantidade" = regra usa tabela própria (valor_fixo/pacote/tabela_diferenciada/bonus)
+  //   → TASY não é base de valor; compara só presença e quantidade.
+  tipo_analise: "valor" | "quantidade";
+  // Apenas para tipo_analise="quantidade" + status="ausente_tasy": marca "sem lastro TASY"
+  // sem calcular R$ (pacote fechado pode não faturar itens individualmente).
+  sem_lastro_tasy?: boolean;
   matched_payment_item_id?: string;
   matched_payment_id?: string;
   matched_doctor_id?: string;
@@ -3134,6 +3141,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
         else status = "ok";
 
+        // Determina o tipo de análise a partir do método de cálculo aplicado.
+        // Grupo "valor": regras que usam o valor do convênio como base (TASY e Exacta
+        //   partem da mesma tabela) → comparar valores em R$ faz sentido.
+        // Grupo "quantidade": tabela própria (valor_fixo, pacote, tabela diferenciada,
+        //   bônus) → valor TASY não é comparável; só quantidade e presença.
+        const rawMethod = (p?.sample.pag_applied_calc_method ?? "").trim().toLowerCase();
+        const isFixedMethod =
+          rawMethod === "valor_fixo" ||
+          rawMethod === "tabela_diferenciada" ||
+          rawMethod === "bonus" ||
+          rawMethod.startsWith("pacote");
+        const tipo_analise: "valor" | "quantidade" = isFixedMethod ? "quantidade" : "valor";
+
         // Comparação: valor com acordo pago no histórico (Exacta) vs
         // valor que o mesmo acordo pagaria HOJE se aplicado sobre a base TASY.
         // fator_acordo é o % de acordo que a regra praticou no lote
@@ -3143,15 +3163,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         // Positivo => paguei a mais (a recuperar).
         // Negativo => paguei a menos (a complementar).
         let ajuste_acordo = 0;
-        if (status === "ausente_tasy") {
-          // TASY zerado/inexistente => item não deveria ter sido pago.
-          // Recupera o valor BRUTO pago (base), coerente com o KPI
-          // "Total a retirar" que também soma valor_pago_base.
-          ajuste_acordo = valor_pago_base;
-        } else if (status === "nao_pago") {
-          ajuste_acordo = 0; // sem base de acordo — tratado na tela de confecção
-        } else if (valor_pago_base > 0) {
-          ajuste_acordo = valor_com_acordo - valor_com_acordo_recalc;
+        let sem_lastro_tasy = false;
+        if (tipo_analise === "quantidade") {
+          // Grupo B: só compara quantidade. Divergência de valor TASY não é erro.
+          if (status === "ausente_tasy") {
+            // Pacote/valor_fixo pode não faturar item individualmente no TASY →
+            // marca "sem lastro" como alerta qualitativo, sem cobrar R$.
+            sem_lastro_tasy = true;
+            ajuste_acordo = 0;
+          } else if (status === "nao_pago") {
+            ajuste_acordo = 0;
+          } else if (qtd_por_func > 0 && qtd_tasy + 0.0001 < qtd_por_func) {
+            // Proporcional: pagou N, TASY comprova M<N → recupera (N−M)/N do pago.
+            const deficit = (qtd_por_func - qtd_tasy) / qtd_por_func;
+            ajuste_acordo = valor_com_acordo * deficit;
+          }
+        } else {
+          // Grupo A: regra % sobre convênio → compara valor com acordo recalculado.
+          if (status === "ausente_tasy") {
+            // TASY zerado/inexistente => item não deveria ter sido pago.
+            ajuste_acordo = valor_pago_base;
+          } else if (status === "nao_pago") {
+            ajuste_acordo = 0; // sem base de acordo — tratado na tela de confecção
+          } else if (valor_pago_base > 0) {
+            ajuste_acordo = valor_com_acordo - valor_com_acordo_recalc;
+          }
         }
         const valor_recuperar_acordo = Math.max(0, ajuste_acordo);
 
@@ -3203,6 +3239,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           valor_recuperar_acordo,
           valor_com_acordo_recalc,
           ajuste_acordo,
+          tipo_analise,
+          sem_lastro_tasy,
           matched_payment_item_id: p?.payment_item_id_first || undefined,
           matched_payment_id: p?.payment_id_first || undefined,
           matched_doctor_id: p ? (p.doctor_principal_id || p.doctor_ids_order[0] || undefined) : undefined,
@@ -3351,6 +3389,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     "PJ Conciliada": r.pj_conciliada ?? "",
     Médico: r.medico,
     Status: TVR_STATUS_LABEL[r.status],
+    "Tipo de Análise": r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)",
+    "Sem lastro TASY": r.sem_lastro_tasy ? "Sim" : "",
     Atendimento: r.atendimento,
     "Cód. TUSS": r.tuss,
     Procedimento: r.procedimento,
@@ -4397,6 +4437,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       })()}
                     </TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead title="Valor = regra % sobre convênio (compara R$). Quantidade = tabela própria (pacote/valor fixo/tabela diferenciada) — compara só quantidade.">Tipo Análise</TableHead>
                     <TableHead>Atend.</TableHead>
                     <TableHead>TUSS</TableHead>
                     <TableHead>Procedimento</TableHead>
@@ -4422,7 +4463,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={23} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={24} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => {
                     const selectable = isActionableTvr(r) && !isLocked;
@@ -4450,6 +4491,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                           {TVR_STATUS_LABEL[r.status]}
                         </span>
                       </TableCell>
+                      <TableCell>
+                        {r.tipo_analise === "quantidade" ? (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-violet-100 text-violet-800"
+                            title="Tabela própria (pacote/valor fixo/tabela diferenciada). TASY não é base de valor — analisamos só quantidade."
+                          >
+                            Quantidade
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-sky-100 text-sky-800"
+                            title="Regra % sobre convênio — TASY e Exacta compartilham a base."
+                          >
+                            Valor
+                          </span>
+                        )}
+                        {r.sem_lastro_tasy && (
+                          <span
+                            className="ml-1 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800"
+                            title="Item pago mas ausente no TASY. Em tabela própria (pacote/valor fixo) isso pode ser normal — analista deve validar caso a caso."
+                          >
+                            sem lastro TASY
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>{r.atendimento || "—"}</TableCell>
                       <TableCell>{r.tuss || "—"}</TableCell>
                       <TableCell className="max-w-[220px] truncate" title={r.procedimento}>{r.procedimento || "—"}</TableCell>
@@ -4470,28 +4536,36 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       <TableCell className={cn("text-center", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
                         {r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}
                       </TableCell>
-                      <TableCell className={cn(Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700")}>
-                        {brl(r.dif_valor)}
+                      <TableCell className={cn(r.tipo_analise === "valor" && Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700", r.tipo_analise === "quantidade" && "text-muted-foreground/60")}>
+                        {r.tipo_analise === "quantidade" ? "n/a" : brl(r.dif_valor)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo_recalc)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {r.tipo_analise === "quantidade" ? <span className="text-muted-foreground/60">n/a</span> : brl(r.valor_com_acordo_recalc)}
+                      </TableCell>
                       <TableCell
                         className={cn(
                           r.ajuste_acordo > 0.5 && "font-semibold text-destructive",
                           r.ajuste_acordo < -0.5 && "font-semibold text-orange-600",
                         )}
                         title={
-                          r.ajuste_acordo > 0.5
-                            ? "A recuperar (paguei a mais que o acordo aplicado sobre TASY)"
-                            : r.ajuste_acordo < -0.5
-                              ? "A complementar (paguei a menos que o acordo aplicado sobre TASY)"
-                              : undefined
+                          r.sem_lastro_tasy
+                            ? "Item ausente no TASY em regra de tabela própria — sem cálculo de R$; validar manualmente."
+                            : r.tipo_analise === "quantidade"
+                              ? "Ajuste proporcional pela quantidade faltante no TASY."
+                              : r.ajuste_acordo > 0.5
+                                ? "A recuperar (paguei a mais que o acordo aplicado sobre TASY)"
+                                : r.ajuste_acordo < -0.5
+                                  ? "A complementar (paguei a menos que o acordo aplicado sobre TASY)"
+                                  : undefined
                         }
                       >
-                        {r.ajuste_acordo > 0.5
-                          ? `↓ ${brl(r.ajuste_acordo)}`
-                          : r.ajuste_acordo < -0.5
-                            ? `↑ ${brl(Math.abs(r.ajuste_acordo))}`
-                            : "—"}
+                        {r.sem_lastro_tasy
+                          ? <span className="text-amber-700">— validar</span>
+                          : r.ajuste_acordo > 0.5
+                            ? `↓ ${brl(r.ajuste_acordo)}`
+                            : r.ajuste_acordo < -0.5
+                              ? `↑ ${brl(Math.abs(r.ajuste_acordo))}`
+                              : "—"}
                       </TableCell>
                     </TableRow>
                     );
