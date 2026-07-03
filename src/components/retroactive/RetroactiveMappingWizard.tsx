@@ -322,16 +322,25 @@ export default function RetroactiveMappingWizard({
     });
   };
 
+  const showCompaniesStep = step === "companies" && hasCompanyStep;
+  const confirmedCompanies = rawCompanyNames.filter((r) => companyMapping[r]).length;
+  const ignoredCompanies = rawCompanyNames.length - confirmedCompanies;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
         <DialogHeader className="p-5 pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
             <FileSpreadsheetIcon className="h-4 w-4" />
-            {dialogTitle}
+            {showCompaniesStep ? "Vincular PJs da planilha" : dialogTitle}
           </DialogTitle>
           <DialogDescription className="text-xs">
             <span className="font-medium text-foreground">{fileName}</span> · {rows.length} linhas · {headers.length} colunas
+            {hasCompanyStep && (
+              <span className="ml-2 text-muted-foreground">
+                · Passo <strong>{showCompaniesStep ? "2" : "1"}</strong> de 2
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -343,6 +352,34 @@ export default function RetroactiveMappingWizard({
                 Não encontramos colunas na primeira aba da planilha. Verifique se a primeira linha contém os títulos.
               </div>
             </div>
+          ) : showCompaniesStep ? (
+            <>
+              <div className="text-xs text-muted-foreground">
+                Encontramos <strong className="text-foreground">{rawCompanyNames.length}</strong> PJ(s) distinta(s) na
+                coluna mapeada. Vincule cada uma à empresa cadastrada correspondente — apelidos confirmados serão
+                reaproveitados nas próximas importações (mesmo aprendizado usado no cruzamento do lote).
+              </div>
+              {rawCompanyNames.length === 0 ? (
+                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/40 p-3 text-xs">
+                  <AlertCircleIcon className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+                  <div>Nenhum nome de PJ encontrado nas linhas válidas. Você pode confirmar sem vincular.</div>
+                </div>
+              ) : (
+                <CompanyMappingList
+                  rows={mappingRows}
+                  options={companyOptions}
+                  value={companyMapping}
+                  onChange={(key, id) => setCompanyMapping((m) => ({ ...m, [key]: id }))}
+                  onConfirm={(key) => {
+                    // Aceita a sugestão medium: resolve o nome via findCompanyMatch e grava o id.
+                    const hit = findCompanyMatch(key, candidateNames, aliasMap);
+                    if (hit.company) {
+                      setCompanyMapping((m) => ({ ...m, [key]: idByName[hit.company!] ?? null }));
+                    }
+                  }}
+                />
+              )}
+            </>
           ) : (
             <>
               <div>
@@ -463,21 +500,44 @@ export default function RetroactiveMappingWizard({
           )}
         </div>
 
-        <DialogFooter className="gap-2 p-4 border-t bg-muted/10">
-          <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
-          <Button
-            size="sm"
-            onClick={() =>
-              onConfirm(valid, {
-                mapping,
-                totals: { file: rows.length, valid: valid.length, excluded, dropped },
-                droppedExamples,
-              })
-            }
-            disabled={valid.length === 0 || missingRequired.length > 0}
-          >
-            Confirmar e adicionar {valid.length} de {rows.length} linha(s)
-          </Button>
+        <DialogFooter className="gap-2 p-4 border-t bg-muted/10 sm:justify-between">
+          <div className="flex items-center gap-2">
+            {showCompaniesStep ? (
+              <Button variant="ghost" size="sm" onClick={() => setStep("columns")}>
+                <ArrowLeftIcon className="h-3.5 w-3.5 mr-1" /> Voltar
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
+            )}
+            {showCompaniesStep && (
+              <span className="text-[11px] text-muted-foreground">
+                <span className="text-success font-semibold">{confirmedCompanies}</span> vinculadas ·{" "}
+                <span className="text-muted-foreground">{ignoredCompanies}</span> ignoradas
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {showCompaniesStep && (
+              <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
+            )}
+            {!showCompaniesStep && hasCompanyStep ? (
+              <Button
+                size="sm"
+                onClick={() => setStep("companies")}
+                disabled={valid.length === 0 || missingRequired.length > 0}
+              >
+                Continuar · Vincular PJs
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={finalize}
+                disabled={valid.length === 0 || missingRequired.length > 0}
+              >
+                Confirmar e adicionar {valid.length} de {rows.length} linha(s)
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
