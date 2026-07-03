@@ -113,6 +113,7 @@ function DatePickerCombo({ value, onChange }: { value: string; onChange: (iso: s
         <PopoverContent className="w-auto p-0" align="end">
           <Calendar
             mode="single"
+            locale={ptBR}
             selected={selected}
             onSelect={(d) => {
               if (d) {
