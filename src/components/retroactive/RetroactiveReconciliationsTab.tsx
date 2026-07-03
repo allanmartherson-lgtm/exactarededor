@@ -2713,6 +2713,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       setPagRows(rows);
       setPaymentsLoaded(true);
       toast({ title: `${rows.length} item(ns) carregados do sistema${dropReason}` });
+      return rows;
     } finally {
       setLoadingPayments(false);
     }
@@ -2820,8 +2821,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   }, [tasyRows, pagRows]);
 
 
-  const process = () => {
-    if (tasyRows.length === 0 || pagRows.length === 0) {
+  const process = (pagRowsOverride?: PagRow[]) => {
+    const effectivePagRows = pagRowsOverride ?? pagRows;
+    if (tasyRows.length === 0 || effectivePagRows.length === 0) {
       toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
       return;
     }
@@ -2842,11 +2844,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       // Índice nome→doctor_id extraído do lado Repasse. Permite ao lado TASY
       // (que só tem o nome) cair em `d:<id>` e casar com o Repasse.
       const nameToDoctorId = new Map<string, string>();
-      for (const r of pagRows) {
+      for (const r of effectivePagRows) {
         const did = (r.pag_doctor_id ?? "").trim();
         const nn = normDoctorName(r.pag_medico);
         if (did && nn && !nameToDoctorId.has(nn)) nameToDoctorId.set(nn, did);
       }
+
 
       // Aggregate Repasse by (atendimento, data, tuss8, médico)
       type PAgg = {
@@ -2865,7 +2868,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       };
       const pMap = new Map<string, PAgg>();
       const isPrincipal = (fn: string) => /cirurgi[aã]o\s*principal/i.test(fn);
-      for (const r of pagRows) {
+      for (const r of effectivePagRows) {
         if (isExcludedTvrTuss(r.pag_tuss, excluded)) continue;
         if (isExcludedConv(r.pag_convenio)) { convPagRemoved++; continue; }
         const key = tvrMatchKey(r.pag_atendimento, r.pag_data, r.pag_tuss, r.pag_doctor_id, r.pag_medico, nameToDoctorId);
@@ -3803,11 +3806,26 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       </details>
 
       {/* Step 3 — Process */}
-      <div className="flex items-center gap-2">
-        <Button onClick={process} disabled={isLocked || processing || tasyRows.length === 0 || pagRows.length === 0}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          onClick={async () => {
+            let rowsForProcess: PagRow[] | undefined = undefined;
+            if (tasyRows.length > 0 && pagRows.length === 0 && !loadingPayments) {
+              rowsForProcess = await loadPaymentItems(recon);
+            }
+            process(rowsForProcess);
+          }}
+          disabled={isLocked || processing || loadingPayments || tasyRows.length === 0}
+        >
           <PlayIcon className="h-4 w-4 mr-1" />
-          {processing ? "Processando…" : "Processar"}
+          {processing ? "Processando…" : loadingPayments ? "Buscando repasse…" : "Processar"}
         </Button>
+        {tasyRows.length === 0 && (
+          <span className="text-[11px] text-muted-foreground">Carregue a base TASY (etapa 1) para habilitar.</span>
+        )}
+        {tasyRows.length > 0 && pagRows.length === 0 && !loadingPayments && (
+          <span className="text-[11px] text-muted-foreground">Repasse ainda não buscado — vamos buscar automaticamente ao processar.</span>
+        )}
         {(tasyRows.length > 0 || pagRows.length > 0) && (
           <Button variant="outline" size="sm" onClick={() => void clearAll()} disabled={isLocked}>Limpar tudo</Button>
         )}
