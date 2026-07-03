@@ -769,6 +769,10 @@ function NewView({
         companies: multiCompanyIds.map((cid) => companies.find((c) => c.id === cid)?.name).filter(Boolean),
         doctors: multiDoctorIds.map((did) => doctors.find((d) => d.id === did)?.full_name).filter(Boolean),
       };
+    }
+    // Persiste os lotes selecionados INDEPENDENTE do modo/escopo — sem isso o
+    // motor cai no filtro por competência e mistura outros lotes do mês.
+    if (selectedPaymentIds.length > 0) {
       summary.selected_payment_ids = selectedPaymentIds;
       summary.selected_payment_labels = availableLotes
         .filter((l) => selectedPaymentIds.includes(l.id))
