@@ -883,8 +883,9 @@ function NewView({
               : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
 
-      {/* Passo Data — sempre visível, primeiro campo em TASY vs Repasse/multi_pj */}
-      {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
+      {/* Passo Data — visível em qualquer TASY vs Repasse (individual e multi_pj).
+          Data é pré-requisito pra listar os lotes elegíveis abaixo. */}
+      {mode === "tasy_vs_repasse" && (
         <div className="rounded-lg border border-border bg-card p-3 space-y-2">
           <Label className="text-xs">1. Período da apuração</Label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -900,8 +901,10 @@ function NewView({
         </div>
       )}
 
-      {/* Passo Lotes — só aparece em multi_pj após período preenchido */}
-      {mode === "tasy_vs_repasse" && scope === "multi_pj" && start && end && (
+      {/* Passo Lotes — visível em qualquer TASY vs Repasse após período preenchido.
+          Sem lote fixado, o motor cai no fallback por competência do mês e
+          contamina os totais com outros lotes — por isso é obrigatório. */}
+      {mode === "tasy_vs_repasse" && start && end && (
         <div className="rounded-lg border border-border bg-card p-3 space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs">
