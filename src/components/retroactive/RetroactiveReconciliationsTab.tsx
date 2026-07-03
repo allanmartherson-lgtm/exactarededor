@@ -1300,14 +1300,19 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     } else {
       setCompanyName("");
     }
-    const { data: its } = await supabase
-      .from("retroactive_reconciliation_items" as never)
-      .select(
-        "id, attendance, tuss_code, procedure_date, patient_name, function_label, procedure_name, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
-      )
-      .eq("reconciliation_id", id)
-      .order("created_at", { ascending: true });
-    setItems((its ?? []) as unknown as ItemRow[]);
+    // Pagina — sem isso apurações com >1000 itens ficam truncadas.
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const its = await fetchAllPaginated<ItemRow>((from, to) =>
+      supabase
+        .from("retroactive_reconciliation_items" as never)
+        .select(
+          "id, attendance, tuss_code, procedure_date, patient_name, function_label, procedure_name, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
+        )
+        .eq("reconciliation_id", id)
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    );
+    setItems(its as unknown as ItemRow[]);
   };
 
   useEffect(() => {
@@ -2526,13 +2531,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setTasyFileTotals(row?.summary?.tasy_file_totals ?? null);
     setTasyDroppedExamples(row?.summary?.tasy_dropped_examples ?? []);
 
-    const { data: savedItems } = await supabase
-      .from("retroactive_reconciliation_items" as never)
-      .select("raw")
-      .eq("reconciliation_id", id)
-      .eq("source", TVR_SOURCE)
-      .order("created_at", { ascending: true });
-    const savedResults = ((savedItems ?? []) as Array<{ raw?: { tvr_result?: unknown } }>)
+    // Pagina para escapar do teto default de 1000 linhas do PostgREST — sem
+    // isso, apurações grandes ficam truncadas em "1000 de 1000".
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const savedItems = await fetchAllPaginated<{ raw?: { tvr_result?: unknown } }>((from, to) =>
+      supabase
+        .from("retroactive_reconciliation_items" as never)
+        .select("raw")
+        .eq("reconciliation_id", id)
+        .eq("source", TVR_SOURCE)
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    );
+    const savedResults = savedItems
       .map((item) => item.raw?.tvr_result)
       .filter(isTvrResult);
     if (savedResults.length > 0) {
