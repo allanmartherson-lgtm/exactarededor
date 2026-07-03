@@ -50,7 +50,7 @@ export interface CompanyMappingListProps {
  */
 export function CompanyMappingList({
   rows,
-  options,
+  options = [],
   value,
   onChange,
   onConfirm,
@@ -58,6 +58,7 @@ export function CompanyMappingList({
   ignoreLabel = "— Ignorar —",
   maxHeight = 420,
   footer,
+  variant = "select",
   className,
 }: CompanyMappingListProps) {
   const exactCount = rows.filter((r) => value[r.key] && (r.level === "exact" || r.level === "high")).length;
