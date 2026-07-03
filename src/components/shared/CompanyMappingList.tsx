@@ -164,11 +164,18 @@ export function CompanyMappingList({
 
       {footer ?? (
         <div className="pt-3 border-t border-border">
-          <p className="text-xs text-muted-foreground">
-            <span className="text-success font-semibold">{exactCount}</span> confirmadas ·{" "}
-            <span className="text-warning-text font-semibold">{confirmCount}</span> sugestões pendentes (não entram no cruzamento) ·{" "}
-            <span className="text-muted-foreground">{emptyCount}</span> sem match
-          </p>
+          {variant === "select" ? (
+            <p className="text-xs text-muted-foreground">
+              <span className="text-success font-semibold">{exactCount}</span> confirmadas ·{" "}
+              <span className="text-warning-text font-semibold">{confirmCount}</span> sugestões pendentes (não entram no cruzamento) ·{" "}
+              <span className="text-muted-foreground">{emptyCount}</span> sem match
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              <span className="text-success font-semibold">{rows.length - emptyCount}</span> incluídas ·{" "}
+              <span className="text-muted-foreground">{emptyCount}</span> ignoradas
+            </p>
+          )}
         </div>
       )}
     </div>
