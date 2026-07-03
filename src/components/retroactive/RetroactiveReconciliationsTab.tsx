@@ -3216,6 +3216,37 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         return a.tuss.localeCompare(b.tuss);
       });
 
+      // Enriquecer com nome da PJ e label da linha de cálculo aplicada
+      try {
+        const companyIds = Array.from(new Set(out.map((r) => r.matched_company_id).filter(Boolean))) as string[];
+        const calcIds = Array.from(new Set(out.map((r) => (p_calc_id_by_key.get(r.key) || "")).filter(Boolean))) as string[];
+        const companyNameById = new Map<string, string>();
+        const calcLabelById = new Map<string, string>();
+        if (companyIds.length > 0) {
+          const { data: comps } = await supabase.from("companies").select("id, name").in("id", companyIds);
+          for (const c of comps ?? []) if (c?.id) companyNameById.set(String(c.id), String((c as { name?: string }).name ?? ""));
+        }
+        if (calcIds.length > 0) {
+          const { data: calcs } = await supabase.from("rule_calculations").select("id, label, sort_order, calculation_type").in("id", calcIds);
+          for (const c of calcs ?? []) {
+            if (!c?.id) continue;
+            const cc = c as { id: string; label?: string | null; sort_order?: number | null; calculation_type?: string | null };
+            const label = (cc.label ?? "").trim();
+            const idx = typeof cc.sort_order === "number" ? cc.sort_order + 1 : null;
+            const method = cc.calculation_type ?? "";
+            calcLabelById.set(String(cc.id), [idx ? `#${idx}` : "", label, method ? `(${method})` : ""].filter(Boolean).join(" "));
+          }
+        }
+        for (const r of out) {
+          if (r.matched_company_id) r.pj_conciliada = companyNameById.get(r.matched_company_id) || undefined;
+          const cid = p_calc_id_by_key.get(r.key);
+          if (cid) r.calculo_aplicado = calcLabelById.get(cid) || undefined;
+        }
+      } catch (e) {
+        // não bloqueia processamento se enriquecimento falhar
+        console.warn("Falha ao enriquecer PJ/regra:", e);
+      }
+
       try {
         await persistResults(out);
         setResults(out);
