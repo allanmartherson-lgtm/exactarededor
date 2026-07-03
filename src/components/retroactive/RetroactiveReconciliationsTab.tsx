@@ -38,6 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { parseYmdLocal, addDaysYmd, competenceOfYmd, assertYmd } from "@/lib/dateUtils";
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   PlusIcon,
   Trash2Icon,
   PlayIcon,
@@ -3263,6 +3264,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     else top.scrollLeft = table.scrollLeft;
   };
 
+  const nudgeResultScroll = (direction: -1 | 1) => {
+    resultTableScrollRef.current?.scrollBy({ left: direction * 720, behavior: "smooth" });
+  };
+
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
       nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, ausente_tasy: 0, ok: 0,
@@ -4139,13 +4144,35 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
-            <div
-              ref={resultTopScrollRef}
-              onScroll={() => syncResultScroll("top")}
-              className="overflow-x-auto overflow-y-hidden border-b border-border bg-muted/20"
-              aria-label="Rolagem horizontal da tabela de resultados"
-            >
-              <div className="h-4" style={{ width: resultScrollWidth }} />
+            <div className="flex items-center gap-1 border-b border-border bg-muted/20 px-2 py-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => nudgeResultScroll(-1)}
+                aria-label="Rolar tabela para a esquerda"
+              >
+                <ArrowLeftIcon className="h-3.5 w-3.5" />
+              </Button>
+              <div
+                ref={resultTopScrollRef}
+                onScroll={() => syncResultScroll("top")}
+                className="h-5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+                aria-label="Rolagem horizontal da tabela de resultados"
+              >
+                <div className="h-4" style={{ width: resultScrollWidth }} />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => nudgeResultScroll(1)}
+                aria-label="Rolar tabela para a direita"
+              >
+                <ArrowRightIcon className="h-3.5 w-3.5" />
+              </Button>
             </div>
             <div
               ref={resultTableScrollRef}
