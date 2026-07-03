@@ -699,7 +699,7 @@ function NewView({
       }
     })();
     return () => { cancelled = true; };
-  }, [mode, scope, hospitalId, start, end]);
+  }, [mode, hospitalId, start, end]);
 
   // Deriva PJs/médicos candidatos a partir dos lotes selecionados.
   // PJs padrão = todas dos lotes escolhidos; médicos padrão = nenhum (opcional).
