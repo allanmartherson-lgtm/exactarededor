@@ -1901,8 +1901,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               supabase
                 .from("payment_items" as never)
                 .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
-                .gte("procedure_date", start.toISOString().slice(0, 10))
-                .lte("procedure_date", end.toISOString().slice(0, 10))
+                .gte("procedure_date", startYmd)
+                .lte("procedure_date", endYmd)
                 .in("attendance_number", chunk)
                 .range(from, to),
             );
@@ -1913,8 +1913,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             let q = supabase
               .from("payment_items" as never)
               .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
-              .gte("procedure_date", start.toISOString().slice(0, 10))
-              .lte("procedure_date", end.toISOString().slice(0, 10));
+              .gte("procedure_date", startYmd)
+              .lte("procedure_date", endYmd);
             if (r.doctor_id) q = q.eq("doctor_id", r.doctor_id);
             if (r.company_id) q = q.eq("company_id", r.company_id);
             return q.range(from, to);
