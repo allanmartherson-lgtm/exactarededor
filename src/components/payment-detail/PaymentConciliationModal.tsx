@@ -64,7 +64,7 @@ import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
-import { loadDoctorRegistry, resolveDoctor, type DoctorRegistry } from "@/lib/registryLookup";
+import { loadDoctorRegistry, resolveDoctor, loadConvenioRegistry, normalize as normalizeRegistry, type DoctorRegistry, type ConvenioRegistry } from "@/lib/registryLookup";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FileText } from "lucide-react";
 import { logCompanyMapping } from "@/lib/companyMappingAudit";
