@@ -2713,6 +2713,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       setPagRows(rows);
       setPaymentsLoaded(true);
       toast({ title: `${rows.length} item(ns) carregados do sistema${dropReason}` });
+      return rows;
     } finally {
       setLoadingPayments(false);
     }
