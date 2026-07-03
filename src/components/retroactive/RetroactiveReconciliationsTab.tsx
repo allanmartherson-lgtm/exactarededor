@@ -4491,6 +4491,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                           {TVR_STATUS_LABEL[r.status]}
                         </span>
                       </TableCell>
+                      <TableCell>
+                        {r.tipo_analise === "quantidade" ? (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-violet-100 text-violet-800"
+                            title="Tabela própria (pacote/valor fixo/tabela diferenciada). TASY não é base de valor — analisamos só quantidade."
+                          >
+                            Quantidade
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-sky-100 text-sky-800"
+                            title="Regra % sobre convênio — TASY e Exacta compartilham a base."
+                          >
+                            Valor
+                          </span>
+                        )}
+                        {r.sem_lastro_tasy && (
+                          <span
+                            className="ml-1 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800"
+                            title="Item pago mas ausente no TASY. Em tabela própria (pacote/valor fixo) isso pode ser normal — analista deve validar caso a caso."
+                          >
+                            sem lastro TASY
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>{r.atendimento || "—"}</TableCell>
                       <TableCell>{r.tuss || "—"}</TableCell>
                       <TableCell className="max-w-[220px] truncate" title={r.procedimento}>{r.procedimento || "—"}</TableCell>
