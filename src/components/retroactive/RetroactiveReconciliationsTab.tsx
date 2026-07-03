@@ -2457,6 +2457,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       tasy_file_totals: tasyFileTotals,
       tasy_dropped_examples: tasyDroppedExamples,
       exclude_tuss: excludeTuss,
+      excluded_convenios: excludedConvenios,
     });
     // Enriquecimento extra (não relevante para o teste de replace): chaves dos
     // ausentes incompletos, anexadas à última entrada do histórico.
