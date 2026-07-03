@@ -1868,10 +1868,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setLoadingPayments(true);
     setPaymentsLoaded(false);
     try {
-      const start = parseYmdLocal(r.period_start);
-      const end = parseYmdLocal(r.period_end);
-      start.setDate(start.getDate() - 90);
-      end.setDate(end.getDate() + 90);
+      // Janela ±90d operada 100% em Y-M-D — nunca passa por `new Date` para
+      // evitar shift de fuso (ver `assertYmd` + `addDaysYmd` em dateUtils).
+      assertYmd(r.period_start, "loadPaymentItems.period_start");
+      assertYmd(r.period_end, "loadPaymentItems.period_end");
+      const startYmd = addDaysYmd(r.period_start, -90) ?? String(r.period_start).slice(0, 10);
+      const endYmd = addDaysYmd(r.period_end, 90) ?? String(r.period_end).slice(0, 10);
 
       // Escopo: se a apuração não tem médico/PJ, usa os atendimentos do TASY como filtro
       // para evitar puxar dezenas de milhares de itens do hospital inteiro.
