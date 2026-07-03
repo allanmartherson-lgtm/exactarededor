@@ -4139,10 +4139,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
-            <div className="overflow-auto max-h-[65vh] rounded border border-border">
+            <div
+              ref={resultTopScrollRef}
+              onScroll={() => syncResultScroll("top")}
+              className="overflow-x-auto overflow-y-hidden border-b border-border bg-muted/20"
+              aria-label="Rolagem horizontal da tabela de resultados"
+            >
+              <div className="h-4" style={{ width: resultScrollWidth }} />
+            </div>
+            <div
+              ref={resultTableScrollRef}
+              onScroll={() => syncResultScroll("table")}
+              className="overflow-auto max-h-[65vh] rounded-b-lg border-border"
+            >
 
-              <Table>
-                <TableHeader>
+              <Table className="min-w-[2200px]">
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
                   <TableRow>
                     <TableHead className="w-10 text-center">
                       {(() => {
