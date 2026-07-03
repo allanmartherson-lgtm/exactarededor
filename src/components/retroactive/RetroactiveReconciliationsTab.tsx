@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
@@ -38,6 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { parseYmdLocal, addDaysYmd, competenceOfYmd, assertYmd } from "@/lib/dateUtils";
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   PlusIcon,
   Trash2Icon,
   PlayIcon,
@@ -2472,6 +2473,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<TvrStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const resultTopScrollRef = useRef<HTMLDivElement | null>(null);
+  const resultTableScrollRef = useRef<HTMLDivElement | null>(null);
+  const [resultScrollWidth, setResultScrollWidth] = useState(1);
   const [doctorInfo, setDoctorInfo] = useState<{ id: string | null; name: string | null; crm: string | null }>({ id: null, name: null, crm: null });
   const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
   const [encaminharOpen, setEncaminharOpen] = useState(false);
@@ -3228,6 +3232,41 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return true;
     });
   }, [results, statusFilter, search, onlyWithPayment]);
+
+  useEffect(() => {
+    if (!results) return;
+    const scrollEl = resultTableScrollRef.current;
+    if (!scrollEl) return;
+
+    const updateScrollWidth = () => {
+      setResultScrollWidth(Math.max(scrollEl.scrollWidth, scrollEl.clientWidth, 1));
+      if (resultTopScrollRef.current) resultTopScrollRef.current.scrollLeft = scrollEl.scrollLeft;
+    };
+
+    updateScrollWidth();
+
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateScrollWidth) : null;
+    resizeObserver?.observe(scrollEl);
+    if (scrollEl.firstElementChild) resizeObserver?.observe(scrollEl.firstElementChild);
+    window.addEventListener("resize", updateScrollWidth);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateScrollWidth);
+    };
+  }, [results, visible.length, statusFilter, search, onlyWithPayment]);
+
+  const syncResultScroll = (source: "top" | "table") => {
+    const top = resultTopScrollRef.current;
+    const table = resultTableScrollRef.current;
+    if (!top || !table) return;
+    if (source === "top") table.scrollLeft = top.scrollLeft;
+    else top.scrollLeft = table.scrollLeft;
+  };
+
+  const nudgeResultScroll = (direction: -1 | 1) => {
+    resultTableScrollRef.current?.scrollBy({ left: direction * 720, behavior: "smooth" });
+  };
 
   const counts = useMemo(() => {
     const c: Record<TvrStatus, number> = {
@@ -4105,10 +4144,44 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
-            <div className="overflow-auto max-h-[65vh] rounded border border-border">
+            <div className="flex items-center gap-1 border-b border-border bg-muted/20 px-2 py-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => nudgeResultScroll(-1)}
+                aria-label="Rolar tabela para a esquerda"
+              >
+                <ArrowLeftIcon className="h-3.5 w-3.5" />
+              </Button>
+              <div
+                ref={resultTopScrollRef}
+                onScroll={() => syncResultScroll("top")}
+                className="h-5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+                aria-label="Rolagem horizontal da tabela de resultados"
+              >
+                <div className="h-4" style={{ width: resultScrollWidth }} />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => nudgeResultScroll(1)}
+                aria-label="Rolar tabela para a direita"
+              >
+                <ArrowRightIcon className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div
+              ref={resultTableScrollRef}
+              onScroll={() => syncResultScroll("table")}
+              className="overflow-auto max-h-[65vh] rounded-b-lg border-border"
+            >
 
-              <Table>
-                <TableHeader>
+              <Table className="min-w-[2200px]">
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
                   <TableRow>
                     <TableHead className="w-10 text-center">
                       {(() => {
