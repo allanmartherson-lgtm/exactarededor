@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircleIcon, FileSpreadsheetIcon } from "lucide-react";
+import { AlertCircleIcon, FileSpreadsheetIcon, ArrowLeftIcon } from "lucide-react";
+import { CompanyMappingList, type MappingRow } from "@/components/shared/CompanyMappingList";
+import { findCompanyMatch, normFull, type AliasMap } from "@/lib/companyMatching";
 
 export type TargetField = {
   key: string;
