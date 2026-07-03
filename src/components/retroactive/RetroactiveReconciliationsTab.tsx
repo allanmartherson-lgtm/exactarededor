@@ -2637,7 +2637,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (allItems.length === 0) throw new Error("Nenhum item a retirar nos grupos selecionados.");
 
     const totalGlosa = allItems.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
-    const competence = (recon.period_start ?? "").slice(0, 7);
+    const competence = competenceOfYmd(recon.period_start) ?? "";
     const title = recon.title ?? `Apuração ${recon.id.slice(0, 8)}`;
 
     // 1) Batch único
