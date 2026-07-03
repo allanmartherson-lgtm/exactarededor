@@ -2210,6 +2210,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const tMap = new Map<string, TAgg>();
       for (const r of tasyRows) {
         if (isExcludedTvrTuss(r.tasy_tuss, excluded)) continue;
+        if (isExcludedConv(r.tasy_convenio)) { convTasyRemoved++; continue; }
         const key = `${r.tasy_atendimento}|${tvrTussKey(r.tasy_tuss)}`;
         const q = num(r.tasy_qtd) || 1;
         const v = num(r.tasy_valor_unit);
