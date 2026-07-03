@@ -1945,7 +1945,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       // Filtra sistema estritamente pela competência do lote (mês do period_start da apuração).
       // Ex.: apuração de abril → só considera itens de payments com competence_month = 'YYYY-04'.
-      const targetCompetence = String(r.period_start ?? "").slice(0, 7);
+      const targetCompetence = competenceOfYmd(r.period_start) ?? "";
       const rawItems = targetCompetence
         ? rawItemsAll.filter((it) => {
             const pid = String(it.payment_id ?? "");
