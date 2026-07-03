@@ -611,10 +611,12 @@ function NewView({
     })();
   }, []);
 
-  // Busca lotes elegíveis no período (TASY vs Repasse / multi_pj).
+  // Busca lotes elegíveis no período (qualquer escopo de TASY vs Repasse).
   // Um lote é elegível quando seu competence_month cai entre start..end.
+  // Necessário também no escopo individual para o analista fixar o universo —
+  // sem lote fixo, o motor cai no fallback por competência e mistura outros lotes.
   useEffect(() => {
-    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") {
+    if (mode !== "tasy_vs_repasse") {
       setAvailableLotes([]);
       setSelectedPaymentIds([]);
       return;
