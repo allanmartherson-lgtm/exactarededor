@@ -34,6 +34,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { parseYmdLocal, addDaysYmd, competenceOfYmd, assertYmd } from "@/lib/dateUtils";
 import {
   ArrowLeftIcon,
   PlusIcon,
@@ -1662,17 +1663,7 @@ function dbDateOrNull(value: string): string | null {
   return null;
 }
 
-/**
- * Parse "YYYY-MM-DD" (ou ISO com hora) como data LOCAL — evita o shift de
- * fuso horário do `new Date("2026-04-01")`, que em UTC-3 vira 31/03 21:00.
- * Usado em toda formatação/cálculo de janelas de período.
- */
-function parseYmdLocal(value: string | null | undefined): Date {
-  const s = String(value ?? "").slice(0, 10);
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return new Date(value ?? "");
-}
+
 
 
 function formatTvrDate(value: string | null | undefined): string {
@@ -1877,10 +1868,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     setLoadingPayments(true);
     setPaymentsLoaded(false);
     try {
-      const start = parseYmdLocal(r.period_start);
-      const end = parseYmdLocal(r.period_end);
-      start.setDate(start.getDate() - 90);
-      end.setDate(end.getDate() + 90);
+      // Janela ±90d operada 100% em Y-M-D — nunca passa por `new Date` para
+      // evitar shift de fuso (ver `assertYmd` + `addDaysYmd` em dateUtils).
+      assertYmd(r.period_start, "loadPaymentItems.period_start");
+      assertYmd(r.period_end, "loadPaymentItems.period_end");
+      const startYmd = addDaysYmd(r.period_start, -90) ?? String(r.period_start).slice(0, 10);
+      const endYmd = addDaysYmd(r.period_end, 90) ?? String(r.period_end).slice(0, 10);
 
       // Escopo: se a apuração não tem médico/PJ, usa os atendimentos do TASY como filtro
       // para evitar puxar dezenas de milhares de itens do hospital inteiro.
@@ -1908,8 +1901,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               supabase
                 .from("payment_items" as never)
                 .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
-                .gte("procedure_date", start.toISOString().slice(0, 10))
-                .lte("procedure_date", end.toISOString().slice(0, 10))
+                .gte("procedure_date", startYmd)
+                .lte("procedure_date", endYmd)
                 .in("attendance_number", chunk)
                 .range(from, to),
             );
@@ -1920,8 +1913,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             let q = supabase
               .from("payment_items" as never)
               .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id")
-              .gte("procedure_date", start.toISOString().slice(0, 10))
-              .lte("procedure_date", end.toISOString().slice(0, 10));
+              .gte("procedure_date", startYmd)
+              .lte("procedure_date", endYmd);
             if (r.doctor_id) q = q.eq("doctor_id", r.doctor_id);
             if (r.company_id) q = q.eq("company_id", r.company_id);
             return q.range(from, to);
@@ -1952,7 +1945,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       // Filtra sistema estritamente pela competência do lote (mês do period_start da apuração).
       // Ex.: apuração de abril → só considera itens de payments com competence_month = 'YYYY-04'.
-      const targetCompetence = String(r.period_start ?? "").slice(0, 7);
+      const targetCompetence = competenceOfYmd(r.period_start) ?? "";
       const rawItems = targetCompetence
         ? rawItemsAll.filter((it) => {
             const pid = String(it.payment_id ?? "");
@@ -2644,7 +2637,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (allItems.length === 0) throw new Error("Nenhum item a retirar nos grupos selecionados.");
 
     const totalGlosa = allItems.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
-    const competence = (recon.period_start ?? "").slice(0, 7);
+    const competence = competenceOfYmd(recon.period_start) ?? "";
     const title = recon.title ?? `Apuração ${recon.id.slice(0, 8)}`;
 
     // 1) Batch único

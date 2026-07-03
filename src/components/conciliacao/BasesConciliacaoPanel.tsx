@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRequireHospital } from "@/hooks/useRequireHospital";
 import { toast } from "sonner";
+import { parseYmdLocal } from "@/lib/dateUtils";
 import {
   Upload,
   CheckCircle2,
@@ -192,7 +193,7 @@ export default function BasesConciliacaoPanel() {
         competenceMonth,
         reference: `Conciliação ${
           competenceMonth
-            ? new Date(competenceMonth + "-01").toLocaleDateString("pt-BR", {
+            ? parseYmdLocal(competenceMonth + "-01").toLocaleDateString("pt-BR", {
                 month: "long",
                 year: "numeric",
               })
@@ -470,7 +471,7 @@ export default function BasesConciliacaoPanel() {
                     >
                       {base.total_rows?.toLocaleString("pt-BR")} linhas · {base.file_name}
                       {base.competence_month &&
-                        ` · ${new Date(base.competence_month + "-01").toLocaleDateString("pt-BR", {
+                        ` · ${parseYmdLocal(base.competence_month + "-01").toLocaleDateString("pt-BR", {
                           month: "long",
                           year: "numeric",
                         })}`}
@@ -553,7 +554,7 @@ export default function BasesConciliacaoPanel() {
                             {
                               label: "Competência",
                               value: base.competence_month
-                                ? new Date(base.competence_month + "-01").toLocaleDateString("pt-BR", {
+                                ? parseYmdLocal(base.competence_month + "-01").toLocaleDateString("pt-BR", {
                                     month: "long",
                                     year: "numeric",
                                   })
