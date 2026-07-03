@@ -995,16 +995,16 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     | { open: true; fileName: string; headers: string[]; rows: Record<string, unknown>[] }
   >({ open: false });
 
-  // Todas as PJs do hospital ativo — usadas no passo "Vincular PJs" do wizard
-  // e alimentadas com os mesmos `aliases` que o cruzamento do lote aprende.
+  // Universo de PJs candidatas para o passo "Vincular PJs" do wizard.
+  // companies é tabela de cadastro estadual (sem hospital_id) — alinhado ao
+  // resto do fluxo de criação (linhas 577-585).
   useEffect(() => {
-    if (!hospitalId) return;
     let cancelled = false;
     void (async () => {
       const { data } = await supabase
         .from("companies")
         .select("id, name, aliases")
-        .eq("hospital_id", hospitalId)
+        .eq("active", true)
         .order("name");
       if (cancelled) return;
       setCompanies(((data ?? []) as Array<{ id: string; name: string; aliases: string[] | null }>).map((c) => ({
@@ -1014,7 +1014,7 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       })));
     })();
     return () => { cancelled = true; };
-  }, [hospitalId]);
+  }, []);
 
   const load = async () => {
     const { data: r } = await supabase
