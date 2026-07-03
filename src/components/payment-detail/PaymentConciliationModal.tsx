@@ -64,7 +64,7 @@ import { formatCurrency } from "@/lib/status";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
-import { loadDoctorRegistry, resolveDoctor, type DoctorRegistry } from "@/lib/registryLookup";
+import { loadDoctorRegistry, resolveDoctor, loadConvenioRegistry, normalize as normalizeRegistry, type DoctorRegistry, type ConvenioRegistry } from "@/lib/registryLookup";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FileText } from "lucide-react";
 import { logCompanyMapping } from "@/lib/companyMappingAudit";
@@ -568,12 +568,32 @@ export function PaymentConciliationModal({
   // Uso típico: convênios que operam por pacote/tratativa manual (Sul América,
   // Particular, etc.). Itens desses convênios são removidos das duas bases
   // (Exacta e hospitalar) antes do cruzamento — não geram só_hospital/só_exacta.
+  // Convênios excluídos da análise de conciliação.
+  // Uso típico: convênios que operam por pacote/tratativa manual (Sul América,
+  // Particular, etc.). Itens desses convênios são removidos das duas bases
+  // (Exacta e hospitalar) antes do cruzamento — não geram só_hospital/só_exacta.
+  //
+  // A chave gravada aqui é CANÔNICA:
+  //   • `slug:<slug>`  quando o texto do convênio resolveu para um cadastro
+  //     (via `convenios` + `convenio_aliases`) — permite excluir "Sul América"
+  //     mesmo que o hospital escreva "SUL AMERICA SAUDE S/A", "SulAmerica", etc.
+  //   • `raw:<normAgreement>` quando não há match no cadastro — mantém o
+  //     comportamento antigo (comparação por normalização direta do texto).
   const [excludedConvenios, setExcludedConvenios] = useState<string[]>([]);
   const [convenioFilterStats, setConvenioFilterStats] = useState<{
     excluded: string[];
     exactaRemoved: number;
     hospitalRemoved: number;
   } | null>(null);
+  const [convenioRegistry, setConvenioRegistry] = useState<ConvenioRegistry | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadConvenioRegistry()
+      .then((reg) => { if (!cancelled) setConvenioRegistry(reg); })
+      .catch((e) => console.warn('[Conciliação] falha ao carregar convenioRegistry — filtro cairá em match por texto puro.', e));
+    return () => { cancelled = true; };
+  }, []);
 
   const loteCompanies = useMemo(
     () =>
@@ -583,17 +603,6 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
-  // Convênios distintos presentes na base Exacta deste pagamento.
-  // Usado para popular o multi-select de exclusão.
-  const availableConvenios = useMemo(() => {
-    const set = new Set<string>();
-    for (const it of paymentItems) {
-      const raw = ((it as any).agreement_text ?? "").toString().trim();
-      if (raw) set.add(raw);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [paymentItems]);
-
   // Normalização usada para comparar convênios entre bases: sem acento,
   // minúsculo, só alfanumérico. Ex.: "Sul América" == "SUL AMERICA" == "SulAmerica".
   const normAgreement = (s: unknown): string =>
@@ -602,6 +611,50 @@ export function PaymentConciliationModal({
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "");
+
+  // Resolve o texto do convênio para uma chave canônica:
+  //   1) tenta bater em `convenios` (name) ou `convenio_aliases` via registry;
+  //   2) se casar, retorna `slug:<slug>` — casa hospital ↔ Exacta mesmo quando
+  //      os nomes diferem;
+  //   3) senão, retorna `raw:<normAgreement>` (fallback textual).
+  const resolveConvenioKey = useCallback((text: unknown): { key: string; label: string } | null => {
+    const raw = String(text ?? "").trim();
+    if (!raw) return null;
+    if (convenioRegistry) {
+      const nk = normalizeRegistry(raw);
+      const hit = nk ? convenioRegistry.byAlias.get(nk) : null;
+      if (hit) return { key: `slug:${hit.slug}`, label: hit.name };
+    }
+    const n = normAgreement(raw);
+    if (!n) return null;
+    return { key: `raw:${n}`, label: raw };
+  }, [convenioRegistry]);
+
+  // Convênios distintos presentes na base Exacta deste pagamento, agrupados
+  // pela chave canônica (slug quando resolvido no cadastro, texto normalizado
+  // como fallback). Uma linha por convênio, mesmo que o texto original varie.
+  const availableConvenios = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number; variants: Set<string> }>();
+    for (const it of paymentItems) {
+      const raw = ((it as any).agreement_text ?? "").toString().trim();
+      const resolved = resolveConvenioKey(raw);
+      if (!resolved) continue;
+      const cur = map.get(resolved.key);
+      if (cur) {
+        cur.count += 1;
+        if (raw) cur.variants.add(raw);
+      } else {
+        map.set(resolved.key, {
+          key: resolved.key,
+          label: resolved.label,
+          count: 1,
+          variants: new Set(raw ? [raw] : []),
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [paymentItems, resolveConvenioKey]);
+
 
   // Resolução nome→id (gravar exacta_company_id no histórico).
   const companyNameToId = useMemo(() => {
@@ -1175,14 +1228,20 @@ export function PaymentConciliationModal({
       // Convênios listados pelo analista (ex.: Sul América/Particular que operam
       // por pacote/tratativa manual). Itens desses convênios são removidos das
       // DUAS bases antes do cruzamento — não geram só_hospital/só_exacta.
-      const excludedConvNorm = new Set(excludedConvenios.map(normAgreement).filter(Boolean));
+      // === FILTRO — Convênios excluídos da análise ===
+      // Convênios listados pelo analista (ex.: Sul América/Particular que operam
+      // por pacote/tratativa manual). Itens desses convênios são removidos das
+      // DUAS bases antes do cruzamento — não geram só_hospital/só_exacta.
+      // A chave usada aqui é canônica (slug do cadastro quando disponível),
+      // então "Sul América" e "SUL AMERICA SAUDE S/A" batem no mesmo bucket.
+      const excludedConvKeys = new Set(excludedConvenios);
       let exactaRemovedByConvenio = 0;
-      if (excludedConvNorm.size > 0) {
+      if (excludedConvKeys.size > 0) {
         const before = exactaItemsForRun.length;
         const kept = exactaItemsForRun.filter((it) => {
-          const n = normAgreement((it as any).agreement_text);
-          if (!n) return true; // sem convênio informado → não descarta
-          return !excludedConvNorm.has(n);
+          const resolved = resolveConvenioKey((it as any).agreement_text);
+          if (!resolved) return true; // sem convênio informado → não descarta
+          return !excludedConvKeys.has(resolved.key);
         });
         exactaRemovedByConvenio = before - kept.length;
         if (exactaRemovedByConvenio > 0) {
@@ -1456,14 +1515,14 @@ export function PaymentConciliationModal({
       // usado para a Exacta acima). Sem coluna de convênio mapeada, avisa e
       // segue sem filtrar o hospital.
       let hospitalRemovedByConvenio = 0;
-      if (excludedConvNorm.size > 0) {
+      if (excludedConvKeys.size > 0) {
         const colAgr = srcColMap['agreement'] ?? null;
         if (colAgr) {
           const before = rowsParaCruzamento.length;
           rowsParaCruzamento = rowsParaCruzamento.filter((row) => {
-            const n = normAgreement(row[colAgr]);
-            if (!n) return true;
-            return !excludedConvNorm.has(n);
+            const resolved = resolveConvenioKey(row[colAgr]);
+            if (!resolved) return true;
+            return !excludedConvKeys.has(resolved.key);
           });
           hospitalRemovedByConvenio = before - rowsParaCruzamento.length;
           console.log('[Conciliação] Convênios excluídos (Hospital):', {
@@ -4313,13 +4372,16 @@ export function PaymentConciliationModal({
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
                       {availableConvenios.map((conv) => {
-                        const checked = excludedConvenios.includes(conv);
-                        const count = paymentItems.filter(
-                          (it) => ((it as any).agreement_text ?? "").toString().trim() === conv,
-                        ).length;
+                        const checked = excludedConvenios.includes(conv.key);
+                        const variantCount = conv.variants.size;
+                        const resolvedToSlug = conv.key.startsWith("slug:");
+                        const title = variantCount > 1
+                          ? `${variantCount} variações na base Exacta: ${Array.from(conv.variants).join(" · ")}`
+                          : Array.from(conv.variants)[0] ?? conv.label;
                         return (
                           <label
-                            key={conv}
+                            key={conv.key}
+                            title={title}
                             className={cn(
                               "flex items-center gap-2 px-2.5 py-1.5 rounded border cursor-pointer transition-colors",
                               checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40",
@@ -4330,14 +4392,22 @@ export function PaymentConciliationModal({
                               checked={checked}
                               onChange={() =>
                                 setExcludedConvenios((prev) =>
-                                  checked ? prev.filter((c) => c !== conv) : [...prev, conv],
+                                  checked ? prev.filter((c) => c !== conv.key) : [...prev, conv.key],
                                 )
                               }
                               className="h-3.5 w-3.5 rounded"
                               style={{ accentColor: "hsl(var(--primary))" }}
                             />
-                            <span className="flex-1 truncate text-[11px]">{conv}</span>
-                            <span className="text-[10px] text-muted-foreground shrink-0">{count}</span>
+                            <span className="flex-1 truncate text-[11px]">
+                              {conv.label}
+                              {resolvedToSlug && variantCount > 1 ? (
+                                <span className="ml-1 text-[9px] text-muted-foreground">· {variantCount} variações</span>
+                              ) : null}
+                              {!resolvedToSlug ? (
+                                <span className="ml-1 text-[9px] text-amber-600" title="Sem cadastro em convenios — filtro cai em match textual">·  sem cadastro</span>
+                              ) : null}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">{conv.count}</span>
                           </label>
                         );
                       })}
