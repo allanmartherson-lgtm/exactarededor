@@ -136,6 +136,11 @@ type ReconRow = {
     tvr_validation_history?: Array<Record<string, unknown>>;
     tasy_file_totals?: { file: number; valid: number; excluded: number; dropped: number };
     tasy_dropped_examples?: Array<{ row_index: number; missing: string[] }>;
+    // Escopo de PJ na criação
+    scope?: "individual" | "multi_pj";
+    multi_company_ids?: string[];
+    multi_doctor_ids?: string[];
+    multi_labels?: { companies?: string[]; doctors?: string[] };
     handoff?: {
       status: "encaminhada";
       payment_id?: string | null;
