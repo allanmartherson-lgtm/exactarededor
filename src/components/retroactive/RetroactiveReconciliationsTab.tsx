@@ -3182,6 +3182,68 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
 
+  /**
+   * Aplica o mapeamento manual feito no painel "PJs TASY não vinculadas":
+   * atualiza tasy_resolved_company_id em memória, aprende aliases no cadastro
+   * e persiste em summary.tasy_company_mapping — sem reabrir o wizard.
+   */
+  const applyPjMapDraft = async () => {
+    const entries = Object.entries(pjMapDraft).filter(([raw, cid]) => raw && cid && raw !== "(vazio)");
+    if (entries.length === 0) {
+      toast({ title: "Selecione ao menos uma PJ para vincular", variant: "destructive" });
+      return;
+    }
+    setPjMapApplying(true);
+    try {
+      const rawToCid = new Map(entries);
+      // 1) Atualiza tasyRows em memória
+      setTasyRows((prev) =>
+        prev.map((r) => {
+          const rawEmp = String(r.tasy_empresa ?? "").trim();
+          const cid = rawEmp ? rawToCid.get(rawEmp) : undefined;
+          return cid ? { ...r, tasy_resolved_company_id: cid } : r;
+        }),
+      );
+      // 2) Aprende alias no cadastro estadual (para próximas importações)
+      const companyIds = Array.from(new Set(entries.map(([, cid]) => cid).filter(Boolean)));
+      const { data: companyRows } = await supabase
+        .from("companies" as never)
+        .select("id, name, aliases")
+        .in("id", companyIds);
+      const companyById = new Map(
+        ((companyRows ?? []) as Array<{ id: string; name: string; aliases: string[] | null }>).map((c) => [c.id, c]),
+      );
+      let learned = 0;
+      for (const [rawName, companyId] of entries) {
+        const company = companyById.get(companyId);
+        if (!company || !shouldLearnAlias(rawName, company)) continue;
+        const res = await learnCompanyAlias(supabase, { companyId, rawName });
+        if (res.ok) learned++;
+      }
+      // 3) Persiste no summary da apuração para sobreviver a recarregamentos
+      if (recon) {
+        const prevMap = ((recon.summary as Record<string, unknown> | null)?.tasy_company_mapping ?? {}) as Record<string, string>;
+        const nextMap = { ...prevMap, ...Object.fromEntries(entries) };
+        const nextSummary = { ...(recon.summary ?? {}), tasy_company_mapping: nextMap };
+        await supabase
+          .from("retroactive_reconciliations" as never)
+          .update({ summary: nextSummary } as never)
+          .eq("id", id);
+      }
+      setUnresolvedPjPanel([]);
+      setPjMapDraft({});
+      toast({
+        title: `${entries.length} PJ(s) vinculada(s)${learned > 0 ? ` · ${learned} apelido(s) aprendido(s)` : ""}`,
+        description: "Clique em Processar para rodar novamente com o escopo corrigido.",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao aplicar mapeamentos", description: msg, variant: "destructive" });
+    } finally {
+      setPjMapApplying(false);
+    }
+  };
+
   const clearAll = async () => {
     const preservedSummary = (recon?.summary ?? {}) as Record<string, unknown>;
     setTasyRows([]);
