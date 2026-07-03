@@ -3493,8 +3493,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setKeyAuditOpen(true)}>
+                  Auditoria de chave
+                </Button>
               </div>
             </div>
+            <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
