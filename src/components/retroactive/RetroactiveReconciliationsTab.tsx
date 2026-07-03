@@ -427,10 +427,15 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
               </TableRow>
             )}
             {!loading && items.map((r) => {
-              const scope = [
-                r.doctor_id ? doctors[r.doctor_id] ?? "Médico" : null,
-                r.company_id ? companies[r.company_id] ?? "PJ" : null,
-              ].filter(Boolean).join(" · ");
+              const isMultiScope = r.summary?.scope === "multi_pj";
+              const multiCompanyCount = r.summary?.multi_company_ids?.length ?? 0;
+              const multiDoctorCount = r.summary?.multi_doctor_ids?.length ?? 0;
+              const scope = isMultiScope
+                ? `Múltiplas empresas · ${multiCompanyCount} PJ${multiCompanyCount === 1 ? "" : "s"}${multiDoctorCount > 0 ? ` · ${multiDoctorCount} médico${multiDoctorCount === 1 ? "" : "s"}` : ""}`
+                : [
+                    r.doctor_id ? doctors[r.doctor_id] ?? "Médico" : null,
+                    r.company_id ? companies[r.company_id] ?? "PJ" : null,
+                  ].filter(Boolean).join(" · ");
               const deletable = canDelete(r);
               return (
                 <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onOpen(r.id)}>
