@@ -1855,21 +1855,13 @@ export function PaymentConciliationModal({
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = srcMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
-        // Empresa NÃO entra na chave canônica (Atend + TUSS + Médico). Este guard
-        // existe só pra evitar cruzar linha de OUTRA PJ que apareceu no mesmo lote.
-        // Aceita match por igualdade OU por prefixo em qualquer direção — cobre
-        // grafia truncada no Excel, "LTDA/ME", pontuação/traço ("C.O.B -" vs "COB"),
-        // e sufixos de razão social ausentes num dos lados. Sem isso, casos onde
-        // atend + TUSS + médico batem viravam "só no hospital" só porque o nome
-        // longo da PJ diferia em um sufixo.
-        const hospCompNorm = normCompany(mappedCompany);
-        const companyMissing = hospitalCompanySet.size > 0 && exactaCompanySet.size > 0
-          && hospCompNorm !== ""
-          && !exactaCompanySet.has(hospCompNorm)
-          && !Array.from(exactaCompanySet).some((ec) =>
-            ec.length >= 4 && hospCompNorm.length >= 4 &&
-            (ec.startsWith(hospCompNorm) || hospCompNorm.startsWith(ec))
-          );
+        // Empresa NÃO é validada aqui: o lote já é escopado por PJ na etapa
+        // anterior (mapeamento de "Terceiros" → empresa Exacta no painel de
+        // bases). Revalidar por grafia dentro do matcher só produzia falso
+        // "só_hospital" quando o nome longo divergia (ex.: "C.O.B - Centro…"
+        // vs "COB CENTRO … LTDA") sem alias no srcMapping. Chave canônica
+        // continua sendo Atend + TUSS + Médico.
+        const companyMissing = false;
         const attMissing = !att || normAtt(att) === "";
         // Tenta TODAS as variantes do código (7d / 8d) — pega o primeiro
         // bucket com candidatos. Itens já matchados são filtrados depois.
