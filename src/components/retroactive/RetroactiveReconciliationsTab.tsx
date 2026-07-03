@@ -2856,15 +2856,97 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       const isExcludedConv = (raw: unknown) => excludedConvSet.size > 0 && excludedConvSet.has(normConv(raw));
       let convTasyRemoved = 0;
       let convPagRemoved = 0;
+      let companyTasyRemoved = 0;
 
       // Índice nome→doctor_id extraído do lado Repasse. Permite ao lado TASY
       // (que só tem o nome) cair em `d:<id>` e casar com o Repasse.
       const nameToDoctorId = new Map<string, string>();
+      // Índice `${company_id}|${nomeNorm}` → doctor_id. Serve pra desambiguar
+      // médicos homônimos que atendem por PJs diferentes — quando a linha TASY
+      // trouxer a empresa, priorizamos o doctor_id daquela PJ.
+      const nameByCompanyToDoctor = new Map<string, string>();
       for (const r of effectivePagRows) {
         const did = (r.pag_doctor_id ?? "").trim();
         const nn = normDoctorName(r.pag_medico);
+        const cid = (r.pag_company_id ?? "").trim();
         if (did && nn && !nameToDoctorId.has(nn)) nameToDoctorId.set(nn, did);
+        if (did && nn && cid) {
+          const k = `${cid}|${nn}`;
+          if (!nameByCompanyToDoctor.has(k)) nameByCompanyToDoctor.set(k, did);
+        }
       }
+
+      // Resolver PJ (Terceiro) do TASY → company_id. Aceita CNPJ (dígitos) ou
+      // razão social; casa contra `companies` do hospital da apuração.
+      const normCompanyName = (s: unknown) =>
+        String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const companyByDoc = new Map<string, string>();
+      const companyByName = new Map<string, string>();
+      try {
+        const { data: companiesData } = await supabase
+          .from("companies" as never)
+          .select("id, name, document")
+          .eq("hospital_id", recon?.hospital_id ?? "");
+        for (const c of (companiesData ?? []) as Array<Record<string, unknown>>) {
+          const docDigits = String(c.document ?? "").replace(/\D+/g, "");
+          const cid = String(c.id ?? "");
+          if (!cid) continue;
+          if (docDigits) companyByDoc.set(docDigits, cid);
+          const nn = normCompanyName(c.name);
+          if (nn && !companyByName.has(nn)) companyByName.set(nn, cid);
+        }
+      } catch (e) {
+        console.warn("TVR: falha carregando companies para resolver empresa do TASY", e);
+      }
+      const resolveTasyCompany = (raw: string | undefined): string | null => {
+        const s = String(raw ?? "").trim();
+        if (!s) return null;
+        const digits = s.replace(/\D+/g, "");
+        if (digits.length >= 11) {
+          const hit = companyByDoc.get(digits) || (digits.length > 14 ? companyByDoc.get(digits.slice(-14)) : undefined);
+          if (hit) return hit;
+        }
+        const nn = normCompanyName(s);
+        return companyByName.get(nn) ?? null;
+      };
+
+      // Escopo de PJs da apuração — usado pra filtrar linhas TASY que sejam de
+      // empresas fora do escopo (só descarta quando conseguimos resolver o
+      // empresa da linha; linhas sem `tasy_empresa` seguem no cruzamento).
+      const scopedCompanyIds = new Set<string>();
+      if (isMulti && multiCompanyIds.length > 0) {
+        for (const cid of multiCompanyIds) if (cid) scopedCompanyIds.add(String(cid));
+      } else if (recon?.company_id) {
+        scopedCompanyIds.add(String(recon.company_id));
+      } else {
+        for (const r of effectivePagRows) if (r.pag_company_id) scopedCompanyIds.add(r.pag_company_id);
+      }
+
+      const tasyCompanyByRow = new Map<TasyRow, string | null>();
+      const effectiveTasyRows: TasyRow[] = [];
+      for (const r of tasyRows) {
+        const cid = resolveTasyCompany(r.tasy_empresa);
+        tasyCompanyByRow.set(r, cid);
+        if (r.tasy_empresa && cid && scopedCompanyIds.size > 0 && !scopedCompanyIds.has(cid)) {
+          companyTasyRemoved++;
+          continue;
+        }
+        effectiveTasyRows.push(r);
+      }
+
+      // Resolve doctor_id da linha TASY: PJ+nome tem prioridade sobre só-nome.
+      const resolveTasyDoctorId = (row: TasyRow): string | undefined => {
+        const nn = normDoctorName(row.tasy_medico);
+        if (!nn) return undefined;
+        const cid = tasyCompanyByRow.get(row);
+        if (cid) {
+          const v = nameByCompanyToDoctor.get(`${cid}|${nn}`);
+          if (v) return v;
+        }
+        return nameToDoctorId.get(nn);
+      };
+
+
 
 
       // Aggregate Repasse by (atendimento, data, tuss8, médico)
