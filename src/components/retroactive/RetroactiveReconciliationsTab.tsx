@@ -34,6 +34,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { parseYmdLocal, addDaysYmd, competenceOfYmd, assertYmd } from "@/lib/dateUtils";
 import {
   ArrowLeftIcon,
   PlusIcon,
