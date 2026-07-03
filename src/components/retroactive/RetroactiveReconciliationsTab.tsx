@@ -2034,7 +2034,12 @@ export type TvrResult = {
   valor_com_acordo: number;
   dif_qtd: number;
   dif_valor: number;
-  valor_recuperar_acordo: number;
+  valor_recuperar_acordo: number; // legado: max(0, ajuste_acordo)
+  // Valor que a regra pagaria HOJE aplicando o mesmo % de acordo sobre a base TASY.
+  valor_com_acordo_recalc: number;
+  // valor_com_acordo (histórico) − valor_com_acordo_recalc.
+  // Positivo = a recuperar (paguei a mais). Negativo = a complementar (paguei a menos).
+  ajuste_acordo: number;
   matched_payment_item_id?: string;
   matched_payment_id?: string;
   matched_doctor_id?: string;
