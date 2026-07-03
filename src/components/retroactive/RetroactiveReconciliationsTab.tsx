@@ -2915,8 +2915,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       // empresas fora do escopo (só descarta quando conseguimos resolver o
       // empresa da linha; linhas sem `tasy_empresa` seguem no cruzamento).
       const scopedCompanyIds = new Set<string>();
-      if (isMulti && multiCompanyIds.length > 0) {
-        for (const cid of multiCompanyIds) if (cid) scopedCompanyIds.add(String(cid));
+      const summaryScope = (recon?.summary as Record<string, unknown> | null) ?? {};
+      const reconMultiCompanyIds = ((summaryScope.multi_company_ids as string[] | undefined) ?? []).filter(Boolean);
+      const reconIsMulti = summaryScope.scope === "multi_pj" && reconMultiCompanyIds.length > 0;
+      if (reconIsMulti) {
+        for (const cid of reconMultiCompanyIds) if (cid) scopedCompanyIds.add(String(cid));
       } else if (recon?.company_id) {
         scopedCompanyIds.add(String(recon.company_id));
       } else {
