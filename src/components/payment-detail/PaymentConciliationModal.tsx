@@ -70,6 +70,7 @@ import { FileText } from "lucide-react";
 import { logCompanyMapping } from "@/lib/companyMappingAudit";
 import { CompanyMappingHistory } from "./CompanyMappingHistory";
 import { PreReconciliationReport, type HospitalRowLite } from "./PreReconciliationReport";
+import { CompanyMappingList } from "@/components/shared/CompanyMappingList";
 
 function CopyAttendanceButton({ value }: { value: string | null | undefined }) {
   const [copied, setCopied] = useState(false);
