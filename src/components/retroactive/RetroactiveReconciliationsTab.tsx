@@ -2191,6 +2191,15 @@ export function buildTvrReplaceSummary(
   };
   const trimmedHistory = [...prevHistory.slice(-19), historyEntry];
   const preservedHandoff = (prev as { handoff?: unknown }).handoff;
+  // Preserva chaves de escopo definidas no Passo 1/2 — sem elas o trigger do
+  // banco (enforce_tvr_selected_payment_ids) rejeita o UPDATE pós-processamento
+  // e o motor volta a misturar lotes de outros meses no reprocesso.
+  const preservedScope = (prev as { scope?: unknown }).scope;
+  const preservedSelectedIds = (prev as { selected_payment_ids?: unknown }).selected_payment_ids;
+  const preservedSelectedLabels = (prev as { selected_payment_labels?: unknown }).selected_payment_labels;
+  const preservedMultiCompanyIds = (prev as { multi_company_ids?: unknown }).multi_company_ids;
+  const preservedMultiDoctorIds = (prev as { multi_doctor_ids?: unknown }).multi_doctor_ids;
+  const preservedMultiLabels = (prev as { multi_labels?: unknown }).multi_labels;
 
   return {
     mode: "tasy_vs_repasse",
@@ -2206,9 +2215,16 @@ export function buildTvrReplaceSummary(
     tvr_counts: tvrCounts,
     tvr_ausente_incomplete: incompleteAusente.length,
     tvr_validation_history: trimmedHistory,
+    ...(preservedScope !== undefined ? { scope: preservedScope } : {}),
+    ...(preservedSelectedIds !== undefined ? { selected_payment_ids: preservedSelectedIds } : {}),
+    ...(preservedSelectedLabels !== undefined ? { selected_payment_labels: preservedSelectedLabels } : {}),
+    ...(preservedMultiCompanyIds !== undefined ? { multi_company_ids: preservedMultiCompanyIds } : {}),
+    ...(preservedMultiDoctorIds !== undefined ? { multi_doctor_ids: preservedMultiDoctorIds } : {}),
+    ...(preservedMultiLabels !== undefined ? { multi_labels: preservedMultiLabels } : {}),
     ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
   };
 }
+
 
 const AUSENTE_TASY_ESSENTIAL_FIELDS = [
   ["paciente", "Paciente"],
