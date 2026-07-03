@@ -2049,6 +2049,13 @@ export type TvrResult = {
   // valor_com_acordo (histórico) − valor_com_acordo_recalc.
   // Positivo = a recuperar (paguei a mais). Negativo = a complementar (paguei a menos).
   ajuste_acordo: number;
+  // "valor" = regra é % sobre convênio (TASY e Exacta compartilham base) → compara R$.
+  // "quantidade" = regra usa tabela própria (valor_fixo/pacote/tabela_diferenciada/bonus)
+  //   → TASY não é base de valor; compara só presença e quantidade.
+  tipo_analise: "valor" | "quantidade";
+  // Apenas para tipo_analise="quantidade" + status="ausente_tasy": marca "sem lastro TASY"
+  // sem calcular R$ (pacote fechado pode não faturar itens individualmente).
+  sem_lastro_tasy?: boolean;
   matched_payment_item_id?: string;
   matched_payment_id?: string;
   matched_doctor_id?: string;
