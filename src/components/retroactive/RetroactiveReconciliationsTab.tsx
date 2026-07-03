@@ -3387,6 +3387,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     const wb = XLSX.utils.book_new();
+    // Congela as duas primeiras colunas (PJ Conciliada, Médico) e o cabeçalho
+    (ws as unknown as { "!freeze"?: unknown })["!freeze"] = { xSplit: 2, ySplit: 1 };
+    (ws as unknown as { "!views"?: unknown[] })["!views"] = [{ state: "frozen", xSplit: 2, ySplit: 1, topLeftCell: "C2", activePane: "bottomRight" }];
+    // Largura mínima para as colunas fixas
+    (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = [{ wch: 28 }, { wch: 26 }];
     XLSX.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
