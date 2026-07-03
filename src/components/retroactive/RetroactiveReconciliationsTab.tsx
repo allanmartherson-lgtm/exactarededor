@@ -501,8 +501,13 @@ function NewView({
 }) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [scope, setScope] = useState<"individual" | "multi_pj">("individual");
   const [doctorId, setDoctorId] = useState("");
   const [companyId, setCompanyId] = useState("");
+  const [multiCompanyIds, setMultiCompanyIds] = useState<string[]>([]);
+  const [multiDoctorIds, setMultiDoctorIds] = useState<string[]>([]);
+  const [multiCompOpen, setMultiCompOpen] = useState(false);
+  const [multiDocOpen, setMultiDocOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
   const [compOpen, setCompOpen] = useState(false);
   const [start, setStart] = useState("");
