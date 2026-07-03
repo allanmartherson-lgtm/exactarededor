@@ -190,11 +190,19 @@ export default function RetroactiveMappingWizard({
   showExcludeConsultas = true,
   extraConfig,
   dialogTitle = "Mapear colunas da planilha",
+  companyMappingConfig,
   onCancel,
   onConfirm,
 }: MappingWizardProps) {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [excludeConsultas, setExcludeConsultas] = useState(true);
+  const [step, setStep] = useState<"columns" | "companies">("columns");
+  const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
+
+  const companyHintKey = companyMappingConfig?.companyHintKey ?? "company_hint";
+  const companyHintCol = mapping[companyHintKey];
+  const hasCompanyStep =
+    !!companyMappingConfig && !!companyHintCol && companyHintCol !== NONE;
 
   useEffect(() => {
     if (open) {
