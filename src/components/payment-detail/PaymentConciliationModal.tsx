@@ -1895,23 +1895,37 @@ export function PaymentConciliationModal({
         // `doctor_aliases`. Logo, "Dr. João S." na produção e "João Silva" na
         // Exacta resolvem ao MESMO doctor_id se houver alias cadastrado.
         //
-        // FILTRO DURO DE DATA (date-only): a chave canônica é
-        // atendimento + médico + DATA. Um mesmo paciente pode ter procedimentos
-        // em dias distintos com o mesmo TUSS — sem o filtro de data, casaríamos
-        // o item errado. Comparação é YYYY-MM-DD (toDateStr já descarta horário
-        // dos dois lados); se uma das datas está ausente, não rejeita (defesa).
+        // FILTRO DE DATA com TOLERÂNCIA DE ±1 DIA: a chave canônica é
+        // atendimento + médico + DATA, mas hospital e Exacta frequentemente
+        // registram datas diferentes por 1 dia (hospital = data do faturamento
+        // / alta; Exacta = data do procedimento; virada de meia-noite no centro
+        // cirúrgico). Igualdade exata gerava falsos "só no hospital" mesmo
+        // quando atend+TUSS+médico+empresa batiam. Divergências >1 dia
+        // continuam rejeitadas (procedimento realmente em outro dia).
+        // Rastreamos o offset por candidato para sinalizar em ia_obs/diagnostics.
         const onlyDate = (v: unknown): string | null => {
           if (!v) return null;
           const s = String(v);
           const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
           return m ? m[1] : toDateStr(v);
         };
+        const daysBetween = (a: string, b: string): number => {
+          const da = new Date(`${a}T00:00:00Z`).getTime();
+          const db = new Date(`${b}T00:00:00Z`).getTime();
+          if (!Number.isFinite(da) || !Number.isFinite(db)) return Number.POSITIVE_INFINITY;
+          return Math.abs(Math.round((da - db) / 86400000));
+        };
         const hospDateOnly = dateStr; // toDateStr já normaliza
+        const dateOffsetById = new Map<string, number>(); // 0 = igual, 1 = ±1 dia
         const available = candidates.filter((m) => {
           if (matchedExactaIds.has(m.id)) return false;
           if (hospDateOnly) {
             const medDateOnly = onlyDate((m as any).procedure_date);
-            if (medDateOnly && medDateOnly !== hospDateOnly) return false;
+            if (medDateOnly) {
+              const diff = daysBetween(hospDateOnly, medDateOnly);
+              if (diff > 1) return false;
+              dateOffsetById.set(m.id, diff);
+            }
           }
           return true;
         });
@@ -1960,6 +1974,9 @@ export function PaymentConciliationModal({
           if (routeHospN && routeMedN && routeHospN === routeMedN) { s += 500; routeOk = true; }
           else if (routeHospN && routeMedN) { s -= 400; routeConflict = true; }
           if (qtyHospN === qtyMedN) s += 50;
+          // Preferir data exata quando houver múltiplos candidatos com ±1 dia.
+          const dOff = dateOffsetById.get(m.id) ?? 0;
+          if (dOff === 1) s -= 25;
           const diff = Math.abs(getConvenioValue(m) - valHosp);
           s += Math.max(0, 30 - Math.min(30, (diff / Math.max(1, valHosp)) * 30));
           return { score: s, docOk, roleOk, routeOk, docConflict, roleConflict, routeConflict };
@@ -2051,6 +2068,11 @@ export function PaymentConciliationModal({
             fields.push({ label: "Médico", hospital: docHospStr, exacta: docMed, ok: cmp(docHospN, normName(docMed)) });
             fields.push({ label: "Função", hospital: roleHospStr, exacta: roleMed, ok: cmp(roleHospN, normRole(roleMed)) });
             fields.push({ label: "Via de acesso", hospital: routeHospStr, exacta: routeMed, ok: cmp(routeHospN, normRoute(routeMed)) });
+            // Sinaliza data — ok=true quando igual, false quando diferiu ±1 dia
+            // (candidato só é considerado se diff ≤1; >1 é rejeitado antes).
+            const medDate = onlyDate((match as any).procedure_date);
+            const dateOff = match ? (dateOffsetById.get(match.id) ?? 0) : 0;
+            fields.push({ label: "Data", hospital: hospDateOnly ?? null, exacta: medDate, ok: hospDateOnly && medDate ? dateOff === 0 : null });
             fields.push({ label: "Valor (convênio)", hospital: formatCurrency(valHosp), exacta: formatCurrency(valMed), ok: Math.abs(valHosp - valMed) < 0.02 });
           }
           return {
@@ -2112,6 +2134,14 @@ export function PaymentConciliationModal({
           // gross_amount = valor PAGO ao médico pós-acordo (ex: base × 200%);
           // procedure_amount fallback é o valor cru de matching. Coluna informativa.
           base.valor_pago_exacta = lookupGross(mappedCompany, att, (match as any).doctor_name, code) || lookupProcedureAmount(mappedCompany, att, (match as any).doctor_name, code) || 0;
+          // Sinaliza divergência de data ±1 dia — match aceito, mas analista
+          // vê no card/relatório que houve deslocamento (hosp = alta/fatura,
+          // Exacta = procedimento; virada de meia-noite no centro cirúrgico).
+          const _dateOff = dateOffsetById.get(match.id) ?? 0;
+          if (_dateOff === 1) {
+            const _medDate = onlyDate((match as any).procedure_date);
+            base.ia_obs = `⚠ Data divergente (±1 dia): hospital ${hospDateOnly ?? '—'} vs Exacta ${_medDate ?? '—'} · match aceito`;
+          }
 
           const calcMethod = (match as any).applied_calc_method as string | null;
           const ruleLabel = String((match as any).applied_rule_label ?? '');
