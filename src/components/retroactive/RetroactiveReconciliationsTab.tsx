@@ -51,6 +51,7 @@ import {
   CalendarIcon,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { ptBR } from "date-fns/locale";
 import {
   Command,
   CommandEmpty,
