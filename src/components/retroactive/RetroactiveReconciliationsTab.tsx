@@ -2948,6 +2948,77 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
+      {/* Filtro: convênios excluídos da análise */}
+      <details className={cn("border border-border rounded-lg text-xs bg-card", (tasyRows.length === 0 && pagRows.length === 0) && "opacity-60 pointer-events-none")}>
+        <summary className="cursor-pointer px-4 py-2.5 flex items-center gap-2 select-none">
+          <span className="font-medium text-foreground">Excluir convênios da análise</span>
+          {excludedConvenios.length > 0 ? (
+            <span className="ml-auto px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+              {excludedConvenios.length} convênio(s) excluído(s)
+            </span>
+          ) : (
+            <span className="ml-auto text-muted-foreground text-[11px]">nenhum</span>
+          )}
+        </summary>
+        <div className="px-4 py-3 space-y-3 border-t border-border">
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            Selecione convênios que operam por <strong>pacote / tratativa manual</strong> (ex.: Sul América, Particular).
+            Itens desses convênios são <strong>removidos das duas bases</strong> (TASY e Repasse) antes do cruzamento —
+            não geram "não pago" nem "ausente TASY". Após alterar, clique em <strong>Processar</strong>.
+          </p>
+          {availableConvenios.length === 0 ? (
+            <p className="text-muted-foreground italic">Nenhum convênio identificado nas bases carregadas.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+              {availableConvenios.map((conv) => {
+                const checked = excludedConvenios.includes(conv.key);
+                return (
+                  <label
+                    key={conv.key}
+                    title={conv.label}
+                    className={cn(
+                      "flex items-center gap-2 px-2.5 py-1.5 rounded border cursor-pointer transition-colors",
+                      checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setExcludedConvenios((prev) =>
+                          checked ? prev.filter((c) => c !== conv.key) : [...prev, conv.key],
+                        )
+                      }
+                      className="h-3.5 w-3.5 rounded"
+                      style={{ accentColor: "hsl(var(--primary))" }}
+                    />
+                    <span className="flex-1 truncate text-[11px]">{conv.label}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{conv.count}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          {excludedConvenios.length > 0 && (
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                onClick={() => setExcludedConvenios([])}
+              >
+                Limpar seleção
+              </button>
+              {convenioFilterStats && (
+                <span className="text-[11px] text-muted-foreground">
+                  Último processamento: <strong className="text-foreground">{convenioFilterStats.tasyRemoved}</strong> linha(s) TASY e{' '}
+                  <strong className="text-foreground">{convenioFilterStats.pagRemoved}</strong> linha(s) Repasse removida(s).
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </details>
+
       {/* Step 3 — Process */}
       <div className="flex items-center gap-2">
         <Button onClick={process} disabled={isLocked || processing || tasyRows.length === 0 || pagRows.length === 0}>
