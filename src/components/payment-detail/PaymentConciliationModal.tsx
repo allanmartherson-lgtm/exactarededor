@@ -1170,9 +1170,37 @@ export function PaymentConciliationModal({
         exactaItemsForRun.length = 0;
         exactaItemsForRun.push(...kept);
       }
-      if (exactaItemsForRun.length === 0) {
-        throw new Error("Não encontrei itens Exacta elegíveis para conciliação (após filtrar bônus/complemento/manuais).");
+
+      // === FILTRO — Convênios excluídos da análise ===
+      // Convênios listados pelo analista (ex.: Sul América/Particular que operam
+      // por pacote/tratativa manual). Itens desses convênios são removidos das
+      // DUAS bases antes do cruzamento — não geram só_hospital/só_exacta.
+      const excludedConvNorm = new Set(excludedConvenios.map(normAgreement).filter(Boolean));
+      let exactaRemovedByConvenio = 0;
+      if (excludedConvNorm.size > 0) {
+        const before = exactaItemsForRun.length;
+        const kept = exactaItemsForRun.filter((it) => {
+          const n = normAgreement((it as any).agreement_text);
+          if (!n) return true; // sem convênio informado → não descarta
+          return !excludedConvNorm.has(n);
+        });
+        exactaRemovedByConvenio = before - kept.length;
+        if (exactaRemovedByConvenio > 0) {
+          console.log('[Conciliação] Convênios excluídos (Exacta):', {
+            excluded: Array.from(excludedConvenios),
+            before,
+            removed: exactaRemovedByConvenio,
+            restantes: kept.length,
+          });
+        }
+        exactaItemsForRun.length = 0;
+        exactaItemsForRun.push(...kept);
       }
+
+      if (exactaItemsForRun.length === 0) {
+        throw new Error("Não encontrei itens Exacta elegíveis para conciliação (após filtros de bônus/complemento/manuais/convênios excluídos).");
+      }
+
 
       // === FILTRO DE COMPETÊNCIA — Pagamentos por remessa ===
       // Regra de negócio (Rede D'Or):
