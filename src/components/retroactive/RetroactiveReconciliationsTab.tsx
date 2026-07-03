@@ -2094,6 +2094,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           return [full, key].filter(Boolean);
         }),
       );
+      const excludedConvSet = new Set(excludedConvenios.map((k) => normConv(k)).filter(Boolean));
+      const isExcludedConv = (raw: unknown) => excludedConvSet.size > 0 && excludedConvSet.has(normConv(raw));
+      let convTasyRemoved = 0;
+      let convPagRemoved = 0;
 
       // Aggregate Repasse by (atendimento, tuss)
       type PAgg = {
