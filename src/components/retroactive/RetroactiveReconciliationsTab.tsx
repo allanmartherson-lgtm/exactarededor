@@ -2776,6 +2776,7 @@ function LoteScopeFilter({
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const navigate = useNavigate();
   const [recon, setRecon] = useState<ReconRow | null>(null);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; aliases: string[] }>>([]);
   const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
   const [tasyFile, setTasyFile] = useState<string>("");
   const [tasyFileTotals, setTasyFileTotals] = useState<{ file: number; valid: number; excluded: number; dropped: number } | null>(null);
@@ -2893,6 +2894,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       setDoctorInfo({ id: null, name: null, crm: null });
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+      const rows = await fetchAllPaginated<{ id: string; name: string; aliases: string[] | null }>((from, to) =>
+        supabase
+          .from("companies")
+          .select("id, name, aliases")
+          .eq("active", true)
+          .order("name")
+          .range(from, to),
+      );
+      if (cancelled) return;
+      setCompanies(rows.map((c) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] })));
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     void loadTvrReconciliation();
