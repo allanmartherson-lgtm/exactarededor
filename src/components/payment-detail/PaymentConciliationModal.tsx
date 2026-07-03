@@ -568,12 +568,32 @@ export function PaymentConciliationModal({
   // Uso típico: convênios que operam por pacote/tratativa manual (Sul América,
   // Particular, etc.). Itens desses convênios são removidos das duas bases
   // (Exacta e hospitalar) antes do cruzamento — não geram só_hospital/só_exacta.
+  // Convênios excluídos da análise de conciliação.
+  // Uso típico: convênios que operam por pacote/tratativa manual (Sul América,
+  // Particular, etc.). Itens desses convênios são removidos das duas bases
+  // (Exacta e hospitalar) antes do cruzamento — não geram só_hospital/só_exacta.
+  //
+  // A chave gravada aqui é CANÔNICA:
+  //   • `slug:<slug>`  quando o texto do convênio resolveu para um cadastro
+  //     (via `convenios` + `convenio_aliases`) — permite excluir "Sul América"
+  //     mesmo que o hospital escreva "SUL AMERICA SAUDE S/A", "SulAmerica", etc.
+  //   • `raw:<normAgreement>` quando não há match no cadastro — mantém o
+  //     comportamento antigo (comparação por normalização direta do texto).
   const [excludedConvenios, setExcludedConvenios] = useState<string[]>([]);
   const [convenioFilterStats, setConvenioFilterStats] = useState<{
     excluded: string[];
     exactaRemoved: number;
     hospitalRemoved: number;
   } | null>(null);
+  const [convenioRegistry, setConvenioRegistry] = useState<ConvenioRegistry | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadConvenioRegistry()
+      .then((reg) => { if (!cancelled) setConvenioRegistry(reg); })
+      .catch((e) => console.warn('[Conciliação] falha ao carregar convenioRegistry — filtro cairá em match por texto puro.', e));
+    return () => { cancelled = true; };
+  }, []);
 
   const loteCompanies = useMemo(
     () =>
@@ -583,17 +603,6 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
-  // Convênios distintos presentes na base Exacta deste pagamento.
-  // Usado para popular o multi-select de exclusão.
-  const availableConvenios = useMemo(() => {
-    const set = new Set<string>();
-    for (const it of paymentItems) {
-      const raw = ((it as any).agreement_text ?? "").toString().trim();
-      if (raw) set.add(raw);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [paymentItems]);
-
   // Normalização usada para comparar convênios entre bases: sem acento,
   // minúsculo, só alfanumérico. Ex.: "Sul América" == "SUL AMERICA" == "SulAmerica".
   const normAgreement = (s: unknown): string =>
@@ -602,6 +611,50 @@ export function PaymentConciliationModal({
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "");
+
+  // Resolve o texto do convênio para uma chave canônica:
+  //   1) tenta bater em `convenios` (name) ou `convenio_aliases` via registry;
+  //   2) se casar, retorna `slug:<slug>` — casa hospital ↔ Exacta mesmo quando
+  //      os nomes diferem;
+  //   3) senão, retorna `raw:<normAgreement>` (fallback textual).
+  const resolveConvenioKey = useCallback((text: unknown): { key: string; label: string } | null => {
+    const raw = String(text ?? "").trim();
+    if (!raw) return null;
+    if (convenioRegistry) {
+      const nk = normalizeRegistry(raw);
+      const hit = nk ? convenioRegistry.byAlias.get(nk) : null;
+      if (hit) return { key: `slug:${hit.slug}`, label: hit.name };
+    }
+    const n = normAgreement(raw);
+    if (!n) return null;
+    return { key: `raw:${n}`, label: raw };
+  }, [convenioRegistry]);
+
+  // Convênios distintos presentes na base Exacta deste pagamento, agrupados
+  // pela chave canônica (slug quando resolvido no cadastro, texto normalizado
+  // como fallback). Uma linha por convênio, mesmo que o texto original varie.
+  const availableConvenios = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number; variants: Set<string> }>();
+    for (const it of paymentItems) {
+      const raw = ((it as any).agreement_text ?? "").toString().trim();
+      const resolved = resolveConvenioKey(raw);
+      if (!resolved) continue;
+      const cur = map.get(resolved.key);
+      if (cur) {
+        cur.count += 1;
+        if (raw) cur.variants.add(raw);
+      } else {
+        map.set(resolved.key, {
+          key: resolved.key,
+          label: resolved.label,
+          count: 1,
+          variants: new Set(raw ? [raw] : []),
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [paymentItems, resolveConvenioKey]);
+
 
   // Resolução nome→id (gravar exacta_company_id no histórico).
   const companyNameToId = useMemo(() => {
