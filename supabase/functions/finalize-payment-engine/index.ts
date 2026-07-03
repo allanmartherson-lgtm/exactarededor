@@ -85,6 +85,133 @@ async function markSource(
   });
 }
 
+// Pipeline pesado extraído para poder rodar em background (EdgeRuntime.waitUntil).
+// 2026-07-03: com lotes grandes (INSTITUTO SALUTAIRE + muitas PJs), o loop
+// per-PJ (deductions + minimum-guarantee + snapshot) + recalc de pools ultrapassa
+// os 150s de wall-time do edge runtime → 504 gateway timeout no cliente, mesmo
+// com todo o pipeline eventualmente concluindo. A UI já poleia
+// `payment_engine_sources.updated_at` (waitForFinalizeStability em CompanyAnalysis,
+// e EngineSourcesCard recarrega manualmente), então devolvemos 202 imediatamente
+// e deixamos o pipeline seguir em background.
+async function runPipeline(
+  payment_id: string,
+  requestedSources: string[] | undefined,
+  force: boolean | undefined,
+) {
+  // Inicializa/atualiza quais fontes são aplicáveis a este lote
+  await supabase.rpc("init_engine_sources_for_payment", { _payment_id: payment_id });
+
+  const { data: srcs } = await supabase
+    .from("payment_engine_sources")
+    .select("source, read_at, applicable")
+    .eq("payment_id", payment_id);
+
+  const want = (s: string): boolean => {
+    if (Array.isArray(requestedSources) && requestedSources.length > 0) {
+      return requestedSources.includes(s);
+    }
+    const row = (srcs ?? []).find((r: any) => r.source === s);
+    if (!row || !row.applicable) return false;
+    if (force) return true;
+    return row.read_at == null;
+  };
+
+  const { data: groups } = await supabase
+    .from("payment_company_groups")
+    .select("company_id")
+    .eq("payment_id", payment_id)
+    .not("company_id", "is", null);
+
+  const companyIds = Array.from(new Set((groups ?? []).map((g: any) => g.company_id as string).filter(Boolean)));
+
+  if (companyIds.length > 0) {
+    const CONCURRENCY = 1;
+    const runForCompany = async (cid: string) => {
+      if (want("company_adjustments") || want("glosa_debts")) {
+        await callFn("apply-company-deductions", { payment_id, company_id: cid });
+      }
+      if (want("minimum_guarantee")) {
+        await callFn("apply-minimum-guarantee", { payment_id, company_id: cid });
+      }
+      await callFn("compute-company-financials", { payment_id, company_id: cid });
+    };
+    for (let i = 0; i < companyIds.length; i += CONCURRENCY) {
+      const batch = companyIds.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(runForCompany));
+    }
+
+    if (want("company_adjustments") || want("glosa_debts")) {
+      const { data: caa } = await supabase
+        .from("company_adjustment_applications")
+        .select("valor_aplicado, status, adjustment_id")
+        .eq("payment_id", payment_id)
+        .neq("status", "revertido");
+      const totalCaa = (caa ?? []).reduce((s: number, r: any) => s + Number(r.valor_aplicado ?? 0), 0);
+      await markSource(payment_id, "company_adjustments", (caa ?? []).length, totalCaa, {
+        ajustes: Array.from(new Set((caa ?? []).map((r: any) => r.adjustment_id))).length,
+      });
+
+      const { data: gpa } = await supabase
+        .from("glosa_payment_applications")
+        .select("valor_aplicado, status, glosa_debt_id")
+        .eq("payment_id", payment_id)
+        .neq("status", "revertido");
+      const totalGpa = (gpa ?? []).reduce((s: number, r: any) => s + Number(r.valor_aplicado ?? 0), 0);
+      await markSource(payment_id, "glosa_debts", (gpa ?? []).length, totalGpa, {
+        debitos: Array.from(new Set((gpa ?? []).map((r: any) => r.glosa_debt_id))).length,
+      });
+    }
+
+    if (want("minimum_guarantee")) {
+      const { data: mga } = await supabase
+        .from("minimum_guarantee_applications")
+        .select("valor_complemento, status")
+        .eq("payment_id", payment_id);
+      const totalMg = (mga ?? []).reduce((s: number, r: any) => s + Number(r.valor_complemento ?? 0), 0);
+      await markSource(payment_id, "minimum_guarantee", (mga ?? []).length, totalMg);
+    }
+  }
+
+  if (want("pool_deductions")) {
+    await callFn("recalc-payment-pools", { payment_id, _background: false });
+    const { data: runs } = await supabase
+      .from("pool_calculation_runs")
+      .select("id, base_total, valor_deducoes, valor_liquido_pool, status")
+      .eq("payment_id", payment_id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const run = runs?.[0] as any;
+    await markSource(payment_id, "pool_deductions",
+      run ? 1 : 0,
+      Number(run?.valor_deducoes ?? 0),
+      run ? { run_id: run.id, base: run.base_total, liquido: run.valor_liquido_pool, status: run.status } : {});
+  }
+
+  if (want("retroactive_reconciliation")) {
+    const { data: items } = await supabase
+      .from("retroactive_reconciliation_items")
+      .select("status, valor")
+      .eq("payment_id", payment_id);
+    const pendentes = (items ?? []).filter((r: any) => r.status === "pendente").length;
+    const totalVal = (items ?? []).reduce((s: number, r: any) => s + Number(r.valor ?? 0), 0);
+    await markSource(payment_id, "retroactive_reconciliation", (items ?? []).length, totalVal, {
+      pendentes,
+    });
+  }
+
+  if (want("special_case_marks")) {
+    const { data: marks } = await supabase
+      .from("special_case_marks")
+      .select("status")
+      .eq("payment_id", payment_id)
+      .eq("status", "approved");
+    await markSource(payment_id, "special_case_marks", (marks ?? []).length, 0);
+  }
+}
+
+// @ts-ignore -- EdgeRuntime é injetado pelo runtime do Supabase
+declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void } | undefined;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -96,165 +223,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Inicializa/atualiza quais fontes são aplicáveis a este lote
-    await supabase.rpc("init_engine_sources_for_payment", { _payment_id: payment_id });
+    const task = runPipeline(payment_id, requestedSources, force).catch((e) => {
+      console.error("[finalize-payment-engine] pipeline erro", e);
+    });
 
-    // Lê estado atual para decidir o que rodar
-    const { data: srcs } = await supabase
-      .from("payment_engine_sources")
-      .select("source, read_at, applicable")
-      .eq("payment_id", payment_id);
-
-    const want = (s: string): boolean => {
-      if (Array.isArray(requestedSources) && requestedSources.length > 0) {
-        return requestedSources.includes(s);
-      }
-      const row = (srcs ?? []).find((r: any) => r.source === s);
-      if (!row || !row.applicable) return false;
-      if (force) return true;
-      return row.read_at == null;
-    };
-
-    const result: Record<string, unknown> = {};
-
-    // ----- Por PJ -----
-    const { data: groups } = await supabase
-      .from("payment_company_groups")
-      .select("company_id")
-      .eq("payment_id", payment_id)
-      .not("company_id", "is", null);
-
-    const companyIds = Array.from(new Set((groups ?? []).map((g: any) => g.company_id as string).filter(Boolean)));
-
-    const perCompany: any[] = [];
-    if (companyIds.length > 0) {
-      // 2026-07-02: baixado de 4 → 2. Com 4 empresas simultâneas × 3 subcalls
-      // (deductions + mg + snapshot) = 12 fetches concorrentes contra o runtime,
-      // suficiente para o Supabase disparar RateLimitError em lotes densos
-      // (reimport de INSTITUTO SALUTAIRE reproduziu). 2 mantém throughput
-      // aceitável e evita o backoff de ~57s sugerido pelo runtime.
-      const CONCURRENCY = 1;
-      const runForCompany = async (cid: string) => {
-        const summary: any = { company_id: cid };
-        // 1) deductions (sequencial dentro da PJ — afeta o snapshot)
-        if (want("company_adjustments") || want("glosa_debts")) {
-          const r = await callFn("apply-company-deductions", { payment_id, company_id: cid });
-          summary.deductions = { status: r.status };
-          try { summary.deductions.body = JSON.parse(r.body); } catch { summary.deductions.body = r.body.slice(0, 400); }
-        }
-        // 2) minimum guarantee
-        if (want("minimum_guarantee")) {
-          const r = await callFn("apply-minimum-guarantee", { payment_id, company_id: cid });
-          summary.minimum_guarantee = { status: r.status };
-          try { summary.minimum_guarantee.body = JSON.parse(r.body); } catch {}
-        }
-        // 3) snapshot da PJ
-        const r3 = await callFn("compute-company-financials", { payment_id, company_id: cid });
-        summary.snapshot = { status: r3.status };
-        try { summary.snapshot.body = JSON.parse(r3.body); } catch {}
-        return summary;
-      };
-
-      for (let i = 0; i < companyIds.length; i += CONCURRENCY) {
-        const batch = companyIds.slice(i, i + CONCURRENCY);
-        const out = await Promise.all(batch.map(runForCompany));
-        perCompany.push(...out);
-      }
-
-      // Consolida marcação por fonte (uma única linha por payment)
-      if (want("company_adjustments") || want("glosa_debts")) {
-        const { data: caa } = await supabase
-          .from("company_adjustment_applications")
-          .select("valor_aplicado, status, adjustment_id")
-          .eq("payment_id", payment_id)
-          .neq("status", "revertido");
-        const totalCaa = (caa ?? []).reduce((s: number, r: any) => s + Number(r.valor_aplicado ?? 0), 0);
-        await markSource(payment_id, "company_adjustments", (caa ?? []).length, totalCaa, {
-          ajustes: Array.from(new Set((caa ?? []).map((r: any) => r.adjustment_id))).length,
-        });
-
-        const { data: gpa } = await supabase
-          .from("glosa_payment_applications")
-          .select("valor_aplicado, status, glosa_debt_id")
-          .eq("payment_id", payment_id)
-          .neq("status", "revertido");
-        const totalGpa = (gpa ?? []).reduce((s: number, r: any) => s + Number(r.valor_aplicado ?? 0), 0);
-        await markSource(payment_id, "glosa_debts", (gpa ?? []).length, totalGpa, {
-          debitos: Array.from(new Set((gpa ?? []).map((r: any) => r.glosa_debt_id))).length,
-        });
-      }
-
-      if (want("minimum_guarantee")) {
-        const { data: mga } = await supabase
-          .from("minimum_guarantee_applications")
-          .select("valor_complemento, status")
-          .eq("payment_id", payment_id);
-        const totalMg = (mga ?? []).reduce((s: number, r: any) => s + Number(r.valor_complemento ?? 0), 0);
-        await markSource(payment_id, "minimum_guarantee", (mga ?? []).length, totalMg);
-      }
+    // Roda em background quando disponível para evitar 504 no cliente.
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+      EdgeRuntime.waitUntil(task);
     } else {
-      // Sem PJ — marca como N/A (init já cuidou de applicable=false)
+      // Fallback (dev/local sem EdgeRuntime): não bloqueia a resposta.
+      void task;
     }
-
-    result.per_company = perCompany;
-
-    // ----- Pool -----
-    if (want("pool_deductions")) {
-      const r = await callFn("recalc-payment-pools", { payment_id, _background: false });
-      result.pool = { status: r.status };
-      try { result.pool.body = JSON.parse(r.body); } catch { result.pool.body = r.body.slice(0, 400); }
-
-      const { data: runs } = await supabase
-        .from("pool_calculation_runs")
-        .select("id, base_total, valor_deducoes, valor_liquido_pool, status")
-        .eq("payment_id", payment_id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      const run = runs?.[0] as any;
-      await markSource(payment_id, "pool_deductions",
-        run ? 1 : 0,
-        Number(run?.valor_deducoes ?? 0),
-        run ? { run_id: run.id, base: run.base_total, liquido: run.valor_liquido_pool, status: run.status } : {});
-    }
-
-    // ----- Retroativa -----
-    if (want("retroactive_reconciliation")) {
-      const { data: items } = await supabase
-        .from("retroactive_reconciliation_items")
-        .select("status, valor")
-        .eq("payment_id", payment_id);
-      const pendentes = (items ?? []).filter((r: any) => r.status === "pendente").length;
-      const totalVal = (items ?? []).reduce((s: number, r: any) => s + Number(r.valor ?? 0), 0);
-      await markSource(payment_id, "retroactive_reconciliation", (items ?? []).length, totalVal, {
-        pendentes,
-      });
-    }
-
-    // ----- Special cases -----
-    if (want("special_case_marks")) {
-      const { data: marks } = await supabase
-        .from("special_case_marks")
-        .select("status")
-        .eq("payment_id", payment_id)
-        .eq("status", "approved");
-      await markSource(payment_id, "special_case_marks", (marks ?? []).length, 0);
-    }
-
-    // Estado final
-    const { data: finalSrcs } = await supabase
-      .from("payment_engine_sources")
-      .select("source, read_at, applicable, applied_count, total_value")
-      .eq("payment_id", payment_id);
-
-    const { data: readyRpc } = await supabase.rpc("engine_sources_ready", { _payment_id: payment_id });
 
     return new Response(JSON.stringify({
       ok: true,
       payment_id,
-      ready: readyRpc === true,
-      sources: finalSrcs ?? [],
-      detail: result,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      accepted: true,
+      background: true,
+      message: "Pipeline iniciado em background. Poleie payment_engine_sources para status.",
+    }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("[finalize-payment-engine] erro", e);
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
