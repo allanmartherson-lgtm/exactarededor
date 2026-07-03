@@ -155,6 +155,7 @@ type ReconRow = {
   id: string;
   doctor_id: string | null;
   company_id: string | null;
+  hospital_id?: string | null;
   period_start: string;
   period_end: string;
   status: "em_analise" | "concluida" | "cancelada";
