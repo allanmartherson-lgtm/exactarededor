@@ -4077,97 +4077,37 @@ export function PaymentConciliationModal({
                 </div>
               </div>
 
-              <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
-                {hospitalCompanies.map((terceiro) => {
-                  const mapped = companyMapping[terceiro];
-                  const level = matchLevels[terceiro];
+              <CompanyMappingList
+                rows={hospitalCompanies.map((t) => ({
+                  key: t,
+                  rawLabel: t,
+                  level: matchLevels[t] ?? null,
+                }))}
+                options={loteCompanies.map((lc) => ({ id: lc, label: lc }))}
+                value={companyMapping}
+                onChange={(terceiro, newName) => {
+                  const prevName = companyMapping[terceiro] ?? null;
+                  setCompanyMapping((prev) => ({ ...prev, [terceiro]: newName }));
+                  setMatchLevels((prev) => ({
+                    ...prev,
+                    [terceiro]: newName == null ? null : "exact",
+                  }));
+                  if (paymentId && newName !== prevName) {
+                    void logCompanyMapping({
+                      paymentId,
+                      reconciliationRunId: run?.id ?? null,
+                      hospitalCompanyRaw: terceiro,
+                      exactaCompanyId: newName ? companyNameToId[newName] ?? null : null,
+                      decision: newName == null ? "ignored" : "manual",
+                      changedBy: user?.id ?? null,
+                    });
+                  }
+                }}
+                onConfirm={(terceiro) =>
+                  setMatchLevels((prev) => ({ ...prev, [terceiro]: "exact" }))
+                }
+              />
 
-                  const cardStyle = mapped
-                    ? level === 'exact' || level === 'high'
-                      ? 'border-success/30 bg-success/5'
-                      : 'border-warning/30 bg-warning/5'
-                    : 'border-border bg-muted/30';
-
-                  const dotColor = mapped
-                    ? level === 'exact' || level === 'high'
-                      ? 'bg-success'
-                      : 'bg-warning'
-                    : 'bg-muted-foreground/40';
-
-                  const badge = mapped
-                    ? level === 'exact'
-                      ? <span className="text-[10px] font-semibold text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded-full shrink-0">Auto ✓</span>
-                      : level === 'high'
-                      ? <span className="text-[10px] font-semibold text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded-full shrink-0">Match ✓</span>
-                      : <span className="text-[10px] font-semibold text-warning-text bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded-full shrink-0">Confirmar</span>
-                    : <span className="text-[10px] font-semibold text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded-full shrink-0">Ignorar</span>;
-
-                  return (
-                    <div
-                      key={terceiro}
-                      className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg border", cardStyle)}
-                    >
-                      <div className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />
-                      <p
-                        className="text-xs flex-1 min-w-0 truncate font-medium"
-                        title={terceiro}
-                      >
-                        {terceiro}
-                      </p>
-                      {badge}
-                      {level === 'medium' && mapped && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-[11px] border-warning/40 text-warning-text hover:bg-warning/10 shrink-0"
-                          onClick={() =>
-                            setMatchLevels((prev) => ({ ...prev, [terceiro]: 'exact' }))
-                          }
-                          title="Aceitar a sugestão deste vínculo. Sem confirmar, este terceiro NÃO entra no cruzamento."
-                        >
-                          Confirmar
-                        </Button>
-                      )}
-                      <select
-                        value={mapped ?? "__ignore__"}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const newName = val === "__ignore__" ? null : val;
-                          const prevName = mapped ?? null;
-                          setCompanyMapping((prev) => ({
-                            ...prev,
-                            [terceiro]: newName,
-                          }));
-                          setMatchLevels((prev) => ({
-                            ...prev,
-                            [terceiro]: val === "__ignore__" ? null : 'exact',
-                          }));
-                          // Auditoria: nova versão do vínculo (trigger marca anteriores como não-corrente)
-                          if (paymentId && newName !== prevName) {
-                            void logCompanyMapping({
-                              paymentId,
-                              reconciliationRunId: run?.id ?? null,
-                              hospitalCompanyRaw: terceiro,
-                              exactaCompanyId: newName ? companyNameToId[newName] ?? null : null,
-                              decision: val === "__ignore__" ? "ignored" : "manual",
-                              changedBy: user?.id ?? null,
-                            });
-                          }
-                        }}
-                        className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[260px]"
-                      >
-                        <option value="__ignore__">— Ignorar —</option>
-                        {loteCompanies.map((lc) => (
-                          <option key={lc} value={lc}>
-                            {lc}
-                          </option>
-                        ))}
-                      </select>
-
-                    </div>
-                  );
-                })}
-              </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
