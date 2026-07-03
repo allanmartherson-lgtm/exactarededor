@@ -3198,7 +3198,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         setConvenioFilterStats(excludedConvSet.size > 0 ? { tasyRemoved: convTasyRemoved, pagRemoved: convPagRemoved } : null);
         setSelectedKeys(new Set());
         await loadTvrReconciliation();
-        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas` });
+        const companyMsg = companyTasyRemoved > 0 ? ` · ${companyTasyRemoved} linha(s) TASY fora do escopo de PJ` : "";
+        toast({ title: `Processamento concluído · ${out.length} linha(s) salvas${companyMsg}` });
       } catch (e) {
         const msg = e instanceof Error
           ? e.message
