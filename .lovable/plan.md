@@ -1,52 +1,53 @@
-## Objetivo
-Reaproveitar o mesmo padrão de UX do "mapeamento de empresas" do cruzamento do lote (`PaymentConciliationModal`) em dois pontos da retroativa:
+## Novo fluxo de criação — apuração retroativa (TASY vs Repasse)
 
-1. **Upload da base TASY** (dentro de `RetroactiveMappingWizard`) — quando a planilha traz coluna "Terceiro/PJ/Empresa", mostrar o mesmo modal para vincular cada texto encontrado a uma PJ cadastrada, com aliases e auto-match (hoje isso não existe na retroativa: qualquer valor entra cru).
-2. **Criação de "TASY vs Repasse" com escopo Múltiplas empresas** — trocar os dois pickers atuais (Command multi-select de PJs + Command multi-select de médicos) por uma tabela idêntica ao lote: linha por PJ, com dot de status, badge, e coluna para escolher os médicos daquela PJ (usando `doctor_companies`).
+### Ideia
+Hoje o modal pede médico/empresa antes de qualquer coisa, o que obriga o analista a "adivinhar" quais PJs fazem sentido. O novo fluxo inverte a ordem: **data → lote(s) → PJs/médicos**. Assim o sistema restringe as opções automaticamente ao universo do(s) lote(s) escolhido(s) e já sabe com qual base cruzar.
 
-## O que muda por arquivo
+### Novo passo a passo do modal
 
-### `src/components/shared/CompanyMappingList.tsx` (novo)
-Componente presentacional extraído de `PaymentConciliationModal` (linhas ~4090-4180). Recebe:
-- `rows: { key: string; rawLabel: string; suggestedId: string|null; level: 'exact'|'high'|'medium'|null }[]`
-- `options: { id: string; name: string }[]`
-- `value: Record<key, string|null>` (mapping)
-- `onChange(key, id|null)`
-- `onConfirm(key)` (aceita sugestão medium)
-- Slot opcional `extraColumn(key)` para renderizar coluna extra à direita (usada na criação: multi-select de médicos daquela PJ).
+```text
+1. Modo de apuração          [Alegação do médico] [TASY vs Repasse ✓]
+2. Escopo                    [Individual] [Múltiplas empresas ✓]
+3. Período (De / Até)        dd/mm/aaaa   dd/mm/aaaa
+   └─ ao completar, dispara busca de lotes elegíveis
+4. Lote(s) a analisar        lista de payments no período
+   ☑ Lote 2026-04 · Ref 1234 · 12 PJs · R$ 320k
+   ☑ Lote 2026-04 · Ref 1235 · 4 PJs  · R$ 88k
+   ☐ Lote 2026-03 · Ref 1200 · ...
+5. PJs incluídas             (auto-preenchido com PJs dos lotes; editável)
+6. Médicos                   (auto-preenchido; opcional restringir)
+7. Título *                  Ex.: Falta de pagamentos abril/2026
+[Criar e seguir]
+```
 
-Sem lógica de aliases/auditoria: quem chama decide o que fazer no `onChange`. Isso mantém o batch com sua auditoria por `paymentId` intacta.
+- O passo 5/6 só aparece depois que ≥1 lote for marcado.
+- "Marcar todas / Limpar" continua funcionando; a lista base agora vem dos lotes, não do hospital inteiro.
+- Se o analista desmarcar todos os lotes, os passos 5/6 escondem e o botão fica desabilitado.
 
-### `src/components/payment-detail/PaymentConciliationModal.tsx`
-Substituir o bloco atual pelo `CompanyMappingList` mantendo os handlers já existentes (aliases + `logCompanyMapping`). Nada de comportamento muda.
+### Regras
+- **Data primeiro:** enquanto `start`/`end` não estiverem preenchidos, os passos 4-6 ficam ocultos ou desabilitados.
+- **Lotes elegíveis:** `payments` do hospital ativo cujo `competence_month` (ou intervalo do lote) intersecta `[start, end]`. Ordena por competência desc / referência.
+- **PJs candidatas:** união das PJs presentes em `payment_items` dos lotes selecionados (companies distintas). Padrão: todas marcadas.
+- **Médicos candidatos:** união dos médicos presentes nos mesmos itens. Padrão: nenhum marcado (opcional).
+- **Ids do(s) lote(s)** ficam salvos em `summary.selected_payment_ids: string[]`.
+- **Cruzamento fica focado:** `loadPaymentItems` passa a filtrar `payment_items.payment_id IN summary.selected_payment_ids` (quando presente), em vez de filtrar por competência derivada. Se `selected_payment_ids` estiver ausente (apurações antigas), mantém o comportamento atual — retrocompat total.
 
-### `src/components/retroactive/RetroactiveMappingWizard.tsx`
-- Após o mapeamento de colunas, se a coluna `company_hint` estiver definida, entrar em um passo novo **"Vincular PJs"** usando `CompanyMappingList`.
-- Auto-match com `companies.aliases` + fuzzy (mesma função `findMatch` do batch — extrair para `src/lib/companyMatching.ts`).
-- Persistir aliases confirmados em `companies.aliases` (mesmo padrão do batch, sem auditoria por payment).
-- Salvar o mapping resolvido em `retroactive_reconciliations.summary.company_mapping` para o motor usar depois.
+### Modo "Alegação do médico"
+Continua individual (1 médico e/ou 1 PJ). O passo de lotes **não** aparece nesse modo — a alegação segue cruzando com a janela ±90d por médico. Fica claro visualmente que o passo 4 é exclusivo de TASY vs Repasse.
 
-### `src/components/retroactive/RetroactiveReconciliationsTab.tsx` (tela de criação)
-Quando `mode = tasy_vs_repasse` e `scope = multi_pj`:
-- Remover os dois Popover/Command atuais (PJs e Médicos).
-- Renderizar `CompanyMappingList` alimentado com **todas as PJs do hospital** (checkbox por linha para incluir/excluir, no lugar do select terceiro→PJ). Coluna extra à direita = médicos daquela PJ (via `doctor_companies`), com checkboxes.
-- Estado salvo continua em `multi_company_ids` e `multi_doctor_ids`.
+### Detalhes técnicos
+- Arquivo: `src/components/retroactive/RetroactiveReconciliationsTab.tsx` (componente `NewRecon`).
+- Reordenar JSX: seções "Período", "Lotes", "PJs", "Médicos", "Título".
+- Novo estado: `selectedPaymentIds: string[]`, `availableLotes: Array<{id, label, competence, company_ids, doctor_ids}>`, `loadingLotes: boolean`.
+- Nova query (dispara em `useEffect([start, end, hospitalId, mode, scope])`, com debounce simples):
+  1. `payments` do hospital com `competence_month` no intervalo (ou `period_start/period_end` interseccionando).
+  2. `payment_items` desses ids projetando `payment_id, company_id, doctor_id, doctor_name` (paginado via `fetchAllPaginated`, campos mínimos).
+  3. Agregação em memória → monta a lista.
+- `submit`: `multiCompanyIds`/`multiDoctorIds` continuam sendo o output; passam a ser inicializados a partir dos lotes. Persistir `summary.selected_payment_ids` e `summary.selected_payment_labels`.
+- `loadPaymentItems` (linha ~2410): se `r.summary?.selected_payment_ids?.length`, filtrar direto por `payment_id IN (...)` e pular o filtro por competência (já implícito no lote).
+- Sem migração de banco — tudo cabe em `summary` JSONB.
 
-### `src/lib/companyMatching.ts` (novo)
-Extrair `findMatch`, `getIdentifiers`, `normFull` de `PaymentConciliationModal.tsx` para reuso entre batch e wizard.
-
-## Detalhes técnicos
-- `CompanyMappingList` fica em `src/components/shared/` (novo diretório) por ser cross-feature.
-- O componente é 100% controlado — não faz fetch, não persiste nada. Toda regra de negócio (aliases, audit log, mapping storage) fica em quem consome.
-- Auto-match do wizard usa as MESMAS `companies.aliases` do batch, então um alias aprendido em um fluxo vale para o outro.
-- Zero mudança de schema.
-
-## Fora do escopo
-- Não mexer no motor de matching TASY×Repasse (já é canônico Atend+Data+TUSS+Médico).
-- Não mexer no fluxo de "Alegação do médico" (permanece individual).
-
-## Checagem final
-- `tsgo` limpo.
-- Fluxo do lote (`PaymentConciliationModal`) segue idêntico visualmente.
-- Wizard retroativo ganha passo novo apenas quando há coluna de empresa mapeada.
-- Criação "Múltiplas empresas" mostra a mesma tabela do lote.
+### Fora do escopo
+- Reprocessar apurações antigas.
+- Mudar o motor TASY×Repasse.
+- Alterar "Alegação do médico".

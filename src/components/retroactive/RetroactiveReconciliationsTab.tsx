@@ -566,6 +566,18 @@ function NewView({
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<ReconMode>("alegacao_medico");
+  // Lotes elegíveis no período (só usado em TASY vs Repasse).
+  type LoteOpt = {
+    id: string;
+    label: string;
+    competence: string;
+    reference: string;
+    company_ids: string[];
+    doctor_ids: string[];
+  };
+  const [availableLotes, setAvailableLotes] = useState<LoteOpt[]>([]);
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<string[]>([]);
+  const [loadingLotes, setLoadingLotes] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -593,6 +605,120 @@ function NewView({
     })();
   }, []);
 
+  // Busca lotes elegíveis no período (TASY vs Repasse / multi_pj).
+  // Um lote é elegível quando seu competence_month cai entre start..end.
+  useEffect(() => {
+    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") {
+      setAvailableLotes([]);
+      setSelectedPaymentIds([]);
+      return;
+    }
+    if (!hospitalId || !start || !end) {
+      setAvailableLotes([]);
+      setSelectedPaymentIds([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingLotes(true);
+    void (async () => {
+      try {
+        const startComp = start.slice(0, 7);
+        const endComp = end.slice(0, 7);
+        const { data: payments } = await supabase
+          .from("payments")
+          .select("id, reference, competence_month")
+          .eq("hospital_id", hospitalId)
+          .gte("competence_month", `${startComp}-01`)
+          .lte("competence_month", `${endComp}-01`)
+          .order("competence_month", { ascending: false })
+          .order("reference", { ascending: true });
+        if (cancelled) return;
+        const paymentRows = (payments ?? []) as Array<{
+          id: string; reference: string | null; competence_month: string | null;
+        }>;
+        if (paymentRows.length === 0) {
+          setAvailableLotes([]);
+          setSelectedPaymentIds([]);
+          setLoadingLotes(false);
+          return;
+        }
+        const paymentIds = paymentRows.map((p) => p.id);
+        const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+        const items = await fetchAllPaginated<{ payment_id: string; company_id: string | null; doctor_id: string | null }>(
+          (from, to) =>
+            supabase
+              .from("payment_items")
+              .select("payment_id, company_id, doctor_id")
+              .in("payment_id", paymentIds)
+              .range(from, to),
+        );
+        if (cancelled) return;
+        const compsByPayment = new Map<string, Set<string>>();
+        const docsByPayment = new Map<string, Set<string>>();
+        for (const it of items) {
+          if (!it.payment_id) continue;
+          if (it.company_id) {
+            const s = compsByPayment.get(it.payment_id) ?? new Set<string>();
+            s.add(it.company_id);
+            compsByPayment.set(it.payment_id, s);
+          }
+          if (it.doctor_id) {
+            const s = docsByPayment.get(it.payment_id) ?? new Set<string>();
+            s.add(it.doctor_id);
+            docsByPayment.set(it.payment_id, s);
+          }
+        }
+        const opts: LoteOpt[] = paymentRows.map((p) => {
+          const comp = p.competence_month ? String(p.competence_month).slice(0, 7) : "";
+          const ref = String(p.reference ?? "").trim();
+          const label = ref
+            ? `${comp || "?"} · ${ref}`
+            : `${comp || "?"} · ${p.id.slice(0, 8)}`;
+          return {
+            id: p.id,
+            label,
+            competence: comp,
+            reference: ref,
+            company_ids: Array.from(compsByPayment.get(p.id) ?? []),
+            doctor_ids: Array.from(docsByPayment.get(p.id) ?? []),
+          };
+        });
+        setAvailableLotes(opts);
+        // Padrão: nenhum lote pré-selecionado — analista decide.
+        setSelectedPaymentIds([]);
+      } finally {
+        if (!cancelled) setLoadingLotes(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mode, scope, hospitalId, start, end]);
+
+  // Deriva PJs/médicos candidatos a partir dos lotes selecionados.
+  // PJs padrão = todas dos lotes escolhidos; médicos padrão = nenhum (opcional).
+  useEffect(() => {
+    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") return;
+    if (selectedPaymentIds.length === 0) {
+      setMultiCompanyIds([]);
+      setMultiDoctorIds([]);
+      return;
+    }
+    const selected = availableLotes.filter((l) => selectedPaymentIds.includes(l.id));
+    const comps = new Set<string>();
+    for (const l of selected) for (const cid of l.company_ids) comps.add(cid);
+    setMultiCompanyIds(Array.from(comps));
+    setMultiDoctorIds([]);
+  }, [selectedPaymentIds, availableLotes, mode, scope]);
+
+  // Médicos candidatos derivados dos lotes selecionados.
+  const candidateDoctorIds = React.useMemo(() => {
+    if (mode !== "tasy_vs_repasse" || scope !== "multi_pj") return new Set<string>();
+    const set = new Set<string>();
+    for (const l of availableLotes) {
+      if (!selectedPaymentIds.includes(l.id)) continue;
+      for (const did of l.doctor_ids) set.add(did);
+    }
+    return set;
+  }, [availableLotes, selectedPaymentIds, mode, scope]);
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId);
   const selectedCompany = companies.find((c) => c.id === companyId);
@@ -618,6 +744,14 @@ function NewView({
         return;
       }
     } else if (mode === "tasy_vs_repasse" && isMulti) {
+      if (!start || !end) {
+        toast({ title: "Selecione o período (De/Até) antes de continuar", variant: "destructive" });
+        return;
+      }
+      if (selectedPaymentIds.length === 0) {
+        toast({ title: "Selecione ao menos um lote a analisar", variant: "destructive" });
+        return;
+      }
       if (multiCompanyIds.length === 0 && multiDoctorIds.length === 0) {
         toast({ title: "Selecione ao menos uma PJ ou médico no mapeamento", variant: "destructive" });
         return;
@@ -633,6 +767,10 @@ function NewView({
         companies: multiCompanyIds.map((cid) => companies.find((c) => c.id === cid)?.name).filter(Boolean),
         doctors: multiDoctorIds.map((did) => doctors.find((d) => d.id === did)?.full_name).filter(Boolean),
       };
+      summary.selected_payment_ids = selectedPaymentIds;
+      summary.selected_payment_labels = availableLotes
+        .filter((l) => selectedPaymentIds.includes(l.id))
+        .map((l) => l.label);
     }
     const { data, error } = await (supabase as unknown as {
       from: (t: string) => {
@@ -729,9 +867,96 @@ function NewView({
         {mode === "alegacao_medico"
           ? "Informe o médico, a PJ, ou ambos. Selecionar a PJ restringe o cruzamento aos pagamentos daquela empresa."
           : (scope === "multi_pj"
-              ? "Selecione ao menos uma PJ (obrigatório) e, opcionalmente, restrinja aos médicos desejados. Sem PJ/médico selecionado, o sistema NÃO faz cruzamento em todas as PJs do hospital — a criação é bloqueada."
+              ? "Escolha primeiro o período. O sistema traz os lotes elegíveis; ao selecionar um ou mais, PJs e médicos ficam restritos ao universo desses lotes."
               : "Médico, PJ e período são opcionais — servem apenas para identificar esta apuração.")}
       </p>
+
+      {/* Passo Data — sempre visível, primeiro campo em TASY vs Repasse/multi_pj */}
+      {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+          <Label className="text-xs">1. Período da apuração</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">De</Label>
+              <DatePickerCombo value={start} onChange={setStart} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Até</Label>
+              <DatePickerCombo value={end} onChange={setEnd} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Passo Lotes — só aparece em multi_pj após período preenchido */}
+      {mode === "tasy_vs_repasse" && scope === "multi_pj" && start && end && (
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">
+              2. Lote(s) a analisar {availableLotes.length > 0 && (
+                <span className="text-muted-foreground font-normal">
+                  · {selectedPaymentIds.length}/{availableLotes.length} selecionado{selectedPaymentIds.length === 1 ? "" : "s"}
+                </span>
+              )}
+            </Label>
+            {availableLotes.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setSelectedPaymentIds(availableLotes.map((l) => l.id))}
+                >
+                  Marcar todos
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setSelectedPaymentIds([])}
+                >
+                  Limpar
+                </button>
+              </div>
+            )}
+          </div>
+          {loadingLotes ? (
+            <div className="text-xs text-muted-foreground py-4 text-center">Buscando lotes no período…</div>
+          ) : availableLotes.length === 0 ? (
+            <div className="text-xs text-muted-foreground py-4 text-center">
+              Nenhum lote encontrado com competência entre {start.slice(0, 7)} e {end.slice(0, 7)}.
+            </div>
+          ) : (
+            <div className="max-h-56 overflow-y-auto border rounded-md divide-y">
+              {availableLotes.map((l) => {
+                const checked = selectedPaymentIds.includes(l.id);
+                return (
+                  <label
+                    key={l.id}
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-muted/40 cursor-pointer text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setSelectedPaymentIds((cur) =>
+                          e.target.checked ? [...cur, l.id] : cur.filter((x) => x !== l.id),
+                        );
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{l.label}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {l.company_ids.length} PJ{l.company_ids.length === 1 ? "" : "s"} · {l.doctor_ids.length} médico{l.doctor_ids.length === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
         {(mode === "alegacao_medico" || scope === "individual") && (
@@ -845,99 +1070,117 @@ function NewView({
           </div>
         )}
 
-        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
-          <div className="md:col-span-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label>PJs / Empresas ({multiCompanyIds.length})</Label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiCompanyIds(companies.map((c) => c.id))}
-                >
-                  Marcar todas
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiCompanyIds([])}
-                >
-                  Limpar
-                </button>
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && selectedPaymentIds.length > 0 && (() => {
+          const loteCompanyIds = new Set<string>();
+          for (const l of availableLotes) {
+            if (!selectedPaymentIds.includes(l.id)) continue;
+            for (const cid of l.company_ids) loteCompanyIds.add(cid);
+          }
+          const scopedCompanies = companies.filter((c) => loteCompanyIds.has(c.id));
+          return (
+            <div className="md:col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>3. PJs incluídas ({multiCompanyIds.length}/{scopedCompanies.length})</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiCompanyIds(scopedCompanies.map((c) => c.id))}
+                  >
+                    Marcar todas
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiCompanyIds([])}
+                  >
+                    Limpar
+                  </button>
+                </div>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                PJs derivadas do(s) lote(s) selecionado(s). Padrão: todas incluídas.
+              </p>
+              <CompanyMappingList
+                variant="checkbox"
+                rows={scopedCompanies.map((c) => ({
+                  key: c.id,
+                  rawLabel: c.document ? `${c.name} · ${c.document}` : c.name,
+                  level: null,
+                }))}
+                value={Object.fromEntries(scopedCompanies.map((c) => [c.id, multiCompanyIds.includes(c.id) ? c.id : null]))}
+                onChange={(cid, next) =>
+                  setMultiCompanyIds((cur) =>
+                    next ? (cur.includes(cid) ? cur : [...cur, cid]) : cur.filter((x) => x !== cid),
+                  )
+                }
+                maxHeight={220}
+              />
             </div>
-            <CompanyMappingList
-              variant="checkbox"
-              rows={companies.map((c) => ({
-                key: c.id,
-                rawLabel: c.document ? `${c.name} · ${c.document}` : c.name,
-                level: null,
-              }))}
-              value={Object.fromEntries(companies.map((c) => [c.id, multiCompanyIds.includes(c.id) ? c.id : null]))}
-              onChange={(cid, next) =>
-                setMultiCompanyIds((cur) =>
-                  next ? (cur.includes(cid) ? cur : [...cur, cid]) : cur.filter((x) => x !== cid),
-                )
-              }
-              maxHeight={220}
-            />
-          </div>
-        )}
+          );
+        })()}
 
-        {mode === "tasy_vs_repasse" && scope === "multi_pj" && (
-          <div className="md:col-span-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label>
-                Médicos ({multiDoctorIds.length}){" "}
-                <span className="text-muted-foreground font-normal">— opcional</span>
-              </Label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiDoctorIds(doctors.map((d) => d.id))}
-                >
-                  Marcar todos
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => setMultiDoctorIds([])}
-                >
-                  Limpar
-                </button>
+        {mode === "tasy_vs_repasse" && scope === "multi_pj" && selectedPaymentIds.length > 0 && (() => {
+          const scopedDoctors = doctors.filter((d) => candidateDoctorIds.has(d.id));
+          return (
+            <div className="md:col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>
+                  4. Médicos ({multiDoctorIds.length}/{scopedDoctors.length}){" "}
+                  <span className="text-muted-foreground font-normal">— opcional</span>
+                </Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiDoctorIds(scopedDoctors.map((d) => d.id))}
+                  >
+                    Marcar todos
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setMultiDoctorIds([])}
+                  >
+                    Limpar
+                  </button>
+                </div>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                Médicos derivados do(s) lote(s). Deixe todos desmarcados para incluir todos.
+              </p>
+              <CompanyMappingList
+                variant="checkbox"
+                rows={scopedDoctors.map((d) => ({
+                  key: d.id,
+                  rawLabel: `${d.full_name} (${d.crm}/${d.crm_uf})`,
+                  level: null,
+                }))}
+                value={Object.fromEntries(scopedDoctors.map((d) => [d.id, multiDoctorIds.includes(d.id) ? d.id : null]))}
+                onChange={(did, next) =>
+                  setMultiDoctorIds((cur) =>
+                    next ? (cur.includes(did) ? cur : [...cur, did]) : cur.filter((x) => x !== did),
+                  )
+                }
+                maxHeight={220}
+              />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Deixe todos desmarcados para incluir todos os médicos das PJs selecionadas.
-            </p>
-            <CompanyMappingList
-              variant="checkbox"
-              rows={doctors.map((d) => ({
-                key: d.id,
-                rawLabel: `${d.full_name} (${d.crm}/${d.crm_uf})`,
-                level: null,
-              }))}
-              value={Object.fromEntries(doctors.map((d) => [d.id, multiDoctorIds.includes(d.id) ? d.id : null]))}
-              onChange={(did, next) =>
-                setMultiDoctorIds((cur) =>
-                  next ? (cur.includes(did) ? cur : [...cur, did]) : cur.filter((x) => x !== did),
-                )
-              }
-              maxHeight={220}
-            />
-          </div>
+          );
+        })()}
+
+        {/* Datas em modos que não usam o passo de lotes (alegação ou individual) */}
+        {!(mode === "tasy_vs_repasse" && scope === "multi_pj") && (
+          <>
+            <div>
+              <Label>De</Label>
+              <DatePickerCombo value={start} onChange={setStart} />
+            </div>
+            <div>
+              <Label>Até</Label>
+              <DatePickerCombo value={end} onChange={setEnd} />
+            </div>
+          </>
         )}
-
-
-        <div>
-          <Label>De</Label>
-          <DatePickerCombo value={start} onChange={setStart} />
-        </div>
-        <div>
-          <Label>Até</Label>
-          <DatePickerCombo value={end} onChange={setEnd} />
-        </div>
         <div className="md:col-span-2">
           <Label>Título <span className="text-destructive">*</span></Label>
           <Input
@@ -2425,17 +2668,29 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         }
       }
 
-      // Filtra sistema estritamente pela competência do lote (mês do period_start da apuração).
-      // Ex.: apuração de abril → só considera itens de payments com competence_month = 'YYYY-04'.
-      const targetCompetence = competenceOfYmd(r.period_start) ?? "";
-      const rawItems = targetCompetence
-        ? rawItemsAll.filter((it) => {
-            const pid = String(it.payment_id ?? "");
-            if (!pid) return false;
-            return compByPaymentId.get(pid) === targetCompetence;
-          })
-        : rawItemsAll;
-      const droppedByCompetence = rawItemsAll.length - rawItems.length;
+      // Filtra por lote: se a apuração persistiu selected_payment_ids, foca
+      // estritamente nesses lotes (fluxo novo). Caso contrário, cai no filtro
+      // por competência (compat com apurações antigas).
+      const selectedPidsSummary = ((r.summary as Record<string, unknown> | null)?.selected_payment_ids ?? []) as string[];
+      const selectedPidsSet = new Set(selectedPidsSummary.filter(Boolean));
+      let rawItems: typeof rawItemsAll;
+      let dropReason = "";
+      if (selectedPidsSet.size > 0) {
+        rawItems = rawItemsAll.filter((it) => selectedPidsSet.has(String(it.payment_id ?? "")));
+        const dropped = rawItemsAll.length - rawItems.length;
+        if (dropped > 0) dropReason = ` · ${dropped} fora dos lotes selecionados`;
+      } else {
+        const targetCompetence = competenceOfYmd(r.period_start) ?? "";
+        rawItems = targetCompetence
+          ? rawItemsAll.filter((it) => {
+              const pid = String(it.payment_id ?? "");
+              if (!pid) return false;
+              return compByPaymentId.get(pid) === targetCompetence;
+            })
+          : rawItemsAll;
+        const dropped = rawItemsAll.length - rawItems.length;
+        if (dropped > 0) dropReason = ` · ${dropped} descartado(s) fora da competência ${targetCompetence}`;
+      }
 
       const rows: PagRow[] = rawItems.map((row) => ({
         pag_atendimento: normAtt(String(row.attendance_number ?? "")),
@@ -2457,10 +2712,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       setPagRows(rows);
       setPaymentsLoaded(true);
-      const suffix = droppedByCompetence > 0
-        ? ` · ${droppedByCompetence} descartado(s) fora da competência ${targetCompetence}`
-        : "";
-      toast({ title: `${rows.length} item(ns) carregados do sistema${suffix}` });
+      toast({ title: `${rows.length} item(ns) carregados do sistema${dropReason}` });
     } finally {
       setLoadingPayments(false);
     }
