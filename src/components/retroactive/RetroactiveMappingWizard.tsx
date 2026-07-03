@@ -137,6 +137,19 @@ function buildRow(
   return out;
 }
 
+export type CompanyOption = { id: string; name: string; aliases?: string[] | null };
+
+export type CompanyMappingConfig = {
+  /** Universo de PJs candidatas (normalmente todas do hospital). */
+  companies: CompanyOption[];
+  /**
+   * Chave do target que contém o nome bruto da PJ na planilha
+   * (default: "company_hint"). Se o target não estiver mapeado, o passo
+   * de vínculo de PJs é ignorado.
+   */
+  companyHintKey?: string;
+};
+
 export type MappingWizardProps = {
   open: boolean;
   fileName: string;
@@ -152,6 +165,8 @@ export type MappingWizardProps = {
   extraConfig?: ReactNode;
   /** Title shown in the dialog header (default "Mapear colunas da planilha"). */
   dialogTitle?: string;
+  /** Se presente e o target de PJ estiver mapeado, adiciona um passo "Vincular PJs". */
+  companyMappingConfig?: CompanyMappingConfig;
   onCancel: () => void;
   onConfirm: (
     drafts: Record<string, string>[],
@@ -159,6 +174,8 @@ export type MappingWizardProps = {
       mapping: Record<string, string>;
       totals: { file: number; valid: number; excluded: number; dropped: number };
       droppedExamples: Array<{ row_index: number; missing: string[] }>;
+      /** Mapping rawName (normalizado como aparece na planilha) → company.id (ou null = ignorar). */
+      companyMapping?: Record<string, string | null>;
     },
   ) => void;
 };
