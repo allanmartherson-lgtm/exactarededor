@@ -2668,17 +2668,29 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         }
       }
 
-      // Filtra sistema estritamente pela competência do lote (mês do period_start da apuração).
-      // Ex.: apuração de abril → só considera itens de payments com competence_month = 'YYYY-04'.
-      const targetCompetence = competenceOfYmd(r.period_start) ?? "";
-      const rawItems = targetCompetence
-        ? rawItemsAll.filter((it) => {
-            const pid = String(it.payment_id ?? "");
-            if (!pid) return false;
-            return compByPaymentId.get(pid) === targetCompetence;
-          })
-        : rawItemsAll;
-      const droppedByCompetence = rawItemsAll.length - rawItems.length;
+      // Filtra por lote: se a apuração persistiu selected_payment_ids, foca
+      // estritamente nesses lotes (fluxo novo). Caso contrário, cai no filtro
+      // por competência (compat com apurações antigas).
+      const selectedPidsSummary = ((r.summary as Record<string, unknown> | null)?.selected_payment_ids ?? []) as string[];
+      const selectedPidsSet = new Set(selectedPidsSummary.filter(Boolean));
+      let rawItems: typeof rawItemsAll;
+      let dropReason = "";
+      if (selectedPidsSet.size > 0) {
+        rawItems = rawItemsAll.filter((it) => selectedPidsSet.has(String(it.payment_id ?? "")));
+        const dropped = rawItemsAll.length - rawItems.length;
+        if (dropped > 0) dropReason = ` · ${dropped} fora dos lotes selecionados`;
+      } else {
+        const targetCompetence = competenceOfYmd(r.period_start) ?? "";
+        rawItems = targetCompetence
+          ? rawItemsAll.filter((it) => {
+              const pid = String(it.payment_id ?? "");
+              if (!pid) return false;
+              return compByPaymentId.get(pid) === targetCompetence;
+            })
+          : rawItemsAll;
+        const dropped = rawItemsAll.length - rawItems.length;
+        if (dropped > 0) dropReason = ` · ${dropped} descartado(s) fora da competência ${targetCompetence}`;
+      }
 
       const rows: PagRow[] = rawItems.map((row) => ({
         pag_atendimento: normAtt(String(row.attendance_number ?? "")),
@@ -2700,10 +2712,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       setPagRows(rows);
       setPaymentsLoaded(true);
-      const suffix = droppedByCompetence > 0
-        ? ` · ${droppedByCompetence} descartado(s) fora da competência ${targetCompetence}`
-        : "";
-      toast({ title: `${rows.length} item(ns) carregados do sistema${suffix}` });
+      toast({ title: `${rows.length} item(ns) carregados do sistema${dropReason}` });
     } finally {
       setLoadingPayments(false);
     }
