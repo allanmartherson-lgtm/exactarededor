@@ -1300,14 +1300,19 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     } else {
       setCompanyName("");
     }
-    const { data: its } = await supabase
-      .from("retroactive_reconciliation_items" as never)
-      .select(
-        "id, attendance, tuss_code, procedure_date, patient_name, function_label, procedure_name, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
-      )
-      .eq("reconciliation_id", id)
-      .order("created_at", { ascending: true });
-    setItems((its ?? []) as unknown as ItemRow[]);
+    // Pagina — sem isso apurações com >1000 itens ficam truncadas.
+    const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+    const its = await fetchAllPaginated<ItemRow>((from, to) =>
+      supabase
+        .from("retroactive_reconciliation_items" as never)
+        .select(
+          "id, attendance, tuss_code, procedure_date, patient_name, function_label, procedure_name, claimed_amount, claimed_quantity, paid_amount, paid_quantity, expected_amount, gap_amount, matched_payment_date, classification, classification_reason, payment_id",
+        )
+        .eq("reconciliation_id", id)
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    );
+    setItems(its as unknown as ItemRow[]);
   };
 
   useEffect(() => {
