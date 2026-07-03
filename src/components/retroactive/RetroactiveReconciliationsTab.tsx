@@ -2487,6 +2487,137 @@ function KeyAuditDialog({
   );
 }
 
+/**
+ * Filtro de lotes na tela de análise TASY vs Repasse. Permite ao analista
+ * restringir quais lotes (payment_id) fazem parte da apuração — sem isso,
+ * apurações criadas sem lote fixo caem no fallback por competência do mês
+ * e misturam outros lotes na conta.
+ *
+ * Persiste em `summary.selected_payment_ids` e dispara reload do Passo 2.
+ */
+function LoteScopeFilter({
+  recon,
+  pagRows,
+  onChanged,
+}: {
+  recon: ReconRow | null;
+  pagRows: PagRow[];
+  onChanged: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+
+  // Agrupa itens carregados por lote (payment_id) para mostrar o que está no escopo.
+  const lotesLoaded = useMemo(() => {
+    const map = new Map<string, { id: string; label: string; count: number }>();
+    for (const r of pagRows) {
+      const pid = (r.pag_payment_id ?? "").trim();
+      if (!pid) continue;
+      const label = (r.pag_lote ?? "").trim() || pid.slice(0, 8);
+      const cur = map.get(pid);
+      if (cur) cur.count += 1;
+      else map.set(pid, { id: pid, label, count: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [pagRows]);
+
+  const persistedIds = useMemo(
+    () => new Set((recon?.summary?.selected_payment_ids ?? []).filter(Boolean)),
+    [recon?.summary?.selected_payment_ids],
+  );
+
+  if (lotesLoaded.length <= 1 && persistedIds.size === 0) {
+    // Só um lote e nenhum filtro salvo — nada a decidir.
+    return null;
+  }
+
+  const toggleLote = async (pid: string, include: boolean) => {
+    if (!recon) return;
+    const currentIds = persistedIds.size > 0
+      ? new Set(persistedIds)
+      : new Set(lotesLoaded.map((l) => l.id));
+    if (include) currentIds.add(pid);
+    else currentIds.delete(pid);
+    if (currentIds.size === 0) {
+      toast({ title: "Selecione ao menos um lote", variant: "destructive" });
+      return;
+    }
+    const nextIds = Array.from(currentIds);
+    const nextLabels = lotesLoaded
+      .filter((l) => currentIds.has(l.id))
+      .map((l) => l.label);
+    setSaving(true);
+    try {
+      const nextSummary = {
+        ...(recon.summary ?? {}),
+        selected_payment_ids: nextIds,
+        selected_payment_labels: nextLabels,
+      };
+      const { error } = await supabase
+        .from("retroactive_reconciliations" as never)
+        .update({ summary: nextSummary } as never)
+        .eq("id", recon.id);
+      if (error) throw error;
+      // Muta o recon local para o próximo loadPaymentItems ler o filtro novo.
+      // Isso evita depender de round-trip do estado antes do reload.
+      (recon as ReconRow).summary = nextSummary as ReconRow["summary"];
+      onChanged();
+    } catch (e) {
+      toast({
+        title: "Erro ao salvar filtro de lote",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasFilter = persistedIds.size > 0;
+
+  return (
+    <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[11px] font-semibold text-foreground">Lotes no escopo desta apuração</span>
+        {hasFilter ? (
+          <Badge variant="default" className="text-[10px]">Filtro ativo · {persistedIds.size} lote(s)</Badge>
+        ) : (
+          <Badge variant="outline" className="text-[10px]">Sem filtro · todos os lotes da competência</Badge>
+        )}
+        {saving && <span className="text-[10px] text-muted-foreground">salvando…</span>}
+      </div>
+      <p className="text-[10px] text-muted-foreground leading-relaxed">
+        Desmarque os lotes que não devem entrar na análise. O motor recarrega o Passo 2 com o novo escopo
+        (impede que itens de outros lotes do mesmo mês contaminem os totais).
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {lotesLoaded.map((l) => {
+          const isIn = hasFilter ? persistedIds.has(l.id) : true;
+          return (
+            <button
+              key={l.id}
+              type="button"
+              disabled={saving}
+              onClick={() => void toggleLote(l.id, !isIn)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] transition-colors",
+                isIn
+                  ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted",
+              )}
+              title={isIn ? "Remover este lote do escopo" : "Incluir este lote no escopo"}
+            >
+              <span className="font-mono">{l.label}</span>
+              <span className="text-[10px] opacity-70">{l.count}</span>
+              {isIn ? <CheckIcon className="h-3 w-3" /> : <PlusIcon className="h-3 w-3" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const navigate = useNavigate();
   const [recon, setRecon] = useState<ReconRow | null>(null);
