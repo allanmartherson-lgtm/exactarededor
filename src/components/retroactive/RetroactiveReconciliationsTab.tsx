@@ -2130,6 +2130,11 @@ export type TvrResult = {
   pj_conciliada?: string;
   regra_aplicada?: string;
   calculo_aplicado?: string;
+  // IDs opcionais usados apenas em rastreio/export — payment_items.applied_rule_id
+  // e payment_items.applied_calc_id da regra que gerou o cálculo no lote.
+  applied_rule_id?: string;
+  applied_calc_id?: string;
+
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
   key_audit?: {
     att: string;
@@ -4032,10 +4037,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // Ação sugerida — mesmo texto que a UI mostra na coluna final.
     { group: "Ação sugerida", header: "Ação", get: (r) => describeAcao(r).label.replace(/^[↓↑—]\s*/, "") },
     { group: "Ação sugerida", header: "Motivo", get: (r) => describeAcao(r).hint },
-    // Rastreabilidade
+    // Rastreabilidade — nomes amigáveis + IDs técnicos, para bater linha do
+    // relatório com registro exato no banco sem precisar abrir a UI.
     { group: "Rastreio", header: "Regra aplicada", get: (r) => r.regra_aplicada ?? "" },
     { group: "Rastreio", header: "Linha do cálculo", get: (r) => r.calculo_aplicado ?? "" },
+    { group: "Rastreio", header: "ID do lote (payment_id)", get: (r) => r.matched_payment_id ?? "" },
+    { group: "Rastreio", header: "ID do item (payment_item_id)", get: (r) => r.matched_payment_item_id ?? "" },
+    { group: "Rastreio", header: "ID da regra (rule_id)", get: (r) => r.applied_rule_id ?? "" },
+    { group: "Rastreio", header: "ID do cálculo (rule_calculation_id)", get: (r) => r.applied_calc_id ?? "" },
+    { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ?? "" },
+    { group: "Rastreio", header: "ID do médico (doctor_id)", get: (r) => r.matched_doctor_id ?? "" },
+    { group: "Rastreio", header: "Chave canônica", get: (r) => r.key ?? "" },
   ];
+
 
   // Para CSV/JSON: nomes de coluna limpos com o grupo separado como coluna própria,
   // em vez do prefixo "Grupo · Nome". É mais legível em qualquer editor de texto.
@@ -4069,16 +4083,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         const pii = Array.from(new Set(missing.map((r) => r.matched_payment_item_id!).filter(Boolean)));
         const CHUNK = 300;
-        const piMap = new Map<string, { company_id?: string; applied_rule_label?: string; applied_calc_id?: string }>();
+        const piMap = new Map<string, { company_id?: string; applied_rule_label?: string; applied_rule_id?: string; applied_calc_id?: string }>();
         for (let i = 0; i < pii.length; i += CHUNK) {
           const { data } = await supabase
             .from("payment_items" as never)
-            .select("id, company_id, applied_rule_label, applied_calc_id")
+            .select("id, company_id, applied_rule_label, applied_rule_id, applied_calc_id")
             .in("id", pii.slice(i, i + CHUNK) as never);
           for (const row of (data ?? []) as Array<Record<string, unknown>>) {
             piMap.set(String(row.id), {
               company_id: row.company_id ? String(row.company_id) : undefined,
               applied_rule_label: row.applied_rule_label ? String(row.applied_rule_label) : undefined,
+              applied_rule_id: row.applied_rule_id ? String(row.applied_rule_id) : undefined,
               applied_calc_id: row.applied_calc_id ? String(row.applied_calc_id) : undefined,
             });
           }
@@ -4109,11 +4124,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (!r.regra_aplicada && info.applied_rule_label) r.regra_aplicada = info.applied_rule_label;
           if (!r.calculo_aplicado && info.applied_calc_id) r.calculo_aplicado = calcLabelById.get(info.applied_calc_id) || undefined;
           if (!r.matched_company_id && info.company_id) r.matched_company_id = info.company_id;
+          if (!r.applied_rule_id && info.applied_rule_id) r.applied_rule_id = info.applied_rule_id;
+          if (!r.applied_calc_id && info.applied_calc_id) r.applied_calc_id = info.applied_calc_id;
         }
       } catch (e) {
         console.warn("Falha ao enriquecer PJ/regra no export:", e);
       }
     }
+
 
     if (fmt === "json") {
       const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
@@ -4206,8 +4224,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // monetárias para o formato "R$ 1.234,56" caber sem estourar.
     const widths: Array<{ wch: number }> = EXPORT_COLS.map((c) => {
       const h = c.header.toLowerCase();
+      // UUIDs têm 36 chars — reserva largura para não quebrar na leitura.
+      if (h.startsWith("id ") || h.includes("chave canônica")) return { wch: 38 };
       if (h.includes("procedimento") || h.includes("paciente") || h.includes("quais")) return { wch: 34 };
       if (h.includes("médico") || h.includes("pj") || h.includes("regra") || h.includes("motivo") || h.includes("linha do")) return { wch: 28 };
+
       if (h.includes("convênio") || h.includes("lote")) return { wch: 22 };
       if (numFmtFor(c.header)) return { wch: 18 };
       if (h.includes("data") || h.includes("função") || h.includes("status") || h.includes("tipo")) return { wch: 15 };
@@ -4347,6 +4368,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       "Motivo": "Explicação curta do porquê da ação — geralmente cita a natureza do acordo e o que mudou no TASY.",
       "Regra aplicada": "Nome da regra do acordo cadastrado que originou o cálculo no lote.",
       "Linha do cálculo": "Linha específica da regra aplicada (útil quando a regra tem várias linhas/faixas).",
+      "ID do lote (payment_id)": "UUID do lote de repasse (tabela payments) — cola direto na URL /financeiro/pagamentos/<id>.",
+      "ID do item (payment_item_id)": "UUID do item pago dentro do lote (tabela payment_items). Chave para conciliar linha do TASY com o registro de repasse.",
+      "ID da regra (rule_id)": "UUID da regra do acordo aplicada (tabela rules). Permite abrir o cadastro exato usado no cálculo.",
+      "ID do cálculo (rule_calculation_id)": "UUID da linha de cálculo da regra (tabela rule_calculations). Identifica a faixa/linha específica dentro da regra.",
+      "ID da PJ (company_id)": "UUID da empresa vinculada ao item no lote histórico (tabela companies).",
+      "ID do médico (doctor_id)": "UUID do médico do procedimento (tabela doctors).",
+      "Chave canônica": "Chave interna que o motor usa para cruzar TASY × Exacta (Atend + Data + TUSS8 + Médico normalizado).",
+
     };
 
     // Monta AoA da legenda: título + seção conceitos + seção colunas.
