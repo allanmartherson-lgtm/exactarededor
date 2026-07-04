@@ -4306,6 +4306,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Rastreio", header: "ID regra prevista", get: (r) => r.regra_prevista_id ?? "" },
     { group: "Rastreio", header: "Cálculo previsto", get: (r) => r.calculo_previsto ?? "" },
     { group: "Rastreio", header: "ID cálculo previsto", get: (r) => r.calculo_previsto_id ?? "" },
+    // Origem da previsão (Faltou pagar): deixa claro se veio do motor real
+    // (simulação — mais confiável) ou de heurística sobre histórico.
+    { group: "Rastreio", header: "Origem previsão (Faltou pagar)", get: (r) => r.status === "nao_pago" ? formatPrevistoSourceLabel(r.previsto_source) : "" },
   ];
 
 
