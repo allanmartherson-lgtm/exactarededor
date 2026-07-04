@@ -4959,6 +4959,98 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             );
           })()}
 
+          {(() => {
+            // Resumo de valores — soma dos itens do grupo "valor" (regra % sobre convênio).
+            // Grupo "quantidade" (pacote/valor_fixo/tabela diferenciada) fica de fora porque
+            // TASY não é base comparável de R$ nessas regras.
+            const valorItems = results.filter((r) => r.tipo_analise === "valor");
+            const totalBase = valorItems.reduce((s, r) => s + (r.valor_pago_base || 0), 0);
+            const totalPago = valorItems.reduce((s, r) => s + (r.valor_com_acordo || 0), 0);
+            const totalRecalc = valorItems.reduce((s, r) => s + (r.valor_com_acordo_recalc || 0), 0);
+            const totalAjuste = valorItems.reduce((s, r) => s + (r.ajuste_acordo || 0), 0);
+            const totalRecuperarSum = valorItems.reduce(
+              (s, r) => s + Math.max(0, r.ajuste_acordo || 0),
+              0,
+            );
+            const totalComplementarSum = valorItems.reduce(
+              (s, r) => s + Math.max(0, -(r.ajuste_acordo || 0)),
+              0,
+            );
+            const diffTotais = totalPago - totalRecalc;
+            // Sanidade: para o grupo valor, sum(pago) − sum(recalc) deve bater com sum(ajuste)
+            // (a menos de arredondamento). Se divergir, algo escapou da fórmula por linha.
+            const drift = Math.abs(diffTotais - totalAjuste);
+            const ok = drift < 0.5;
+            return (
+              <div className="rounded-lg border border-border bg-card">
+                <div className="px-4 py-2.5 border-b border-border flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold">Resumo de valores (grupo % sobre convênio)</div>
+                  <span
+                    className={cn(
+                      "text-[11px] font-medium px-2 py-0.5 rounded",
+                      ok ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800",
+                    )}
+                    title={
+                      ok
+                        ? "Soma por linha do ajuste bate com (pago − recalc), dentro da tolerância de arredondamento."
+                        : `Divergência de ${brl(drift)} entre a soma dos ajustes por linha e (pago − recalc). Reveja itens com fator zero ou base ausente.`
+                    }
+                  >
+                    {ok ? "✓ cálculos consistentes" : `⚠ drift ${brl(drift)}`}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+                  <div className="px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Soma da base 100% do convênio registrada nos lotes históricos.">
+                      Base convênio (lote)
+                    </div>
+                    <div className="text-xl font-bold tabular-nums">{brl(totalBase)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{valorItems.length} item(ns) do grupo valor</div>
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Soma do valor efetivamente pago no lote (com acordo aplicado).">
+                      Pago no lote (c/ acordo)
+                    </div>
+                    <div className="text-xl font-bold tabular-nums">{brl(totalPago)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Fator médio: {totalBase > 0 ? ((totalPago / totalBase) * 100).toFixed(1) : "—"}%
+                    </div>
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Recalculado hoje: fator do acordo do lote aplicado sobre o TASY atual.">
+                      Recalc (acordo × TASY)
+                    </div>
+                    <div className="text-xl font-bold tabular-nums">{brl(totalRecalc)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      TASY vs lote: {totalPago > 0 ? (((totalRecalc - totalPago) / totalPago) * 100).toFixed(1) : "—"}%
+                    </div>
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Divergência = Pago no lote − Recalc. Positivo: a recuperar. Negativo: a complementar.">
+                      Divergência (pago − recalc)
+                    </div>
+                    <div
+                      className={cn(
+                        "text-xl font-bold tabular-nums",
+                        diffTotais > 0.5 && "text-destructive",
+                        diffTotais < -0.5 && "text-orange-600",
+                        Math.abs(diffTotais) <= 0.5 && "text-emerald-700",
+                      )}
+                    >
+                      {diffTotais > 0 ? "+" : ""}{brl(diffTotais)}
+                    </div>
+                    <div className="text-[10px] mt-0.5 flex flex-col gap-0.5">
+                      <span className="text-destructive">↓ A recuperar: <b>{brl(totalRecuperarSum)}</b></span>
+                      <span className="text-orange-700">↑ A complementar: <b>{brl(totalComplementarSum)}</b></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+
+
 
 
           <div className="rounded-lg border border-border bg-card overflow-hidden">
