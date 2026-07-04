@@ -4179,7 +4179,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (actionable.length === 0) {
       toast({
         title: "Nenhum item acionável",
-        description: "Só linhas Não Pago, Div. Valor, Div. Qtd/Valor ou Pago a mais podem ir para confecção.",
+        description: "Só linhas Faltou pagar, Pago a menos (valor), Pago a menos (qtd) ou Pago a mais podem ir para confecção.",
         variant: "destructive",
       });
       return;
