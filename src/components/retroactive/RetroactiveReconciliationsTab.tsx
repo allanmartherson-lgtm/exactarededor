@@ -4060,7 +4060,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ?? "" },
     { group: "Rastreio", header: "ID do médico (doctor_id)", get: (r) => r.matched_doctor_id ?? "" },
     { group: "Rastreio", header: "Chave canônica", get: (r) => r.key ?? "" },
+    // Inferência para itens sem lastro no lote — colunas separadas para deixar
+    // claro que é sugestão (não valor real do repasse).
+    { group: "Rastreio", header: "PJ provável (Faltou pagar)", get: (r) => r.pj_provavel ?? "" },
+    { group: "Rastreio", header: "ID PJ provável", get: (r) => r.pj_provavel_id ?? "" },
+    { group: "Rastreio", header: "Regra prevista (Faltou pagar)", get: (r) => r.regra_prevista ?? "" },
+    { group: "Rastreio", header: "ID regra prevista", get: (r) => r.regra_prevista_id ?? "" },
+    { group: "Rastreio", header: "Cálculo previsto", get: (r) => r.calculo_previsto ?? "" },
+    { group: "Rastreio", header: "ID cálculo previsto", get: (r) => r.calculo_previsto_id ?? "" },
   ];
+
 
 
   // Para CSV/JSON: nomes de coluna limpos com o grupo separado como coluna própria,
