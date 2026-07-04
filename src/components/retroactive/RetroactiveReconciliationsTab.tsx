@@ -4150,9 +4150,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         // Aliases dedicados — cobrem grafias divergentes que o normDoctorName não pega.
         const { data: aliases } = await supabase
           .from("doctor_aliases")
-          .select("alias, doctor_id");
-        for (const a of (aliases ?? []) as Array<{ alias: string; doctor_id: string }>) {
-          const nn = normDoctorName(a.alias);
+          .select("alias_normalized, alias_text, doctor_id");
+        for (const a of (aliases ?? []) as Array<{ alias_normalized?: string; alias_text?: string; doctor_id: string }>) {
+          const nn = (a.alias_normalized || normDoctorName(a.alias_text)) ?? "";
           if (nn && wantedNames.has(nn) && !nameToId.has(nn)) {
             nameToId.set(nn, a.doctor_id);
           }
