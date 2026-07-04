@@ -4062,7 +4062,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
 
-  const persistResults = async (list: TvrResult[]) => {
+  const persistResults = async (
+    list: TvrResult[],
+    onBatch?: (savedRows: number, totalRows: number) => void,
+  ) => {
     const incompleteAusente = list
       .map((r) => ({ r, missing: getAusenteTasyMissingFields(r) }))
       .filter((x) => x.missing.length > 0);
@@ -4100,6 +4103,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .eq("reconciliation_id", id)
       .eq("source", TVR_SOURCE);
 
+    onBatch?.(0, rows.length);
     if (rows.length > 0) {
       // Insere em lotes para evitar "canceling statement due to statement timeout"
       // do Postgres quando o volume de linhas + payload JSON (raw) é grande.
@@ -4110,8 +4114,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           .from("retroactive_reconciliation_items" as never)
           .insert(chunk as never);
         if (insertError) throw insertError;
+        onBatch?.(Math.min(i + BATCH, rows.length), rows.length);
       }
     }
+
 
     const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
     const summary = buildTvrReplaceSummary(list, previousSummary, {
