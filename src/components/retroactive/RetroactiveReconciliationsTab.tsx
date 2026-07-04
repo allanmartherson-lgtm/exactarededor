@@ -4065,13 +4065,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Ação sugerida", header: "Motivo", get: (r) => describeAcao(r).hint },
     // Rastreabilidade — nomes amigáveis + IDs técnicos, para bater linha do
     // relatório com registro exato no banco sem precisar abrir a UI.
-    { group: "Rastreio", header: "Regra aplicada", get: (r) => r.regra_aplicada ?? "" },
-    { group: "Rastreio", header: "Linha do cálculo", get: (r) => r.calculo_aplicado ?? "" },
+    // Regra/Cálculo e IDs correspondentes espelham a UI: quando não há regra
+    // aplicada no lote (Faltou pagar), caem para regra/cálculo previstos com
+    // marcador "[prev.]" (texto) ou o próprio UUID inferido (colunas de ID).
+    { group: "Rastreio", header: "Regra aplicada", get: (r) => r.regra_aplicada ? r.regra_aplicada : (r.status === "nao_pago" && r.regra_prevista ? `[prev.] ${r.regra_prevista}` : "") },
+    { group: "Rastreio", header: "Linha do cálculo", get: (r) => r.calculo_aplicado ? r.calculo_aplicado : (r.status === "nao_pago" && r.calculo_previsto ? `[prev.] ${r.calculo_previsto}` : "") },
     { group: "Rastreio", header: "ID do lote (payment_id)", get: (r) => r.matched_payment_id ?? "" },
     { group: "Rastreio", header: "ID do item (payment_item_id)", get: (r) => r.matched_payment_item_id ?? "" },
-    { group: "Rastreio", header: "ID da regra (rule_id)", get: (r) => r.applied_rule_id ?? "" },
-    { group: "Rastreio", header: "ID do cálculo (rule_calculation_id)", get: (r) => r.applied_calc_id ?? "" },
-    { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ?? "" },
+    { group: "Rastreio", header: "ID da regra (rule_id)", get: (r) => r.applied_rule_id ? r.applied_rule_id : (r.status === "nao_pago" ? (r.regra_prevista_id ?? "") : "") },
+    { group: "Rastreio", header: "ID do cálculo (rule_calculation_id)", get: (r) => r.applied_calc_id ? r.applied_calc_id : (r.status === "nao_pago" ? (r.calculo_previsto_id ?? "") : "") },
+    { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ? r.matched_company_id : (r.status === "nao_pago" ? (r.pj_provavel_id ?? "") : "") },
     { group: "Rastreio", header: "ID do médico (doctor_id)", get: (r) => r.matched_doctor_id ?? "" },
     { group: "Rastreio", header: "Chave canônica", get: (r) => r.key ?? "" },
     // Inferência para itens sem lastro no lote — colunas separadas para deixar
