@@ -4009,7 +4009,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     [results, statusFilter, search, onlyWithPayment, analysisTab],
   );
 
-  }, [results, statusFilter, search, onlyWithPayment, analysisTab]);
+
+
 
 
   useEffect(() => {
