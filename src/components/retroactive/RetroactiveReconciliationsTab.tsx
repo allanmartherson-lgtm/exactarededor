@@ -477,12 +477,12 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={7}><Skeleton className="h-5 w-full" /></TableCell>
+                <TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell>
               </TableRow>
             )}
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
                   Nenhuma apuração retroativa ainda.
                 </TableCell>
               </TableRow>
