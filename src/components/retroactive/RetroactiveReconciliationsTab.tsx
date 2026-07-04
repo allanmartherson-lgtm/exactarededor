@@ -469,6 +469,7 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
               <TableHead>Período</TableHead>
               <TableHead>Itens</TableHead>
               <TableHead>A complementar</TableHead>
+              <TableHead>A descontar</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
