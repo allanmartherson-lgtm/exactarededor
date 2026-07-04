@@ -4745,7 +4745,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const addr = XLSXStyle.utils.encode_cell({ r, c });
           const cell = ws[addr];
           if (!cell) continue;
-          const zebra = r % 2 === 0 ? "FFFFFF" : palette.band;
+          // Corpo neutro: só cabeçalhos recebem cor de grupo; linhas alternam branco/cinza muito claro.
+          const zebra = r % 2 === 0 ? "FFFFFF" : "F8FAFC";
           (cell as { s?: unknown; z?: string; t?: string }).s = {
             alignment: { horizontal: fmt ? "right" : "left", vertical: "top", wrapText: true },
             font: { sz: 10, color: { rgb: "1E293B" } },
