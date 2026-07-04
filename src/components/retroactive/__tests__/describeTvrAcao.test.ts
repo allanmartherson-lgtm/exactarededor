@@ -91,6 +91,26 @@ describe("describeTvrAcao — regressão do bug 'Faltou pagar sem ajuste'", () =
     expect(acao.hint.toLowerCase()).toContain("bruto");
   });
 
+  it("nao_pago com regra prevista valor_fixo (tipo_analise_previsto='quantidade') usa valor_previsto_regra", () => {
+    // Regra prevista é valor_fixo → Fix B alinhou r.tipo_analise para 'quantidade'.
+    // describeTvrAcao ainda precisa complementar o valor previsto (não cair no
+    // ramo tipo_analise='quantidade' que exige dif_qtd — nao_pago tem precedência).
+    const acao = describeTvrAcao(
+      r({
+        status: "nao_pago",
+        tipo_analise: "quantidade", // alinhado por Fix B
+        tipo_analise_previsto: "quantidade",
+        valor_previsto_regra: 300,
+        valor_total_tasy: 1000,
+        calculo_previsto: "#1 Consulta R$300 (valor_fixo)",
+        previsto_source: "regra",
+      }),
+    );
+    expect(acao.kind).toBe("complementar");
+    expect(acao.valor).toBeCloseTo(300, 2);
+    expect(acao.hint.toLowerCase()).toContain("regra prevista");
+  });
+
   it("ausente_tasy usa valor_com_acordo quando presente (base operacional pós-regra)", () => {
     const acao = describeTvrAcao(
       r({ status: "ausente_tasy", valor_pago_base: 500, valor_com_acordo: 350 }),
