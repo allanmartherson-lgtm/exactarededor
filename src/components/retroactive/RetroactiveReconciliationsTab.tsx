@@ -3964,21 +3964,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     Data: formatTvrDate(r.data),
     Convênio: r.convenio,
     Função: r.funcao,
-    "Qtd TASY": r.qtd_tasy,
-    "Valor Unit. TASY": r.valor_unit_tasy,
-    "Valor Total TASY": r.valor_total_tasy,
-    "Qtd Paga/Func": Number(r.qtd_por_func.toFixed(4)),
-    "Nº Funcs": r.n_funcs,
-    "Funções Pagas": r.funcoes_pagas,
-    "Lote(s)": r.lotes,
-    "Valor Pago Base": r.valor_pago_base,
-    "Valor c/ Acordo": r.valor_com_acordo,
-    "Dif. Qtd": Number(r.dif_qtd.toFixed(4)),
-    "Dif. Valor": Number(r.dif_valor.toFixed(2)),
-    "Valor c/ Acordo (recalc)": Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)),
-    "Ajuste (c/ acordo)": Number((r.ajuste_acordo ?? 0).toFixed(2)),
-    "A Recuperar (c/ acordo)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
-    "A Complementar (c/ acordo)": Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)),
+    "Qtd TASY (atual)": r.qtd_tasy,
+    "Valor unit. TASY (atual)": r.valor_unit_tasy,
+    "Valor total TASY (atual)": r.valor_total_tasy,
+    "Qtd paga por função (lote)": Number(r.qtd_por_func.toFixed(4)),
+    "Nº funções pagas": r.n_funcs,
+    "Funções pagas (lote)": r.funcoes_pagas,
+    "Lote(s) de origem": r.lotes,
+    "Base convênio no lote (100%)": r.valor_pago_base,
+    "Pago no lote (c/ acordo)": r.valor_com_acordo,
+    "Dif. qtd (TASY − lote)": Number(r.dif_qtd.toFixed(4)),
+    "Dif. valor (TASY − base do lote)": Number(r.dif_valor.toFixed(2)),
+    "Recalc: acordo do lote × TASY atual": Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)),
+    "Ajuste (pago − recalc)": Number((r.ajuste_acordo ?? 0).toFixed(2)),
+    "A recuperar (pago a mais)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+    "A complementar (pago a menos)": Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)),
     "Regra Aplicada": r.regra_aplicada ?? "",
     "Linha do Cálculo": r.calculo_aplicado ?? "",
 
@@ -5109,19 +5109,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Convênio</TableHead>
                     <TableHead>Médico</TableHead>
                     <TableHead>Função</TableHead>
-                    <TableHead className="text-center">Qtd TASY</TableHead>
-                    <TableHead>Vlr Unit.</TableHead>
-                    <TableHead>Vlr Total TASY</TableHead>
-                    <TableHead className="text-center">Qtd/Func</TableHead>
-                    <TableHead className="text-center">Nº Func</TableHead>
-                    <TableHead>Funções pagas</TableHead>
-                    <TableHead>Lote(s)</TableHead>
-                    <TableHead>Vlr Pago Base</TableHead>
-                    <TableHead>Vlr c/ Acordo</TableHead>
-                    <TableHead className="text-center">Dif. Qtd</TableHead>
-                    <TableHead>Dif. Valor</TableHead>
-                    <TableHead>Vlr c/ Acordo (recalc)</TableHead>
-                    <TableHead>Ajuste (c/ acordo)</TableHead>
+                    <TableHead className="text-center" title="Quantidade na base TASY atual">Qtd TASY (atual)</TableHead>
+                    <TableHead title="Valor unitário na base TASY atual">Vlr unit. TASY</TableHead>
+                    <TableHead title="Valor total na base TASY atual (qtd × unit)">Vlr total TASY</TableHead>
+                    <TableHead className="text-center" title="Quantidade paga por função no lote histórico">Qtd/função (lote)</TableHead>
+                    <TableHead className="text-center" title="Nº de funções pagas no lote histórico">Nº funções</TableHead>
+                    <TableHead title="Funções pagas no lote histórico">Funções pagas (lote)</TableHead>
+                    <TableHead title="Lote(s) de repasse que serviram de origem">Lote(s) origem</TableHead>
+                    <TableHead title="Base 100% do convênio registrada no lote histórico (procedure_amount)">Base convênio (lote)</TableHead>
+                    <TableHead title="Valor efetivamente pago ao médico no lote, já com o acordo aplicado (gross_amount)">Pago no lote (c/ acordo)</TableHead>
+                    <TableHead className="text-center" title="Diferença de quantidade: TASY atual − lote histórico">Dif. qtd (TASY−lote)</TableHead>
+                    <TableHead title="Diferença de valor: TASY atual − base do lote">Dif. valor (TASY−lote)</TableHead>
+                    <TableHead title="Recalculado: fator do acordo do lote aplicado sobre o TASY atual">Recalc (acordo × TASY)</TableHead>
+                    <TableHead title="Ajuste = Pago no lote − Recalc. Positivo: a recuperar. Negativo: a complementar.">Ajuste (pago − recalc)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
