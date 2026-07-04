@@ -4885,18 +4885,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       if (wsLeg[addr]) (wsLeg[addr] as { s?: unknown }).s = s;
     };
     setStyle("A1", {
-      font: { bold: true, sz: 16, color: { rgb: "1D4ED8" } },
+      font: { bold: true, sz: 16, color: { rgb: "334155" } },
       alignment: { horizontal: "left", vertical: "center" },
-      fill: { patternType: "solid", fgColor: { rgb: "EFF6FF" } },
+      fill: { patternType: "solid", fgColor: { rgb: "F1F5F9" } },
     });
     setStyle(XLSXStyle.utils.encode_cell({ r: 2, c: 0 }), {
-      font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
-      fill: { patternType: "solid", fgColor: { rgb: "1D4ED8" } },
+      font: { bold: true, sz: 12, color: { rgb: "334155" } },
+      fill: { patternType: "solid", fgColor: { rgb: "DBEAFE" } },
       alignment: { horizontal: "left", vertical: "center" },
     });
     setStyle(XLSXStyle.utils.encode_cell({ r: dictRow, c: 0 }), {
-      font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
-      fill: { patternType: "solid", fgColor: { rgb: "1D4ED8" } },
+      font: { bold: true, sz: 12, color: { rgb: "334155" } },
+      fill: { patternType: "solid", fgColor: { rgb: "DBEAFE" } },
       alignment: { horizontal: "left", vertical: "center" },
     });
     // Linhas de header ("Termo/Significado" e "Grupo/Coluna/Descrição")
