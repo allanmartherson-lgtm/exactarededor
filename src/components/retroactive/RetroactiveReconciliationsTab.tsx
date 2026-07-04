@@ -3953,6 +3953,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const [onlyWithPayment, setOnlyWithPayment] = useState(false);
+  // Filtros multi-seleção por PJ e Médico. Chave = nome (case-insensitive) já
+  // que o mesmo médico/PJ pode aparecer com pequenas variações de grafia.
+  const [pjFilter, setPjFilter] = useState<Set<string>>(new Set());
+  const [medicoFilter, setMedicoFilter] = useState<Set<string>>(new Set());
+  const pjKeyOf = (r: TvrResult) => (r.pj_conciliada || r.pj_provavel || "").trim();
+  const medicoKeyOf = (r: TvrResult) => (r.medico || "").trim();
+
 
   // Sub-aba da tabela de resultados: separa itens onde faz sentido comparar R$ (valor)
   // dos que só faz sentido comparar presença/quantidade (pacote/valor fixo/tabela diferenciada).
