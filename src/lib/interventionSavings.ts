@@ -16,7 +16,12 @@ export type IntervenorRole =
   | "analista"
   | "cancelamento_empresa"
   | "cancelamento_item"
-  | "cancelamento_conciliacao";
+  | "cancelamento_conciliacao"
+  | "aceite_esperado"
+  | "aceite_pago"
+  | "ajuste_manual"
+  | "glosa"
+  | "cancelamento";
 
 export const ROLE_LABELS: Record<IntervenorRole, string> = {
   diretor: "Diretor",
@@ -25,7 +30,14 @@ export const ROLE_LABELS: Record<IntervenorRole, string> = {
   cancelamento_empresa: "Cancelamento empresa",
   cancelamento_item: "Cancelamento item",
   cancelamento_conciliacao: "Cancelamento via conciliação",
+  // Novo: analista aceitou o valor esperado do motor — economia = gross original − esperado.
+  aceite_esperado: "Aceite do esperado (motor)",
+  aceite_pago: "Aceite mantendo pago",
+  ajuste_manual: "Ajuste manual",
+  glosa: "Glosa aplicada",
+  cancelamento: "Cancelamento",
 };
+
 
 export const roleLabel = (r: string): string =>
   (ROLE_LABELS as Record<string, string>)[r] ?? r;

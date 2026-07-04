@@ -211,8 +211,14 @@ export default function InterventionAdjustments() {
       cancelamento_empresa: { qtd: 0, saldo: 0 },
       cancelamento_item: { qtd: 0, saldo: 0 },
       cancelamento_conciliacao: { qtd: 0, saldo: 0 },
+      aceite_esperado: { qtd: 0, saldo: 0 },
+      aceite_pago: { qtd: 0, saldo: 0 },
+      ajuste_manual: { qtd: 0, saldo: 0 },
+      glosa: { qtd: 0, saldo: 0 },
+      cancelamento: { qtd: 0, saldo: 0 },
     };
     for (const it of base) {
+      if (!acc[it.role]) acc[it.role] = { qtd: 0, saldo: 0 };
       acc[it.role].qtd += 1;
       acc[it.role].saldo += it.delta;
     }
