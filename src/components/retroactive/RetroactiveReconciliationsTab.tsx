@@ -4583,7 +4583,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       ["Sem lastro TASY", "Item foi pago no lote histórico mas hoje não aparece mais na base TASY — provável cancelamento total do procedimento."],
       ["Regra aplicada", "Nome da regra do acordo cadastrado que gerou o cálculo daquele item no lote histórico."],
       ["Linha do cálculo", "Linha específica dentro da regra (quando a regra tem múltiplas linhas/faixas) que foi aplicada ao item."],
+      ["PJ provável (Faltou pagar)", "Para itens sem lastro no lote, sugerimos a PJ ativa do médico (doctor_companies com end_date null). Só preenche quando existe uma única PJ ativa — regra 1 PJ por médico por hospital."],
+      ["Regra prevista (Faltou pagar)", "Para itens sem lastro no lote, sugerimos a última regra já aplicada para o mesmo médico + procedure_code neste hospital (heurística). É uma indicação — não é valor pago e não roda o motor de cálculo."],
+      ["Badge 'prev.'", "Marca visual na tabela indicando que aquela informação (PJ ou Regra) é INFERIDA para um item Faltou pagar, não um dado real do repasse."],
     ];
+
     // Descrições por coluna. Chave = header exato usado no EXPORT_COLS.
     const COLUMN_DESCRIPTIONS: Record<string, string> = {
       "Status": "Situação do item na conciliação: OK, faltou pagar, pago a mais, pago a menos, sem lastro etc.",
