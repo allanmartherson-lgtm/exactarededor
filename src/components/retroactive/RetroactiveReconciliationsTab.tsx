@@ -3891,12 +3891,42 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const [onlyWithPayment, setOnlyWithPayment] = useState(false);
 
+  // Sub-aba da tabela de resultados: separa itens onde faz sentido comparar R$ (valor)
+  // dos que só faz sentido comparar presença/quantidade (pacote/valor fixo/tabela diferenciada).
+  // Persiste em URL como ?analise=valor|presenca.
+  const analysisParam = searchParams.get("analise");
+  const analysisTab: "valor" | "quantidade" =
+    analysisParam === "presenca" || analysisParam === "quantidade" ? "quantidade" : "valor";
+  const setAnalysisTab = (v: "valor" | "quantidade") => {
+    const next = new URLSearchParams(searchParams);
+    next.set("analise", v === "quantidade" ? "presenca" : "valor");
+    setSearchParams(next, { replace: true });
+  };
+
+  // Linhas expandidas para mostrar os campos técnicos ocultos no modo compacto.
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const toggleExpanded = (key: string) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const countsByTipo = useMemo(() => {
+    const c = { valor: 0, quantidade: 0 };
+    for (const r of results ?? []) c[r.tipo_analise]++;
+    return c;
+  }, [results]);
+
   const visible = useMemo(() => {
     const hasFilter = statusFilter.size > 0;
     const showOk = statusFilter.has("ok");
     const list = (results ?? []).filter((r) => r.status !== "ok" || showOk);
     const q = search.trim().toLowerCase();
     return list.filter((r) => {
+      if (r.tipo_analise !== analysisTab) return false;
       if (hasFilter && !statusFilter.has(r.status)) return false;
       if (onlyWithPayment && r.status === "nao_pago") return false;
       if (q) {
@@ -3905,7 +3935,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
       return true;
     });
-  }, [results, statusFilter, search, onlyWithPayment]);
+  }, [results, statusFilter, search, onlyWithPayment, analysisTab]);
 
   useEffect(() => {
     if (!results) return;
