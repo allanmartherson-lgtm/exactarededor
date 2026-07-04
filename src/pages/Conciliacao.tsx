@@ -63,6 +63,9 @@ export default function Conciliacao() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Contagem de bloqueios reais (exclui histórico e liberados). Se zero,
+  // a aba fica escondida — evita ruído quando não há ação pendente.
+  const [blockingCount, setBlockingCount] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +90,38 @@ export default function Conciliacao() {
         setPaymentsById(map);
       }
       setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Contagem leve pra decidir se a aba "Divergências bloqueantes" aparece.
+  // Ignora lotes em modo histórico (regra de projeto: histórico não bloqueia).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: cfg } = await supabase
+        .from("system_configurations")
+        .select("value")
+        .eq("key", "divergence_thresholds")
+        .maybeSingle();
+      const v = (cfg?.value ?? {}) as Record<string, unknown>;
+      const blockPct = Number(v.group_block_pct ?? 0.5);
+      const blockAbs = Number(v.group_block_abs ?? 1.0);
+
+      const { data } = await supabase
+        .from("vw_group_rule_totals")
+        .select("payment_id,diferenca,diferenca_pct")
+        .limit(500);
+      const rows = (data ?? []) as Array<{ payment_id: string | null; diferenca: number | null; diferenca_pct: number | null }>;
+      const overLimit = rows.filter((r) => Math.abs(Number(r.diferenca ?? 0)) > blockAbs && Math.abs(Number(r.diferenca_pct ?? 0)) > blockPct);
+      const paymentIds = Array.from(new Set(overLimit.map((r) => r.payment_id).filter(Boolean))) as string[];
+      let historic = new Set<string>();
+      if (paymentIds.length) {
+        const { data: ps } = await supabase.from("payments").select("id,import_mode").in("id", paymentIds);
+        historic = new Set((ps ?? []).filter((p: { import_mode: string | null }) => p.import_mode === "historico").map((p: { id: string }) => p.id));
+      }
+      const count = overLimit.filter((r) => !r.payment_id || !historic.has(r.payment_id)).length;
+      if (!cancelled) setBlockingCount(count);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -122,10 +157,15 @@ export default function Conciliacao() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="bloqueios">
-            <ShieldAlert className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
-            <span>Divergências bloqueantes</span>
-          </TabsTrigger>
+          {(blockingCount ?? 0) > 0 && (
+            <TabsTrigger value="bloqueios">
+              <ShieldAlert className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
+              <span>Divergências bloqueantes</span>
+              <span className="ml-1 rounded-md border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive group-data-[state=active]:border-primary-foreground/20 group-data-[state=active]:bg-primary/70 group-data-[state=active]:text-primary-foreground">
+                {blockingCount}
+              </span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="bases">
             <Database className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
             <span>Bases hospitalares</span>
@@ -297,7 +337,7 @@ export default function Conciliacao() {
         </TabsContent>
 
         <TabsContent value="bloqueios" className="mt-4">
-          <BlockingDivergencesTab />
+          <BlockingDivergencesTab onCountChange={setBlockingCount} />
         </TabsContent>
 
         <TabsContent value="bases" className="mt-4">

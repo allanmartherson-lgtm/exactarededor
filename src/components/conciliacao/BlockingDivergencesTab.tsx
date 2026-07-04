@@ -35,7 +35,9 @@ type Row = {
 const fmt = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function BlockingDivergencesTab() {
+export default function BlockingDivergencesTab({
+  onCountChange,
+}: { onCountChange?: (n: number) => void } = {}) {
   const navigate = useNavigate();
   const { hospital } = useHospital();
   const [rows, setRows] = useState<Row[]>([]);
@@ -77,8 +79,8 @@ export default function BlockingDivergencesTab() {
 
       const [{ data: payments }, { data: companies }, { data: overrides }] = await Promise.all([
         paymentIds.length
-          ? supabase.from("payments").select("id,reference").in("id", paymentIds)
-          : Promise.resolve({ data: [] as { id: string; reference: string | null }[] }),
+          ? supabase.from("payments").select("id,reference,import_mode").in("id", paymentIds)
+          : Promise.resolve({ data: [] as { id: string; reference: string | null; import_mode: string | null }[] }),
         companyIds.length
           ? supabase.from("companies").select("id,name").in("id", companyIds)
           : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
@@ -90,6 +92,14 @@ export default function BlockingDivergencesTab() {
           : Promise.resolve({ data: [] as { group_id: string; bruto_regra_snapshot: number; bruto_pedido_snapshot: number }[] }),
       ]);
 
+      // Lotes em modo histórico são apenas apuração retroativa (não passam
+      // pelo fluxo de aprovação real), portanto não devem sinalizar bloqueio.
+      // Regra de projeto: histórico calcula mas não trava fluxo operacional.
+      const historicPaymentIds = new Set(
+        (payments ?? [])
+          .filter((p: { import_mode: string | null }) => p.import_mode === "historico")
+          .map((p: { id: string }) => p.id),
+      );
       const refMap = new Map<string, string | null>((payments ?? []).map((p: { id: string; reference: string | null }) => [p.id, p.reference] as const));
       const nameMap = new Map<string, string | null>((companies ?? []).map((c: { id: string; name: string | null }) => [c.id, c.name] as const));
       const ovMap = new Map<string, Array<{ r: number; p: number }>>();
@@ -99,20 +109,23 @@ export default function BlockingDivergencesTab() {
         ovMap.set(o.group_id, arr);
       }
 
-      const enriched: Row[] = all.map((r) => ({
-        ...r,
-        payment_reference: r.payment_id ? refMap.get(r.payment_id) ?? null : null,
-        company_name: r.company_id ? nameMap.get(r.company_id) ?? null : null,
-        released: (ovMap.get(r.group_id) ?? []).some(
-          (o) =>
-            Math.abs(o.r - Number(r.bruto_regra_total ?? 0)) < 0.01 &&
-            Math.abs(o.p - Number(r.bruto_pedido_total ?? 0)) < 0.01,
-        ),
-      }));
+      const enriched: Row[] = all
+        .filter((r) => !r.payment_id || !historicPaymentIds.has(r.payment_id))
+        .map((r) => ({
+          ...r,
+          payment_reference: r.payment_id ? refMap.get(r.payment_id) ?? null : null,
+          company_name: r.company_id ? nameMap.get(r.company_id) ?? null : null,
+          released: (ovMap.get(r.group_id) ?? []).some(
+            (o) =>
+              Math.abs(o.r - Number(r.bruto_regra_total ?? 0)) < 0.01 &&
+              Math.abs(o.p - Number(r.bruto_pedido_total ?? 0)) < 0.01,
+          ),
+        }));
 
       if (!cancelled) {
         setRows(enriched);
         setLoading(false);
+        onCountChange?.(enriched.filter((r) => !r.released).length);
       }
     })();
     return () => {
