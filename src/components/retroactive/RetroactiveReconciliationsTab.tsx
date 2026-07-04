@@ -5104,10 +5104,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const addr = XLSXStyle.utils.encode_cell({ r: 0, c });
         if (wsP[addr]) {
           (wsP[addr] as { s?: unknown }).s = {
-            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
-            fill: { patternType: "solid", fgColor: { rgb: "334155" } },
+            font: { bold: true, color: { rgb: "334155" }, sz: 10 },
+            fill: { patternType: "solid", fgColor: { rgb: "E2E8F0" } },
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
-            border: { bottom: { style: "thin", color: { rgb: "0F172A" } } },
+            border: { bottom: { style: "thin", color: { rgb: "CBD5E1" } } },
           };
         }
       }
