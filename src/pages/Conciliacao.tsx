@@ -63,6 +63,9 @@ export default function Conciliacao() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Contagem de bloqueios reais (exclui histórico e liberados). Se zero,
+  // a aba fica escondida — evita ruído quando não há ação pendente.
+  const [blockingCount, setBlockingCount] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
