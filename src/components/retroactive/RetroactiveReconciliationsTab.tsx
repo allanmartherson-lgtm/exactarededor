@@ -4631,6 +4631,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 v.calc_label = labels.get(v.calc_id);
                 v.calc_raw = raws.get(v.calc_id);
               }
+            }
           }
 
           // Fix A — Fallback quando encontramos rule_id no histórico mas nenhum
