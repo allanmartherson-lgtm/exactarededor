@@ -4770,6 +4770,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           }
         }
       }
+      // Fix B — Faltou pagar não tem lastro no lote, então tipo_analise entrou
+      // como "valor" por default. Se a regra prevista revelou que a regra
+      // original é de quantidade (pacote/valor_fixo), alinhar aqui para o item
+      // aparecer na aba "Por presença" no export split.
+      if (r.status === "nao_pago" && r.tipo_analise_previsto && r.tipo_analise !== r.tipo_analise_previsto) {
+        r.tipo_analise = r.tipo_analise_previsto;
+      }
     }
   };
 
