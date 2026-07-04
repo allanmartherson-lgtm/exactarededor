@@ -4154,6 +4154,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     [results, statusFilter, search, onlyWithPayment, analysisTab, pjFilter, medicoFilter],
   );
 
+  // Contadores por tipo IGNORANDO a sub-aba (mas respeitando busca / status /
+  // PJ / médico / apenas com pagamento). Usados no menu Exportar para o
+  // analista saber quantos itens sairiam em cada arquivo por tipo.
+  const filteredIgnoringTab = useMemo(
+    () => (results ? applyVisibleFilters(results, { ignoreAnalysisTab: true }) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [results, statusFilter, search, onlyWithPayment, pjFilter, medicoFilter],
+  );
+  const visibleByTipo = useMemo(() => {
+    const c = { valor: 0, quantidade: 0 };
+    for (const r of filteredIgnoringTab) c[r.tipo_analise]++;
+    return c;
+  }, [filteredIgnoringTab]);
+
   // Opções dos filtros PJ e Médico — extraídas da sub-aba atual para não
   // poluir a lista com valores de outra análise.
   const pjOptions = useMemo(() => {
