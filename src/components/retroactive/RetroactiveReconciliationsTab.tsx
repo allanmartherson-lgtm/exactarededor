@@ -5567,6 +5567,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   className?: string;
                   headClassName?: string;
                 }> = [
+                  // PJ e Médico abrem o Contexto — são o "quem" antes do "quando/onde".
+                  {
+                    key: "context.pj",
+                    header: "PJ",
+                    title: "Empresa (PJ) conciliada para este item no lote histórico.",
+                    groupLabel: "Contexto",
+                    groupClass: "text-muted-foreground",
+                    className: "max-w-[180px] truncate",
+                    cell: (r) => <span title={r.pj_conciliada || undefined}>{r.pj_conciliada || "—"}</span>,
+                  },
+                  { key: "context.med", header: "Médico", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[180px] truncate", cell: (r) => <span title={r.medico}>{r.medico || "—"}</span> },
                   {
                     key: "context.atend",
                     header: "Atend.",
@@ -5578,9 +5589,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   { key: "context.proc", header: "Procedimento", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[220px] truncate", cell: (r) => <span title={r.procedimento}>{r.procedimento || "—"}</span> },
                   { key: "context.data", header: "Data", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => formatTvrDate(r.data) },
                   { key: "context.conv", header: "Convênio", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[140px] truncate", cell: (r) => <span title={r.convenio}>{r.convenio || "—"}</span> },
-                  { key: "context.med", header: "Médico", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[160px] truncate", cell: (r) => <span title={r.medico}>{r.medico || "—"}</span> },
                   { key: "context.func", header: "Função", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => r.funcao || "—" },
                 ];
+
                 // Cabeçalho de coluna com regra de acordo aplicada (nome amigável).
                 const regraHead = (
                   <TableHead key="regra.aplic" title="Regra e cálculo aplicados no lote histórico">Regra do acordo</TableHead>
