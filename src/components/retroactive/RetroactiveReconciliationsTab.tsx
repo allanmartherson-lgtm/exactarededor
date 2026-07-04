@@ -4397,7 +4397,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const hit = pjByDoctor.get(did);
           if (hit && !hit.ambiguous) {
             r.pj_provavel_id = hit.company_id;
-            r.pj_provavel = hit.name;
+            r.pj_provavel = hit.name || `PJ ${hit.company_id.slice(0, 8)}`;
             break;
           }
         }
