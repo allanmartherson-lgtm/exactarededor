@@ -76,6 +76,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { computeTvrRulePreview } from "@/lib/tvrRulePreview";
 import {
+  deriveTipoAnaliseFromCalcType,
+  formatPrevistoSourceLabel,
+} from "@/lib/tvrSimulationMapping";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
