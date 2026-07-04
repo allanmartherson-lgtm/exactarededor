@@ -3983,18 +3983,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return c;
   }, [results]);
 
-  const visible = useMemo(() => {
+  // Aplica os mesmos filtros de status/busca/apenas com pagamento, opcionalmente
+  // ignorando o filtro por tipo de análise (usado no export "duas abas").
+  const applyVisibleFilters = (rows: TvrResult[], opts?: { ignoreAnalysisTab?: boolean }) => {
     const hasFilter = statusFilter.size > 0;
     const showOk = statusFilter.has("ok");
     const q = search.trim().toLowerCase();
-    return (results ?? []).filter((r) => {
-      // Usa SEMPRE o status rederivado em memória — em "presença" o status
-      // original salvo pode ter vindo do R$, mas o filtro/contagem/ação seguem
-      // presença/quantidade.
+    return rows.filter((r) => {
       const eff = effectiveTvrStatus(r);
       if (eff === "ok" && !showOk) return false;
-
-      if (r.tipo_analise !== analysisTab) return false;
+      if (!opts?.ignoreAnalysisTab && r.tipo_analise !== analysisTab) return false;
       if (hasFilter && !statusFilter.has(eff)) return false;
       if (onlyWithPayment && eff === "nao_pago") return false;
       if (q) {
@@ -4003,7 +4001,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
       return true;
     });
-  }, [results, statusFilter, search, onlyWithPayment, analysisTab]);
+  };
+
+  const visible = useMemo(
+    () => applyVisibleFilters(results ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [results, statusFilter, search, onlyWithPayment, analysisTab],
+  );
+
+
+
 
 
   useEffect(() => {
@@ -4480,15 +4487,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
 
-  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
+  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible" | "split") => {
     if (!results) return;
-    const list = scope === "visible" ? visible : results;
+    const list = scope === "visible"
+      ? visible
+      : scope === "split"
+      ? applyVisibleFilters(results, { ignoreAnalysisTab: true })
+      : results;
     if (list.length === 0) {
       toast({ title: "Nada para exportar neste filtro", variant: "destructive" });
       return;
     }
     const stamp = format(new Date(), "yyyyMMdd_HHmm");
-    const baseName = `tasy-vs-repasse_${scope === "visible" ? "filtrado_" : ""}${stamp}`;
+    const suffix = scope === "visible" ? "filtrado_" : scope === "split" ? "abas_" : "";
+    const baseName = `tasy-vs-repasse_${suffix}${stamp}`;
+
 
     // Fallback: enriquece PJ Conciliada / Regra / Cálculo para resultados
     // carregados do banco antes desta funcionalidade existir. Busca por
@@ -4612,122 +4625,110 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return null;
     };
 
-    // AoA: linha 0 = grupo, linha 1 = header, restante = dados.
-    const groupRow = EXPORT_COLS.map((c) => c.group);
-    const headerRow = EXPORT_COLS.map((c) => c.header);
-    const dataRows = list.map((r) => EXPORT_COLS.map((c) => c.get(r)));
-    const aoa: (string | number)[][] = [groupRow, headerRow, ...dataRows];
-    const ws = XLSXStyle.utils.aoa_to_sheet(aoa);
+    // Constrói uma aba de dados a partir de uma sub-lista. Extraído em helper
+    // para permitir gerar duas abas ("Por valor" e "Por presença") no mesmo
+    // arquivo respeitando os filtros correntes.
+    const buildDataSheet = (subList: TvrResult[]) => {
+      // AoA: linha 0 = grupo, linha 1 = header, restante = dados.
+      const groupRow = EXPORT_COLS.map((c) => c.group);
+      const headerRow = EXPORT_COLS.map((c) => c.header);
+      const dataRows = subList.map((r) => EXPORT_COLS.map((c) => c.get(r)));
+      const aoa: (string | number)[][] = [groupRow, headerRow, ...dataRows];
+      const ws = XLSXStyle.utils.aoa_to_sheet(aoa);
 
-    // Merges dos rótulos de grupo (linha 0).
-    const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = [];
-    let groupStart = 0;
-    for (let i = 1; i <= EXPORT_COLS.length; i++) {
-      const isEnd = i === EXPORT_COLS.length || EXPORT_COLS[i].group !== EXPORT_COLS[groupStart].group;
-      if (isEnd) {
-        if (i - 1 > groupStart) merges.push({ s: { r: 0, c: groupStart }, e: { r: 0, c: i - 1 } });
-        groupStart = i;
-      }
-    }
-    (ws as unknown as { "!merges"?: unknown[] })["!merges"] = merges;
-
-    // Freeze: cabeçalho (2 linhas) + primeiras 2 colunas (PJ Conciliada, Médico).
-    (ws as unknown as { "!freeze"?: unknown })["!freeze"] = { xSplit: 2, ySplit: 2 };
-    (ws as unknown as { "!views"?: unknown[] })["!views"] = [{ state: "frozen", xSplit: 2, ySplit: 2, topLeftCell: "C3", activePane: "bottomRight" }];
-
-    // Larguras: mantém heurística por tipo, mas com mínimos maiores em colunas
-    // monetárias para o formato "R$ 1.234,56" caber sem estourar.
-    const widths: Array<{ wch: number }> = EXPORT_COLS.map((c) => {
-      const h = c.header.toLowerCase();
-      // UUIDs têm 36 chars — reserva largura para não quebrar na leitura.
-      if (h.startsWith("id ") || h.includes("chave canônica")) return { wch: 38 };
-      if (h.includes("procedimento") || h.includes("paciente") || h.includes("quais")) return { wch: 34 };
-      if (h.includes("médico") || h.includes("pj") || h.includes("regra") || h.includes("motivo") || h.includes("linha do")) return { wch: 28 };
-
-      if (h.includes("convênio") || h.includes("lote")) return { wch: 22 };
-      if (numFmtFor(c.header)) return { wch: 18 };
-      if (h.includes("data") || h.includes("função") || h.includes("status") || h.includes("tipo")) return { wch: 15 };
-      if (h.includes("qtd") || h.includes("nº")) return { wch: 11 };
-      return { wch: 20 };
-    });
-    (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = widths;
-
-    // Altura: fixamos só a linha de grupo (curta e uniforme). Para a linha de
-    // cabeçalho de coluna e para o corpo, deixamos sem `hpt` — assim o Excel/
-    // LibreOffice calcula a altura automaticamente para acomodar wrapText.
-    (ws as unknown as { "!rows"?: Array<{ hpt?: number }> })["!rows"] = [
-      { hpt: 26 },
-    ];
-
-
-    // Aplica estilo célula-a-célula.
-    const totalRows = aoa.length;
-    const thinBorder = { style: "thin", color: { rgb: "E2E8F0" } };
-    for (let c = 0; c < EXPORT_COLS.length; c++) {
-      const col = EXPORT_COLS[c];
-      const palette = GROUP_STYLE[col.group] ?? fallbackStyle;
-      const prevGroup = c > 0 ? EXPORT_COLS[c - 1].group : null;
-      const isGroupStart = prevGroup !== col.group;
-      const fmt = numFmtFor(col.header);
-
-      // Linha 0 — título do grupo (fundo forte, texto branco)
-      const gAddr = XLSXStyle.utils.encode_cell({ r: 0, c });
-      if (ws[gAddr]) {
-        (ws[gAddr] as { s?: unknown }).s = {
-          alignment: { horizontal: "center", vertical: "center", wrapText: true },
-          font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
-          fill: { patternType: "solid", fgColor: { rgb: palette.header } },
-          border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
-        };
-      }
-
-      // Linha 1 — cabeçalho da coluna (fundo pastel do grupo, texto escuro)
-      const hAddr = XLSXStyle.utils.encode_cell({ r: 1, c });
-      if (ws[hAddr]) {
-        (ws[hAddr] as { s?: unknown }).s = {
-          alignment: { horizontal: "center", vertical: "center", wrapText: true },
-          font: { bold: true, color: { rgb: palette.header }, sz: 10 },
-          fill: { patternType: "solid", fgColor: { rgb: palette.sub } },
-          border: {
-            top: thinBorder,
-            bottom: { style: "medium", color: { rgb: palette.header } },
-            left: isGroupStart ? { style: "medium", color: { rgb: palette.header } } : thinBorder,
-            right: thinBorder,
-          },
-        };
-      }
-
-      // Corpo — número formatado, alinhamento por tipo, bordas suaves
-      for (let r = 2; r < totalRows; r++) {
-        const addr = XLSXStyle.utils.encode_cell({ r, c });
-        const cell = ws[addr];
-        if (!cell) continue;
-        const zebra = r % 2 === 0 ? "FFFFFF" : palette.band;
-        (cell as { s?: unknown; z?: string; t?: string }).s = {
-          alignment: {
-            horizontal: fmt ? "right" : "left",
-            vertical: "top",
-            // Quebra de linha ligada + altura da linha não fixada = Excel/LibreOffice
-            // ajustam a altura automaticamente para caber todo o conteúdo.
-            wrapText: true,
-          },
-
-          font: { sz: 10, color: { rgb: "1E293B" } },
-          fill: { patternType: "solid", fgColor: { rgb: zebra } },
-          border: {
-            top: { style: "hair", color: { rgb: "E2E8F0" } },
-            bottom: { style: "hair", color: { rgb: "E2E8F0" } },
-            left: isGroupStart ? { style: "thin", color: { rgb: palette.header } } : { style: "hair", color: { rgb: "F1F5F9" } },
-            right: { style: "hair", color: { rgb: "F1F5F9" } },
-          },
-        };
-        if (fmt) {
-          (cell as { z?: string }).z = fmt;
-          // Garante que valores numéricos permaneçam como number no arquivo.
-          if (typeof cell.v === "number") (cell as { t: string }).t = "n";
+      const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = [];
+      let groupStart = 0;
+      for (let i = 1; i <= EXPORT_COLS.length; i++) {
+        const isEnd = i === EXPORT_COLS.length || EXPORT_COLS[i].group !== EXPORT_COLS[groupStart].group;
+        if (isEnd) {
+          if (i - 1 > groupStart) merges.push({ s: { r: 0, c: groupStart }, e: { r: 0, c: i - 1 } });
+          groupStart = i;
         }
       }
-    }
+      (ws as unknown as { "!merges"?: unknown[] })["!merges"] = merges;
+      (ws as unknown as { "!freeze"?: unknown })["!freeze"] = { xSplit: 2, ySplit: 2 };
+      (ws as unknown as { "!views"?: unknown[] })["!views"] = [{ state: "frozen", xSplit: 2, ySplit: 2, topLeftCell: "C3", activePane: "bottomRight" }];
+
+      const widths: Array<{ wch: number }> = EXPORT_COLS.map((c) => {
+        const h = c.header.toLowerCase();
+        if (h.startsWith("id ") || h.includes("chave canônica")) return { wch: 38 };
+        if (h.includes("procedimento") || h.includes("paciente") || h.includes("quais")) return { wch: 34 };
+        if (h.includes("médico") || h.includes("pj") || h.includes("regra") || h.includes("motivo") || h.includes("linha do")) return { wch: 28 };
+        if (h.includes("convênio") || h.includes("lote")) return { wch: 22 };
+        if (numFmtFor(c.header)) return { wch: 18 };
+        if (h.includes("data") || h.includes("função") || h.includes("status") || h.includes("tipo")) return { wch: 15 };
+        if (h.includes("qtd") || h.includes("nº")) return { wch: 11 };
+        return { wch: 20 };
+      });
+      (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = widths;
+      (ws as unknown as { "!rows"?: Array<{ hpt?: number }> })["!rows"] = [{ hpt: 26 }];
+
+      const totalRows = aoa.length;
+      const thinBorder = { style: "thin", color: { rgb: "E2E8F0" } };
+      for (let c = 0; c < EXPORT_COLS.length; c++) {
+        const col = EXPORT_COLS[c];
+        const palette = GROUP_STYLE[col.group] ?? fallbackStyle;
+        const prevGroup = c > 0 ? EXPORT_COLS[c - 1].group : null;
+        const isGroupStart = prevGroup !== col.group;
+        const fmt = numFmtFor(col.header);
+
+        const gAddr = XLSXStyle.utils.encode_cell({ r: 0, c });
+        if (ws[gAddr]) {
+          (ws[gAddr] as { s?: unknown }).s = {
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+            fill: { patternType: "solid", fgColor: { rgb: palette.header } },
+            border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+          };
+        }
+        const hAddr = XLSXStyle.utils.encode_cell({ r: 1, c });
+        if (ws[hAddr]) {
+          (ws[hAddr] as { s?: unknown }).s = {
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            font: { bold: true, color: { rgb: palette.header }, sz: 10 },
+            fill: { patternType: "solid", fgColor: { rgb: palette.sub } },
+            border: {
+              top: thinBorder,
+              bottom: { style: "medium", color: { rgb: palette.header } },
+              left: isGroupStart ? { style: "medium", color: { rgb: palette.header } } : thinBorder,
+              right: thinBorder,
+            },
+          };
+        }
+        for (let r = 2; r < totalRows; r++) {
+          const addr = XLSXStyle.utils.encode_cell({ r, c });
+          const cell = ws[addr];
+          if (!cell) continue;
+          const zebra = r % 2 === 0 ? "FFFFFF" : palette.band;
+          (cell as { s?: unknown; z?: string; t?: string }).s = {
+            alignment: { horizontal: fmt ? "right" : "left", vertical: "top", wrapText: true },
+            font: { sz: 10, color: { rgb: "1E293B" } },
+            fill: { patternType: "solid", fgColor: { rgb: zebra } },
+            border: {
+              top: { style: "hair", color: { rgb: "E2E8F0" } },
+              bottom: { style: "hair", color: { rgb: "E2E8F0" } },
+              left: isGroupStart ? { style: "thin", color: { rgb: palette.header } } : { style: "hair", color: { rgb: "F1F5F9" } },
+              right: { style: "hair", color: { rgb: "F1F5F9" } },
+            },
+          };
+          if (fmt) {
+            (cell as { z?: string }).z = fmt;
+            if (typeof cell.v === "number") (cell as { t: string }).t = "n";
+          }
+        }
+      }
+      return ws;
+    };
+
+    // Modo split: duas abas (Por valor / Por presença) no mesmo arquivo,
+    // ambas respeitando busca + status + apenas com pagamento.
+    const isSplit = scope === "split";
+    const listValor = isSplit ? list.filter((r) => r.tipo_analise === "valor") : [];
+    const listPresenca = isSplit ? list.filter((r) => r.tipo_analise === "quantidade") : [];
+    const ws = isSplit ? null : buildDataSheet(list);
+    const wsValor = isSplit && listValor.length > 0 ? buildDataSheet(listValor) : null;
+    const wsPresenca = isSplit && listPresenca.length > 0 ? buildDataSheet(listPresenca) : null;
+
 
     // ============================================================
     // Aba "Legenda": vem antes da aba de dados para funcionar como
@@ -5096,10 +5097,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const wb = XLSXStyle.utils.book_new();
     // Legenda vem primeiro para servir como manual ao abrir o arquivo.
     XLSXStyle.utils.book_append_sheet(wb, wsLeg, "Legenda");
-    XLSXStyle.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
+    if (isSplit) {
+      // Duas abas separadas — nomes espelham as sub-abas da UI.
+      if (wsValor) XLSXStyle.utils.book_append_sheet(wb, wsValor, `Por valor (${listValor.length})`);
+      if (wsPresenca) XLSXStyle.utils.book_append_sheet(wb, wsPresenca, `Por presença (${listPresenca.length})`);
+    } else if (ws) {
+      XLSXStyle.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
+    }
     XLSXStyle.utils.book_append_sheet(wb, wsParams, "Parâmetros de cálculo");
     XLSXStyle.writeFile(wb, `${baseName}.xlsx`);
   };
+
 
 
 
@@ -5920,7 +5928,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <DropdownMenuItem onClick={() => void exportData("xlsx", "visible")}>Excel (.xlsx)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("csv", "visible")}>CSV (;)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("json", "visible")}>JSON</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Filtrado — 2 abas</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void exportData("xlsx", "split")}>
+                Excel (.xlsx) — Por valor + Por presença
+              </DropdownMenuItem>
             </DropdownMenuContent>
+
           </DropdownMenu>
         )}
         {results && !isLocked && (
