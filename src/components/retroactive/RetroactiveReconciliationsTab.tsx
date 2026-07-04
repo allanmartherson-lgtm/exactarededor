@@ -4110,6 +4110,66 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const d of r.matched_doctor_ids ?? []) if (d) ids.add(d);
       return Array.from(ids);
     };
+
+    // ---------- Fallback: resolver doctor_id via nome ----------
+    // Itens "Faltou pagar" não têm lado repasse, então matched_doctor_id costuma
+    // vir vazio. Sem doctor_id, a inferência de PJ/regra não roda. Resolvemos
+    // pelo nome contra a tabela doctors (paginação simples) e via doctor_aliases,
+    // hidratando r.matched_doctor_id antes do resto do fluxo.
+    const missingIdTargets = targets.filter(
+      (r) => !r.matched_doctor_id && !(r.matched_doctor_ids?.length) && r.medico,
+    );
+    if (missingIdTargets.length > 0) {
+      const wantedNames = new Set<string>();
+      for (const r of missingIdTargets) {
+        const nn = normDoctorName(r.medico);
+        if (nn) wantedNames.add(nn);
+      }
+      const nameToId = new Map<string, string>();
+      try {
+        // Paginação — evita truncar em bases grandes.
+        const PAGE = 1000;
+        let from = 0;
+        while (true) {
+          const { data } = await supabase
+            .from("doctors")
+            .select("id, full_name")
+            .eq("active", true)
+            .range(from, from + PAGE - 1);
+          const rows = (data ?? []) as Array<{ id: string; full_name: string }>;
+          for (const d of rows) {
+            const nn = normDoctorName(d.full_name);
+            if (nn && wantedNames.has(nn) && !nameToId.has(nn)) {
+              nameToId.set(nn, d.id);
+            }
+          }
+          if (rows.length < PAGE) break;
+          from += PAGE;
+          if (from > 50000) break; // guarda-chuva
+        }
+        // Aliases dedicados — cobrem grafias divergentes que o normDoctorName não pega.
+        const { data: aliases } = await supabase
+          .from("doctor_aliases")
+          .select("alias, doctor_id");
+        for (const a of (aliases ?? []) as Array<{ alias: string; doctor_id: string }>) {
+          const nn = normDoctorName(a.alias);
+          if (nn && wantedNames.has(nn) && !nameToId.has(nn)) {
+            nameToId.set(nn, a.doctor_id);
+          }
+        }
+      } catch (e) {
+        console.warn("[nao_pago] fallback doctor por nome falhou:", e);
+      }
+      for (const r of missingIdTargets) {
+        const nn = normDoctorName(r.medico);
+        const did = nn ? nameToId.get(nn) : undefined;
+        if (did) {
+          r.matched_doctor_id = did;
+          if (!r.matched_doctor_ids?.length) r.matched_doctor_ids = [did];
+        }
+      }
+    }
+
     const allDoctorIds = Array.from(
       new Set(targets.flatMap(collectDoctorIds)),
     );
