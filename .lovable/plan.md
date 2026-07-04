@@ -1,76 +1,93 @@
+## O que muda
 
-## Objetivo
-Deixar a coluna "A Recuperar" refletir de forma explícita a comparação **valor com acordo (recalculado a partir do TASY) vs valor pago histórico no Exacta**, e não só o caso de "pago a mais". Passa a suportar também "a complementar" (pago a menos).
+Na tabela de resultados da aba **Conciliação Retroativa** (`?tab=retroativa`), separar itens em duas sub-abas e esconder colunas técnicas por padrão, mostrando um detalhe expandível por linha.
 
-## Diagnóstico do que existe hoje
-Arquivo: `src/components/retroactive/RetroactiveReconciliationsTab.tsx` (linhas ~3119-3141).
+### Sub-abas no topo da tabela de resultados
 
-Hoje:
-```
-fator = valor_com_acordo / valor_pago_base   // % de acordo praticado no lote
-a_recuperar = |dif_valor| × fator            // só quando dif_valor < 0 (pago a mais)
-             = fator × (valor_pago_base − valor_total_tasy)
-```
+Duas pills logo acima da barra de filtros existente:
 
-Matematicamente isso é **idêntico** a:
-```
-valor_com_acordo_recalc = valor_total_tasy × fator   // TASY convertido p/ o mesmo % de acordo
-a_recuperar = valor_com_acordo (original do lote) − valor_com_acordo_recalc
-```
+- **Por valor (% do convênio)** — regras `percentual_convenio` / `percentual_sobre_convenio`. Faz sentido comparar valor TASY hoje × valor pago.
+- **Por presença (pacote / valor fixo / tabela diferenciada / bônus)** — regras onde TASY não é base de R$. Analisa quantidade, não valor.
 
-Ou seja: já cobre o caso "acordo 100% → base TASY" e "acordo 88% → TASY × 88%" que você descreveu. O problema é conceitual/apresentação:
+Cada aba mostra a contagem de itens: *Por valor (128) · Por presença (34)*.
+Seleção persiste em URL: `?tab=retroativa&analise=valor|presenca`.
 
-1. Só calcula quando `dif_valor < 0` (pago a mais). Se o TASY mostrar volume maior que o lote (pago a menos), não gera "a complementar".
-2. A fórmula escrita no código não é legível — quem lê `|dif_valor| × fator` não entende que é acordo vs acordo.
-3. O rótulo "A Recuperar" é assimétrico; precisa acomodar valores negativos (complemento).
+### Colunas por aba (visíveis por padrão)
 
-## Mudança proposta
+**Comuns às duas** (compactas, foco no que o analista age):
 
-### 1. Recalcular explicitamente (linhas ~3135-3141)
-```ts
-// % de acordo efetivamente praticado no lote (ex: 100%, 88%, 27,51%)
-const fator_acordo = valor_pago_base > 0 ? valor_com_acordo / valor_pago_base : 1;
-
-// Valor que a regra pagaria HOJE se aplicasse o mesmo acordo sobre a base TASY
-const valor_com_acordo_recalc = valor_total_tasy * fator_acordo;
-
-// Positivo = paguei a mais (a recuperar). Negativo = paguei a menos (a complementar).
-const ajuste_acordo = valor_com_acordo - valor_com_acordo_recalc;
+```text
+[+] · Status · Atend · TUSS · Procedimento · Paciente · Data · Convênio · Médico · Função · Ação sugerida
 ```
 
-Casos:
-- `ausente_tasy` (TASY = 0, glosa ou linha inexistente): `valor_com_acordo_recalc = 0` → ajuste = `valor_com_acordo` inteiro a recuperar. Mesmo resultado de hoje.
-- `pago_a_mais` (TASY < base): ajuste positivo, mesmo número de hoje.
-- `div_valor` / `div_qtd_valor` com TASY > base (**caso novo**): ajuste negativo → complemento devido ao médico.
-- `nao_pago` (só TASY, sem base): não temos `fator_acordo` — mantém regra atual da tela de confecção (pré-carga com `valor_total_tasy`), não entra em "a recuperar".
-- `ok`: ajuste ≈ 0.
+**Ação sugerida** substitui hoje 3 colunas ("Dif. valor 100%", "Devido hoje", "Ajuste a fazer") por uma célula única com:
 
-### 2. Nomear e mostrar
-- Renomear campo interno `valor_recuperar_acordo` → `ajuste_acordo` (com getter `valor_recuperar_acordo` legado retornando `max(0, ajuste_acordo)` para não quebrar exports/glosa).
-- Coluna da tabela: título "Ajuste (c/ acordo)". Formatação:
-  - `> 0.5` → vermelho, prefixo "A recuperar"
-  - `< -0.5` → laranja, prefixo "A complementar"
-  - senão "—"
-- Manter a linha do "cálculo aplicado" (regra/fator) logo abaixo, como você pediu antes.
+- badge colorido: `↓ Recuperar R$ X` / `↑ Complementar R$ X` / `— Sem ajuste`
+- frase curta abaixo, gerada pelo motor:
+  - *"TASY reduziu R$ 2.633 · acordo 100% convênio"*
+  - *"Item cancelado no TASY · pacote (1 procedimento)"*
+  - *"+1 quantidade no TASY · valor fixo R$ 411,88/un"*
 
-### 3. Downstream — nada muda de comportamento hoje
-- Glosa de auditoria: continua filtrando `ajuste_acordo > 0.5` (só recuperação vira glosa). Confecção continua tratando `nao_pago` + diferenças positivas de qtd/valor.
-- Complemento (`ajuste_acordo < -0.5`) por enquanto **só exibe** na tela e no export. Encaminhamento automático para adjustment de complemento fica fora deste plano — pedir depois se quiser.
+**Exclusivas da aba Por valor:** Vlr total TASY hoje · Valor pago no lote
 
-### 4. Export xlsx
-Adicionar 2 colunas: "Valor c/ Acordo (recalc)" e "Ajuste (c/ acordo)". Manter "A Recuperar (c/ acordo)" por retrocompat lendo `max(0, ajuste_acordo)`.
+**Exclusivas da aba Por presença:** Qtd TASY hoje · Qtd paga · Dif. qtd · Valor pago no lote
 
-### 5. Onde o "apoio de IA" entra
-Você mencionou IA para casos de acordo variável. **Neste plano não precisa** — o `fator_acordo` já é observável no lote (razão entre `valor_com_acordo` e `valor_pago_base` que o motor gravou). IA só seria útil se um item tivesse acordo desconhecido (ex: `valor_pago_base = 0` ou item sem regra aplicada). Nesse caso, ao invés de chutar, marco `ajuste_acordo = null` e mostro "sem base de acordo — revisar" (o analista decide). Se quiser, num passo futuro plugo o `useCopilot` para sugerir o fator olhando itens vizinhos do mesmo convênio/função/PJ.
+### Detalhe expansível por linha
+
+Ícone `[+]` na primeira coluna abre uma sub-linha (colspan total) com card contendo os campos técnicos ocultos do modo compacto:
+
+```text
+TASY hoje:      Vlr unitário R$ X · Vlr total R$ Y · Qtd Z
+Lote histórico: Base convênio R$ A · Pago médico R$ B · Fator acordo N%
+                Nº funções · Quais funções · Lote(s) de origem
+Motor:          Dif. valor 100% · Devido hoje · Ajuste · Tipo análise
+```
+
+Botão "Expandir tudo / Recolher tudo" no header da tabela.
+
+### Cabeçalho de grupos (linha superior)
+
+Simplifica: uma faixa por aba em vez de 7 grupos.
+
+- **Por valor**: `Contexto · TASY hoje · Lote histórico · Ação`
+- **Por presença**: `Contexto · Quantidades · Lote histórico · Ação`
+
+### Cards de resumo no topo
+
+O bloco "Resumo de valores (grupo % sobre convênio)" já existe e só considera itens `tipo_analise=valor`. Vamos:
+
+- Renomear para **"Resumo — Por valor"** e mostrar só quando aba ativa = valor.
+- Adicionar espelho **"Resumo — Por presença"**: total de itens, quantidade divergente somada, valor a recuperar/complementar (calculado por `qtd × valor fixo` do acordo).
+
+### Export
+
+Mantido como está (uma planilha só, com todas as colunas técnicas + coluna nova `Análise = valor|presença` + `Ação sugerida`). Nada é escondido no XLSX/CSV — a compactação é só na UI.
 
 ## Fora do escopo
-- Criar `company_financial_adjustments` de complemento automático para `ajuste_acordo < 0`.
-- Mudar regras de status TVR (`nao_pago`, `pago_a_mais` etc.) — mantidos.
-- Mudar motor de conciliação do lote.
+
+- Não muda o motor de cálculo, nem a chave de matching, nem o schema de `reconciliation_items`.
+- Não altera a aba "Ativa" nem outras telas.
+- Não muda o wizard de upload nem a lógica de encaminhamento pra apuração / glosa.
+
+## Arquivos afetados
+
+- `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — único arquivo tocado. Refactor localizado: adiciona `analysisTab` (URL param), filtro em `visible`, `expandedKeys` set, define arrays de colunas por aba, gera cabeçalho/corpo a partir dos arrays, gera "Ação sugerida" a partir dos campos já calculados (`ajuste_acordo`, `tipo_analise`, `applied_calc_method`, `dif_qtd`, `dif_valor`).
+
+## Detalhes técnicos
+
+- `analysisTab` lido de `useSearchParams("analise")`; default `"valor"`.
+- Contagem por aba: `results.filter(r => r.tipo_analise === "valor").length` etc.
+- `expandedKeys: Set<string>` local; chave = `r.key` (já existe).
+- Coluna "Ação sugerida" é derivada, sem novo campo no `TvrResult`. Frase:
+  - `tipo_analise=valor` e `|ajuste_acordo| > 0.5`: `"TASY {subiu|reduziu} R$ {|dif_valor|} · acordo {fator}% convênio"`.
+  - `tipo_analise=quantidade` e `dif_qtd < 0`: `"Cancelado no TASY · {applied_calc_method_pretty}"` + valor pago no lote como sugestão de retirada.
+  - `tipo_analise=quantidade` e `dif_qtd > 0`: `"+{dif_qtd} no TASY · {applied_calc_method_pretty}"`.
+  - Caso contrário: `"— Sem ajuste"`.
+- Sub-linha expandida: `<TableRow><TableCell colSpan={N}><div className="p-3 bg-muted/30 rounded grid grid-cols-3 gap-3">...</div></TableCell></TableRow>`.
+- Grupos de header: substituir a linha atual com 7 grupos (colSpans 3/8/3/6/2/1/1) por 4 grupos calculados dinamicamente conforme aba ativa.
+- Aba `?tab=retroativa` continua funcionando; adiciona `&analise=valor|presenca` sem quebrar bookmarks antigos.
 
 ## Riscos
-- Baixo. Numericamente o valor de "a recuperar" para itens já classificados como `pago_a_mais`/`ausente_tasy` continua idêntico. A novidade é passar a mostrar valor negativo em itens `div_valor` que hoje mostram "—".
-- Contar dobrado: garantir que totalizadores continuam somando só `> 0.5` para "recuperar" e adicionar linha separada "a complementar" no rodapé.
 
-## Confirma?
-Se OK, implemento: (a) refator do cálculo + campo `ajuste_acordo`, (b) rótulo/coluna bicolor, (c) export xlsx com as 2 colunas novas, (d) rodapé da tabela com totais separados de recuperar/complementar.
+- Refactor de cabeçalho da tabela é a parte mais delicada (colSpans). Mitigar rendendo `<TableHead>` a partir do array de definição de coluna filtrado por aba, garantindo consistência automática entre grupo e coluna.
+- Testes contratuais existentes na pasta `retroactive/__tests__` precisam continuar passando. Rodar a suíte após a mudança.
