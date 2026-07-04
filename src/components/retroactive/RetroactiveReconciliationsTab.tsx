@@ -469,6 +469,7 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
               <TableHead>Período</TableHead>
               <TableHead>Itens</TableHead>
               <TableHead>A complementar</TableHead>
+              <TableHead>A descontar</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
@@ -476,12 +477,12 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={7}><Skeleton className="h-5 w-full" /></TableCell>
+                <TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell>
               </TableRow>
             )}
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
                   Nenhuma apuração retroativa ainda.
                 </TableCell>
               </TableRow>
@@ -507,7 +508,8 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
                     {format(parseYmdLocal(r.period_start), "dd/MM/yy")} → {format(parseYmdLocal(r.period_end), "dd/MM/yy")}
                   </TableCell>
                   <TableCell>{r.summary?.total ?? 0}</TableCell>
-                  <TableCell className="font-semibold">{brl(r.summary?.total_gap)}</TableCell>
+                  <TableCell className="font-semibold text-warning">{brl(r.summary?.total_gap)}</TableCell>
+                  <TableCell className="font-semibold text-destructive">{brl(r.summary?.total_excess)}</TableCell>
                   <TableCell>
                     <Badge variant={r.status === "concluida" ? "outline" : "default"}>
                       {r.status === "concluida" ? "Concluída" : r.status === "cancelada" ? "Cancelada" : "Em análise"}
