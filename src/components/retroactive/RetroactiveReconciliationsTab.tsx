@@ -4074,16 +4074,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       try {
         const pii = Array.from(new Set(missing.map((r) => r.matched_payment_item_id!).filter(Boolean)));
         const CHUNK = 300;
-        const piMap = new Map<string, { company_id?: string; applied_rule_label?: string; applied_calc_id?: string }>();
+        const piMap = new Map<string, { company_id?: string; applied_rule_label?: string; applied_rule_id?: string; applied_calc_id?: string }>();
         for (let i = 0; i < pii.length; i += CHUNK) {
           const { data } = await supabase
             .from("payment_items" as never)
-            .select("id, company_id, applied_rule_label, applied_calc_id")
+            .select("id, company_id, applied_rule_label, applied_rule_id, applied_calc_id")
             .in("id", pii.slice(i, i + CHUNK) as never);
           for (const row of (data ?? []) as Array<Record<string, unknown>>) {
             piMap.set(String(row.id), {
               company_id: row.company_id ? String(row.company_id) : undefined,
               applied_rule_label: row.applied_rule_label ? String(row.applied_rule_label) : undefined,
+              applied_rule_id: row.applied_rule_id ? String(row.applied_rule_id) : undefined,
               applied_calc_id: row.applied_calc_id ? String(row.applied_calc_id) : undefined,
             });
           }
@@ -4114,11 +4115,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (!r.regra_aplicada && info.applied_rule_label) r.regra_aplicada = info.applied_rule_label;
           if (!r.calculo_aplicado && info.applied_calc_id) r.calculo_aplicado = calcLabelById.get(info.applied_calc_id) || undefined;
           if (!r.matched_company_id && info.company_id) r.matched_company_id = info.company_id;
+          if (!r.applied_rule_id && info.applied_rule_id) r.applied_rule_id = info.applied_rule_id;
+          if (!r.applied_calc_id && info.applied_calc_id) r.applied_calc_id = info.applied_calc_id;
         }
       } catch (e) {
         console.warn("Falha ao enriquecer PJ/regra no export:", e);
       }
     }
+
 
     if (fmt === "json") {
       const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
