@@ -3819,6 +3819,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         return a.tuss.localeCompare(b.tuss);
       });
 
+      // Etapa 2: enriquecimento de PJ e labels de regra (queries auxiliares).
+      setProcProgress({ step: "enriquecendo", current: 0, total: out.length });
+
       // Enriquecer com nome da PJ e label da linha de cálculo aplicada
       try {
         const companyIds = Array.from(new Set(out.map((r) => r.matched_company_id).filter(Boolean))) as string[];
