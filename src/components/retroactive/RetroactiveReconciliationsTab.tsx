@@ -5224,19 +5224,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <TableHead>Convênio</TableHead>
                     <TableHead>Médico</TableHead>
                     <TableHead>Função</TableHead>
-                    <TableHead className="text-center" title="Quantidade na base TASY atual">Qtd TASY (atual)</TableHead>
-                    <TableHead title="Valor unitário na base TASY atual">Vlr unit. TASY</TableHead>
-                    <TableHead title="Valor total na base TASY atual (qtd × unit)">Vlr total TASY</TableHead>
-                    <TableHead className="text-center" title="Quantidade paga por função no lote histórico">Qtd/função (lote)</TableHead>
-                    <TableHead className="text-center" title="Nº de funções pagas no lote histórico">Nº funções</TableHead>
-                    <TableHead title="Funções pagas no lote histórico">Funções pagas (lote)</TableHead>
-                    <TableHead title="Lote(s) de repasse que serviram de origem">Lote(s) origem</TableHead>
-                    <TableHead title="Base 100% do convênio registrada no lote histórico (procedure_amount)">Base convênio (lote)</TableHead>
-                    <TableHead title="Valor efetivamente pago ao médico no lote, já com o acordo aplicado (gross_amount)">Pago no lote (c/ acordo)</TableHead>
-                    <TableHead className="text-center" title="Diferença de quantidade: TASY atual − lote histórico">Dif. qtd (TASY−lote)</TableHead>
-                    <TableHead title="Diferença de valor: TASY atual − base do lote">Dif. valor (TASY−lote)</TableHead>
-                    <TableHead title="Recalculado: fator do acordo do lote aplicado sobre o TASY atual">Recalc (acordo × TASY)</TableHead>
-                    <TableHead title="Ajuste = Pago no lote − Recalc. Positivo: a recuperar. Negativo: a complementar.">Ajuste (pago − recalc)</TableHead>
+                    <TableHead className="text-center" title="Quantidade que aparece HOJE na base TASY atual (após reprocessamentos, glosas revertidas etc.)">Qtd que o TASY mostra hoje</TableHead>
+                    <TableHead title="Valor unitário do procedimento na base TASY atual (100% convênio, sem acordo)">Vlr unitário TASY hoje (100% convênio)</TableHead>
+                    <TableHead title="Valor total do procedimento na base TASY atual (qtd × unitário, 100% convênio, sem acordo)">Vlr total TASY hoje (100% convênio)</TableHead>
+                    <TableHead className="text-center" title="Quantidade paga por função no lote de repasse já processado (histórico)">Qtd paga por função no lote (histórico)</TableHead>
+                    <TableHead className="text-center" title="Quantas funções distintas foram pagas para este item no lote histórico">Nº de funções pagas no lote</TableHead>
+                    <TableHead title="Nomes das funções pagas neste item no lote histórico (ex: Cirurgião, 1º Aux)">Quais funções foram pagas no lote</TableHead>
+                    <TableHead title="Referência do(s) lote(s) de repasse que originaram este pagamento histórico">Lote(s) de repasse de origem</TableHead>
+                    <TableHead title="Base 100% do convênio registrada NO LOTE HISTÓRICO (procedure_amount) — o que o convênio pagaria pelo procedimento na época do lote">Base convênio no lote (100%, época do repasse)</TableHead>
+                    <TableHead title="Valor efetivamente PAGO ao médico no lote histórico, já com o acordo aplicado (gross_amount) — o que saiu no repasse">Valor pago ao médico no lote (c/ acordo aplicado)</TableHead>
+                    <TableHead className="text-center" title="Quanta quantidade sobrou/faltou: TASY hoje − quantidade paga no lote histórico">Dif. de quantidade (TASY hoje − lote)</TableHead>
+                    <TableHead title="Diferença bruta de valor 100% convênio: TASY hoje − base do lote histórico (sem aplicar acordo)">Dif. valor 100% (TASY hoje − base lote)</TableHead>
+                    <TableHead title="Quanto a regra pagaria HOJE: fator do acordo do lote (pago÷base do lote) × valor total do TASY atual">Valor devido hoje (acordo do lote × TASY hoje)</TableHead>
+                    <TableHead title="Ajuste = Valor pago ao médico no lote − Valor devido hoje. Positivo (verm.): paguei a mais, a recuperar. Negativo (laranja): paguei a menos, a complementar.">Ajuste a fazer (pago no lote − devido hoje)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
