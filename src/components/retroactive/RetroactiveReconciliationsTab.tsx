@@ -2272,6 +2272,52 @@ export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementa
   return { totalComplementar, totalRetirar };
 }
 
+/**
+ * Recorta o "Total a complementar" em duas camadas:
+ *  - `simulated`: soma dos `valor_previsto_regra` para "Faltou pagar" que já
+ *    tiveram previsão calculada (motor real ou preview de histórico). Também
+ *    inclui pago_a_menos/div_qtd_valor onde a diferença é confiável — esses
+ *    já vêm do lote com lastro.
+ *  - `tasyCeiling`: teto bruto = soma do `valor_total_tasy` dos "Faltou pagar"
+ *    SEM previsão. É o máximo que aquele universo pode virar — o valor real
+ *    só sai quando o item entra em confecção e o motor recalcula.
+ *  - `coverage`: fração simulada / total de "Faltou pagar" (0..1). Serve
+ *    para o card avisar quando a cobertura é baixa.
+ */
+export function computeTvrComplementarBreakdown(list: TvrResult[]): {
+  simulated: number;
+  tasyCeiling: number;
+  naoPagoTotal: number;
+  naoPagoSimulated: number;
+  coverage: number; // 0..1
+} {
+  let simulated = 0;
+  let tasyCeiling = 0;
+  let naoPagoTotal = 0;
+  let naoPagoSimulated = 0;
+  for (const r of list) {
+    if (r.status === "nao_pago") {
+      naoPagoTotal += 1;
+      if (typeof r.valor_previsto_regra === "number") {
+        simulated += r.valor_previsto_regra;
+        naoPagoSimulated += 1;
+      } else {
+        tasyCeiling += r.valor_total_tasy || 0;
+      }
+      continue;
+    }
+    if (r.status === "ok" || r.status === "ausente_tasy") continue;
+    if (r.tipo_analise === "quantidade") {
+      const ajuste = r.ajuste_acordo ?? 0;
+      if (ajuste < -0.5) simulated += Math.abs(ajuste);
+    } else if (r.dif_valor > 0.5) {
+      simulated += r.dif_valor;
+    }
+  }
+  const coverage = naoPagoTotal > 0 ? naoPagoSimulated / naoPagoTotal : 1;
+  return { simulated, tasyCeiling, naoPagoTotal, naoPagoSimulated, coverage };
+}
+
 function computeTvrAgreementTotals(list: TvrResult[]): { totalComplementarAcordo: number; totalRetirarAcordo: number } {
   return list.reduce(
     (acc, r) => {
@@ -6504,21 +6550,66 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
           {(() => {
-            const { totalComplementar, totalRetirar } = computeTvrFinancialTotals(results);
+            const { totalRetirar } = computeTvrFinancialTotals(results);
             const { totalComplementarAcordo, totalRetirarAcordo } = computeTvrAgreementTotals(results);
+            const bd = computeTvrComplementarBreakdown(results);
+            const naoPagoPendente = bd.naoPagoTotal - bd.naoPagoSimulated;
+            const coveragePct = Math.round(bd.coverage * 100);
+            const lowCoverage = bd.naoPagoTotal > 0 && bd.coverage < 0.8;
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a complementar</div>
-                  <div className={cn("text-2xl font-bold", totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
-                    {totalComplementar > 0 ? brl(totalComplementar) : "R$ -"}
+                <div
+                  className={cn(
+                    "rounded-lg border px-4 py-3",
+                    lowCoverage
+                      ? "border-amber-400/60 bg-amber-50/60"
+                      : "border-primary/30 bg-primary/5",
+                  )}
+                  title={
+                    lowCoverage
+                      ? `Cobertura de simulação baixa (${coveragePct}%). O valor real dos itens sem previsão só sai após encaminhar para confecção.`
+                      : "Total com base em previsão de regra (simulação ou histórico) + ajustes já calculados no lote."
+                  }
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      Total a complementar
+                    </div>
+                    {bd.naoPagoTotal > 0 && (
+                      <span
+                        className={cn(
+                          "text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                          lowCoverage
+                            ? "bg-amber-200 text-amber-900"
+                            : "bg-primary/10 text-primary",
+                        )}
+                        title="Itens 'Faltou pagar' com valor previsto pelo motor / histórico"
+                      >
+                        {bd.naoPagoSimulated}/{bd.naoPagoTotal} simulados
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Base: {brl(totalComplementar)} ·{" "}
+                  <div className={cn("text-2xl font-bold", bd.simulated > 0 ? "text-primary" : "text-muted-foreground")}>
+                    {bd.simulated > 0 ? brl(bd.simulated) : "R$ -"}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Com previsão de regra ·{" "}
                     <span className="font-semibold text-orange-600">
                       C/ acordo: {brl(totalComplementarAcordo)}
                     </span>
                   </div>
+                  {bd.tasyCeiling > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground leading-relaxed">
+                      <div>
+                        <span className="uppercase tracking-wider text-[10px]">Teto TASY (sem previsão)</span>{" "}
+                        <span className="font-semibold text-foreground/80">{brl(bd.tasyCeiling)}</span>
+                      </div>
+                      <div className="mt-0.5">
+                        Valor bruto do procedimento no TASY, sem acordo aplicado. Os {naoPagoPendente} item{naoPagoPendente === 1 ? "" : "s"} sem previsão só terão valor real após{" "}
+                        <span className="font-medium">Encaminhar apuração</span> — o motor recalcula com base + acordo vigente.
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
