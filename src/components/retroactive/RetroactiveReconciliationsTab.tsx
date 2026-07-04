@@ -6219,9 +6219,27 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         )}
                       </TableCell>
                       <TableCell className="align-top max-w-[180px]">
-                        <div className="text-[11px] font-medium truncate" title={r.regra_aplicada}>{r.regra_aplicada || "—"}</div>
-                        <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_aplicado}>{r.calculo_aplicado || ""}</div>
+                        {r.regra_aplicada ? (
+                          <>
+                            <div className="text-[11px] font-medium truncate" title={r.regra_aplicada}>{r.regra_aplicada}</div>
+                            <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_aplicado}>{r.calculo_aplicado || ""}</div>
+                          </>
+                        ) : r.status === "nao_pago" && r.regra_prevista ? (
+                          <>
+                            <div
+                              className="text-[11px] font-medium truncate flex items-center gap-1"
+                              title={`Regra prevista (última aplicada para este médico + procedimento neste hospital): ${r.regra_prevista}`}
+                            >
+                              <span className="truncate">{r.regra_prevista}</span>
+                              <span className="shrink-0 text-[9px] uppercase tracking-wide px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">prev.</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_previsto}>{r.calculo_previsto || ""}</div>
+                          </>
+                        ) : (
+                          <div className="text-[11px] font-medium text-muted-foreground">—</div>
+                        )}
                       </TableCell>
+
                       {compactCols.map((c) => (
                         <TableCell key={c.key} className={cn("align-top", c.className)}>{c.cell(r)}</TableCell>
                       ))}
