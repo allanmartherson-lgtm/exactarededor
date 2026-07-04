@@ -6360,20 +6360,35 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">Exportar</Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Todos ({results.length})</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => void exportData("xlsx", "all")}>Excel (.xlsx)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("csv", "all")}>CSV (;)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("json", "all")}>JSON</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Filtrado ({visible.length})</DropdownMenuLabel>
+              <DropdownMenuLabel>Filtrado — sub-aba atual ({visible.length})</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => void exportData("xlsx", "visible")}>Excel (.xlsx)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("csv", "visible")}>CSV (;)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("json", "visible")}>JSON</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Filtrado — 2 abas</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => void exportData("xlsx", "split")}>
-                Excel (.xlsx) — Por valor + Por presença
+              <DropdownMenuLabel>Filtrado por tipo (ignora sub-aba)</DropdownMenuLabel>
+              <DropdownMenuItem
+                disabled={visibleByTipo.valor === 0}
+                onClick={() => void exportData("xlsx", "valor")}
+              >
+                Só Por valor ({visibleByTipo.valor}) — .xlsx
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={visibleByTipo.quantidade === 0}
+                onClick={() => void exportData("xlsx", "presenca")}
+              >
+                Só Por presença ({visibleByTipo.quantidade}) — .xlsx
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={visibleByTipo.valor === 0 && visibleByTipo.quantidade === 0}
+                onClick={() => void exportData("xlsx", "split")}
+              >
+                Ambas em 2 abas ({visibleByTipo.valor + visibleByTipo.quantidade}) — .xlsx
               </DropdownMenuItem>
             </DropdownMenuContent>
 
