@@ -3996,12 +3996,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const hasFilter = statusFilter.size > 0;
     const showOk = statusFilter.has("ok");
     const q = search.trim().toLowerCase();
+    const hasPj = pjFilter.size > 0;
+    const hasMed = medicoFilter.size > 0;
     return rows.filter((r) => {
       const eff = effectiveTvrStatus(r);
       if (eff === "ok" && !showOk) return false;
       if (!opts?.ignoreAnalysisTab && r.tipo_analise !== analysisTab) return false;
       if (hasFilter && !statusFilter.has(eff)) return false;
       if (onlyWithPayment && eff === "nao_pago") return false;
+      if (hasPj && !pjFilter.has(pjKeyOf(r).toLowerCase())) return false;
+      if (hasMed && !medicoFilter.has(medicoKeyOf(r).toLowerCase())) return false;
       if (q) {
         const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -4013,8 +4017,39 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const visible = useMemo(
     () => applyVisibleFilters(results ?? []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [results, statusFilter, search, onlyWithPayment, analysisTab],
+    [results, statusFilter, search, onlyWithPayment, analysisTab, pjFilter, medicoFilter],
   );
+
+  // Opções dos filtros PJ e Médico — extraídas da sub-aba atual para não
+  // poluir a lista com valores de outra análise.
+  const pjOptions = useMemo(() => {
+    const map = new Map<string, string>(); // key (lower) → label (original)
+    for (const r of results ?? []) {
+      if (r.tipo_analise !== analysisTab) continue;
+      const label = pjKeyOf(r);
+      if (!label) continue;
+      const k = label.toLowerCase();
+      if (!map.has(k)) map.set(k, label);
+    }
+    return Array.from(map.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [results, analysisTab]);
+
+  const medicoOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of results ?? []) {
+      if (r.tipo_analise !== analysisTab) continue;
+      const label = medicoKeyOf(r);
+      if (!label) continue;
+      const k = label.toLowerCase();
+      if (!map.has(k)) map.set(k, label);
+    }
+    return Array.from(map.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [results, analysisTab]);
+
 
 
 
