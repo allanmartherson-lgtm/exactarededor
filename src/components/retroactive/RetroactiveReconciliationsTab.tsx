@@ -76,6 +76,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { computeTvrRulePreview } from "@/lib/tvrRulePreview";
 import {
+  deriveTipoAnaliseFromCalcType,
+  formatPrevistoSourceLabel,
+} from "@/lib/tvrSimulationMapping";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -2152,9 +2156,13 @@ export type TvrResult = {
   // undefined = não conseguimos estimar → consumidor cai para valor_total_tasy.
   valor_previsto_regra?: number;
   tipo_analise_previsto?: "valor" | "quantidade";
-  // "regra"  = calculamos via rule_calculation (percentual_convenio / valor_fixo / exclusao)
-  // "bruto"  = tipo não coberto (pacote/tabela_diferenciada) ou dado faltante → fallback bruto
-  previsto_source?: "regra" | "bruto";
+  // Origem do valor previsto exibido ao analista, por ordem de confiança:
+  //  "simulacao" = motor real rodou (simulate-rule-batch) e devolveu valor esperado
+  //  "regra"     = preview local a partir do calc_raw do histórico (percentual/valor_fixo/exclusao)
+  //  "historico" = regra veio do histórico, sem valor calculado localmente (ex.: pacote)
+  //  "bruto"     = tipo não coberto e sem simulação → fallback exibindo bruto TASY
+  //  "sem_regra" = motor real rodou e não achou regra aplicável
+  previsto_source?: "simulacao" | "regra" | "historico" | "bruto" | "sem_regra";
 
 
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
@@ -4298,6 +4306,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Rastreio", header: "ID regra prevista", get: (r) => r.regra_prevista_id ?? "" },
     { group: "Rastreio", header: "Cálculo previsto", get: (r) => r.calculo_previsto ?? "" },
     { group: "Rastreio", header: "ID cálculo previsto", get: (r) => r.calculo_previsto_id ?? "" },
+    // Origem da previsão (Faltou pagar): deixa claro se veio do motor real
+    // (simulação — mais confiável) ou de heurística sobre histórico.
+    { group: "Rastreio", header: "Origem previsão (Faltou pagar)", get: (r) => r.status === "nao_pago" ? formatPrevistoSourceLabel(r.previsto_source) : "" },
   ];
 
 
@@ -4778,6 +4789,121 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         r.tipo_analise = r.tipo_analise_previsto;
       }
     }
+
+    // ============================================================
+    // Fase 3 — Simulação via motor REAL para itens que a heurística de
+    // histórico não conseguiu resolver. Chama `simulate-rule-batch` que roda
+    // o mesmo `analyzePaymentItems` usado no cálculo oficial (cobre os 5
+    // tipos: percentual_sobre_convenio, valor_fixo, pacote, tabela_diferenciada
+    // e exclusao, além de bonus/tabela_referencia).
+    //
+    // IMPORTANTE: o valor devolvido aqui é uma PREVISÃO para tomada de
+    // decisão do analista. O cálculo real só é gravado quando o item entra
+    // em confecção (analysis_mode='confeccao') e o motor de pagamento roda
+    // de verdade sobre o lote. Marcamos previsto_source='simulacao' para
+    // deixar essa distinção visível na UI e no export.
+    // ============================================================
+    if (hospitalId) {
+      const needSim = rows.filter(
+        (r) =>
+          r.status === "nao_pago" &&
+          !r.regra_prevista &&
+          !!(r.tuss || "").trim() &&
+          (!!r.medico || !!r.matched_doctor_id),
+      );
+      if (needSim.length > 0) {
+        // Data de referência para carregar reference/exception tables — usa a
+        // data mais recente do conjunto (fallback: hoje).
+        const dates = needSim.map((r) => r.data).filter(Boolean).sort();
+        const reference_date =
+          dates.length > 0 ? dates[dates.length - 1] : new Date().toISOString().slice(0, 10);
+
+        const CHUNK = 500;
+        try {
+          for (let i = 0; i < needSim.length; i += CHUNK) {
+            const slice = needSim.slice(i, i + CHUNK);
+            const items = slice.map((r, idx) => ({
+              id: `tvr-${i + idx}-${r.key ?? ""}`,
+              procedure_code: (r.tuss || "").trim() || null,
+              procedure_name: r.procedimento || null,
+              agreement_name: r.convenio || null,
+              doctor_name: r.medico || null,
+              doctor_role: r.funcao || null,
+              company_id: r.pj_provavel_id || null,
+              company_name: r.pj_provavel || null,
+              attendance_number: r.atendimento || null,
+              patient_name: r.paciente || null,
+              procedure_date: r.data || null,
+              // Passamos o bruto TASY como referência — o motor devolve
+              // expected_amount independente disso, mas mantemos consistência.
+              gross_amount: Number(r.valor_total_tasy ?? 0),
+              procedure_amount: Number(r.valor_total_tasy ?? 0),
+              quantity: Number(r.qtd_tasy ?? 1),
+            }));
+
+            const { data, error } = await supabase.functions.invoke(
+              "simulate-rule-batch",
+              {
+                body: {
+                  items,
+                  hospital_id: hospitalId,
+                  reference_date,
+                  // tolerances irrelevantes aqui — só usamos matched_rule + expected.
+                  tolerance_pct: 0.5,
+                  tolerance_abs: 1.0,
+                },
+              },
+            );
+            if (error) {
+              console.warn("[nao_pago] simulate-rule-batch falhou:", error);
+              continue;
+            }
+            const payload = data as {
+              ok?: boolean;
+              rows?: Array<{
+                idx: number;
+                status: "ok" | "sem_regra" | "divergente" | "hospital_errado";
+                matched_rule_id: string | null;
+                matched_rule_name: string | null;
+                calculation_type_used: string | null;
+                expected_amount: number | null;
+              }>;
+            };
+            if (!payload?.ok || !Array.isArray(payload.rows)) continue;
+
+            for (const out of payload.rows) {
+              const target = slice[out.idx];
+              if (!target) continue;
+              if (out.matched_rule_id) {
+                target.regra_prevista_id = out.matched_rule_id;
+                target.regra_prevista = out.matched_rule_name ?? out.matched_rule_id;
+                if (out.calculation_type_used) {
+                  target.calculo_previsto = `(${out.calculation_type_used})`;
+                }
+                if (out.expected_amount != null && Number.isFinite(out.expected_amount)) {
+                  target.valor_previsto_regra = out.expected_amount;
+                }
+                target.tipo_analise_previsto = deriveTipoAnaliseFromCalcType(
+                  out.calculation_type_used,
+                );
+                // Alinha tipo_analise para que o item vá para a aba correta
+                // no export split (mesmo Fix B, mas aplicado a esta fase).
+                if (target.tipo_analise !== target.tipo_analise_previsto) {
+                  target.tipo_analise = target.tipo_analise_previsto;
+                }
+                target.previsto_source = "simulacao";
+              } else {
+                // Motor rodou e não achou regra aplicável. Marcamos explícito
+                // para o analista não confundir com "não simulei ainda".
+                target.previsto_source = "sem_regra";
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[nao_pago] fase 3 (simulação) falhou:", e);
+        }
+      }
+    }
   };
 
   // Dispara a inferência quando `results` muda e há itens Faltou pagar sem
@@ -4785,7 +4911,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   React.useEffect(() => {
     if (!results) return;
     const pending = results.filter(
-      (r) => r.status === "nao_pago" && (!r.pj_provavel || !r.regra_prevista),
+      (r) =>
+        r.status === "nao_pago" &&
+        !r.previsto_source && // fase 3 marca simulacao/sem_regra → evita loop infinito
+        (!r.pj_provavel || !r.regra_prevista),
     );
     if (pending.length === 0) return;
     let cancelled = false;
