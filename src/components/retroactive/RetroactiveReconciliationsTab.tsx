@@ -4647,7 +4647,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <p className="text-muted-foreground text-[11px] leading-relaxed">
             Selecione convênios que operam por <strong>pacote / tratativa manual</strong> (ex.: Sul América, Particular).
             Itens desses convênios são <strong>removidos das duas bases</strong> (TASY e Repasse) antes do cruzamento —
-            não geram "não pago" nem "ausente TASY". Após alterar, clique em <strong>Processar</strong>.
+            não geram "faltou pagar" nem "ausente base faturamento". Após alterar, clique em <strong>Processar</strong>.
           </p>
           {availableConvenios.length === 0 ? (
             <p className="text-muted-foreground italic">Nenhum convênio identificado nas bases carregadas.</p>
