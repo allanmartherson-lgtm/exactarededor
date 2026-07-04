@@ -337,7 +337,7 @@ export default function Conciliacao() {
         </TabsContent>
 
         <TabsContent value="bloqueios" className="mt-4">
-          <BlockingDivergencesTab />
+          <BlockingDivergencesTab onCountChange={setBlockingCount} />
         </TabsContent>
 
         <TabsContent value="bases" className="mt-4">
