@@ -4217,6 +4217,77 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     r.status === "div_qtd_valor" ||
     r.status === "pago_a_mais";
 
+  /**
+   * Descreve, em linguagem do analista, o que fazer com uma linha:
+   * "TASY reduziu R$ X · acordo aplica X% do convênio", "Cancelado no TASY · pacote", etc.
+   * Substitui a leitura crua das 3 colunas técnicas (Dif valor 100%, Devido hoje, Ajuste).
+   */
+  const describeAcao = (r: TvrResult): { kind: "recuperar" | "complementar" | "validar" | "ok"; valor: number; label: string; hint: string } => {
+    const method = (r.calculo_aplicado ?? "").toLowerCase();
+    const prettyMethod =
+      method.includes("pacote") ? "pacote"
+      : method.includes("valor_fixo") ? "valor fixo"
+      : method.includes("tabela_diferenciada") ? "tabela diferenciada"
+      : method.includes("bonus") ? "bônus"
+      : method.includes("percentual") ? "% do convênio"
+      : "acordo do lote";
+    // Casos sem base de comparação: pacote/valor fixo sem lastro no TASY.
+    if (r.sem_lastro_tasy) {
+      return {
+        kind: "validar",
+        valor: r.valor_com_acordo || 0,
+        label: "— Validar manualmente",
+        hint: `Pago no lote (${prettyMethod}) mas ausente no TASY hoje. Pacote/valor fixo pode não faturar item individual — analista decide.`,
+      };
+    }
+    if (r.tipo_analise === "quantidade") {
+      // Compara presença/quantidade, não valor.
+      if (r.dif_qtd < -0.5) {
+        // TASY hoje mostra menos que o lote pagou → provável cancelamento/glosa retroativa.
+        const qtdRetirar = Math.abs(r.dif_qtd);
+        return {
+          kind: "recuperar",
+          valor: r.valor_com_acordo || 0,
+          label: `↓ Recuperar ${brl(r.valor_com_acordo || 0)}`,
+          hint: `TASY reduziu ${qtdRetirar.toFixed(2)} un · ${prettyMethod}`,
+        };
+      }
+      if (r.dif_qtd > 0.5) {
+        return {
+          kind: "complementar",
+          valor: 0,
+          label: `↑ Complementar (+${r.dif_qtd.toFixed(2)} un)`,
+          hint: `TASY hoje tem ${r.dif_qtd.toFixed(2)} un a mais · ${prettyMethod}. Valor depende da tabela do acordo.`,
+        };
+      }
+      return { kind: "ok", valor: 0, label: "— Sem ajuste", hint: `Quantidade bate · ${prettyMethod}` };
+    }
+    // tipo_analise === "valor": compara R$.
+    if (r.ajuste_acordo > 0.5) {
+      const fator = r.valor_pago_base > 0 ? (r.valor_com_acordo / r.valor_pago_base) * 100 : 0;
+      const dif = Math.abs(r.dif_valor);
+      const direcao = r.dif_valor < 0 ? "reduziu" : "subiu";
+      return {
+        kind: "recuperar",
+        valor: r.ajuste_acordo,
+        label: `↓ Recuperar ${brl(r.ajuste_acordo)}`,
+        hint: `TASY ${direcao} ${brl(dif)} · acordo ${fator.toFixed(0)}% convênio`,
+      };
+    }
+    if (r.ajuste_acordo < -0.5) {
+      const fator = r.valor_pago_base > 0 ? (r.valor_com_acordo / r.valor_pago_base) * 100 : 0;
+      const dif = Math.abs(r.dif_valor);
+      const direcao = r.dif_valor > 0 ? "subiu" : "reduziu";
+      return {
+        kind: "complementar",
+        valor: Math.abs(r.ajuste_acordo),
+        label: `↑ Complementar ${brl(Math.abs(r.ajuste_acordo))}`,
+        hint: `TASY ${direcao} ${brl(dif)} · acordo ${fator.toFixed(0)}% convênio`,
+      };
+    }
+    return { kind: "ok", valor: 0, label: "— Sem ajuste", hint: "Pago no lote bate com devido hoje" };
+  };
+
   const sendHandoffToConfeccao = async (list: TvrResult[], opts?: { silent?: boolean }) => {
     const actionable = list.filter(isActionableTvr);
     if (actionable.length === 0) {
