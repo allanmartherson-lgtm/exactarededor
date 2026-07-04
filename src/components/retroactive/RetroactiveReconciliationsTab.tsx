@@ -2130,6 +2130,11 @@ export type TvrResult = {
   pj_conciliada?: string;
   regra_aplicada?: string;
   calculo_aplicado?: string;
+  // IDs opcionais usados apenas em rastreio/export — payment_items.applied_rule_id
+  // e payment_items.applied_calc_id da regra que gerou o cálculo no lote.
+  applied_rule_id?: string;
+  applied_calc_id?: string;
+
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
   key_audit?: {
     att: string;
