@@ -3953,6 +3953,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const [onlyWithPayment, setOnlyWithPayment] = useState(false);
+  // Filtros multi-seleção por PJ e Médico. Chave = nome (case-insensitive) já
+  // que o mesmo médico/PJ pode aparecer com pequenas variações de grafia.
+  const [pjFilter, setPjFilter] = useState<Set<string>>(new Set());
+  const [medicoFilter, setMedicoFilter] = useState<Set<string>>(new Set());
+  const pjKeyOf = (r: TvrResult) => (r.pj_conciliada || r.pj_provavel || "").trim();
+  const medicoKeyOf = (r: TvrResult) => (r.medico || "").trim();
+
 
   // Sub-aba da tabela de resultados: separa itens onde faz sentido comparar R$ (valor)
   // dos que só faz sentido comparar presença/quantidade (pacote/valor fixo/tabela diferenciada).
@@ -3989,12 +3996,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const hasFilter = statusFilter.size > 0;
     const showOk = statusFilter.has("ok");
     const q = search.trim().toLowerCase();
+    const hasPj = pjFilter.size > 0;
+    const hasMed = medicoFilter.size > 0;
     return rows.filter((r) => {
       const eff = effectiveTvrStatus(r);
       if (eff === "ok" && !showOk) return false;
       if (!opts?.ignoreAnalysisTab && r.tipo_analise !== analysisTab) return false;
       if (hasFilter && !statusFilter.has(eff)) return false;
       if (onlyWithPayment && eff === "nao_pago") return false;
+      if (hasPj && !pjFilter.has(pjKeyOf(r).toLowerCase())) return false;
+      if (hasMed && !medicoFilter.has(medicoKeyOf(r).toLowerCase())) return false;
       if (q) {
         const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -4006,8 +4017,39 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const visible = useMemo(
     () => applyVisibleFilters(results ?? []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [results, statusFilter, search, onlyWithPayment, analysisTab],
+    [results, statusFilter, search, onlyWithPayment, analysisTab, pjFilter, medicoFilter],
   );
+
+  // Opções dos filtros PJ e Médico — extraídas da sub-aba atual para não
+  // poluir a lista com valores de outra análise.
+  const pjOptions = useMemo(() => {
+    const map = new Map<string, string>(); // key (lower) → label (original)
+    for (const r of results ?? []) {
+      if (r.tipo_analise !== analysisTab) continue;
+      const label = pjKeyOf(r);
+      if (!label) continue;
+      const k = label.toLowerCase();
+      if (!map.has(k)) map.set(k, label);
+    }
+    return Array.from(map.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [results, analysisTab]);
+
+  const medicoOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of results ?? []) {
+      if (r.tipo_analise !== analysisTab) continue;
+      const label = medicoKeyOf(r);
+      if (!label) continue;
+      const k = label.toLowerCase();
+      if (!map.has(k)) map.set(k, label);
+    }
+    return Array.from(map.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [results, analysisTab]);
+
 
 
 
@@ -6261,9 +6303,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     </div>
                   </PopoverContent>
                 </Popover>
+                <MultiSelectFilter
+                  label="PJ"
+                  allLabel="Todas as PJs"
+                  options={pjOptions}
+                  selected={pjFilter}
+                  onChange={setPjFilter}
+                />
+                <MultiSelectFilter
+                  label="Médico"
+                  allLabel="Todos os médicos"
+                  options={medicoOptions}
+                  selected={medicoFilter}
+                  onChange={setMedicoFilter}
+                />
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setKeyAuditOpen(true)}>
                   Auditoria de chave
                 </Button>
+
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
@@ -6958,4 +7015,89 @@ function EncaminharApuracaoModal({
 
 // Suppress unused-import warnings for fields that may be imported but only used conditionally.
 void ([] as TargetField[]);
+
+// Popover multi-seleção com busca — usado nos filtros de PJ e Médico no
+// toolbar dos resultados. Mesmo padrão visual do filtro de status.
+function MultiSelectFilter({
+  label,
+  allLabel,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  allLabel: string;
+  options: Array<{ key: string; label: string }>;
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query]);
+  const summary =
+    selected.size === 0
+      ? allLabel
+      : selected.size === 1
+      ? options.find((o) => o.key === Array.from(selected)[0])?.label ?? `${label}: 1`
+      : `${label}: ${selected.size} selecionados`;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 w-[180px] text-xs justify-between font-normal">
+          <span className="truncate">{summary}</span>
+          <ChevronsUpDownIcon className="h-3.5 w-3.5 opacity-50 ml-1 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-2" align="end">
+        <div className="flex items-center justify-between px-1 pb-2 mb-1 border-b border-border">
+          <span className="text-[11px] font-medium text-muted-foreground">Filtrar por {label.toLowerCase()}</span>
+          {selected.size > 0 && (
+            <button
+              type="button"
+              className="text-[11px] text-primary hover:underline"
+              onClick={() => onChange(new Set())}
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`Buscar ${label.toLowerCase()}…`}
+          className="h-7 text-xs mb-1"
+        />
+        <div className="flex flex-col gap-0.5 max-h-[260px] overflow-y-auto">
+          {filtered.length === 0 && (
+            <div className="text-[11px] text-muted-foreground px-2 py-2 text-center">Nenhum resultado</div>
+          )}
+          {filtered.map((o) => {
+            const checked = selected.has(o.key);
+            return (
+              <label
+                key={o.key}
+                className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted cursor-pointer"
+              >
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(v) => {
+                    const next = new Set(selected);
+                    if (v) next.add(o.key);
+                    else next.delete(o.key);
+                    onChange(next);
+                  }}
+                />
+                <span className="truncate" title={o.label}>{o.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
