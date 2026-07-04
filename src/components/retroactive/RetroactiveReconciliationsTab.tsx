@@ -4903,7 +4903,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 )}
                 {ausenteIncomplete.length > 0 && (
                   <span className="text-amber-700 font-semibold" title={ausenteIncomplete.map((r) => `${r.atendimento}/${r.tuss}: faltam ${getAusenteTasyMissingFields(r).join(", ")}`).join("\n")}>
-                    ⚠ {ausenteIncomplete.length} Ausente TASY incompleta(s) — faltam: {Array.from(missingByField.entries()).map(([k, n]) => `${k} (${n})`).join(", ")}
+                    ⚠ {ausenteIncomplete.length} Ausente base faturamento incompleta(s) — faltam: {Array.from(missingByField.entries()).map(([k, n]) => `${k} (${n})`).join(", ")}
                   </span>
                 )}
                 {unknown.length === 0 && missingTotal === 0 && ausenteIncomplete.length === 0 && (
