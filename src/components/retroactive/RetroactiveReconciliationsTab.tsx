@@ -5311,20 +5311,133 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               className="overflow-auto max-h-[65vh] rounded-b-lg border-border"
             >
 
-              <Table className="min-w-[2200px]">
+              {(() => {
+                // ============================================================
+                // Modelo compacto: colunas mudam por sub-aba (valor vs presença).
+                // Colunas técnicas (dif_valor bruto, devido hoje, valor unit TASY,
+                // nº funções, lote de origem etc.) saem do padrão e vão pro
+                // detalhe expansível por linha — evita a "análise maior" que o
+                // analista precisava fazer pra distinguir pacote de percentual.
+                // ============================================================
+                const isPresenca = analysisTab === "quantidade";
+                // Colunas visíveis por padrão em cada aba, na ordem de render.
+                // A primeira é o toggle de expansão, a segunda o checkbox de seleção.
+                const compactCols: Array<{
+                  key: string;
+                  header: React.ReactNode;
+                  title?: string;
+                  groupLabel: string;
+                  groupClass: string;
+                  cell: (r: TvrResult) => React.ReactNode;
+                  className?: string;
+                  headClassName?: string;
+                }> = [
+                  {
+                    key: "context.atend",
+                    header: "Atend.",
+                    groupLabel: "Contexto",
+                    groupClass: "text-muted-foreground",
+                    cell: (r) => r.atendimento || "—",
+                  },
+                  { key: "context.tuss", header: "TUSS", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => r.tuss || "—" },
+                  { key: "context.proc", header: "Procedimento", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[220px] truncate", cell: (r) => <span title={r.procedimento}>{r.procedimento || "—"}</span> },
+                  { key: "context.data", header: "Data", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => formatTvrDate(r.data) },
+                  { key: "context.conv", header: "Convênio", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[140px] truncate", cell: (r) => <span title={r.convenio}>{r.convenio || "—"}</span> },
+                  { key: "context.med", header: "Médico", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[160px] truncate", cell: (r) => <span title={r.medico}>{r.medico || "—"}</span> },
+                  { key: "context.func", header: "Função", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => r.funcao || "—" },
+                ];
+                // Cabeçalho de coluna com regra de acordo aplicada (nome amigável).
+                const regraHead = (
+                  <TableHead key="regra.aplic" title="Regra e cálculo aplicados no lote histórico">Regra do acordo</TableHead>
+                );
+                if (isPresenca) {
+                  compactCols.push(
+                    { key: "qtd.tasy", header: "Qtd TASY hoje", headClassName: "text-center", className: "text-center", groupLabel: "Quantidades", groupClass: "text-sky-800 bg-sky-50/60", cell: (r) => r.qtd_tasy || "—" },
+                    { key: "qtd.paga", header: "Qtd paga (por função)", headClassName: "text-center", className: "text-center", groupLabel: "Quantidades", groupClass: "text-sky-800 bg-sky-50/60", cell: (r) => r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—" },
+                    {
+                      key: "qtd.dif",
+                      header: "Dif. qtd",
+                      headClassName: "text-center",
+                      title: "Diferença entre a quantidade que aparece HOJE no TASY e a que foi paga por função no lote histórico. Negativa = TASY reduziu (glosa/cancelamento).",
+                      groupLabel: "Quantidades",
+                      groupClass: "text-sky-800 bg-sky-50/60",
+                      className: (undefined as unknown as string), // usado dinamicamente abaixo
+                      cell: (r) => (
+                        <span className={cn("text-center inline-block w-full", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
+                          {r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: "lote.pago",
+                      header: "Pago no lote (c/ acordo)",
+                      title: "Quanto o médico recebeu neste item no lote de repasse já processado.",
+                      groupLabel: "Lote histórico",
+                      groupClass: "text-indigo-800 bg-indigo-50/60",
+                      cell: (r) => brl(r.valor_com_acordo),
+                    },
+                  );
+                } else {
+                  compactCols.push(
+                    { key: "tasy.total", header: "Vlr total TASY hoje", title: "Valor total do procedimento na base TASY atual (100% convênio, sem acordo).", groupLabel: "TASY hoje (100% convênio)", groupClass: "text-sky-800 bg-sky-50/60", cell: (r) => brl(r.valor_total_tasy) },
+                    { key: "lote.base", header: "Base convênio no lote", title: "Base 100% do convênio registrada NO LOTE histórico (época do repasse).", groupLabel: "Lote histórico", groupClass: "text-indigo-800 bg-indigo-50/60", cell: (r) => brl(r.valor_pago_base) },
+                    { key: "lote.pago", header: "Pago médico no lote (c/ acordo)", title: "Valor efetivamente pago ao médico neste item no lote histórico.", groupLabel: "Lote histórico", groupClass: "text-indigo-800 bg-indigo-50/60", cell: (r) => brl(r.valor_com_acordo) },
+                  );
+                }
+                // Coluna final "Ação sugerida" — substitui as 3 técnicas.
+                const acaoHead = (
+                  <TableHead
+                    key="acao.head"
+                    className="min-w-[260px] text-rose-800 bg-rose-50/60"
+                    title="Ação em linguagem do analista, derivada de: TASY hoje vs. lote e do tipo de acordo aplicado."
+                  >
+                    Ação sugerida
+                  </TableHead>
+                );
+                // ============================================================
+                // Cálculo dos grupos (linha superior do cabeçalho) — junta
+                // colunas consecutivas com o mesmo groupLabel/groupClass.
+                // ============================================================
+                type GroupSeg = { label: string; className: string; count: number };
+                const groups: GroupSeg[] = [];
+                for (const c of compactCols) {
+                  const last = groups[groups.length - 1];
+                  if (last && last.label === c.groupLabel && last.className === c.groupClass) last.count += 1;
+                  else groups.push({ label: c.groupLabel, className: c.groupClass, count: 1 });
+                }
+                // Colunas fixas antes/depois de compactCols: [expand], [checkbox], [status], [regra], ..., [ação]
+                const totalCols = 4 + compactCols.length + 1;
+                return (
+              <Table className="min-w-[1600px]">
                 <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
-                  {/* Linha de grupos — separa visualmente as seções: Item, Contexto, TASY atual, Lote histórico, Diferenças, Recalc, Ajuste. */}
                   <TableRow className="bg-muted/50">
-                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Item</TableHead>
-                    <TableHead colSpan={8} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Contexto</TableHead>
-                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-sky-800 bg-sky-50/60 border-r border-border" title="Estado ATUAL da base TASY (após reprocessamentos, glosas etc.) — 100% convênio, sem acordo aplicado">TASY hoje (base atual, 100% convênio)</TableHead>
-                    <TableHead colSpan={6} className="text-center text-[10px] uppercase tracking-wider text-indigo-800 bg-indigo-50/60 border-r border-border" title="Como o item foi pago no lote de repasse já processado (histórico)">Lote histórico (o que já foi pago)</TableHead>
-                    <TableHead colSpan={2} className="text-center text-[10px] uppercase tracking-wider text-amber-800 bg-amber-50/60 border-r border-border" title="Diferenças brutas entre TASY hoje e o que foi registrado no lote (sem aplicar acordo)">Diferenças brutas (TASY hoje − lote)</TableHead>
-                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-emerald-800 bg-emerald-50/60 border-r border-border" title="Quanto a regra pagaria HOJE: fator do acordo do lote aplicado sobre o TASY atual">Devido hoje (acordo do lote × TASY hoje)</TableHead>
-                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-rose-800 bg-rose-50/60" title="Diferença entre o que foi pago no lote e o que seria devido hoje">Ajuste (pago no lote − devido hoje)</TableHead>
+                    {/* [expand], [checkbox], [status], [regra do acordo] */}
+                    <TableHead colSpan={4} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Item</TableHead>
+                    {groups.map((g, i) => (
+                      <TableHead
+                        key={`grp-${i}`}
+                        colSpan={g.count}
+                        className={cn("text-center text-[10px] uppercase tracking-wider border-r border-border", g.className)}
+                      >
+                        {g.label}
+                      </TableHead>
+                    ))}
+                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-rose-800 bg-rose-50/60">Ação</TableHead>
                   </TableRow>
                   <TableRow>
-
+                    <TableHead className="w-8 text-center" title="Expandir para ver campos técnicos (Vlr unitário TASY, nº funções, lotes, dif. valor 100%, devido hoje, etc.)">
+                      <button
+                        type="button"
+                        className="text-[11px] text-primary hover:underline"
+                        onClick={() => {
+                          if (expandedKeys.size >= visible.length) setExpandedKeys(new Set());
+                          else setExpandedKeys(new Set(visible.map((r) => r.key)));
+                        }}
+                        title={expandedKeys.size >= visible.length && visible.length > 0 ? "Recolher todos" : "Expandir todos"}
+                      >
+                        {expandedKeys.size >= visible.length && visible.length > 0 ? "−" : "+"}
+                      </button>
+                    </TableHead>
                     <TableHead className="w-10 text-center">
                       {(() => {
                         const selectableKeys = visible.filter(isActionableTvr).map((r) => r.key);
@@ -5348,39 +5461,41 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       })()}
                     </TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead title="Valor = regra % sobre convênio (compara R$). Quantidade = tabela própria (pacote/valor fixo/tabela diferenciada) — compara só quantidade.">Tipo Análise</TableHead>
-                    <TableHead>Atend.</TableHead>
-                    <TableHead>TUSS</TableHead>
-                    <TableHead>Procedimento</TableHead>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Convênio</TableHead>
-                    <TableHead>Médico</TableHead>
-                    <TableHead>Função</TableHead>
-                    <TableHead className="text-center" title="Quantidade que aparece HOJE na base TASY atual (após reprocessamentos, glosas revertidas etc.)">Qtd que o TASY mostra hoje</TableHead>
-                    <TableHead title="Valor unitário do procedimento na base TASY atual (100% convênio, sem acordo)">Vlr unitário TASY hoje (100% convênio)</TableHead>
-                    <TableHead title="Valor total do procedimento na base TASY atual (qtd × unitário, 100% convênio, sem acordo)">Vlr total TASY hoje (100% convênio)</TableHead>
-                    <TableHead className="text-center" title="Quantidade paga por função no lote de repasse já processado (histórico)">Qtd paga por função no lote (histórico)</TableHead>
-                    <TableHead className="text-center" title="Quantas funções distintas foram pagas para este item no lote histórico">Nº de funções pagas no lote</TableHead>
-                    <TableHead title="Nomes das funções pagas neste item no lote histórico (ex: Cirurgião, 1º Aux)">Quais funções foram pagas no lote</TableHead>
-                    <TableHead title="Referência do(s) lote(s) de repasse que originaram este pagamento histórico">Lote(s) de repasse de origem</TableHead>
-                    <TableHead title="Base 100% do convênio registrada NO LOTE HISTÓRICO (procedure_amount) — o que o convênio pagaria pelo procedimento na época do lote">Base convênio no lote (100%, época do repasse)</TableHead>
-                    <TableHead title="Valor efetivamente PAGO ao médico no lote histórico, já com o acordo aplicado (gross_amount) — o que saiu no repasse">Valor pago ao médico no lote (c/ acordo aplicado)</TableHead>
-                    <TableHead className="text-center" title="Quanta quantidade sobrou/faltou: TASY hoje − quantidade paga no lote histórico">Dif. de quantidade (TASY hoje − lote)</TableHead>
-                    <TableHead title="Diferença bruta de valor 100% convênio: TASY hoje − base do lote histórico (sem aplicar acordo)">Dif. valor 100% (TASY hoje − base lote)</TableHead>
-                    <TableHead title="Quanto a regra pagaria HOJE: fator do acordo do lote (pago÷base do lote) × valor total do TASY atual">Valor devido hoje (acordo do lote × TASY hoje)</TableHead>
-                    <TableHead title="Ajuste = Valor pago ao médico no lote − Valor devido hoje. Positivo (verm.): paguei a mais, a recuperar. Negativo (laranja): paguei a menos, a complementar.">Ajuste a fazer (pago no lote − devido hoje)</TableHead>
+                    {regraHead}
+                    {compactCols.map((c) => (
+                      <TableHead key={c.key} title={c.title} className={c.headClassName}>{c.header}</TableHead>
+                    ))}
+                    {acaoHead}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={24} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={totalCols} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
                   )}
                   {visible.map((r) => {
                     const selectable = isActionableTvr(r) && !isLocked;
+                    const acao = describeAcao(r);
+                    const isExpanded = expandedKeys.has(r.key);
+                    const acaoTone =
+                      acao.kind === "recuperar" ? "text-destructive"
+                      : acao.kind === "complementar" ? "text-orange-700"
+                      : acao.kind === "validar" ? "text-amber-700"
+                      : "text-muted-foreground";
                     return (
-                    <TableRow key={r.key} data-state={selectedKeys.has(r.key) ? "selected" : undefined}>
-                      <TableCell className="text-center">
+                    <React.Fragment key={r.key}>
+                    <TableRow data-state={selectedKeys.has(r.key) ? "selected" : undefined}>
+                      <TableCell className="text-center align-top">
+                        <button
+                          type="button"
+                          className="text-[13px] text-muted-foreground hover:text-primary leading-none"
+                          onClick={() => toggleExpanded(r.key)}
+                          aria-label={isExpanded ? "Recolher detalhes" : "Expandir detalhes técnicos"}
+                          aria-expanded={isExpanded}
+                        >
+                          {isExpanded ? "−" : "+"}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-center align-top">
                         {selectable ? (
                           <Checkbox
                             checked={selectedKeys.has(r.key)}
@@ -5397,92 +5512,89 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                           <span className="text-[10px] text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="align-top">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${TVR_STATUS_TONE[r.status]}`}>
                           {TVR_STATUS_LABEL[r.status]}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        {r.tipo_analise === "quantidade" ? (
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-violet-100 text-violet-800"
-                            title="Tabela própria (pacote/valor fixo/tabela diferenciada). TASY não é base de valor — analisamos só quantidade."
-                          >
-                            Quantidade
-                          </span>
-                        ) : (
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-sky-100 text-sky-800"
-                            title="Regra % sobre convênio — TASY e Exacta compartilham a base."
-                          >
-                            Valor
-                          </span>
-                        )}
                         {r.sem_lastro_tasy && (
-                          <span
-                            className="ml-1 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800"
-                            title="Item pago mas ausente no TASY. Em tabela própria (pacote/valor fixo) isso pode ser normal — analista deve validar caso a caso."
-                          >
+                          <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800" title="Item pago mas ausente no TASY. Em tabela própria pode ser normal — validar caso a caso.">
                             sem lastro TASY
-                          </span>
+                          </div>
                         )}
                       </TableCell>
-                      <TableCell>{r.atendimento || "—"}</TableCell>
-                      <TableCell>{r.tuss || "—"}</TableCell>
-                      <TableCell className="max-w-[220px] truncate" title={r.procedimento}>{r.procedimento || "—"}</TableCell>
-                      <TableCell className="max-w-[180px] truncate" title={r.paciente}>{r.paciente || "—"}</TableCell>
-                      <TableCell>{formatTvrDate(r.data)}</TableCell>
-                      <TableCell className="max-w-[140px] truncate" title={r.convenio}>{r.convenio || "—"}</TableCell>
-                      <TableCell className="max-w-[160px] truncate" title={r.medico}>{r.medico || "—"}</TableCell>
-                      <TableCell>{r.funcao || "—"}</TableCell>
-                      <TableCell className="text-center">{r.qtd_tasy || "—"}</TableCell>
-                      <TableCell>{brl(r.valor_unit_tasy)}</TableCell>
-                      <TableCell>{brl(r.valor_total_tasy)}</TableCell>
-                      <TableCell className="text-center">{r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—"}</TableCell>
-                      <TableCell className="text-center">{r.n_funcs || "—"}</TableCell>
-                      <TableCell className="max-w-[160px] truncate" title={r.funcoes_pagas}>{r.funcoes_pagas || "—"}</TableCell>
-                      <TableCell className="max-w-[160px] truncate font-mono text-[11px]" title={r.lotes}>{r.lotes || "—"}</TableCell>
-                      <TableCell>{brl(r.valor_pago_base)}</TableCell>
-                      <TableCell className="text-muted-foreground">{brl(r.valor_com_acordo)}</TableCell>
-                      <TableCell className={cn("text-center", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
-                        {r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}
+                      <TableCell className="align-top max-w-[180px]">
+                        <div className="text-[11px] font-medium truncate" title={r.regra_aplicada}>{r.regra_aplicada || "—"}</div>
+                        <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_aplicado}>{r.calculo_aplicado || ""}</div>
                       </TableCell>
-                      <TableCell className={cn(r.tipo_analise === "valor" && Math.abs(r.dif_valor) > 0.5 && "font-semibold text-red-700", r.tipo_analise === "quantidade" && "text-muted-foreground/60")}>
-                        {r.tipo_analise === "quantidade" ? "n/a" : brl(r.dif_valor)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {r.tipo_analise === "quantidade" ? <span className="text-muted-foreground/60">n/a</span> : brl(r.valor_com_acordo_recalc)}
-                      </TableCell>
+                      {compactCols.map((c) => (
+                        <TableCell key={c.key} className={cn("align-top", c.className)}>{c.cell(r)}</TableCell>
+                      ))}
                       <TableCell
-                        className={cn(
-                          r.ajuste_acordo > 0.5 && "font-semibold text-destructive",
-                          r.ajuste_acordo < -0.5 && "font-semibold text-orange-600",
-                        )}
-                        title={
-                          r.sem_lastro_tasy
-                            ? "Item ausente no TASY em regra de tabela própria — sem cálculo de R$; validar manualmente."
-                            : r.tipo_analise === "quantidade"
-                              ? "Ajuste proporcional pela quantidade faltante no TASY."
-                              : r.ajuste_acordo > 0.5
-                                ? "A recuperar (paguei a mais que o acordo aplicado sobre TASY)"
-                                : r.ajuste_acordo < -0.5
-                                  ? "A complementar (paguei a menos que o acordo aplicado sobre TASY)"
-                                  : undefined
-                        }
+                        className={cn("align-top", acaoTone, (acao.kind === "recuperar" || acao.kind === "complementar") && "font-semibold")}
+                        title={acao.hint}
                       >
-                        {r.sem_lastro_tasy
-                          ? <span className="text-amber-700">— validar</span>
-                          : r.ajuste_acordo > 0.5
-                            ? `↓ ${brl(r.ajuste_acordo)}`
-                            : r.ajuste_acordo < -0.5
-                              ? `↑ ${brl(Math.abs(r.ajuste_acordo))}`
-                              : "—"}
+                        <div className="text-[12px] leading-tight">{acao.label}</div>
+                        <div className="text-[10px] text-muted-foreground font-normal leading-tight mt-0.5">{acao.hint}</div>
                       </TableCell>
                     </TableRow>
+                    {isExpanded && (
+                      <TableRow className="bg-muted/20 hover:bg-muted/20">
+                        <TableCell colSpan={totalCols} className="p-3">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                            <div className="rounded border border-sky-200 bg-sky-50/50 p-2.5">
+                              <div className="text-[10px] uppercase tracking-wider text-sky-800 font-semibold mb-1.5">TASY hoje (100% convênio)</div>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                <span className="text-muted-foreground">Qtd:</span><span className="tabular-nums">{r.qtd_tasy || "—"}</span>
+                                <span className="text-muted-foreground">Vlr unit:</span><span className="tabular-nums">{brl(r.valor_unit_tasy)}</span>
+                                <span className="text-muted-foreground">Vlr total:</span><span className="tabular-nums">{brl(r.valor_total_tasy)}</span>
+                                <span className="text-muted-foreground">Paciente:</span><span className="truncate" title={r.paciente}>{r.paciente || "—"}</span>
+                              </div>
+                            </div>
+                            <div className="rounded border border-indigo-200 bg-indigo-50/50 p-2.5">
+                              <div className="text-[10px] uppercase tracking-wider text-indigo-800 font-semibold mb-1.5">Lote histórico</div>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                <span className="text-muted-foreground">Base convênio:</span><span className="tabular-nums">{brl(r.valor_pago_base)}</span>
+                                <span className="text-muted-foreground">Pago ao médico:</span><span className="tabular-nums">{brl(r.valor_com_acordo)}</span>
+                                <span className="text-muted-foreground">Fator do acordo:</span>
+                                <span className="tabular-nums">{r.valor_pago_base > 0 ? `${((r.valor_com_acordo / r.valor_pago_base) * 100).toFixed(1)}%` : "—"}</span>
+                                <span className="text-muted-foreground">Qtd por função:</span><span className="tabular-nums">{r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—"}</span>
+                                <span className="text-muted-foreground">Nº funções:</span><span className="tabular-nums">{r.n_funcs || "—"}</span>
+                                <span className="text-muted-foreground">Funções pagas:</span><span className="truncate" title={r.funcoes_pagas}>{r.funcoes_pagas || "—"}</span>
+                                <span className="text-muted-foreground">Lote(s) origem:</span><span className="font-mono text-[10px] truncate" title={r.lotes}>{r.lotes || "—"}</span>
+                              </div>
+                            </div>
+                            <div className="rounded border border-emerald-200 bg-emerald-50/50 p-2.5">
+                              <div className="text-[10px] uppercase tracking-wider text-emerald-800 font-semibold mb-1.5">Motor de recálculo</div>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                <span className="text-muted-foreground">Tipo de análise:</span>
+                                <span>{r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)"}</span>
+                                <span className="text-muted-foreground">Dif. qtd (TASY − lote):</span>
+                                <span className={cn("tabular-nums", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>{r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}</span>
+                                <span className="text-muted-foreground">Dif. valor 100%:</span>
+                                <span className={cn("tabular-nums", r.tipo_analise === "quantidade" && "text-muted-foreground/60")}>
+                                  {r.tipo_analise === "quantidade" ? "n/a" : brl(r.dif_valor)}
+                                </span>
+                                <span className="text-muted-foreground">Devido hoje:</span>
+                                <span className={cn("tabular-nums", r.tipo_analise === "quantidade" && "text-muted-foreground/60")}>
+                                  {r.tipo_analise === "quantidade" ? "n/a" : brl(r.valor_com_acordo_recalc)}
+                                </span>
+                                <span className="text-muted-foreground">Ajuste (pago − devido):</span>
+                                <span className={cn("tabular-nums", r.ajuste_acordo > 0.5 && "font-semibold text-destructive", r.ajuste_acordo < -0.5 && "font-semibold text-orange-600")}>
+                                  {r.ajuste_acordo > 0 ? "+" : ""}{brl(r.ajuste_acordo)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </React.Fragment>
                     );
                   })}
                 </TableBody>
               </Table>
+                );
+              })()}
             </div>
           </div>
         </>
