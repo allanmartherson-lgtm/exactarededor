@@ -2251,7 +2251,16 @@ const TVR_SOURCE = "tasy_vs_repasse";
 export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
   const totalComplementar = list.reduce((sum, r) => {
     if (r.status === "ok" || r.status === "ausente_tasy") return sum;
-    if (r.status === "nao_pago") return sum + (r.valor_previsto_regra ?? r.valor_total_tasy);
+    // "Faltou pagar" (nao_pago) só soma quando há previsão de regra
+    // (simulação real ou preview do histórico). Sem previsão, o bruto TASY
+    // é apenas o TETO — não é compromisso e não pode inflar o total, senão
+    // gera falso positivo no card e no handoff. O teto aparece em separado
+    // via `computeTvrComplementarBreakdown().tasyCeiling`.
+    if (r.status === "nao_pago") {
+      return typeof r.valor_previsto_regra === "number"
+        ? sum + r.valor_previsto_regra
+        : sum;
+    }
     if (r.tipo_analise === "quantidade") {
       const ajuste = r.ajuste_acordo ?? 0;
       return ajuste < -0.5 ? sum + Math.abs(ajuste) : sum;
