@@ -48,6 +48,7 @@ const ROUTE_LABELS: Array<{ test: RegExp; label: string }> = [
 
 // rotas onde o Zeev não deve aparecer (auth, portais externos, etc.)
 const HIDDEN_PATTERNS: RegExp[] = [
+  /^\/auth/,
   /^\/\.lovable\//,
   /^\/definir-senha/,
   /^\/reset-password/,
