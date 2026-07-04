@@ -2793,9 +2793,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<Set<TvrStatus>>(new Set());
   const [search, setSearch] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  // Painel bloqueante — quando o motor identifica linhas TASY sem PJ resolvida,
-  // listamos aqui os valores crus da coluna Empresa/PJ + contagem, para o analista
-  // vincular direto sem reabrir o wizard.
+  // Painel informativo — linhas TASY sem PJ resolvida ficam fora do escopo do lote,
+  // mas o analista ainda pode vincular manualmente quando quiser incluí-las.
   const [unresolvedPjPanel, setUnresolvedPjPanel] = useState<
     Array<{ raw: string; count: number; missing: boolean }>
   >([]);
@@ -3407,7 +3406,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       let tasyMissingCompany = 0;
       let tasyUnresolvedCompany = 0;
       // Amostragem por valor cru da coluna Empresa/PJ — alimenta o painel de
-      // mapeamento inline quando o motor bloqueia por escopo inseguro.
+      // mapeamento inline sem bloquear o processamento do lote.
       const unresolvedByRaw = new Map<string, { count: number; missing: boolean }>();
       for (const r of tasyRows) {
         const ymd = dbDateOrNull(r.tasy_data);
@@ -3468,7 +3467,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
 
 
-      if (effectiveTasyRows.length === 0) {
+      if (effectiveTasyRows.length === 0 && companyTasyRemoved === 0) {
         toast({
           title: "Nenhuma linha TASY dentro do escopo",
           description: "Revise o período selecionado e a coluna de data da planilha antes de processar.",
@@ -4633,16 +4632,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </details>
 
-      {/* Painel bloqueante — PJs TASY sem vínculo no cadastro estadual */}
+      {/* Painel informativo — PJs TASY sem vínculo no cadastro estadual */}
       {unresolvedPjPanel.length > 0 && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div>
-              <div className="text-sm font-medium text-destructive">
-                PJs TASY não vinculadas ({unresolvedPjPanel.reduce((s, x) => s + x.count, 0)} linha(s) bloqueadas)
+              <div className="text-sm font-medium text-amber-900">
+                PJs TASY fora do lote ({unresolvedPjPanel.reduce((s, x) => s + x.count, 0)} linha(s) ignoradas)
               </div>
-              <div className="text-[11px] text-muted-foreground">
-                Vincule cada valor cru da coluna Empresa/PJ da planilha a uma PJ do cadastro. O vínculo é aprendido como apelido — nas próximas importações resolve automaticamente.
+              <div className="text-[11px] text-amber-900/80">
+                Essas linhas não entram no cruzamento nem travam o processamento. Vincule apenas se alguma delas realmente pertencer ao lote atual.
               </div>
             </div>
             <div className="flex items-center gap-2">
