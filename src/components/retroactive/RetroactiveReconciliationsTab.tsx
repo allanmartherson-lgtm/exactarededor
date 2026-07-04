@@ -4911,7 +4911,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   React.useEffect(() => {
     if (!results) return;
     const pending = results.filter(
-      (r) => r.status === "nao_pago" && (!r.pj_provavel || !r.regra_prevista),
+      (r) =>
+        r.status === "nao_pago" &&
+        !r.previsto_source && // fase 3 marca simulacao/sem_regra → evita loop infinito
+        (!r.pj_provavel || !r.regra_prevista),
     );
     if (pending.length === 0) return;
     let cancelled = false;
