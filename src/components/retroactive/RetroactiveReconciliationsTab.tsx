@@ -5046,9 +5046,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const isSplit = scope === "split";
     const listValor = isSplit ? list.filter((r) => r.tipo_analise === "valor") : [];
     const listPresenca = isSplit ? list.filter((r) => r.tipo_analise === "quantidade") : [];
+    // Fix C — no split, SEMPRE geramos as duas abas (mesmo que uma esteja
+    // vazia), para o analista enxergar que a categoria não tem itens em vez
+    // de achar que o export bugou. Placeholder = header + linha vazia.
+    const buildEmptyPlaceholder = (label: string) => {
+      const groupRow = EXPORT_COLS.map((c) => c.group);
+      const headerRow = EXPORT_COLS.map((c) => c.header);
+      const emptyRow: (string | number)[] = [
+        `Sem itens de "${label}" com os filtros atuais.`,
+        ...EXPORT_COLS.slice(1).map(() => ""),
+      ];
+      const aoa: (string | number)[][] = [groupRow, headerRow, emptyRow];
+      return XLSXStyle.utils.aoa_to_sheet(aoa);
+    };
     const ws = isSplit ? null : buildDataSheet(list);
-    const wsValor = isSplit && listValor.length > 0 ? buildDataSheet(listValor) : null;
-    const wsPresenca = isSplit && listPresenca.length > 0 ? buildDataSheet(listPresenca) : null;
+    const wsValor = isSplit ? (listValor.length > 0 ? buildDataSheet(listValor) : buildEmptyPlaceholder("Por valor")) : null;
+    const wsPresenca = isSplit ? (listPresenca.length > 0 ? buildDataSheet(listPresenca) : buildEmptyPlaceholder("Por presença")) : null;
 
 
     // ============================================================
