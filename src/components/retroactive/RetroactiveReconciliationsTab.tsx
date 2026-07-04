@@ -5928,7 +5928,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <DropdownMenuItem onClick={() => void exportData("xlsx", "visible")}>Excel (.xlsx)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("csv", "visible")}>CSV (;)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("json", "visible")}>JSON</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Filtrado — 2 abas</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void exportData("xlsx", "split")}>
+                Excel (.xlsx) — Por valor + Por presença
+              </DropdownMenuItem>
             </DropdownMenuContent>
+
           </DropdownMenu>
         )}
         {results && !isLocked && (
