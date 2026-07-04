@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import ForceChangePassword from "./pages/ForceChangePassword.tsx";
+import OAuthConsent from "./pages/OAuthConsent.tsx";
 
 // Lazy loaded feature pages — importers ficam guardados em constantes
 // para podermos dispará-los como prefetch em idle (ver IdlePrefetcher abaixo).
