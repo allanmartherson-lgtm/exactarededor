@@ -4224,8 +4224,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // monetárias para o formato "R$ 1.234,56" caber sem estourar.
     const widths: Array<{ wch: number }> = EXPORT_COLS.map((c) => {
       const h = c.header.toLowerCase();
+      // UUIDs têm 36 chars — reserva largura para não quebrar na leitura.
+      if (h.startsWith("id ") || h.includes("chave canônica")) return { wch: 38 };
       if (h.includes("procedimento") || h.includes("paciente") || h.includes("quais")) return { wch: 34 };
       if (h.includes("médico") || h.includes("pj") || h.includes("regra") || h.includes("motivo") || h.includes("linha do")) return { wch: 28 };
+
       if (h.includes("convênio") || h.includes("lote")) return { wch: 22 };
       if (numFmtFor(c.header)) return { wch: 18 };
       if (h.includes("data") || h.includes("função") || h.includes("status") || h.includes("tipo")) return { wch: 15 };
