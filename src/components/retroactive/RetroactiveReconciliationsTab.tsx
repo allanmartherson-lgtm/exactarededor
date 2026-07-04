@@ -4722,7 +4722,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (ws[gAddr]) {
           (ws[gAddr] as { s?: unknown }).s = {
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
-            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+            font: { bold: true, color: { rgb: HEADER_TEXT }, sz: 11 },
             fill: { patternType: "solid", fgColor: { rgb: palette.header } },
             border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
           };
@@ -4731,12 +4731,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (ws[hAddr]) {
           (ws[hAddr] as { s?: unknown }).s = {
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
-            font: { bold: true, color: { rgb: palette.header }, sz: 10 },
+            font: { bold: true, color: { rgb: HEADER_TEXT }, sz: 10 },
             fill: { patternType: "solid", fgColor: { rgb: palette.sub } },
             border: {
               top: thinBorder,
-              bottom: { style: "medium", color: { rgb: palette.header } },
-              left: isGroupStart ? { style: "medium", color: { rgb: palette.header } } : thinBorder,
+              bottom: { style: "thin", color: { rgb: BORDER_SOFT } },
+              left: isGroupStart ? { style: "thin", color: { rgb: BORDER_SOFT } } : thinBorder,
               right: thinBorder,
             },
           };
@@ -4751,9 +4751,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             font: { sz: 10, color: { rgb: "1E293B" } },
             fill: { patternType: "solid", fgColor: { rgb: zebra } },
             border: {
-              top: { style: "hair", color: { rgb: "E2E8F0" } },
-              bottom: { style: "hair", color: { rgb: "E2E8F0" } },
-              left: isGroupStart ? { style: "thin", color: { rgb: palette.header } } : { style: "hair", color: { rgb: "F1F5F9" } },
+              top: { style: "hair", color: { rgb: "EEF2F6" } },
+              bottom: { style: "hair", color: { rgb: "EEF2F6" } },
+              left: isGroupStart ? { style: "thin", color: { rgb: BORDER_SOFT } } : { style: "hair", color: { rgb: "F1F5F9" } },
               right: { style: "hair", color: { rgb: "F1F5F9" } },
             },
           };
