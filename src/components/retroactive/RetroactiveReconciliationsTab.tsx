@@ -4137,16 +4137,55 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
 
-    // XLSX: monta AoA com 2 linhas de cabeçalho + merge por grupo.
-    // Isso resolve a leitura ruim que o prefixo "Grupo · Nome" causava
-    // (nome de coluna gigante, difícil de bater o olho).
+    // ============================================================
+    // XLSX com estilos reais (xlsx-js-style). Ganhos de leitura:
+    //  · linha 1 = título do grupo com fundo colorido por natureza
+    //  · linha 2 = cabeçalho da coluna, negrito, mesmo tom mais claro
+    //  · corpo   = número formatado (R$ / qtd), bordas suaves entre grupos
+    //  · freeze de 2 linhas + 2 colunas para bater o olho sem perder o contexto
+    // A biblioteca community `xlsx` ignora a chave `s` no writeFile, por isso
+    // trocamos para `xlsx-js-style` (fork com mesma API que preserva estilo).
+    // ============================================================
+    const XLSXStyle = await import("xlsx-js-style");
+
+    // Paleta por grupo — tons pastel legíveis e alinhados à leitura visual da UI.
+    // Header (linha 1) = tom mais forte; sub-header (linha 2) = tom claro.
+    const GROUP_STYLE: Record<string, { header: string; sub: string; band: string }> = {
+      "Item":                                       { header: "1F2937", sub: "E5E7EB", band: "F8FAFC" },
+      "Contexto":                                   { header: "1D4ED8", sub: "DBEAFE", band: "F5F9FF" },
+      "TASY hoje (100% convênio)":                  { header: "B45309", sub: "FEF3C7", band: "FFFBEB" },
+      "Lote histórico":                             { header: "6D28D9", sub: "EDE9FE", band: "F8F5FF" },
+      "Diferenças brutas (TASY hoje − lote)":       { header: "9F1239", sub: "FFE4E6", band: "FFF5F6" },
+      "Devido hoje (acordo × TASY hoje)":           { header: "047857", sub: "D1FAE5", band: "F3FBF7" },
+      "Ajuste (pago no lote − devido hoje)":        { header: "C2410C", sub: "FED7AA", band: "FFF6EE" },
+      "Ação sugerida":                              { header: "4338CA", sub: "E0E7FF", band: "F5F6FF" },
+      "Rastreio":                                   { header: "334155", sub: "F1F5F9", band: "F8FAFC" },
+    };
+    const fallbackStyle = { header: "334155", sub: "F1F5F9", band: "FFFFFF" };
+
+    // Formato numérico por header. R$ em contabilidade, quantidade com 4 casas
+    // quando é fracionada. Zero vira "—" para não poluir a leitura.
+    const MONEY_FMT = '_-"R$" * #,##0.00_-;[Red]-"R$" * #,##0.00_-;_-"R$" * "—"_-;_-@_-';
+    const QTY_FMT = '0.####;-0.####;"—"';
+    const numFmtFor = (header: string): string | null => {
+      const h = header.toLowerCase();
+      if (h.includes("qtd") || h.startsWith("dif. quant") || h.includes("nº")) return QTY_FMT;
+      if (
+        h.startsWith("vlr") || h.startsWith("valor") || h.startsWith("base") ||
+        h.startsWith("pago") || h.startsWith("dif. valor") || h.startsWith("ajuste") ||
+        h.startsWith("a recuperar") || h.startsWith("a complementar")
+      ) return MONEY_FMT;
+      return null;
+    };
+
+    // AoA: linha 0 = grupo, linha 1 = header, restante = dados.
     const groupRow = EXPORT_COLS.map((c) => c.group);
     const headerRow = EXPORT_COLS.map((c) => c.header);
     const dataRows = list.map((r) => EXPORT_COLS.map((c) => c.get(r)));
     const aoa: (string | number)[][] = [groupRow, headerRow, ...dataRows];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const ws = XLSXStyle.utils.aoa_to_sheet(aoa);
 
-    // Merges dos rótulos de grupo (linha 0): junta colunas consecutivas com o mesmo grupo.
+    // Merges dos rótulos de grupo (linha 0).
     const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = [];
     let groupStart = 0;
     for (let i = 1; i <= EXPORT_COLS.length; i++) {
@@ -4162,33 +4201,96 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     (ws as unknown as { "!freeze"?: unknown })["!freeze"] = { xSplit: 2, ySplit: 2 };
     (ws as unknown as { "!views"?: unknown[] })["!views"] = [{ state: "frozen", xSplit: 2, ySplit: 2, topLeftCell: "C3", activePane: "bottomRight" }];
 
-    // Larguras: tenta acomodar conteúdo sem cortar. Heurística por tipo de coluna.
+    // Larguras: mantém heurística por tipo, mas com mínimos maiores em colunas
+    // monetárias para o formato "R$ 1.234,56" caber sem estourar.
     const widths: Array<{ wch: number }> = EXPORT_COLS.map((c) => {
       const h = c.header.toLowerCase();
-      if (h.includes("procedimento") || h.includes("paciente") || h.includes("quais")) return { wch: 32 };
-      if (h.includes("médico") || h.includes("pj") || h.includes("regra") || h.includes("motivo") || h.includes("linha do")) return { wch: 26 };
-      if (h.includes("convênio") || h.includes("lote")) return { wch: 20 };
-      if (h.includes("data") || h.includes("função") || h.includes("status") || h.includes("tipo")) return { wch: 14 };
-      if (h.includes("qtd") || h.includes("nº")) return { wch: 10 };
-      return { wch: 18 };
+      if (h.includes("procedimento") || h.includes("paciente") || h.includes("quais")) return { wch: 34 };
+      if (h.includes("médico") || h.includes("pj") || h.includes("regra") || h.includes("motivo") || h.includes("linha do")) return { wch: 28 };
+      if (h.includes("convênio") || h.includes("lote")) return { wch: 22 };
+      if (numFmtFor(c.header)) return { wch: 18 };
+      if (h.includes("data") || h.includes("função") || h.includes("status") || h.includes("tipo")) return { wch: 15 };
+      if (h.includes("qtd") || h.includes("nº")) return { wch: 11 };
+      return { wch: 20 };
     });
     (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = widths;
 
-    // Estilo básico: negrito na linha 1 (grupos) e 2 (cabeçalhos), com fundo cinza claro.
-    // Nota: xlsx (Community) não escreve estilo por padrão; usamos as chaves compatíveis
-    // — planilhas abertas no Excel/LibreOffice mostram o texto/merge corretamente
-    // mesmo sem tema. Alinhamento central pra rótulos de grupo é o que mais importa.
+    // Alturas: linha de grupo maior, cabeçalho um pouco maior que o padrão.
+    (ws as unknown as { "!rows"?: Array<{ hpt: number }> })["!rows"] = [
+      { hpt: 26 }, { hpt: 22 },
+    ];
+
+    // Aplica estilo célula-a-célula.
+    const totalRows = aoa.length;
+    const thinBorder = { style: "thin", color: { rgb: "E2E8F0" } };
     for (let c = 0; c < EXPORT_COLS.length; c++) {
-      const g = XLSX.utils.encode_cell({ r: 0, c });
-      const h = XLSX.utils.encode_cell({ r: 1, c });
-      if (ws[g]) (ws[g] as { s?: unknown }).s = { alignment: { horizontal: "center", vertical: "center", wrapText: true }, font: { bold: true } };
-      if (ws[h]) (ws[h] as { s?: unknown }).s = { alignment: { horizontal: "center", vertical: "center", wrapText: true }, font: { bold: true } };
+      const col = EXPORT_COLS[c];
+      const palette = GROUP_STYLE[col.group] ?? fallbackStyle;
+      const prevGroup = c > 0 ? EXPORT_COLS[c - 1].group : null;
+      const isGroupStart = prevGroup !== col.group;
+      const fmt = numFmtFor(col.header);
+
+      // Linha 0 — título do grupo (fundo forte, texto branco)
+      const gAddr = XLSXStyle.utils.encode_cell({ r: 0, c });
+      if (ws[gAddr]) {
+        (ws[gAddr] as { s?: unknown }).s = {
+          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+          font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+          fill: { patternType: "solid", fgColor: { rgb: palette.header } },
+          border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+        };
+      }
+
+      // Linha 1 — cabeçalho da coluna (fundo pastel do grupo, texto escuro)
+      const hAddr = XLSXStyle.utils.encode_cell({ r: 1, c });
+      if (ws[hAddr]) {
+        (ws[hAddr] as { s?: unknown }).s = {
+          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+          font: { bold: true, color: { rgb: palette.header }, sz: 10 },
+          fill: { patternType: "solid", fgColor: { rgb: palette.sub } },
+          border: {
+            top: thinBorder,
+            bottom: { style: "medium", color: { rgb: palette.header } },
+            left: isGroupStart ? { style: "medium", color: { rgb: palette.header } } : thinBorder,
+            right: thinBorder,
+          },
+        };
+      }
+
+      // Corpo — número formatado, alinhamento por tipo, bordas suaves
+      for (let r = 2; r < totalRows; r++) {
+        const addr = XLSXStyle.utils.encode_cell({ r, c });
+        const cell = ws[addr];
+        if (!cell) continue;
+        const zebra = r % 2 === 0 ? "FFFFFF" : palette.band;
+        (cell as { s?: unknown; z?: string; t?: string }).s = {
+          alignment: {
+            horizontal: fmt ? "right" : (c <= 1 ? "left" : "left"),
+            vertical: "center",
+            wrapText: false,
+          },
+          font: { sz: 10, color: { rgb: "1E293B" } },
+          fill: { patternType: "solid", fgColor: { rgb: zebra } },
+          border: {
+            top: { style: "hair", color: { rgb: "E2E8F0" } },
+            bottom: { style: "hair", color: { rgb: "E2E8F0" } },
+            left: isGroupStart ? { style: "thin", color: { rgb: palette.header } } : { style: "hair", color: { rgb: "F1F5F9" } },
+            right: { style: "hair", color: { rgb: "F1F5F9" } },
+          },
+        };
+        if (fmt) {
+          (cell as { z?: string }).z = fmt;
+          // Garante que valores numéricos permaneçam como number no arquivo.
+          if (typeof cell.v === "number") (cell as { t: string }).t = "n";
+        }
+      }
     }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
-    XLSX.writeFile(wb, `${baseName}.xlsx`);
+    const wb = XLSXStyle.utils.book_new();
+    XLSXStyle.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
+    XLSXStyle.writeFile(wb, `${baseName}.xlsx`);
   };
+
 
   const persistResults = async (
     list: TvrResult[],
