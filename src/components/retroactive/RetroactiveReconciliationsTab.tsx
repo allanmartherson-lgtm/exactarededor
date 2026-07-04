@@ -3983,18 +3983,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return c;
   }, [results]);
 
-  const visible = useMemo(() => {
+  // Aplica os mesmos filtros de status/busca/apenas com pagamento, opcionalmente
+  // ignorando o filtro por tipo de análise (usado no export "duas abas").
+  const applyVisibleFilters = (rows: TvrResult[], opts?: { ignoreAnalysisTab?: boolean }) => {
     const hasFilter = statusFilter.size > 0;
     const showOk = statusFilter.has("ok");
     const q = search.trim().toLowerCase();
-    return (results ?? []).filter((r) => {
-      // Usa SEMPRE o status rederivado em memória — em "presença" o status
-      // original salvo pode ter vindo do R$, mas o filtro/contagem/ação seguem
-      // presença/quantidade.
+    return rows.filter((r) => {
       const eff = effectiveTvrStatus(r);
       if (eff === "ok" && !showOk) return false;
-
-      if (r.tipo_analise !== analysisTab) return false;
+      if (!opts?.ignoreAnalysisTab && r.tipo_analise !== analysisTab) return false;
       if (hasFilter && !statusFilter.has(eff)) return false;
       if (onlyWithPayment && eff === "nao_pago") return false;
       if (q) {
@@ -4003,6 +4001,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
       return true;
     });
+  };
+
+  const visible = useMemo(
+    () => applyVisibleFilters(results ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [results, statusFilter, search, onlyWithPayment, analysisTab],
+  );
+
   }, [results, statusFilter, search, onlyWithPayment, analysisTab]);
 
 
