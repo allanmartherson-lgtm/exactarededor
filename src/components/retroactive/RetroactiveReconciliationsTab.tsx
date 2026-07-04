@@ -4148,10 +4148,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .eq("source", TVR_SOURCE);
 
     if (rows.length > 0) {
-      const { error: insertError } = await supabase
-        .from("retroactive_reconciliation_items" as never)
-        .insert(rows as never);
-      if (insertError) throw insertError;
+      // Insere em lotes para evitar "canceling statement due to statement timeout"
+      // do Postgres quando o volume de linhas + payload JSON (raw) é grande.
+      const BATCH = 300;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const chunk = rows.slice(i, i + BATCH);
+        const { error: insertError } = await supabase
+          .from("retroactive_reconciliation_items" as never)
+          .insert(chunk as never);
+        if (insertError) throw insertError;
+      }
     }
 
     const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
