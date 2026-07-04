@@ -3986,12 +3986,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const visible = useMemo(() => {
     const hasFilter = statusFilter.size > 0;
     const showOk = statusFilter.has("ok");
-    const list = (results ?? []).filter((r) => r.status !== "ok" || showOk);
     const q = search.trim().toLowerCase();
-    return list.filter((r) => {
+    return (results ?? []).filter((r) => {
+      // Usa SEMPRE o status rederivado em memória — em "presença" o status
+      // original salvo pode ter vindo do R$, mas o filtro/contagem/ação seguem
+      // presença/quantidade.
+      const eff = effectiveTvrStatus(r);
+      if (eff !== "ok" && false) return false; // no-op, keep readable
+      if (eff === "ok" && !showOk) return false;
       if (r.tipo_analise !== analysisTab) return false;
-      if (hasFilter && !statusFilter.has(r.status)) return false;
-      if (onlyWithPayment && r.status === "nao_pago") return false;
+      if (hasFilter && !statusFilter.has(eff)) return false;
+      if (onlyWithPayment && eff === "nao_pago") return false;
       if (q) {
         const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -3999,6 +4004,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return true;
     });
   }, [results, statusFilter, search, onlyWithPayment, analysisTab]);
+
 
   useEffect(() => {
     if (!results) return;
