@@ -4634,13 +4634,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
       {/* Painel informativo — PJs TASY sem vínculo no cadastro estadual */}
       {unresolvedPjPanel.length > 0 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+        <div className="rounded-md border bg-muted/40 p-3 space-y-2">
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div>
-              <div className="text-sm font-medium text-amber-900">
+              <div className="text-sm font-medium text-foreground">
                 PJs TASY fora do lote ({unresolvedPjPanel.reduce((s, x) => s + x.count, 0)} linha(s) ignoradas)
               </div>
-              <div className="text-[11px] text-amber-900/80">
+              <div className="text-[11px] text-muted-foreground">
                 Essas linhas não entram no cruzamento nem travam o processamento. Vincule apenas se alguma delas realmente pertencer ao lote atual.
               </div>
             </div>
