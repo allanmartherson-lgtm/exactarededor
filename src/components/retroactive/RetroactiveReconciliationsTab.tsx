@@ -3517,7 +3517,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           description: "Revise o período selecionado e a coluna de data da planilha antes de processar.",
           variant: "destructive",
         });
-        setProcessing(false);
+        setProcessing(false); setProcProgress(null);
         return;
       }
 
@@ -3617,7 +3617,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           description: `TASY soma ${brl(scaleAudit.tasyTotal)} contra ${brl(scaleAudit.pagTotal)} no lote/período. Há ${scaleAudit.suspiciousIntegerCount} valores inteiros muito altos; revise/reimporte a coluna Valor antes de processar.`,
           variant: "destructive",
         });
-        setProcessing(false);
+        setProcessing(false); setProcProgress(null);
         return;
       }
 
@@ -3876,7 +3876,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             : JSON.stringify(e);
         toast({ title: "Erro ao salvar resultado", description: msg, variant: "destructive" });
       } finally {
-        setProcessing(false);
+        setProcessing(false); setProcProgress(null);
         setProcProgress(null);
       }
     }, 50);
