@@ -732,7 +732,24 @@ export default function CompanyAnalysis() {
     setBusy(false);
     if (error) return toast.error("Erro ao acatar", { description: error.message });
     const res = data as { ok: boolean; error?: string; gross_novo?: number } | null;
-    if (!res?.ok) return toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
+    if (!res?.ok) {
+      // Caso especial: RPC diz que o item JÁ está acatado — significa que a UI
+      // está desatualizada (ex.: acate aplicado em outra aba ou realtime perdido).
+      // Em vez de mostrar erro que confunde o analista, sincronizamos o estado
+      // local e recarregamos do banco para refletir a verdade do backend.
+      const alreadyAcatado = typeof res?.error === "string" && /status\s+['"]?acatado/i.test(res.error);
+      if (alreadyAcatado) {
+        setItems((prev) => prev.map((row) => row.id !== it.id ? row : ({
+          ...row,
+          ai_status: "acatado" as any,
+        } as any)));
+        toast.info("Item já estava acatado", { description: "UI sincronizada com o banco." });
+        await load();
+        await composition.refresh();
+        return;
+      }
+      return toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
+    }
     // Otimismo local: reflete gross/expected/status na UI imediatamente sem
     // depender do realtime (debounce longo pode atrasar o refresh e o usuário
     // percebe como "esperado não atualizou após aceite").
