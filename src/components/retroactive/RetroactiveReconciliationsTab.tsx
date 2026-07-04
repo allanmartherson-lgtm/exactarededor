@@ -4216,10 +4216,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     });
     (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = widths;
 
-    // Alturas: linha de grupo maior, cabeçalho um pouco maior que o padrão.
-    (ws as unknown as { "!rows"?: Array<{ hpt: number }> })["!rows"] = [
-      { hpt: 26 }, { hpt: 22 },
+    // Altura: fixamos só a linha de grupo (curta e uniforme). Para a linha de
+    // cabeçalho de coluna e para o corpo, deixamos sem `hpt` — assim o Excel/
+    // LibreOffice calcula a altura automaticamente para acomodar wrapText.
+    (ws as unknown as { "!rows"?: Array<{ hpt?: number }> })["!rows"] = [
+      { hpt: 26 },
     ];
+
 
     // Aplica estilo célula-a-célula.
     const totalRows = aoa.length;
@@ -4266,10 +4269,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const zebra = r % 2 === 0 ? "FFFFFF" : palette.band;
         (cell as { s?: unknown; z?: string; t?: string }).s = {
           alignment: {
-            horizontal: fmt ? "right" : (c <= 1 ? "left" : "left"),
-            vertical: "center",
-            wrapText: false,
+            horizontal: fmt ? "right" : "left",
+            vertical: "top",
+            // Quebra de linha ligada + altura da linha não fixada = Excel/LibreOffice
+            // ajustam a altura automaticamente para caber todo o conteúdo.
+            wrapText: true,
           },
+
           font: { sz: 10, color: { rgb: "1E293B" } },
           fill: { patternType: "solid", fgColor: { rgb: zebra } },
           border: {
