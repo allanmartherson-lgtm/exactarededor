@@ -4624,6 +4624,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       "ID da PJ (company_id)": "UUID da empresa vinculada ao item no lote histórico (tabela companies).",
       "ID do médico (doctor_id)": "UUID do médico do procedimento (tabela doctors).",
       "Chave canônica": "Chave interna que o motor usa para cruzar TASY × Exacta (Atend + Data + TUSS8 + Médico normalizado).",
+      "PJ provável (Faltou pagar)": "Empresa sugerida para itens que nunca foram pagos — usa o vínculo ativo do médico em doctor_companies (regra: 1 PJ ativa por médico por hospital). Vazio quando o médico tem múltiplas PJs ativas (ambíguo).",
+      "ID PJ provável": "UUID da PJ provável (tabela companies).",
+      "Regra prevista (Faltou pagar)": "Regra sugerida para itens sem pagamento — última regra já aplicada para este médico + procedure_code neste hospital. Heurística, não invoca o motor de cálculo.",
+      "ID regra prevista": "UUID da regra prevista (tabela rules).",
+      "Cálculo previsto": "Linha de cálculo (label #ordem) associada à regra prevista.",
+      "ID cálculo previsto": "UUID da linha de cálculo prevista (tabela rule_calculations).",
+
 
     };
 
