@@ -28,7 +28,7 @@ import { ArrowRight, Info, Sparkles, TrendingDown, TrendingUp, Scale } from "luc
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, statusLabel, type PaymentStatus } from "@/lib/status";
+import { formatCurrency, PAYMENT_STATUS_LABELS, type PaymentStatus } from "@/lib/status";
 import { impactTone } from "@/lib/interventionSavings";
 import {
   Tooltip,
@@ -256,7 +256,7 @@ export default function InterventionPreviewSection() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-[10px] font-normal">
-                            {statusLabel(row.status as PaymentStatus)}
+                            {PAYMENT_STATUS_LABELS[row.status as PaymentStatus] ?? row.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">
