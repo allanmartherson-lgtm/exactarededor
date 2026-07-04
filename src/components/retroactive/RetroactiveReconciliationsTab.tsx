@@ -3854,7 +3854,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
 
       try {
-        await persistResults(out);
+        // Etapa 3: persistência em lotes — progresso vem do callback do persistResults.
+        setProcProgress({ step: "salvando", current: 0, total: out.length });
+        await persistResults(out, (saved, total) => {
+          setProcProgress({ step: "salvando", current: saved, total });
+        });
         setResults(out);
         setConvenioFilterStats(excludedConvSet.size > 0 ? { tasyRemoved: convTasyRemoved, pagRemoved: convPagRemoved } : null);
         setSelectedKeys(new Set());
@@ -3873,6 +3877,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         toast({ title: "Erro ao salvar resultado", description: msg, variant: "destructive" });
       } finally {
         setProcessing(false);
+        setProcProgress(null);
       }
     }, 50);
   };
