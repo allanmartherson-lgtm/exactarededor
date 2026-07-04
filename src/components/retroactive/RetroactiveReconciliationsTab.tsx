@@ -4670,7 +4670,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       "Status": "Situação do item na conciliação: OK, faltou pagar, pago a mais, pago a menos, sem lastro etc.",
       "Tipo de análise": "Natureza da regra do acordo — determina se comparamos em R$ ou por presença/quantidade.",
       "Sem lastro TASY": "Marcado quando o item foi pago no lote mas hoje não existe mais na base TASY.",
-      "PJ": "Empresa (pessoa jurídica) para a qual o pagamento do médico foi direcionado no lote histórico.",
+      "PJ": "Empresa (pessoa jurídica) para a qual o pagamento do médico foi direcionado no lote histórico. Em itens 'Faltou pagar' mostra a PJ provável com prefixo '[prev.]' (equivalente ao badge amarelo da tela).",
       "Médico": "Nome do médico responsável pelo procedimento.",
       "Atendimento": "Número do atendimento no TASY (chave principal de vínculo entre TASY e Exacta).",
       "Cód. TUSS": "Código TUSS de 8 dígitos do procedimento.",
