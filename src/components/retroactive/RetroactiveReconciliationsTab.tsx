@@ -4639,18 +4639,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
     // Paleta por grupo — tons pastel legíveis e alinhados à leitura visual da UI.
     // Header (linha 1) = tom mais forte; sub-header (linha 2) = tom claro.
+    // Paleta suave: headers em tons pastel legíveis, texto escuro. Evita saturação forte.
     const GROUP_STYLE: Record<string, { header: string; sub: string; band: string }> = {
-      "Item":                                       { header: "1F2937", sub: "E5E7EB", band: "F8FAFC" },
-      "Contexto":                                   { header: "1D4ED8", sub: "DBEAFE", band: "F5F9FF" },
-      "TASY hoje (100% convênio)":                  { header: "B45309", sub: "FEF3C7", band: "FFFBEB" },
-      "Lote histórico":                             { header: "6D28D9", sub: "EDE9FE", band: "F8F5FF" },
-      "Diferenças brutas (TASY hoje − lote)":       { header: "9F1239", sub: "FFE4E6", band: "FFF5F6" },
-      "Devido hoje (acordo × TASY hoje)":           { header: "047857", sub: "D1FAE5", band: "F3FBF7" },
-      "Ajuste (pago no lote − devido hoje)":        { header: "C2410C", sub: "FED7AA", band: "FFF6EE" },
-      "Ação sugerida":                              { header: "4338CA", sub: "E0E7FF", band: "F5F6FF" },
-      "Rastreio":                                   { header: "334155", sub: "F1F5F9", band: "F8FAFC" },
+      "Item":                                       { header: "E2E8F0", sub: "F1F5F9", band: "FAFBFC" },
+      "Contexto":                                   { header: "DBEAFE", sub: "EFF6FF", band: "F8FBFF" },
+      "TASY hoje (100% convênio)":                  { header: "FEF3C7", sub: "FEFCE8", band: "FFFDF5" },
+      "Lote histórico":                             { header: "EDE9FE", sub: "F5F3FF", band: "FBFAFF" },
+      "Diferenças brutas (TASY hoje − lote)":       { header: "FFE4E6", sub: "FFF1F2", band: "FFF8F9" },
+      "Devido hoje (acordo × TASY hoje)":           { header: "D1FAE5", sub: "ECFDF5", band: "F6FDFA" },
+      "Ajuste (pago no lote − devido hoje)":        { header: "FED7AA", sub: "FFEDD5", band: "FFF7EC" },
+      "Ação sugerida":                              { header: "E0E7FF", sub: "EEF2FF", band: "F5F7FF" },
+      "Rastreio":                                   { header: "E2E8F0", sub: "F1F5F9", band: "F8FAFC" },
     };
-    const fallbackStyle = { header: "334155", sub: "F1F5F9", band: "FFFFFF" };
+    const fallbackStyle = { header: "E2E8F0", sub: "F1F5F9", band: "FFFFFF" };
+    // Texto escuro para todos os headers (sem branco sobre cor saturada).
+    const HEADER_TEXT = "334155";
+    const BORDER_SOFT = "CBD5E1";
 
     // Formato numérico por header. R$ em contabilidade, quantidade com 4 casas
     // quando é fracionada. Zero vira "—" para não poluir a leitura.
