@@ -508,7 +508,8 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
                     {format(parseYmdLocal(r.period_start), "dd/MM/yy")} → {format(parseYmdLocal(r.period_end), "dd/MM/yy")}
                   </TableCell>
                   <TableCell>{r.summary?.total ?? 0}</TableCell>
-                  <TableCell className="font-semibold">{brl(r.summary?.total_gap)}</TableCell>
+                  <TableCell className="font-semibold text-warning">{brl(r.summary?.total_gap)}</TableCell>
+                  <TableCell className="font-semibold text-destructive">{brl(r.summary?.total_excess)}</TableCell>
                   <TableCell>
                     <Badge variant={r.status === "concluida" ? "outline" : "default"}>
                       {r.status === "concluida" ? "Concluída" : r.status === "cancelada" ? "Cancelada" : "Em análise"}
