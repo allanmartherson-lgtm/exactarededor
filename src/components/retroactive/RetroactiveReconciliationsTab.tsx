@@ -6592,12 +6592,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
           {(() => {
-            const { totalRetirar } = computeTvrFinancialTotals(results);
-            const { totalComplementarAcordo, totalRetirarAcordo } = computeTvrAgreementTotals(results);
-            const bd = computeTvrComplementarBreakdown(results);
-            const naoPagoPendente = bd.naoPagoTotal - bd.naoPagoSimulated;
-            const coveragePct = Math.round(bd.coverage * 100);
-            const lowCoverage = bd.naoPagoTotal > 0 && bd.coverage < 0.8;
+            // FONTE ÚNICA: computeTvrHeadlineTotals é a única função autorizada
+            // a produzir os números "a complementar" e "a retirar". O modal
+            // "Encaminhar apuração" recebe o MESMO objeto via prop —
+            // impossível divergir por reimplementação inline.
+            const headline = computeTvrHeadlineTotals(results);
+            const naoPagoPendente = headline.naoPagoTotal - headline.naoPagoSimulated;
+            const coveragePct = Math.round(headline.coverage * 100);
+            const lowCoverage = headline.naoPagoTotal > 0 && headline.coverage < 0.8;
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div
@@ -6617,7 +6619,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
                       Total a complementar
                     </div>
-                    {bd.naoPagoTotal > 0 && (
+                    {headline.naoPagoTotal > 0 && (
                       <span
                         className={cn(
                           "text-[10px] font-semibold px-1.5 py-0.5 rounded",
@@ -6627,24 +6629,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         )}
                         title="Itens 'Faltou pagar' com valor previsto pelo motor / histórico"
                       >
-                        {bd.naoPagoSimulated}/{bd.naoPagoTotal} simulados
+                        {headline.naoPagoSimulated}/{headline.naoPagoTotal} simulados
                       </span>
                     )}
                   </div>
-                  <div className={cn("text-2xl font-bold", bd.simulated > 0 ? "text-primary" : "text-muted-foreground")}>
-                    {bd.simulated > 0 ? brl(bd.simulated) : "R$ -"}
+                  <div className={cn("text-2xl font-bold", headline.totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
+                    {headline.totalComplementar > 0 ? brl(headline.totalComplementar) : "R$ -"}
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
                     Com previsão de regra ·{" "}
                     <span className="font-semibold text-orange-600">
-                      C/ acordo: {brl(totalComplementarAcordo)}
+                      C/ acordo: {brl(headline.totalComplementarAcordo)}
                     </span>
                   </div>
-                  {bd.tasyCeiling > 0 && (
+                  {headline.tetoTasy > 0 && (
                     <div className="mt-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground leading-relaxed">
                       <div>
                         <span className="uppercase tracking-wider text-[10px]">Teto TASY (sem previsão)</span>{" "}
-                        <span className="font-semibold text-foreground/80">{brl(bd.tasyCeiling)}</span>
+                        <span className="font-semibold text-foreground/80">{brl(headline.tetoTasy)}</span>
                       </div>
                       <div className="mt-0.5">
                         Valor bruto do procedimento no TASY, sem acordo aplicado. Os {naoPagoPendente} item{naoPagoPendente === 1 ? "" : "s"} sem previsão só terão valor real após{" "}
@@ -6655,19 +6657,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 </div>
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
-                  <div className={cn("text-2xl font-bold", totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
-                    {totalRetirar > 0 ? brl(totalRetirar) : "R$ -"}
+                  <div className={cn("text-2xl font-bold", headline.totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
+                    {headline.totalRetirar > 0 ? brl(headline.totalRetirar) : "R$ -"}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    Base: {brl(totalRetirar)} ·{" "}
+                    Base: {brl(headline.totalRetirar)} ·{" "}
                     <span className="font-semibold text-destructive">
-                      C/ acordo: {brl(totalRetirarAcordo)}
+                      C/ acordo: {brl(headline.totalRetirarAcordo)}
                     </span>
                   </div>
                 </div>
               </div>
             );
           })()}
+
 
           {/* Card "Resumo de valores (grupo % sobre convênio)" removido:
               em hospitais com muitas variáveis de pagamento (ex.: DF Star) esses
