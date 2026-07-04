@@ -123,7 +123,7 @@ describe("buildTvrReplaceSummary — reprocesso é REPLACE completo", () => {
 
 describe("Reprocessar mantém cards financeiros e exportação Excel idênticos", () => {
   const list: TvrResult[] = [
-    r({ status: "nao_pago", valor_total_tasy: 1000 }),
+    r({ status: "nao_pago", valor_total_tasy: 1000, valor_previsto_regra: 700 }),
     r({ status: "div_valor", dif_valor: 250, valor_pago_base: 750 }),
     r({ status: "div_valor", dif_valor: -180, valor_pago_base: 1180 }),
     r({ status: "ausente_tasy", valor_pago_base: 420 }),
@@ -135,9 +135,9 @@ describe("Reprocessar mantém cards financeiros e exportação Excel idênticos"
     const second = computeTvrFinancialTotals(list);
     expect(first).toEqual(second);
     // Sanidade dos números (alinhado às regras dos cards):
-    //  - Complementar = 1000 (não pago) + 250 (dif positivo)
+    //  - Complementar = 700 (não pago COM previsão) + 250 (dif positivo)
     //  - Retirar = 420 (ausente_tasy) + 180 (dif negativo)
-    expect(first.totalComplementar).toBeCloseTo(1250, 2);
+    expect(first.totalComplementar).toBeCloseTo(950, 2);
     expect(first.totalRetirar).toBeCloseTo(600, 2);
   });
 
@@ -193,7 +193,8 @@ describe("buildTvrReplaceSummary — preserva escopo do lote em reprocessos repe
 
   it("N reprocessos consecutivos não perdem escopo e não inflam totais", () => {
     const list: TvrResult[] = [
-      r({ status: "nao_pago", valor_total_tasy: 1000 }),
+      // nao_pago COM previsão soma no gap; sem previsão só entra como teto.
+      r({ status: "nao_pago", valor_total_tasy: 1000, valor_previsto_regra: 700 }),
       r({ status: "div_valor", dif_valor: 250, valor_pago_base: 750 }),
       r({ status: "ausente_tasy", valor_pago_base: 420 }),
     ];
@@ -210,7 +211,7 @@ describe("buildTvrReplaceSummary — preserva escopo do lote em reprocessos repe
     // Totais estáveis em todos os reprocessos — nada infla.
     for (const s of snapshots) {
       expect(s.total).toBe(3);
-      expect(s.total_gap).toBeCloseTo(1250, 2);
+      expect(s.total_gap).toBeCloseTo(950, 2); // 700 (previsto) + 250 (dif)
       expect(s.total_excess).toBeCloseTo(420, 2);
       expect(s.selected_payment_ids).toEqual(["p-1", "p-2"]);
       expect(s.scope).toBe("selected_payments");
