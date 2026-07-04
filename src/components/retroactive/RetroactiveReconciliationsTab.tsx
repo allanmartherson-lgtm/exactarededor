@@ -52,6 +52,8 @@ import {
   LockIcon,
   ExternalLinkIcon,
   CalendarIcon,
+  PercentIcon,
+  PackageIcon,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
