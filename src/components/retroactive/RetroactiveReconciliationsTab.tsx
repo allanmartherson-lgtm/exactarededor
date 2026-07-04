@@ -4045,10 +4045,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const c: Record<TvrStatus, number> = {
       nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, ausente_tasy: 0, ok: 0,
     };
-
-    for (const r of results ?? []) c[r.status]++;
+    for (const r of results ?? []) c[effectiveTvrStatus(r)]++;
     return c;
   }, [results]);
+
 
   // ============================================================
   // Export: definimos colunas em um array único (grupo + cabeçalho + valor).
