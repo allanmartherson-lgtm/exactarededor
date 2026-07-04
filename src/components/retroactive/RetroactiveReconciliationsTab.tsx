@@ -4804,12 +4804,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // deixar essa distinção visível na UI e no export.
     // ============================================================
     if (hospitalId) {
+      // Simulamos quando:
+      //  (a) não achamos regra no histórico, OU
+      //  (b) achamos regra no histórico mas o preview local não conseguiu
+      //      calcular o valor (pacote / tabela_diferenciada / bonus, ou
+      //      percentual sem % cadastrado para o papel). Nesse caso o motor
+      //      real resolve porque carrega reference_table + porte do convênio.
       const needSim = rows.filter(
         (r) =>
           r.status === "nao_pago" &&
-          !r.regra_prevista &&
           !!(r.tuss || "").trim() &&
-          (!!r.medico || !!r.matched_doctor_id),
+          (!!r.medico || !!r.matched_doctor_id) &&
+          (
+            !r.regra_prevista ||
+            (typeof r.valor_previsto_regra !== "number")
+          ),
       );
       if (needSim.length > 0) {
         // Data de referência para carregar reference/exception tables — usa a
