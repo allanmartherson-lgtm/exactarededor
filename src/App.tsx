@@ -300,6 +300,7 @@ const App = () => (
 
               <Routes>
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/auth/reset-password" element={<SetPassword />} />
                 <Route path="/definir-senha" element={<SetPassword />} />
                 <Route path="/reset-password" element={<SetPassword />} />
