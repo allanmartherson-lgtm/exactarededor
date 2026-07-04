@@ -60,6 +60,37 @@ describe("describeTvrAcao — regressão do bug 'Faltou pagar sem ajuste'", () =
     expect(acao.valor).toBe(0);
   });
 
+  it("nao_pago com regra prevista usa valor_previsto_regra (não o bruto TASY)", () => {
+    // Médico recebe 50% do convênio. TASY bruto = 1000, regra pagaria = 500.
+    // Antes: complementava 1000 (errado). Agora: 500 e hint menciona regra.
+    const acao = describeTvrAcao(
+      r({
+        status: "nao_pago",
+        valor_total_tasy: 1000,
+        valor_previsto_regra: 500,
+        calculo_previsto: "#1 Cirurgião 50% (percentual_sobre_convenio)",
+        previsto_source: "regra",
+      }),
+    );
+    expect(acao.kind).toBe("complementar");
+    expect(acao.valor).toBeCloseTo(500, 2);
+    expect(acao.label).toContain("500");
+    expect(acao.hint.toLowerCase()).toContain("regra prevista");
+  });
+
+  it("nao_pago SEM regra prevista mantém valor_total_tasy (retrocompatível)", () => {
+    const acao = describeTvrAcao(
+      r({
+        status: "nao_pago",
+        valor_total_tasy: 800,
+        // valor_previsto_regra ausente → fallback bruto
+        previsto_source: "bruto",
+      }),
+    );
+    expect(acao.valor).toBeCloseTo(800, 2);
+    expect(acao.hint.toLowerCase()).toContain("bruto");
+  });
+
   it("ausente_tasy usa valor_com_acordo quando presente (base operacional pós-regra)", () => {
     const acao = describeTvrAcao(
       r({ status: "ausente_tasy", valor_pago_base: 500, valor_com_acordo: 350 }),
