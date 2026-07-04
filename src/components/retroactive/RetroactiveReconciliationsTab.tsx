@@ -7273,7 +7273,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <EncaminharApuracaoModal
             open={encaminharOpen}
             onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
-            results={results ?? []}
+            headline={computeTvrHeadlineTotals(results ?? [])}
             actionable={(results ?? []).filter(isActionableTvr)}
             retirar={retirar}
             groups={groups}
