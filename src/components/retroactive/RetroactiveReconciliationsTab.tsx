@@ -5412,7 +5412,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                             {tab.sublabel}
                           </span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                           {tab.hint}
                         </div>
                       </div>
