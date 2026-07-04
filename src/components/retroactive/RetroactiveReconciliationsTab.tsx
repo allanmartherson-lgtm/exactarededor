@@ -4417,10 +4417,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         rule_label?: string;
         calc_id?: string;
         calc_label?: string;
-        calc_raw?: Parameters<typeof computeTvrRulePreview>[0] extends infer T
-          ? Partial<Omit<Extract<T, object>, "valor_total_tasy" | "qtd_tasy" | "funcao">>
-          : never;
-      }
+        calc_raw?: {
+          calculation_type?: string | null;
+          fixed_amount?: number | null;
+          convenio_percentage?: number | null;
+          auxiliary_pct?: number | null;
+          aux_first_pct?: number | null;
+          aux_second_pct?: number | null;
+          instrumentador_pct?: number | null;
+        };
     >();
     if (hospitalId && allDoctorIds.length > 0) {
       // PJ histórica (por médico, hospital-scoped): pega a company_id do
