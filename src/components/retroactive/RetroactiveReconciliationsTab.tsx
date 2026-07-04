@@ -4084,6 +4084,234 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return obj;
   });
 
+  // ============================================================
+  // Inferência para itens "Faltou pagar" (sem lastro no lote histórico).
+  //  · PJ provável: doctor_companies com end_date null. Regra do sistema é 1 PJ
+  //    ativa por médico por hospital. Se aparecerem múltiplas → ambíguo → não
+  //    sugerimos, para não induzir erro.
+  //  · Regra prevista: última regra já aplicada para (médico + procedure_code)
+  //    neste hospital, olhando payment_items históricos. Heurística — não
+  //    invoca o motor de cálculo, respeita a diretriz "nunca inferir valor".
+  // Ambas ficam em campos separados (pj_provavel / regra_prevista) para nunca
+  // se confundirem com PJ conciliada / Regra aplicada reais do lote.
+  // ============================================================
+  const enrichNaoPagoInferred = async (
+    rows: TvrResult[],
+    hospitalId: string | null,
+  ): Promise<void> => {
+    const targets = rows.filter(
+      (r) => r.status === "nao_pago" && (!r.pj_provavel || !r.regra_prevista),
+    );
+    if (targets.length === 0) return;
+
+    const collectDoctorIds = (r: TvrResult): string[] => {
+      const ids = new Set<string>();
+      if (r.matched_doctor_id) ids.add(r.matched_doctor_id);
+      for (const d of r.matched_doctor_ids ?? []) if (d) ids.add(d);
+      return Array.from(ids);
+    };
+    const allDoctorIds = Array.from(
+      new Set(targets.flatMap(collectDoctorIds)),
+    );
+
+    // ---------- PJ provável ----------
+    // Filtra vínculos ativos (end_date IS NULL). doctor_companies não tem
+    // hospital_id, então dependemos da regra de negócio "1 PJ ativa por médico
+    // por hospital"; se retornar mais de uma → ambíguo.
+    const pjByDoctor = new Map<
+      string,
+      { company_id: string; name?: string; ambiguous: boolean }
+    >();
+    if (allDoctorIds.length > 0) {
+      try {
+        const { data } = await supabase
+          .from("doctor_companies")
+          .select("doctor_id, company_id, end_date")
+          .in("doctor_id", allDoctorIds)
+          .is("end_date", null);
+        const byDoc = new Map<string, Set<string>>();
+        for (const row of (data ?? []) as Array<{
+          doctor_id: string;
+          company_id: string;
+        }>) {
+          const set = byDoc.get(row.doctor_id) ?? new Set<string>();
+          set.add(row.company_id);
+          byDoc.set(row.doctor_id, set);
+        }
+        const compIds = Array.from(
+          new Set(Array.from(byDoc.values()).flatMap((s) => Array.from(s))),
+        );
+        const compNames = new Map<string, string>();
+        if (compIds.length > 0) {
+          const { data: comps } = await supabase
+            .from("companies")
+            .select("id, name")
+            .in("id", compIds);
+          for (const c of (comps ?? []) as Array<{ id: string; name?: string }>) {
+            if (c?.id) compNames.set(String(c.id), String(c.name ?? ""));
+          }
+        }
+        for (const [did, set] of byDoc.entries()) {
+          const cids = Array.from(set);
+          const first = cids[0];
+          pjByDoctor.set(did, {
+            company_id: first,
+            name: compNames.get(first) || undefined,
+            ambiguous: cids.length > 1,
+          });
+        }
+      } catch (e) {
+        console.warn("[nao_pago] falha inferindo PJ provável:", e);
+      }
+    }
+
+    // ---------- Regra prevista ----------
+    // Só faz sentido dentro do escopo do hospital atual (regra é por hospital).
+    const ruleByKey = new Map<
+      string,
+      {
+        rule_id: string;
+        rule_label?: string;
+        calc_id?: string;
+        calc_label?: string;
+      }
+    >();
+    if (hospitalId && allDoctorIds.length > 0) {
+      const codes = Array.from(
+        new Set(
+          targets.map((r) => (r.tuss || "").trim()).filter((c) => c.length > 0),
+        ),
+      );
+      if (codes.length > 0) {
+        try {
+          const CHUNK = 200;
+          type Row = {
+            doctor_id: string;
+            procedure_code: string;
+            applied_rule_id: string;
+            applied_rule_label?: string | null;
+            applied_calc_id?: string | null;
+            procedure_date?: string | null;
+          };
+          const all: Row[] = [];
+          for (let i = 0; i < codes.length; i += CHUNK) {
+            const { data } = await supabase
+              .from("payment_items")
+              .select(
+                "doctor_id, procedure_code, applied_rule_id, applied_rule_label, applied_calc_id, procedure_date",
+              )
+              .eq("hospital_id", hospitalId)
+              .in("doctor_id", allDoctorIds)
+              .in("procedure_code", codes.slice(i, i + CHUNK))
+              .not("applied_rule_id", "is", null)
+              .order("procedure_date", { ascending: false })
+              .limit(5000);
+            for (const row of (data ?? []) as Row[]) all.push(row);
+          }
+          // Primeira ocorrência por (doctor + code) já é a mais recente pelo order.
+          for (const row of all) {
+            const k = `${row.doctor_id}|${row.procedure_code}`;
+            if (ruleByKey.has(k)) continue;
+            ruleByKey.set(k, {
+              rule_id: row.applied_rule_id,
+              rule_label: row.applied_rule_label ?? undefined,
+              calc_id: row.applied_calc_id ?? undefined,
+            });
+          }
+          const calcIds = Array.from(
+            new Set(
+              Array.from(ruleByKey.values())
+                .map((v) => v.calc_id)
+                .filter(Boolean) as string[],
+            ),
+          );
+          if (calcIds.length > 0) {
+            const { data: calcs } = await supabase
+              .from("rule_calculations")
+              .select("id, label, sort_order, calculation_type")
+              .in("id", calcIds);
+            const labels = new Map<string, string>();
+            for (const c of (calcs ?? []) as Array<{
+              id: string;
+              label?: string;
+              sort_order?: number;
+              calculation_type?: string;
+            }>) {
+              const idx =
+                typeof c.sort_order === "number" ? c.sort_order + 1 : null;
+              labels.set(
+                String(c.id),
+                [
+                  idx ? `#${idx}` : "",
+                  (c.label ?? "").trim(),
+                  c.calculation_type ? `(${c.calculation_type})` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" "),
+              );
+            }
+            for (const v of ruleByKey.values()) {
+              if (v.calc_id) v.calc_label = labels.get(v.calc_id);
+            }
+          }
+        } catch (e) {
+          console.warn("[nao_pago] falha inferindo regra prevista:", e);
+        }
+      }
+    }
+
+    // Aplica nos rows-alvo.
+    for (const r of targets) {
+      const dids = collectDoctorIds(r);
+      // PJ: usa o primeiro doctor_id com PJ ativa não-ambígua.
+      if (!r.pj_provavel) {
+        for (const did of dids) {
+          const hit = pjByDoctor.get(did);
+          if (hit && !hit.ambiguous) {
+            r.pj_provavel_id = hit.company_id;
+            r.pj_provavel = hit.name;
+            break;
+          }
+        }
+      }
+      // Regra: primeira combinação (médico, code) com histórico de regra.
+      if (!r.regra_prevista) {
+        const code = (r.tuss || "").trim();
+        for (const did of dids) {
+          const hit = ruleByKey.get(`${did}|${code}`);
+          if (hit?.rule_id) {
+            r.regra_prevista_id = hit.rule_id;
+            r.regra_prevista = hit.rule_label;
+            r.calculo_previsto_id = hit.calc_id;
+            r.calculo_previsto = hit.calc_label;
+            break;
+          }
+        }
+      }
+    }
+  };
+
+  // Dispara a inferência quando `results` muda e há itens Faltou pagar sem
+  // inferência aplicada. Roda uma única vez por conjunto de resultados.
+  React.useEffect(() => {
+    if (!results) return;
+    const pending = results.filter(
+      (r) => r.status === "nao_pago" && (!r.pj_provavel || !r.regra_prevista),
+    );
+    if (pending.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const clone = results.map((r) => ({ ...r }));
+      await enrichNaoPagoInferred(clone, hospitalIdRecon);
+      if (cancelled) return;
+      setResults(clone);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, hospitalIdRecon]);
+
 
 
   const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
