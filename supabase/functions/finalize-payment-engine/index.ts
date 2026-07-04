@@ -17,6 +17,7 @@
 // rules / payout_model são marcados pelo analyze-payment (já no fluxo).
 // =============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { callFn as callFnBase, type CallFnResult } from "./callFn.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,67 +32,21 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 // 2026-07-02: Runtime do Supabase começou a lançar `RateLimitError` do próprio
 // `fetch` interno quando o finalize dispara muitas chamadas em cascata (uma
 // reimportação de PJ grande como INSTITUTO SALUTAIRE reentra no finalize e
-// estoura o limite). Isso subia como 500 e o usuário via toast de timeout ao
-// voltar para o lote. Retentamos respeitando o `retryAfterMs` sugerido — mas
+// estoura o limite). Retentamos respeitando o `retryAfterMs` sugerido — mas
 // com teto — e nunca quebramos o pipeline: em último caso devolvemos 429 no
 // corpo para o chamador seguir marcando as demais fontes.
-// 2026-07-02 (v2): Reduzido backoff de 15s→5s e retries 4→2 para falhar rápido
-// em vez de segurar o pipeline ~150s (que estourava 504 no toast). Combinado com
-// CONCURRENCY=1 abaixo (serializa apply-company-deductions por PJ).
 // 2026-07-04 (v3): pipeline agora roda em background (EdgeRuntime.waitUntil →
 // 202 imediato), então backoff longo não trava mais a UI. Elevado teto para
 // honrar o Retry-After sugerido pelo gateway (chegava a ~27s nos logs) e
 // passamos a tratar 429 vindo como RESPOSTA HTTP (não só exceção lançada) —
 // antes o Response 429 era considerado sucesso e o pipeline seguia com
 // resultado falso. Também injetamos jitter entre PJs para dessincronizar a
-// "trace" que o AI Gateway usa para rate-limit.
-const MAX_RETRIES = 3;
-const MAX_BACKOFF_MS = 30_000;
+// "trace" que o AI Gateway usa para rate-limit. Lógica extraída para
+// ./callFn.ts (coberta por callFn.test.ts).
 const INTER_PJ_JITTER_MS = 250;
 
-function parseRetryAfterMs(headerVal: string | null): number {
-  if (!headerVal) return 0;
-  const n = Number(headerVal);
-  if (Number.isFinite(n) && n > 0) return Math.floor(n * 1000);
-  const t = Date.parse(headerVal);
-  if (!Number.isNaN(t)) return Math.max(0, t - Date.now());
-  return 0;
-}
-
-async function callFn(name: string, body: unknown): Promise<{ ok: boolean; status: number; body: string }> {
-  let attempt = 0;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    try {
-      const r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-        body: JSON.stringify(body),
-      });
-      const txt = await r.text();
-      // 429 vindo como RESPOSTA (não thrown): tenta ler Retry-After e retentar.
-      if (r.status === 429 && attempt < MAX_RETRIES) {
-        const suggested = parseRetryAfterMs(r.headers.get("retry-after"));
-        const backoff = Math.min(MAX_BACKOFF_MS, Math.max(1000 * 2 ** attempt, suggested));
-        console.warn(`[finalize] callFn(${name}) HTTP 429 — aguardando ${backoff}ms (tentativa ${attempt + 1}/${MAX_RETRIES})`);
-        await new Promise((res) => setTimeout(res, backoff));
-        attempt += 1;
-        continue;
-      }
-      return { ok: r.ok, status: r.status, body: txt };
-    } catch (e: any) {
-      const isRate = e?.name === "RateLimitError" || /rate limit/i.test(String(e?.message ?? ""));
-      if (!isRate || attempt >= MAX_RETRIES) {
-        console.warn(`[finalize] callFn(${name}) desistiu após ${attempt} tentativas`, e?.message ?? e);
-        return { ok: false, status: 429, body: JSON.stringify({ error: String(e?.message ?? e), rate_limited: isRate }) };
-      }
-      const suggested = Number(e?.retryAfterMs ?? 0);
-      const backoff = Math.min(MAX_BACKOFF_MS, Math.max(1000 * 2 ** attempt, suggested));
-      console.warn(`[finalize] callFn(${name}) rate-limited — aguardando ${backoff}ms (tentativa ${attempt + 1}/${MAX_RETRIES})`);
-      await new Promise((r) => setTimeout(r, backoff));
-      attempt += 1;
-    }
-  }
+function callFn(name: string, body: unknown): Promise<CallFnResult> {
+  return callFnBase(name, body, { baseUrl: SUPABASE_URL, serviceKey: SERVICE_KEY });
 }
 
 async function markSource(
