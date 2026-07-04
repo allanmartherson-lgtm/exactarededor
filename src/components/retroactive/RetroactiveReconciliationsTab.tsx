@@ -2339,6 +2339,39 @@ function computeTvrAgreementTotals(list: TvrResult[]): { totalComplementarAcordo
   );
 }
 
+/**
+ * FONTE ÚNICA de todos os headline numbers do relatório TVR.
+ *
+ * Consumidores: card "Total a complementar", card "Total a retirar",
+ * modal "Encaminhar apuração". Se qualquer um desses precisar exibir
+ * um número, DEVE vir daqui — não recalcular inline. Testes de
+ * invariante em `tvrMenuCardConsistency.test.ts` bloqueiam divergência.
+ */
+export function computeTvrHeadlineTotals(list: TvrResult[]): {
+  totalComplementar: number;
+  totalRetirar: number;
+  totalComplementarAcordo: number;
+  totalRetirarAcordo: number;
+  tetoTasy: number;
+  naoPagoTotal: number;
+  naoPagoSimulated: number;
+  coverage: number;
+} {
+  const financial = computeTvrFinancialTotals(list);
+  const acordo = computeTvrAgreementTotals(list);
+  const bd = computeTvrComplementarBreakdown(list);
+  return {
+    totalComplementar: financial.totalComplementar,
+    totalRetirar: financial.totalRetirar,
+    totalComplementarAcordo: acordo.totalComplementarAcordo,
+    totalRetirarAcordo: acordo.totalRetirarAcordo,
+    tetoTasy: bd.tasyCeiling,
+    naoPagoTotal: bd.naoPagoTotal,
+    naoPagoSimulated: bd.naoPagoSimulated,
+    coverage: bd.coverage,
+  };
+}
+
 export type TvrAcao = {
   kind: "recuperar" | "complementar" | "validar" | "ok";
   valor: number;
