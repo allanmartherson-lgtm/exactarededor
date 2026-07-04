@@ -7313,7 +7313,7 @@ function EncaminharApuracaoModal({
   // total do card. Se dispara, algum status novo entrou em `retirar` sem
   // ser previsto por `computeTvrFinancialTotals`.
   if (import.meta.env.DEV) {
-    const cardTotal = computeTvrFinancialTotals(results).totalRetirar;
+    const cardTotal = computeTvrFinancialTotals(_results).totalRetirar;
     if (totalAcordoRet - cardTotal > 0.5) {
       // eslint-disable-next-line no-console
       console.warn("[TVR] Divergência: retirar do menu > retirar do card", {
