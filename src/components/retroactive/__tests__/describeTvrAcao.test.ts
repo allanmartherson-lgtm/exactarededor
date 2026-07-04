@@ -238,6 +238,16 @@ describe("Card × planilha — computeTvrFinancialTotals usa a base operacional 
     expect(totalRetirar).toBe(0);
   });
 
+  it("nao_pago prefere valor_previsto_regra ao valor_total_tasy quando disponível", () => {
+    const list: TvrResult[] = [
+      // Com regra: complementa 500 (não 1000).
+      r({ status: "nao_pago", valor_total_tasy: 1000, valor_previsto_regra: 500 }),
+      // Sem regra: mantém retrocompatível → 250.
+      r({ status: "nao_pago", valor_total_tasy: 250 }),
+    ];
+    const { totalComplementar } = computeTvrFinancialTotals(list);
+    expect(totalComplementar).toBeCloseTo(750, 2);
+  });
   it("cenário misto reflete a lógica operacional da planilha", () => {
     const list: TvrResult[] = [
       // 1) Faltou pagar → complementar 100% convênio
