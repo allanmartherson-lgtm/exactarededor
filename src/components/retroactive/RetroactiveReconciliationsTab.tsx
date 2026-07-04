@@ -2281,9 +2281,11 @@ export function getAusenteTasyMissingFields(r: TvrResult): string[] {
 
 
 function dbDateOrNull(value: string): string | null {
-  if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const m = value.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  const s = String(value ?? "").trim();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const m = s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
   if (m) return `${m[3]}-${m[2]}-${m[1]}`;
   return null;
 }
@@ -3512,6 +3514,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       for (const r of effectivePagRows) {
         if (isExcludedTvrTuss(r.pag_tuss, excluded)) continue;
         if (isExcludedConv(r.pag_convenio)) { convPagRemoved++; continue; }
+        if (!dbDateOrNull(r.pag_data)) continue;
         const key = tvrMatchKey(r.pag_atendimento, r.pag_data, r.pag_tuss, r.pag_doctor_id, r.pag_medico, nameToDoctorId);
         const q = num(r.pag_qtd) || 1;
         const vb = num(r.pag_valor_base);
