@@ -1,105 +1,86 @@
-# Plano — "Faltou pagar" com cálculo de regra (não só valor bruto TASY)
+# Plano — Faltou pagar sem histórico + export split sempre com 2 abas
 
-## Problema
+## Diagnóstico (com base no XLSX enviado)
 
-Hoje, em `RetroactiveReconciliationsTab.tsx`, itens com `status = "nao_pago"` (Faltou pagar) usam **`valor_total_tasy`** (100% do convênio) como valor a complementar. Isso está errado quando o médico:
+Abri o arquivo `tasy-vs-repasse_abas_20260704_1719.xlsx`. Confirmei duas causas independentes:
 
-- recebe **percentual do convênio** (ex.: 50%) → devíamos complementar 50%, não 100%.
-- recebe **valor fixo / pacote / tabela diferenciada** → o valor devido nem depende do convênio, e sim do que a regra pagaria.
+### Causa 1 — Regra prevista sem cálculo previsto
+Todos os 195 itens da aba "Por valor" são `Faltou pagar` e caem no fallback bruto (hint "sem regra prevista, exibindo valor bruto 100% convênio"). Olhando a aba "Parâmetros de cálculo":
 
-Já existe a inferência de `regra_prevista` / `calculo_previsto` para esses itens (via histórico do médico + TUSS), mas o **valor** dessa regra não é calculado — só o rótulo aparece na coluna "Rastreio".
-
-## Objetivo
-
-Para cada linha `nao_pago` com regra prevista identificada, calcular **`valor_previsto_regra`** aplicando o mesmo `rule_calculation` que teria sido usado no lote original, e usar esse valor como base do "A complementar" — igualzinho à lógica de recuperação de glosa (que já respeita `%convênio` vs `pacote/valor_fixo`).
-
-Quando **não houver** regra prevista (médico novo, TUSS inédito), mantemos o comportamento atual (fallback = `valor_total_tasy`) e sinalizamos visualmente `[prev. bruto]` para o analista revisar.
-
-## Escopo — o que muda / o que NÃO muda
-
-| Área | Muda? |
-|---|---|
-| Lógica de `div_valor`, `div_qtd_valor`, `pago_a_mais`, `ausente_tasy` | **NÃO** |
-| `computeTvrFinancialTotals` para statuses não-`nao_pago` | **NÃO** |
-| `describeTvrAcao` para statuses não-`nao_pago` | **NÃO** |
-| Testes atuais (`describeTvrAcao.test.ts`, `tvrReplaceSummary.test.ts`) | Devem continuar verdes |
-| Inferência `pj_provavel` / `regra_prevista` (já existe) | Reaproveitada, sem alterar |
-| Novo campo `valor_previsto_regra` em `TvrResult` | **SIM** (opcional, default undefined) |
-| Branch `nao_pago` em `describeTvrAcao` e `computeTvrFinancialTotals` | **SIM** (preferir novo valor, cair para `valor_total_tasy`) |
-
-## Passos
-
-### 1. Estender `TvrResult`
-Adicionar campos opcionais:
-```ts
-valor_previsto_regra?: number;   // valor que a regra prevista pagaria
-tipo_analise_previsto?: "valor" | "quantidade";  // igual ao tipo_analise do lote
-previsto_source?: "regra" | "bruto"; // rastreio: usamos cálculo ou fallback bruto
+```
+rule_id preenchido (ex. 808a0330… "Acordo Ortopedia")
+rule_calculation_id: NULL
+convenio_percentage / fixed_amount / … : 0
 ```
 
-### 2. Calcular o valor previsto na inferência
-No mesmo bloco que já busca `regra_prevista` (após carregar `rule_calculations`):
+Ou seja: **a fase 1 acha o `rule_id`** (via histórico de `payment_items` do médico+TUSS) **mas não acha um `applied_calc_id`** — provavelmente porque nesse hospital o médico já teve a REGRA aplicada em outros itens, mas nunca esse TUSS específico com `applied_calc_id` gravado. Sem `calc_id`, `calc_raw` fica vazio e o helper devolve `source: "bruto"`.
 
-- Ler os campos do `rule_calculation` que já são usados no motor: `calculation_type`, `percentage`, `fixed_amount`, `reference_table_id`, etc.
-- Aplicar a mesma fórmula usada no motor original para produzir o valor:
-  - `percentual_convenio` / `percentual_sobre_convenio` → `valor_total_tasy × pct`
-  - `valor_fixo` → `fixed_amount × qtd_tasy`
-  - `tabela_diferenciada` / `pacote` → buscar via `reference_table_id` + `port` do convênio (mesma helper já usada em outros pontos)
-  - Se qualquer dado faltar → não preencher `valor_previsto_regra` e marcar `previsto_source = "bruto"`
-- Definir `tipo_analise_previsto` a partir do `calculation_type` (regra de mapeamento idêntica à do motor).
+### Causa 2 — Export split com 1 aba só
+No arquivo veio só "Por valor (195)" e sumiu "Por presença". No código:
 
-Reaproveitar helper existente se houver (ex.: `resolvePaymentAmounts`); caso contrário isolar em `src/lib/tvrRulePreview.ts` **novo e puro** para poder testar.
-
-### 3. Atualizar `describeTvrAcao` — branch `nao_pago`
 ```ts
-if (r.status === "nao_pago") {
-  const valor = r.valor_previsto_regra ?? r.valor_total_tasy ?? 0;
-  const hint = r.valor_previsto_regra != null
-    ? `Regra prevista aplicada: ${r.calculo_previsto ?? r.regra_prevista ?? "—"}`
-    : "Sem regra prevista — usando valor bruto TASY (revisar)";
-  return { kind: "complementar", valor, label: `↑ Complementar ${brl(valor)}`, hint };
+const wsPresenca = isSplit && listPresenca.length > 0 ? buildDataSheet(listPresenca) : null;
+```
+
+Como todos os itens são `tipo_analise = "valor"` (default herdado quando `nao_pago` não tem lastro no lote → `pag_applied_calc_method` vazio → cai em `"valor"`), `listPresenca` fica vazia e a aba nem é criada. Isso viola o contrato "pedi as duas abas, quero ver as duas".
+
+Cascata da Causa 1 → Causa 2: mesmo quando temos regra prevista, `tipo_analise` do row nunca reflete a regra prevista (ficamos com o default `"valor"`), então itens de `pacote/valor_fixo` iriam para "Por valor" errado.
+
+## Correções propostas (3 pontos, isolados)
+
+### Fix A — Buscar `rule_calculations` quando só temos `rule_id`
+No `enrichNaoPagoInferred`, depois do loop atual que popula `ruleByKey` via histórico:
+
+1. Coletar todos os `rule_id` cujo `calc_id` está vazio.
+2. `SELECT id, rule_id, sort_order, label, calculation_type, fixed_amount, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct, procedure_codes, is_catch_all FROM rule_calculations WHERE rule_id IN (…) ORDER BY sort_order ASC`.
+3. Para cada `(rule_id, tuss)` em `ruleByKey` sem calc, escolher o primeiro calc na ordem:
+   - `procedure_codes` contém o TUSS do item, ou
+   - `is_catch_all = true`, ou
+   - primeiro calc por `sort_order` (fallback).
+4. Preencher `calc_id`, `calc_label`, `calc_raw` na entrada existente.
+
+Isso é heurística — mesma disciplina do resto do bloco de "Faltou pagar": nunca inventa valor, mas quando os dados batem determinístico (regra tem calc único, ou calc explicitamente para aquele TUSS), preenche.
+
+Quando `calculation_type` é `pacote`/`tabela_diferenciada` continua caindo em `source: "bruto"` (fase 2), mas o **tipo_analise** já vai ser conhecido — corrige a Causa 2 mesmo sem valor calculado.
+
+### Fix B — `tipo_analise` do row reflete a regra prevista
+Só para `status === "nao_pago"`, ao final da inferência:
+```ts
+if (r.tipo_analise_previsto && r.tipo_analise !== r.tipo_analise_previsto) {
+  r.tipo_analise = r.tipo_analise_previsto;
 }
 ```
+Impacto: itens Faltou pagar de regras `valor_fixo`/`pacote` passam a aparecer em "Por presença" — que é onde o analista espera vê-los.
 
-### 4. Atualizar `computeTvrFinancialTotals` — branch `nao_pago`
-Substituir `sum + r.valor_total_tasy` por `sum + (r.valor_previsto_regra ?? r.valor_total_tasy)`.
+Zero risco para statuses com lastro no lote (tipo_analise deles já vem correto do motor).
 
-### 5. Coluna "Regra aplicada" / export
-Quando `previsto_source === "bruto"`, prefixar com `[bruto]` para diferenciar de `[prev.]` já existente.
+### Fix C — Split sempre gera as duas abas
+```ts
+if (isSplit) {
+  book_append_sheet(wb, wsValor ?? buildEmptyPlaceholder("Por valor"), `Por valor (${listValor.length})`);
+  book_append_sheet(wb, wsPresenca ?? buildEmptyPlaceholder("Por presença"), `Por presença (${listPresenca.length})`);
+}
+```
+`buildEmptyPlaceholder` retorna uma sheet com header + uma linha "Sem itens desta categoria com os filtros atuais." — assim o analista vê que a categoria está vazia, não que o export bugou.
 
-### 6. Testes (obrigatórios, sem afrouxar os atuais)
-`describeTvrAcao.test.ts`:
-- `nao_pago` com `valor_previsto_regra = 500` → `valor = 500`, hint menciona regra.
-- `nao_pago` sem `valor_previsto_regra` → cai para `valor_total_tasy` (regressão do bug original preservada).
-- `nao_pago` com regra `%convênio 50%` calculada externamente → resultado bate.
+## O que NÃO muda
 
-Novo `tvrRulePreview.test.ts`:
-- `percentual_convenio` → `valor_total_tasy × pct`
-- `valor_fixo` → `fixed_amount × qtd`
-- Dados incompletos → retorna undefined (não chuta).
+- Cálculo de statuses com lastro no lote (`div_valor`, `div_qtd_valor`, `pago_a_mais`, `ausente_tasy`) — intocado.
+- `describeTvrAcao` e `computeTvrFinancialTotals` da fase 1 — intocados. Apenas passam a receber `valor_previsto_regra` em mais casos porque Fix A alimenta `calc_raw` para mais linhas.
+- Fase 2 (pacote/tabela_diferenciada com valor real) — continua fora. Fix A resolve o `tipo_analise` mesmo sem calcular valor, então a linha vai para a aba certa e mostra `[prev.] bruto` no hint.
 
-`computeTvrFinancialTotals`:
-- Cenário misto com `nao_pago` usando `valor_previsto_regra` correto.
-- `nao_pago` sem regra prevista continua somando `valor_total_tasy` (retrocompatível).
+## Testes
 
-### 7. Rollout seguro
-- Mudança é **aditiva**: campos novos são opcionais; sem regra prevista, comportamento é idêntico ao atual.
-- Um flag local `USE_TVR_RULE_PREVIEW = true` (constante no topo do arquivo) permite desligar rapidamente se algo aparecer em produção.
+- **`tvrRulePreview.test.ts`** — cobertura atual segue verde (helper não muda).
+- **`describeTvrAcao.test.ts`** — adicionar caso: `nao_pago` com `tipo_analise_previsto = "quantidade"` e `valor_previsto_regra = 300` (valor_fixo) → complementar 300, sem cair no fallback bruto.
+- Novo teste ligeiro para o build split ficaria em `RetroactiveReconciliationsTab` mas o export usa xlsx-style — mantemos como validação manual (rodar novo export e confirmar 2 abas).
 
-## Riscos e mitigação
+## Risco
 
-| Risco | Mitigação |
-|---|---|
-| Recalcular regra diferente do motor original | Só usar helpers já validados; nunca implementar fórmula nova |
-| `rule_calculation` incompleto / port ausente | Marcar `previsto_source = "bruto"` e não alterar valor |
-| Impactar cards de glosa (que já estão OK) | Branch isolado em `nao_pago`; testes de `pago_a_mais/div_valor` inalterados |
-| Analista confundir regra prevista com regra oficial | Rótulo `[prev.]` já existente + hint no `describeTvrAcao` |
+Muito baixo:
 
-## Entregáveis
+- Fix A é aditivo — só preenche quando `calc_raw` estava vazio.
+- Fix B só toca `nao_pago` e só quando temos regra prevista com tipo conhecido.
+- Fix C é puro UX de export, não altera cálculo.
 
-- `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — novos campos, branch atualizado
-- `src/lib/tvrRulePreview.ts` — helper puro (novo)
-- `src/lib/__tests__/tvrRulePreview.test.ts` — cobertura de cada `calculation_type`
-- `src/components/retroactive/__tests__/describeTvrAcao.test.ts` — casos adicionais para `nao_pago` com/sem regra prevista
-
-Faz sentido seguir? Se quiser, posso começar só pelos casos `percentual_convenio` e `valor_fixo` (que cobrem ~90% dos itens) e deixar `pacote/tabela_diferenciada` como fase 2.
+Se aprovado, implemento os três em uma passada + testes + reexportação para você conferir.
