@@ -5168,8 +5168,39 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
           <div className="rounded-lg border border-border bg-card overflow-hidden">
+            {/* Sub-abas: separa itens por natureza do acordo. Pacote/valor fixo não têm base de R$ comparável ao TASY. */}
+            <div className="flex border-b border-border bg-muted/30">
+              {([
+                { key: "valor", label: "Por valor (% do convênio)", hint: "Regras percentual_convenio — TASY e Exacta compartilham base, compara R$." },
+                { key: "quantidade", label: "Por presença (pacote / valor fixo)", hint: "Regras com tabela própria — TASY não é base de R$, compara presença/quantidade." },
+              ] as const).map((tab) => {
+                const active = analysisTab === tab.key;
+                const n = countsByTipo[tab.key];
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setAnalysisTab(tab.key)}
+                    title={tab.hint}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 text-sm border-b-2 transition-colors text-left",
+                      active
+                        ? "border-primary bg-card text-foreground font-semibold"
+                        : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                    )}
+                  >
+                    {tab.label} <span className={cn("ml-2 text-xs tabular-nums", active ? "text-primary" : "text-muted-foreground/70")}>({n})</span>
+                  </button>
+                );
+              })}
+            </div>
             <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-sm font-semibold">Resultado · {visible.length} de {results.length}</div>
+              <div className="text-sm font-semibold">
+                Resultado · {visible.length} de {countsByTipo[analysisTab]}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  ({analysisTab === "valor" ? "itens por % do convênio" : "itens por pacote/valor fixo"})
+                </span>
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Input
                   value={search}
