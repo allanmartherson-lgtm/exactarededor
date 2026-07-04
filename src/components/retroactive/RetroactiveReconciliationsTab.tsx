@@ -2901,17 +2901,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [keyAuditOpen, setKeyAuditOpen] = useState(false);
   const [encaminharBusy, setEncaminharBusy] = useState(false);
-  // Modo compacto — reduz padding/tamanho de fonte da tabela para caber mais
-  // linhas na tela em hospitais com muitos itens (ex.: DF Star ~1000 linhas).
-  // Persistido em localStorage para não precisar reativar a cada abertura.
-  const [compactMode, setCompactMode] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("tvr:compactMode") === "1";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("tvr:compactMode", compactMode ? "1" : "0");
-  }, [compactMode]);
   const [groupDoctorsMap, setGroupDoctorsMap] = useState<Record<string, { full_name: string; crm: string | null }>>({});
 
   const [wizard, setWizard] = useState<
