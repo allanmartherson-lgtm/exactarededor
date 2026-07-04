@@ -5168,7 +5168,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
               <Table className="min-w-[2200px]">
                 <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
+                  {/* Linha de grupos — separa visualmente as seções: Item, Contexto, TASY atual, Lote histórico, Diferenças, Recalc, Ajuste. */}
+                  <TableRow className="bg-muted/50">
+                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Item</TableHead>
+                    <TableHead colSpan={8} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Contexto</TableHead>
+                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-sky-800 bg-sky-50/60 border-r border-border">TASY (atual)</TableHead>
+                    <TableHead colSpan={6} className="text-center text-[10px] uppercase tracking-wider text-indigo-800 bg-indigo-50/60 border-r border-border">Lote histórico</TableHead>
+                    <TableHead colSpan={2} className="text-center text-[10px] uppercase tracking-wider text-amber-800 bg-amber-50/60 border-r border-border">Diferenças brutas</TableHead>
+                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-emerald-800 bg-emerald-50/60 border-r border-border">Recalculado</TableHead>
+                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-rose-800 bg-rose-50/60">Ajuste</TableHead>
+                  </TableRow>
                   <TableRow>
+
                     <TableHead className="w-10 text-center">
                       {(() => {
                         const selectableKeys = visible.filter(isActionableTvr).map((r) => r.key);
