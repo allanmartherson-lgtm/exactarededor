@@ -36,6 +36,13 @@ const accessRequestSchema = userExtraSchema.extend({
   message: z.string().trim().max(500).optional(),
 });
 
+// Only allow same-origin relative paths as post-login redirect targets.
+const safeNext = (raw: string | null): string => {
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
+  return raw;
+};
+
 const Auth = () => {
   const { user, loading, roles, rolesLoading, accountActive, signIn } = useAuth();
   const navigate = useNavigate();
@@ -47,10 +54,16 @@ const Auth = () => {
     full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
   });
 
+  // Preserva o destino pretendido (ex.: /.lovable/oauth/consent?authorization_id=...)
+  // para que o fluxo de conexão MCP não caia em "/" após o login.
+  const nextTarget = safeNext(new URLSearchParams(window.location.search).get("next"));
+
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    const redirectBase = window.location.origin;
+    const redirectUri = nextTarget === "/" ? redirectBase : `${redirectBase}${nextTarget}`;
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
     if (result.error) {
       setGoogleLoading(false);
@@ -59,7 +72,7 @@ const Auth = () => {
     }
     if (result.redirected) return;
     setGoogleLoading(false);
-    navigate("/", { replace: true });
+    navigate(nextTarget, { replace: true });
   };
 
   useEffect(() => {
@@ -92,7 +105,7 @@ const Auth = () => {
   }, [loading, user, rolesLoading, roles, accountActive]);
 
   if (loading) return null;
-  if (user && !noAccess && !rolesLoading && accountActive && roles.length > 0) return <Navigate to="/" replace />;
+  if (user && !noAccess && !rolesLoading && accountActive && roles.length > 0) return <Navigate to={nextTarget} replace />;
 
   const handleForgotPassword = async () => {
     const emailEl = document.getElementById("signin-email") as HTMLInputElement | null;
@@ -132,7 +145,7 @@ const Auth = () => {
       toast({ title: "Não foi possível entrar", description: error, variant: "destructive" });
       return;
     }
-    navigate("/", { replace: true });
+    navigate(nextTarget, { replace: true });
   };
 
   const handleAccessRequest = async (e: React.FormEvent<HTMLFormElement>) => {

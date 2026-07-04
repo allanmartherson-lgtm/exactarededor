@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import ForceChangePassword from "./pages/ForceChangePassword.tsx";
+import OAuthConsent from "./pages/OAuthConsent.tsx";
 
 // Lazy loaded feature pages — importers ficam guardados em constantes
 // para podermos dispará-los como prefetch em idle (ver IdlePrefetcher abaixo).
@@ -299,6 +300,7 @@ const App = () => (
 
               <Routes>
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/auth/reset-password" element={<SetPassword />} />
                 <Route path="/definir-senha" element={<SetPassword />} />
                 <Route path="/reset-password" element={<SetPassword />} />
