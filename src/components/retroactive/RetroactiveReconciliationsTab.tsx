@@ -255,13 +255,15 @@ type DraftItem = {
   resolved_company_id?: string | null;
 };
 
+// Rótulos do fluxo legado (ItemRow). Mantidos alinhados aos novos rótulos do TVR
+// para não gerar duas nomenclaturas para o mesmo conceito na UI.
 const CLASS_LABEL: Record<ItemRow["classification"], string> = {
   ok_pago: "OK pago",
   pago_a_menos: "Pago a menos",
   pago_a_mais: "Pago a mais",
-  nao_pago: "Não pago",
+  nao_pago: "Faltou pagar",
   pago_outro_mes: "Pago em outro mês",
-  sem_lastro: "Sem lastro",
+  sem_lastro: "Ausente base faturamento",
   tuss_divergente: "Pendência (TUSS faltante)",
   pendente: "Pendente",
 };
@@ -4177,7 +4179,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (actionable.length === 0) {
       toast({
         title: "Nenhum item acionável",
-        description: "Só linhas Não Pago, Div. Valor, Div. Qtd/Valor ou Pago a mais podem ir para confecção.",
+        description: "Só linhas Faltou pagar, Pago a menos (valor), Pago a menos (qtd) ou Pago a mais podem ir para confecção.",
         variant: "destructive",
       });
       return;
