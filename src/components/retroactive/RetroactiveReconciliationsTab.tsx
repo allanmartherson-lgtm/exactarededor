@@ -5279,6 +5279,25 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       : method.includes("bonus") ? "bônus"
       : method.includes("percentual") ? "% do convênio"
       : "acordo do lote";
+    // Faltou pagar: TASY hoje tem o item, mas nenhum lote pagou — precisa complementar.
+    if (r.status === "nao_pago") {
+      return {
+        kind: "complementar",
+        valor: r.valor_total_tasy || 0,
+        label: `↑ Complementar ${brl(r.valor_total_tasy || 0)}`,
+        hint: `Item no TASY (${prettyMethod}) sem pagamento no lote — valor bruto 100% convênio, acordo aplica no cálculo.`,
+      };
+    }
+    // Ausente base faturamento: pagamos no lote, mas TASY hoje não tem — provável glosa total.
+    if (r.status === "ausente_tasy") {
+      const valor = r.valor_com_acordo && r.valor_com_acordo > 0.5 ? r.valor_com_acordo : r.valor_pago_base;
+      return {
+        kind: "recuperar",
+        valor,
+        label: `↓ Recuperar ${brl(valor)}`,
+        hint: `Pago no lote (${prettyMethod}) mas ausente no TASY hoje — provável cancelamento/glosa total.`,
+      };
+    }
     // Casos sem base de comparação: pacote/valor fixo sem lastro no TASY.
     if (r.sem_lastro_tasy) {
       return {
