@@ -2152,9 +2152,13 @@ export type TvrResult = {
   // undefined = não conseguimos estimar → consumidor cai para valor_total_tasy.
   valor_previsto_regra?: number;
   tipo_analise_previsto?: "valor" | "quantidade";
-  // "regra"  = calculamos via rule_calculation (percentual_convenio / valor_fixo / exclusao)
-  // "bruto"  = tipo não coberto (pacote/tabela_diferenciada) ou dado faltante → fallback bruto
-  previsto_source?: "regra" | "bruto";
+  // Origem do valor previsto exibido ao analista, por ordem de confiança:
+  //  "simulacao" = motor real rodou (simulate-rule-batch) e devolveu valor esperado
+  //  "regra"     = preview local a partir do calc_raw do histórico (percentual/valor_fixo/exclusao)
+  //  "historico" = regra veio do histórico, sem valor calculado localmente (ex.: pacote)
+  //  "bruto"     = tipo não coberto e sem simulação → fallback exibindo bruto TASY
+  //  "sem_regra" = motor real rodou e não achou regra aplicável
+  previsto_source?: "simulacao" | "regra" | "historico" | "bruto" | "sem_regra";
 
 
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
