@@ -6303,9 +6303,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     </div>
                   </PopoverContent>
                 </Popover>
+                <MultiSelectFilter
+                  label="PJ"
+                  allLabel="Todas as PJs"
+                  options={pjOptions}
+                  selected={pjFilter}
+                  onChange={setPjFilter}
+                />
+                <MultiSelectFilter
+                  label="Médico"
+                  allLabel="Todos os médicos"
+                  options={medicoOptions}
+                  selected={medicoFilter}
+                  onChange={setMedicoFilter}
+                />
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setKeyAuditOpen(true)}>
                   Auditoria de chave
                 </Button>
+
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
