@@ -4154,6 +4154,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     [results, statusFilter, search, onlyWithPayment, analysisTab, pjFilter, medicoFilter],
   );
 
+  // Contadores por tipo IGNORANDO a sub-aba (mas respeitando busca / status /
+  // PJ / médico / apenas com pagamento). Usados no menu Exportar para o
+  // analista saber quantos itens sairiam em cada arquivo por tipo.
+  const filteredIgnoringTab = useMemo(
+    () => (results ? applyVisibleFilters(results, { ignoreAnalysisTab: true }) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [results, statusFilter, search, onlyWithPayment, pjFilter, medicoFilter],
+  );
+  const visibleByTipo = useMemo(() => {
+    const c = { valor: 0, quantidade: 0 };
+    for (const r of filteredIgnoringTab) c[r.tipo_analise]++;
+    return c;
+  }, [filteredIgnoringTab]);
+
   // Opções dos filtros PJ e Médico — extraídas da sub-aba atual para não
   // poluir a lista com valores de outra análise.
   const pjOptions = useMemo(() => {
@@ -4941,19 +4955,43 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
 
-  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible" | "split") => {
+  const exportData = async (
+    fmt: "xlsx" | "csv" | "json",
+    scope: "all" | "visible" | "split" | "valor" | "presenca",
+  ) => {
     if (!results) return;
-    const list = scope === "visible"
-      ? visible
-      : scope === "split"
-      ? applyVisibleFilters(results, { ignoreAnalysisTab: true })
-      : results;
+    // valor/presenca: aplicam todos os filtros (busca, status, PJ, médico,
+    // apenas com pagamento) IGNORANDO a sub-aba atual, e restringem por
+    // tipo_analise. Permite exportar só uma categoria sem trocar de aba.
+    const list =
+      scope === "visible"
+        ? visible
+        : scope === "split"
+        ? applyVisibleFilters(results, { ignoreAnalysisTab: true })
+        : scope === "valor"
+        ? applyVisibleFilters(results, { ignoreAnalysisTab: true }).filter(
+            (r) => r.tipo_analise === "valor",
+          )
+        : scope === "presenca"
+        ? applyVisibleFilters(results, { ignoreAnalysisTab: true }).filter(
+            (r) => r.tipo_analise === "quantidade",
+          )
+        : results;
     if (list.length === 0) {
       toast({ title: "Nada para exportar neste filtro", variant: "destructive" });
       return;
     }
     const stamp = format(new Date(), "yyyyMMdd_HHmm");
-    const suffix = scope === "visible" ? "filtrado_" : scope === "split" ? "abas_" : "";
+    const suffix =
+      scope === "visible"
+        ? "filtrado_"
+        : scope === "split"
+        ? "abas_"
+        : scope === "valor"
+        ? "por-valor_"
+        : scope === "presenca"
+        ? "por-presenca_"
+        : "";
     const baseName = `tasy-vs-repasse_${suffix}${stamp}`;
 
 
@@ -6322,20 +6360,35 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">Exportar</Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Todos ({results.length})</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => void exportData("xlsx", "all")}>Excel (.xlsx)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("csv", "all")}>CSV (;)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("json", "all")}>JSON</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Filtrado ({visible.length})</DropdownMenuLabel>
+              <DropdownMenuLabel>Filtrado — sub-aba atual ({visible.length})</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => void exportData("xlsx", "visible")}>Excel (.xlsx)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("csv", "visible")}>CSV (;)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportData("json", "visible")}>JSON</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Filtrado — 2 abas</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => void exportData("xlsx", "split")}>
-                Excel (.xlsx) — Por valor + Por presença
+              <DropdownMenuLabel>Filtrado por tipo (ignora sub-aba)</DropdownMenuLabel>
+              <DropdownMenuItem
+                disabled={visibleByTipo.valor === 0}
+                onClick={() => void exportData("xlsx", "valor")}
+              >
+                Só Por valor ({visibleByTipo.valor}) — .xlsx
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={visibleByTipo.quantidade === 0}
+                onClick={() => void exportData("xlsx", "presenca")}
+              >
+                Só Por presença ({visibleByTipo.quantidade}) — .xlsx
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={visibleByTipo.valor === 0 && visibleByTipo.quantidade === 0}
+                onClick={() => void exportData("xlsx", "split")}
+              >
+                Ambas em 2 abas ({visibleByTipo.valor + visibleByTipo.quantidade}) — .xlsx
               </DropdownMenuItem>
             </DropdownMenuContent>
 
