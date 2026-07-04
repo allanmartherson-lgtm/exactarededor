@@ -5237,32 +5237,96 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
           <div className="rounded-lg border border-border bg-card overflow-hidden">
-            {/* Sub-abas: separa itens por natureza do acordo. Pacote/valor fixo não têm base de R$ comparável ao TASY. */}
-            <div className="flex border-b border-border bg-muted/30">
-              {([
-                { key: "valor", label: "Por valor (% do convênio)", hint: "Regras percentual_convenio — TASY e Exacta compartilham base, compara R$." },
-                { key: "quantidade", label: "Por presença (pacote / valor fixo)", hint: "Regras com tabela própria — TASY não é base de R$, compara presença/quantidade." },
-              ] as const).map((tab) => {
-                const active = analysisTab === tab.key;
-                const n = countsByTipo[tab.key];
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setAnalysisTab(tab.key)}
-                    title={tab.hint}
-                    className={cn(
-                      "flex-1 px-4 py-2.5 text-sm border-b-2 transition-colors text-left",
-                      active
-                        ? "border-primary bg-card text-foreground font-semibold"
-                        : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                    )}
-                  >
-                    {tab.label} <span className={cn("ml-2 text-xs tabular-nums", active ? "text-primary" : "text-muted-foreground/70")}>({n})</span>
-                  </button>
-                );
-              })}
+            {/* Sub-abas: cartões segmentados grandes, com ícone, cor por natureza da
+                análise e contador destacado. Antes era uma barra fina com underline
+                que passava despercebida — usuário demorava a notar que existiam duas. */}
+            <div className="p-3 bg-muted/40 border-b border-border">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {([
+                  {
+                    key: "valor" as const,
+                    label: "Por valor",
+                    sublabel: "% do convênio",
+                    hint: "Regras percentual_convenio — TASY e Exacta compartilham a base, então comparamos R$.",
+                    Icon: PercentIcon,
+                    // Tokens semânticos: azul para "análise por valor".
+                    activeBg: "bg-primary/10",
+                    activeBorder: "border-primary",
+                    activeText: "text-primary",
+                    accent: "bg-primary",
+                  },
+                  {
+                    key: "quantidade" as const,
+                    label: "Por presença",
+                    sublabel: "pacote / valor fixo",
+                    hint: "Regras com tabela própria — TASY não é base de R$, comparamos presença/quantidade.",
+                    Icon: PackageIcon,
+                    activeBg: "bg-amber-100/70 dark:bg-amber-500/15",
+                    activeBorder: "border-amber-500",
+                    activeText: "text-amber-800 dark:text-amber-300",
+                    accent: "bg-amber-500",
+                  },
+                ]).map((tab) => {
+                  const active = analysisTab === tab.key;
+                  const n = countsByTipo[tab.key];
+                  const Icon = tab.Icon;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setAnalysisTab(tab.key)}
+                      title={tab.hint}
+                      aria-pressed={active}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-md border-2 px-4 py-3 text-left transition-all",
+                        active
+                          ? cn(tab.activeBg, tab.activeBorder, "shadow-sm")
+                          : "border-border bg-card hover:bg-muted/60 hover:border-muted-foreground/40",
+                      )}
+                    >
+                      {/* Barra lateral colorida reforça o ativo */}
+                      <span
+                        className={cn(
+                          "absolute left-0 top-0 bottom-0 w-1 rounded-l-sm",
+                          active ? tab.accent : "bg-transparent",
+                        )}
+                        aria-hidden
+                      />
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-md shrink-0",
+                          active ? cn(tab.accent, "text-white") : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className={cn("text-sm font-semibold", active ? tab.activeText : "text-foreground")}>
+                            {tab.label}
+                          </span>
+                          <span className={cn("text-xs", active ? tab.activeText : "text-muted-foreground")}>
+                            {tab.sublabel}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                          {tab.hint}
+                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          "shrink-0 rounded-md px-2.5 py-1 text-sm font-bold tabular-nums",
+                          active ? cn(tab.accent, "text-white") : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {n}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
             <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm font-semibold">
                 Resultado · {visible.length} de {countsByTipo[analysisTab]}
