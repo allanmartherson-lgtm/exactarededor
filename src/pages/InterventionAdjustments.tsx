@@ -33,6 +33,7 @@ import {
 } from "@/lib/interventionSavings";
 import { reasonLabel, isEconomiaRealReason } from "@/lib/cancelledPayments";
 import { logExport } from "@/lib/exportLog";
+import InterventionPreviewSection from "@/components/intervention/InterventionPreviewSection";
 
 type Range = 7 | 30 | 90 | 180;
 
@@ -240,6 +241,9 @@ export default function InterventionAdjustments() {
         showBack
       />
       <div className="p-4 md:p-6 space-y-4">
+        {/* Prévia de lotes em andamento — não gravado no ledger */}
+        <InterventionPreviewSection />
+
         {/* Filtros */}
         <Card className="shadow-card">
           <CardContent className="p-4 flex flex-wrap items-end gap-3">
