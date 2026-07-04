@@ -2190,6 +2190,18 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
 
 const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "ausente_tasy", "ok"];
 
+// Fonte única de verdade para o status exibido/filtrado: em "quantidade" o
+// status nunca depende de R$ (TASY não é base), só de presença/quantidade.
+// Assim badge, filtro, contagem e coluna de ação sempre concordam, mesmo em
+// rodadas antigas cujo r.status persistido ficou derivado do valor.
+export function effectiveTvrStatus(r: TvrResult): TvrStatus {
+  if (r.tipo_analise !== "quantidade") return r.status;
+  if (r.status === "nao_pago" || r.status === "ausente_tasy") return r.status;
+  if (r.dif_qtd < -0.5) return "pago_a_mais";
+  if (r.dif_qtd > 0.5) return "div_qtd_valor";
+  return "ok";
+}
+
 export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
     nao_pago: 0,
@@ -2199,9 +2211,10 @@ export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
     ausente_tasy: 0,
     ok: 0,
   };
-  for (const r of list) c[r.status]++;
+  for (const r of list) c[effectiveTvrStatus(r)]++;
   return c;
 }
+
 
 const TVR_SOURCE = "tasy_vs_repasse";
 
@@ -3973,12 +3986,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const visible = useMemo(() => {
     const hasFilter = statusFilter.size > 0;
     const showOk = statusFilter.has("ok");
-    const list = (results ?? []).filter((r) => r.status !== "ok" || showOk);
     const q = search.trim().toLowerCase();
-    return list.filter((r) => {
+    return (results ?? []).filter((r) => {
+      // Usa SEMPRE o status rederivado em memória — em "presença" o status
+      // original salvo pode ter vindo do R$, mas o filtro/contagem/ação seguem
+      // presença/quantidade.
+      const eff = effectiveTvrStatus(r);
+      if (eff === "ok" && !showOk) return false;
+
       if (r.tipo_analise !== analysisTab) return false;
-      if (hasFilter && !statusFilter.has(r.status)) return false;
-      if (onlyWithPayment && r.status === "nao_pago") return false;
+      if (hasFilter && !statusFilter.has(eff)) return false;
+      if (onlyWithPayment && eff === "nao_pago") return false;
       if (q) {
         const hay = `${r.atendimento} ${r.tuss} ${r.procedimento} ${r.paciente} ${r.medico} ${r.convenio} ${r.funcao} ${r.funcoes_pagas} ${r.lotes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -3986,6 +4004,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return true;
     });
   }, [results, statusFilter, search, onlyWithPayment, analysisTab]);
+
 
   useEffect(() => {
     if (!results) return;
@@ -4026,10 +4045,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const c: Record<TvrStatus, number> = {
       nao_pago: 0, div_qtd_valor: 0, div_valor: 0, pago_a_mais: 0, ausente_tasy: 0, ok: 0,
     };
-
-    for (const r of results ?? []) c[r.status]++;
+    for (const r of results ?? []) c[effectiveTvrStatus(r)]++;
     return c;
   }, [results]);
+
 
   // ============================================================
   // Export: definimos colunas em um array único (grupo + cabeçalho + valor).
