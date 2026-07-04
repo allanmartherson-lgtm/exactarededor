@@ -79,8 +79,8 @@ export default function BlockingDivergencesTab({
 
       const [{ data: payments }, { data: companies }, { data: overrides }] = await Promise.all([
         paymentIds.length
-          ? supabase.from("payments").select("id,reference").in("id", paymentIds)
-          : Promise.resolve({ data: [] as { id: string; reference: string | null }[] }),
+          ? supabase.from("payments").select("id,reference,import_mode").in("id", paymentIds)
+          : Promise.resolve({ data: [] as { id: string; reference: string | null; import_mode: string | null }[] }),
         companyIds.length
           ? supabase.from("companies").select("id,name").in("id", companyIds)
           : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
