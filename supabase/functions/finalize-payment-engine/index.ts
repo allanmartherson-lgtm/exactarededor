@@ -164,6 +164,10 @@ async function runPipeline(
     for (let i = 0; i < companyIds.length; i += CONCURRENCY) {
       const batch = companyIds.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(runForCompany));
+      // Dessincroniza a "trace" que o AI Gateway usa para rate-limit entre PJs.
+      if (i + CONCURRENCY < companyIds.length) {
+        await new Promise((res) => setTimeout(res, Math.floor(Math.random() * INTER_PJ_JITTER_MS)));
+      }
     }
 
     if (want("company_adjustments") || want("glosa_debts")) {
