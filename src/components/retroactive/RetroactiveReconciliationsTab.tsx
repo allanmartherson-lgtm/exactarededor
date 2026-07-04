@@ -4086,7 +4086,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const rows = list.map((r) => {
       const missing = getAusenteTasyMissingFields(r);
       const warnings = missing.length > 0
-        ? [`Ausente TASY incompleto — faltam: ${missing.join(", ")}`]
+        ? [`Ausente base faturamento incompleto — faltam: ${missing.join(", ")}`]
         : [];
       return {
         reconciliation_id: id,
