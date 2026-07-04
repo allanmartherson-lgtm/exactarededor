@@ -2878,6 +2878,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [keyAuditOpen, setKeyAuditOpen] = useState(false);
   const [encaminharBusy, setEncaminharBusy] = useState(false);
+  // Modo compacto — reduz padding/tamanho de fonte da tabela para caber mais
+  // linhas na tela em hospitais com muitos itens (ex.: DF Star ~1000 linhas).
+  // Persistido em localStorage para não precisar reativar a cada abertura.
+  const [compactMode, setCompactMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("tvr:compactMode") === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("tvr:compactMode", compactMode ? "1" : "0");
+  }, [compactMode]);
   const [groupDoctorsMap, setGroupDoctorsMap] = useState<Record<string, { full_name: string; crm: string | null }>>({});
 
   const [wizard, setWizard] = useState<
@@ -6072,6 +6083,23 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   />
                   Apenas com pagamento
                 </label>
+                <label
+                  className={cn(
+                    "flex items-center gap-1.5 text-[11px] cursor-pointer select-none px-2 py-1 rounded border transition-colors",
+                    compactMode
+                      ? "border-primary/60 bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground",
+                  )}
+                  title="Reduz padding e fonte da tabela para caber mais linhas na tela. Útil em lotes grandes (ex.: DF Star)."
+                >
+                  <input
+                    type="checkbox"
+                    checked={compactMode}
+                    onChange={(e) => setCompactMode(e.target.checked)}
+                    className="h-3.5 w-3.5"
+                  />
+                  Modo compacto
+                </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" className="h-8 w-[200px] text-xs justify-between font-normal">
@@ -6163,7 +6191,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <div
               ref={resultTableScrollRef}
               onScroll={() => syncResultScroll("table")}
-              className="overflow-auto max-h-[65vh] rounded-b-lg border-border"
+              className={cn(
+                "overflow-auto max-h-[65vh] rounded-b-lg border-border",
+                // Modo compacto: reduz padding vertical/horizontal em td/th e
+                // encolhe a fonte. Preserva `align-top` e cores; só ajusta densidade.
+                compactMode && [
+                  "text-[11px]",
+                  "[&_td]:py-1 [&_td]:px-2",
+                  "[&_th]:py-1 [&_th]:px-2 [&_th]:h-8",
+                  "[&_.max-w-\\[200px\\]]:max-w-[140px]",
+                  "[&_.max-w-\\[180px\\]]:max-w-[130px]",
+                ],
+              )}
             >
 
               {(() => {
