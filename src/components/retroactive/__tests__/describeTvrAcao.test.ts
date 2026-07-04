@@ -272,8 +272,9 @@ describe("Card × planilha — computeTvrFinancialTotals usa a base operacional 
   });
   it("cenário misto reflete a lógica operacional da planilha", () => {
     const list: TvrResult[] = [
-      // 1) Faltou pagar → complementar 100% convênio
-      r({ status: "nao_pago", valor_total_tasy: 500 }),
+      // 1) Faltou pagar COM previsão → complementa 300 (valor previsto),
+      //    não os 500 brutos TASY.
+      r({ status: "nao_pago", valor_total_tasy: 500, valor_previsto_regra: 300 }),
       // 2) Pago a menos regra %convênio → complementar dif_valor
       r({ status: "div_valor", tipo_analise: "valor", dif_valor: 120, valor_pago_base: 400 }),
       // 3) Pago a mais regra pacote → recuperar ajuste_acordo (não os 3000 brutos)
@@ -291,7 +292,7 @@ describe("Card × planilha — computeTvrFinancialTotals usa a base operacional 
       r({ status: "ok" }),
     ];
     const { totalComplementar, totalRetirar } = computeTvrFinancialTotals(list);
-    expect(totalComplementar).toBeCloseTo(620, 2); // 500 + 120
+    expect(totalComplementar).toBeCloseTo(420, 2); // 300 + 120
     expect(totalRetirar).toBeCloseTo(670, 2); // 450 + 220
   });
 });
