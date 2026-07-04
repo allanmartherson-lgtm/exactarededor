@@ -3951,38 +3951,50 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return c;
   }, [results]);
 
+  // Ordem consistente entre visualização e exportação, agrupada por seção
+  // (Item · Contexto · TASY atual · Lote histórico · Diferenças · Recalc · Ajuste).
+  // O prefixo "GRUPO · " garante o agrupamento visual em CSV/JSON/XLSX.
   const buildExportRows = (list: TvrResult[]) => list.map((r) => ({
-    "PJ Conciliada": r.pj_conciliada ?? "",
-    Médico: r.medico,
-    Status: TVR_STATUS_LABEL[r.status],
-    "Tipo de Análise": r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)",
-    "Sem lastro TASY": r.sem_lastro_tasy ? "Sim" : "",
-    Atendimento: r.atendimento,
-    "Cód. TUSS": r.tuss,
-    Procedimento: r.procedimento,
-    Paciente: r.paciente,
-    Data: formatTvrDate(r.data),
-    Convênio: r.convenio,
-    Função: r.funcao,
-    "Qtd TASY (atual)": r.qtd_tasy,
-    "Valor unit. TASY (atual)": r.valor_unit_tasy,
-    "Valor total TASY (atual)": r.valor_total_tasy,
-    "Qtd paga por função (lote)": Number(r.qtd_por_func.toFixed(4)),
-    "Nº funções pagas": r.n_funcs,
-    "Funções pagas (lote)": r.funcoes_pagas,
-    "Lote(s) de origem": r.lotes,
-    "Base convênio no lote (100%)": r.valor_pago_base,
-    "Pago no lote (c/ acordo)": r.valor_com_acordo,
-    "Dif. qtd (TASY − lote)": Number(r.dif_qtd.toFixed(4)),
-    "Dif. valor (TASY − base do lote)": Number(r.dif_valor.toFixed(2)),
-    "Recalc: acordo do lote × TASY atual": Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)),
-    "Ajuste (pago − recalc)": Number((r.ajuste_acordo ?? 0).toFixed(2)),
-    "A recuperar (pago a mais)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
-    "A complementar (pago a menos)": Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)),
-    "Regra Aplicada": r.regra_aplicada ?? "",
-    "Linha do Cálculo": r.calculo_aplicado ?? "",
-
+    // Item
+    "Item · PJ Conciliada": r.pj_conciliada ?? "",
+    "Item · Médico": r.medico,
+    "Item · Status": TVR_STATUS_LABEL[r.status],
+    "Item · Tipo de Análise": r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)",
+    "Item · Sem lastro TASY": r.sem_lastro_tasy ? "Sim" : "",
+    // Contexto
+    "Contexto · Atendimento": r.atendimento,
+    "Contexto · Cód. TUSS": r.tuss,
+    "Contexto · Procedimento": r.procedimento,
+    "Contexto · Paciente": r.paciente,
+    "Contexto · Data": formatTvrDate(r.data),
+    "Contexto · Convênio": r.convenio,
+    "Contexto · Função": r.funcao,
+    // TASY (atual)
+    "TASY (atual) · Qtd": r.qtd_tasy,
+    "TASY (atual) · Valor unit.": r.valor_unit_tasy,
+    "TASY (atual) · Valor total": r.valor_total_tasy,
+    // Lote histórico
+    "Lote histórico · Qtd paga por função": Number(r.qtd_por_func.toFixed(4)),
+    "Lote histórico · Nº funções pagas": r.n_funcs,
+    "Lote histórico · Funções pagas": r.funcoes_pagas,
+    "Lote histórico · Lote(s) de origem": r.lotes,
+    "Lote histórico · Base convênio (100%)": r.valor_pago_base,
+    "Lote histórico · Pago no lote (c/ acordo)": r.valor_com_acordo,
+    // Diferenças brutas (TASY − lote)
+    "Diferenças · Dif. qtd (TASY − lote)": Number(r.dif_qtd.toFixed(4)),
+    "Diferenças · Dif. valor (TASY − base do lote)": Number(r.dif_valor.toFixed(2)),
+    // Recalculado
+    "Recalc · Acordo do lote × TASY atual": Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)),
+    // Ajuste
+    "Ajuste · Pago − Recalc": Number((r.ajuste_acordo ?? 0).toFixed(2)),
+    "Ajuste · A recuperar (pago a mais)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+    "Ajuste · A complementar (pago a menos)": Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)),
+    // Rastreabilidade da regra
+    "Rastreio · Regra Aplicada": r.regra_aplicada ?? "",
+    "Rastreio · Linha do Cálculo": r.calculo_aplicado ?? "",
   }));
+
+
 
   const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
     if (!results) return;
@@ -5168,7 +5180,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
               <Table className="min-w-[2200px]">
                 <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
+                  {/* Linha de grupos — separa visualmente as seções: Item, Contexto, TASY atual, Lote histórico, Diferenças, Recalc, Ajuste. */}
+                  <TableRow className="bg-muted/50">
+                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Item</TableHead>
+                    <TableHead colSpan={8} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Contexto</TableHead>
+                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-sky-800 bg-sky-50/60 border-r border-border">TASY (atual)</TableHead>
+                    <TableHead colSpan={6} className="text-center text-[10px] uppercase tracking-wider text-indigo-800 bg-indigo-50/60 border-r border-border">Lote histórico</TableHead>
+                    <TableHead colSpan={2} className="text-center text-[10px] uppercase tracking-wider text-amber-800 bg-amber-50/60 border-r border-border">Diferenças brutas</TableHead>
+                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-emerald-800 bg-emerald-50/60 border-r border-border">Recalculado</TableHead>
+                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-rose-800 bg-rose-50/60">Ajuste</TableHead>
+                  </TableRow>
                   <TableRow>
+
                     <TableHead className="w-10 text-center">
                       {(() => {
                         const selectableKeys = visible.filter(isActionableTvr).map((r) => r.key);
