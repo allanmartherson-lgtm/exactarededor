@@ -4027,7 +4027,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Item", header: "Tipo de análise", get: (r) => r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)" },
     { group: "Item", header: "Sem lastro TASY", get: (r) => r.sem_lastro_tasy ? "Sim" : "" },
     // Contexto — PJ e Médico primeiro (quem), depois atendimento/procedimento (o quê/quando).
-    { group: "Contexto", header: "PJ", get: (r) => r.pj_conciliada ?? "" },
+    // "PJ" espelha a UI: mostra a PJ conciliada quando existe; para Faltou pagar
+    // sem lastro, mostra a PJ provável com prefixo "[prev.]" (equivalente ao
+    // badge amarelo). Assim analista abre o XLSX e enxerga o mesmo texto da tela.
+    { group: "Contexto", header: "PJ", get: (r) => r.pj_conciliada ? r.pj_conciliada : (r.status === "nao_pago" && r.pj_provavel ? `[prev.] ${r.pj_provavel}` : "") },
     { group: "Contexto", header: "Médico", get: (r) => r.medico },
     { group: "Contexto", header: "Atendimento", get: (r) => r.atendimento },
     { group: "Contexto", header: "Cód. TUSS", get: (r) => r.tuss },
