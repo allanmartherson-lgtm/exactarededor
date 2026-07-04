@@ -1366,25 +1366,58 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     meta?: { companyMapping?: Record<string, string | null> },
   ) => {
     const cMap = meta?.companyMapping ?? {};
-    const newDrafts: DraftItem[] = mapped.map((m) => {
+
+    // Validação de schema: normaliza data e coleta linhas inválidas
+    // (sem chave mínima ou com data em formato irreconhecível).
+    const rejected: { line: number; reason: string }[] = [];
+    const accepted: DraftItem[] = [];
+
+    mapped.forEach((m, idx) => {
+      const line = idx + 2; // header + 1-based
+      const attendance = (m.attendance ?? "").trim();
+      const tuss = (m.tuss_code ?? "").trim();
+      const rawDate = (m.procedure_date ?? "").trim();
+
+      if (!attendance && !tuss) {
+        rejected.push({ line, reason: "sem atendimento nem TUSS" });
+        return;
+      }
+
+      let normalizedDate = "";
+      if (rawDate) {
+        const ymd = dbDateOrNull(rawDate);
+        if (!ymd) {
+          rejected.push({ line, reason: `data inválida "${rawDate}" (use YYYY-MM-DD ou DD/MM/YYYY)` });
+          return;
+        }
+        normalizedDate = ymd;
+      }
+
+      const claimedAmount = (m.claimed_amount ?? "").trim();
+      if (claimedAmount && !Number.isFinite(num(claimedAmount))) {
+        rejected.push({ line, reason: `valor inválido "${claimedAmount}"` });
+        return;
+      }
+
       const raw = (m.company_hint ?? "").trim();
       const resolvedCompanyId = raw ? cMap[raw] ?? null : null;
-      return {
+      accepted.push({
         _localId: crypto.randomUUID(),
         source: "upload",
-        attendance: m.attendance ?? "",
-        tuss_code: m.tuss_code ?? "",
-        procedure_date: m.procedure_date ?? "",
+        attendance,
+        tuss_code: tuss,
+        procedure_date: normalizedDate,
         patient_name: m.patient_name ?? "",
         function_label: m.function_label ?? "",
         procedure_name: m.procedure_name ?? "",
-        claimed_amount: m.claimed_amount ?? "",
+        claimed_amount: claimedAmount,
         claimed_quantity: m.claimed_quantity ?? "",
         company_hint: raw,
         resolved_company_id: resolvedCompanyId,
-      };
+      });
     });
-    setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...newDrafts]);
+
+    setDrafts((d) => [...d.filter((x) => x.attendance || x.tuss_code), ...accepted]);
     setWizard({ open: false });
 
     // Persiste vínculos aprendidos (alias) + salva mapping no summary da reconciliação.
@@ -1416,7 +1449,20 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       }
     })();
 
-    toast({ title: `${newDrafts.length} linha(s) carregadas da planilha` });
+    if (rejected.length > 0) {
+      const preview = rejected.slice(0, 5).map((r) => `linha ${r.line}: ${r.reason}`).join(" · ");
+      const extra = rejected.length > 5 ? ` (+${rejected.length - 5} outras)` : "";
+      toast({
+        title: `${rejected.length} linha(s) rejeitada(s) na validação`,
+        description: `${preview}${extra}`,
+        variant: "destructive",
+      });
+    }
+    if (accepted.length > 0) {
+      toast({ title: `${accepted.length} linha(s) carregadas da planilha` });
+    } else if (rejected.length === 0) {
+      toast({ title: "Nenhuma linha aproveitada", variant: "destructive" });
+    }
   };
 
   const onPasteApply = () => {
