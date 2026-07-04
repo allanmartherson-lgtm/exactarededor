@@ -3424,16 +3424,23 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (scopedCompanyIds.size > 0) {
           const rawEmpresa = String(r.tasy_empresa ?? "").trim();
           if (!rawEmpresa) {
+            // Linha TASY sem PJ na origem: não pode ser atribuída ao lote,
+            // então é tratada como fora de escopo (não bloqueia processamento).
             tasyMissingCompany++;
             const key = "(vazio)";
             const cur = unresolvedByRaw.get(key) ?? { count: 0, missing: true };
             unresolvedByRaw.set(key, { count: cur.count + 1, missing: true });
+            companyTasyRemoved++;
             continue;
           }
           if (!cid) {
+            // PJ não cadastrada/sem alias: se não está no escopo do lote de
+            // pagamento, não faz sentido bloquear — apenas apontar no painel
+            // para o analista mapear se quiser incluir no cruzamento.
             tasyUnresolvedCompany++;
             const cur = unresolvedByRaw.get(rawEmpresa) ?? { count: 0, missing: false };
             unresolvedByRaw.set(rawEmpresa, { count: cur.count + 1, missing: false });
+            companyTasyRemoved++;
             continue;
           }
           if (!scopedCompanyIds.has(cid)) {
@@ -3444,22 +3451,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         effectiveTasyRows.push(r);
       }
 
+      // Painel informativo (não bloqueia): permite ao analista mapear PJs
+      // cruas a cadastros quando quiser resgatar essas linhas para o lote.
       if (tasyMissingCompany > 0 || tasyUnresolvedCompany > 0) {
         const samples = Array.from(unresolvedByRaw.entries())
           .map(([raw, v]) => ({ raw, count: v.count, missing: v.missing }))
           .sort((a, b) => b.count - a.count);
         setUnresolvedPjPanel(samples);
-        setPjMapDraft({});
+        setPjMapDraft((prev) => prev ?? {});
         toast({
-          title: "TASY fora do escopo seguro do lote",
-          description: `${tasyMissingCompany} linha(s) sem PJ e ${tasyUnresolvedCompany} linha(s) com PJ não cadastrada/sem alias. Use o painel abaixo para vincular direto.`,
-          variant: "destructive",
+          title: "Algumas linhas TASY ficaram fora do escopo",
+          description: `${tasyMissingCompany + tasyUnresolvedCompany} linha(s) com PJ não vinculada foram ignoradas. Use o painel para mapear se precisar incluí-las.`,
         });
-        setProcessing(false);
-        return;
+      } else {
+        setUnresolvedPjPanel([]);
       }
-      // Limpa painel se processou limpo desta vez.
-      setUnresolvedPjPanel([]);
+
 
       if (effectiveTasyRows.length === 0) {
         toast({
