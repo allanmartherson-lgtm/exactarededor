@@ -4570,14 +4570,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (calcIds.length > 0) {
             const { data: calcs } = await supabase
               .from("rule_calculations")
-              .select("id, label, sort_order, calculation_type")
+              .select(
+                "id, label, sort_order, calculation_type, fixed_amount, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct",
+              )
               .in("id", calcIds);
             const labels = new Map<string, string>();
+            const raws = new Map<string, {
+              calculation_type?: string | null;
+              fixed_amount?: number | null;
+              convenio_percentage?: number | null;
+              auxiliary_pct?: number | null;
+              aux_first_pct?: number | null;
+              aux_second_pct?: number | null;
+              instrumentador_pct?: number | null;
+            }>();
             for (const c of (calcs ?? []) as Array<{
               id: string;
               label?: string;
               sort_order?: number;
               calculation_type?: string;
+              fixed_amount?: number | null;
+              convenio_percentage?: number | null;
+              auxiliary_pct?: number | null;
+              aux_first_pct?: number | null;
+              aux_second_pct?: number | null;
+              instrumentador_pct?: number | null;
             }>) {
               const idx =
                 typeof c.sort_order === "number" ? c.sort_order + 1 : null;
@@ -4591,9 +4608,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   .filter(Boolean)
                   .join(" "),
               );
+              raws.set(String(c.id), {
+                calculation_type: c.calculation_type ?? null,
+                fixed_amount: c.fixed_amount ?? null,
+                convenio_percentage: c.convenio_percentage ?? null,
+                auxiliary_pct: c.auxiliary_pct ?? null,
+                aux_first_pct: c.aux_first_pct ?? null,
+                aux_second_pct: c.aux_second_pct ?? null,
+                instrumentador_pct: c.instrumentador_pct ?? null,
+              });
             }
             for (const v of ruleByKey.values()) {
-              if (v.calc_id) v.calc_label = labels.get(v.calc_id);
+              if (v.calc_id) {
+                v.calc_label = labels.get(v.calc_id);
+                v.calc_raw = raws.get(v.calc_id);
+              }
             }
           }
         } catch (e) {
