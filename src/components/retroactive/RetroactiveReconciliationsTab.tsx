@@ -2220,18 +2220,38 @@ export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
 
 const TVR_SOURCE = "tasy_vs_repasse";
 
+/**
+ * Cards financeiros do relatório usam a mesma base operacional do export
+ * (planilha "abas") — o que o analista efetivamente vai descontar/complementar:
+ *   - Regra "valor" (% sobre convênio ou sem acordo cadastrado): base é o
+ *     100% convênio (dif_valor). É o que o médico recebe/deveria receber.
+ *   - Regra "quantidade" (pacote/valor_fixo/tabela_diferenciada/bonus):
+ *     base é o `ajuste_acordo` — valor efetivamente pago pela qtd em excesso,
+ *     não o convênio bruto (pacote não paga item a item pelo convênio).
+ *   - `ausente_tasy`: paguei sem lastro TASY hoje → retirar o valor pós-regra
+ *     (`valor_com_acordo`), com fallback ao `valor_pago_base` para rodadas
+ *     antigas sem esse campo persistido.
+ */
 export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
-
   const totalComplementar = list.reduce((sum, r) => {
     if (r.status === "ok" || r.status === "ausente_tasy") return sum;
     if (r.status === "nao_pago") return sum + r.valor_total_tasy;
-    if (r.dif_valor > 0.5) return sum + r.dif_valor;
-    return sum;
+    if (r.tipo_analise === "quantidade") {
+      const ajuste = r.ajuste_acordo ?? 0;
+      return ajuste < -0.5 ? sum + Math.abs(ajuste) : sum;
+    }
+    return r.dif_valor > 0.5 ? sum + r.dif_valor : sum;
   }, 0);
   const totalRetirar = list.reduce((sum, r) => {
-    if (r.status === "ausente_tasy") return sum + r.valor_pago_base;
-    if (r.dif_valor < -0.5) return sum + Math.abs(r.dif_valor);
-    return sum;
+    if (r.status === "ausente_tasy") {
+      const operacional = r.valor_com_acordo && r.valor_com_acordo > 0.5 ? r.valor_com_acordo : r.valor_pago_base;
+      return sum + operacional;
+    }
+    if (r.tipo_analise === "quantidade") {
+      const ajuste = r.ajuste_acordo ?? 0;
+      return ajuste > 0.5 ? sum + ajuste : sum;
+    }
+    return r.dif_valor < -0.5 ? sum + Math.abs(r.dif_valor) : sum;
   }, 0);
   return { totalComplementar, totalRetirar };
 }
