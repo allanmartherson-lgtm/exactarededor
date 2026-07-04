@@ -99,6 +99,33 @@ Deno.serve(async (req) => {
           })
           .eq("id", job.id);
 
+        // Reenfileira as empresas que o worker abandonou para que o
+        // `ai-retry-worker` retome sozinho — sem reenfileirar, elas ficam
+        // presas em `em_analise_ia` até intervenção manual.
+        let enqueued = 0;
+        if (missing.length > 0) {
+          const nowIso = new Date().toISOString();
+          const rows = missing.map((name) => ({
+            payment_id: job.payment_id,
+            company_name: name,
+            hospital_id: (job as any).hospital_id ?? null,
+            status: "pending",
+            attempts: 0,
+            last_error: "watchdog: worker nunca reportou — reenfileirado",
+            source_job_id: job.id,
+            last_job_id: job.id,
+            next_attempt_at: nowIso,
+            locked_at: null,
+            finished_at: null,
+            updated_at: nowIso,
+          }));
+          const { error: enqErr } = await supabase
+            .from("ai_retry_queue")
+            .upsert(rows, { onConflict: "payment_id,company_name" });
+          if (enqErr) console.error("[analysis-watchdog] enqueue ai_retry_queue falhou", enqErr);
+          else enqueued = rows.length;
+        }
+
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/recalc-payment-pools`, {
             method: "POST",
@@ -111,6 +138,7 @@ Deno.serve(async (req) => {
           job_id: job.id,
           action: "finalized_parcial_out_of_pages",
           missing_count: missing.length,
+          enqueued_for_retry: enqueued,
           processed,
           total: totalExpected,
         });
