@@ -35,7 +35,9 @@ type Row = {
 const fmt = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function BlockingDivergencesTab() {
+export default function BlockingDivergencesTab({
+  onCountChange,
+}: { onCountChange?: (n: number) => void } = {}) {
   const navigate = useNavigate();
   const { hospital } = useHospital();
   const [rows, setRows] = useState<Row[]>([]);
