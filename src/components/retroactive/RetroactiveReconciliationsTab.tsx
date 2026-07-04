@@ -2823,6 +2823,7 @@ function LoteScopeFilter({
 
 function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [recon, setRecon] = useState<ReconRow | null>(null);
   const [companies, setCompanies] = useState<Array<{ id: string; name: string; aliases: string[] }>>([]);
   const [tasyRows, setTasyRows] = useState<TasyRow[]>([]);
