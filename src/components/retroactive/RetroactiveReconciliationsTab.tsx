@@ -2134,6 +2134,18 @@ export type TvrResult = {
   // e payment_items.applied_calc_id da regra que gerou o cálculo no lote.
   applied_rule_id?: string;
   applied_calc_id?: string;
+  // ==== Inferência para itens "Faltou pagar" (sem lastro no lote) ====
+  // Regra do sistema: 1 PJ por médico por hospital → resolvemos via doctor_companies
+  // (vínculo ativo). Se o médico tiver múltiplas ativas, marcamos ambíguo e não sugerimos.
+  pj_provavel?: string;
+  pj_provavel_id?: string;
+  // Regra "provável" = última regra já aplicada para (médico + procedure_code) neste
+  // hospital. Heurística — não invoca o motor, respeita "nunca inferir valor".
+  regra_prevista?: string;
+  regra_prevista_id?: string;
+  calculo_previsto?: string;
+  calculo_previsto_id?: string;
+
 
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
   key_audit?: {
@@ -4048,7 +4060,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ?? "" },
     { group: "Rastreio", header: "ID do médico (doctor_id)", get: (r) => r.matched_doctor_id ?? "" },
     { group: "Rastreio", header: "Chave canônica", get: (r) => r.key ?? "" },
+    // Inferência para itens sem lastro no lote — colunas separadas para deixar
+    // claro que é sugestão (não valor real do repasse).
+    { group: "Rastreio", header: "PJ provável (Faltou pagar)", get: (r) => r.pj_provavel ?? "" },
+    { group: "Rastreio", header: "ID PJ provável", get: (r) => r.pj_provavel_id ?? "" },
+    { group: "Rastreio", header: "Regra prevista (Faltou pagar)", get: (r) => r.regra_prevista ?? "" },
+    { group: "Rastreio", header: "ID regra prevista", get: (r) => r.regra_prevista_id ?? "" },
+    { group: "Rastreio", header: "Cálculo previsto", get: (r) => r.calculo_previsto ?? "" },
+    { group: "Rastreio", header: "ID cálculo previsto", get: (r) => r.calculo_previsto_id ?? "" },
   ];
+
 
 
   // Para CSV/JSON: nomes de coluna limpos com o grupo separado como coluna própria,
@@ -4062,6 +4083,234 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     }
     return obj;
   });
+
+  // ============================================================
+  // Inferência para itens "Faltou pagar" (sem lastro no lote histórico).
+  //  · PJ provável: doctor_companies com end_date null. Regra do sistema é 1 PJ
+  //    ativa por médico por hospital. Se aparecerem múltiplas → ambíguo → não
+  //    sugerimos, para não induzir erro.
+  //  · Regra prevista: última regra já aplicada para (médico + procedure_code)
+  //    neste hospital, olhando payment_items históricos. Heurística — não
+  //    invoca o motor de cálculo, respeita a diretriz "nunca inferir valor".
+  // Ambas ficam em campos separados (pj_provavel / regra_prevista) para nunca
+  // se confundirem com PJ conciliada / Regra aplicada reais do lote.
+  // ============================================================
+  const enrichNaoPagoInferred = async (
+    rows: TvrResult[],
+    hospitalId: string | null,
+  ): Promise<void> => {
+    const targets = rows.filter(
+      (r) => r.status === "nao_pago" && (!r.pj_provavel || !r.regra_prevista),
+    );
+    if (targets.length === 0) return;
+
+    const collectDoctorIds = (r: TvrResult): string[] => {
+      const ids = new Set<string>();
+      if (r.matched_doctor_id) ids.add(r.matched_doctor_id);
+      for (const d of r.matched_doctor_ids ?? []) if (d) ids.add(d);
+      return Array.from(ids);
+    };
+    const allDoctorIds = Array.from(
+      new Set(targets.flatMap(collectDoctorIds)),
+    );
+
+    // ---------- PJ provável ----------
+    // Filtra vínculos ativos (end_date IS NULL). doctor_companies não tem
+    // hospital_id, então dependemos da regra de negócio "1 PJ ativa por médico
+    // por hospital"; se retornar mais de uma → ambíguo.
+    const pjByDoctor = new Map<
+      string,
+      { company_id: string; name?: string; ambiguous: boolean }
+    >();
+    if (allDoctorIds.length > 0) {
+      try {
+        const { data } = await supabase
+          .from("doctor_companies")
+          .select("doctor_id, company_id, end_date")
+          .in("doctor_id", allDoctorIds)
+          .is("end_date", null);
+        const byDoc = new Map<string, Set<string>>();
+        for (const row of (data ?? []) as Array<{
+          doctor_id: string;
+          company_id: string;
+        }>) {
+          const set = byDoc.get(row.doctor_id) ?? new Set<string>();
+          set.add(row.company_id);
+          byDoc.set(row.doctor_id, set);
+        }
+        const compIds = Array.from(
+          new Set(Array.from(byDoc.values()).flatMap((s) => Array.from(s))),
+        );
+        const compNames = new Map<string, string>();
+        if (compIds.length > 0) {
+          const { data: comps } = await supabase
+            .from("companies")
+            .select("id, name")
+            .in("id", compIds);
+          for (const c of (comps ?? []) as Array<{ id: string; name?: string }>) {
+            if (c?.id) compNames.set(String(c.id), String(c.name ?? ""));
+          }
+        }
+        for (const [did, set] of byDoc.entries()) {
+          const cids = Array.from(set);
+          const first = cids[0];
+          pjByDoctor.set(did, {
+            company_id: first,
+            name: compNames.get(first) || undefined,
+            ambiguous: cids.length > 1,
+          });
+        }
+      } catch (e) {
+        console.warn("[nao_pago] falha inferindo PJ provável:", e);
+      }
+    }
+
+    // ---------- Regra prevista ----------
+    // Só faz sentido dentro do escopo do hospital atual (regra é por hospital).
+    const ruleByKey = new Map<
+      string,
+      {
+        rule_id: string;
+        rule_label?: string;
+        calc_id?: string;
+        calc_label?: string;
+      }
+    >();
+    if (hospitalId && allDoctorIds.length > 0) {
+      const codes = Array.from(
+        new Set(
+          targets.map((r) => (r.tuss || "").trim()).filter((c) => c.length > 0),
+        ),
+      );
+      if (codes.length > 0) {
+        try {
+          const CHUNK = 200;
+          type Row = {
+            doctor_id: string;
+            procedure_code: string;
+            applied_rule_id: string;
+            applied_rule_label?: string | null;
+            applied_calc_id?: string | null;
+            procedure_date?: string | null;
+          };
+          const all: Row[] = [];
+          for (let i = 0; i < codes.length; i += CHUNK) {
+            const { data } = await supabase
+              .from("payment_items")
+              .select(
+                "doctor_id, procedure_code, applied_rule_id, applied_rule_label, applied_calc_id, procedure_date",
+              )
+              .eq("hospital_id", hospitalId)
+              .in("doctor_id", allDoctorIds)
+              .in("procedure_code", codes.slice(i, i + CHUNK))
+              .not("applied_rule_id", "is", null)
+              .order("procedure_date", { ascending: false })
+              .limit(5000);
+            for (const row of (data ?? []) as Row[]) all.push(row);
+          }
+          // Primeira ocorrência por (doctor + code) já é a mais recente pelo order.
+          for (const row of all) {
+            const k = `${row.doctor_id}|${row.procedure_code}`;
+            if (ruleByKey.has(k)) continue;
+            ruleByKey.set(k, {
+              rule_id: row.applied_rule_id,
+              rule_label: row.applied_rule_label ?? undefined,
+              calc_id: row.applied_calc_id ?? undefined,
+            });
+          }
+          const calcIds = Array.from(
+            new Set(
+              Array.from(ruleByKey.values())
+                .map((v) => v.calc_id)
+                .filter(Boolean) as string[],
+            ),
+          );
+          if (calcIds.length > 0) {
+            const { data: calcs } = await supabase
+              .from("rule_calculations")
+              .select("id, label, sort_order, calculation_type")
+              .in("id", calcIds);
+            const labels = new Map<string, string>();
+            for (const c of (calcs ?? []) as Array<{
+              id: string;
+              label?: string;
+              sort_order?: number;
+              calculation_type?: string;
+            }>) {
+              const idx =
+                typeof c.sort_order === "number" ? c.sort_order + 1 : null;
+              labels.set(
+                String(c.id),
+                [
+                  idx ? `#${idx}` : "",
+                  (c.label ?? "").trim(),
+                  c.calculation_type ? `(${c.calculation_type})` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" "),
+              );
+            }
+            for (const v of ruleByKey.values()) {
+              if (v.calc_id) v.calc_label = labels.get(v.calc_id);
+            }
+          }
+        } catch (e) {
+          console.warn("[nao_pago] falha inferindo regra prevista:", e);
+        }
+      }
+    }
+
+    // Aplica nos rows-alvo.
+    for (const r of targets) {
+      const dids = collectDoctorIds(r);
+      // PJ: usa o primeiro doctor_id com PJ ativa não-ambígua.
+      if (!r.pj_provavel) {
+        for (const did of dids) {
+          const hit = pjByDoctor.get(did);
+          if (hit && !hit.ambiguous) {
+            r.pj_provavel_id = hit.company_id;
+            r.pj_provavel = hit.name;
+            break;
+          }
+        }
+      }
+      // Regra: primeira combinação (médico, code) com histórico de regra.
+      if (!r.regra_prevista) {
+        const code = (r.tuss || "").trim();
+        for (const did of dids) {
+          const hit = ruleByKey.get(`${did}|${code}`);
+          if (hit?.rule_id) {
+            r.regra_prevista_id = hit.rule_id;
+            r.regra_prevista = hit.rule_label;
+            r.calculo_previsto_id = hit.calc_id;
+            r.calculo_previsto = hit.calc_label;
+            break;
+          }
+        }
+      }
+    }
+  };
+
+  // Dispara a inferência quando `results` muda e há itens Faltou pagar sem
+  // inferência aplicada. Roda uma única vez por conjunto de resultados.
+  React.useEffect(() => {
+    if (!results) return;
+    const pending = results.filter(
+      (r) => r.status === "nao_pago" && (!r.pj_provavel || !r.regra_prevista),
+    );
+    if (pending.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const clone = results.map((r) => ({ ...r }));
+      await enrichNaoPagoInferred(clone, hospitalIdRecon);
+      if (cancelled) return;
+      setResults(clone);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, hospitalIdRecon]);
 
 
 
@@ -4334,7 +4583,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       ["Sem lastro TASY", "Item foi pago no lote histórico mas hoje não aparece mais na base TASY — provável cancelamento total do procedimento."],
       ["Regra aplicada", "Nome da regra do acordo cadastrado que gerou o cálculo daquele item no lote histórico."],
       ["Linha do cálculo", "Linha específica dentro da regra (quando a regra tem múltiplas linhas/faixas) que foi aplicada ao item."],
+      ["PJ provável (Faltou pagar)", "Para itens sem lastro no lote, sugerimos a PJ ativa do médico (doctor_companies com end_date null). Só preenche quando existe uma única PJ ativa — regra 1 PJ por médico por hospital."],
+      ["Regra prevista (Faltou pagar)", "Para itens sem lastro no lote, sugerimos a última regra já aplicada para o mesmo médico + procedure_code neste hospital (heurística). É uma indicação — não é valor pago e não roda o motor de cálculo."],
+      ["Badge 'prev.'", "Marca visual na tabela indicando que aquela informação (PJ ou Regra) é INFERIDA para um item Faltou pagar, não um dado real do repasse."],
     ];
+
     // Descrições por coluna. Chave = header exato usado no EXPORT_COLS.
     const COLUMN_DESCRIPTIONS: Record<string, string> = {
       "Status": "Situação do item na conciliação: OK, faltou pagar, pago a mais, pago a menos, sem lastro etc.",
@@ -4375,6 +4628,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       "ID da PJ (company_id)": "UUID da empresa vinculada ao item no lote histórico (tabela companies).",
       "ID do médico (doctor_id)": "UUID do médico do procedimento (tabela doctors).",
       "Chave canônica": "Chave interna que o motor usa para cruzar TASY × Exacta (Atend + Data + TUSS8 + Médico normalizado).",
+      "PJ provável (Faltou pagar)": "Empresa sugerida para itens que nunca foram pagos — usa o vínculo ativo do médico em doctor_companies (regra: 1 PJ ativa por médico por hospital). Vazio quando o médico tem múltiplas PJs ativas (ambíguo).",
+      "ID PJ provável": "UUID da PJ provável (tabela companies).",
+      "Regra prevista (Faltou pagar)": "Regra sugerida para itens sem pagamento — última regra já aplicada para este médico + procedure_code neste hospital. Heurística, não invoca o motor de cálculo.",
+      "ID regra prevista": "UUID da regra prevista (tabela rules).",
+      "Cálculo previsto": "Linha de cálculo (label #ordem) associada à regra prevista.",
+      "ID cálculo previsto": "UUID da linha de cálculo prevista (tabela rule_calculations).",
+
 
     };
 
@@ -5757,12 +6017,27 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   {
                     key: "context.pj",
                     header: "PJ",
-                    title: "Empresa (PJ) conciliada para este item no lote histórico.",
+                    title: "Empresa (PJ) conciliada para este item no lote histórico. Em 'Faltou pagar' mostramos a PJ provável (vínculo ativo do médico), marcada como 'prev.'.",
                     groupLabel: "Contexto",
                     groupClass: "text-muted-foreground",
-                    className: "max-w-[180px] truncate",
-                    cell: (r) => <span title={r.pj_conciliada || undefined}>{r.pj_conciliada || "—"}</span>,
+                    className: "max-w-[200px]",
+                    cell: (r) => {
+                      // Faltou pagar → não há PJ conciliada; usamos inferência.
+                      if (r.pj_conciliada) {
+                        return <span className="truncate block" title={r.pj_conciliada}>{r.pj_conciliada}</span>;
+                      }
+                      if (r.status === "nao_pago" && r.pj_provavel) {
+                        return (
+                          <span className="inline-flex items-center gap-1 max-w-full" title={`PJ provável (vínculo ativo do médico): ${r.pj_provavel}`}>
+                            <span className="truncate">{r.pj_provavel}</span>
+                            <span className="shrink-0 text-[9px] uppercase tracking-wide px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">prev.</span>
+                          </span>
+                        );
+                      }
+                      return <span>—</span>;
+                    },
                   },
+
                   { key: "context.med", header: "Médico", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[180px] truncate", cell: (r) => <span title={r.medico}>{r.medico || "—"}</span> },
                   {
                     key: "context.atend",
@@ -5955,9 +6230,27 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         )}
                       </TableCell>
                       <TableCell className="align-top max-w-[180px]">
-                        <div className="text-[11px] font-medium truncate" title={r.regra_aplicada}>{r.regra_aplicada || "—"}</div>
-                        <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_aplicado}>{r.calculo_aplicado || ""}</div>
+                        {r.regra_aplicada ? (
+                          <>
+                            <div className="text-[11px] font-medium truncate" title={r.regra_aplicada}>{r.regra_aplicada}</div>
+                            <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_aplicado}>{r.calculo_aplicado || ""}</div>
+                          </>
+                        ) : r.status === "nao_pago" && r.regra_prevista ? (
+                          <>
+                            <div
+                              className="text-[11px] font-medium truncate flex items-center gap-1"
+                              title={`Regra prevista (última aplicada para este médico + procedimento neste hospital): ${r.regra_prevista}`}
+                            >
+                              <span className="truncate">{r.regra_prevista}</span>
+                              <span className="shrink-0 text-[9px] uppercase tracking-wide px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">prev.</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_previsto}>{r.calculo_previsto || ""}</div>
+                          </>
+                        ) : (
+                          <div className="text-[11px] font-medium text-muted-foreground">—</div>
+                        )}
                       </TableCell>
+
                       {compactCols.map((c) => (
                         <TableCell key={c.key} className={cn("align-top", c.className)}>{c.cell(r)}</TableCell>
                       ))}
