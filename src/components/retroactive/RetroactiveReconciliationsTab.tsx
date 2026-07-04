@@ -4266,10 +4266,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const zebra = r % 2 === 0 ? "FFFFFF" : palette.band;
         (cell as { s?: unknown; z?: string; t?: string }).s = {
           alignment: {
-            horizontal: fmt ? "right" : (c <= 1 ? "left" : "left"),
-            vertical: "center",
-            wrapText: false,
+            horizontal: fmt ? "right" : "left",
+            vertical: "top",
+            // Quebra de linha ligada + altura da linha não fixada = Excel/LibreOffice
+            // ajustam a altura automaticamente para caber todo o conteúdo.
+            wrapText: true,
           },
+
           font: { sz: 10, color: { rgb: "1E293B" } },
           fill: { patternType: "solid", fgColor: { rgb: zebra } },
           border: {
