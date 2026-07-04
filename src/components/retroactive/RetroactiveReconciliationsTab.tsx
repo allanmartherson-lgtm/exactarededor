@@ -3992,8 +3992,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       // original salvo pode ter vindo do R$, mas o filtro/contagem/ação seguem
       // presença/quantidade.
       const eff = effectiveTvrStatus(r);
-      if (eff !== "ok" && false) return false; // no-op, keep readable
       if (eff === "ok" && !showOk) return false;
+
       if (r.tipo_analise !== analysisTab) return false;
       if (hasFilter && !statusFilter.has(eff)) return false;
       if (onlyWithPayment && eff === "nao_pago") return false;
