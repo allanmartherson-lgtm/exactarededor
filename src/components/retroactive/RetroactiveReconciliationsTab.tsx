@@ -2190,6 +2190,18 @@ const TVR_STATUS_TONE: Record<TvrStatus, string> = {
 
 const TVR_STATUS_ORDER: TvrStatus[] = ["nao_pago", "div_qtd_valor", "div_valor", "pago_a_mais", "ausente_tasy", "ok"];
 
+// Fonte única de verdade para o status exibido/filtrado: em "quantidade" o
+// status nunca depende de R$ (TASY não é base), só de presença/quantidade.
+// Assim badge, filtro, contagem e coluna de ação sempre concordam, mesmo em
+// rodadas antigas cujo r.status persistido ficou derivado do valor.
+export function effectiveTvrStatus(r: TvrResult): TvrStatus {
+  if (r.tipo_analise !== "quantidade") return r.status;
+  if (r.status === "nao_pago" || r.status === "ausente_tasy") return r.status;
+  if (r.dif_qtd < -0.5) return "pago_a_mais";
+  if (r.dif_qtd > 0.5) return "div_qtd_valor";
+  return "ok";
+}
+
 export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
   const c: Record<TvrStatus, number> = {
     nao_pago: 0,
@@ -2199,9 +2211,10 @@ export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
     ausente_tasy: 0,
     ok: 0,
   };
-  for (const r of list) c[r.status]++;
+  for (const r of list) c[effectiveTvrStatus(r)]++;
   return c;
 }
+
 
 const TVR_SOURCE = "tasy_vs_repasse";
 
