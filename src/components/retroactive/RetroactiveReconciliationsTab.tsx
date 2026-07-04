@@ -4287,10 +4287,160 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
     }
 
+    // ============================================================
+    // Aba "Legenda": vem antes da aba de dados para funcionar como
+    // manual rápido. Duas seções: (1) glossário de conceitos que aparecem
+    // no relatório e (2) dicionário de todas as colunas exportadas.
+    // ============================================================
+    const CONCEPT_GLOSSARY: Array<[string, string]> = [
+      ["TASY hoje", "Estado atual da base do hospital (TASY). Reflete cancelamentos, glosas e correções feitas depois do repasse original."],
+      ["Lote histórico", "Lote de repasse já processado e pago em competência anterior. Base 100% do convênio e valor pago ao médico registrados na época."],
+      ["Base convênio (100%)", "Valor cheio da tabela do convênio para o procedimento — antes de aplicar qualquer acordo/percentual com o médico."],
+      ["Pago ao médico (c/ acordo)", "Valor que o médico efetivamente recebeu naquele item, já com o percentual do acordo aplicado sobre a base."],
+      ["Devido hoje", "Quanto o médico deveria receber HOJE se o motor reprocessasse o item com a base atual do TASY e o mesmo acordo do lote original."],
+      ["Ajuste (pago no lote − devido hoje)", "Diferença entre o que foi pago e o que seria devido hoje. Positivo = pagamos a mais (recuperar). Negativo = pagamos a menos (complementar)."],
+      ["A recuperar", "Valor que precisa voltar do médico porque o TASY reduziu a base (glosa/cancelamento) depois do repasse."],
+      ["A complementar", "Valor extra a pagar ao médico porque o TASY aumentou a base ou apareceu item novo depois do repasse."],
+      ["Ação sugerida", "Resumo em linguagem do analista do que fazer com o item — deriva do sinal do ajuste e do tipo de regra aplicada."],
+      ["Tipo de análise · Valor (% convênio)", "Regras percentual_convenio: TASY e Exacta compartilham a mesma base do convênio, então comparamos em R$."],
+      ["Tipo de análise · Quantidade (tabela própria)", "Regras de pacote, valor fixo ou tabela diferenciada: TASY não é base de R$, então comparamos presença e quantidade."],
+      ["Sem lastro TASY", "Item foi pago no lote histórico mas hoje não aparece mais na base TASY — provável cancelamento total do procedimento."],
+      ["Regra aplicada", "Nome da regra do acordo cadastrado que gerou o cálculo daquele item no lote histórico."],
+      ["Linha do cálculo", "Linha específica dentro da regra (quando a regra tem múltiplas linhas/faixas) que foi aplicada ao item."],
+    ];
+    // Descrições por coluna. Chave = header exato usado no EXPORT_COLS.
+    const COLUMN_DESCRIPTIONS: Record<string, string> = {
+      "Status": "Situação do item na conciliação: OK, faltou pagar, pago a mais, pago a menos, sem lastro etc.",
+      "Tipo de análise": "Natureza da regra do acordo — determina se comparamos em R$ ou por presença/quantidade.",
+      "Sem lastro TASY": "Marcado quando o item foi pago no lote mas hoje não existe mais na base TASY.",
+      "PJ": "Empresa (pessoa jurídica) para a qual o pagamento do médico foi direcionado no lote histórico.",
+      "Médico": "Nome do médico responsável pelo procedimento.",
+      "Atendimento": "Número do atendimento no TASY (chave principal de vínculo entre TASY e Exacta).",
+      "Cód. TUSS": "Código TUSS de 8 dígitos do procedimento.",
+      "Procedimento": "Descrição textual do procedimento conforme aparece no TASY.",
+      "Paciente": "Nome do paciente do atendimento (dado sensível — uso restrito à conciliação).",
+      "Data": "Data do procedimento registrada no TASY.",
+      "Convênio": "Convênio/plano de saúde do atendimento.",
+      "Função": "Papel do médico no procedimento (Cirurgião Principal, Primeiro Auxiliar, Anestesista etc.).",
+      "Qtd": "Quantidade do procedimento na base TASY atual.",
+      "Vlr unitário": "Valor unitário do procedimento na tabela do convênio (100%, sem acordo) na base TASY atual.",
+      "Vlr total": "Valor total do procedimento na base TASY atual (qtd × unitário, 100% convênio).",
+      "Qtd paga por função": "Quantidade que foi paga ao médico neste item no lote histórico, distribuída pela função.",
+      "Nº de funções pagas": "Quantas funções distintas (Cirurgião, Auxiliar…) foram pagas neste atendimento+TUSS no lote.",
+      "Quais funções pagas": "Lista textual das funções que receberam pagamento neste item no lote histórico.",
+      "Lote(s) de origem": "Identificador(es) do lote de repasse em que este item foi pago.",
+      "Base convênio (100%, época)": "Base 100% do convênio registrada NO LOTE (época do repasse), antes do acordo.",
+      "Pago ao médico (c/ acordo)": "Valor efetivamente pago ao médico neste item no lote histórico, já com o acordo aplicado.",
+      "Dif. quantidade": "Quantidade TASY hoje − quantidade paga no lote. Negativa = TASY reduziu (glosa/cancelamento).",
+      "Dif. valor 100%": "Vlr total TASY hoje − base convênio no lote. Mede quanto a base 100% mudou depois do repasse.",
+      "Valor devido hoje": "Quanto seria pago ao médico se o motor reprocessasse hoje, com a base TASY atual e o mesmo acordo do lote.",
+      "Ajuste a fazer": "Pago no lote − Valor devido hoje. Positivo = pagamos a mais (recuperar). Negativo = pagamos a menos (complementar).",
+      "A recuperar (paguei a mais)": "Valor a estornar do médico porque a base TASY reduziu depois do repasse.",
+      "A complementar (paguei a menos)": "Valor extra a pagar ao médico porque a base TASY aumentou depois do repasse.",
+      "Ação": "Ação sugerida em linguagem do analista (recuperar / complementar / sem ajuste).",
+      "Motivo": "Explicação curta do porquê da ação — geralmente cita a natureza do acordo e o que mudou no TASY.",
+      "Regra aplicada": "Nome da regra do acordo cadastrado que originou o cálculo no lote.",
+      "Linha do cálculo": "Linha específica da regra aplicada (útil quando a regra tem várias linhas/faixas).",
+    };
+
+    // Monta AoA da legenda: título + seção conceitos + seção colunas.
+    const legAoa: (string | number)[][] = [];
+    legAoa.push(["Legenda — TASY vs Repasse"]);
+    legAoa.push([]);
+    legAoa.push(["Conceitos-chave"]);
+    legAoa.push(["Termo", "Significado"]);
+    for (const [term, def] of CONCEPT_GLOSSARY) legAoa.push([term, def]);
+    legAoa.push([]);
+    legAoa.push(["Dicionário de colunas"]);
+    legAoa.push(["Grupo", "Coluna", "Descrição"]);
+    for (const col of EXPORT_COLS) {
+      legAoa.push([col.group, col.header, COLUMN_DESCRIPTIONS[col.header] ?? ""]);
+    }
+
+    const wsLeg = XLSXStyle.utils.aoa_to_sheet(legAoa);
+    (wsLeg as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = [
+      { wch: 34 }, { wch: 30 }, { wch: 90 },
+    ];
+    // Merges: título (linha 0) ocupa 3 colunas; "Conceitos-chave" (linha 2) ocupa 2;
+    // "Dicionário de colunas" (linha após conceitos) ocupa 3.
+    const legMerges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = [];
+    legMerges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } });
+    legMerges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 1 } });
+    const dictRow = 3 + CONCEPT_GLOSSARY.length + 2; // linha do "Dicionário de colunas"
+    legMerges.push({ s: { r: dictRow, c: 0 }, e: { r: dictRow, c: 2 } });
+    // Conceitos: 2ª coluna (definição) quebra linha; damos merge horizontal apenas
+    // quando não há valor na 3ª coluna — não é necessário, colunas ficam como estão.
+    (wsLeg as unknown as { "!merges"?: unknown[] })["!merges"] = legMerges;
+
+    // Estilos: título grande, cabeçalhos de seção destacados, quebra de linha nas descrições.
+    const setStyle = (addr: string, s: Record<string, unknown>) => {
+      if (wsLeg[addr]) (wsLeg[addr] as { s?: unknown }).s = s;
+    };
+    setStyle("A1", {
+      font: { bold: true, sz: 16, color: { rgb: "1D4ED8" } },
+      alignment: { horizontal: "left", vertical: "center" },
+      fill: { patternType: "solid", fgColor: { rgb: "EFF6FF" } },
+    });
+    setStyle(XLSXStyle.utils.encode_cell({ r: 2, c: 0 }), {
+      font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
+      fill: { patternType: "solid", fgColor: { rgb: "1D4ED8" } },
+      alignment: { horizontal: "left", vertical: "center" },
+    });
+    setStyle(XLSXStyle.utils.encode_cell({ r: dictRow, c: 0 }), {
+      font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
+      fill: { patternType: "solid", fgColor: { rgb: "1D4ED8" } },
+      alignment: { horizontal: "left", vertical: "center" },
+    });
+    // Linhas de header ("Termo/Significado" e "Grupo/Coluna/Descrição")
+    const conceptHeaderRow = 3;
+    const dictHeaderRow = dictRow + 1;
+    for (let c = 0; c < 3; c++) {
+      setStyle(XLSXStyle.utils.encode_cell({ r: conceptHeaderRow, c }), {
+        font: { bold: true, color: { rgb: "1E293B" } },
+        fill: { patternType: "solid", fgColor: { rgb: "E2E8F0" } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: { bottom: { style: "thin", color: { rgb: "94A3B8" } } },
+      });
+      setStyle(XLSXStyle.utils.encode_cell({ r: dictHeaderRow, c }), {
+        font: { bold: true, color: { rgb: "1E293B" } },
+        fill: { patternType: "solid", fgColor: { rgb: "E2E8F0" } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: { bottom: { style: "thin", color: { rgb: "94A3B8" } } },
+      });
+    }
+    // Corpo — wrap nas colunas de definição/descrição para textos longos aparecerem inteiros.
+    for (let r = conceptHeaderRow + 1; r < conceptHeaderRow + 1 + CONCEPT_GLOSSARY.length; r++) {
+      setStyle(XLSXStyle.utils.encode_cell({ r, c: 0 }), {
+        font: { bold: true, sz: 10, color: { rgb: "1E293B" } },
+        alignment: { horizontal: "left", vertical: "top", wrapText: true },
+      });
+      setStyle(XLSXStyle.utils.encode_cell({ r, c: 1 }), {
+        font: { sz: 10, color: { rgb: "334155" } },
+        alignment: { horizontal: "left", vertical: "top", wrapText: true },
+      });
+    }
+    for (let r = dictHeaderRow + 1; r < dictHeaderRow + 1 + EXPORT_COLS.length; r++) {
+      setStyle(XLSXStyle.utils.encode_cell({ r, c: 0 }), {
+        font: { sz: 10, color: { rgb: "6D28D9" }, bold: true },
+        alignment: { horizontal: "left", vertical: "top", wrapText: true },
+      });
+      setStyle(XLSXStyle.utils.encode_cell({ r, c: 1 }), {
+        font: { sz: 10, color: { rgb: "1E293B" }, bold: true },
+        alignment: { horizontal: "left", vertical: "top", wrapText: true },
+      });
+      setStyle(XLSXStyle.utils.encode_cell({ r, c: 2 }), {
+        font: { sz: 10, color: { rgb: "334155" } },
+        alignment: { horizontal: "left", vertical: "top", wrapText: true },
+      });
+    }
+
     const wb = XLSXStyle.utils.book_new();
+    // Legenda vem primeiro para servir como manual ao abrir o arquivo.
+    XLSXStyle.utils.book_append_sheet(wb, wsLeg, "Legenda");
     XLSXStyle.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
     XLSXStyle.writeFile(wb, `${baseName}.xlsx`);
   };
+
 
 
   const persistResults = async (
