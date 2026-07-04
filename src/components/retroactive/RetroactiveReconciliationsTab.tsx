@@ -2339,6 +2339,39 @@ function computeTvrAgreementTotals(list: TvrResult[]): { totalComplementarAcordo
   );
 }
 
+/**
+ * FONTE ÚNICA de todos os headline numbers do relatório TVR.
+ *
+ * Consumidores: card "Total a complementar", card "Total a retirar",
+ * modal "Encaminhar apuração". Se qualquer um desses precisar exibir
+ * um número, DEVE vir daqui — não recalcular inline. Testes de
+ * invariante em `tvrMenuCardConsistency.test.ts` bloqueiam divergência.
+ */
+export function computeTvrHeadlineTotals(list: TvrResult[]): {
+  totalComplementar: number;
+  totalRetirar: number;
+  totalComplementarAcordo: number;
+  totalRetirarAcordo: number;
+  tetoTasy: number;
+  naoPagoTotal: number;
+  naoPagoSimulated: number;
+  coverage: number;
+} {
+  const financial = computeTvrFinancialTotals(list);
+  const acordo = computeTvrAgreementTotals(list);
+  const bd = computeTvrComplementarBreakdown(list);
+  return {
+    totalComplementar: financial.totalComplementar,
+    totalRetirar: financial.totalRetirar,
+    totalComplementarAcordo: acordo.totalComplementarAcordo,
+    totalRetirarAcordo: acordo.totalRetirarAcordo,
+    tetoTasy: bd.tasyCeiling,
+    naoPagoTotal: bd.naoPagoTotal,
+    naoPagoSimulated: bd.naoPagoSimulated,
+    coverage: bd.coverage,
+  };
+}
+
 export type TvrAcao = {
   kind: "recuperar" | "complementar" | "validar" | "ok";
   valor: number;
@@ -6559,12 +6592,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
           {(() => {
-            const { totalRetirar } = computeTvrFinancialTotals(results);
-            const { totalComplementarAcordo, totalRetirarAcordo } = computeTvrAgreementTotals(results);
-            const bd = computeTvrComplementarBreakdown(results);
-            const naoPagoPendente = bd.naoPagoTotal - bd.naoPagoSimulated;
-            const coveragePct = Math.round(bd.coverage * 100);
-            const lowCoverage = bd.naoPagoTotal > 0 && bd.coverage < 0.8;
+            // FONTE ÚNICA: computeTvrHeadlineTotals é a única função autorizada
+            // a produzir os números "a complementar" e "a retirar". O modal
+            // "Encaminhar apuração" recebe o MESMO objeto via prop —
+            // impossível divergir por reimplementação inline.
+            const headline = computeTvrHeadlineTotals(results);
+            const naoPagoPendente = headline.naoPagoTotal - headline.naoPagoSimulated;
+            const coveragePct = Math.round(headline.coverage * 100);
+            const lowCoverage = headline.naoPagoTotal > 0 && headline.coverage < 0.8;
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div
@@ -6584,7 +6619,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
                       Total a complementar
                     </div>
-                    {bd.naoPagoTotal > 0 && (
+                    {headline.naoPagoTotal > 0 && (
                       <span
                         className={cn(
                           "text-[10px] font-semibold px-1.5 py-0.5 rounded",
@@ -6594,24 +6629,24 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         )}
                         title="Itens 'Faltou pagar' com valor previsto pelo motor / histórico"
                       >
-                        {bd.naoPagoSimulated}/{bd.naoPagoTotal} simulados
+                        {headline.naoPagoSimulated}/{headline.naoPagoTotal} simulados
                       </span>
                     )}
                   </div>
-                  <div className={cn("text-2xl font-bold", bd.simulated > 0 ? "text-primary" : "text-muted-foreground")}>
-                    {bd.simulated > 0 ? brl(bd.simulated) : "R$ -"}
+                  <div className={cn("text-2xl font-bold", headline.totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
+                    {headline.totalComplementar > 0 ? brl(headline.totalComplementar) : "R$ -"}
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
                     Com previsão de regra ·{" "}
                     <span className="font-semibold text-orange-600">
-                      C/ acordo: {brl(totalComplementarAcordo)}
+                      C/ acordo: {brl(headline.totalComplementarAcordo)}
                     </span>
                   </div>
-                  {bd.tasyCeiling > 0 && (
+                  {headline.tetoTasy > 0 && (
                     <div className="mt-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground leading-relaxed">
                       <div>
                         <span className="uppercase tracking-wider text-[10px]">Teto TASY (sem previsão)</span>{" "}
-                        <span className="font-semibold text-foreground/80">{brl(bd.tasyCeiling)}</span>
+                        <span className="font-semibold text-foreground/80">{brl(headline.tetoTasy)}</span>
                       </div>
                       <div className="mt-0.5">
                         Valor bruto do procedimento no TASY, sem acordo aplicado. Os {naoPagoPendente} item{naoPagoPendente === 1 ? "" : "s"} sem previsão só terão valor real após{" "}
@@ -6622,19 +6657,20 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 </div>
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
-                  <div className={cn("text-2xl font-bold", totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
-                    {totalRetirar > 0 ? brl(totalRetirar) : "R$ -"}
+                  <div className={cn("text-2xl font-bold", headline.totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
+                    {headline.totalRetirar > 0 ? brl(headline.totalRetirar) : "R$ -"}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    Base: {brl(totalRetirar)} ·{" "}
+                    Base: {brl(headline.totalRetirar)} ·{" "}
                     <span className="font-semibold text-destructive">
-                      C/ acordo: {brl(totalRetirarAcordo)}
+                      C/ acordo: {brl(headline.totalRetirarAcordo)}
                     </span>
                   </div>
                 </div>
               </div>
             );
           })()}
+
 
           {/* Card "Resumo de valores (grupo % sobre convênio)" removido:
               em hospitais com muitas variáveis de pagamento (ex.: DF Star) esses
@@ -7237,7 +7273,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <EncaminharApuracaoModal
             open={encaminharOpen}
             onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
-            results={results ?? []}
+            headline={computeTvrHeadlineTotals(results ?? [])}
             actionable={(results ?? []).filter(isActionableTvr)}
             retirar={retirar}
             groups={groups}
@@ -7263,7 +7299,7 @@ type GlosaGroupView = {
 type EncaminharModalProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  results: TvrResult[];
+  headline: ReturnType<typeof computeTvrHeadlineTotals>;
   actionable: TvrResult[];
   retirar: TvrResult[];
   groups: GlosaGroupView[];
@@ -7280,7 +7316,7 @@ type EncaminharModalProps = {
 };
 
 function EncaminharApuracaoModal({
-  open, onOpenChange, results: _results, actionable, retirar,
+  open, onOpenChange, headline, actionable, retirar,
   groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm,
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
@@ -7301,27 +7337,13 @@ function EncaminharApuracaoModal({
     }
   }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
-  // Fonte única de verdade — mesma função usada nos cards "A complementar"
-  // e "A recuperar" do relatório. Se este cálculo divergir do card, o
-  // problema está em `computeTvrFinancialTotals`, não aqui. NÃO reimplementar
-  // fórmula neste componente para evitar divergência silenciosa.
-  const { totalComplementar: totalBaseComp } = computeTvrFinancialTotals(actionable);
-  // Retirar do menu = mesmo agregado do card, restrito ao subconjunto do
-  // caminho de glosa (retirar list já filtra por valor_recuperar_acordo>0).
-  const { totalRetirar: totalAcordoRet } = computeTvrFinancialTotals(retirar);
-  // Invariante dev: garante que o subconjunto de glosa nunca extrapola o
-  // total do card. Se dispara, algum status novo entrou em `retirar` sem
-  // ser previsto por `computeTvrFinancialTotals`.
-  if (import.meta.env.DEV) {
-    const cardTotal = computeTvrFinancialTotals(_results).totalRetirar;
-    if (totalAcordoRet - cardTotal > 0.5) {
-      // eslint-disable-next-line no-console
-      console.warn("[TVR] Divergência: retirar do menu > retirar do card", {
-        menu: totalAcordoRet,
-        card: cardTotal,
-      });
-    }
-  }
+  // Números aqui vêm literalmente do mesmo objeto que alimenta os cards
+  // "Total a complementar" / "Total a retirar" do relatório — o pai calcula
+  // uma vez via computeTvrHeadlineTotals(results) e passa pra cá.
+  // Divergência é impossível por construção.
+  const totalBaseComp = headline.totalComplementar;
+  const totalAcordoRet = headline.totalRetirar;
+
 
   const toggleDoctor = (id: string) => {
     setSelectedDoctorIds((prev) => {
