@@ -3982,48 +3982,69 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return c;
   }, [results]);
 
-  // Ordem consistente entre visualização e exportação, agrupada por seção
-  // (Item · Contexto · TASY atual · Lote histórico · Diferenças · Recalc · Ajuste).
-  // O prefixo "GRUPO · " garante o agrupamento visual em CSV/JSON/XLSX.
-  const buildExportRows = (list: TvrResult[]) => list.map((r) => ({
+  // ============================================================
+  // Export: definimos colunas em um array único (grupo + cabeçalho + valor).
+  // No XLSX viramos isso em 2 linhas de cabeçalho com merge das colunas do
+  // mesmo grupo — no Excel isso é o formato nativo pra "agrupar sem sujar
+  // o nome da coluna". No CSV/JSON o grupo entra como coluna separada
+  // (não dá pra fazer merge), o que é mais limpo do que o antigo prefixo
+  // "GRUPO · Nome" que empoluía o cabeçalho em qualquer visualização.
+  // ============================================================
+  type ExportCol = { group: string; header: string; get: (r: TvrResult) => string | number };
+  const EXPORT_COLS: ExportCol[] = [
     // Item
-    "Item · PJ Conciliada": r.pj_conciliada ?? "",
-    "Item · Médico": r.medico,
-    "Item · Status": TVR_STATUS_LABEL[r.status],
-    "Item · Tipo de Análise": r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)",
-    "Item · Sem lastro TASY": r.sem_lastro_tasy ? "Sim" : "",
+    { group: "Item", header: "PJ Conciliada", get: (r) => r.pj_conciliada ?? "" },
+    { group: "Item", header: "Médico", get: (r) => r.medico },
+    { group: "Item", header: "Status", get: (r) => TVR_STATUS_LABEL[r.status] },
+    { group: "Item", header: "Tipo de análise", get: (r) => r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)" },
+    { group: "Item", header: "Sem lastro TASY", get: (r) => r.sem_lastro_tasy ? "Sim" : "" },
     // Contexto
-    "Contexto · Atendimento": r.atendimento,
-    "Contexto · Cód. TUSS": r.tuss,
-    "Contexto · Procedimento": r.procedimento,
-    "Contexto · Paciente": r.paciente,
-    "Contexto · Data": formatTvrDate(r.data),
-    "Contexto · Convênio": r.convenio,
-    "Contexto · Função": r.funcao,
-    // TASY (atual)
-    "TASY hoje · Qtd que o TASY mostra hoje": r.qtd_tasy,
-    "TASY hoje · Vlr unitário TASY hoje (100% convênio)": r.valor_unit_tasy,
-    "TASY hoje · Vlr total TASY hoje (100% convênio)": r.valor_total_tasy,
+    { group: "Contexto", header: "Atendimento", get: (r) => r.atendimento },
+    { group: "Contexto", header: "Cód. TUSS", get: (r) => r.tuss },
+    { group: "Contexto", header: "Procedimento", get: (r) => r.procedimento },
+    { group: "Contexto", header: "Paciente", get: (r) => r.paciente },
+    { group: "Contexto", header: "Data", get: (r) => formatTvrDate(r.data) },
+    { group: "Contexto", header: "Convênio", get: (r) => r.convenio },
+    { group: "Contexto", header: "Função", get: (r) => r.funcao },
+    // TASY hoje (100% convênio)
+    { group: "TASY hoje (100% convênio)", header: "Qtd", get: (r) => r.qtd_tasy },
+    { group: "TASY hoje (100% convênio)", header: "Vlr unitário", get: (r) => r.valor_unit_tasy },
+    { group: "TASY hoje (100% convênio)", header: "Vlr total", get: (r) => r.valor_total_tasy },
     // Lote histórico
-    "Lote histórico · Qtd paga por função no lote": Number(r.qtd_por_func.toFixed(4)),
-    "Lote histórico · Nº de funções pagas no lote": r.n_funcs,
-    "Lote histórico · Quais funções foram pagas no lote": r.funcoes_pagas,
-    "Lote histórico · Lote(s) de repasse de origem": r.lotes,
-    "Lote histórico · Base convênio no lote (100%, época do repasse)": r.valor_pago_base,
-    "Lote histórico · Valor pago ao médico no lote (c/ acordo aplicado)": r.valor_com_acordo,
-    // Diferenças brutas (TASY − lote)
-    "Diferenças · Dif. de quantidade (TASY hoje − lote)": Number(r.dif_qtd.toFixed(4)),
-    "Diferenças · Dif. valor 100% (TASY hoje − base lote)": Number(r.dif_valor.toFixed(2)),
-    // Recalculado
-    "Devido hoje · Valor devido hoje (acordo do lote × TASY hoje)": Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)),
+    { group: "Lote histórico", header: "Qtd paga por função", get: (r) => Number(r.qtd_por_func.toFixed(4)) },
+    { group: "Lote histórico", header: "Nº de funções pagas", get: (r) => r.n_funcs },
+    { group: "Lote histórico", header: "Quais funções pagas", get: (r) => r.funcoes_pagas },
+    { group: "Lote histórico", header: "Lote(s) de origem", get: (r) => r.lotes },
+    { group: "Lote histórico", header: "Base convênio (100%, época)", get: (r) => r.valor_pago_base },
+    { group: "Lote histórico", header: "Pago ao médico (c/ acordo)", get: (r) => r.valor_com_acordo },
+    // Diferenças brutas
+    { group: "Diferenças brutas (TASY hoje − lote)", header: "Dif. quantidade", get: (r) => Number(r.dif_qtd.toFixed(4)) },
+    { group: "Diferenças brutas (TASY hoje − lote)", header: "Dif. valor 100%", get: (r) => Number(r.dif_valor.toFixed(2)) },
+    // Devido hoje
+    { group: "Devido hoje (acordo × TASY hoje)", header: "Valor devido hoje", get: (r) => Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)) },
     // Ajuste
-    "Ajuste · Ajuste a fazer (pago no lote − devido hoje)": Number((r.ajuste_acordo ?? 0).toFixed(2)),
-    "Ajuste · A recuperar (paguei a mais que o devido hoje)": Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
-    "Ajuste · A complementar (paguei a menos que o devido hoje)": Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)),
-    // Rastreabilidade da regra
-    "Rastreio · Regra Aplicada": r.regra_aplicada ?? "",
-    "Rastreio · Linha do Cálculo": r.calculo_aplicado ?? "",
-  }));
+    { group: "Ajuste (pago no lote − devido hoje)", header: "Ajuste a fazer", get: (r) => Number((r.ajuste_acordo ?? 0).toFixed(2)) },
+    { group: "Ajuste (pago no lote − devido hoje)", header: "A recuperar (paguei a mais)", get: (r) => Number((r.valor_recuperar_acordo ?? 0).toFixed(2)) },
+    { group: "Ajuste (pago no lote − devido hoje)", header: "A complementar (paguei a menos)", get: (r) => Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)) },
+    // Ação sugerida — mesmo texto que a UI mostra na coluna final.
+    { group: "Ação sugerida", header: "Ação", get: (r) => describeAcao(r).label.replace(/^[↓↑—]\s*/, "") },
+    { group: "Ação sugerida", header: "Motivo", get: (r) => describeAcao(r).hint },
+    // Rastreabilidade
+    { group: "Rastreio", header: "Regra aplicada", get: (r) => r.regra_aplicada ?? "" },
+    { group: "Rastreio", header: "Linha do cálculo", get: (r) => r.calculo_aplicado ?? "" },
+  ];
+
+  // Para CSV/JSON: nomes de coluna limpos com o grupo separado como coluna própria,
+  // em vez do prefixo "Grupo · Nome". É mais legível em qualquer editor de texto.
+  const buildExportRows = (list: TvrResult[]) => list.map((r) => {
+    const obj: Record<string, string | number> = {};
+    for (const col of EXPORT_COLS) {
+      // Usa nome curto sem prefixo. Se dois grupos tiverem colunas homônimas
+      // (não é o caso hoje), o mais específico ganha — aceitável para relatório.
+      obj[col.header] = col.get(r);
+    }
+    return obj;
+  });
 
 
 
@@ -4099,10 +4120,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       URL.revokeObjectURL(url);
       return;
     }
-    const rows = buildExportRows(list);
     const XLSX = await import("xlsx");
-    const ws = XLSX.utils.json_to_sheet(rows);
+
     if (fmt === "csv") {
+      // CSV não suporta merge, então usa cabeçalho único com o grupo colado.
+      const rows = buildExportRows(list);
+      const ws = XLSX.utils.json_to_sheet(rows);
       const csv = XLSX.utils.sheet_to_csv(ws, { FS: ";" });
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -4111,12 +4134,56 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       URL.revokeObjectURL(url);
       return;
     }
+
+    // XLSX: monta AoA com 2 linhas de cabeçalho + merge por grupo.
+    // Isso resolve a leitura ruim que o prefixo "Grupo · Nome" causava
+    // (nome de coluna gigante, difícil de bater o olho).
+    const groupRow = EXPORT_COLS.map((c) => c.group);
+    const headerRow = EXPORT_COLS.map((c) => c.header);
+    const dataRows = list.map((r) => EXPORT_COLS.map((c) => c.get(r)));
+    const aoa: (string | number)[][] = [groupRow, headerRow, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // Merges dos rótulos de grupo (linha 0): junta colunas consecutivas com o mesmo grupo.
+    const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = [];
+    let groupStart = 0;
+    for (let i = 1; i <= EXPORT_COLS.length; i++) {
+      const isEnd = i === EXPORT_COLS.length || EXPORT_COLS[i].group !== EXPORT_COLS[groupStart].group;
+      if (isEnd) {
+        if (i - 1 > groupStart) merges.push({ s: { r: 0, c: groupStart }, e: { r: 0, c: i - 1 } });
+        groupStart = i;
+      }
+    }
+    (ws as unknown as { "!merges"?: unknown[] })["!merges"] = merges;
+
+    // Freeze: cabeçalho (2 linhas) + primeiras 2 colunas (PJ Conciliada, Médico).
+    (ws as unknown as { "!freeze"?: unknown })["!freeze"] = { xSplit: 2, ySplit: 2 };
+    (ws as unknown as { "!views"?: unknown[] })["!views"] = [{ state: "frozen", xSplit: 2, ySplit: 2, topLeftCell: "C3", activePane: "bottomRight" }];
+
+    // Larguras: tenta acomodar conteúdo sem cortar. Heurística por tipo de coluna.
+    const widths: Array<{ wch: number }> = EXPORT_COLS.map((c) => {
+      const h = c.header.toLowerCase();
+      if (h.includes("procedimento") || h.includes("paciente") || h.includes("quais")) return { wch: 32 };
+      if (h.includes("médico") || h.includes("pj") || h.includes("regra") || h.includes("motivo") || h.includes("linha do")) return { wch: 26 };
+      if (h.includes("convênio") || h.includes("lote")) return { wch: 20 };
+      if (h.includes("data") || h.includes("função") || h.includes("status") || h.includes("tipo")) return { wch: 14 };
+      if (h.includes("qtd") || h.includes("nº")) return { wch: 10 };
+      return { wch: 18 };
+    });
+    (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = widths;
+
+    // Estilo básico: negrito na linha 1 (grupos) e 2 (cabeçalhos), com fundo cinza claro.
+    // Nota: xlsx (Community) não escreve estilo por padrão; usamos as chaves compatíveis
+    // — planilhas abertas no Excel/LibreOffice mostram o texto/merge corretamente
+    // mesmo sem tema. Alinhamento central pra rótulos de grupo é o que mais importa.
+    for (let c = 0; c < EXPORT_COLS.length; c++) {
+      const g = XLSX.utils.encode_cell({ r: 0, c });
+      const h = XLSX.utils.encode_cell({ r: 1, c });
+      if (ws[g]) (ws[g] as { s?: unknown }).s = { alignment: { horizontal: "center", vertical: "center", wrapText: true }, font: { bold: true } };
+      if (ws[h]) (ws[h] as { s?: unknown }).s = { alignment: { horizontal: "center", vertical: "center", wrapText: true }, font: { bold: true } };
+    }
+
     const wb = XLSX.utils.book_new();
-    // Congela as duas primeiras colunas (PJ Conciliada, Médico) e o cabeçalho
-    (ws as unknown as { "!freeze"?: unknown })["!freeze"] = { xSplit: 2, ySplit: 1 };
-    (ws as unknown as { "!views"?: unknown[] })["!views"] = [{ state: "frozen", xSplit: 2, ySplit: 1, topLeftCell: "C2", activePane: "bottomRight" }];
-    // Largura mínima para as colunas fixas
-    (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = [{ wch: 28 }, { wch: 26 }];
     XLSX.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
