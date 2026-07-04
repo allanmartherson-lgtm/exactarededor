@@ -1,93 +1,105 @@
-## O que muda
+# Plano — "Faltou pagar" com cálculo de regra (não só valor bruto TASY)
 
-Na tabela de resultados da aba **Conciliação Retroativa** (`?tab=retroativa`), separar itens em duas sub-abas e esconder colunas técnicas por padrão, mostrando um detalhe expandível por linha.
+## Problema
 
-### Sub-abas no topo da tabela de resultados
+Hoje, em `RetroactiveReconciliationsTab.tsx`, itens com `status = "nao_pago"` (Faltou pagar) usam **`valor_total_tasy`** (100% do convênio) como valor a complementar. Isso está errado quando o médico:
 
-Duas pills logo acima da barra de filtros existente:
+- recebe **percentual do convênio** (ex.: 50%) → devíamos complementar 50%, não 100%.
+- recebe **valor fixo / pacote / tabela diferenciada** → o valor devido nem depende do convênio, e sim do que a regra pagaria.
 
-- **Por valor (% do convênio)** — regras `percentual_convenio` / `percentual_sobre_convenio`. Faz sentido comparar valor TASY hoje × valor pago.
-- **Por presença (pacote / valor fixo / tabela diferenciada / bônus)** — regras onde TASY não é base de R$. Analisa quantidade, não valor.
+Já existe a inferência de `regra_prevista` / `calculo_previsto` para esses itens (via histórico do médico + TUSS), mas o **valor** dessa regra não é calculado — só o rótulo aparece na coluna "Rastreio".
 
-Cada aba mostra a contagem de itens: *Por valor (128) · Por presença (34)*.
-Seleção persiste em URL: `?tab=retroativa&analise=valor|presenca`.
+## Objetivo
 
-### Colunas por aba (visíveis por padrão)
+Para cada linha `nao_pago` com regra prevista identificada, calcular **`valor_previsto_regra`** aplicando o mesmo `rule_calculation` que teria sido usado no lote original, e usar esse valor como base do "A complementar" — igualzinho à lógica de recuperação de glosa (que já respeita `%convênio` vs `pacote/valor_fixo`).
 
-**Comuns às duas** (compactas, foco no que o analista age):
+Quando **não houver** regra prevista (médico novo, TUSS inédito), mantemos o comportamento atual (fallback = `valor_total_tasy`) e sinalizamos visualmente `[prev. bruto]` para o analista revisar.
 
-```text
-[+] · Status · Atend · TUSS · Procedimento · Paciente · Data · Convênio · Médico · Função · Ação sugerida
+## Escopo — o que muda / o que NÃO muda
+
+| Área | Muda? |
+|---|---|
+| Lógica de `div_valor`, `div_qtd_valor`, `pago_a_mais`, `ausente_tasy` | **NÃO** |
+| `computeTvrFinancialTotals` para statuses não-`nao_pago` | **NÃO** |
+| `describeTvrAcao` para statuses não-`nao_pago` | **NÃO** |
+| Testes atuais (`describeTvrAcao.test.ts`, `tvrReplaceSummary.test.ts`) | Devem continuar verdes |
+| Inferência `pj_provavel` / `regra_prevista` (já existe) | Reaproveitada, sem alterar |
+| Novo campo `valor_previsto_regra` em `TvrResult` | **SIM** (opcional, default undefined) |
+| Branch `nao_pago` em `describeTvrAcao` e `computeTvrFinancialTotals` | **SIM** (preferir novo valor, cair para `valor_total_tasy`) |
+
+## Passos
+
+### 1. Estender `TvrResult`
+Adicionar campos opcionais:
+```ts
+valor_previsto_regra?: number;   // valor que a regra prevista pagaria
+tipo_analise_previsto?: "valor" | "quantidade";  // igual ao tipo_analise do lote
+previsto_source?: "regra" | "bruto"; // rastreio: usamos cálculo ou fallback bruto
 ```
 
-**Ação sugerida** substitui hoje 3 colunas ("Dif. valor 100%", "Devido hoje", "Ajuste a fazer") por uma célula única com:
+### 2. Calcular o valor previsto na inferência
+No mesmo bloco que já busca `regra_prevista` (após carregar `rule_calculations`):
 
-- badge colorido: `↓ Recuperar R$ X` / `↑ Complementar R$ X` / `— Sem ajuste`
-- frase curta abaixo, gerada pelo motor:
-  - *"TASY reduziu R$ 2.633 · acordo 100% convênio"*
-  - *"Item cancelado no TASY · pacote (1 procedimento)"*
-  - *"+1 quantidade no TASY · valor fixo R$ 411,88/un"*
+- Ler os campos do `rule_calculation` que já são usados no motor: `calculation_type`, `percentage`, `fixed_amount`, `reference_table_id`, etc.
+- Aplicar a mesma fórmula usada no motor original para produzir o valor:
+  - `percentual_convenio` / `percentual_sobre_convenio` → `valor_total_tasy × pct`
+  - `valor_fixo` → `fixed_amount × qtd_tasy`
+  - `tabela_diferenciada` / `pacote` → buscar via `reference_table_id` + `port` do convênio (mesma helper já usada em outros pontos)
+  - Se qualquer dado faltar → não preencher `valor_previsto_regra` e marcar `previsto_source = "bruto"`
+- Definir `tipo_analise_previsto` a partir do `calculation_type` (regra de mapeamento idêntica à do motor).
 
-**Exclusivas da aba Por valor:** Vlr total TASY hoje · Valor pago no lote
+Reaproveitar helper existente se houver (ex.: `resolvePaymentAmounts`); caso contrário isolar em `src/lib/tvrRulePreview.ts` **novo e puro** para poder testar.
 
-**Exclusivas da aba Por presença:** Qtd TASY hoje · Qtd paga · Dif. qtd · Valor pago no lote
-
-### Detalhe expansível por linha
-
-Ícone `[+]` na primeira coluna abre uma sub-linha (colspan total) com card contendo os campos técnicos ocultos do modo compacto:
-
-```text
-TASY hoje:      Vlr unitário R$ X · Vlr total R$ Y · Qtd Z
-Lote histórico: Base convênio R$ A · Pago médico R$ B · Fator acordo N%
-                Nº funções · Quais funções · Lote(s) de origem
-Motor:          Dif. valor 100% · Devido hoje · Ajuste · Tipo análise
+### 3. Atualizar `describeTvrAcao` — branch `nao_pago`
+```ts
+if (r.status === "nao_pago") {
+  const valor = r.valor_previsto_regra ?? r.valor_total_tasy ?? 0;
+  const hint = r.valor_previsto_regra != null
+    ? `Regra prevista aplicada: ${r.calculo_previsto ?? r.regra_prevista ?? "—"}`
+    : "Sem regra prevista — usando valor bruto TASY (revisar)";
+  return { kind: "complementar", valor, label: `↑ Complementar ${brl(valor)}`, hint };
+}
 ```
 
-Botão "Expandir tudo / Recolher tudo" no header da tabela.
+### 4. Atualizar `computeTvrFinancialTotals` — branch `nao_pago`
+Substituir `sum + r.valor_total_tasy` por `sum + (r.valor_previsto_regra ?? r.valor_total_tasy)`.
 
-### Cabeçalho de grupos (linha superior)
+### 5. Coluna "Regra aplicada" / export
+Quando `previsto_source === "bruto"`, prefixar com `[bruto]` para diferenciar de `[prev.]` já existente.
 
-Simplifica: uma faixa por aba em vez de 7 grupos.
+### 6. Testes (obrigatórios, sem afrouxar os atuais)
+`describeTvrAcao.test.ts`:
+- `nao_pago` com `valor_previsto_regra = 500` → `valor = 500`, hint menciona regra.
+- `nao_pago` sem `valor_previsto_regra` → cai para `valor_total_tasy` (regressão do bug original preservada).
+- `nao_pago` com regra `%convênio 50%` calculada externamente → resultado bate.
 
-- **Por valor**: `Contexto · TASY hoje · Lote histórico · Ação`
-- **Por presença**: `Contexto · Quantidades · Lote histórico · Ação`
+Novo `tvrRulePreview.test.ts`:
+- `percentual_convenio` → `valor_total_tasy × pct`
+- `valor_fixo` → `fixed_amount × qtd`
+- Dados incompletos → retorna undefined (não chuta).
 
-### Cards de resumo no topo
+`computeTvrFinancialTotals`:
+- Cenário misto com `nao_pago` usando `valor_previsto_regra` correto.
+- `nao_pago` sem regra prevista continua somando `valor_total_tasy` (retrocompatível).
 
-O bloco "Resumo de valores (grupo % sobre convênio)" já existe e só considera itens `tipo_analise=valor`. Vamos:
+### 7. Rollout seguro
+- Mudança é **aditiva**: campos novos são opcionais; sem regra prevista, comportamento é idêntico ao atual.
+- Um flag local `USE_TVR_RULE_PREVIEW = true` (constante no topo do arquivo) permite desligar rapidamente se algo aparecer em produção.
 
-- Renomear para **"Resumo — Por valor"** e mostrar só quando aba ativa = valor.
-- Adicionar espelho **"Resumo — Por presença"**: total de itens, quantidade divergente somada, valor a recuperar/complementar (calculado por `qtd × valor fixo` do acordo).
+## Riscos e mitigação
 
-### Export
+| Risco | Mitigação |
+|---|---|
+| Recalcular regra diferente do motor original | Só usar helpers já validados; nunca implementar fórmula nova |
+| `rule_calculation` incompleto / port ausente | Marcar `previsto_source = "bruto"` e não alterar valor |
+| Impactar cards de glosa (que já estão OK) | Branch isolado em `nao_pago`; testes de `pago_a_mais/div_valor` inalterados |
+| Analista confundir regra prevista com regra oficial | Rótulo `[prev.]` já existente + hint no `describeTvrAcao` |
 
-Mantido como está (uma planilha só, com todas as colunas técnicas + coluna nova `Análise = valor|presença` + `Ação sugerida`). Nada é escondido no XLSX/CSV — a compactação é só na UI.
+## Entregáveis
 
-## Fora do escopo
+- `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — novos campos, branch atualizado
+- `src/lib/tvrRulePreview.ts` — helper puro (novo)
+- `src/lib/__tests__/tvrRulePreview.test.ts` — cobertura de cada `calculation_type`
+- `src/components/retroactive/__tests__/describeTvrAcao.test.ts` — casos adicionais para `nao_pago` com/sem regra prevista
 
-- Não muda o motor de cálculo, nem a chave de matching, nem o schema de `reconciliation_items`.
-- Não altera a aba "Ativa" nem outras telas.
-- Não muda o wizard de upload nem a lógica de encaminhamento pra apuração / glosa.
-
-## Arquivos afetados
-
-- `src/components/retroactive/RetroactiveReconciliationsTab.tsx` — único arquivo tocado. Refactor localizado: adiciona `analysisTab` (URL param), filtro em `visible`, `expandedKeys` set, define arrays de colunas por aba, gera cabeçalho/corpo a partir dos arrays, gera "Ação sugerida" a partir dos campos já calculados (`ajuste_acordo`, `tipo_analise`, `applied_calc_method`, `dif_qtd`, `dif_valor`).
-
-## Detalhes técnicos
-
-- `analysisTab` lido de `useSearchParams("analise")`; default `"valor"`.
-- Contagem por aba: `results.filter(r => r.tipo_analise === "valor").length` etc.
-- `expandedKeys: Set<string>` local; chave = `r.key` (já existe).
-- Coluna "Ação sugerida" é derivada, sem novo campo no `TvrResult`. Frase:
-  - `tipo_analise=valor` e `|ajuste_acordo| > 0.5`: `"TASY {subiu|reduziu} R$ {|dif_valor|} · acordo {fator}% convênio"`.
-  - `tipo_analise=quantidade` e `dif_qtd < 0`: `"Cancelado no TASY · {applied_calc_method_pretty}"` + valor pago no lote como sugestão de retirada.
-  - `tipo_analise=quantidade` e `dif_qtd > 0`: `"+{dif_qtd} no TASY · {applied_calc_method_pretty}"`.
-  - Caso contrário: `"— Sem ajuste"`.
-- Sub-linha expandida: `<TableRow><TableCell colSpan={N}><div className="p-3 bg-muted/30 rounded grid grid-cols-3 gap-3">...</div></TableCell></TableRow>`.
-- Grupos de header: substituir a linha atual com 7 grupos (colSpans 3/8/3/6/2/1/1) por 4 grupos calculados dinamicamente conforme aba ativa.
-- Aba `?tab=retroativa` continua funcionando; adiciona `&analise=valor|presenca` sem quebrar bookmarks antigos.
-
-## Riscos
-
-- Refactor de cabeçalho da tabela é a parte mais delicada (colSpans). Mitigar rendendo `<TableHead>` a partir do array de definição de coluna filtrado por aba, garantindo consistência automática entre grupo e coluna.
-- Testes contratuais existentes na pasta `retroactive/__tests__` precisam continuar passando. Rodar a suíte após a mudança.
+Faz sentido seguir? Se quiser, posso começar só pelos casos `percentual_convenio` e `valor_fixo` (que cobrem ~90% dos itens) e deixar `pacote/tabela_diferenciada` como fase 2.
