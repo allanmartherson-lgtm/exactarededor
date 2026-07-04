@@ -2145,12 +2145,16 @@ export type TvrResult = {
   status: TvrStatus;
 };
 
+// Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
+//   Faltou pagar ↔ Ausente base faturamento (extremos: só num lado)
+//   Pago a menos (valor/qtd) ↔ Pago a mais (match completo)
+// O nome "base faturamento" substitui "TASY" para permitir outros sistemas por hospital.
 const TVR_STATUS_LABEL: Record<TvrStatus, string> = {
-  nao_pago: "Não Pago",
-  div_qtd_valor: "Div. Qtd / Valor",
-  div_valor: "Div. Valor",
+  nao_pago: "Faltou pagar",
+  div_qtd_valor: "Pago a menos (qtd)",
+  div_valor: "Pago a menos (valor)",
   pago_a_mais: "Pago a mais",
-  ausente_tasy: "Ausente TASY",
+  ausente_tasy: "Ausente base faturamento",
   ok: "OK",
 };
 
