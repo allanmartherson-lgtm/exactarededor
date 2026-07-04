@@ -4639,18 +4639,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
     // Paleta por grupo — tons pastel legíveis e alinhados à leitura visual da UI.
     // Header (linha 1) = tom mais forte; sub-header (linha 2) = tom claro.
+    // Paleta suave: headers em tons pastel legíveis, texto escuro. Evita saturação forte.
     const GROUP_STYLE: Record<string, { header: string; sub: string; band: string }> = {
-      "Item":                                       { header: "1F2937", sub: "E5E7EB", band: "F8FAFC" },
-      "Contexto":                                   { header: "1D4ED8", sub: "DBEAFE", band: "F5F9FF" },
-      "TASY hoje (100% convênio)":                  { header: "B45309", sub: "FEF3C7", band: "FFFBEB" },
-      "Lote histórico":                             { header: "6D28D9", sub: "EDE9FE", band: "F8F5FF" },
-      "Diferenças brutas (TASY hoje − lote)":       { header: "9F1239", sub: "FFE4E6", band: "FFF5F6" },
-      "Devido hoje (acordo × TASY hoje)":           { header: "047857", sub: "D1FAE5", band: "F3FBF7" },
-      "Ajuste (pago no lote − devido hoje)":        { header: "C2410C", sub: "FED7AA", band: "FFF6EE" },
-      "Ação sugerida":                              { header: "4338CA", sub: "E0E7FF", band: "F5F6FF" },
-      "Rastreio":                                   { header: "334155", sub: "F1F5F9", band: "F8FAFC" },
+      "Item":                                       { header: "E2E8F0", sub: "F1F5F9", band: "FAFBFC" },
+      "Contexto":                                   { header: "DBEAFE", sub: "EFF6FF", band: "F8FBFF" },
+      "TASY hoje (100% convênio)":                  { header: "FEF3C7", sub: "FEFCE8", band: "FFFDF5" },
+      "Lote histórico":                             { header: "EDE9FE", sub: "F5F3FF", band: "FBFAFF" },
+      "Diferenças brutas (TASY hoje − lote)":       { header: "FFE4E6", sub: "FFF1F2", band: "FFF8F9" },
+      "Devido hoje (acordo × TASY hoje)":           { header: "D1FAE5", sub: "ECFDF5", band: "F6FDFA" },
+      "Ajuste (pago no lote − devido hoje)":        { header: "FED7AA", sub: "FFEDD5", band: "FFF7EC" },
+      "Ação sugerida":                              { header: "E0E7FF", sub: "EEF2FF", band: "F5F7FF" },
+      "Rastreio":                                   { header: "E2E8F0", sub: "F1F5F9", band: "F8FAFC" },
     };
-    const fallbackStyle = { header: "334155", sub: "F1F5F9", band: "FFFFFF" };
+    const fallbackStyle = { header: "E2E8F0", sub: "F1F5F9", band: "FFFFFF" };
+    // Texto escuro para todos os headers (sem branco sobre cor saturada).
+    const HEADER_TEXT = "334155";
+    const BORDER_SOFT = "CBD5E1";
 
     // Formato numérico por header. R$ em contabilidade, quantidade com 4 casas
     // quando é fracionada. Zero vira "—" para não poluir a leitura.
@@ -4718,7 +4722,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (ws[gAddr]) {
           (ws[gAddr] as { s?: unknown }).s = {
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
-            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+            font: { bold: true, color: { rgb: HEADER_TEXT }, sz: 11 },
             fill: { patternType: "solid", fgColor: { rgb: palette.header } },
             border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
           };
@@ -4727,12 +4731,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (ws[hAddr]) {
           (ws[hAddr] as { s?: unknown }).s = {
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
-            font: { bold: true, color: { rgb: palette.header }, sz: 10 },
+            font: { bold: true, color: { rgb: HEADER_TEXT }, sz: 10 },
             fill: { patternType: "solid", fgColor: { rgb: palette.sub } },
             border: {
               top: thinBorder,
-              bottom: { style: "medium", color: { rgb: palette.header } },
-              left: isGroupStart ? { style: "medium", color: { rgb: palette.header } } : thinBorder,
+              bottom: { style: "thin", color: { rgb: BORDER_SOFT } },
+              left: isGroupStart ? { style: "thin", color: { rgb: BORDER_SOFT } } : thinBorder,
               right: thinBorder,
             },
           };
@@ -4747,9 +4751,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             font: { sz: 10, color: { rgb: "1E293B" } },
             fill: { patternType: "solid", fgColor: { rgb: zebra } },
             border: {
-              top: { style: "hair", color: { rgb: "E2E8F0" } },
-              bottom: { style: "hair", color: { rgb: "E2E8F0" } },
-              left: isGroupStart ? { style: "thin", color: { rgb: palette.header } } : { style: "hair", color: { rgb: "F1F5F9" } },
+              top: { style: "hair", color: { rgb: "EEF2F6" } },
+              bottom: { style: "hair", color: { rgb: "EEF2F6" } },
+              left: isGroupStart ? { style: "thin", color: { rgb: BORDER_SOFT } } : { style: "hair", color: { rgb: "F1F5F9" } },
               right: { style: "hair", color: { rgb: "F1F5F9" } },
             },
           };
@@ -4881,18 +4885,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       if (wsLeg[addr]) (wsLeg[addr] as { s?: unknown }).s = s;
     };
     setStyle("A1", {
-      font: { bold: true, sz: 16, color: { rgb: "1D4ED8" } },
+      font: { bold: true, sz: 16, color: { rgb: "334155" } },
       alignment: { horizontal: "left", vertical: "center" },
-      fill: { patternType: "solid", fgColor: { rgb: "EFF6FF" } },
+      fill: { patternType: "solid", fgColor: { rgb: "F1F5F9" } },
     });
     setStyle(XLSXStyle.utils.encode_cell({ r: 2, c: 0 }), {
-      font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
-      fill: { patternType: "solid", fgColor: { rgb: "1D4ED8" } },
+      font: { bold: true, sz: 12, color: { rgb: "334155" } },
+      fill: { patternType: "solid", fgColor: { rgb: "DBEAFE" } },
       alignment: { horizontal: "left", vertical: "center" },
     });
     setStyle(XLSXStyle.utils.encode_cell({ r: dictRow, c: 0 }), {
-      font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
-      fill: { patternType: "solid", fgColor: { rgb: "1D4ED8" } },
+      font: { bold: true, sz: 12, color: { rgb: "334155" } },
+      fill: { patternType: "solid", fgColor: { rgb: "DBEAFE" } },
       alignment: { horizontal: "left", vertical: "center" },
     });
     // Linhas de header ("Termo/Significado" e "Grupo/Coluna/Descrição")
@@ -5100,10 +5104,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const addr = XLSXStyle.utils.encode_cell({ r: 0, c });
         if (wsP[addr]) {
           (wsP[addr] as { s?: unknown }).s = {
-            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
-            fill: { patternType: "solid", fgColor: { rgb: "334155" } },
+            font: { bold: true, color: { rgb: "334155" }, sz: 10 },
+            fill: { patternType: "solid", fgColor: { rgb: "E2E8F0" } },
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
-            border: { bottom: { style: "thin", color: { rgb: "0F172A" } } },
+            border: { bottom: { style: "thin", color: { rgb: "CBD5E1" } } },
           };
         }
       }
