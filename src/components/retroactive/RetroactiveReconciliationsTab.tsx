@@ -7299,7 +7299,7 @@ type GlosaGroupView = {
 type EncaminharModalProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  results: TvrResult[];
+  headline: ReturnType<typeof computeTvrHeadlineTotals>;
   actionable: TvrResult[];
   retirar: TvrResult[];
   groups: GlosaGroupView[];
@@ -7316,7 +7316,7 @@ type EncaminharModalProps = {
 };
 
 function EncaminharApuracaoModal({
-  open, onOpenChange, results: _results, actionable, retirar,
+  open, onOpenChange, headline, actionable, retirar,
   groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm,
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
@@ -7337,27 +7337,13 @@ function EncaminharApuracaoModal({
     }
   }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
-  // Fonte única de verdade — mesma função usada nos cards "A complementar"
-  // e "A recuperar" do relatório. Se este cálculo divergir do card, o
-  // problema está em `computeTvrFinancialTotals`, não aqui. NÃO reimplementar
-  // fórmula neste componente para evitar divergência silenciosa.
-  const { totalComplementar: totalBaseComp } = computeTvrFinancialTotals(actionable);
-  // Retirar do menu = mesmo agregado do card, restrito ao subconjunto do
-  // caminho de glosa (retirar list já filtra por valor_recuperar_acordo>0).
-  const { totalRetirar: totalAcordoRet } = computeTvrFinancialTotals(retirar);
-  // Invariante dev: garante que o subconjunto de glosa nunca extrapola o
-  // total do card. Se dispara, algum status novo entrou em `retirar` sem
-  // ser previsto por `computeTvrFinancialTotals`.
-  if (import.meta.env.DEV) {
-    const cardTotal = computeTvrFinancialTotals(_results).totalRetirar;
-    if (totalAcordoRet - cardTotal > 0.5) {
-      // eslint-disable-next-line no-console
-      console.warn("[TVR] Divergência: retirar do menu > retirar do card", {
-        menu: totalAcordoRet,
-        card: cardTotal,
-      });
-    }
-  }
+  // Números aqui vêm literalmente do mesmo objeto que alimenta os cards
+  // "Total a complementar" / "Total a retirar" do relatório — o pai calcula
+  // uma vez via computeTvrHeadlineTotals(results) e passa pra cá.
+  // Divergência é impossível por construção.
+  const totalBaseComp = headline.totalComplementar;
+  const totalAcordoRet = headline.totalRetirar;
+
 
   const toggleDoctor = (id: string) => {
     setSelectedDoctorIds((prev) => {
