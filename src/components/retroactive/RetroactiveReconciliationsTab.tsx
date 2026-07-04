@@ -5013,33 +5013,33 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
                   <div className="px-4 py-3">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Soma da base 100% do convênio registrada nos lotes históricos.">
-                      Base convênio (lote)
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Soma da base 100% do convênio registrada nos lotes históricos — o que o convênio pagaria pelo procedimento na época do repasse.">
+                      Base convênio no lote (100%, época)
                     </div>
                     <div className="text-xl font-bold tabular-nums">{brl(totalBase)}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">{valorItems.length} item(ns) do grupo valor</div>
                   </div>
                   <div className="px-4 py-3">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Soma do valor efetivamente pago no lote (com acordo aplicado).">
-                      Pago no lote (c/ acordo)
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Soma do que foi efetivamente pago ao médico no lote, já com o acordo aplicado.">
+                      Pago ao médico no lote (c/ acordo)
                     </div>
                     <div className="text-xl font-bold tabular-nums">{brl(totalPago)}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Fator médio: {totalBase > 0 ? ((totalPago / totalBase) * 100).toFixed(1) : "—"}%
+                      Fator médio do acordo: {totalBase > 0 ? ((totalPago / totalBase) * 100).toFixed(1) : "—"}%
                     </div>
                   </div>
                   <div className="px-4 py-3">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Recalculado hoje: fator do acordo do lote aplicado sobre o TASY atual.">
-                      Recalc (acordo × TASY)
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Quanto a regra pagaria HOJE: fator do acordo do lote × valor total do TASY atual.">
+                      Devido hoje (acordo × TASY hoje)
                     </div>
                     <div className="text-xl font-bold tabular-nums">{brl(totalRecalc)}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      TASY vs lote: {totalPago > 0 ? (((totalRecalc - totalPago) / totalPago) * 100).toFixed(1) : "—"}%
+                      TASY hoje vs pago no lote: {totalPago > 0 ? (((totalRecalc - totalPago) / totalPago) * 100).toFixed(1) : "—"}%
                     </div>
                   </div>
                   <div className="px-4 py-3">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Divergência = Pago no lote − Recalc. Positivo: a recuperar. Negativo: a complementar.">
-                      Divergência (pago − recalc)
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground" title="Ajuste = Pago no lote − Devido hoje. Positivo: paguei a mais, a recuperar. Negativo: paguei a menos, a complementar.">
+                      Ajuste (pago no lote − devido hoje)
                     </div>
                     <div
                       className={cn(
@@ -5052,8 +5052,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       {diffTotais > 0 ? "+" : ""}{brl(diffTotais)}
                     </div>
                     <div className="text-[10px] mt-0.5 flex flex-col gap-0.5">
-                      <span className="text-destructive">↓ A recuperar: <b>{brl(totalRecuperarSum)}</b></span>
-                      <span className="text-orange-700">↑ A complementar: <b>{brl(totalComplementarSum)}</b></span>
+                      <span className="text-destructive">↓ A recuperar (paguei a mais): <b>{brl(totalRecuperarSum)}</b></span>
+                      <span className="text-orange-700">↑ A complementar (paguei a menos): <b>{brl(totalComplementarSum)}</b></span>
                     </div>
                   </div>
                 </div>
