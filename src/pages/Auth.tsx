@@ -105,7 +105,7 @@ const Auth = () => {
   }, [loading, user, rolesLoading, roles, accountActive]);
 
   if (loading) return null;
-  if (user && !noAccess && !rolesLoading && accountActive && roles.length > 0) return <Navigate to="/" replace />;
+  if (user && !noAccess && !rolesLoading && accountActive && roles.length > 0) return <Navigate to={nextTarget} replace />;
 
   const handleForgotPassword = async () => {
     const emailEl = document.getElementById("signin-email") as HTMLInputElement | null;
