@@ -6239,23 +6239,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   />
                   Apenas com pagamento
                 </label>
-                <label
-                  className={cn(
-                    "flex items-center gap-1.5 text-[11px] cursor-pointer select-none px-2 py-1 rounded border transition-colors",
-                    compactMode
-                      ? "border-primary/60 bg-primary/5 text-primary"
-                      : "border-border text-muted-foreground",
-                  )}
-                  title="Reduz padding e fonte da tabela para caber mais linhas na tela. Útil em lotes grandes (ex.: DF Star)."
-                >
-                  <input
-                    type="checkbox"
-                    checked={compactMode}
-                    onChange={(e) => setCompactMode(e.target.checked)}
-                    className="h-3.5 w-3.5"
-                  />
-                  Modo compacto
-                </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" className="h-8 w-[200px] text-xs justify-between font-normal">
