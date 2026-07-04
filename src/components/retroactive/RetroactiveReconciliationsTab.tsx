@@ -4729,10 +4729,209 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       });
     }
 
+    // ============================================================
+    // Aba "Parâmetros de cálculo": parâmetros brutos da regra/linha de cálculo
+    // aplicada (e da regra prevista, quando existir) para cada item, mapeados
+    // por payment_item_id / rule_id / rule_calculation_id. Permite auditar
+    // fator, %, base e ver de qual cadastro o motor puxou.
+    // ============================================================
+    const wsParams = await (async () => {
+      // Coleta todos os calc_ids envolvidos: aplicados e previstos.
+      const allCalcIds = new Set<string>();
+      const allRuleIds = new Set<string>();
+      for (const r of list) {
+        if (r.applied_calc_id) allCalcIds.add(String(r.applied_calc_id));
+        if (r.calculo_previsto_id) allCalcIds.add(String(r.calculo_previsto_id));
+        if (r.applied_rule_id) allRuleIds.add(String(r.applied_rule_id));
+        if (r.regra_prevista_id) allRuleIds.add(String(r.regra_prevista_id));
+      }
+
+      const calcById = new Map<string, Record<string, unknown>>();
+      const ruleNameById = new Map<string, string>();
+      try {
+        const CHUNK = 200;
+        const calcIdsArr = Array.from(allCalcIds);
+        for (let i = 0; i < calcIdsArr.length; i += CHUNK) {
+          const slice = calcIdsArr.slice(i, i + CHUNK);
+          const { data } = await supabase
+            .from("rule_calculations")
+            .select(
+              "id, rule_id, sort_order, label, calculation_type, application_unit, fixed_amount, target_amount, multiplier, deflator_pct, bonus_amount, bonus_pct, repasse_pct, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct, include_auxiliaries, package_amount, package_subtype, package_main_code, reference_table_id, acrescimo_pct, adicional_fds_pct, adicional_feriado_pct, adicional_noturno_pct",
+            )
+            .in("id", slice);
+          for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+            if (row?.id) {
+              calcById.set(String(row.id), row);
+              if (row.rule_id) allRuleIds.add(String(row.rule_id));
+            }
+          }
+        }
+        const ruleIdsArr = Array.from(allRuleIds);
+        for (let i = 0; i < ruleIdsArr.length; i += CHUNK) {
+          const slice = ruleIdsArr.slice(i, i + CHUNK);
+          const { data } = await supabase
+            .from("rules")
+            .select("id, name, code, calculation_type")
+            .in("id", slice);
+          for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+            if (row?.id) {
+              const nm = [row.code ? `[${row.code}]` : "", row.name ?? ""].filter(Boolean).join(" ").trim();
+              ruleNameById.set(String(row.id), nm);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Falha ao carregar parâmetros de cálculo:", e);
+      }
+
+      const paramCols: Array<{ header: string; get: (calc: Record<string, unknown> | undefined) => string | number }> = [
+        { header: "Tipo de cálculo",       get: (c) => (c?.calculation_type as string) ?? "" },
+        { header: "Unidade de aplicação",  get: (c) => (c?.application_unit as string) ?? "" },
+        { header: "Repasse %",             get: (c) => Number(c?.repasse_pct ?? 0) },
+        { header: "Convênio %",            get: (c) => Number(c?.convenio_percentage ?? 0) },
+        { header: "Multiplicador",         get: (c) => Number(c?.multiplier ?? 0) },
+        { header: "Deflator %",            get: (c) => Number(c?.deflator_pct ?? 0) },
+        { header: "Acréscimo %",           get: (c) => Number(c?.acrescimo_pct ?? 0) },
+        { header: "Valor fixo",            get: (c) => Number(c?.fixed_amount ?? 0) },
+        { header: "Valor alvo",            get: (c) => Number(c?.target_amount ?? 0) },
+        { header: "Valor pacote",          get: (c) => Number(c?.package_amount ?? 0) },
+        { header: "Bônus R$",              get: (c) => Number(c?.bonus_amount ?? 0) },
+        { header: "Bônus %",               get: (c) => Number(c?.bonus_pct ?? 0) },
+        { header: "Aux 1º %",              get: (c) => Number(c?.aux_first_pct ?? 0) },
+        { header: "Aux 2º %",              get: (c) => Number(c?.aux_second_pct ?? 0) },
+        { header: "Auxiliar %",            get: (c) => Number(c?.auxiliary_pct ?? 0) },
+        { header: "Instrumentador %",      get: (c) => Number(c?.instrumentador_pct ?? 0) },
+        { header: "Ad. FDS %",             get: (c) => Number(c?.adicional_fds_pct ?? 0) },
+        { header: "Ad. Feriado %",         get: (c) => Number(c?.adicional_feriado_pct ?? 0) },
+        { header: "Ad. Noturno %",         get: (c) => Number(c?.adicional_noturno_pct ?? 0) },
+        { header: "Pacote (subtype)",      get: (c) => (c?.package_subtype as string) ?? "" },
+        { header: "Pacote (main code)",    get: (c) => (c?.package_main_code as string) ?? "" },
+        { header: "Ref. table id",         get: (c) => (c?.reference_table_id as string) ?? "" },
+      ];
+
+      const fixedCols = [
+        "Origem", "Atendimento", "TUSS", "Médico", "PJ",
+        "payment_id", "payment_item_id", "rule_id", "Nome da regra",
+        "rule_calculation_id", "Linha do cálculo",
+        "Base aplicada (R$)", "Pago ao médico no lote (R$)", "Devido hoje (R$)",
+      ];
+      const headerRowP = [...fixedCols, ...paramCols.map((p) => p.header)];
+
+      const bodyRows: (string | number)[][] = [];
+      for (const r of list) {
+        // Linha para regra APLICADA (quando o item foi pago no lote).
+        if (r.applied_calc_id || r.applied_rule_id) {
+          const calc = r.applied_calc_id ? calcById.get(String(r.applied_calc_id)) : undefined;
+          const ruleId = String(r.applied_rule_id ?? calc?.rule_id ?? "");
+          const idx = typeof calc?.sort_order === "number" ? (calc.sort_order as number) + 1 : null;
+          const linha = [idx ? `#${idx}` : "", (calc?.label as string) ?? r.calculo_aplicado ?? ""].filter(Boolean).join(" ").trim();
+          bodyRows.push([
+            "aplicada",
+            r.atendimento ?? "",
+            r.tuss ?? "",
+            r.medico ?? "",
+            r.pj_conciliada ?? "",
+            r.matched_payment_id ?? "",
+            r.matched_payment_item_id ?? "",
+            ruleId,
+            ruleNameById.get(ruleId) ?? r.regra_aplicada ?? "",
+            r.applied_calc_id ?? "",
+            linha,
+            Number(r.valor_pago_base ?? 0),
+            Number(r.valor_com_acordo ?? 0),
+            Number(r.valor_com_acordo_recalc ?? 0),
+            ...paramCols.map((p) => p.get(calc)),
+          ]);
+        }
+        // Linha para regra PREVISTA (heurística para Faltou pagar).
+        if (r.calculo_previsto_id || r.regra_prevista_id) {
+          const calc = r.calculo_previsto_id ? calcById.get(String(r.calculo_previsto_id)) : undefined;
+          const ruleId = String(r.regra_prevista_id ?? calc?.rule_id ?? "");
+          const idx = typeof calc?.sort_order === "number" ? (calc.sort_order as number) + 1 : null;
+          const linha = [idx ? `#${idx}` : "", (calc?.label as string) ?? r.calculo_previsto ?? ""].filter(Boolean).join(" ").trim();
+          bodyRows.push([
+            "prevista",
+            r.atendimento ?? "",
+            r.tuss ?? "",
+            r.medico ?? "",
+            r.pj_provavel ?? "",
+            "",
+            "",
+            ruleId,
+            ruleNameById.get(ruleId) ?? r.regra_prevista ?? "",
+            r.calculo_previsto_id ?? "",
+            linha,
+            0,
+            0,
+            0,
+            ...paramCols.map((p) => p.get(calc)),
+          ]);
+        }
+      }
+
+      const aoaP: (string | number)[][] = [headerRowP, ...bodyRows];
+      const wsP = XLSXStyle.utils.aoa_to_sheet(aoaP);
+
+      // Larguras: IDs largos, headers curtos compactos.
+      const widthsP: Array<{ wch: number }> = headerRowP.map((h) => {
+        const s = String(h);
+        if (s === "payment_id" || s === "payment_item_id" || s === "rule_id" || s === "rule_calculation_id" || s === "Ref. table id") return { wch: 38 };
+        if (s === "Nome da regra" || s === "Linha do cálculo" || s === "Médico" || s === "PJ") return { wch: 32 };
+        if (s === "Atendimento" || s === "TUSS" || s === "Origem") return { wch: 14 };
+        if (s.includes("R$")) return { wch: 16 };
+        return { wch: 14 };
+      });
+      (wsP as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = widthsP;
+      (wsP as unknown as { "!views"?: unknown[] })["!views"] = [
+        { state: "frozen", xSplit: 1, ySplit: 1, topLeftCell: "B2", activePane: "bottomRight" },
+      ];
+
+      // Estilo do cabeçalho.
+      for (let c = 0; c < headerRowP.length; c++) {
+        const addr = XLSXStyle.utils.encode_cell({ r: 0, c });
+        if (wsP[addr]) {
+          (wsP[addr] as { s?: unknown }).s = {
+            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
+            fill: { patternType: "solid", fgColor: { rgb: "334155" } },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            border: { bottom: { style: "thin", color: { rgb: "0F172A" } } },
+          };
+        }
+      }
+
+      // Formatos: % nas colunas de percentual, R$ nos valores, contagem nos demais.
+      const pctHeaders = new Set([
+        "Repasse %", "Convênio %", "Deflator %", "Acréscimo %", "Bônus %",
+        "Aux 1º %", "Aux 2º %", "Auxiliar %", "Instrumentador %",
+        "Ad. FDS %", "Ad. Feriado %", "Ad. Noturno %",
+      ]);
+      const moneyHeaders = new Set([
+        "Valor fixo", "Valor alvo", "Valor pacote", "Bônus R$",
+        "Base aplicada (R$)", "Pago ao médico no lote (R$)", "Devido hoje (R$)",
+      ]);
+      const PCT_FMT = '0.00"%";-0.00"%";"—"';
+      const MONEY_FMT_P = '_-"R$" * #,##0.00_-;[Red]-"R$" * #,##0.00_-;_-"R$" * "—"_-;_-@_-';
+      for (let c = 0; c < headerRowP.length; c++) {
+        const h = String(headerRowP[c]);
+        const fmt = pctHeaders.has(h) ? PCT_FMT : moneyHeaders.has(h) ? MONEY_FMT_P : null;
+        if (!fmt) continue;
+        for (let rr = 1; rr <= bodyRows.length; rr++) {
+          const addr = XLSXStyle.utils.encode_cell({ r: rr, c });
+          if (wsP[addr]) {
+            (wsP[addr] as { s?: Record<string, unknown>; z?: string; t?: string }).z = fmt;
+            (wsP[addr] as { t?: string }).t = "n";
+          }
+        }
+      }
+
+      return wsP;
+    })();
+
     const wb = XLSXStyle.utils.book_new();
     // Legenda vem primeiro para servir como manual ao abrir o arquivo.
     XLSXStyle.utils.book_append_sheet(wb, wsLeg, "Legenda");
     XLSXStyle.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
+    XLSXStyle.utils.book_append_sheet(wb, wsParams, "Parâmetros de cálculo");
     XLSXStyle.writeFile(wb, `${baseName}.xlsx`);
   };
 
