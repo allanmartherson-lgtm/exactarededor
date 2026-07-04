@@ -4487,15 +4487,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
 
-  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible") => {
+  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible" | "split") => {
     if (!results) return;
-    const list = scope === "visible" ? visible : results;
+    const list = scope === "visible"
+      ? visible
+      : scope === "split"
+      ? applyVisibleFilters(results, { ignoreAnalysisTab: true })
+      : results;
     if (list.length === 0) {
       toast({ title: "Nada para exportar neste filtro", variant: "destructive" });
       return;
     }
     const stamp = format(new Date(), "yyyyMMdd_HHmm");
-    const baseName = `tasy-vs-repasse_${scope === "visible" ? "filtrado_" : ""}${stamp}`;
+    const suffix = scope === "visible" ? "filtrado_" : scope === "split" ? "abas_" : "";
+    const baseName = `tasy-vs-repasse_${suffix}${stamp}`;
+
 
     // Fallback: enriquece PJ Conciliada / Regra / Cálculo para resultados
     // carregados do banco antes desta funcionalidade existir. Busca por
