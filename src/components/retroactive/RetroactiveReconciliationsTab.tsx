@@ -4365,6 +4365,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       "Motivo": "Explicação curta do porquê da ação — geralmente cita a natureza do acordo e o que mudou no TASY.",
       "Regra aplicada": "Nome da regra do acordo cadastrado que originou o cálculo no lote.",
       "Linha do cálculo": "Linha específica da regra aplicada (útil quando a regra tem várias linhas/faixas).",
+      "ID do lote (payment_id)": "UUID do lote de repasse (tabela payments) — cola direto na URL /financeiro/pagamentos/<id>.",
+      "ID do item (payment_item_id)": "UUID do item pago dentro do lote (tabela payment_items). Chave para conciliar linha do TASY com o registro de repasse.",
+      "ID da regra (rule_id)": "UUID da regra do acordo aplicada (tabela rules). Permite abrir o cadastro exato usado no cálculo.",
+      "ID do cálculo (rule_calculation_id)": "UUID da linha de cálculo da regra (tabela rule_calculations). Identifica a faixa/linha específica dentro da regra.",
+      "ID da PJ (company_id)": "UUID da empresa vinculada ao item no lote histórico (tabela companies).",
+      "ID do médico (doctor_id)": "UUID do médico do procedimento (tabela doctors).",
+      "Chave canônica": "Chave interna que o motor usa para cruzar TASY × Exacta (Atend + Data + TUSS8 + Médico normalizado).",
+
     };
 
     // Monta AoA da legenda: título + seção conceitos + seção colunas.
