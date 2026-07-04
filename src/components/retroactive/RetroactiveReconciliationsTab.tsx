@@ -74,6 +74,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { computeTvrRulePreview } from "@/lib/tvrRulePreview";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2147,6 +2148,13 @@ export type TvrResult = {
   regra_prevista_id?: string;
   calculo_previsto?: string;
   calculo_previsto_id?: string;
+  // Valor que a regra prevista pagaria hoje sobre este item (nao_pago).
+  // undefined = não conseguimos estimar → consumidor cai para valor_total_tasy.
+  valor_previsto_regra?: number;
+  tipo_analise_previsto?: "valor" | "quantidade";
+  // "regra"  = calculamos via rule_calculation (percentual_convenio / valor_fixo / exclusao)
+  // "bruto"  = tipo não coberto (pacote/tabela_diferenciada) ou dado faltante → fallback bruto
+  previsto_source?: "regra" | "bruto";
 
 
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
@@ -2235,7 +2243,7 @@ const TVR_SOURCE = "tasy_vs_repasse";
 export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementar: number; totalRetirar: number } {
   const totalComplementar = list.reduce((sum, r) => {
     if (r.status === "ok" || r.status === "ausente_tasy") return sum;
-    if (r.status === "nao_pago") return sum + r.valor_total_tasy;
+    if (r.status === "nao_pago") return sum + (r.valor_previsto_regra ?? r.valor_total_tasy);
     if (r.tipo_analise === "quantidade") {
       const ajuste = r.ajuste_acordo ?? 0;
       return ajuste < -0.5 ? sum + Math.abs(ajuste) : sum;
@@ -2298,11 +2306,19 @@ export function describeTvrAcao(r: TvrResult): TvrAcao {
     : method.includes("percentual") ? "% do convênio"
     : "acordo do lote";
   if (r.status === "nao_pago") {
+    // Preferimos o valor que a regra prevista pagaria hoje (mesma lógica do
+    // motor no lote original). Se não conseguimos estimar (pacote/tabela ou
+    // dado faltante), caímos para valor_total_tasy — bruto 100% convênio.
+    const usouRegra = typeof r.valor_previsto_regra === "number";
+    const valor = usouRegra ? r.valor_previsto_regra! : (r.valor_total_tasy || 0);
+    const hint = usouRegra
+      ? `Regra prevista aplicada${r.calculo_previsto ? `: ${r.calculo_previsto}` : ""} — mesmo cálculo do lote anterior.`
+      : `Item no TASY (${prettyMethod}) sem pagamento no lote — sem regra prevista, exibindo valor bruto 100% convênio. Revisar antes de complementar.`;
     return {
       kind: "complementar",
-      valor: r.valor_total_tasy || 0,
-      label: `↑ Complementar ${brl(r.valor_total_tasy || 0)}`,
-      hint: `Item no TASY (${prettyMethod}) sem pagamento no lote — valor bruto 100% convênio, acordo aplica no cálculo.`,
+      valor,
+      label: `↑ Complementar ${brl(valor)}`,
+      hint,
     };
   }
   if (r.status === "ausente_tasy") {
@@ -4409,6 +4425,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         rule_label?: string;
         calc_id?: string;
         calc_label?: string;
+        calc_raw?: {
+          calculation_type?: string | null;
+          fixed_amount?: number | null;
+          convenio_percentage?: number | null;
+          auxiliary_pct?: number | null;
+          aux_first_pct?: number | null;
+          aux_second_pct?: number | null;
+          instrumentador_pct?: number | null;
+        };
       }
     >();
     if (hospitalId && allDoctorIds.length > 0) {
@@ -4553,14 +4578,31 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           if (calcIds.length > 0) {
             const { data: calcs } = await supabase
               .from("rule_calculations")
-              .select("id, label, sort_order, calculation_type")
+              .select(
+                "id, label, sort_order, calculation_type, fixed_amount, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct",
+              )
               .in("id", calcIds);
             const labels = new Map<string, string>();
+            const raws = new Map<string, {
+              calculation_type?: string | null;
+              fixed_amount?: number | null;
+              convenio_percentage?: number | null;
+              auxiliary_pct?: number | null;
+              aux_first_pct?: number | null;
+              aux_second_pct?: number | null;
+              instrumentador_pct?: number | null;
+            }>();
             for (const c of (calcs ?? []) as Array<{
               id: string;
               label?: string;
               sort_order?: number;
               calculation_type?: string;
+              fixed_amount?: number | null;
+              convenio_percentage?: number | null;
+              auxiliary_pct?: number | null;
+              aux_first_pct?: number | null;
+              aux_second_pct?: number | null;
+              instrumentador_pct?: number | null;
             }>) {
               const idx =
                 typeof c.sort_order === "number" ? c.sort_order + 1 : null;
@@ -4574,9 +4616,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   .filter(Boolean)
                   .join(" "),
               );
+              raws.set(String(c.id), {
+                calculation_type: c.calculation_type ?? null,
+                fixed_amount: c.fixed_amount ?? null,
+                convenio_percentage: c.convenio_percentage ?? null,
+                auxiliary_pct: c.auxiliary_pct ?? null,
+                aux_first_pct: c.aux_first_pct ?? null,
+                aux_second_pct: c.aux_second_pct ?? null,
+                instrumentador_pct: c.instrumentador_pct ?? null,
+              });
             }
             for (const v of ruleByKey.values()) {
-              if (v.calc_id) v.calc_label = labels.get(v.calc_id);
+              if (v.calc_id) {
+                v.calc_label = labels.get(v.calc_id);
+                v.calc_raw = raws.get(v.calc_id);
+              }
             }
           }
         } catch (e) {
@@ -4609,6 +4663,26 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             r.regra_prevista = hit.rule_label;
             r.calculo_previsto_id = hit.calc_id;
             r.calculo_previsto = hit.calc_label;
+            // Estima o valor devido hoje aplicando o mesmo cálculo do histórico.
+            // Se o tipo não for coberto (pacote/tabela_diferenciada) ou faltar
+            // dado, previsto_source='bruto' e consumidor cai para valor_total_tasy.
+            if (hit.calc_raw) {
+              const preview = computeTvrRulePreview({
+                ...hit.calc_raw,
+                valor_total_tasy: r.valor_total_tasy,
+                qtd_tasy: r.qtd_tasy,
+                funcao: r.funcao,
+              });
+              if (preview.valor != null) {
+                r.valor_previsto_regra = preview.valor;
+              }
+              if (preview.tipo_analise) {
+                r.tipo_analise_previsto = preview.tipo_analise;
+              }
+              r.previsto_source = preview.source;
+            } else {
+              r.previsto_source = "bruto";
+            }
             break;
           }
         }
