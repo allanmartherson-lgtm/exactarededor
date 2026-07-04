@@ -4027,7 +4027,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Item", header: "Tipo de análise", get: (r) => r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)" },
     { group: "Item", header: "Sem lastro TASY", get: (r) => r.sem_lastro_tasy ? "Sim" : "" },
     // Contexto — PJ e Médico primeiro (quem), depois atendimento/procedimento (o quê/quando).
-    { group: "Contexto", header: "PJ", get: (r) => r.pj_conciliada ?? "" },
+    // "PJ" espelha a UI: mostra a PJ conciliada quando existe; para Faltou pagar
+    // sem lastro, mostra a PJ provável com prefixo "[prev.]" (equivalente ao
+    // badge amarelo). Assim analista abre o XLSX e enxerga o mesmo texto da tela.
+    { group: "Contexto", header: "PJ", get: (r) => r.pj_conciliada ? r.pj_conciliada : (r.status === "nao_pago" && r.pj_provavel ? `[prev.] ${r.pj_provavel}` : "") },
     { group: "Contexto", header: "Médico", get: (r) => r.medico },
     { group: "Contexto", header: "Atendimento", get: (r) => r.atendimento },
     { group: "Contexto", header: "Cód. TUSS", get: (r) => r.tuss },
@@ -4062,13 +4065,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Ação sugerida", header: "Motivo", get: (r) => describeAcao(r).hint },
     // Rastreabilidade — nomes amigáveis + IDs técnicos, para bater linha do
     // relatório com registro exato no banco sem precisar abrir a UI.
-    { group: "Rastreio", header: "Regra aplicada", get: (r) => r.regra_aplicada ?? "" },
-    { group: "Rastreio", header: "Linha do cálculo", get: (r) => r.calculo_aplicado ?? "" },
+    // Regra/Cálculo e IDs correspondentes espelham a UI: quando não há regra
+    // aplicada no lote (Faltou pagar), caem para regra/cálculo previstos com
+    // marcador "[prev.]" (texto) ou o próprio UUID inferido (colunas de ID).
+    { group: "Rastreio", header: "Regra aplicada", get: (r) => r.regra_aplicada ? r.regra_aplicada : (r.status === "nao_pago" && r.regra_prevista ? `[prev.] ${r.regra_prevista}` : "") },
+    { group: "Rastreio", header: "Linha do cálculo", get: (r) => r.calculo_aplicado ? r.calculo_aplicado : (r.status === "nao_pago" && r.calculo_previsto ? `[prev.] ${r.calculo_previsto}` : "") },
     { group: "Rastreio", header: "ID do lote (payment_id)", get: (r) => r.matched_payment_id ?? "" },
     { group: "Rastreio", header: "ID do item (payment_item_id)", get: (r) => r.matched_payment_item_id ?? "" },
-    { group: "Rastreio", header: "ID da regra (rule_id)", get: (r) => r.applied_rule_id ?? "" },
-    { group: "Rastreio", header: "ID do cálculo (rule_calculation_id)", get: (r) => r.applied_calc_id ?? "" },
-    { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ?? "" },
+    { group: "Rastreio", header: "ID da regra (rule_id)", get: (r) => r.applied_rule_id ? r.applied_rule_id : (r.status === "nao_pago" ? (r.regra_prevista_id ?? "") : "") },
+    { group: "Rastreio", header: "ID do cálculo (rule_calculation_id)", get: (r) => r.applied_calc_id ? r.applied_calc_id : (r.status === "nao_pago" ? (r.calculo_previsto_id ?? "") : "") },
+    { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ? r.matched_company_id : (r.status === "nao_pago" ? (r.pj_provavel_id ?? "") : "") },
     { group: "Rastreio", header: "ID do médico (doctor_id)", get: (r) => r.matched_doctor_id ?? "" },
     { group: "Rastreio", header: "Chave canônica", get: (r) => r.key ?? "" },
     // Inferência para itens sem lastro no lote — colunas separadas para deixar
@@ -4664,7 +4670,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       "Status": "Situação do item na conciliação: OK, faltou pagar, pago a mais, pago a menos, sem lastro etc.",
       "Tipo de análise": "Natureza da regra do acordo — determina se comparamos em R$ ou por presença/quantidade.",
       "Sem lastro TASY": "Marcado quando o item foi pago no lote mas hoje não existe mais na base TASY.",
-      "PJ": "Empresa (pessoa jurídica) para a qual o pagamento do médico foi direcionado no lote histórico.",
+      "PJ": "Empresa (pessoa jurídica) para a qual o pagamento do médico foi direcionado no lote histórico. Em itens 'Faltou pagar' mostra a PJ provável com prefixo '[prev.]' (equivalente ao badge amarelo da tela).",
       "Médico": "Nome do médico responsável pelo procedimento.",
       "Atendimento": "Número do atendimento no TASY (chave principal de vínculo entre TASY e Exacta).",
       "Cód. TUSS": "Código TUSS de 8 dígitos do procedimento.",
@@ -4690,13 +4696,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       "A complementar (paguei a menos)": "Valor extra a pagar ao médico porque a base TASY aumentou depois do repasse.",
       "Ação": "Ação sugerida em linguagem do analista (recuperar / complementar / sem ajuste).",
       "Motivo": "Explicação curta do porquê da ação — geralmente cita a natureza do acordo e o que mudou no TASY.",
-      "Regra aplicada": "Nome da regra do acordo cadastrado que originou o cálculo no lote.",
-      "Linha do cálculo": "Linha específica da regra aplicada (útil quando a regra tem várias linhas/faixas).",
+      "Regra aplicada": "Nome da regra do acordo cadastrado que originou o cálculo no lote. Em 'Faltou pagar' mostra a regra prevista com prefixo '[prev.]' (mesmo badge da UI).",
+      "Linha do cálculo": "Linha específica da regra aplicada (útil quando a regra tem várias linhas/faixas). Em 'Faltou pagar' cai para a linha prevista com prefixo '[prev.]'.",
       "ID do lote (payment_id)": "UUID do lote de repasse (tabela payments) — cola direto na URL /financeiro/pagamentos/<id>.",
       "ID do item (payment_item_id)": "UUID do item pago dentro do lote (tabela payment_items). Chave para conciliar linha do TASY com o registro de repasse.",
-      "ID da regra (rule_id)": "UUID da regra do acordo aplicada (tabela rules). Permite abrir o cadastro exato usado no cálculo.",
-      "ID do cálculo (rule_calculation_id)": "UUID da linha de cálculo da regra (tabela rule_calculations). Identifica a faixa/linha específica dentro da regra.",
-      "ID da PJ (company_id)": "UUID da empresa vinculada ao item no lote histórico (tabela companies).",
+      "ID da regra (rule_id)": "UUID da regra do acordo aplicada (tabela rules). Em 'Faltou pagar' devolve o UUID da regra prevista inferida — mesmo comportamento da UI.",
+      "ID do cálculo (rule_calculation_id)": "UUID da linha de cálculo da regra (tabela rule_calculations). Em 'Faltou pagar' devolve o UUID da linha prevista inferida.",
+      "ID da PJ (company_id)": "UUID da empresa vinculada ao item no lote histórico (tabela companies). Em 'Faltou pagar' devolve o UUID da PJ provável inferida.",
       "ID do médico (doctor_id)": "UUID do médico do procedimento (tabela doctors).",
       "Chave canônica": "Chave interna que o motor usa para cruzar TASY × Exacta (Atend + Data + TUSS8 + Médico normalizado).",
       "PJ provável (Faltou pagar)": "Empresa sugerida para itens que nunca foram pagos — usa o vínculo ativo do médico em doctor_companies (regra: 1 PJ ativa por médico por hospital). Vazio quando o médico tem múltiplas PJs ativas (ambíguo).",
