@@ -125,10 +125,15 @@ export default function Conciliacao() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="bloqueios">
-            <ShieldAlert className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
-            <span>Divergências bloqueantes</span>
-          </TabsTrigger>
+          {(blockingCount ?? 0) > 0 && (
+            <TabsTrigger value="bloqueios">
+              <ShieldAlert className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
+              <span>Divergências bloqueantes</span>
+              <span className="ml-1 rounded-md border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive group-data-[state=active]:border-primary-foreground/20 group-data-[state=active]:bg-primary/70 group-data-[state=active]:text-primary-foreground">
+                {blockingCount}
+              </span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="bases">
             <Database className="h-[18px] w-[18px] opacity-60 transition-transform group-hover:scale-110 group-data-[state=active]:opacity-100" />
             <span>Bases hospitalares</span>
