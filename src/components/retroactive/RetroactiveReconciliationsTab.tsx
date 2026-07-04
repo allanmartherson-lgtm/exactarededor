@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tabs as InnerTabs,
@@ -2830,6 +2831,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [excludedConvenios, setExcludedConvenios] = useState<string[]>([]);
   const [convenioFilterStats, setConvenioFilterStats] = useState<{ tasyRemoved: number; pagRemoved: number } | null>(null);
   const [processing, setProcessing] = useState(false);
+  type ProcStep = "cruzando" | "enriquecendo" | "salvando";
+  const [procProgress, setProcProgress] = useState<{ step: ProcStep; current: number; total: number } | null>(null);
   const [results, setResults] = useState<TvrResult[] | null>(null);
   const [statusFilter, setStatusFilter] = useState<Set<TvrStatus>>(new Set());
   const [search, setSearch] = useState("");
@@ -3351,6 +3354,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     setProcessing(true);
+    setProcProgress({ step: "cruzando", current: 0, total: tasyRows.length + effectivePagRows.length });
     setTimeout(async () => {
       const excluded = new Set(
         excludeTuss.split(",").flatMap((s) => {
@@ -3514,7 +3518,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           description: "Revise o período selecionado e a coluna de data da planilha antes de processar.",
           variant: "destructive",
         });
-        setProcessing(false);
+        setProcessing(false); setProcProgress(null);
         return;
       }
 
@@ -3614,7 +3618,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           description: `TASY soma ${brl(scaleAudit.tasyTotal)} contra ${brl(scaleAudit.pagTotal)} no lote/período. Há ${scaleAudit.suspiciousIntegerCount} valores inteiros muito altos; revise/reimporte a coluna Valor antes de processar.`,
           variant: "destructive",
         });
-        setProcessing(false);
+        setProcessing(false); setProcProgress(null);
         return;
       }
 
@@ -3816,6 +3820,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         return a.tuss.localeCompare(b.tuss);
       });
 
+      // Etapa 2: enriquecimento de PJ e labels de regra (queries auxiliares).
+      setProcProgress({ step: "enriquecendo", current: 0, total: out.length });
+
       // Enriquecer com nome da PJ e label da linha de cálculo aplicada
       try {
         const companyIds = Array.from(new Set(out.map((r) => r.matched_company_id).filter(Boolean))) as string[];
@@ -3848,7 +3855,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
 
       try {
-        await persistResults(out);
+        // Etapa 3: persistência em lotes — progresso vem do callback do persistResults.
+        setProcProgress({ step: "salvando", current: 0, total: out.length });
+        await persistResults(out, (saved, total) => {
+          setProcProgress({ step: "salvando", current: saved, total });
+        });
         setResults(out);
         setConvenioFilterStats(excludedConvSet.size > 0 ? { tasyRemoved: convTasyRemoved, pagRemoved: convPagRemoved } : null);
         setSelectedKeys(new Set());
@@ -3866,7 +3877,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             : JSON.stringify(e);
         toast({ title: "Erro ao salvar resultado", description: msg, variant: "destructive" });
       } finally {
-        setProcessing(false);
+        setProcessing(false); setProcProgress(null);
+        setProcProgress(null);
       }
     }, 50);
   };
@@ -4060,7 +4072,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
 
-  const persistResults = async (list: TvrResult[]) => {
+  const persistResults = async (
+    list: TvrResult[],
+    onBatch?: (savedRows: number, totalRows: number) => void,
+  ) => {
     const incompleteAusente = list
       .map((r) => ({ r, missing: getAusenteTasyMissingFields(r) }))
       .filter((x) => x.missing.length > 0);
@@ -4098,6 +4113,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       .eq("reconciliation_id", id)
       .eq("source", TVR_SOURCE);
 
+    onBatch?.(0, rows.length);
     if (rows.length > 0) {
       // Insere em lotes para evitar "canceling statement due to statement timeout"
       // do Postgres quando o volume de linhas + payload JSON (raw) é grande.
@@ -4108,8 +4124,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           .from("retroactive_reconciliation_items" as never)
           .insert(chunk as never);
         if (insertError) throw insertError;
+        onBatch?.(Math.min(i + BATCH, rows.length), rows.length);
       }
     }
+
 
     const previousSummary = (recon?.summary ?? {}) as Record<string, unknown>;
     const summary = buildTvrReplaceSummary(list, previousSummary, {
@@ -4822,6 +4840,33 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         )}
       </div>
+
+      {processing && procProgress && (() => {
+        // Barra de progresso por etapa. Cruzando/enriquecendo mostram indeterminado
+        // (uma varredura só); salvando mostra X/Y de linhas persistidas em lotes.
+        const stepLabels: Record<ProcStep, string> = {
+          cruzando: "Etapa 1/3 · Cruzando TASY × Repasse",
+          enriquecendo: "Etapa 2/3 · Enriquecendo PJ e regras",
+          salvando: "Etapa 3/3 · Salvando resultado",
+        };
+        const pct = procProgress.step === "salvando" && procProgress.total > 0
+          ? Math.round((procProgress.current / procProgress.total) * 100)
+          : procProgress.step === "cruzando" ? 20 : 60;
+        const counter = procProgress.step === "salvando"
+          ? `${procProgress.current.toLocaleString("pt-BR")} / ${procProgress.total.toLocaleString("pt-BR")} linhas`
+          : `${procProgress.total.toLocaleString("pt-BR")} linha(s)`;
+        return (
+          <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">{stepLabels[procProgress.step]}</span>
+              <span className="text-muted-foreground tabular-nums">{counter}</span>
+            </div>
+            <Progress value={pct} className="h-2" />
+          </div>
+        );
+      })()}
+
+
 
 
       {/* Results */}
