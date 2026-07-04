@@ -4037,10 +4037,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // Ação sugerida — mesmo texto que a UI mostra na coluna final.
     { group: "Ação sugerida", header: "Ação", get: (r) => describeAcao(r).label.replace(/^[↓↑—]\s*/, "") },
     { group: "Ação sugerida", header: "Motivo", get: (r) => describeAcao(r).hint },
-    // Rastreabilidade
+    // Rastreabilidade — nomes amigáveis + IDs técnicos, para bater linha do
+    // relatório com registro exato no banco sem precisar abrir a UI.
     { group: "Rastreio", header: "Regra aplicada", get: (r) => r.regra_aplicada ?? "" },
     { group: "Rastreio", header: "Linha do cálculo", get: (r) => r.calculo_aplicado ?? "" },
+    { group: "Rastreio", header: "ID do lote (payment_id)", get: (r) => r.matched_payment_id ?? "" },
+    { group: "Rastreio", header: "ID do item (payment_item_id)", get: (r) => r.matched_payment_item_id ?? "" },
+    { group: "Rastreio", header: "ID da regra (rule_id)", get: (r) => r.applied_rule_id ?? "" },
+    { group: "Rastreio", header: "ID do cálculo (rule_calculation_id)", get: (r) => r.applied_calc_id ?? "" },
+    { group: "Rastreio", header: "ID da PJ (company_id)", get: (r) => r.matched_company_id ?? "" },
+    { group: "Rastreio", header: "ID do médico (doctor_id)", get: (r) => r.matched_doctor_id ?? "" },
+    { group: "Rastreio", header: "Chave canônica", get: (r) => r.key ?? "" },
   ];
+
 
   // Para CSV/JSON: nomes de coluna limpos com o grupo separado como coluna própria,
   // em vez do prefixo "Grupo · Nome". É mais legível em qualquer editor de texto.
