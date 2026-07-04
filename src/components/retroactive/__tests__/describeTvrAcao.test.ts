@@ -248,25 +248,27 @@ describe("Card × planilha — computeTvrFinancialTotals usa a base operacional 
     expect(totalRetirar).toBeCloseTo(770, 2); // 350 + 420
   });
 
-  it("nao_pago soma valor_total_tasy em complementar (não fica escondido)", () => {
+  it("nao_pago SEM previsão NÃO soma no complementar (evita falso positivo)", () => {
+    // Bruto TASY sem regra prevista é apenas TETO, não compromisso.
+    // Aparece separado via computeTvrComplementarBreakdown().tasyCeiling.
     const list: TvrResult[] = [
       r({ status: "nao_pago", valor_total_tasy: 1000 }),
       r({ status: "nao_pago", valor_total_tasy: 250 }),
     ];
     const { totalComplementar, totalRetirar } = computeTvrFinancialTotals(list);
-    expect(totalComplementar).toBeCloseTo(1250, 2);
+    expect(totalComplementar).toBe(0);
     expect(totalRetirar).toBe(0);
   });
 
-  it("nao_pago prefere valor_previsto_regra ao valor_total_tasy quando disponível", () => {
+  it("nao_pago só soma quando há valor_previsto_regra (simulação/histórico)", () => {
     const list: TvrResult[] = [
-      // Com regra: complementa 500 (não 1000).
+      // Com regra: complementa 500.
       r({ status: "nao_pago", valor_total_tasy: 1000, valor_previsto_regra: 500 }),
-      // Sem regra: mantém retrocompatível → 250.
+      // Sem regra: NÃO soma (é teto TASY, não compromisso).
       r({ status: "nao_pago", valor_total_tasy: 250 }),
     ];
     const { totalComplementar } = computeTvrFinancialTotals(list);
-    expect(totalComplementar).toBeCloseTo(750, 2);
+    expect(totalComplementar).toBeCloseTo(500, 2);
   });
   it("cenário misto reflete a lógica operacional da planilha", () => {
     const list: TvrResult[] = [
