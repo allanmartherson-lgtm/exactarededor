@@ -6345,18 +6345,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <div
               ref={resultTableScrollRef}
               onScroll={() => syncResultScroll("table")}
-              className={cn(
-                "overflow-auto max-h-[65vh] rounded-b-lg border-border",
-                // Modo compacto: reduz padding vertical/horizontal em td/th e
-                // encolhe a fonte. Preserva `align-top` e cores; só ajusta densidade.
-                compactMode && [
-                  "text-[11px]",
-                  "[&_td]:py-1 [&_td]:px-2",
-                  "[&_th]:py-1 [&_th]:px-2 [&_th]:h-8",
-                  "[&_.max-w-\\[200px\\]]:max-w-[140px]",
-                  "[&_.max-w-\\[180px\\]]:max-w-[130px]",
-                ],
-              )}
+              className="overflow-auto max-h-[65vh] rounded-b-lg border-border"
             >
 
               {(() => {
