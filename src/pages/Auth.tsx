@@ -145,7 +145,7 @@ const Auth = () => {
       toast({ title: "Não foi possível entrar", description: error, variant: "destructive" });
       return;
     }
-    navigate("/", { replace: true });
+    navigate(nextTarget, { replace: true });
   };
 
   const handleAccessRequest = async (e: React.FormEvent<HTMLFormElement>) => {
