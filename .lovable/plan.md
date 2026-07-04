@@ -1,86 +1,65 @@
-# Plano — Faltou pagar sem histórico + export split sempre com 2 abas
+## Objetivo
 
-## Diagnóstico (com base no XLSX enviado)
+Adicionar, dentro do relatório **Ajustes de intervenção** (`/relatorios/intervencoes?view=ajustes`), uma seção "Prévia — lotes em andamento" que mostra o impacto potencial dos itens **acatados** em lotes que ainda não foram aprovados. Assim o usuário vê antes o que vai entrar no KPI quando cada lote for aprovado pelo diretor.
 
-Abri o arquivo `tasy-vs-repasse_abas_20260704_1719.xlsx`. Confirmei duas causas independentes:
+## Onde exatamente
 
-### Causa 1 — Regra prevista sem cálculo previsto
-Todos os 195 itens da aba "Por valor" são `Faltou pagar` e caem no fallback bruto (hint "sem regra prevista, exibindo valor bruto 100% convênio"). Olhando a aba "Parâmetros de cálculo":
+Página: `src/pages/InterventionReports.tsx`, aba/`view=ajustes`.
 
-```
-rule_id preenchido (ex. 808a0330… "Acordo Ortopedia")
-rule_calculation_id: NULL
-convenio_percentage / fixed_amount / … : 0
-```
+Layout:
 
-Ou seja: **a fase 1 acha o `rule_id`** (via histórico de `payment_items` do médico+TUSS) **mas não acha um `applied_calc_id`** — provavelmente porque nesse hospital o médico já teve a REGRA aplicada em outros itens, mas nunca esse TUSS específico com `applied_calc_id` gravado. Sem `calc_id`, `calc_raw` fica vazio e o helper devolve `source: "bruto"`.
-
-### Causa 2 — Export split com 1 aba só
-No arquivo veio só "Por valor (195)" e sumiu "Por presença". No código:
-
-```ts
-const wsPresenca = isSplit && listPresenca.length > 0 ? buildDataSheet(listPresenca) : null;
+```text
+[ Cabeçalho da aba Ajustes ]
+[ NOVO: Card "Prévia — se aprovados agora" ]
+   ├─ Totais: economia potencial / adicional potencial / saldo / N itens
+   └─ Tabela por lote (expansível):
+        lote · competência · status atual · itens acatados · Δ economia · Δ adicional · saldo
+        → link para /pagamentos/:id
+[ Tabela atual de ajustes consolidados (não muda) ]
 ```
 
-Como todos os itens são `tipo_analise = "valor"` (default herdado quando `nao_pago` não tem lastro no lote → `pag_applied_calc_method` vazio → cai em `"valor"`), `listPresenca` fica vazia e a aba nem é criada. Isso viola o contrato "pedi as duas abas, quero ver as duas".
+Fica visualmente separado (borda tracejada / fundo levemente diferente) para deixar claro que é **potencial, não realizado**.
 
-Cascata da Causa 1 → Causa 2: mesmo quando temos regra prevista, `tipo_analise` do row nunca reflete a regra prevista (ficamos com o default `"valor"`), então itens de `pacote/valor_fixo` iriam para "Por valor" errado.
+## Fonte de dados
 
-## Correções propostas (3 pontos, isolados)
+Nova RPC `get_intervention_preview(p_hospital_id, p_start?, p_end?)` que replica a lógica do trigger `tg_intervention_ledger_on_status`, mas lê **payment_items acatados de lotes ainda não aprovados**:
 
-### Fix A — Buscar `rule_calculations` quando só temos `rule_id`
-No `enrichNaoPagoInferred`, depois do loop atual que popula `ruleByKey` via histórico:
+- `payments.status IN ('em_analise_ia','em_validacao','aguardando_aprovacao','devolvido_analista')`
+- `payment_items.acatado = true` (ou equivalente atual usado pelo trigger)
+- Exclui `import_mode = 'historico'` (mesma regra do KPI real)
+- Exclui itens já com entrada em `intervention_ledger` sem `reverted_at`
+- `delta = valor_regra − valor_pago_final` por item; agrega por payment_id
 
-1. Coletar todos os `rule_id` cujo `calc_id` está vazio.
-2. `SELECT id, rule_id, sort_order, label, calculation_type, fixed_amount, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct, procedure_codes, is_catch_all FROM rule_calculations WHERE rule_id IN (…) ORDER BY sort_order ASC`.
-3. Para cada `(rule_id, tuss)` em `ruleByKey` sem calc, escolher o primeiro calc na ordem:
-   - `procedure_codes` contém o TUSS do item, ou
-   - `is_catch_all = true`, ou
-   - primeiro calc por `sort_order` (fallback).
-4. Preencher `calc_id`, `calc_label`, `calc_raw` na entrada existente.
+Retorna:
+- `summary`: `{ economia, perda, saldo, qtd_itens, qtd_lotes }`
+- `by_payment`: `[{ payment_id, descricao, competence_month, status, qtd_itens, economia, perda, saldo }]`
 
-Isso é heurística — mesma disciplina do resto do bloco de "Faltou pagar": nunca inventa valor, mas quando os dados batem determinístico (regra tem calc único, ou calc explicitamente para aquele TUSS), preenche.
+## Frontend
 
-Quando `calculation_type` é `pacote`/`tabela_diferenciada` continua caindo em `source: "bruto"` (fase 2), mas o **tipo_analise** já vai ser conhecido — corrige a Causa 2 mesmo sem valor calculado.
+1. Novo componente `src/components/intervention/InterventionPreviewSection.tsx`
+   - Consome a RPC via `supabase.rpc('get_intervention_preview', ...)`
+   - Respeita `hospitalId` do `HospitalContext`
+   - Usa o mesmo padrão visual dos cards de `InterventionSavingsCard` (tokens, `formatCurrency`, `impactTone`) mas com rótulo "Potencial — sujeito a aprovação"
+   - Estados: loading (Skeleton), vazio ("Nenhum lote em andamento com itens acatados"), erro
+   - Linhas clicáveis abrem `/pagamentos/:payment_id`
 
-### Fix B — `tipo_analise` do row reflete a regra prevista
-Só para `status === "nao_pago"`, ao final da inferência:
-```ts
-if (r.tipo_analise_previsto && r.tipo_analise !== r.tipo_analise_previsto) {
-  r.tipo_analise = r.tipo_analise_previsto;
-}
-```
-Impacto: itens Faltou pagar de regras `valor_fixo`/`pacote` passam a aparecer em "Por presença" — que é onde o analista espera vê-los.
+2. Renderizar o componente em `InterventionReports.tsx` no topo da view `ajustes`, acima da tabela existente.
 
-Zero risco para statuses com lastro no lote (tipo_analise deles já vem correto do motor).
+## Regras de negócio
 
-### Fix C — Split sempre gera as duas abas
-```ts
-if (isSplit) {
-  book_append_sheet(wb, wsValor ?? buildEmptyPlaceholder("Por valor"), `Por valor (${listValor.length})`);
-  book_append_sheet(wb, wsPresenca ?? buildEmptyPlaceholder("Por presença"), `Por presença (${listPresenca.length})`);
-}
-```
-`buildEmptyPlaceholder` retorna uma sheet com header + uma linha "Sem itens desta categoria com os filtros atuais." — assim o analista vê que a categoria está vazia, não que o export bugou.
+- **Nunca** grava em `intervention_ledger` — é só leitura/simulação.
+- Se o lote reverter para status não-aprovado após aprovação, o ledger real já limpa; a prévia é independente.
+- Rótulo explícito: "Valores potenciais. Só entram no KPI oficial quando o diretor aprovar o lote."
+- Mantém a exclusão de `import_mode='historico'` (memória `intervention-kpi-excludes-historico`).
 
-## O que NÃO muda
+## Detalhes técnicos
 
-- Cálculo de statuses com lastro no lote (`div_valor`, `div_qtd_valor`, `pago_a_mais`, `ausente_tasy`) — intocado.
-- `describeTvrAcao` e `computeTvrFinancialTotals` da fase 1 — intocados. Apenas passam a receber `valor_previsto_regra` em mais casos porque Fix A alimenta `calc_raw` para mais linhas.
-- Fase 2 (pacote/tabela_diferenciada com valor real) — continua fora. Fix A resolve o `tipo_analise` mesmo sem calcular valor, então a linha vai para a aba certa e mostra `[prev.] bruto` no hint.
+- Migration: criar `get_intervention_preview` como `SECURITY DEFINER`, com filtro por `hospital_id` e permissão `GRANT EXECUTE ... TO authenticated`.
+- Gate de acesso no card: mesmo do KPI real — `diretor | admin | validador`.
+- Sem alteração no card existente `InterventionSavingsCard` nem no fluxo de aprovação de lote.
 
-## Testes
+## Fora do escopo
 
-- **`tvrRulePreview.test.ts`** — cobertura atual segue verde (helper não muda).
-- **`describeTvrAcao.test.ts`** — adicionar caso: `nao_pago` com `tipo_analise_previsto = "quantidade"` e `valor_previsto_regra = 300` (valor_fixo) → complementar 300, sem cair no fallback bruto.
-- Novo teste ligeiro para o build split ficaria em `RetroactiveReconciliationsTab` mas o export usa xlsx-style — mantemos como validação manual (rodar novo export e confirmar 2 abas).
-
-## Risco
-
-Muito baixo:
-
-- Fix A é aditivo — só preenche quando `calc_raw` estava vazio.
-- Fix B só toca `nao_pago` e só quando temos regra prevista com tipo conhecido.
-- Fix C é puro UX de export, não altera cálculo.
-
-Se aprovado, implemento os três em uma passada + testes + reexportação para você conferir.
+- Não altera trigger do ledger.
+- Não adiciona prévia dentro da tela do lote.
+- Não muda o card global do KPI.
