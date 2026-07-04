@@ -7301,12 +7301,27 @@ function EncaminharApuracaoModal({
     }
   }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
-  const totalBaseComp = actionable.reduce((s, r) => {
-    if (r.status === "nao_pago") return s + r.valor_total_tasy;
-    if (r.dif_valor > 0.5) return s + r.dif_valor;
-    return s;
-  }, 0);
-  const totalAcordoRet = retirar.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+  // Fonte única de verdade — mesma função usada nos cards "A complementar"
+  // e "A recuperar" do relatório. Se este cálculo divergir do card, o
+  // problema está em `computeTvrFinancialTotals`, não aqui. NÃO reimplementar
+  // fórmula neste componente para evitar divergência silenciosa.
+  const { totalComplementar: totalBaseComp } = computeTvrFinancialTotals(actionable);
+  // Retirar do menu = mesmo agregado do card, restrito ao subconjunto do
+  // caminho de glosa (retirar list já filtra por valor_recuperar_acordo>0).
+  const { totalRetirar: totalAcordoRet } = computeTvrFinancialTotals(retirar);
+  // Invariante dev: garante que o subconjunto de glosa nunca extrapola o
+  // total do card. Se dispara, algum status novo entrou em `retirar` sem
+  // ser previsto por `computeTvrFinancialTotals`.
+  if (import.meta.env.DEV) {
+    const cardTotal = computeTvrFinancialTotals(results).totalRetirar;
+    if (totalAcordoRet - cardTotal > 0.5) {
+      // eslint-disable-next-line no-console
+      console.warn("[TVR] Divergência: retirar do menu > retirar do card", {
+        menu: totalAcordoRet,
+        card: cardTotal,
+      });
+    }
+  }
 
   const toggleDoctor = (id: string) => {
     setSelectedDoctorIds((prev) => {
