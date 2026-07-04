@@ -4841,6 +4841,33 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         )}
       </div>
 
+      {processing && procProgress && (() => {
+        // Barra de progresso por etapa. Cruzando/enriquecendo mostram indeterminado
+        // (uma varredura só); salvando mostra X/Y de linhas persistidas em lotes.
+        const stepLabels: Record<ProcStep, string> = {
+          cruzando: "Etapa 1/3 · Cruzando TASY × Repasse",
+          enriquecendo: "Etapa 2/3 · Enriquecendo PJ e regras",
+          salvando: "Etapa 3/3 · Salvando resultado",
+        };
+        const pct = procProgress.step === "salvando" && procProgress.total > 0
+          ? Math.round((procProgress.current / procProgress.total) * 100)
+          : procProgress.step === "cruzando" ? 20 : 60;
+        const counter = procProgress.step === "salvando"
+          ? `${procProgress.current.toLocaleString("pt-BR")} / ${procProgress.total.toLocaleString("pt-BR")} linhas`
+          : `${procProgress.total.toLocaleString("pt-BR")} linha(s)`;
+        return (
+          <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">{stepLabels[procProgress.step]}</span>
+              <span className="text-muted-foreground tabular-nums">{counter}</span>
+            </div>
+            <Progress value={pct} className="h-2" />
+          </div>
+        );
+      })()}
+
+
+
 
       {/* Results */}
       {results && (
