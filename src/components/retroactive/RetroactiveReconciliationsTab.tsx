@@ -5097,10 +5097,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const wb = XLSXStyle.utils.book_new();
     // Legenda vem primeiro para servir como manual ao abrir o arquivo.
     XLSXStyle.utils.book_append_sheet(wb, wsLeg, "Legenda");
-    XLSXStyle.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
+    if (isSplit) {
+      // Duas abas separadas — nomes espelham as sub-abas da UI.
+      if (wsValor) XLSXStyle.utils.book_append_sheet(wb, wsValor, `Por valor (${listValor.length})`);
+      if (wsPresenca) XLSXStyle.utils.book_append_sheet(wb, wsPresenca, `Por presença (${listPresenca.length})`);
+    } else if (ws) {
+      XLSXStyle.utils.book_append_sheet(wb, ws, "TASY vs Repasse");
+    }
     XLSXStyle.utils.book_append_sheet(wb, wsParams, "Parâmetros de cálculo");
     XLSXStyle.writeFile(wb, `${baseName}.xlsx`);
   };
+
 
 
 
