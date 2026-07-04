@@ -2147,6 +2147,13 @@ export type TvrResult = {
   regra_prevista_id?: string;
   calculo_previsto?: string;
   calculo_previsto_id?: string;
+  // Valor que a regra prevista pagaria hoje sobre este item (nao_pago).
+  // undefined = não conseguimos estimar → consumidor cai para valor_total_tasy.
+  valor_previsto_regra?: number;
+  tipo_analise_previsto?: "valor" | "quantidade";
+  // "regra"  = calculamos via rule_calculation (percentual_convenio / valor_fixo / exclusao)
+  // "bruto"  = tipo não coberto (pacote/tabela_diferenciada) ou dado faltante → fallback bruto
+  previsto_source?: "regra" | "bruto";
 
 
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
