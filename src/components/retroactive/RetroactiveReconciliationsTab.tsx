@@ -3717,14 +3717,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         const dif_qtd = qtd_tasy - qtd_por_func;
         const dif_valor = valor_total_tasy - valor_pago_base;
 
-        let status: TvrStatus;
-        if (!p && t) status = "nao_pago";
-        else if (!t && p) status = "ausente_tasy";
-        else if (dif_valor < -0.5) status = "pago_a_mais";
-        else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
-        else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
-        else status = "ok";
-
         // Determina o tipo de análise a partir do método de cálculo aplicado.
         // Grupo "valor": regras que usam o valor do convênio como base (TASY e Exacta
         //   partem da mesma tabela) → comparar valores em R$ faz sentido.
@@ -3737,6 +3729,23 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           rawMethod === "bonus" ||
           rawMethod.startsWith("pacote");
         const tipo_analise: "valor" | "quantidade" = isFixedMethod ? "quantidade" : "valor";
+
+        // Status deriva do tipo de análise: em "quantidade" nunca consideramos
+        // diferenças de R$ (TASY não é base), só presença e quantidade — assim o
+        // badge e a coluna de ação sempre concordam.
+        let status: TvrStatus;
+        if (!p && t) status = "nao_pago";
+        else if (!t && p) status = "ausente_tasy";
+        else if (tipo_analise === "quantidade") {
+          if (dif_qtd < -0.5) status = "pago_a_mais";
+          else if (dif_qtd > 0.5) status = "div_qtd_valor";
+          else status = "ok";
+        }
+        else if (dif_valor < -0.5) status = "pago_a_mais";
+        else if (Math.abs(dif_qtd) >= 0.5 && Math.abs(dif_valor) > 0.5) status = "div_qtd_valor";
+        else if (Math.abs(dif_valor) > 0.5) status = "div_valor";
+        else status = "ok";
+
 
         // Comparação: valor com acordo pago no histórico (Exacta) vs
         // valor que o mesmo acordo pagaria HOJE se aplicado sobre a base TASY.
