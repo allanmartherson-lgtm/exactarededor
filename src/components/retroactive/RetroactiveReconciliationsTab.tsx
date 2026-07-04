@@ -4631,6 +4631,88 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 v.calc_label = labels.get(v.calc_id);
                 v.calc_raw = raws.get(v.calc_id);
               }
+          }
+
+          // Fix A — Fallback quando encontramos rule_id no histórico mas nenhum
+          // payment_item trouxe applied_calc_id (regra ainda não aplicada nesse
+          // TUSS específico). Carregamos TODOS os rule_calculations dessa regra
+          // e escolhemos o melhor por (rule_id, tuss):
+          //   1) calc cujo procedure_codes contém o TUSS do item, ou
+          //   2) calc marcado is_catch_all, ou
+          //   3) primeiro por sort_order (fallback determinístico).
+          const missingRuleIds = Array.from(
+            new Set(
+              Array.from(ruleByKey.values())
+                .filter((v) => v.rule_id && !v.calc_raw)
+                .map((v) => v.rule_id),
+            ),
+          );
+          if (missingRuleIds.length > 0) {
+            type FallCalc = {
+              id: string;
+              rule_id: string;
+              sort_order?: number | null;
+              label?: string | null;
+              calculation_type?: string | null;
+              fixed_amount?: number | null;
+              convenio_percentage?: number | null;
+              auxiliary_pct?: number | null;
+              aux_first_pct?: number | null;
+              aux_second_pct?: number | null;
+              instrumentador_pct?: number | null;
+              procedure_codes?: string[] | null;
+              is_catch_all?: boolean | null;
+            };
+            const { data: fallCalcs } = await supabase
+              .from("rule_calculations")
+              .select(
+                "id, rule_id, sort_order, label, calculation_type, fixed_amount, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct, procedure_codes, is_catch_all",
+              )
+              .in("rule_id", missingRuleIds)
+              .order("sort_order", { ascending: true });
+            const byRule = new Map<string, FallCalc[]>();
+            for (const c of ((fallCalcs ?? []) as FallCalc[])) {
+              if (!c.rule_id) continue;
+              const arr = byRule.get(c.rule_id) ?? [];
+              arr.push(c);
+              byRule.set(c.rule_id, arr);
+            }
+            const pickCalc = (rule_id: string, tuss: string): FallCalc | undefined => {
+              const arr = byRule.get(rule_id);
+              if (!arr || arr.length === 0) return undefined;
+              const codeMatch = arr.find(
+                (c) => Array.isArray(c.procedure_codes) && c.procedure_codes.includes(tuss),
+              );
+              if (codeMatch) return codeMatch;
+              const catchAll = arr.find((c) => c.is_catch_all === true);
+              if (catchAll) return catchAll;
+              return arr[0]; // já vem ordenado por sort_order
+            };
+            // ruleByKey keys são `${doctor_id}|${procedure_code}` — extrai o code.
+            for (const [key, v] of ruleByKey.entries()) {
+              if (v.calc_raw) continue;
+              const code = key.split("|")[1] ?? "";
+              const pick = pickCalc(v.rule_id, code);
+              if (!pick) continue;
+              v.calc_id = pick.id;
+              const idx =
+                typeof pick.sort_order === "number" ? pick.sort_order + 1 : null;
+              v.calc_label = [
+                idx ? `#${idx}` : "",
+                (pick.label ?? "").trim(),
+                pick.calculation_type ? `(${pick.calculation_type})` : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              v.calc_raw = {
+                calculation_type: pick.calculation_type ?? null,
+                fixed_amount: pick.fixed_amount ?? null,
+                convenio_percentage: pick.convenio_percentage ?? null,
+                auxiliary_pct: pick.auxiliary_pct ?? null,
+                aux_first_pct: pick.aux_first_pct ?? null,
+                aux_second_pct: pick.aux_second_pct ?? null,
+                instrumentador_pct: pick.instrumentador_pct ?? null,
+              };
             }
           }
         } catch (e) {
