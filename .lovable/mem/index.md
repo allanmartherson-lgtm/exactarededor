@@ -48,3 +48,4 @@ Identidade visual: azul `#003DA5` + bronze `#C6A27C`, Playfair Display + DM Sans
 - [Pool — retenção do hospital](mem://features/pool-hospital-retention) — hospital_nao_paga é receita do hospital (retenção em caixa), NÃO gera pagamento e NÃO entra na DRE de pagamento
 - [Modelos de Repasse](mem://features/payout-models) — composição genérica (rubricas + faixas) para lançamentos manuais por equipe; substitui telas/tabelas por especialidade; coexiste com regras (rules calculam item; modelos montam a NF)
 - [Rename híbrido payment_type_id](mem://preferences/payment-type-id-rename-hybrid) — UI camelCase: itemTypeId (item) / paymentModelId (lote); colunas DB seguem payment_type_id até Wave 5
+- [KPI intervenção sem histórico](mem://constraints/intervention-kpi-excludes-historico) — get_intervention_savings ignora payments.import_mode='historico'
