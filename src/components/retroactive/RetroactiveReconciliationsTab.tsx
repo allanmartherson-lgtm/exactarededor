@@ -2272,6 +2272,52 @@ export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementa
   return { totalComplementar, totalRetirar };
 }
 
+/**
+ * Recorta o "Total a complementar" em duas camadas:
+ *  - `simulated`: soma dos `valor_previsto_regra` para "Faltou pagar" que já
+ *    tiveram previsão calculada (motor real ou preview de histórico). Também
+ *    inclui pago_a_menos/div_qtd_valor onde a diferença é confiável — esses
+ *    já vêm do lote com lastro.
+ *  - `tasyCeiling`: teto bruto = soma do `valor_total_tasy` dos "Faltou pagar"
+ *    SEM previsão. É o máximo que aquele universo pode virar — o valor real
+ *    só sai quando o item entra em confecção e o motor recalcula.
+ *  - `coverage`: fração simulada / total de "Faltou pagar" (0..1). Serve
+ *    para o card avisar quando a cobertura é baixa.
+ */
+export function computeTvrComplementarBreakdown(list: TvrResult[]): {
+  simulated: number;
+  tasyCeiling: number;
+  naoPagoTotal: number;
+  naoPagoSimulated: number;
+  coverage: number; // 0..1
+} {
+  let simulated = 0;
+  let tasyCeiling = 0;
+  let naoPagoTotal = 0;
+  let naoPagoSimulated = 0;
+  for (const r of list) {
+    if (r.status === "nao_pago") {
+      naoPagoTotal += 1;
+      if (typeof r.valor_previsto_regra === "number") {
+        simulated += r.valor_previsto_regra;
+        naoPagoSimulated += 1;
+      } else {
+        tasyCeiling += r.valor_total_tasy || 0;
+      }
+      continue;
+    }
+    if (r.status === "ok" || r.status === "ausente_tasy") continue;
+    if (r.tipo_analise === "quantidade") {
+      const ajuste = r.ajuste_acordo ?? 0;
+      if (ajuste < -0.5) simulated += Math.abs(ajuste);
+    } else if (r.dif_valor > 0.5) {
+      simulated += r.dif_valor;
+    }
+  }
+  const coverage = naoPagoTotal > 0 ? naoPagoSimulated / naoPagoTotal : 1;
+  return { simulated, tasyCeiling, naoPagoTotal, naoPagoSimulated, coverage };
+}
+
 function computeTvrAgreementTotals(list: TvrResult[]): { totalComplementarAcordo: number; totalRetirarAcordo: number } {
   return list.reduce(
     (acc, r) => {
