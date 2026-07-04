@@ -2376,8 +2376,18 @@ function isTvrResult(value: unknown): value is TvrResult {
   // a renomeação dos status.
   if (r.status === "pago_sem_tasy") r.status = "ausente_tasy";
   if (r.status === "div_qtd") r.status = "div_qtd_valor";
+  // Re-derivação retroativa: rodadas antigas gravaram "status" a partir do R$
+  // mesmo em análise por presença/quantidade. Recalcula em memória para bater
+  // com a coluna de ação (sem exigir reprocessar a apuração).
+  if (r.tipo_analise === "quantidade" && r.status !== "nao_pago" && r.status !== "ausente_tasy") {
+    const difQtd = typeof r.dif_qtd === "number" ? r.dif_qtd : Number(r.dif_qtd ?? 0);
+    if (difQtd < -0.5) r.status = "pago_a_mais";
+    else if (difQtd > 0.5) r.status = "div_qtd_valor";
+    else r.status = "ok";
+  }
   return typeof r.key === "string" && TVR_STATUS_ORDER.includes(r.status as TvrStatus);
 }
+
 
 function num(v: string | number | undefined | null): number {
   if (v === null || v === undefined || v === "") return 0;
