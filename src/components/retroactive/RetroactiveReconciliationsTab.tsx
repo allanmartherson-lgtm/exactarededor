@@ -4655,6 +4655,26 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             r.regra_prevista = hit.rule_label;
             r.calculo_previsto_id = hit.calc_id;
             r.calculo_previsto = hit.calc_label;
+            // Estima o valor devido hoje aplicando o mesmo cálculo do histórico.
+            // Se o tipo não for coberto (pacote/tabela_diferenciada) ou faltar
+            // dado, previsto_source='bruto' e consumidor cai para valor_total_tasy.
+            if (hit.calc_raw) {
+              const preview = computeTvrRulePreview({
+                ...hit.calc_raw,
+                valor_total_tasy: r.valor_total_tasy,
+                qtd_tasy: r.qtd_tasy,
+                funcao: r.funcao,
+              });
+              if (preview.valor != null) {
+                r.valor_previsto_regra = preview.valor;
+              }
+              if (preview.tipo_analise) {
+                r.tipo_analise_previsto = preview.tipo_analise;
+              }
+              r.previsto_source = preview.source;
+            } else {
+              r.previsto_source = "bruto";
+            }
             break;
           }
         }
