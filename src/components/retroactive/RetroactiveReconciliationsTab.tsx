@@ -2134,6 +2134,18 @@ export type TvrResult = {
   // e payment_items.applied_calc_id da regra que gerou o cálculo no lote.
   applied_rule_id?: string;
   applied_calc_id?: string;
+  // ==== Inferência para itens "Faltou pagar" (sem lastro no lote) ====
+  // Regra do sistema: 1 PJ por médico por hospital → resolvemos via doctor_companies
+  // (vínculo ativo). Se o médico tiver múltiplas ativas, marcamos ambíguo e não sugerimos.
+  pj_provavel?: string;
+  pj_provavel_id?: string;
+  // Regra "provável" = última regra já aplicada para (médico + procedure_code) neste
+  // hospital. Heurística — não invoca o motor, respeita "nunca inferir valor".
+  regra_prevista?: string;
+  regra_prevista_id?: string;
+  calculo_previsto?: string;
+  calculo_previsto_id?: string;
+
 
   // Auditoria da chave canônica (Atend + Data + TUSS8 + Médico).
   key_audit?: {
