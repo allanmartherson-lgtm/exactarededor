@@ -5184,11 +5184,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   <TableRow className="bg-muted/50">
                     <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Item</TableHead>
                     <TableHead colSpan={8} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Contexto</TableHead>
-                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-sky-800 bg-sky-50/60 border-r border-border">TASY (atual)</TableHead>
-                    <TableHead colSpan={6} className="text-center text-[10px] uppercase tracking-wider text-indigo-800 bg-indigo-50/60 border-r border-border">Lote histórico</TableHead>
-                    <TableHead colSpan={2} className="text-center text-[10px] uppercase tracking-wider text-amber-800 bg-amber-50/60 border-r border-border">Diferenças brutas</TableHead>
-                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-emerald-800 bg-emerald-50/60 border-r border-border">Recalculado</TableHead>
-                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-rose-800 bg-rose-50/60">Ajuste</TableHead>
+                    <TableHead colSpan={3} className="text-center text-[10px] uppercase tracking-wider text-sky-800 bg-sky-50/60 border-r border-border" title="Estado ATUAL da base TASY (após reprocessamentos, glosas etc.) — 100% convênio, sem acordo aplicado">TASY hoje (base atual, 100% convênio)</TableHead>
+                    <TableHead colSpan={6} className="text-center text-[10px] uppercase tracking-wider text-indigo-800 bg-indigo-50/60 border-r border-border" title="Como o item foi pago no lote de repasse já processado (histórico)">Lote histórico (o que já foi pago)</TableHead>
+                    <TableHead colSpan={2} className="text-center text-[10px] uppercase tracking-wider text-amber-800 bg-amber-50/60 border-r border-border" title="Diferenças brutas entre TASY hoje e o que foi registrado no lote (sem aplicar acordo)">Diferenças brutas (TASY hoje − lote)</TableHead>
+                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-emerald-800 bg-emerald-50/60 border-r border-border" title="Quanto a regra pagaria HOJE: fator do acordo do lote aplicado sobre o TASY atual">Devido hoje (acordo do lote × TASY hoje)</TableHead>
+                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-rose-800 bg-rose-50/60" title="Diferença entre o que foi pago no lote e o que seria devido hoje">Ajuste (pago no lote − devido hoje)</TableHead>
                   </TableRow>
                   <TableRow>
 
