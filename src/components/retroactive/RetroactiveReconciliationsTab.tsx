@@ -3353,6 +3353,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     setProcessing(true);
+    setProcProgress({ step: "cruzando", current: 0, total: tasyRows.length + effectivePagRows.length });
     setTimeout(async () => {
       const excluded = new Set(
         excludeTuss.split(",").flatMap((s) => {
