@@ -4216,10 +4216,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     });
     (ws as unknown as { "!cols"?: Array<{ wch: number }> })["!cols"] = widths;
 
-    // Alturas: linha de grupo maior, cabeçalho um pouco maior que o padrão.
-    (ws as unknown as { "!rows"?: Array<{ hpt: number }> })["!rows"] = [
-      { hpt: 26 }, { hpt: 22 },
+    // Altura: fixamos só a linha de grupo (curta e uniforme). Para a linha de
+    // cabeçalho de coluna e para o corpo, deixamos sem `hpt` — assim o Excel/
+    // LibreOffice calcula a altura automaticamente para acomodar wrapText.
+    (ws as unknown as { "!rows"?: Array<{ hpt?: number }> })["!rows"] = [
+      { hpt: 26 },
     ];
+
 
     // Aplica estilo célula-a-célula.
     const totalRows = aoa.length;
