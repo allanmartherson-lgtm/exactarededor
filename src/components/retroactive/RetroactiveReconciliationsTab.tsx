@@ -4941,19 +4941,43 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
 
-  const exportData = async (fmt: "xlsx" | "csv" | "json", scope: "all" | "visible" | "split") => {
+  const exportData = async (
+    fmt: "xlsx" | "csv" | "json",
+    scope: "all" | "visible" | "split" | "valor" | "presenca",
+  ) => {
     if (!results) return;
-    const list = scope === "visible"
-      ? visible
-      : scope === "split"
-      ? applyVisibleFilters(results, { ignoreAnalysisTab: true })
-      : results;
+    // valor/presenca: aplicam todos os filtros (busca, status, PJ, médico,
+    // apenas com pagamento) IGNORANDO a sub-aba atual, e restringem por
+    // tipo_analise. Permite exportar só uma categoria sem trocar de aba.
+    const list =
+      scope === "visible"
+        ? visible
+        : scope === "split"
+        ? applyVisibleFilters(results, { ignoreAnalysisTab: true })
+        : scope === "valor"
+        ? applyVisibleFilters(results, { ignoreAnalysisTab: true }).filter(
+            (r) => r.tipo_analise === "valor",
+          )
+        : scope === "presenca"
+        ? applyVisibleFilters(results, { ignoreAnalysisTab: true }).filter(
+            (r) => r.tipo_analise === "quantidade",
+          )
+        : results;
     if (list.length === 0) {
       toast({ title: "Nada para exportar neste filtro", variant: "destructive" });
       return;
     }
     const stamp = format(new Date(), "yyyyMMdd_HHmm");
-    const suffix = scope === "visible" ? "filtrado_" : scope === "split" ? "abas_" : "";
+    const suffix =
+      scope === "visible"
+        ? "filtrado_"
+        : scope === "split"
+        ? "abas_"
+        : scope === "valor"
+        ? "por-valor_"
+        : scope === "presenca"
+        ? "por-presenca_"
+        : "";
     const baseName = `tasy-vs-repasse_${suffix}${stamp}`;
 
 
