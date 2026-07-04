@@ -4290,7 +4290,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Diferenças brutas (TASY hoje − lote)", header: "Dif. quantidade", get: (r) => Number(r.dif_qtd.toFixed(4)) },
     { group: "Diferenças brutas (TASY hoje − lote)", header: "Dif. valor 100%", get: (r) => Number(r.dif_valor.toFixed(2)) },
     // Devido hoje
-    { group: "Devido hoje (acordo × TASY hoje)", header: "Valor devido hoje", get: (r) => Number((r.valor_com_acordo_recalc ?? 0).toFixed(2)) },
+    { group: "Devido hoje (acordo × TASY hoje)", header: "Valor devido hoje", get: (r) => {
+      // Para itens com lastro no lote usamos o recalc oficial. Para "Faltou
+      // pagar" (sem lastro), caímos para valor_previsto_regra — que vem da
+      // simulação (motor real) ou do preview local do histórico. Se nada
+      // resolveu, devolve 0 (analista vê "sem previsão" pela coluna Origem).
+      const v = r.status === "nao_pago"
+        ? (typeof r.valor_previsto_regra === "number" ? r.valor_previsto_regra : (r.valor_com_acordo_recalc ?? 0))
+        : (r.valor_com_acordo_recalc ?? 0);
+      return Number((v ?? 0).toFixed(2));
+    } },
+    { group: "Devido hoje (acordo × TASY hoje)", header: "Valor previsto (simulação)", get: (r) => r.status === "nao_pago" && typeof r.valor_previsto_regra === "number" ? Number(r.valor_previsto_regra.toFixed(2)) : "" },
     // Ajuste
     { group: "Ajuste (pago no lote − devido hoje)", header: "Ajuste a fazer", get: (r) => Number((r.ajuste_acordo ?? 0).toFixed(2)) },
     { group: "Ajuste (pago no lote − devido hoje)", header: "A recuperar (paguei a mais)", get: (r) => Number((r.valor_recuperar_acordo ?? 0).toFixed(2)) },
