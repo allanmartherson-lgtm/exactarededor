@@ -6006,12 +6006,27 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   {
                     key: "context.pj",
                     header: "PJ",
-                    title: "Empresa (PJ) conciliada para este item no lote histórico.",
+                    title: "Empresa (PJ) conciliada para este item no lote histórico. Em 'Faltou pagar' mostramos a PJ provável (vínculo ativo do médico), marcada como 'prev.'.",
                     groupLabel: "Contexto",
                     groupClass: "text-muted-foreground",
-                    className: "max-w-[180px] truncate",
-                    cell: (r) => <span title={r.pj_conciliada || undefined}>{r.pj_conciliada || "—"}</span>,
+                    className: "max-w-[200px]",
+                    cell: (r) => {
+                      // Faltou pagar → não há PJ conciliada; usamos inferência.
+                      if (r.pj_conciliada) {
+                        return <span className="truncate block" title={r.pj_conciliada}>{r.pj_conciliada}</span>;
+                      }
+                      if (r.status === "nao_pago" && r.pj_provavel) {
+                        return (
+                          <span className="inline-flex items-center gap-1 max-w-full" title={`PJ provável (vínculo ativo do médico): ${r.pj_provavel}`}>
+                            <span className="truncate">{r.pj_provavel}</span>
+                            <span className="shrink-0 text-[9px] uppercase tracking-wide px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">prev.</span>
+                          </span>
+                        );
+                      }
+                      return <span>—</span>;
+                    },
                   },
+
                   { key: "context.med", header: "Médico", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[180px] truncate", cell: (r) => <span title={r.medico}>{r.medico || "—"}</span> },
                   {
                     key: "context.atend",
