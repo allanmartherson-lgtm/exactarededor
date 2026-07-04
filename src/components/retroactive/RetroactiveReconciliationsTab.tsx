@@ -6591,85 +6591,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
 
 
-          {(() => {
-            // FONTE ÚNICA: computeTvrHeadlineTotals é a única função autorizada
-            // a produzir os números "a complementar" e "a retirar". O modal
-            // "Encaminhar apuração" recebe o MESMO objeto via prop —
-            // impossível divergir por reimplementação inline.
-            const headline = computeTvrHeadlineTotals(results);
-            const naoPagoPendente = headline.naoPagoTotal - headline.naoPagoSimulated;
-            const coveragePct = Math.round(headline.coverage * 100);
-            const lowCoverage = headline.naoPagoTotal > 0 && headline.coverage < 0.8;
-            return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div
-                  className={cn(
-                    "rounded-lg border px-4 py-3",
-                    lowCoverage
-                      ? "border-amber-400/60 bg-amber-50/60"
-                      : "border-primary/30 bg-primary/5",
-                  )}
-                  title={
-                    lowCoverage
-                      ? `Cobertura de simulação baixa (${coveragePct}%). O valor real dos itens sem previsão só sai após encaminhar para confecção.`
-                      : "Total com base em previsão de regra (simulação ou histórico) + ajustes já calculados no lote."
-                  }
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Total a complementar
-                    </div>
-                    {headline.naoPagoTotal > 0 && (
-                      <span
-                        className={cn(
-                          "text-[10px] font-semibold px-1.5 py-0.5 rounded",
-                          lowCoverage
-                            ? "bg-amber-200 text-amber-900"
-                            : "bg-primary/10 text-primary",
-                        )}
-                        title="Itens 'Faltou pagar' com valor previsto pelo motor / histórico"
-                      >
-                        {headline.naoPagoSimulated}/{headline.naoPagoTotal} simulados
-                      </span>
-                    )}
-                  </div>
-                  <div className={cn("text-2xl font-bold", headline.totalComplementar > 0 ? "text-primary" : "text-muted-foreground")}>
-                    {headline.totalComplementar > 0 ? brl(headline.totalComplementar) : "R$ -"}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    Com previsão de regra ·{" "}
-                    <span className="font-semibold text-orange-600">
-                      C/ acordo: {brl(headline.totalComplementarAcordo)}
-                    </span>
-                  </div>
-                  {headline.tetoTasy > 0 && (
-                    <div className="mt-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground leading-relaxed">
-                      <div>
-                        <span className="uppercase tracking-wider text-[10px]">Teto TASY (sem previsão)</span>{" "}
-                        <span className="font-semibold text-foreground/80">{brl(headline.tetoTasy)}</span>
-                      </div>
-                      <div className="mt-0.5">
-                        Valor bruto do procedimento no TASY, sem acordo aplicado. Os {naoPagoPendente} item{naoPagoPendente === 1 ? "" : "s"} sem previsão só terão valor real após{" "}
-                        <span className="font-medium">Encaminhar apuração</span> — o motor recalcula com base + acordo vigente.
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total a retirar / recuperar</div>
-                  <div className={cn("text-2xl font-bold", headline.totalRetirar > 0 ? "text-destructive" : "text-muted-foreground")}>
-                    {headline.totalRetirar > 0 ? brl(headline.totalRetirar) : "R$ -"}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Base: {brl(headline.totalRetirar)} ·{" "}
-                    <span className="font-semibold text-destructive">
-                      C/ acordo: {brl(headline.totalRetirarAcordo)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
+          {/* Cards "Total a complementar" e "Total a retirar" removidos:
+              em bases grandes divergiam do painel "Encaminhar apuração" porque
+              esses cards agregam TODO o resultado (inclusive itens sem
+              previsão de regra que só ganham valor real após a confecção),
+              enquanto o painel só soma o subset actionable escolhido pelo
+              analista. Como o valor definitivo só sai depois de encaminhar
+              para apuração, o card virava fonte de falso positivo. O total
+              autoritativo aparece no botão "Encaminhar apuração". */}
+
 
 
           {/* Card "Resumo de valores (grupo % sobre convênio)" removido:
