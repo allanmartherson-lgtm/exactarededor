@@ -4417,6 +4417,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         rule_label?: string;
         calc_id?: string;
         calc_label?: string;
+        calc_raw?: Parameters<typeof computeTvrRulePreview>[0] extends infer T
+          ? Partial<Omit<Extract<T, object>, "valor_total_tasy" | "qtd_tasy" | "funcao">>
+          : never;
       }
     >();
     if (hospitalId && allDoctorIds.length > 0) {
