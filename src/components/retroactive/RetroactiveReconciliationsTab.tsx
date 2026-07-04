@@ -4426,6 +4426,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           aux_second_pct?: number | null;
           instrumentador_pct?: number | null;
         };
+      }
     >();
     if (hospitalId && allDoctorIds.length > 0) {
       // PJ histórica (por médico, hospital-scoped): pega a company_id do
