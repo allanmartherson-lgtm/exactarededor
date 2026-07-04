@@ -4192,55 +4192,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     );
 
     // ---------- PJ provável ----------
-    // Filtra vínculos ativos (end_date IS NULL). doctor_companies não tem
-    // hospital_id, então dependemos da regra de negócio "1 PJ ativa por médico
-    // por hospital"; se retornar mais de uma → ambíguo.
+    // Fonte primária: histórico de payment_items DESTE hospital para o médico.
+    // Isso respeita a regra "1 PJ ativa por médico por hospital" mesmo quando
+    // doctor_companies (que é estadual, sem hospital_id) traz múltiplas PJs
+    // do mesmo médico em outros hospitais — o que antes deixava tudo ambíguo
+    // e escondia a sugestão em hospitais grandes como o DF Star.
+    // Fallback: doctor_companies (end_date null) quando não há histórico local.
     const pjByDoctor = new Map<
       string,
-      { company_id: string; name?: string; ambiguous: boolean }
+      { company_id: string; name?: string; ambiguous: boolean; source: "history" | "registry" }
     >();
-    if (allDoctorIds.length > 0) {
-      try {
-        const { data } = await supabase
-          .from("doctor_companies")
-          .select("doctor_id, company_id, end_date")
-          .in("doctor_id", allDoctorIds)
-          .is("end_date", null);
-        const byDoc = new Map<string, Set<string>>();
-        for (const row of (data ?? []) as Array<{
-          doctor_id: string;
-          company_id: string;
-        }>) {
-          const set = byDoc.get(row.doctor_id) ?? new Set<string>();
-          set.add(row.company_id);
-          byDoc.set(row.doctor_id, set);
-        }
-        const compIds = Array.from(
-          new Set(Array.from(byDoc.values()).flatMap((s) => Array.from(s))),
-        );
-        const compNames = new Map<string, string>();
-        if (compIds.length > 0) {
-          const { data: comps } = await supabase
-            .from("companies")
-            .select("id, name")
-            .in("id", compIds);
-          for (const c of (comps ?? []) as Array<{ id: string; name?: string }>) {
-            if (c?.id) compNames.set(String(c.id), String(c.name ?? ""));
-          }
-        }
-        for (const [did, set] of byDoc.entries()) {
-          const cids = Array.from(set);
-          const first = cids[0];
-          pjByDoctor.set(did, {
-            company_id: first,
-            name: compNames.get(first) || undefined,
-            ambiguous: cids.length > 1,
-          });
-        }
-      } catch (e) {
-        console.warn("[nao_pago] falha inferindo PJ provável:", e);
-      }
-    }
 
     // ---------- Regra prevista ----------
     // Só faz sentido dentro do escopo do hospital atual (regra é por hospital).
@@ -4254,6 +4215,95 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
     >();
     if (hospitalId && allDoctorIds.length > 0) {
+      // PJ histórica (por médico, hospital-scoped): pega a company_id do
+      // payment_item mais recente de cada médico neste hospital.
+      try {
+        const CHUNK_D = 200;
+        type PjRow = { doctor_id: string; company_id: string | null; procedure_date: string | null };
+        const pjRows: PjRow[] = [];
+        for (let i = 0; i < allDoctorIds.length; i += CHUNK_D) {
+          const { data } = await supabase
+            .from("payment_items")
+            .select("doctor_id, company_id, procedure_date")
+            .eq("hospital_id", hospitalId)
+            .in("doctor_id", allDoctorIds.slice(i, i + CHUNK_D))
+            .not("company_id", "is", null)
+            .order("procedure_date", { ascending: false })
+            .limit(5000);
+          for (const row of (data ?? []) as PjRow[]) pjRows.push(row);
+        }
+        // Primeira ocorrência (mais recente pelo order) por médico.
+        const seen = new Set<string>();
+        const compIds = new Set<string>();
+        for (const row of pjRows) {
+          if (!row.doctor_id || !row.company_id) continue;
+          if (seen.has(row.doctor_id)) continue;
+          seen.add(row.doctor_id);
+          pjByDoctor.set(row.doctor_id, {
+            company_id: row.company_id,
+            ambiguous: false,
+            source: "history",
+          });
+          compIds.add(row.company_id);
+        }
+        if (compIds.size > 0) {
+          const { data: comps } = await supabase
+            .from("companies")
+            .select("id, name")
+            .in("id", Array.from(compIds));
+          const names = new Map<string, string>();
+          for (const c of (comps ?? []) as Array<{ id: string; name?: string }>) {
+            if (c?.id) names.set(String(c.id), String(c.name ?? ""));
+          }
+          for (const v of pjByDoctor.values()) v.name = names.get(v.company_id) || undefined;
+        }
+      } catch (e) {
+        console.warn("[nao_pago] falha inferindo PJ via histórico:", e);
+      }
+
+      // Fallback: doctor_companies para médicos SEM histórico local.
+      const missingPjDocs = allDoctorIds.filter((d) => !pjByDoctor.has(d));
+      if (missingPjDocs.length > 0) {
+        try {
+          const { data } = await supabase
+            .from("doctor_companies")
+            .select("doctor_id, company_id, end_date")
+            .in("doctor_id", missingPjDocs)
+            .is("end_date", null);
+          const byDoc = new Map<string, Set<string>>();
+          for (const row of (data ?? []) as Array<{ doctor_id: string; company_id: string }>) {
+            const set = byDoc.get(row.doctor_id) ?? new Set<string>();
+            set.add(row.company_id);
+            byDoc.set(row.doctor_id, set);
+          }
+          const compIds = Array.from(new Set(Array.from(byDoc.values()).flatMap((s) => Array.from(s))));
+          const compNames = new Map<string, string>();
+          if (compIds.length > 0) {
+            const { data: comps } = await supabase
+              .from("companies")
+              .select("id, name")
+              .in("id", compIds);
+            for (const c of (comps ?? []) as Array<{ id: string; name?: string }>) {
+              if (c?.id) compNames.set(String(c.id), String(c.name ?? ""));
+            }
+          }
+          for (const [did, set] of byDoc.entries()) {
+            const cids = Array.from(set);
+            const first = cids[0];
+            // Sem histórico local: se tem só 1 PJ ativa no cadastro, sugere;
+            // múltiplas → ambíguo (sem como decidir a do hospital atual).
+            pjByDoctor.set(did, {
+              company_id: first,
+              name: compNames.get(first) || undefined,
+              ambiguous: cids.length > 1,
+              source: "registry",
+            });
+          }
+        } catch (e) {
+          console.warn("[nao_pago] fallback PJ via doctor_companies falhou:", e);
+        }
+      }
+
       const codes = Array.from(
         new Set(
           targets.map((r) => (r.tuss || "").trim()).filter((c) => c.length > 0),
@@ -4295,6 +4345,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               calc_id: row.applied_calc_id ?? undefined,
             });
           }
+
           const calcIds = Array.from(
             new Set(
               Array.from(ruleByKey.values())
@@ -4346,7 +4397,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const hit = pjByDoctor.get(did);
           if (hit && !hit.ambiguous) {
             r.pj_provavel_id = hit.company_id;
-            r.pj_provavel = hit.name;
+            r.pj_provavel = hit.name || `PJ ${hit.company_id.slice(0, 8)}`;
             break;
           }
         }
