@@ -2306,11 +2306,19 @@ export function describeTvrAcao(r: TvrResult): TvrAcao {
     : method.includes("percentual") ? "% do convênio"
     : "acordo do lote";
   if (r.status === "nao_pago") {
+    // Preferimos o valor que a regra prevista pagaria hoje (mesma lógica do
+    // motor no lote original). Se não conseguimos estimar (pacote/tabela ou
+    // dado faltante), caímos para valor_total_tasy — bruto 100% convênio.
+    const usouRegra = typeof r.valor_previsto_regra === "number";
+    const valor = usouRegra ? r.valor_previsto_regra! : (r.valor_total_tasy || 0);
+    const hint = usouRegra
+      ? `Regra prevista aplicada${r.calculo_previsto ? `: ${r.calculo_previsto}` : ""} — mesmo cálculo do lote anterior.`
+      : `Item no TASY (${prettyMethod}) sem pagamento no lote — sem regra prevista, exibindo valor bruto 100% convênio. Revisar antes de complementar.`;
     return {
       kind: "complementar",
-      valor: r.valor_total_tasy || 0,
-      label: `↑ Complementar ${brl(r.valor_total_tasy || 0)}`,
-      hint: `Item no TASY (${prettyMethod}) sem pagamento no lote — valor bruto 100% convênio, acordo aplica no cálculo.`,
+      valor,
+      label: `↑ Complementar ${brl(valor)}`,
+      hint,
     };
   }
   if (r.status === "ausente_tasy") {
