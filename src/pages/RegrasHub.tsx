@@ -40,6 +40,8 @@ export default function RegrasHub() {
       case "validacao": return <ValidationRules embedded />;
       case "simulador": return <RuleSimulator embedded />;
       case "simulador-lote": return <RuleSimulatorBatch embedded />;
+      case "teste-motor": return <RuleEngineTest embedded />;
+
     }
   }, [active]);
 
