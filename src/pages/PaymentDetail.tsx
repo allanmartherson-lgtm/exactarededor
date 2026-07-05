@@ -3032,11 +3032,8 @@ const PaymentDetail = () => {
                 {((isAnalista || isDiretor) && !isNfPhase) || (isAnalista && groups.length > 0) ? (
                   <DropdownMenuSeparator />
                 ) : null}
-                {canReimport && (
-                  <DropdownMenuItem onSelect={() => navigate(`/regras?tab=teste-motor&payment_id=${id}`)}>
-                    <TestTube2 className="h-4 w-4 mr-2" /> Testar regras neste lote
-                  </DropdownMenuItem>
-                )}
+                {/* Teste de regras vive só em /regras?tab=teste-motor — sem atalho aqui. */}
+
 
                 {canEditMeta && (
                   <DropdownMenuItem onSelect={() => { openEditMeta(); setEditMetaOpen(true); }}>

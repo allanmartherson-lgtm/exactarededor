@@ -314,7 +314,9 @@ export default function RuleEngineTest({ embedded = false }: { embedded?: boolea
               </div>
             </div>
 
-            <ScrollArea className="border rounded-md max-h-[600px]">
+            {/* Sem ScrollArea/max-h — deixa a página rolar naturalmente, evitando trap de overflow em lotes grandes. */}
+            <div className="border rounded-md overflow-x-auto">
+
               <Table>
                 <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   <TableRow>
@@ -375,7 +377,7 @@ export default function RuleEngineTest({ embedded = false }: { embedded?: boolea
                   )}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}
