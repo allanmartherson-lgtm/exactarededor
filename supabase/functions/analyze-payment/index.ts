@@ -544,20 +544,39 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       const { error: oldBonusErr } = await oldBonusDelete;
       if (oldBonusErr) console.error(`${__t} bonus_preclean_error`, oldBonusErr);
     }
-    const { data: itemsRaw } = await itemsQuery.limit(20000);
+    // PostgREST cap `db-max-rows` (1000) truncava lotes grandes silenciosamente.
+    // Paginamos explicitamente até esgotar.
+    const PAGE_ITEMS = 1000;
+    const itemsAcc: any[] = [];
+    for (let offset = 0; ; offset += PAGE_ITEMS) {
+      const page = await itemsQuery.range(offset, offset + PAGE_ITEMS - 1);
+      const rows = (page.data ?? []) as any[];
+      itemsAcc.push(...rows);
+      if (rows.length < PAGE_ITEMS) break;
+      if (offset + PAGE_ITEMS >= 100000) break; // salvaguarda
+    }
+    const itemsRaw = itemsAcc;
 
     // Quando há filtro por ai_statuses, o subset acima não inclui todos os itens
     // do atendimento. Carregamos uma visão slim de TODOS os itens do payment
     // exclusivamente para construir o índice de siblings (condições de contexto).
     let siblingsRaw: Array<{ id: string; attendance_number: string | null; procedure_code: string | null }> | null = null;
     if (filterApplied) {
-      const { data: allForSiblings } = await supabase
-        .from("payment_items")
-        .select("id, attendance_number, procedure_code")
-        .eq("payment_id", payment_id)
-        .limit(50000);
-      siblingsRaw = allForSiblings ?? [];
+      const sibAcc: Array<{ id: string; attendance_number: string | null; procedure_code: string | null }> = [];
+      for (let offset = 0; ; offset += PAGE_ITEMS) {
+        const { data: sibPage } = await supabase
+          .from("payment_items")
+          .select("id, attendance_number, procedure_code")
+          .eq("payment_id", payment_id)
+          .range(offset, offset + PAGE_ITEMS - 1);
+        const rows = (sibPage ?? []) as any[];
+        sibAcc.push(...rows);
+        if (rows.length < PAGE_ITEMS) break;
+        if (offset + PAGE_ITEMS >= 200000) break;
+      }
+      siblingsRaw = sibAcc;
     }
+
     console.timeEnd(`${__t} carregar_itens`);
 
     // ---------- 3.1 Classificação determinística por código TUSS ----------
