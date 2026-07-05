@@ -235,7 +235,7 @@ export default function Conciliacao() {
                           {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                         </TableCell>
                         <TableCell className="font-medium">{p?.reference ?? "—"}</TableCell>
-                        <TableCell>{p?.competence_month ?? "—"}</TableCell>
+                        <TableCell>{formatCompetenceBR(p?.competence_month)}</TableCell>
                         <TableCell className="text-right tabular-nums">{r.total_items}</TableCell>
                         <TableCell className="text-right tabular-nums text-success">{r.conciliado}</TableCell>
                         <TableCell className="text-right tabular-nums text-warning">{r.valor_divergente}</TableCell>
