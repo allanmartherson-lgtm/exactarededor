@@ -235,7 +235,7 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span>Pre-flight do lote · {counts.total} itens</span>
+        <span>{companyId ? "Pre-flight da empresa" : "Pre-flight do lote"} · {counts.total} itens</span>
         <span className="text-foreground/60">{buckets.reduce((s, b) => s + b.count, 0)} pendentes</span>
       </div>
       <ul className="space-y-1.5">
