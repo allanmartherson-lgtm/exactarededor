@@ -2285,7 +2285,7 @@ const Dashboard = () => {
             });
             if (isAnalista && totalPendingReleaseNf > 0) acaoItems.push({
               label: 'Liberar NF', value: totalPendingReleaseNf,
-              to: `/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`,
+              to: '/pagamentos?status=revisao_pos_aprovacao',
             });
             if (isAnalista && pendingNfRecebida > 0) acaoItems.push({
               label: 'NF p/ conciliar', value: pendingNfRecebida,
