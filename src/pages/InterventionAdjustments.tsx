@@ -119,6 +119,35 @@ async function enrichItemsWithCancellationReasons(
   );
 }
 
+/**
+ * Busca o `reference` (identificador do lote) dos pagamentos referenciados
+ * pelos itens ajustados. Serve para exibir origem na tabela — permite
+ * identificar rapidamente lotes de teste/imputação que não deveriam contar.
+ */
+async function fetchPaymentRefs(
+  items: InterventionItem[],
+): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(items.map((it) => it.payment_id).filter(Boolean)));
+  const map = new Map<string, string>();
+  if (ids.length === 0) return map;
+  const chunkSize = 500;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const slice = ids.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("payments")
+      .select("id, reference")
+      .in("id", slice);
+    if (error) {
+      console.warn("[InterventionAdjustments] fetch payment refs failed", error);
+      continue;
+    }
+    for (const row of (data ?? []) as Array<{ id: string; reference: string | null }>) {
+      if (row.reference) map.set(row.id, row.reference);
+    }
+  }
+  return map;
+}
+
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
   const { hasRole } = useAuth();
@@ -128,6 +157,7 @@ export default function InterventionAdjustments() {
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
+  const [paymentRefs, setPaymentRefs] = useState<Map<string, string>>(new Map());
   const [filters, setFilters] = useState<InterventionFilters>({ role: initialRole, userId: "all", search: "" });
   // Set para permitir múltiplas reativações em paralelo de IDs distintos sem
   // que uma sobrescreva o estado da outra, e bloqueia retry no mesmo id.
@@ -145,6 +175,7 @@ export default function InterventionAdjustments() {
       const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
       const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
       setData({ ...result, items: enrichedItems });
+      setPaymentRefs(await fetchPaymentRefs(enrichedItems));
     }
   };
 
@@ -184,7 +215,11 @@ export default function InterventionAdjustments() {
         if (error) throw error;
         const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
         const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
-        if (!cancelled) setData({ ...result, items: enrichedItems });
+        const refs = await fetchPaymentRefs(enrichedItems);
+        if (!cancelled) {
+          setData({ ...result, items: enrichedItems });
+          setPaymentRefs(refs);
+        }
       } catch (e) {
         console.error(e);
         toast.error("Falha ao carregar ajustes por intervenção");
@@ -499,6 +534,7 @@ export default function InterventionAdjustments() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[88px]">Data</TableHead>
+                    <TableHead className="w-[160px]">Lote</TableHead>
                     <TableHead className="w-[140px]">Autor</TableHead>
                     <TableHead className="w-[220px]">Empresa / Médico</TableHead>
                     <TableHead className="w-[200px]">Procedimento</TableHead>
@@ -512,11 +548,11 @@ export default function InterventionAdjustments() {
 
                 <TableBody>
                   {loading && (
-                    <TableRow><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                   )}
                   {!loading && filteredItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-muted-foreground text-center py-6">
+                      <TableCell colSpan={10} className="text-muted-foreground text-center py-6">
                         Sem itens para os filtros atuais.
                       </TableCell>
                     </TableRow>
@@ -539,6 +575,15 @@ export default function InterventionAdjustments() {
                     return (
                       <TableRow key={it.item_id}>
                         <TableCell className="text-sm">{fmtDate(it.acatado_at)}</TableCell>
+                        <TableCell className="text-xs">
+                          <Link
+                            to={`/pagamentos/${it.payment_id}`}
+                            className="text-primary hover:underline break-all"
+                            title="Abrir lote de origem"
+                          >
+                            {paymentRefs.get(it.payment_id) ?? `${it.payment_id.slice(0, 8)}…`}
+                          </Link>
+                        </TableCell>
                         <TableCell>
                           <div className="text-sm">{it.autor}</div>
                           <Badge variant="outline" className="text-[10px] mt-0.5">
