@@ -29,6 +29,10 @@ type Bucket = {
 
 interface Props {
   paymentId: string;
+  /** Se definido, o pre-flight conta só itens dessa empresa (escopo da tela atual). */
+  companyId?: string | null;
+  /** Nome amigável para exibir no header ("Pre-flight da empresa X"). */
+  companyName?: string | null;
   /** Disparado quando usuário clica em um filtro — fecha o popover do Zeev. */
   onActed?: () => void;
   /** Chama o tab "chat" e injeta um prompt inicial. */
@@ -40,7 +44,7 @@ interface Props {
  * Card pré-flight que lista o que falta resolver agrupado por categoria,
  * com 1 clique por etapa (filtro ou prompt no chat).
  */
-export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Props) {
+export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed, onSendChatPrompt }: Props) {
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -65,13 +69,17 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
       const loteCc = (pay as { cost_center_code?: string | null } | null)?.cost_center_code ?? null;
       const loteHasCc = !!loteCc && String(loteCc).trim() !== "";
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("payment_items")
         .select(
           "id, ai_status, gross_amount, manual_intervention_reason_id, ai_findings, company_id, sector, cost_center_code, is_pool_item",
         )
         .eq("payment_id", paymentId)
         .limit(20000);
+      // Escopo da empresa quando o Zeev roda dentro de /empresa/:companyId — evita
+      // contar pendências de outras empresas do mesmo lote.
+      if (companyId) query = query.eq("company_id", companyId);
+      const { data, error } = await query;
       if (cancelled) return;
       if (error || !data) {
         setCounts(null);
@@ -107,8 +115,9 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
     return () => {
       cancelled = true;
     };
-  }, [paymentId, refreshNonce]);
+  }, [paymentId, companyId, refreshNonce]);
 
+  const scopeLabel = companyId ? (companyName ?? "desta empresa") : "deste lote";
   const buckets: Bucket[] = useMemo(() => {
     if (!counts) return [];
     const out: Bucket[] = [];
@@ -117,10 +126,10 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
         id: "sem_setor",
         label: "Itens sem setor",
         count: counts.sem_setor,
-        hint: 'Aplicar setor em lote ("define setor X nos itens sem setor")',
+        hint: `Aplicar setor em lote ("define setor X nos itens sem setor ${scopeLabel}")`,
         icon: MapPin,
         tone: "warn",
-        chatPrompt: `Define o setor nos ${counts.sem_setor} itens sem setor deste lote`,
+        chatPrompt: `Define o setor nos ${counts.sem_setor} itens sem setor ${scopeLabel}`,
       });
     }
     if (counts.sem_cc > 0) {
@@ -131,7 +140,7 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
         hint: "Aplicar CC em lote",
         icon: Building2,
         tone: "warn",
-        chatPrompt: `Define o centro de custos nos ${counts.sem_cc} itens sem CC deste lote`,
+        chatPrompt: `Define o centro de custos nos ${counts.sem_cc} itens sem CC ${scopeLabel}`,
       });
     }
     if (counts.sem_empresa > 0) {
@@ -142,7 +151,7 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
         hint: "Vincular médico → empresa",
         icon: Building2,
         tone: "danger",
-        chatPrompt: `Vincula os médicos sem PJ deste lote`,
+        chatPrompt: `Vincula os médicos sem PJ ${scopeLabel}`,
       });
     }
     if (counts.sem_regra > 0) {
@@ -179,7 +188,7 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
       });
     }
     return out;
-  }, [counts]);
+  }, [counts, scopeLabel]);
 
   if (loading) {
     return (
@@ -226,7 +235,7 @@ export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Pro
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span>Pre-flight do lote · {counts.total} itens</span>
+        <span>{companyId ? "Pre-flight da empresa" : "Pre-flight do lote"} · {counts.total} itens</span>
         <span className="text-foreground/60">{buckets.reduce((s, b) => s + b.count, 0)} pendentes</span>
       </div>
       <ul className="space-y-1.5">

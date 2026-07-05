@@ -2803,7 +2803,7 @@ export default function CompanyAnalysis() {
               empresa: group?.company_name,
             }}
             items={items as never[]}
-            bulkContext={{ paymentId: id!, companyName: group?.company_name ?? null, companyGroupId: group?.id ?? null }}
+            bulkContext={{ paymentId: id!, companyName: group?.company_name ?? null, companyGroupId: group?.id ?? null, companyId: group?.company_id ?? null }}
             onBulkApplied={(payload) => {
               // Aplica IMEDIATAMENTE as linhas já reconciliadas com o banco
               // (retornadas pelo dialog após o RPC). Garante que gross_amount
