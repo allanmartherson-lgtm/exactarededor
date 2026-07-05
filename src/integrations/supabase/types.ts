@@ -11553,6 +11553,10 @@ export type Database = {
           block_pct: number
         }[]
       }
+      get_intervention_preview: {
+        Args: { p_hospital_id?: string }
+        Returns: Json
+      }
       get_intervention_savings: {
         Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
         Returns: Json
