@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, type PaymentStatus } from "@/lib/status";
+import { formatCompetenceBR } from "@/lib/dateUtils";
 import type { GroupRow, InvoiceRow, PaymentRow } from "@/hooks/usePaymentDetailData";
 
 type Tone = "default" | "warning" | "alert" | "success" | "info";
