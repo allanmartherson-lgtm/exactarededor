@@ -188,7 +188,7 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
       });
     }
     return out;
-  }, [counts]);
+  }, [counts, scopeLabel]);
 
   if (loading) {
     return (
