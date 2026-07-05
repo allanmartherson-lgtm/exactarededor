@@ -29,6 +29,10 @@ type Bucket = {
 
 interface Props {
   paymentId: string;
+  /** Se definido, o pre-flight conta só itens dessa empresa (escopo da tela atual). */
+  companyId?: string | null;
+  /** Nome amigável para exibir no header ("Pre-flight da empresa X"). */
+  companyName?: string | null;
   /** Disparado quando usuário clica em um filtro — fecha o popover do Zeev. */
   onActed?: () => void;
   /** Chama o tab "chat" e injeta um prompt inicial. */
