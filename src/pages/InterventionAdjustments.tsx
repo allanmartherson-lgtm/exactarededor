@@ -175,6 +175,7 @@ export default function InterventionAdjustments() {
       const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
       const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
       setData({ ...result, items: enrichedItems });
+      setPaymentRefs(await fetchPaymentRefs(enrichedItems));
     }
   };
 
