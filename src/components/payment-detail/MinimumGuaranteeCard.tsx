@@ -88,7 +88,7 @@ export function MinimumGuaranteeCard({ paymentId, companyId, canRecalc = false }
                 {a.rules?.name ?? "Regra"}
               </div>
               <div className="text-muted-foreground text-[11px]">
-                Competência {a.competence_month}
+                Competência {formatCompetenceBR(a.competence_month)}
               </div>
             </div>
             <div className="text-right">
