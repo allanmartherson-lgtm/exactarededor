@@ -402,7 +402,7 @@ const PaymentDetail = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
-  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  // isTestModalOpen removido — teste de regras foi para /regras?tab=teste-motor
   // O modal de conciliação só abre por ação explícita do usuário (botão/menu).
   // Não persistimos o estado para evitar reabertura automática ao entrar no lote.
   const [isConciliationOpen, setIsConciliationOpenState] = useState<boolean>(false);
