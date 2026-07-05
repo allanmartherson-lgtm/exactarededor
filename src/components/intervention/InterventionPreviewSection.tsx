@@ -48,6 +48,7 @@ interface PreviewSummary {
 interface PreviewByPayment {
   payment_id: string;
   description: string | null;
+  reference: string | null;
   competence_month: string | null;
   status: string;
   qtd_itens: number;
@@ -55,6 +56,15 @@ interface PreviewByPayment {
   perda: number;
   saldo: number;
 }
+
+/** Rótulo amigável: descrição do analista → referência da planilha → fallback "Lote XXXXX". */
+const loteLabel = (row: PreviewByPayment): string => {
+  const desc = row.description?.trim();
+  if (desc) return desc;
+  const ref = row.reference?.trim();
+  if (ref) return ref.length > 48 ? ref.slice(0, 45) + "…" : ref;
+  return `Lote ${row.payment_id.slice(0, 8)}`;
+};
 
 interface PreviewResult {
   summary: PreviewSummary;
@@ -246,9 +256,9 @@ export default function InterventionPreviewSection() {
                           <Link
                             to={`/pagamentos/${row.payment_id}`}
                             className="hover:underline text-foreground"
-                            title={row.description ?? row.payment_id}
+                            title={loteLabel(row)}
                           >
-                            {row.description || row.payment_id.slice(0, 8)}
+                            {loteLabel(row)}
                           </Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground tabular-nums">
