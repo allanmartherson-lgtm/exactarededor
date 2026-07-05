@@ -280,19 +280,32 @@ Deno.serve(async (req) => {
     const pool = round2(poolImpactoTotal);
     const liquido = round2(bruto - debitos + creditos - glosas - pool + conciliacao);
 
-    // UPSERT no snapshot
-    const { error: upErr } = await supabase
-      .from("payment_company_financials")
-      .upsert({
-        payment_id, company_id,
-        bruto, debitos: round2(debitos), creditos: round2(creditos),
-        glosas, pool, pool_aplicado: poolAplicado, pool_preview: poolPreview,
-        pool_detalhes: detalhes,
-        conciliacao, conciliacao_aplicada: conciliacaoAplicada,
-        liquido, computed_at: new Date().toISOString(), computed_by: userId,
-      }, { onConflict: "payment_id,company_id" });
+    // Persiste o snapshot via RPC para adquirir o mesmo advisory lock do fluxo
+    // de acate/reanálise antes de tocar em payment_company_financials. Isso evita
+    // ordem invertida de locks entre financials → groups/payments e items → triggers.
+    const { data: upsertResult, error: upErr } = await supabase
+      .rpc("upsert_payment_company_financials_snapshot", {
+        p_payment_id: payment_id,
+        p_company_id: company_id,
+        p_bruto: bruto,
+        p_debitos: round2(debitos),
+        p_creditos: round2(creditos),
+        p_glosas: glosas,
+        p_pool: pool,
+        p_pool_aplicado: poolAplicado,
+        p_pool_preview: poolPreview,
+        p_pool_detalhes: detalhes,
+        p_conciliacao: conciliacao,
+        p_conciliacao_aplicada: conciliacaoAplicada,
+        p_liquido: liquido,
+        p_computed_at: new Date().toISOString(),
+        p_computed_by: userId,
+      });
 
     if (upErr) throw upErr;
+    if (!(upsertResult as { ok?: boolean } | null)?.ok) {
+      throw new Error((upsertResult as { error?: string } | null)?.error ?? "Falha ao persistir composição financeira");
+    }
 
     return new Response(JSON.stringify({
       ok: true, bruto, debitos, creditos, glosas,
