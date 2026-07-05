@@ -256,9 +256,9 @@ export default function InterventionPreviewSection() {
                           <Link
                             to={`/pagamentos/${row.payment_id}`}
                             className="hover:underline text-foreground"
-                            title={row.description ?? row.payment_id}
+                            title={loteLabel(row)}
                           >
-                            {row.description || row.payment_id.slice(0, 8)}
+                            {loteLabel(row)}
                           </Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground tabular-nums">
