@@ -128,6 +128,7 @@ export default function InterventionAdjustments() {
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
+  const [paymentRefs, setPaymentRefs] = useState<Map<string, string>>(new Map());
   const [filters, setFilters] = useState<InterventionFilters>({ role: initialRole, userId: "all", search: "" });
   // Set para permitir múltiplas reativações em paralelo de IDs distintos sem
   // que uma sobrescreva o estado da outra, e bloqueia retry no mesmo id.
