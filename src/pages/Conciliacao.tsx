@@ -21,6 +21,7 @@ import RetroactiveReconciliationsTab from "@/components/retroactive/RetroactiveR
 import BasesConciliacaoPanel from "@/components/conciliacao/BasesConciliacaoPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatCompetenceBR } from "@/lib/dateUtils";
 
 type RunRow = {
   id: string;
