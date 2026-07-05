@@ -115,7 +115,7 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
     return () => {
       cancelled = true;
     };
-  }, [paymentId, refreshNonce]);
+  }, [paymentId, companyId, refreshNonce]);
 
   const buckets: Bucket[] = useMemo(() => {
     if (!counts) return [];
