@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "audit:tables": "bun run scripts/audit-tables.ts",
     "audit:nav": "bun run scripts/audit-nav.ts",
+    "knip": "knip",
     "prebuild": "bun run scripts/audit-nav.ts"
   },
   "dependencies": {
