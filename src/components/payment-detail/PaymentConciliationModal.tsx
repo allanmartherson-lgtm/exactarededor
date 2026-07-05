@@ -3755,7 +3755,7 @@ export function PaymentConciliationModal({
                             <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
-                              {base.competence_month && ` · competência ${base.competence_month}`}
+                              {base.competence_month && ` · competência ${formatCompetenceBR(base.competence_month)}`}
                             </p>
                           </div>
                           {isSelected && (
