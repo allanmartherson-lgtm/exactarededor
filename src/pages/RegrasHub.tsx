@@ -8,15 +8,18 @@ import Rules from "./Rules";
 import ValidationRules from "./ValidationRules";
 import RuleSimulator from "./RuleSimulator";
 import RuleSimulatorBatch from "./RuleSimulatorBatch";
+import RuleEngineTest from "./RuleEngineTest";
 
-type TabValue = "pagamento" | "validacao" | "simulador" | "simulador-lote";
+type TabValue = "pagamento" | "validacao" | "simulador" | "simulador-lote" | "teste-motor";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "pagamento", label: "Pagamento" },
   { value: "validacao", label: "Validação" },
   { value: "simulador", label: "Simulador" },
   { value: "simulador-lote", label: "Simulador em lote" },
+  { value: "teste-motor", label: "Teste do motor" },
 ];
+
 
 const VALID = new Set(TABS.map((t) => t.value));
 
