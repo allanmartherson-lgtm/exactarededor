@@ -1124,7 +1124,10 @@ const Dashboard = () => {
       .channel("dash_pending_release_nf")
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "payment_company_groups", filter: "status=eq.revisao_pos_aprovacao" },
+        // Sem filtro: qualquer UPDATE em grupos precisa redisparar o fetch,
+        // porque transições para fora de "revisao_pos_aprovacao" (ex.: pago)
+        // não seriam capturadas por um filtro fixo naquele status.
+        { event: "*", schema: "public", table: "payment_company_groups" },
         scheduleFetch,
       )
       .subscribe();
@@ -1135,7 +1138,9 @@ const Dashboard = () => {
     };
   }, [isAnalista, user?.id]);
 
-  const totalPendingReleaseNf = pendingReleaseNf.reduce((sum, p) => sum + p.count, 0);
+  // Card "Liberar NF" abre a listagem de lotes, então a contagem exibida
+  // é de lotes (linhas do RPC), não da soma de grupos por lote.
+  const totalPendingReleaseNf = pendingReleaseNf.length;
 
   // Perguntas da EMPRESA (recebedor) na NF — não lidas pelo time interno
   const [companyInvoiceQuestions, setCompanyInvoiceQuestions] = useState<{ count: number; firstPaymentId: string | null }>({ count: 0, firstPaymentId: null });
