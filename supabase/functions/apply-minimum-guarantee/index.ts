@@ -164,6 +164,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Cache dos payment IDs da competência — evita join PostgREST `payments!inner`
+    // que vira subquery aninhada e estoura statement_timeout (503) sob carga.
+    let competencePayIdsCache: string[] | null = null;
+    const getCompetencePayIds = async (): Promise<string[]> => {
+      if (competencePayIdsCache) return competencePayIdsCache;
+      const { data: pays } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("competence_month", competence);
+      competencePayIdsCache = (pays ?? []).map((p: any) => p.id);
+      return competencePayIdsCache;
+    };
+
     const results: any[] = [];
 
     for (const rule of activeRules) {
