@@ -1,0 +1,1 @@
+DELETE FROM public.payments WHERE id = '5243c4ac-84ac-4b9a-9ab5-1100d3b56b3a';
