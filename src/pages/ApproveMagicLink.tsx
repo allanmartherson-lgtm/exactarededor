@@ -229,7 +229,7 @@ export default function ApproveMagicLink() {
               <span className="text-muted-foreground">Lote:</span>
               <span className="font-medium">{preview.payment.batch_number ?? preview.payment.id.slice(0, 8)}</span>
               <span className="text-muted-foreground">Competência:</span>
-              <span className="font-medium">{preview.payment.competence_month}</span>
+              <span className="font-medium">{formatCompetenceBR(preview.payment.competence_month)}</span>
               <span className="text-muted-foreground">Valor total:</span>
               <span className="font-medium">{formatBRL(preview.payment.total_amount)}</span>
               <span className="text-muted-foreground">Status atual:</span>
