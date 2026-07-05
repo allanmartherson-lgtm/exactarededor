@@ -69,13 +69,17 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
       const loteCc = (pay as { cost_center_code?: string | null } | null)?.cost_center_code ?? null;
       const loteHasCc = !!loteCc && String(loteCc).trim() !== "";
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("payment_items")
         .select(
           "id, ai_status, gross_amount, manual_intervention_reason_id, ai_findings, company_id, sector, cost_center_code, is_pool_item",
         )
         .eq("payment_id", paymentId)
         .limit(20000);
+      // Escopo da empresa quando o Zeev roda dentro de /empresa/:companyId — evita
+      // contar pendências de outras empresas do mesmo lote.
+      if (companyId) query = query.eq("company_id", companyId);
+      const { data, error } = await query;
       if (cancelled) return;
       if (error || !data) {
         setCounts(null);
