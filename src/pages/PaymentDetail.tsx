@@ -3033,10 +3033,11 @@ const PaymentDetail = () => {
                   <DropdownMenuSeparator />
                 ) : null}
                 {canReimport && (
-                  <DropdownMenuItem onSelect={() => setIsTestModalOpen(true)}>
-                    <TestTube2 className="h-4 w-4 mr-2" /> Teste de Regra
+                  <DropdownMenuItem onSelect={() => navigate(`/regras?tab=teste-motor&payment_id=${id}`)}>
+                    <TestTube2 className="h-4 w-4 mr-2" /> Testar regras neste lote
                   </DropdownMenuItem>
                 )}
+
                 {canEditMeta && (
                   <DropdownMenuItem onSelect={() => { openEditMeta(); setEditMetaOpen(true); }}>
                     <Pencil className="h-4 w-4 mr-2" /> Editar lote
