@@ -575,6 +575,15 @@ export default function InterventionAdjustments() {
                     return (
                       <TableRow key={it.item_id}>
                         <TableCell className="text-sm">{fmtDate(it.acatado_at)}</TableCell>
+                        <TableCell className="text-xs">
+                          <Link
+                            to={`/pagamentos/${it.payment_id}`}
+                            className="text-primary hover:underline break-all"
+                            title="Abrir lote de origem"
+                          >
+                            {paymentRefs.get(it.payment_id) ?? `${it.payment_id.slice(0, 8)}…`}
+                          </Link>
+                        </TableCell>
                         <TableCell>
                           <div className="text-sm">{it.autor}</div>
                           <Badge variant="outline" className="text-[10px] mt-0.5">
