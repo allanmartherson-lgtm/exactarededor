@@ -488,45 +488,45 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
 
     // ---------- 3. carrega itens (filtra por empresa se aplicável) ----------
     console.time(`${__t} carregar_itens`);
-    const itemsQuery = supabase
-      .from("payment_items")
-      .select(`
-        id,doctor_name,doctor_document,doctor_id,company_name,company_id,
-        procedure_code,procedure_name,description,access_route,doctor_role,
-        procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,procedure_date_has_time,quantity,
-        authorized_exception,exception_reason,exception_authorizer,exception_note,
-        tipo_linha,complement_reason,
-        agreement_text,specialty,tipo_item,sector,attendance_character,
-        convenio_value_totalized,
-        package_absorbed,
-        package_absorbed_calc_id,
-        ai_status,
-        gross_override_at,
-        item_hash,
-        ai_findings,
-        special_case_code,
-        special_case_status,
-        calc_exception_skip,
-        calc_exception_skipped_calc_id,
-        manual_intervention_reason_id,
-        manual_intervention_source,
-        manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
-        item_type_id,
-        item_type_source,
-        is_pool_item,
-        raw_data
-      `)
-      .eq("payment_id", payment_id);
-    if (company_name && typeof company_name === "string") {
-      itemsQuery.eq("company_name", company_name);
-    }
     // IMPORTANTE: Se estamos analisando uma empresa específica, processamos TODOS os itens dela
     // para garantir que a visão do usuário reflita a planilha original.
     // O filtro ai_statuses só deve ser aplicado na reanálise global filtrada.
     const filterApplied = !company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0;
-    if (filterApplied) {
-      itemsQuery.in("ai_status", ai_statuses);
-    }
+
+    const buildItemsQuery = () => {
+      let q = supabase
+        .from("payment_items")
+        .select(`
+          id,doctor_name,doctor_document,doctor_id,company_name,company_id,
+          procedure_code,procedure_name,description,access_route,doctor_role,
+          procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,procedure_date_has_time,quantity,
+          authorized_exception,exception_reason,exception_authorizer,exception_note,
+          tipo_linha,complement_reason,
+          agreement_text,specialty,tipo_item,sector,attendance_character,
+          convenio_value_totalized,
+          package_absorbed,
+          package_absorbed_calc_id,
+          ai_status,
+          gross_override_at,
+          item_hash,
+          ai_findings,
+          special_case_code,
+          special_case_status,
+          calc_exception_skip,
+          calc_exception_skipped_calc_id,
+          manual_intervention_reason_id,
+          manual_intervention_source,
+          manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
+          item_type_id,
+          item_type_source,
+          is_pool_item,
+          raw_data
+        `)
+        .eq("payment_id", payment_id);
+      if (company_name && typeof company_name === "string") q = q.eq("company_name", company_name);
+      if (filterApplied) q = q.in("ai_status", ai_statuses as string[]);
+      return q;
+    };
 
     // Idempotência do split de bônus: linhas sintéticas de execuções anteriores
     // não podem entrar no motor nem no cálculo de grupos da reanálise atual.
@@ -544,16 +544,18 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       const { error: oldBonusErr } = await oldBonusDelete;
       if (oldBonusErr) console.error(`${__t} bonus_preclean_error`, oldBonusErr);
     }
+
     // PostgREST cap `db-max-rows` (1000) truncava lotes grandes silenciosamente.
-    // Paginamos explicitamente até esgotar.
+    // Paginamos explicitamente até esgotar (query reconstruída a cada página).
     const PAGE_ITEMS = 1000;
     const itemsAcc: any[] = [];
     for (let offset = 0; ; offset += PAGE_ITEMS) {
-      const page = await itemsQuery.range(offset, offset + PAGE_ITEMS - 1);
-      const rows = (page.data ?? []) as any[];
+      const { data: page, error: pageErr } = await buildItemsQuery().range(offset, offset + PAGE_ITEMS - 1);
+      if (pageErr) { console.error(`${__t} items_page_error`, pageErr); break; }
+      const rows = (page ?? []) as any[];
       itemsAcc.push(...rows);
       if (rows.length < PAGE_ITEMS) break;
-      if (offset + PAGE_ITEMS >= 100000) break; // salvaguarda
+      if (offset + PAGE_ITEMS >= 100000) break;
     }
     const itemsRaw = itemsAcc;
 
@@ -576,6 +578,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
       }
       siblingsRaw = sibAcc;
     }
+
 
     console.timeEnd(`${__t} carregar_itens`);
 
