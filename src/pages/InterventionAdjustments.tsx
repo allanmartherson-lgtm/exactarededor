@@ -215,7 +215,11 @@ export default function InterventionAdjustments() {
         if (error) throw error;
         const result = (res as unknown as InterventionSavingsResult) ?? emptyResult();
         const enrichedItems = await enrichItemsWithCancellationReasons(result.items ?? []);
-        if (!cancelled) setData({ ...result, items: enrichedItems });
+        const refs = await fetchPaymentRefs(enrichedItems);
+        if (!cancelled) {
+          setData({ ...result, items: enrichedItems });
+          setPaymentRefs(refs);
+        }
       } catch (e) {
         console.error(e);
         toast.error("Falha ao carregar ajustes por intervenção");
