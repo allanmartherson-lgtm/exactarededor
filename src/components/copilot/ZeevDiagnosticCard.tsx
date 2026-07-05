@@ -44,7 +44,7 @@ interface Props {
  * Card pré-flight que lista o que falta resolver agrupado por categoria,
  * com 1 clique por etapa (filtro ou prompt no chat).
  */
-export function ZeevDiagnosticCard({ paymentId, onActed, onSendChatPrompt }: Props) {
+export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed, onSendChatPrompt }: Props) {
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
