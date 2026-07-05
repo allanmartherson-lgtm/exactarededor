@@ -34,7 +34,7 @@ import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
 import { ExportColumnPickerDialog } from "@/components/payment-detail/ExportColumnPickerDialog";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 import { usePaymentTypeMeta } from "@/hooks/usePaymentTypeMeta";
-import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
+// RuleTestModal foi promovido para /regras?tab=teste-motor
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { ReleaseInvoiceRequestDialog } from "@/components/payment-detail/ReleaseInvoiceRequestDialog";
@@ -402,7 +402,7 @@ const PaymentDetail = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
-  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  // isTestModalOpen removido — teste de regras foi para /regras?tab=teste-motor
   // O modal de conciliação só abre por ação explícita do usuário (botão/menu).
   // Não persistimos o estado para evitar reabertura automática ao entrar no lote.
   const [isConciliationOpen, setIsConciliationOpenState] = useState<boolean>(false);
@@ -3033,10 +3033,11 @@ const PaymentDetail = () => {
                   <DropdownMenuSeparator />
                 ) : null}
                 {canReimport && (
-                  <DropdownMenuItem onSelect={() => setIsTestModalOpen(true)}>
-                    <TestTube2 className="h-4 w-4 mr-2" /> Teste de Regra
+                  <DropdownMenuItem onSelect={() => navigate(`/regras?tab=teste-motor&payment_id=${id}`)}>
+                    <TestTube2 className="h-4 w-4 mr-2" /> Testar regras neste lote
                   </DropdownMenuItem>
                 )}
+
                 {canEditMeta && (
                   <DropdownMenuItem onSelect={() => { openEditMeta(); setEditMetaOpen(true); }}>
                     <Pencil className="h-4 w-4 mr-2" /> Editar lote
@@ -5108,13 +5109,8 @@ const PaymentDetail = () => {
         </SheetContent>
       </Sheet>
 
-      <RuleTestModal
-        paymentId={id!}
-        paymentReference={payment?.reference || "Lote"}
-        items={items}
-        isOpen={isTestModalOpen}
-        onClose={() => setIsTestModalOpen(false)}
-      />
+      {/* RuleTestModal removido — abre em /regras?tab=teste-motor&payment_id=<id> */}
+
 
       {payment && (
         <PaymentReportModal

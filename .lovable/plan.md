@@ -1,65 +1,47 @@
 ## Objetivo
 
-Adicionar, dentro do relatório **Ajustes de intervenção** (`/relatorios/intervencoes?view=ajustes`), uma seção "Prévia — lotes em andamento" que mostra o impacto potencial dos itens **acatados** em lotes que ainda não foram aprovados. Assim o usuário vê antes o que vai entrar no KPI quando cada lote for aprovado pelo diretor.
+Tirar o "Teste de Regras" de dentro do lote e transformá-lo em uma ferramenta de regras (aba dedicada no hub `/regras`), corrigindo o truncamento em 1.000 itens e o falso positivo de mudanças detectadas.
 
-## Onde exatamente
+## Diagnóstico
 
-Página: `src/pages/InterventionReports.tsx`, aba/`view=ajustes`.
+**1. Truncamento 1.986 → 1.000**
+O `analyze-payment` faz `.limit(20000)` mas o motor recebe os itens que o PostgREST devolve. Na simulação atual, os itens chegam via chamadas anteriores (base cache) ou via range implícito de 1.000 do PostgREST quando o header `count`/range não é setado. Investigar `itemsQuery` sem `.range()` explícito é o suspeito principal — vamos paginar em blocos de 1.000 na coleta de itens do dry-run.
 
-Layout:
+**2. Falso "acatado → alerta" nos pacotes (R$ 0 → R$ 2.200)**
+O modal compara `res.original_status` (lido de `items[].ai_status` que o `PaymentDetail` passa) com `res.status` (retorno do motor). Mas `items` no `PaymentDetail` pode estar **stale/parcial** — só do escopo carregado na tela. Solução: buscar o snapshot atual de `ai_status` e `expected_amount` direto do banco no início da simulação (ou parar de comparar e apenas exibir o resultado do dry-run, que é o que interessa para "e se eu rodasse agora").
 
-```text
-[ Cabeçalho da aba Ajustes ]
-[ NOVO: Card "Prévia — se aprovados agora" ]
-   ├─ Totais: economia potencial / adicional potencial / saldo / N itens
-   └─ Tabela por lote (expansível):
-        lote · competência · status atual · itens acatados · Δ economia · Δ adicional · saldo
-        → link para /pagamentos/:id
-[ Tabela atual de ajustes consolidados (não muda) ]
-```
+## Nova localização
 
-Fica visualmente separado (borda tracejada / fundo levemente diferente) para deixar claro que é **potencial, não realizado**.
+Nova aba **"Teste de motor"** em `/regras?tab=teste-motor` (junto de Simulador e Simulador em lote). Diferente do Simulador em lote (planilha externa), este roda o motor determinístico em cima de um **lote existente** já parseado, com seletor de lote.
 
-## Fonte de dados
+## Passos
 
-Nova RPC `get_intervention_preview(p_hospital_id, p_start?, p_end?)` que replica a lógica do trigger `tg_intervention_ledger_on_status`, mas lê **payment_items acatados de lotes ainda não aprovados**:
+1. **Criar `src/pages/RuleEngineTest.tsx`** (versão promovida do modal):
+   - Combobox de lote (hospital ativo, últimos 90 dias, ordenados por `created_at`)
+   - Botão "Rodar simulação" chamando `analyze-payment` com `is_dry_run: true`
+   - Tabela com: código/procedimento, via/médico, status atual (snapshot DB) → status simulado, esperado atual → esperado simulado, regra que casou
+   - Filtros: "só mudanças", por status simulado, por regra
+   - Exportar CSV
 
-- `payments.status IN ('em_analise_ia','em_validacao','aguardando_aprovacao','devolvido_analista')`
-- `payment_items.acatado = true` (ou equivalente atual usado pelo trigger)
-- Exclui `import_mode = 'historico'` (mesma regra do KPI real)
-- Exclui itens já com entrada em `intervention_ledger` sem `reverted_at`
-- `delta = valor_regra − valor_pago_final` por item; agrega por payment_id
+2. **Registrar no `RegrasHub`** como nova aba `teste-motor` e no `App.tsx` como rota `/regras?tab=teste-motor`.
 
-Retorna:
-- `summary`: `{ economia, perda, saldo, qtd_itens, qtd_lotes }`
-- `by_payment`: `[{ payment_id, descricao, competence_month, status, qtd_itens, economia, perda, saldo }]`
+3. **Corrigir truncamento**: em `analyze-payment/index.ts` (linha 547), substituir `.limit(20000)` por paginação explícita `.range(0, 999)`, `.range(1000, 1999)`… até esgotar. Aplicar o mesmo padrão no fetch de siblings (linha 558).
 
-## Frontend
+4. **Corrigir falso positivo**: no `RuleEngineTest`, ao rodar dry-run, buscar antes um `SELECT id, ai_status, ai_findings->>'expected_amount' FROM payment_items WHERE payment_id = ?` paginado, e usar esse snapshot como "antes" (nunca props stale).
 
-1. Novo componente `src/components/intervention/InterventionPreviewSection.tsx`
-   - Consome a RPC via `supabase.rpc('get_intervention_preview', ...)`
-   - Respeita `hospitalId` do `HospitalContext`
-   - Usa o mesmo padrão visual dos cards de `InterventionSavingsCard` (tokens, `formatCurrency`, `impactTone`) mas com rótulo "Potencial — sujeito a aprovação"
-   - Estados: loading (Skeleton), vazio ("Nenhum lote em andamento com itens acatados"), erro
-   - Linhas clicáveis abrem `/pagamentos/:payment_id`
+5. **Remover** `RuleTestModal` de `PaymentDetail.tsx`:
+   - remover import e o `<RuleTestModal .../>` (linhas 37 e 5111)
+   - remover botão que abre o modal (localizar por `RuleTestModal`/`showRuleTest`)
+   - deletar `src/components/payment-detail/RuleTestModal.tsx`
+   - deixar um link discreto em PaymentDetail: "Testar regras neste lote →" apontando para `/regras?tab=teste-motor&payment_id=<id>` (a página lê o `payment_id` da URL e pré-seleciona)
 
-2. Renderizar o componente em `InterventionReports.tsx` no topo da view `ajustes`, acima da tabela existente.
-
-## Regras de negócio
-
-- **Nunca** grava em `intervention_ledger` — é só leitura/simulação.
-- Se o lote reverter para status não-aprovado após aprovação, o ledger real já limpa; a prévia é independente.
-- Rótulo explícito: "Valores potenciais. Só entram no KPI oficial quando o diretor aprovar o lote."
-- Mantém a exclusão de `import_mode='historico'` (memória `intervention-kpi-excludes-historico`).
-
-## Detalhes técnicos
-
-- Migration: criar `get_intervention_preview` como `SECURITY DEFINER`, com filtro por `hospital_id` e permissão `GRANT EXECUTE ... TO authenticated`.
-- Gate de acesso no card: mesmo do KPI real — `diretor | admin | validador`.
-- Sem alteração no card existente `InterventionSavingsCard` nem no fluxo de aprovação de lote.
+6. **Guardrail**: teste unitário garantindo que a chamada de dry-run pagina até esgotar (mock do `analyze-payment` retornando 2 páginas).
 
 ## Fora do escopo
 
-- Não altera trigger do ledger.
-- Não adiciona prévia dentro da tela do lote.
-- Não muda o card global do KPI.
+- Aplicar o resultado da simulação (rodar de verdade) — continua sendo feito pelo botão "Reanalisar" do lote.
+- Simulação cross-lote (isso já é o `RuleSimulatorBatch`).
+
+## Preciso confirmar antes de implementar
+
+Você marcou **"Outra coisa"** além do truncamento e do falso positivo — o que era? (Ex.: modal fecha antes de terminar, botão "Rodar novamente" não atualiza, filtro faltando, coluna faltando…). Sem isso eu implemento só os dois problemas conhecidos + a movimentação para tela própria.
