@@ -548,11 +548,11 @@ export default function InterventionAdjustments() {
 
                 <TableBody>
                   {loading && (
-                    <TableRow><TableCell colSpan={9}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                   )}
                   {!loading && filteredItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-muted-foreground text-center py-6">
+                      <TableCell colSpan={10} className="text-muted-foreground text-center py-6">
                         Sem itens para os filtros atuais.
                       </TableCell>
                     </TableRow>
