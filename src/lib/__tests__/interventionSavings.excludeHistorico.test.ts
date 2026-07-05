@@ -20,11 +20,13 @@ const MIGRATIONS_DIR = resolve(__dirname, "../../../supabase/migrations");
 const PAGES_DIR = resolve(__dirname, "../../pages");
 
 const RPC_NAME = "get_intervention_savings";
+// Páginas que agregam intervenções de MÚLTIPLOS pagamentos — precisam passar
+// pela RPC para herdar o filtro de histórico. InterventionReports é só
+// wrapper de sub-tabs; LoteInterventionReport lê ledger por payment_id (ok).
 const REPORT_PAGES = [
   "InterventionAdjustments.tsx",
   "AnalystCorrections.tsx",
   "InterventionAudit.tsx",
-  "InterventionReports.tsx",
 ];
 
 /** Retorna o conteúdo da migration mais recente (por nome de arquivo, ordem lexicográfica) que menciona o padrão. */
