@@ -300,28 +300,47 @@ Deno.serve(async (req) => {
           }
           producao = round2(liquidoTotal);
         } else if (!unit.doctor_id && (payment as any).pool_id && poolParticipantPct.has(unit.company_id)) {
-          const { data: poolRows } = await supabase
-            .from("payment_items")
-            .select("gross_amount, payments!inner(competence_month, pool_id)")
-            .eq("item_origin", "producao")
-            .eq("is_pool_item", true)
-            .eq("payments.competence_month", competence)
-            .eq("payments.pool_id", (payment as any).pool_id);
-          const totalPool = (poolRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0);
+          // Pool: soma gross de itens de produção pool na competência.
+          // Pré-busca IDs de payments do pool+competência e usa .in() para evitar
+          // join PostgREST (que vira subquery aninhada e estoura statement_timeout).
+          const { data: poolPays } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("competence_month", competence)
+            .eq("pool_id", (payment as any).pool_id);
+          const poolPayIds = (poolPays ?? []).map((p: any) => p.id);
+          let totalPool = 0;
+          if (poolPayIds.length > 0) {
+            const { data: poolRows } = await supabase
+              .from("payment_items")
+              .select("gross_amount")
+              .eq("item_origin", "producao")
+              .eq("is_pool_item", true)
+              .in("payment_id", poolPayIds);
+            totalPool = (poolRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0);
+          }
           producao = round2(totalPool * (poolParticipantPct.get(unit.company_id)! / 100));
         } else {
-          let query = supabase
-            .from("payment_items")
-            .select("gross_amount, payments!inner(competence_month)")
-            .eq("company_id", unit.company_id)
-            .eq("item_origin", "producao")
-            .eq("payments.competence_month", competence);
-          if (unit.doctor_id) query = query.eq("doctor_id", unit.doctor_id);
-          const { data: prodRows } = await query;
+          // Produção normal por (PJ [+ médico]) na competência inteira.
+          // Pré-busca payIds da competência (cacheado) e usa .in() para evitar
+          // join PostgREST payments!inner (subquery aninhada → statement_timeout → 503).
+          const payIds = await getCompetencePayIds();
+          if (payIds.length > 0) {
+            let query = supabase
+              .from("payment_items")
+              .select("gross_amount")
+              .eq("company_id", unit.company_id)
+              .eq("item_origin", "producao")
+              .in("payment_id", payIds);
+            if (unit.doctor_id) query = query.eq("doctor_id", unit.doctor_id);
+            const { data: prodRows } = await query;
 
-          producao = round2(
-            (prodRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0)
-          );
+            producao = round2(
+              (prodRows ?? []).reduce((s, r: any) => s + Number(r.gross_amount ?? 0), 0)
+            );
+          } else {
+            producao = 0;
+          }
         }
 
         const complemento = round2(Math.max(0, piso - producao));
