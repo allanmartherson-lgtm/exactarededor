@@ -117,6 +117,7 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
     };
   }, [paymentId, companyId, refreshNonce]);
 
+  const scopeLabel = companyId ? (companyName ?? "desta empresa") : "deste lote";
   const buckets: Bucket[] = useMemo(() => {
     if (!counts) return [];
     const out: Bucket[] = [];
@@ -125,10 +126,10 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
         id: "sem_setor",
         label: "Itens sem setor",
         count: counts.sem_setor,
-        hint: 'Aplicar setor em lote ("define setor X nos itens sem setor")',
+        hint: `Aplicar setor em lote ("define setor X nos itens sem setor ${scopeLabel}")`,
         icon: MapPin,
         tone: "warn",
-        chatPrompt: `Define o setor nos ${counts.sem_setor} itens sem setor deste lote`,
+        chatPrompt: `Define o setor nos ${counts.sem_setor} itens sem setor ${scopeLabel}`,
       });
     }
     if (counts.sem_cc > 0) {
@@ -139,7 +140,7 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
         hint: "Aplicar CC em lote",
         icon: Building2,
         tone: "warn",
-        chatPrompt: `Define o centro de custos nos ${counts.sem_cc} itens sem CC deste lote`,
+        chatPrompt: `Define o centro de custos nos ${counts.sem_cc} itens sem CC ${scopeLabel}`,
       });
     }
     if (counts.sem_empresa > 0) {
@@ -150,7 +151,7 @@ export function ZeevDiagnosticCard({ paymentId, companyId, companyName, onActed,
         hint: "Vincular médico → empresa",
         icon: Building2,
         tone: "danger",
-        chatPrompt: `Vincula os médicos sem PJ deste lote`,
+        chatPrompt: `Vincula os médicos sem PJ ${scopeLabel}`,
       });
     }
     if (counts.sem_regra > 0) {
