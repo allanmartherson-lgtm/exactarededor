@@ -534,6 +534,7 @@ export default function InterventionAdjustments() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[88px]">Data</TableHead>
+                    <TableHead className="w-[160px]">Lote</TableHead>
                     <TableHead className="w-[140px]">Autor</TableHead>
                     <TableHead className="w-[220px]">Empresa / Médico</TableHead>
                     <TableHead className="w-[200px]">Procedimento</TableHead>
