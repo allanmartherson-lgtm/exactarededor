@@ -2047,7 +2047,7 @@ export function ItemsDataGrid({
               <SelectItem value="reprovado">Reprovado</SelectItem>
               <SelectItem value="alerta">Alerta</SelectItem>
               <SelectItem value="aprovado">Aprovado</SelectItem>
-              <SelectItem value="seguido">Seguido</SelectItem>
+              <SelectItem value="seguido">Acatado / Seguido</SelectItem>
               <SelectItem value="pendente">Pendente</SelectItem>
             </SelectContent>
           </Select>
