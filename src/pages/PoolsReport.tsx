@@ -182,7 +182,7 @@ export default function PoolsReport({ embedded = false }: { embedded?: boolean }
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{r.competence_month ?? pay?.competence_month ?? "—"}</TableCell>
+                      <TableCell>{formatCompetenceBR(r.competence_month ?? pay?.competence_month)}</TableCell>
                       <TableCell>
                         <Link className="underline text-primary" to={`/pagamentos/${r.payment_id}`}>
                           {pay?.reference ?? r.payment_id.slice(0, 8)}
