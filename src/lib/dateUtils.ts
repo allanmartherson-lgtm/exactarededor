@@ -133,6 +133,16 @@ export function competenceOfYmd(value: string | null | undefined): string | null
 }
 
 /**
+ * Formata competência (Y-M ou Y-M-D) → "MM/YYYY". Padrão BR — nunca exibir
+ * "2026-05-01" cru na UI (viola a regra de datas do projeto).
+ */
+export function formatCompetenceBR(value: string | null | undefined): string {
+  if (!value) return "—";
+  const m = String(value).match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[2]}/${m[1]}` : String(value);
+}
+
+/**
  * Lança em desenvolvimento quando `value` não é uma data Y-M-D válida. Em
  * produção apenas loga — evita quebrar telas por bug antigo em `summary`.
  * Use nos pontos onde a lógica DEPENDE de Y-M-D puro (janelas de filtro,
