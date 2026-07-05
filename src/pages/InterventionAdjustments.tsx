@@ -119,6 +119,35 @@ async function enrichItemsWithCancellationReasons(
   );
 }
 
+/**
+ * Busca o `reference` (identificador do lote) dos pagamentos referenciados
+ * pelos itens ajustados. Serve para exibir origem na tabela — permite
+ * identificar rapidamente lotes de teste/imputação que não deveriam contar.
+ */
+async function fetchPaymentRefs(
+  items: InterventionItem[],
+): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(items.map((it) => it.payment_id).filter(Boolean)));
+  const map = new Map<string, string>();
+  if (ids.length === 0) return map;
+  const chunkSize = 500;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const slice = ids.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("payments")
+      .select("id, reference")
+      .in("id", slice);
+    if (error) {
+      console.warn("[InterventionAdjustments] fetch payment refs failed", error);
+      continue;
+    }
+    for (const row of (data ?? []) as Array<{ id: string; reference: string | null }>) {
+      if (row.reference) map.set(row.id, row.reference);
+    }
+  }
+  return map;
+}
+
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
   const { hasRole } = useAuth();
