@@ -144,38 +144,79 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
         // na página de 1000. 500 dá folga e mantém poucas rodadas.
         const PAGE = 500;
         const MAX_RETRIES = 3;
+        const PARALLELISM = 4; // pages simultâneos — corta o tempo total em lotes grandes.
         const isTimeoutErr = (e: unknown) => {
           const err = e as { code?: string; message?: string } | null;
           const msg = String(err?.message ?? "").toLowerCase();
           return err?.code === "57014" || msg.includes("statement timeout") || msg.includes("canceling statement");
         };
-        const all: any[] = [];
-        for (let from = 0; ; from += PAGE) {
+        const buildQuery = (from: number) => {
+          let q = supabase
+            .from("payment_items")
+            .select("*")
+            .eq("payment_id", id)
+            .order("created_at")
+            .range(from, from + PAGE - 1)
+            .abortSignal(ac.signal);
+          if (companyName) q = q.eq("company_name", companyName);
+          return q;
+        };
+        const runPage = async (from: number): Promise<any> => {
           let attempt = 0;
-          let res: any = null;
-          // Backoff exponencial em statement_timeout — mantém o load() vivo
-          // sem virar tela em branco para o analista em lotes grandes.
           while (true) {
-            let q = supabase
-              .from("payment_items")
-              .select("*")
-              .eq("payment_id", id)
-              .order("created_at")
-              .range(from, from + PAGE - 1)
-              .abortSignal(ac.signal);
-            if (companyName) q = q.eq("company_name", companyName);
-            res = await q;
-            if (!res.error) break;
+            const res = await buildQuery(from);
+            if (!res.error) return res;
             if (!isTimeoutErr(res.error) || attempt >= MAX_RETRIES || ac.signal.aborted) return res;
             attempt += 1;
             await new Promise((r) => setTimeout(r, 400 * attempt));
           }
-          const rows = res.data ?? [];
-          all.push(...rows);
-          if (rows.length < PAGE) return { data: all, error: null } as any;
-          if (all.length >= 20000) return { data: all, error: null } as any; // safety
+        };
+
+        // 1) HEAD count — evita rodadas sequenciais "às cegas".
+        let headQ = supabase
+          .from("payment_items")
+          .select("id", { count: "exact", head: true })
+          .eq("payment_id", id)
+          .abortSignal(ac.signal);
+        if (companyName) headQ = headQ.eq("company_name", companyName);
+        const headRes = await headQ;
+        const total = headRes.count ?? 0;
+        if (headRes.error && !total) {
+          // fallback: sequencial legado, para não regredir se a HEAD falhar.
+          const all: any[] = [];
+          for (let from = 0; ; from += PAGE) {
+            const res = await runPage(from);
+            if (res.error) return res;
+            const rows = res.data ?? [];
+            all.push(...rows);
+            if (rows.length < PAGE) return { data: all, error: null } as any;
+            if (all.length >= 20000) return { data: all, error: null } as any;
+          }
         }
+
+        // 2) Dispara páginas em paralelo (com limite de concorrência).
+        const offsets: number[] = [];
+        for (let from = 0; from < total; from += PAGE) offsets.push(from);
+        const results: any[] = new Array(offsets.length);
+        let cursor = 0;
+        const workers = Array.from({ length: Math.min(PARALLELISM, offsets.length) }, async () => {
+          while (true) {
+            const idx = cursor++;
+            if (idx >= offsets.length) return;
+            const res = await runPage(offsets[idx]);
+            if (res.error) throw res.error;
+            results[idx] = res.data ?? [];
+          }
+        });
+        try {
+          await Promise.all(workers);
+        } catch (error) {
+          return { data: null, error } as any;
+        }
+        const all = results.flat();
+        return { data: all, error: null } as any;
       })(),
+
       supabase
         .from("payment_observations")
         .select("*")
