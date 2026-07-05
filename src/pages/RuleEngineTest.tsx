@@ -25,7 +25,7 @@ interface PaymentOption {
   id: string;
   reference: string;
   competence_month: string | null;
-  item_count: number | null;
+  items_count: number | null;
 
 }
 
@@ -88,7 +88,7 @@ export default function RuleEngineTest({ embedded = false }: { embedded?: boolea
         const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
         const { data } = await supabase
           .from("payments")
-          .select("id, reference, competence_month, item_count")
+          .select("id, reference, competence_month, items_count")
           .eq("hospital_id", hospital.id)
           .gte("created_at", since)
           .order("created_at", { ascending: false })
@@ -251,7 +251,7 @@ export default function RuleEngineTest({ embedded = false }: { embedded?: boolea
                       </TableCell>
                       <TableCell className="font-medium">{p.reference}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{p.competence_month ?? "—"}</TableCell>
-                      <TableCell className="text-right text-xs">{p.item_count ?? "—"}</TableCell>
+                      <TableCell className="text-right text-xs">{p.items_count ?? "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
