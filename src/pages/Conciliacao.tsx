@@ -21,6 +21,7 @@ import RetroactiveReconciliationsTab from "@/components/retroactive/RetroactiveR
 import BasesConciliacaoPanel from "@/components/conciliacao/BasesConciliacaoPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatCompetenceBR } from "@/lib/dateUtils";
 
 type RunRow = {
   id: string;
@@ -234,7 +235,7 @@ export default function Conciliacao() {
                           {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                         </TableCell>
                         <TableCell className="font-medium">{p?.reference ?? "—"}</TableCell>
-                        <TableCell>{p?.competence_month ?? "—"}</TableCell>
+                        <TableCell>{formatCompetenceBR(p?.competence_month)}</TableCell>
                         <TableCell className="text-right tabular-nums">{r.total_items}</TableCell>
                         <TableCell className="text-right tabular-nums text-success">{r.conciliado}</TableCell>
                         <TableCell className="text-right tabular-nums text-warning">{r.valor_divergente}</TableCell>
@@ -284,7 +285,7 @@ export default function Conciliacao() {
                             {p?.reference ?? "—"}
                           </div>
                           <div className="text-[12px] text-muted-foreground mt-0.5 break-words">
-                            {p?.competence_month ?? "—"} · {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                            {formatCompetenceBR(p?.competence_month)} · {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                           </div>
                         </div>
                         <Badge

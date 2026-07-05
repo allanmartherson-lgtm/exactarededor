@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, XCircle, Clock, ShieldAlert, AlertTriangle, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { formatCompetenceBR } from "@/lib/dateUtils";
 
 const FUNCTIONS_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/approve-via-magic-link`;
 
@@ -228,7 +229,7 @@ export default function ApproveMagicLink() {
               <span className="text-muted-foreground">Lote:</span>
               <span className="font-medium">{preview.payment.batch_number ?? preview.payment.id.slice(0, 8)}</span>
               <span className="text-muted-foreground">Competência:</span>
-              <span className="font-medium">{preview.payment.competence_month}</span>
+              <span className="font-medium">{formatCompetenceBR(preview.payment.competence_month)}</span>
               <span className="text-muted-foreground">Valor total:</span>
               <span className="font-medium">{formatBRL(preview.payment.total_amount)}</span>
               <span className="text-muted-foreground">Status atual:</span>

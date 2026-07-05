@@ -61,7 +61,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
-import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
+import { formatDateBR, formatDateTimeBR, formatCompetenceBR } from "@/lib/dateUtils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 import { loadDoctorRegistry, resolveDoctor, loadConvenioRegistry, normalize as normalizeRegistry, type DoctorRegistry, type ConvenioRegistry } from "@/lib/registryLookup";
@@ -3755,7 +3755,7 @@ export function PaymentConciliationModal({
                             <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
-                              {base.competence_month && ` · competência ${base.competence_month}`}
+                              {base.competence_month && ` · competência ${formatCompetenceBR(base.competence_month)}`}
                             </p>
                           </div>
                           {isSelected && (

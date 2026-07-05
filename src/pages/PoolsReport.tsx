@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Link } from "react-router-dom";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { AlertTriangle } from "lucide-react";
+import { formatCompetenceBR } from "@/lib/dateUtils";
 
 type Run = {
   id: string;
@@ -181,7 +182,7 @@ export default function PoolsReport({ embedded = false }: { embedded?: boolean }
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{r.competence_month ?? pay?.competence_month ?? "—"}</TableCell>
+                      <TableCell>{formatCompetenceBR(r.competence_month ?? pay?.competence_month)}</TableCell>
                       <TableCell>
                         <Link className="underline text-primary" to={`/pagamentos/${r.payment_id}`}>
                           {pay?.reference ?? r.payment_id.slice(0, 8)}
