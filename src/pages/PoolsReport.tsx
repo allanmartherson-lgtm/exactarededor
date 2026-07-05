@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Link } from "react-router-dom";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { AlertTriangle } from "lucide-react";
+import { formatCompetenceBR } from "@/lib/dateUtils";
 
 type Run = {
   id: string;
