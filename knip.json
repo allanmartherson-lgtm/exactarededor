@@ -1,0 +1,5 @@
+{
+  "entry": ["src/main.tsx", "scripts/*.ts", "vitest.config.ts"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
+  "ignore": ["supabase/**", "src/components/ui/**"]
+}
