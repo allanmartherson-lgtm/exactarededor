@@ -5108,13 +5108,8 @@ const PaymentDetail = () => {
         </SheetContent>
       </Sheet>
 
-      <RuleTestModal
-        paymentId={id!}
-        paymentReference={payment?.reference || "Lote"}
-        items={items}
-        isOpen={isTestModalOpen}
-        onClose={() => setIsTestModalOpen(false)}
-      />
+      {/* RuleTestModal removido — abre em /regras?tab=teste-motor&payment_id=<id> */}
+
 
       {payment && (
         <PaymentReportModal
