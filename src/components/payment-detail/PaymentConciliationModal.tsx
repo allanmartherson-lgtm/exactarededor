@@ -61,7 +61,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
-import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
+import { formatDateBR, formatDateTimeBR, formatCompetenceBR } from "@/lib/dateUtils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 import { loadDoctorRegistry, resolveDoctor, loadConvenioRegistry, normalize as normalizeRegistry, type DoctorRegistry, type ConvenioRegistry } from "@/lib/registryLookup";
