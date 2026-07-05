@@ -468,6 +468,8 @@ export function ZeevAssistant({
                 <div className="px-3 pt-3">
                   <ZeevDiagnosticCard
                     paymentId={bulkContext.paymentId}
+                    companyId={bulkContext.companyId ?? null}
+                    companyName={bulkContext.companyName ?? null}
                     onActed={() => setOpen(false)}
                     onSendChatPrompt={(text) => {
                       setTab("chat");
