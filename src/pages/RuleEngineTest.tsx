@@ -377,7 +377,7 @@ export default function RuleEngineTest({ embedded = false }: { embedded?: boolea
                   )}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}
