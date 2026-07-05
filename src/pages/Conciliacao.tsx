@@ -285,7 +285,7 @@ export default function Conciliacao() {
                             {p?.reference ?? "—"}
                           </div>
                           <div className="text-[12px] text-muted-foreground mt-0.5 break-words">
-                            {p?.competence_month ?? "—"} · {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                            {formatCompetenceBR(p?.competence_month)} · {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                           </div>
                         </div>
                         <Badge
