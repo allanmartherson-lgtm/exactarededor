@@ -130,7 +130,28 @@ export type CalcItem = {
    * filtros continuam valendo. Máximo 1 por regra.
    */
   is_catch_all: boolean;
+
+  // ---- Piso por procedimento (mínimo garantido) ----
+  // Só faz sentido em percentual_sobre_convenio. Aplica MAX(convênio, piso).
+  piso_habilitado: boolean;
+  piso_escopo: "por_item" | "por_atendimento";
+  piso_valor_padrao: string;
+  piso_por_funcao: PisoRoleItem[];
 };
+
+/** Piso por função médica — chaves canônicas do motor (classifyDoctorRole). */
+export type PisoRoleItem = {
+  role: "cirurgiao" | "primeiro_aux" | "demais_aux" | "instrumentador" | "outro";
+  label: string;
+  valor: string;
+};
+
+const DEFAULT_PISO_ROLES: PisoRoleItem[] = [
+  { role: "cirurgiao", label: "Cirurgião Principal", valor: "" },
+  { role: "primeiro_aux", label: "1º Auxiliar", valor: "" },
+  { role: "demais_aux", label: "Demais Auxiliares", valor: "" },
+  { role: "instrumentador", label: "Instrumentador", valor: "" },
+];
 
 /** Condição de contexto editável (strings nos inputs, convertidas no salvar). */
 export type ContextConditionItem = {
