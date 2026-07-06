@@ -218,7 +218,7 @@ export function ConversasInternasTab() {
                     });
                   }
                 }
-                navigate(`/pagamentos/${g.paymentId}?conversas=1`);
+                navigate(`/pagamentos/${g.paymentId}?conversas=1&thread=${g.rootId}`);
               }}
               className={cn(
                 "w-full text-left px-4 py-3 border-b border-border/60 last:border-b-0 transition-colors flex flex-col gap-1.5 hover:bg-muted/50",
