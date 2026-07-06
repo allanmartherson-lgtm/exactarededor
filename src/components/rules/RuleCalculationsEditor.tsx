@@ -411,12 +411,11 @@ function ValorFixoBlock({
                 className="grid items-center gap-2 px-3 py-1.5 border-b border-border last:border-b-0"
                 style={{ gridTemplateColumns: "1fr 140px" }}>
                 <Label className="text-xs">{opt.label}</Label>
-                <Input
-                  type="number" step="0.01"
+                <CurrencyInputBR
                   className="h-7 text-xs text-right font-mono"
                   placeholder="usa valor padrão"
                   value={current}
-                  onChange={(e) => updateRole(key, e.target.value)}
+                  onChange={(v) => updateRole(key, v)}
                 />
               </div>
             );
