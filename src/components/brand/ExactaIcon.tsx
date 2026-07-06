@@ -8,6 +8,8 @@ interface ExactaIconProps {
   bg?: string;
   /** Cor do check. Default = bronze */
   check?: string;
+  /** Renderiza anel dourado ao redor do círculo (para fundos azuis). */
+  ring?: boolean;
   title?: string;
 }
 
