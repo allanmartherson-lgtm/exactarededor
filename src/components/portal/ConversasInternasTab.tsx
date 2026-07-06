@@ -131,6 +131,7 @@ export function ConversasInternasTab() {
         paymentId,
         paymentLabel: label,
         paymentStatus: p?.status ?? null,
+        rootId: root.id,
         totalMessages: msgs.length,
         unread,
         lastAt: last.created_at,
@@ -138,6 +139,7 @@ export function ConversasInternasTab() {
         lastAuthor: last.author_name,
         status: root.status,
       });
+
     });
     // Prioriza threads com mensagens não lidas; em seguida, ordena pela mais recente.
     out.sort((a, b) => {
