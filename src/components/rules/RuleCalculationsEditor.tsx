@@ -1441,7 +1441,7 @@ function CalcCard({
           {c.calculation_type === "complemento" && (
             <div className="space-y-1">
               <Label className="text-xs">Valor alvo (R$) *</Label>
-              <Input type="number" step="0.01" value={c.target_amount} onChange={(e) => onChange({ target_amount: e.target.value })} />
+              <CurrencyInputBR value={c.target_amount} onChange={(v) => onChange({ target_amount: v })} />
             </div>
           )}
           </FieldGroup>
