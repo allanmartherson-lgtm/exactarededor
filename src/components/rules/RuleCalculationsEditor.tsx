@@ -6,6 +6,7 @@ import { SpecialtyMultiSelect } from "@/components/rules/SpecialtyMultiSelect";
 import { ConvenioMultiSelect } from "@/components/rules/ConvenioMultiSelect";
 
 import { Input } from "@/components/ui/input";
+import { CurrencyInputBR } from "@/components/ui/currency-input-br";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -367,10 +368,9 @@ function ValorFixoBlock({
     <div className="space-y-3">
       <div className="space-y-1">
         <Label className="text-xs">Valor fixo padrão (R$)</Label>
-        <Input
-          type="number" step="0.01"
+        <CurrencyInputBR
           value={c.fixed_amount}
-          onChange={(e) => onChange({ fixed_amount: e.target.value })}
+          onChange={(v) => onChange({ fixed_amount: v })}
           placeholder="Ex.: 611,88"
         />
         <p className="text-[10px] text-muted-foreground leading-snug">
@@ -411,12 +411,11 @@ function ValorFixoBlock({
                 className="grid items-center gap-2 px-3 py-1.5 border-b border-border last:border-b-0"
                 style={{ gridTemplateColumns: "1fr 140px" }}>
                 <Label className="text-xs">{opt.label}</Label>
-                <Input
-                  type="number" step="0.01"
+                <CurrencyInputBR
                   className="h-7 text-xs text-right font-mono"
                   placeholder="usa valor padrão"
                   value={current}
-                  onChange={(e) => updateRole(key, e.target.value)}
+                  onChange={(v) => updateRole(key, v)}
                 />
               </div>
             );
@@ -549,26 +548,24 @@ function ComplementosBlock({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-[11px]">Novo valor deste item quando o complemento estiver presente (R$)</Label>
-                    <Input
-                      type="number" step="0.01"
+                    <CurrencyInputBR
                       className="h-8 text-xs"
                       value={cond.value}
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...c.context_conditions];
-                        next[ci] = { ...cond, value: e.target.value };
+                        next[ci] = { ...cond, value: v };
                         onChange({ context_conditions: next });
                       }}
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px]">Valor esperado do complemento (R$)</Label>
-                    <Input
-                      type="number" step="0.01"
+                    <CurrencyInputBR
                       className="h-8 text-xs"
                       value={cond.complement_value}
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...c.context_conditions];
-                        next[ci] = { ...cond, complement_value: e.target.value };
+                        next[ci] = { ...cond, complement_value: v };
                         onChange({ context_conditions: next });
                       }}
                     />
@@ -1398,7 +1395,7 @@ function CalcCard({
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
-                  <Input type="number" step="0.01" value={c.bonus_amount} onChange={(e) => onChange({ bonus_amount: e.target.value })} />
+                  <CurrencyInputBR value={c.bonus_amount} onChange={(v) => onChange({ bonus_amount: v })} />
                 </div>
                 <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
                   <Input type="number" step="0.01" value={c.bonus_pct} onChange={(e) => onChange({ bonus_pct: e.target.value })} />
@@ -1444,7 +1441,7 @@ function CalcCard({
           {c.calculation_type === "complemento" && (
             <div className="space-y-1">
               <Label className="text-xs">Valor alvo (R$) *</Label>
-              <Input type="number" step="0.01" value={c.target_amount} onChange={(e) => onChange({ target_amount: e.target.value })} />
+              <CurrencyInputBR value={c.target_amount} onChange={(v) => onChange({ target_amount: v })} />
             </div>
           )}
           </FieldGroup>
@@ -1456,12 +1453,10 @@ function CalcCard({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor total do pacote (R$) *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex.: 29321.93"
+                    <CurrencyInputBR
+                      placeholder="Ex.: 29.321,93"
                       value={c.package_amount}
-                      onChange={(e) => onChange({ package_amount: e.target.value })}
+                      onChange={(v) => onChange({ package_amount: v })}
                     />
                   </div>
                   <div className="space-y-1.5">
