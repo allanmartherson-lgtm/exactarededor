@@ -1373,6 +1373,34 @@ export function doctorRoleFactor(
 // ---------- calculadores ----------
 // ExpectedCalc interface moved to export section to avoid duplication and conflicts.
 
+/**
+ * Resolve o valor do piso (mínimo garantido por procedimento) para a função
+ * do médico neste item. Consulta `piso_por_funcao` (chaves canônicas
+ * cirurgiao/primeiro_aux/demais_aux/instrumentador/outro); se não achar,
+ * cai em `piso_valor_padrao`. Retorna null quando piso não está configurado.
+ */
+export function resolvePisoForRole(
+  c: {
+    piso_habilitado?: boolean | null;
+    piso_valor_padrao?: number | null;
+    piso_por_funcao?: Array<{ role: string; valor: number; label?: string | null }> | null;
+  },
+  doctorRole: string | null | undefined,
+): number | null {
+  if (c.piso_habilitado !== true) return null;
+  const roleKey = classifyDoctorRole(doctorRole);
+  const list = Array.isArray(c.piso_por_funcao) ? c.piso_por_funcao : [];
+  for (const entry of list) {
+    if (!entry || typeof entry.valor !== "number") continue;
+    const entryKey = classifyDoctorRole(String(entry.role ?? ""));
+    if (entryKey === roleKey && entry.valor > 0) return entry.valor;
+  }
+  const fallback = c.piso_valor_padrao;
+  return typeof fallback === "number" && fallback > 0 ? fallback : null;
+}
+
+
+
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
   const factor = doctorRoleFactor(item.doctor_role, rule);
