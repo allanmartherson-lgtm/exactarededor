@@ -1494,49 +1494,41 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           const aiTimer = setTimeout(() => aiAbort.abort(), AI_TIMEOUT_MS);
           let aiResp: Response | null = null;
           try {
-            aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-              method: "POST",
-              signal: aiAbort.signal,
-              headers: {
-                "x-api-key": ANTHROPIC_API_KEY!,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "claude-sonnet-4-5",
-                max_tokens: 4096,
-                system: systemPrompt,
-                messages: [
-                  { role: "user", content: `Itens marcados pelo motor (JSON) — chunk ${ci + 1}/${aiChunks.length}:\n${JSON.stringify(chunk, null, 2)}` },
-                ],
-                tools: [{
-                  name: "report_justifications",
-                  description: "Justifica cada item já analisado pelo motor",
-                  input_schema: {
-                    type: "object",
-                    properties: {
-                      summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
+            aiResp = await anthropicFetch({
+              model: "claude-sonnet-4-5",
+              max_tokens: 4096,
+              system: systemPrompt,
+              messages: [
+                { role: "user", content: `Itens marcados pelo motor (JSON) — chunk ${ci + 1}/${aiChunks.length}:\n${JSON.stringify(chunk, null, 2)}` },
+              ],
+              tools: [{
+                name: "report_justifications",
+                description: "Justifica cada item já analisado pelo motor",
+                input_schema: {
+                  type: "object",
+                  properties: {
+                    summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
+                    items: {
+                      type: "array",
                       items: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            id: { type: "string" },
-                            ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
-                            extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
-                          },
-                          required: ["id", "ai_note", "extra_alerts"],
-                          additionalProperties: false,
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
+                          extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
                         },
+                        required: ["id", "ai_note", "extra_alerts"],
+                        additionalProperties: false,
                       },
                     },
-                    required: ["summary", "items"],
-                    additionalProperties: false,
                   },
-                }],
-                tool_choice: { type: "tool", name: "report_justifications" },
-              }),
-            });
+                  required: ["summary", "items"],
+                  additionalProperties: false,
+                },
+              }],
+              tool_choice: { type: "tool", name: "report_justifications" },
+            }, { signal: aiAbort.signal });
+
 
             if (aiResp.ok) {
               const aiData = await aiResp.json();
