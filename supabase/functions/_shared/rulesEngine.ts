@@ -2119,6 +2119,10 @@ export interface ExpectedCalc {
    *  tem precedência sobre rule.calculation_type para carimbar
    *  applied_calc_method — evita herdar o tipo "pai" da regra. */
   winner_calc_type?: CalculationType | null;
+  /** Piso aplicado (mínimo garantido) — R$ do piso vigente para a função do item. */
+  piso_aplicado_valor?: number | null;
+  /** Qual método venceu no MAX(): "convenio" (percentual do convênio) ou "piso" (mínimo garantido). */
+  piso_metodo_vencedor?: "convenio" | "piso" | null;
 }
 
 
