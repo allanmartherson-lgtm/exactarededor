@@ -166,6 +166,7 @@ const StatusAnomalies = lazy(loadStatusAnomalies);
 const SlaSettings = lazy(loadSlaSettings);
 const PreviewPalettes = lazy(loadPreviewPalettes);
 const PreviewDesignSystems = lazy(loadPreviewDesignSystems);
+const PreviewCura = lazy(loadPreviewCura);
 const WcagAudit = lazy(loadWcagAudit);
 const Kpis = lazy(loadKpis);
 const InterventionAdjustments = lazy(loadInterventionAdjustments);
