@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import LoginAnimation from "@/components/auth/LoginAnimation";
 import { DateInput } from "@/components/ui/date-input";
+import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
+
 
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
