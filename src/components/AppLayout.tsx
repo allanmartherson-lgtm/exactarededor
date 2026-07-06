@@ -958,7 +958,12 @@ export const AppLayout = () => {
             ["--muted-foreground" as string]: "0 0% 100%",
             ["--border" as string]: "0 0% 100% / 0.18",
             ["--input" as string]: "0 0% 100% / 0.18",
-            ["--accent" as string]: "0 0% 100% / 0.12",
+            ["--background" as string]: "0 0% 100% / 0",
+            ["--card" as string]: "0 0% 100% / 0.08",
+            ["--secondary" as string]: "0 0% 100% / 0.12",
+            ["--secondary-foreground" as string]: "0 0% 100%",
+            ["--muted" as string]: "0 0% 100% / 0.14",
+            ["--accent" as string]: "0 0% 100% / 0.18",
             ["--accent-foreground" as string]: "0 0% 100%",
           } as React.CSSProperties}
         >
