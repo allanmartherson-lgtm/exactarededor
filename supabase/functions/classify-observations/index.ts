@@ -2,6 +2,7 @@
 // semânticas usando Claude. Não altera dados. Apenas leitura/classificação.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { anthropicFetch } from "../_shared/anthropicWithFallback.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
