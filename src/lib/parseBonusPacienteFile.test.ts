@@ -19,15 +19,12 @@ function makeFile(rows: (string | number | null)[][]): File {
 }
 
 describe("parseBonusPacienteFile · detecção de colunas", () => {
-  it("detecta paciente e valor mesmo com maiúsculas/acentos/espaços", () => {
-    return makeFile([["PACIENTE ", "Valor"], ["João", 100]]).arrayBuffer && parseBonusPacienteFile(
-      makeFile([["PACIENTE ", "Valor"], ["João", 100]])
-    ).then((r) => {
-      expect(r.detected_columns.patient).toBeDefined();
-      expect(r.detected_columns.value).toBeDefined();
-      expect(r.rows).toHaveLength(1);
-      expect(r.rows[0].gross_amount).toBe(100);
-    });
+  it("detecta paciente e valor mesmo com maiúsculas/acentos/espaços", async () => {
+    const r = await parseBonusPacienteFile(makeFile([["PACIENTE ", "Valor"], ["João", 100]]));
+    expect(r.detected_columns.patient).toBeDefined();
+    expect(r.detected_columns.value).toBeDefined();
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0].gross_amount).toBe(100);
   });
 
   it("lança erro se não houver coluna de valor", async () => {
