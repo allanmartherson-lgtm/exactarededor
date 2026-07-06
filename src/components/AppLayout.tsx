@@ -71,7 +71,10 @@ const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolut
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
 export type { Role, NavLeaf, NavGroup, NavItem } from "@/config/navItems";
 
-const AVATAR_GRADIENT = "linear-gradient(135deg, hsl(var(--secondary-foreground)), hsl(var(--foreground)))";
+// Avatar CURA: laranja Rede D'Or (referência dos apps mobile) — contraste AA
+// tanto sobre o header navy quanto sobre superfícies claras dos menus.
+const AVATAR_GRADIENT = "linear-gradient(135deg, #F26722 0%, #D9531E 100%)";
+
 
 function getInitials(name?: string | null, email?: string | null) {
   const source = (name && name.trim()) || (email ? email.split("@")[0].replace(/[._-]+/g, " ") : "");
