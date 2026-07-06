@@ -311,6 +311,7 @@ const App = () => (
                 <Route path="/trocar-senha" element={<ForceChangePassword />} />
                 <Route path="/preview-paletas" element={<PreviewPalettes />} />
                 <Route path="/preview-design-systems" element={<PreviewDesignSystems />} />
+                <Route path="/preview-cura" element={<PreviewCura />} />
                 <Route path="/selecionar-hospital" element={<ProtectedRoute><SelectHospital /></ProtectedRoute>} />
                 
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
