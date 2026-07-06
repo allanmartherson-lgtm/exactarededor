@@ -1275,12 +1275,15 @@ function CalcCard({
         style={{ background: "hsl(var(--accent))", borderBottom: "1px solid hsl(var(--border))", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}
       >
         <style>{`
-          .calc-header-orange button { color: #ffffff !important; }
-          .calc-header-orange button:hover { background-color: rgb(255 255 255 / 0.18) !important; color: #ffffff !important; }
+          .calc-header-orange button { color: #ffffff !important; transition: background-color 120ms ease, box-shadow 120ms ease, outline-color 120ms ease; outline: 1px solid transparent; }
+          .calc-header-orange button:hover { background-color: rgb(255 255 255 / 0.18) !important; color: #ffffff !important; outline: 1px solid rgb(255 255 255 / 0.55); box-shadow: 0 1px 3px rgba(0,0,0,0.18), 0 0 0 1px rgb(255 255 255 / 0.25) inset; }
           .calc-header-orange button.text-destructive { color: #ffffff !important; }
-          .calc-header-orange button.text-destructive:hover { background-color: rgb(255 255 255 / 0.22) !important; }
-          .calc-header-orange .calc-type-chip { background-color: rgb(255 255 255 / 0.20); color: #ffffff; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+          .calc-header-orange button.text-destructive:hover { background-color: rgb(255 255 255 / 0.22) !important; outline: 1px solid rgb(255 255 255 / 0.7); box-shadow: 0 1px 3px rgba(0,0,0,0.22), 0 0 0 1px rgb(255 255 255 / 0.3) inset; }
+          .calc-header-orange button svg { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.18)); }
+          .calc-header-orange .calc-type-chip { background-color: rgb(255 255 255 / 0.20); color: #ffffff; padding: 2px 8px; border-radius: 999px; font-weight: 600; border: 1px solid rgb(255 255 255 / 0.25); transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
+          .calc-header-orange .calc-type-chip:hover { background-color: rgb(255 255 255 / 0.28); border-color: rgb(255 255 255 / 0.55); box-shadow: 0 1px 3px rgba(0,0,0,0.18); }
         `}</style>
+
         <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </Button>
