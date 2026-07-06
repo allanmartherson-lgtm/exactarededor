@@ -2313,6 +2313,8 @@ export function applyCalculation(
       restrictive: boolean;
       inferred_sector: string;
       temporal_surcharge_config?: ExpectedCalc["temporal_surcharge_config"];
+      piso_aplicado_valor?: number | null;
+      piso_metodo_vencedor?: "convenio" | "piso" | null;
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
@@ -2336,6 +2338,33 @@ export function applyCalculation(
       const eff = ruleFromCalcItem(rule, c);
       const r = applyCalculationSingle(eff, item, ctx);
 
+      // Piso por procedimento (mínimo garantido) — só faz sentido quando o
+      // cálculo é percentual do convênio e o esperado é numérico. Aplica
+      // MAX(esperado_convenio, piso_da_funcao) e carimba método vencedor.
+      let pisoAplicado: number | null = null;
+      let pisoVencedor: "convenio" | "piso" | null = null;
+      if (
+        r.expected !== null &&
+        c.piso_habilitado === true &&
+        c.calculation_type === "percentual_sobre_convenio"
+      ) {
+        const piso = resolvePisoForRole(c, item.doctor_role);
+        if (piso !== null && piso > 0) {
+          pisoAplicado = piso;
+          if (c.piso_escopo === "por_atendimento") {
+            r.alerts = [...r.alerts, "Piso por_atendimento ainda não é suportado — aplicando piso por item."];
+          }
+          if (piso > r.expected) {
+            r.explanation = `${r.explanation} · Piso R$ ${piso.toFixed(2)} > convênio R$ ${r.expected.toFixed(2)} → piso vence.`;
+            r.expected = round2(piso);
+            pisoVencedor = "piso";
+          } else {
+            r.explanation = `${r.explanation} · Piso R$ ${piso.toFixed(2)} ≤ convênio R$ ${r.expected.toFixed(2)} → convênio vence.`;
+            pisoVencedor = "convenio";
+          }
+        }
+      }
+
       if (r.expected !== null) {
         validCalcs.push({
           expected: r.expected, explanation: r.explanation, alerts: r.alerts,
@@ -2355,6 +2384,8 @@ export function applyCalculation(
             noturno_inicio: c.noturno_inicio ?? null,
             noturno_fim: c.noturno_fim ?? null,
           },
+          piso_aplicado_valor: pisoAplicado,
+          piso_metodo_vencedor: pisoVencedor,
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
