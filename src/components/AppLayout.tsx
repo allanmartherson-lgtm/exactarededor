@@ -1145,7 +1145,7 @@ export const AppLayout = () => {
         >
           {!sidebarCollapsed && (
             <div className="flex-1 min-w-0 overflow-hidden">
-              <Logo onDark preserveIconColors />
+              <Logo preserveIconColors />
             </div>
           )}
           <Tooltip>
