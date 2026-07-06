@@ -12,7 +12,7 @@ function makeFile(rows: (string | number | null)[][]): File {
   const file = new File([ab], "bonus.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   // jsdom não implementa File.prototype.arrayBuffer(); adicionamos a partir do buffer já em memória.
   Object.defineProperty(file, "arrayBuffer", {
-    value: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
+    value: async () => ab,
     writable: true,
   });
   return file;
