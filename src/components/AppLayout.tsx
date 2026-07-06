@@ -1004,8 +1004,10 @@ export const AppLayout = () => {
               background-color: rgb(255 255 255 / 0.12) !important;
               color: #ffffff !important;
             }
-            /* Não zerar borda do botão Nova base (primary pill branca). */
-            header button.bg-primary { background-color: #ffffff !important; color: hsl(214 100% 32%) !important; border-color: transparent !important; }
+            /* Nova base: cor de destaque CURA (accent-base #FF8200 / laranja Rede D'Or). */
+            header button.nova-base-btn { background-color: #FF8200 !important; color: #ffffff !important; border-color: transparent !important; }
+            header button.nova-base-btn:hover { background-color: #D7720A !important; color: #ffffff !important; }
+
 
           `}</style>
 
