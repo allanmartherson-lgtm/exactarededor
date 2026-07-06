@@ -1337,9 +1337,9 @@ export const AppLayout = () => {
               tratamento do topbar mode: ícones sem moldura, chips brancos,
               links do breadcrumb com hover branco. */}
           <style>{`
-            header .breadcrumb-nav a { color: rgb(255 255 255 / 0.78); }
-            header .breadcrumb-nav a:hover { color: #ffffff; }
-            header .breadcrumb-nav [aria-current="page"] { color: #ffffff; }
+            header nav[aria-label="Breadcrumb"] a { color: rgb(255 255 255 / 0.78); }
+            header nav[aria-label="Breadcrumb"] a:hover { color: #ffffff; }
+            header nav[aria-label="Breadcrumb"] [aria-current="page"] { color: #ffffff; }
             header .bg-primary\\/10 { background-color: rgb(255 255 255 / 0.22) !important; }
             header .bg-primary\\/5  { background-color: rgb(255 255 255 / 0.14) !important; }
             header .border-primary\\/20 { border-color: rgb(255 255 255 / 0.28) !important; }
