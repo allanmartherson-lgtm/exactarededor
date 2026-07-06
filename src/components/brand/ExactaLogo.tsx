@@ -46,7 +46,14 @@ export const ExactaLogo = ({
 
   const content = (
     <>
-      <ExactaIcon size={resolvedIconSize} />
+      <ExactaIcon
+        size={resolvedIconSize}
+        // Versão branca (monocromática) sobre header navy: círculo transparente
+        // com contorno branco sutil + check branco. Sobre fundo claro mantém o
+        // lockup oficial (círculo navy + check bronze).
+        bg={onDark ? "rgba(255,255,255,0.14)" : undefined}
+        check={onDark ? "#FFFFFF" : undefined}
+      />
       {variant !== "icon" && (
         <div className="min-w-0 leading-tight">
           <p
