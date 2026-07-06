@@ -23,6 +23,7 @@ export const ExactaIcon = ({
   style,
   bg = "#003DA5",
   check = "#C6A27C",
+  ring = false,
   title = "Exacta",
 }: ExactaIconProps) => (
   <svg
@@ -36,7 +37,18 @@ export const ExactaIcon = ({
     style={style}
   >
     <title>{title}</title>
-    <circle cx="256" cy="256" r="236" fill={bg} />
+    {ring ? (
+      <circle
+        cx="256"
+        cy="256"
+        r="234"
+        fill={bg}
+        stroke="#C6A27C"
+        strokeWidth="36"
+      />
+    ) : (
+      <circle cx="256" cy="256" r="236" fill={bg} />
+    )}
     <polyline
       points="148,272 223,348 374,180"
       fill="none"
@@ -45,8 +57,8 @@ export const ExactaIcon = ({
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-
   </svg>
 );
+
 
 export default ExactaIcon;
