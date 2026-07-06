@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import LoginAnimation from "@/components/auth/LoginAnimation";
 import { DateInput } from "@/components/ui/date-input";
+import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
+
 
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
@@ -235,9 +237,10 @@ const Auth = () => {
                       <Label htmlFor="signin-password">Senha</Label>
                       <Input id="signin-password" name="password" type="password" autoComplete="current-password" required />
                     </div>
-                    <Button type="submit" className="w-full" disabled={submitting}>
+                    <CuraSubmitButton disabled={submitting}>
                       {submitting ? "Entrando..." : "Entrar"}
-                    </Button>
+                    </CuraSubmitButton>
+
                     <button
                       type="button"
                       onClick={handleForgotPassword}
@@ -283,9 +286,10 @@ const Auth = () => {
                       <Label htmlFor="req-msg">Mensagem (opcional)</Label>
                       <Textarea id="req-msg" rows={2} value={reqForm.message} onChange={(e) => setReqForm({ ...reqForm, message: e.target.value })} />
                     </div>
-                    <Button type="submit" className="w-full" disabled={submitting}>
+                    <CuraSubmitButton disabled={submitting}>
                       {submitting ? "Enviando..." : "Solicitar acesso"}
-                    </Button>
+                    </CuraSubmitButton>
+
                     <p className="text-xs text-muted-foreground">
                       Sua solicitação será analisada por um administrador. Após a aprovação, você receberá um e-mail com o link para definir sua senha.
                     </p>

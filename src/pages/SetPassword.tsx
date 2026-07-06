@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
+import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
+
 import { createPasswordRecoveryClient, preparePasswordRecoveryCodeVerifier } from "@/lib/passwordRecoveryClient";
 import { supabase as mainSupabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -433,9 +435,10 @@ const SetPassword = () => {
                   <Label htmlFor="confirm">Confirmar senha</Label>
                   <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={8} maxLength={72} />
                 </div>
-                <Button type="submit" className="w-full" disabled={phase === "saving"}>
+                <CuraSubmitButton disabled={phase === "saving"}>
                   {phase === "saving" ? "Salvando…" : flow === "invite" ? "Criar senha e entrar" : "Salvar nova senha"}
-                </Button>
+                </CuraSubmitButton>
+
                 {diagnostics.length > 0 && (
                   <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
                     {diagnostics.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}

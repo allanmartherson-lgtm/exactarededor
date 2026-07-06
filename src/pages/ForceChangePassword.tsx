@@ -10,6 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
+import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
+
 
 const schema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres").max(72),
@@ -78,9 +80,10 @@ const ForceChangePassword = () => {
                 <Label htmlFor="confirm">Confirmar senha</Label>
                 <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={8} maxLength={72} />
               </div>
-              <Button type="submit" className="w-full" disabled={saving}>
+              <CuraSubmitButton disabled={saving}>
                 {saving ? "Salvando…" : "Salvar e entrar novamente"}
-              </Button>
+              </CuraSubmitButton>
+
             </form>
           </CardContent>
         </Card>
