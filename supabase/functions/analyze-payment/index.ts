@@ -22,6 +22,7 @@ import {
   type AppliedCalcMethod,
 } from "../_shared/calcMethodMapping.ts";
 import { buildScopedRulesOr } from "../_shared/scopedRulesFilter.ts";
+import { anthropicFetch } from "../_shared/anthropicWithFallback.ts";
 import { classifyDuplicateMatch, evaluateDuplicate, type DuplicateOverridePayload } from "../_shared/itemHash.ts";
 import { buildPrimaryItemByRole, isPrimaryAnchor, normRole } from "../_shared/packagePrimary.ts";
 import {
