@@ -68,6 +68,7 @@ const loadStatusAnomalies = () => import("./pages/StatusAnomalies.tsx");
 const loadSlaSettings = () => import("./pages/SlaSettings.tsx");
 const loadPreviewPalettes = () => import("./pages/PreviewPalettes.tsx");
 const loadPreviewDesignSystems = () => import("./pages/PreviewDesignSystems.tsx");
+const loadPreviewCura = () => import("./pages/PreviewCura.tsx");
 const loadWcagAudit = () => import("./pages/WcagAudit.tsx");
 const loadKpis = () => import("./pages/Kpis.tsx");
 const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
