@@ -363,10 +363,14 @@ const PaymentDetail = () => {
   >(null);
   // Painel lateral com todas as conversas (threads) do lote.
   const [threadsOpen, setThreadsOpen] = useState(false);
+  const [initialThreadId, setInitialThreadId] = useState<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("conversas") === "1") setThreadsOpen(true);
+    const tid = params.get("thread");
+    if (tid) setInitialThreadId(tid);
   }, [location.search]);
+
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
