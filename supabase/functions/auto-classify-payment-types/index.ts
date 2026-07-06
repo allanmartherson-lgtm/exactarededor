@@ -106,13 +106,19 @@ Deno.serve(async (req) => {
       console.warn("[auto-classify] Nenhum item_type code=procedimento — TUSS sem match não será reclassificado dinamicamente.");
     }
 
-    // 2. Varre itens do lote em páginas e classifica
+    // 2. Varre itens do lote em páginas e classifica AGRUPANDO por destino.
+    //    Antes: 1 UPDATE por item (3k+ round-trips → 504 IDLE_TIMEOUT).
+    //    Agora: agrupa ids por (item_type_id, source) e faz UPDATE em lote
+    //    via `.in('id', chunk)` — poucas queries independente do volume.
     let totalScanned = 0;
     let autoTuss = 0;
     let autoHeuristic = 0;
     let autoDefault = 0;
     let unchanged = 0;
-    const pageSize = 500;
+    const pageSize = 1000;
+
+    // key = `${nextItemTypeId}::${nextSource}` → lista de ids a atualizar
+    const buckets = new Map<string, string[]>();
 
     for (let from = 0; ; from += pageSize) {
       const { data: items, error: itemsErr } = await supabase
@@ -126,7 +132,10 @@ Deno.serve(async (req) => {
 
       for (const it of items as any[]) {
         const source = (it.item_type_source ?? "") as string;
-        if (PROTECTED_SOURCES.has(source)) continue;
+        if (PROTECTED_SOURCES.has(source)) {
+          unchanged++;
+          continue;
+        }
 
         const code = String(it.procedure_code ?? "").trim();
         let nextItemTypeId: string | null = null;
@@ -148,7 +157,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Sem mudança? pula
+        // Sem mudança? pula (não gera UPDATE).
         if (
           it.item_type_id === nextItemTypeId &&
           it.item_type_source === nextSource
@@ -157,23 +166,43 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        const bucketKey = `${nextItemTypeId}::${nextSource}`;
+        const arr = buckets.get(bucketKey);
+        if (arr) arr.push(it.id);
+        else buckets.set(bucketKey, [it.id]);
+      }
+
+      if (items.length < pageSize) break;
+    }
+
+    // 3. Executa UPDATEs em lote por bucket. Chunks de 500 ids para manter a
+    //    URL do PostgREST dentro do limite seguro.
+    const CHUNK = 500;
+    for (const [key, ids] of buckets) {
+      const [nextItemTypeId, nextSource] = key.split("::") as [
+        string,
+        "auto_tuss" | "auto_heuristic" | "auto_default",
+      ];
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
         const { error: upErr } = await supabase
           .from("payment_items")
           .update({
             item_type_id: nextItemTypeId,
             item_type_source: nextSource,
           })
-          .eq("id", it.id);
+          .in("id", chunk);
         if (upErr) {
-          console.error(`[auto-classify] erro item ${it.id}`, upErr);
+          console.error(
+            `[auto-classify] erro update lote source=${nextSource} chunk=${chunk.length}`,
+            upErr,
+          );
           continue;
         }
-        if (nextSource === "auto_tuss") autoTuss++;
-        else if (nextSource === "auto_heuristic") autoHeuristic++;
-        else autoDefault++;
+        if (nextSource === "auto_tuss") autoTuss += chunk.length;
+        else if (nextSource === "auto_heuristic") autoHeuristic += chunk.length;
+        else autoDefault += chunk.length;
       }
-
-      if (items.length < pageSize) break;
     }
 
     console.log(
