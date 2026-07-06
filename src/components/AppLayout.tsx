@@ -71,7 +71,10 @@ const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolut
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
 export type { Role, NavLeaf, NavGroup, NavItem } from "@/config/navItems";
 
-const AVATAR_GRADIENT = "linear-gradient(135deg, hsl(var(--secondary-foreground)), hsl(var(--foreground)))";
+// Avatar CURA: laranja Rede D'Or (referência dos apps mobile) — contraste AA
+// tanto sobre o header navy quanto sobre superfícies claras dos menus.
+const AVATAR_GRADIENT = "linear-gradient(135deg, #F26722 0%, #D9531E 100%)";
+
 
 function getInitials(name?: string | null, email?: string | null) {
   const source = (name && name.trim()) || (email ? email.split("@")[0].replace(/[._-]+/g, " ") : "");
@@ -985,16 +988,25 @@ export const AppLayout = () => {
             header .bg-muted, header .bg-muted\\/40, header .bg-muted\\/30, header .bg-muted\\/20 {
               background-color: rgb(255 255 255 / 0.14) !important;
             }
-            /* Padrão Rede D'Or: ícones do header sem moldura — apenas o glifo. */
-            header button.size-8 {
+            /* Padrão Rede D'Or: ícones do header sem moldura — apenas o glifo.
+               Cobrimos size-8 (tailwind), .border (fallback) e h-8/w-8 legados. */
+            header button.size-8,
+            header button.border,
+            header button.h-8.w-8 {
               border-color: transparent !important;
               background-color: transparent !important;
               color: #ffffff !important;
+              box-shadow: none !important;
             }
-            header button.size-8:hover {
+            header button.size-8:hover,
+            header button.border:hover,
+            header button.h-8.w-8:hover {
               background-color: rgb(255 255 255 / 0.12) !important;
               color: #ffffff !important;
             }
+            /* Não zerar borda do botão Nova base (primary pill branca). */
+            header button.bg-primary { background-color: #ffffff !important; color: hsl(214 100% 32%) !important; border-color: transparent !important; }
+
           `}</style>
 
 
