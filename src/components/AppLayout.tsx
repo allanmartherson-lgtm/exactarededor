@@ -990,17 +990,17 @@ export const AppLayout = () => {
             }
             /* Padrão Rede D'Or: ícones do header sem moldura — apenas o glifo.
                Cobrimos size-8 (tailwind), .border (fallback) e h-8/w-8 legados. */
-            header button.size-8,
-            header button.border,
-            header button.h-8.w-8 {
+            header button.size-8:not(.nova-base-btn),
+            header button.border:not(.nova-base-btn),
+            header button.h-8.w-8:not(.nova-base-btn) {
               border-color: transparent !important;
               background-color: transparent !important;
               color: #ffffff !important;
               box-shadow: none !important;
             }
-            header button.size-8:hover,
-            header button.border:hover,
-            header button.h-8.w-8:hover {
+            header button.size-8:not(.nova-base-btn):hover,
+            header button.border:not(.nova-base-btn):hover,
+            header button.h-8.w-8:not(.nova-base-btn):hover {
               background-color: rgb(255 255 255 / 0.12) !important;
               color: #ffffff !important;
             }
@@ -1026,7 +1026,7 @@ export const AppLayout = () => {
               {canCreate && (
                 <Button
                   onClick={() => setModeModalOpen(true)}
-                  className="h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5 shadow-sm border-transparent hover:opacity-90"
+                  className="nova-base-btn h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5 shadow-sm border-transparent hover:opacity-90"
                   aria-label="Nova base"
                   style={{
                     // CTA em accent-base CURA (#FF8200) — laranja Rede D'Or.
@@ -1329,7 +1329,12 @@ export const AppLayout = () => {
               {canCreate && (
                 <Button
                   onClick={() => setModeModalOpen(true)}
-                  className="h-11 px-5 text-[14px] font-medium gap-2"
+                  className="nova-base-btn h-11 px-5 text-[14px] font-medium gap-2"
+                  style={{
+                    backgroundColor: "#FF8200",
+                    color: "#ffffff",
+                    borderColor: "transparent",
+                  }}
                 >
                   <Plus className="h-[18px] w-[18px]" />
                   <span className="hidden md:inline">Nova base</span>
