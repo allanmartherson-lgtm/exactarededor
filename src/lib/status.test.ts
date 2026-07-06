@@ -47,14 +47,14 @@ describe("normalizePaymentTypeCode", () => {
 
 describe("formatCurrency", () => {
   it("formata número como BRL", () => {
-    expect(formatCurrency(1234.5)).toBe("R$ 1.234,50");
+    expect(formatCurrency(1234.5)).toBe("R$\u00A01.234,50");
   });
   it("aceita string numérica (float com ponto)", () => {
-    expect(formatCurrency("1234.5")).toBe("R$ 1.234,50");
+    expect(formatCurrency("1234.5")).toBe("R$\u00A01.234,50");
   });
   it("null e undefined viram R$ 0,00", () => {
-    expect(formatCurrency(null)).toBe("R$ 0,00");
-    expect(formatCurrency(undefined)).toBe("R$ 0,00");
+    expect(formatCurrency(null)).toBe("R$\u00A00,00");
+    expect(formatCurrency(undefined)).toBe("R$\u00A00,00");
   });
 });
 
