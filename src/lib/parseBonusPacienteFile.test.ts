@@ -7,8 +7,14 @@ function makeFile(rows: (string | number | null)[][]): File {
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  return new File([buf], "bonus.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as Uint8Array;
+  const file = new File([buf], "bonus.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  // jsdom não implementa File.prototype.arrayBuffer(); adicionamos a partir do buffer já em memória.
+  Object.defineProperty(file, "arrayBuffer", {
+    value: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
+    writable: true,
+  });
+  return file;
 }
 
 describe("parseBonusPacienteFile · detecção de colunas", () => {
