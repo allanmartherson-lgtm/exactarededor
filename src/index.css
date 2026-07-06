@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&display=swap');
+/* Fontes CURA (Rede D'Or) — DM Sans corpo + Playfair Display hero
+   Gotham é a fonte oficial CURA mas licenciada; DM Sans é o fallback público
+   aprovado na brand memory do Exacta. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -19,35 +21,35 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 214 22% 20%;
 
-    /* ── Brand: verde-floresta Exacta ─────────────────────── */
-    --primary: 211 100% 45%;             /* #0071E3 — Apple blue (re-skin) */
+    /* ── Brand CURA: primary-700 #003DA5 (azul institucional Rede D'Or) ── */
+    --primary: 214 100% 32%;             /* #003DA5 — CURA primary-700 (base) */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 60% 94%;         /* #EAF0FA — azul suave derivado */
-    --primary-glow: 200 68% 68%;         /* #71C5E8 — Pantone 297 C */
-    --primary-dark: 213 65% 28%;         /* navy Rede D'Or mais arejado (longe do preto) */
+    --primary-soft: 205 62% 87%;         /* #C6DEF0 — derivado de primary-100 #71C5E8 */
+    --primary-glow: 205 74% 68%;         /* #71C5E8 — CURA primary-100 (lighter) */
+    --primary-dark: 214 100% 23%;        /* #003075 — CURA primary-800 */
 
-    /* ── Accent: ouro Exacta ─────────────────────────────── */
-    --accent: 37 42% 61%;                /* #C6A27C — Pantone 728 C Rede D'Or oficial */
-    --accent-foreground: 214 28% 7%;
-    --accent-light: 35 80% 86%;          /* #F7CEA7 — Pantone 2015 C (dourado claro D'Or) */
-    --brand-wordmark-accent: 32 46% 36%; /* #8A6830 — bronze escuro p/ contraste em fundo claro */
+    /* ── Accent CURA: accent-500 #FF8200 (laranja destaque Rede D'Or) ── */
+    --accent: 31 100% 50%;               /* #FF8200 — CURA accent-500 */
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 34 100% 74%;         /* #FFC27B — CURA accent-100 */
+    --brand-wordmark-accent: 214 100% 32%; /* wordmark "x" agora azul CURA */
 
-    /* Mantém token de azul apenas para status info */
-    --accent-blue: 211 100% 45%;
-    --accent-blue-soft: 211 90% 95%;
+    /* Azul auxiliar (info) alinhado ao primary */
+    --accent-blue: 214 100% 32%;
+    --accent-blue-soft: 205 62% 87%;
 
-    /* ── Copper (legado de status warning) ─────────────────── */
-    --copper: 33 100% 50%;
+    /* ── Copper (legado, remapeado ao accent CURA) ─────────── */
+    --copper: 31 100% 50%;               /* #FF8200 */
     --copper-foreground: 0 0% 100%;
-    --copper-hover: 28 100% 45%;
-    --copper-active: 28 100% 40%;
-    --copper-soft: 36 100% 94%;
+    --copper-hover: 26 91% 44%;          /* #D7720A — CURA accent-700 */
+    --copper-active: 26 71% 34%;         /* #9B5A1A — CURA accent-800 */
+    --copper-soft: 34 100% 92%;          /* fundo laranja suave */
 
-    --secondary: 214 40% 94%;            /* azul suavíssimo derivado */
-    --secondary-foreground: 214 100% 32%; /* azul D'Or */
+    --secondary: 205 62% 92%;            /* azul suavíssimo CURA */
+    --secondary-foreground: 214 100% 23%; /* #003075 CURA primary-800 */
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 220 9% 46%;      /* #6B7280 */
+    --muted: 0 0% 96%;                   /* #F6F6F6 — CURA neutral-100 */
+    --muted-foreground: 0 0% 43%;        /* #6E6E6E — CURA neutral-600 */
     --text-tertiary: 220 9% 40%;
 
     /* ── Status ─────────────────────────────────────────── */
@@ -61,10 +63,10 @@ All colors MUST be HSL.
     --warning-soft: 38 95% 88%;
     --warning-text: 25 90% 32%;
 
-    --info: 211 100% 45%;
+    --info: 214 100% 32%;                /* CURA info alinhado ao primary */
     --info-foreground: 0 0% 100%;
-    --info-soft: 211 90% 95%;
-    --info-text: 211 100% 40%;
+    --info-soft: 205 62% 92%;
+    --info-text: 214 100% 32%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -77,11 +79,11 @@ All colors MUST be HSL.
     --border-highlight: 0 0% 100%;
     --input: 60 8% 76%;
     --input-bg: 0 0% 100%;
-    --ring: 211 100% 45%;                /* azul Apple como foco */
+    --ring: 214 100% 32%;                /* CURA primary como foco */
     --ring-soft: 214 100% 32% / 0.2;
     --track-soft: 60 8% 80%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;                    /* CURA: 8px cards, 4px botões (via variant) */
 
     /* ── Sombras ────────────────────────────────────────── */
     --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.05), 0 1px 3px 0 rgb(13 17 23 / 0.04);
@@ -89,25 +91,25 @@ All colors MUST be HSL.
     --shadow-elevated: 0 4px 8px -1px rgb(13 17 23 / 0.08), 0 8px 20px -4px rgb(13 17 23 / 0.07);
     --shadow-inset: inset 0 1px 2px rgb(13 17 23 / 0.04);
     --shadow-control: 0 1px 2px rgb(13 17 23 / 0.04);
-    --gradient-brand: linear-gradient(135deg, hsl(214 100% 17%), hsl(214 100% 32%));   /* navy → azul D'Or */
-    --gradient-soft: linear-gradient(135deg, hsl(214 40% 98%), hsl(214 40% 95%));      /* off-white azulado */
+    --gradient-brand: linear-gradient(135deg, hsl(214 100% 17%), hsl(214 100% 32%));   /* CURA primary-900 → primary-700 */
+    --gradient-soft: linear-gradient(135deg, hsl(205 62% 97%), hsl(205 62% 92%));      /* CURA primary-50 → primary-100 */
 
     /* ── Bubble tokens ──────────────────────────────────── */
     /* Rebrand: tons alinhados a forest-green (#2D5A4E) + copper (#C8A96E).
        Mantém variação suficiente para distinguir etapas do pipeline sem
        sair da paleta da marca. */
-    --bubble-purple-bg: 214 55% 92%;     /* azul suave D'Or */
-    --bubble-purple-fg: 214 100% 28%;    /* azul D'Or escuro */
-    --bubble-yellow-bg: 38 65% 90%;      /* copper soft */
-    --bubble-yellow-fg: 32 55% 35%;
-    --bubble-red-bg: 0 80% 95%;
-    --bubble-red-fg: 0 72% 45%;
-    --bubble-blue-bg: 213 55% 92%;
-    --bubble-blue-fg: 213 70% 32%;
-    --bubble-green-bg: 145 35% 88%;      /* musgo / verde-oliva claro */
-    --bubble-green-fg: 150 45% 24%;
-    --bubble-teal-bg: 175 40% 88%;       /* sálvia */
-    --bubble-teal-fg: 175 55% 24%;
+    --bubble-purple-bg: 205 62% 92%;     /* CURA primary-50 */
+    --bubble-purple-fg: 214 100% 32%;    /* CURA primary-700 */
+    --bubble-yellow-bg: 34 100% 92%;     /* CURA accent-50 */
+    --bubble-yellow-fg: 26 91% 34%;      /* CURA accent-800 */
+    --bubble-red-bg: 0 84% 95%;
+    --bubble-red-fg: 0 66% 45%;
+    --bubble-blue-bg: 205 62% 92%;
+    --bubble-blue-fg: 214 100% 32%;
+    --bubble-green-bg: 145 55% 88%;
+    --bubble-green-fg: 150 55% 24%;
+    --bubble-teal-bg: 195 45% 88%;       /* CURA primary-lighter */
+    --bubble-teal-fg: 214 100% 32%;
 
     /* ── Table ──────────────────────────────────────────── */
     --table-row-hover: 0 0% 99%;
@@ -119,14 +121,14 @@ All colors MUST be HSL.
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 214 28% 14%;
     --sidebar-muted-foreground: 220 9% 50%;
-    --sidebar-primary: 211 100% 45%;         /* #0071E3 azul Apple */
+    --sidebar-primary: 214 100% 32%;         /* CURA primary-700 */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 60 14% 95%;
-    --sidebar-hover-foreground: 211 100% 45%;
-    --sidebar-accent: 214 60% 94%;           /* #EAF0FA azul suave */
-    --sidebar-accent-foreground: 211 100% 45%;
-    --sidebar-border: 60 10% 88%;
-    --sidebar-ring: 211 100% 45%;
+    --sidebar-hover: 0 0% 96%;               /* CURA neutral-100 */
+    --sidebar-hover-foreground: 214 100% 32%;
+    --sidebar-accent: 205 62% 92%;           /* CURA primary-50 */
+    --sidebar-accent-foreground: 214 100% 32%;
+    --sidebar-border: 0 0% 89%;              /* CURA neutral-200 */
+    --sidebar-ring: 214 100% 32%;
 
     /* ── Chat (Conversas) — segue o tema do sistema ─────── */
     --chat-bg: var(--background);
