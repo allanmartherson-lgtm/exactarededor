@@ -8,10 +8,17 @@
 export const formatDateBR = (date: string | null | undefined): string => {
   if (!date) return '—';
   try {
-    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(date.trim())
-      ? `${date.trim()}T12:00:00`
-      : date;
-    return new Date(normalized).toLocaleDateString('pt-BR', {
+    const trimmed = String(date).trim();
+    // Se começa com YYYY-MM-DD (data pura ou ISO com hora), trata como data
+    // civil pura — sem shift de fuso. Evita que "2026-05-14T00:00:00+00:00"
+    // vire 13/05 em UTC-3 (bug clássico que fazia parecer duplicidade em
+    // datas diferentes quando na verdade eram o mesmo dia).
+    const ymdHead = trimmed.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ymdHead)) {
+      const [y, m, d] = ymdHead.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    return new Date(trimmed).toLocaleDateString('pt-BR', {
       timeZone: 'America/Sao_Paulo',
       day: '2-digit',
       month: '2-digit',
