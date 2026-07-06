@@ -42,25 +42,26 @@ export const ExactaLogo = ({
   const resolvedIconSize = iconSize ?? (variant === "icon" ? 40 : variant === "full" ? 40 : 34);
   const resolvedWordmarkSize = wordmarkSize ?? (variant === "full" ? 22 : 18);
 
-  const textColor = onDark ? "#FFFFFF" : "hsl(var(--foreground))";
-  // Aumentado opacidade das taglines em fundo escuro (antes 0.6/0.38 gerava
-  // aparência "borrada" à distância). Mantém hierarquia visual sem perder nitidez.
-  const taglineColor = onDark ? "rgba(255,255,255,0.92)" : "hsl(var(--muted-foreground))";
-  const taglineColorSecondary = onDark ? "rgba(255,255,255,0.72)" : "hsl(var(--muted-foreground))";
-  // Wordmark accent: bronze mais saturado sobre navy para destacar o "x" ao lado do texto branco.
-  const accentColor = onDark ? "#E8A661" : "hsl(var(--brand-wordmark-accent))";
+  // Paleta oficial da versão para fundo claro (Logo_Fundo_branco v2):
+  // wordmark em azul institucional #003DA5, "x" em bronze escuro #9A7B4F,
+  // taglines em cinza neutro. Em fundo escuro seguimos com branco + bronze claro.
+  const textColor = onDark ? "#FFFFFF" : "#003DA5";
+  const taglineColor = onDark ? "rgba(255,255,255,0.92)" : "#6B7280";
+  const taglineColorSecondary = onDark ? "rgba(255,255,255,0.72)" : "#9CA3AF";
+  const accentColor = onDark ? "#E8A661" : "#9A7B4F";
 
   // Renderização nítida em displays HiDPI e fundos coloridos — evita o efeito
-  // "burr" das taglines pequenas em uppercase sobre navy.
+  // "burr" das taglines pequenas em uppercase.
   const crispText: CSSProperties = {
     WebkitFontSmoothing: "antialiased",
     MozOsxFontSmoothing: "grayscale",
     textRendering: "geometricPrecision",
   };
 
-  // Em fundos azuis (sidebar navy #002855 e topbar #003DA5) o badge oficial
-  // ganha um anel dourado desenhado no próprio SVG, garantindo contraste.
-  const showGoldRing = onDark && preserveIconColors;
+  // Anel dourado ao redor do círculo azul: usado tanto em fundos escuros
+  // (contraste com o navy do sidebar) quanto em fundos claros (arte oficial
+  // da versão Logo_Fundo_branco, que traz o anel bronze).
+  const showGoldRing = onDark ? preserveIconColors : true;
 
   const content = (
     <>
