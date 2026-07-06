@@ -36,6 +36,7 @@ import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
 import { InboxBadge } from "@/components/InboxBadge";
 import { ExactaLogo } from "@/components/brand/ExactaLogo";
+import { PoweredByCura } from "@/components/brand/PoweredByCura";
 
 
 
@@ -83,7 +84,16 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 const Logo = ({ compact = false }: { compact?: boolean }) => (
-  <ExactaLogo variant={compact ? "icon" : "full"} iconSize={compact ? 34 : 36} wordmarkSize={20} />
+  <div className="flex items-center gap-2">
+    <ExactaLogo variant={compact ? "icon" : "full"} iconSize={compact ? 34 : 36} wordmarkSize={20} />
+    {/* Selo institucional CURA — co-branding "por Rede D'Or". Só o grid mark
+        (wordmark do SVG original é branco, invisível em fundo claro). */}
+    <span
+      aria-hidden="true"
+      className="hidden md:inline-block h-6 w-px bg-border/70"
+    />
+    <PoweredByCura size={22} className="hidden md:block opacity-90" />
+  </div>
 );
 
 
