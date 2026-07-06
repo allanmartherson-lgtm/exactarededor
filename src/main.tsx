@@ -7,6 +7,22 @@ import "@fontsource/playfair-display/400.css";
 import "@fontsource/playfair-display/500.css";
 import "./index.css";
 
+/**
+ * Bootstrap do Design System CURA (Rede D'Or).
+ *
+ * `CuraInit` precisa ser chamado ANTES de `defineCustomElements` para que os
+ * Web Components leiam o tema e o path de assets no primeiro paint —
+ * `localAssetsPath` aponta para `public/assets/cura/` (icons/fonts/images
+ * copiados do pacote em vendor/). O `defineCustomElements` registra os
+ * custom elements globalmente; sem isso, `<cura-icon>` e `CuraButton` etc.
+ * ficam inertes no DOM.
+ */
+import { CuraInit } from "@rededor/cura";
+import { defineCustomElements } from "@rededor/cura/dist/loader";
+
+CuraInit({ localAssetsPath: "/assets/cura" });
+void defineCustomElements(window);
+
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 
 const cachePasswordAuthUrl = () => {
