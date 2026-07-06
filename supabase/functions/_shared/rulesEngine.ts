@@ -294,6 +294,22 @@ export interface RuleCalculationItem {
    * 1 por regra (garantido por índice único parcial em rule_calculations).
    */
   is_catch_all?: boolean | null;
+  /**
+   * Piso por procedimento (mínimo garantido). Quando ligado e o cálculo é
+   * `percentual_sobre_convenio`, o esperado do item passa a ser
+   *   MAX(percentual × base_convenio × fator_função, piso_para_a_função)
+   * O piso preserva o pagamento maior — se o convênio pagar mais que o piso,
+   * o esperado permanece no percentual. Escopo:
+   *   - `por_item`: piso é o mínimo de CADA linha (padrão).
+   *   - `por_atendimento`: piso é o mínimo da SOMA das linhas do atendimento
+   *     (ainda não implementado no motor — cai em `por_item` com alerta).
+   */
+  piso_habilitado?: boolean | null;
+  piso_escopo?: "por_item" | "por_atendimento" | null;
+  piso_valor_padrao?: number | null;
+  /** Lista `[{ role: "cirurgiao"|"primeiro_aux"|..., valor: number, label?: string }]`.
+   *  Se a função do item bate uma entrada, o valor vence `piso_valor_padrao`. */
+  piso_por_funcao?: Array<{ role: string; valor: number; label?: string | null }> | null;
 }
 
 /** Condição de contexto: substitui o valor padrão quando outros itens do
@@ -477,6 +493,10 @@ export interface AnalysisResult {
   convenio_basis_detected?: "unit" | "total" | "ambiguous" | "na";
   /** Desvio percentual da hipótese escolhida vs valor pago (0 = casa exato). */
   basis_confidence?: number | null;
+  /** Piso por procedimento — valor do piso vigente aplicado ao item (R$). null = piso não configurado. */
+  piso_aplicado_valor?: number | null;
+  /** Método vencedor do MAX(convenio, piso). null = sem piso. */
+  piso_metodo_vencedor?: "convenio" | "piso" | null;
 }
 
 
@@ -1353,6 +1373,34 @@ export function doctorRoleFactor(
 // ---------- calculadores ----------
 // ExpectedCalc interface moved to export section to avoid duplication and conflicts.
 
+/**
+ * Resolve o valor do piso (mínimo garantido por procedimento) para a função
+ * do médico neste item. Consulta `piso_por_funcao` (chaves canônicas
+ * cirurgiao/primeiro_aux/demais_aux/instrumentador/outro); se não achar,
+ * cai em `piso_valor_padrao`. Retorna null quando piso não está configurado.
+ */
+export function resolvePisoForRole(
+  c: {
+    piso_habilitado?: boolean | null;
+    piso_valor_padrao?: number | null;
+    piso_por_funcao?: Array<{ role: string; valor: number; label?: string | null }> | null;
+  },
+  doctorRole: string | null | undefined,
+): number | null {
+  if (c.piso_habilitado !== true) return null;
+  const roleKey = classifyDoctorRole(doctorRole);
+  const list = Array.isArray(c.piso_por_funcao) ? c.piso_por_funcao : [];
+  for (const entry of list) {
+    if (!entry || typeof entry.valor !== "number") continue;
+    const entryKey = classifyDoctorRole(String(entry.role ?? ""));
+    if (entryKey === roleKey && entry.valor > 0) return entry.valor;
+  }
+  const fallback = c.piso_valor_padrao;
+  return typeof fallback === "number" && fallback > 0 ? fallback : null;
+}
+
+
+
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
   const factor = doctorRoleFactor(item.doctor_role, rule);
@@ -2103,6 +2151,10 @@ export interface ExpectedCalc {
    *  tem precedência sobre rule.calculation_type para carimbar
    *  applied_calc_method — evita herdar o tipo "pai" da regra. */
   winner_calc_type?: CalculationType | null;
+  /** Piso aplicado (mínimo garantido) — R$ do piso vigente para a função do item. */
+  piso_aplicado_valor?: number | null;
+  /** Qual método venceu no MAX(): "convenio" (percentual do convênio) ou "piso" (mínimo garantido). */
+  piso_metodo_vencedor?: "convenio" | "piso" | null;
 }
 
 
@@ -2289,6 +2341,8 @@ export function applyCalculation(
       restrictive: boolean;
       inferred_sector: string;
       temporal_surcharge_config?: ExpectedCalc["temporal_surcharge_config"];
+      piso_aplicado_valor?: number | null;
+      piso_metodo_vencedor?: "convenio" | "piso" | null;
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
@@ -2312,6 +2366,33 @@ export function applyCalculation(
       const eff = ruleFromCalcItem(rule, c);
       const r = applyCalculationSingle(eff, item, ctx);
 
+      // Piso por procedimento (mínimo garantido) — só faz sentido quando o
+      // cálculo é percentual do convênio e o esperado é numérico. Aplica
+      // MAX(esperado_convenio, piso_da_funcao) e carimba método vencedor.
+      let pisoAplicado: number | null = null;
+      let pisoVencedor: "convenio" | "piso" | null = null;
+      if (
+        r.expected !== null &&
+        c.piso_habilitado === true &&
+        c.calculation_type === "percentual_sobre_convenio"
+      ) {
+        const piso = resolvePisoForRole(c, item.doctor_role);
+        if (piso !== null && piso > 0) {
+          pisoAplicado = piso;
+          if (c.piso_escopo === "por_atendimento") {
+            r.alerts = [...r.alerts, "Piso por_atendimento ainda não é suportado — aplicando piso por item."];
+          }
+          if (piso > r.expected) {
+            r.explanation = `${r.explanation} · Piso R$ ${piso.toFixed(2)} > convênio R$ ${r.expected.toFixed(2)} → piso vence.`;
+            r.expected = round2(piso);
+            pisoVencedor = "piso";
+          } else {
+            r.explanation = `${r.explanation} · Piso R$ ${piso.toFixed(2)} ≤ convênio R$ ${r.expected.toFixed(2)} → convênio vence.`;
+            pisoVencedor = "convenio";
+          }
+        }
+      }
+
       if (r.expected !== null) {
         validCalcs.push({
           expected: r.expected, explanation: r.explanation, alerts: r.alerts,
@@ -2331,6 +2412,8 @@ export function applyCalculation(
             noturno_inicio: c.noturno_inicio ?? null,
             noturno_fim: c.noturno_fim ?? null,
           },
+          piso_aplicado_valor: pisoAplicado,
+          piso_metodo_vencedor: pisoVencedor,
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
@@ -2602,6 +2685,8 @@ export function applyCalculation(
       inferred_sector: (winnerCalc as any).inferred_sector,
       temporal_surcharge_config: winnerCalc.temporal_surcharge_config ?? null,
       winner_calc_type: (winnerCalc.calculation_type as CalculationType) ?? null,
+      piso_aplicado_valor: winnerCalc.piso_aplicado_valor ?? null,
+      piso_metodo_vencedor: winnerCalc.piso_metodo_vencedor ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
@@ -3710,6 +3795,8 @@ function finalizeAnalysis(
     ...(calc.calc_duplicity ? { calc_duplicity: calc.calc_duplicity } : {}),
     convenio_basis_detected: basisDetected,
     basis_confidence: basisConfidence,
+    piso_aplicado_valor: calc.piso_aplicado_valor ?? null,
+    piso_metodo_vencedor: calc.piso_metodo_vencedor ?? null,
   };
 }
 

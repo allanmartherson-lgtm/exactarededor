@@ -1776,6 +1776,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       // compute-company-financials EXCLUA o gross do secundário do bruto.
       package_absorbed?: boolean;
       package_absorbed_calc_id?: string | null;
+      convenio_basis_detected?: string | null;
+      basis_confidence?: number | null;
+      piso_aplicado_valor?: number | null;
+      piso_metodo_vencedor?: string | null;
     };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
@@ -2049,6 +2053,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           || (rawItem?.package_absorbed === true),
         package_absorbed_calc_id: (r as any).package_absorbed_calc_id
           ?? (rawItem?.package_absorbed === true ? (rawItem?.package_absorbed_calc_id ?? null) : null),
+        // Piso por procedimento (mínimo garantido). null quando piso não configurado.
+        piso_aplicado_valor: (r as any).piso_aplicado_valor ?? null,
+        piso_metodo_vencedor: (r as any).piso_metodo_vencedor ?? null,
       });
 
 
