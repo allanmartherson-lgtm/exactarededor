@@ -956,15 +956,21 @@ export const AppLayout = () => {
             ["--cura-font-color" as string]: "#ffffff",
             ["--foreground" as string]: "0 0% 100%",
             ["--muted-foreground" as string]: "0 0% 100%",
-            ["--border" as string]: "0 0% 100% / 0.18",
-            ["--input" as string]: "0 0% 100% / 0.18",
+            ["--border" as string]: "0 0% 100% / 0.22",
+            ["--input" as string]: "0 0% 100% / 0.22",
             ["--background" as string]: "0 0% 100% / 0",
-            ["--card" as string]: "0 0% 100% / 0.08",
-            ["--secondary" as string]: "0 0% 100% / 0.12",
+            ["--card" as string]: "0 0% 100% / 0.10",
+            ["--secondary" as string]: "0 0% 100% / 0.14",
             ["--secondary-foreground" as string]: "0 0% 100%",
-            ["--muted" as string]: "0 0% 100% / 0.14",
-            ["--accent" as string]: "0 0% 100% / 0.18",
+            ["--muted" as string]: "0 0% 100% / 0.16",
+            ["--accent" as string]: "0 0% 100% / 0.20",
             ["--accent-foreground" as string]: "0 0% 100%",
+            // Inverte primary dentro do header: pills e ícones ativos usam
+            // branco sobre navy; botões "primary" viram pílulas brancas com
+            // texto navy (contraste AAA sobre o header).
+            ["--primary" as string]: "0 0% 100%",
+            ["--primary-foreground" as string]: "214 100% 32%",
+            ["--ring" as string]: "0 0% 100%",
           } as React.CSSProperties}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
