@@ -6,6 +6,7 @@ import { SpecialtyMultiSelect } from "@/components/rules/SpecialtyMultiSelect";
 import { ConvenioMultiSelect } from "@/components/rules/ConvenioMultiSelect";
 
 import { Input } from "@/components/ui/input";
+import { CurrencyInputBR } from "@/components/ui/currency-input-br";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
