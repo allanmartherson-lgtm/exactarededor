@@ -1,6 +1,7 @@
-/* Fontes CURA (Rede D'Or) — DM Sans corpo + Playfair Display hero
-   Gotham é a fonte oficial CURA mas licenciada; DM Sans é o fallback público
-   aprovado na brand memory do Exacta. */
+/* Fontes CURA (Rede D'Or) — Hanken Grotesk é a família oficial CURA (arquivos
+   locais em /assets/cura/fonts/HankenGrotesk/), usada como wordmark do Exacta.
+   DM Sans corpo + Playfair Display hero seguem como fallback. */
+@import url("/assets/cura/fonts/HankenGrotesk/style.css");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

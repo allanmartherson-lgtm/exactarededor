@@ -52,10 +52,12 @@ export const ExactaLogo = ({
           <p
             className="font-wordmark"
             style={{
-              fontFamily: "'Playfair Display', Georgia, serif",
+              // Hanken Grotesk é a família tipográfica oficial CURA — substitui
+              // Playfair para alinhar o wordmark do Exacta ao Design System.
+              fontFamily: "'Hanken Grotesk', 'DM Sans', system-ui, sans-serif",
               fontSize: resolvedWordmarkSize,
-              fontWeight: 400,
-              letterSpacing: "0.04em",
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
               color: textColor,
               lineHeight: 1,
               margin: 0,
