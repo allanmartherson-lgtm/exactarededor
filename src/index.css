@@ -118,18 +118,18 @@ All colors MUST be HSL.
     --hover-surface: 0 0% 98.5%;
     --shadow-hover: 0 2px 8px rgb(13 17 23 / 0.06);
 
-    /* ── Sidebar ────────────────────────────────────────── */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 214 28% 14%;
-    --sidebar-muted-foreground: 220 9% 50%;
-    --sidebar-primary: 214 100% 32%;         /* CURA primary-700 */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 0 0% 96%;               /* CURA neutral-100 */
-    --sidebar-hover-foreground: 214 100% 32%;
-    --sidebar-accent: 205 62% 92%;           /* CURA primary-50 */
-    --sidebar-accent-foreground: 214 100% 32%;
-    --sidebar-border: 0 0% 89%;              /* CURA neutral-200 */
-    --sidebar-ring: 214 100% 32%;
+    /* ── Sidebar (padrão Rede D'Or/CURA: navy institucional) ─── */
+    --sidebar-background: 214 100% 32%;      /* CURA primary-700 */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-muted-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 214 100% 32%;
+    --sidebar-hover: 0 0% 100% / 0.10;
+    --sidebar-hover-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 100% / 0.16;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 0.18;
+    --sidebar-ring: 0 0% 100%;
 
     /* ── Chat (Conversas) — segue o tema do sistema ─────── */
     --chat-bg: var(--background);
