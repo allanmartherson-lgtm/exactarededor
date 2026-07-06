@@ -15,9 +15,9 @@ export default defineConfig(({ command, mode }) => ({
   },
   plugins: [
     react(),
-    mcpPlugin(),
-    // O tagger injeta metadados só no servidor de preview; em `vite build --mode development`
-    // ele entrava no pipeline do Rollup e podia quebrar a resolução usada na publicação.
+    // Plugins de instrumentação ficam restritos ao servidor de preview; no build
+    // publicado, eles rodam no Rollup e podem falhar em `resolveId` antes do app carregar.
+    command === "serve" && mcpPlugin(),
     command === "serve" && mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {
