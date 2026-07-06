@@ -3,6 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { anthropicFetch } from "../_shared/anthropicWithFallback.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -138,40 +139,32 @@ Sua saída deve conter:
 2. Lista de possíveis causas (3 a 5), considerando: tipo de atendimento, quantidade de procedimentos, presença de auxiliares, aplicação de pacote/tabela diferenciada, comparação com histórico.
 3. Sugestão objetiva do que o analista deveria conferir antes de decidir.`;
 
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: `Contexto do item alertado (JSON):\n${JSON.stringify(contexto, null, 2)}` },
-        ],
-        tools: [{
-          name: "explain_alert",
-          description: "Devolve explicação interpretativa do alerta",
-          input_schema: {
-            type: "object",
-            properties: {
-              explanation: { type: "string", description: "Explicação curta (1-2 frases)" },
-              possible_causes: {
-                type: "array",
-                items: { type: "string" },
-                description: "Lista de 3-5 possíveis causas",
-              },
-              what_to_check: { type: "string", description: "Sugestão objetiva do que o analista deveria conferir" },
+    const aiResp = await anthropicFetch({
+      model: "claude-sonnet-4-5",
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: `Contexto do item alertado (JSON):\n${JSON.stringify(contexto, null, 2)}` },
+      ],
+      tools: [{
+        name: "explain_alert",
+        description: "Devolve explicação interpretativa do alerta",
+        input_schema: {
+          type: "object",
+          properties: {
+            explanation: { type: "string", description: "Explicação curta (1-2 frases)" },
+            possible_causes: {
+              type: "array",
+              items: { type: "string" },
+              description: "Lista de 3-5 possíveis causas",
             },
-            required: ["explanation", "possible_causes", "what_to_check"],
-            additionalProperties: false,
+            what_to_check: { type: "string", description: "Sugestão objetiva do que o analista deveria conferir" },
           },
-        }],
-        tool_choice: { type: "tool", name: "explain_alert" },
-      }),
+          required: ["explanation", "possible_causes", "what_to_check"],
+          additionalProperties: false,
+        },
+      }],
+      tool_choice: { type: "tool", name: "explain_alert" },
     });
 
     if (!aiResp.ok) {

@@ -2,6 +2,7 @@
 // semânticas usando Claude. Não altera dados. Apenas leitura/classificação.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { anthropicFetch } from "../_shared/anthropicWithFallback.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,48 +70,41 @@ serve(async (req) => {
       mensagem: (o.message ?? "").slice(0, 600),
     }));
 
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: `Observações (JSON):\n${JSON.stringify(payload, null, 2)}` },
-        ],
-        tools: [{
-          name: "classify_observations",
-          description: "Devolve a classificação semântica de cada observação",
-          input_schema: {
-            type: "object",
-            properties: {
-              classified: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string" },
-                    category: { type: "string", enum: CATEGORIES },
-                    subcategory: { type: "string" },
-                    sentiment: { type: "string", enum: ["positivo", "neutro", "negativo"] },
-                  },
-                  required: ["id", "category", "subcategory", "sentiment"],
-                  additionalProperties: false,
+    const aiResp = await anthropicFetch({
+      model: "claude-sonnet-4-5",
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: `Observações (JSON):\n${JSON.stringify(payload, null, 2)}` },
+      ],
+      tools: [{
+        name: "classify_observations",
+        description: "Devolve a classificação semântica de cada observação",
+        input_schema: {
+          type: "object",
+          properties: {
+            classified: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  category: { type: "string", enum: CATEGORIES },
+                  subcategory: { type: "string" },
+                  sentiment: { type: "string", enum: ["positivo", "neutro", "negativo"] },
                 },
+                required: ["id", "category", "subcategory", "sentiment"],
+                additionalProperties: false,
               },
             },
-            required: ["classified"],
-            additionalProperties: false,
           },
-        }],
-        tool_choice: { type: "tool", name: "classify_observations" },
-      }),
+          required: ["classified"],
+          additionalProperties: false,
+        },
+      }],
+      tool_choice: { type: "tool", name: "classify_observations" },
     });
+
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) {
