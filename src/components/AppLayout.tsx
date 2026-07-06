@@ -985,7 +985,18 @@ export const AppLayout = () => {
             header .bg-muted, header .bg-muted\\/40, header .bg-muted\\/30, header .bg-muted\\/20 {
               background-color: rgb(255 255 255 / 0.14) !important;
             }
+            /* Padrão Rede D'Or: ícones do header sem moldura — apenas o glifo. */
+            header button.size-8 {
+              border-color: transparent !important;
+              background-color: transparent !important;
+              color: #ffffff !important;
+            }
+            header button.size-8:hover {
+              background-color: rgb(255 255 255 / 0.12) !important;
+              color: #ffffff !important;
+            }
           `}</style>
+
 
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
