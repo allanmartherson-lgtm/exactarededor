@@ -27,7 +27,7 @@ describe("CompanyAnalysis · modo confecção · contrato", () => {
   });
 
   it("usa rótulo 'Recalcular repasse' em confecção e mantém 'Reaplicar regras' no análise", () => {
-    expect(src).toMatch(/isConfeccao[\s\S]*?Recalculando\.\.\.[\s\S]*?Recalcular repasse[\s\S]*?Reaplicando\.\.\.[\s\S]*?Reaplicar regras/);
+    expect(src).toMatch(/isConfeccao[\s\S]*?Processando\.\.\.[\s\S]*?Estabilizando\.\.\.[\s\S]*?Recalcular repasse[\s\S]*?Processando\.\.\.[\s\S]*?Estabilizando\.\.\.[\s\S]*?Reaplicar regras/);
   });
 
   it("usa rótulo 'Finalizar confecção' em confecção e mantém 'Concluir análise' no análise", () => {
