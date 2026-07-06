@@ -1,6 +1,6 @@
 {
   "entry": ["src/main.tsx", "scripts/*.ts", "vitest.config.ts"],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
-  "ignore": ["supabase/**", "src/components/ui/**", "src/lib/stream-shim.ts"],
+  "ignore": ["supabase/**", "src/components/ui/**", "src/lib/stream-shim.ts", "src/lib/mcp/**", "src/hooks/useCopilot.ts"],
   "ignoreDependencies": ["ai", "@ai-sdk/react", "@ai-sdk/openai-compatible"]
 }
