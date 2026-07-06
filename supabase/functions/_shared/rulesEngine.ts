@@ -2657,6 +2657,8 @@ export function applyCalculation(
       inferred_sector: (winnerCalc as any).inferred_sector,
       temporal_surcharge_config: winnerCalc.temporal_surcharge_config ?? null,
       winner_calc_type: (winnerCalc.calculation_type as CalculationType) ?? null,
+      piso_aplicado_valor: winnerCalc.piso_aplicado_valor ?? null,
+      piso_metodo_vencedor: winnerCalc.piso_metodo_vencedor ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
