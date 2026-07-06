@@ -237,9 +237,10 @@ const Auth = () => {
                       <Label htmlFor="signin-password">Senha</Label>
                       <Input id="signin-password" name="password" type="password" autoComplete="current-password" required />
                     </div>
-                    <Button type="submit" className="w-full" disabled={submitting}>
+                    <CuraSubmitButton disabled={submitting}>
                       {submitting ? "Entrando..." : "Entrar"}
-                    </Button>
+                    </CuraSubmitButton>
+
                     <button
                       type="button"
                       onClick={handleForgotPassword}
