@@ -148,7 +148,10 @@ export function ConversationsSheet(props: Props) {
     currentRole,
     initialCompose,
     onComposeConsumed,
+    initialThreadId,
+    onInitialThreadConsumed,
   } = props;
+
 
   const { toast } = useToast();
   const {
