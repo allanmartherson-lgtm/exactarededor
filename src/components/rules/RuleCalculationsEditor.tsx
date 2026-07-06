@@ -1411,6 +1411,96 @@ function CalcCard({
                 />
                 <span style={{ fontSize: "12px", fontWeight: 500, lineHeight: "1.4" }}>Considerar valor do convênio como já totalizado (ignora quantidade)</span>
               </label>
+
+              {/* Piso por procedimento — mínimo garantido */}
+              <div
+                className="mt-3 rounded-md border p-3 space-y-3"
+                style={{
+                  background: c.piso_habilitado ? "hsl(var(--primary) / 0.04)" : "hsl(var(--muted) / 0.3)",
+                  borderColor: c.piso_habilitado ? "hsl(var(--primary) / 0.35)" : "hsl(var(--border))",
+                }}
+              >
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                  <Checkbox
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                    checked={c.piso_habilitado}
+                    onCheckedChange={(v) => onChange({ piso_habilitado: !!v })}
+                  />
+                  <span style={{ fontSize: 12, lineHeight: 1.4 }}>
+                    <strong>Piso por procedimento</strong> (mínimo garantido).
+                    Aplica <code>MAX(percentual × convênio, piso da função)</code>. Se o convênio pagar
+                    mais que o piso, o convênio vence; se pagar menos, o piso vence.
+                  </span>
+                </label>
+
+                {c.piso_habilitado && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Escopo do piso</Label>
+                        <Select
+                          value={c.piso_escopo}
+                          onValueChange={(v) => onChange({ piso_escopo: v as "por_item" | "por_atendimento" })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="por_item">Por item (cada linha tem seu piso)</SelectItem>
+                            <SelectItem value="por_atendimento">Por atendimento (soma das linhas)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {c.piso_escopo === "por_atendimento" && (
+                          <p className="text-[11px] text-amber-600">
+                            ⚠ Escopo "por atendimento" ainda cai em "por item" no motor. Suporte completo
+                            será liberado em ajuste posterior.
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Piso padrão (R$)</Label>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="ex.: 1100,00"
+                          value={c.piso_valor_padrao}
+                          onChange={(e) => onChange({ piso_valor_padrao: e.target.value })}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Fallback quando a função do item não estiver na tabela abaixo.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Piso por função (opcional)</Label>
+                      <div className="rounded-md border divide-y">
+                        {c.piso_por_funcao.map((row, idx) => (
+                          <div
+                            key={row.role}
+                            className="flex items-center gap-2 px-2 py-1.5"
+                          >
+                            <span className="text-xs flex-1">{row.label}</span>
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="R$"
+                              className="max-w-[140px]"
+                              value={row.valor}
+                              onChange={(e) => {
+                                const next = c.piso_por_funcao.slice();
+                                next[idx] = { ...row, valor: e.target.value };
+                                onChange({ piso_por_funcao: next });
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Deixe em branco para usar o piso padrão. Funções fora dessa lista sempre usam o padrão.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
           {c.calculation_type === "valor_fixo" && (
