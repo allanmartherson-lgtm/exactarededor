@@ -174,76 +174,68 @@ Saída ERRADA: 4 regras separadas, cada uma com 1 valor.
 
 Se não houver cálculos (regra puramente informativa, ex.: "É vedado o pagamento de..."), retorne calculations como array vazio.`;
 
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 16384,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-        tools: [{
-          name: "extract_rules",
-          description: "Extrai regras estruturadas (uma regra pode conter vários cálculos)",
-          input_schema: {
-            type: "object",
-            properties: {
-              rules: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    description: { type: "string" },
-                    rule_text: { type: "string" },
-                    severity: { type: "string", enum: ["info", "aviso", "bloqueio"] },
-                    scope: { type: "string", enum: ["master", "especifica"] },
-                    sectors: { type: "array", items: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] } },
-                    item_type_code: { type: ["string", "null"] },
-                    target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
-                    target_identifier: { type: ["string", "null"] },
-                    target_name: { type: ["string", "null"] },
-                    calculations: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          label: { type: ["string", "null"] },
-                          calculation_type: { type: "string", enum: ["valor_fixo", "pacote", "tabela_diferenciada", "bonus", "complemento", "percentual_sobre_convenio", "exclusao", "informativo"] },
-                          fixed_amount: { type: ["number", "null"] },
-                          package_amount: { type: ["number", "null"] },
-                          bonus_amount: { type: ["number", "null"] },
-                          bonus_pct: { type: ["number", "null"] },
-                          target_amount: { type: ["number", "null"] },
-                          multiplier: { type: ["number", "null"] },
-                          deflator_pct: { type: ["number", "null"] },
-                          convenio_percentage: { type: ["number", "null"] },
-                          procedure_codes: { type: "array", items: { type: "string" } },
-                          specialties: { type: "array", items: { type: "string" } },
-                          sectors: { type: "array", items: { type: "string" } },
-                          doctor_roles: { type: "array", items: { type: "string" } },
-                          item_type_code: { type: ["string", "null"] },
-                        },
-                        required: ["calculation_type"],
-                        additionalProperties: false,
+    const aiResp = await anthropicFetch({
+      model: "claude-sonnet-4-5",
+      max_tokens: 16384,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }],
+      tools: [{
+        name: "extract_rules",
+        description: "Extrai regras estruturadas (uma regra pode conter vários cálculos)",
+        input_schema: {
+          type: "object",
+          properties: {
+            rules: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  rule_text: { type: "string" },
+                  severity: { type: "string", enum: ["info", "aviso", "bloqueio"] },
+                  scope: { type: "string", enum: ["master", "especifica"] },
+                  sectors: { type: "array", items: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] } },
+                  item_type_code: { type: ["string", "null"] },
+                  target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
+                  target_identifier: { type: ["string", "null"] },
+                  target_name: { type: ["string", "null"] },
+                  calculations: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        label: { type: ["string", "null"] },
+                        calculation_type: { type: "string", enum: ["valor_fixo", "pacote", "tabela_diferenciada", "bonus", "complemento", "percentual_sobre_convenio", "exclusao", "informativo"] },
+                        fixed_amount: { type: ["number", "null"] },
+                        package_amount: { type: ["number", "null"] },
+                        bonus_amount: { type: ["number", "null"] },
+                        bonus_pct: { type: ["number", "null"] },
+                        target_amount: { type: ["number", "null"] },
+                        multiplier: { type: ["number", "null"] },
+                        deflator_pct: { type: ["number", "null"] },
+                        convenio_percentage: { type: ["number", "null"] },
+                        procedure_codes: { type: "array", items: { type: "string" } },
+                        specialties: { type: "array", items: { type: "string" } },
+                        sectors: { type: "array", items: { type: "string" } },
+                        doctor_roles: { type: "array", items: { type: "string" } },
+                        item_type_code: { type: ["string", "null"] },
                       },
+                      required: ["calculation_type"],
+                      additionalProperties: false,
                     },
                   },
-                  required: ["name", "rule_text", "severity", "scope", "sectors", "calculations"],
-                  additionalProperties: false,
                 },
+                required: ["name", "rule_text", "severity", "scope", "sectors", "calculations"],
+                additionalProperties: false,
               },
             },
-            required: ["rules"],
-            additionalProperties: false,
           },
-        }],
-        tool_choice: { type: "tool", name: "extract_rules" },
-      }),
+          required: ["rules"],
+          additionalProperties: false,
+        },
+      }],
+      tool_choice: { type: "tool", name: "extract_rules" },
     });
 
     if (!aiResp.ok) {
