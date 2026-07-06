@@ -703,8 +703,12 @@ const Dashboard = () => {
     setDensity: setPipelineDensity,
   } = usePipelinePreferences();
 
+  const hasLoadedRef = useRef(false);
   const load = useCallback(async () => {
-    setLoading(true);
+    // Só exibe o skeleton no primeiro carregamento. Refetches disparados por
+    // realtime (payments/items/groups/observations) mantêm os cards atuais
+    // visíveis para evitar o efeito "some e aparece" quando o motor grava em rajada.
+    if (!hasLoadedRef.current) setLoading(true);
     const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
       (hospitalId
         ? supabase
@@ -896,11 +900,13 @@ const Dashboard = () => {
     }
 
     setCounts(c);
+    hasLoadedRef.current = true;
     setLoading(false);
   }, [user?.id, roles, hospitalId]);
 
   useEffect(() => {
     document.title = "Dashboard | Exacta Approval";
+    hasLoadedRef.current = false; // troca de hospital → mostra skeleton de novo
     load();
   }, [load]);
 
