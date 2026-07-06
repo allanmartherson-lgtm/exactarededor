@@ -1395,7 +1395,7 @@ function CalcCard({
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
-                  <Input type="number" step="0.01" value={c.bonus_amount} onChange={(e) => onChange({ bonus_amount: e.target.value })} />
+                  <CurrencyInputBR value={c.bonus_amount} onChange={(v) => onChange({ bonus_amount: v })} />
                 </div>
                 <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
                   <Input type="number" step="0.01" value={c.bonus_pct} onChange={(e) => onChange({ bonus_pct: e.target.value })} />
