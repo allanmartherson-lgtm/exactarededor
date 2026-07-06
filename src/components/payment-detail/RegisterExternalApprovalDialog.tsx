@@ -162,7 +162,10 @@ export function RegisterExternalApprovalDialog({
     // 1) Upload do anexo (obrigatório)
     let evidencePath: string | null = null;
     const ext = file.name.split(".").pop() ?? "bin";
-    const path = `external-${stage}/${paymentId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    // IMPORTANTE: o primeiro segmento do path DEVE ser o paymentId (uuid).
+    // A policy do bucket approval-pdfs usa storage_object_hospital_allows,
+    // que extrai o hospital_id a partir do payments.id no 1º segmento.
+    const path = `${paymentId}/external-${stage}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("approval-pdfs")
       .upload(path, file, { upsert: false, contentType: file.type || undefined });
