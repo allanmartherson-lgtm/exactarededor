@@ -72,7 +72,11 @@ type Props = {
   /** When set, the panel opens with composer pre-scoped to a company. */
   initialCompose?: { groupId?: string | null; companyName?: string | null } | null;
   onComposeConsumed?: () => void;
+  /** When set, forces the panel to open on this thread (root message id) and highlight it briefly. */
+  initialThreadId?: string | null;
+  onInitialThreadConsumed?: () => void;
 };
+
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "muted";
 
