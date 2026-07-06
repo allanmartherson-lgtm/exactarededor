@@ -368,10 +368,9 @@ function ValorFixoBlock({
     <div className="space-y-3">
       <div className="space-y-1">
         <Label className="text-xs">Valor fixo padrão (R$)</Label>
-        <Input
-          type="number" step="0.01"
+        <CurrencyInputBR
           value={c.fixed_amount}
-          onChange={(e) => onChange({ fixed_amount: e.target.value })}
+          onChange={(v) => onChange({ fixed_amount: v })}
           placeholder="Ex.: 611,88"
         />
         <p className="text-[10px] text-muted-foreground leading-snug">
