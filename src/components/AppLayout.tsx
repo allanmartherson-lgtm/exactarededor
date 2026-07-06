@@ -1020,7 +1020,7 @@ export const AppLayout = () => {
 
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
-            <Logo onDark />
+            <Logo onDark preserveIconColors />
 
 
             <div className="hidden md:flex flex-1 min-w-0">
