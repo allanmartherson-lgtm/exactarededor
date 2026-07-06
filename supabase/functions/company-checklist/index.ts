@@ -120,49 +120,42 @@ Regras:
 - Não invente dados que não estejam no contexto.
 - Linguagem objetiva em pt-BR.`;
 
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: `Contexto (JSON):\n${JSON.stringify(contexto, null, 2)}` },
-        ],
-        tools: [{
-          name: "validation_checklist",
-          description: "Devolve checklist de validação para a empresa",
-          input_schema: {
-            type: "object",
-            properties: {
+    const aiResp = await anthropicFetch({
+      model: "claude-sonnet-4-5",
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: `Contexto (JSON):\n${JSON.stringify(contexto, null, 2)}` },
+      ],
+      tools: [{
+        name: "validation_checklist",
+        description: "Devolve checklist de validação para a empresa",
+        input_schema: {
+          type: "object",
+          properties: {
+            items: {
+              type: "array",
+              minItems: 3,
+              maxItems: 6,
               items: {
-                type: "array",
-                minItems: 3,
-                maxItems: 6,
-                items: {
-                  type: "object",
-                  properties: {
-                    text: { type: "string" },
-                    priority: { type: "string", enum: ["alta", "media", "baixa"] },
-                    category: { type: "string" },
-                  },
-                  required: ["text", "priority", "category"],
-                  additionalProperties: false,
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                  priority: { type: "string", enum: ["alta", "media", "baixa"] },
+                  category: { type: "string" },
                 },
+                required: ["text", "priority", "category"],
+                additionalProperties: false,
               },
             },
-            required: ["items"],
-            additionalProperties: false,
           },
-        }],
-        tool_choice: { type: "tool", name: "validation_checklist" },
-      }),
+          required: ["items"],
+          additionalProperties: false,
+        },
+      }],
+      tool_choice: { type: "tool", name: "validation_checklist" },
     });
+
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) {
