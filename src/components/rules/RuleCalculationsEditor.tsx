@@ -1453,12 +1453,10 @@ function CalcCard({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor total do pacote (R$) *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex.: 29321.93"
+                    <CurrencyInputBR
+                      placeholder="Ex.: 29.321,93"
                       value={c.package_amount}
-                      onChange={(e) => onChange({ package_amount: e.target.value })}
+                      onChange={(v) => onChange({ package_amount: v })}
                     />
                   </div>
                   <div className="space-y-1.5">
