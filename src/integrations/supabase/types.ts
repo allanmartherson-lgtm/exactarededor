@@ -5257,6 +5257,8 @@ export type Database = {
           parecer_report_row_id: string | null
           patient_name: string | null
           payment_id: string
+          piso_aplicado_valor: number | null
+          piso_metodo_vencedor: string | null
           procedure_amount: number | null
           procedure_code: string | null
           procedure_date: string | null
@@ -5383,6 +5385,8 @@ export type Database = {
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id: string
+          piso_aplicado_valor?: number | null
+          piso_metodo_vencedor?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
@@ -5509,6 +5513,8 @@ export type Database = {
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id?: string
+          piso_aplicado_valor?: number | null
+          piso_metodo_vencedor?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
           procedure_date?: string | null
@@ -8837,6 +8843,10 @@ export type Database = {
           package_roles_distribution: Json | null
           package_subtype: string | null
           package_visits_count: boolean
+          piso_escopo: string | null
+          piso_habilitado: boolean
+          piso_por_funcao: Json
+          piso_valor_padrao: number | null
           procedure_codes: string[] | null
           procedure_keywords: string[] | null
           reference_table_id: string | null
@@ -8901,6 +8911,10 @@ export type Database = {
           package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
+          piso_escopo?: string | null
+          piso_habilitado?: boolean
+          piso_por_funcao?: Json
+          piso_valor_padrao?: number | null
           procedure_codes?: string[] | null
           procedure_keywords?: string[] | null
           reference_table_id?: string | null
@@ -8965,6 +8979,10 @@ export type Database = {
           package_roles_distribution?: Json | null
           package_subtype?: string | null
           package_visits_count?: boolean
+          piso_escopo?: string | null
+          piso_habilitado?: boolean
+          piso_por_funcao?: Json
+          piso_valor_padrao?: number | null
           procedure_codes?: string[] | null
           procedure_keywords?: string[] | null
           reference_table_id?: string | null
