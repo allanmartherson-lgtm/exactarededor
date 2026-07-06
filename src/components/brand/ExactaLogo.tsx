@@ -47,8 +47,8 @@ export const ExactaLogo = ({
   // aparência "borrada" à distância). Mantém hierarquia visual sem perder nitidez.
   const taglineColor = onDark ? "rgba(255,255,255,0.92)" : "hsl(var(--muted-foreground))";
   const taglineColorSecondary = onDark ? "rgba(255,255,255,0.72)" : "hsl(var(--muted-foreground))";
-  // Wordmark accent: dourado #C6A27C sobre navy; token theme-aware caso contrário
-  const accentColor = onDark ? "#C6A27C" : "hsl(var(--brand-wordmark-accent))";
+  // Wordmark accent: bronze mais saturado sobre navy para destacar o "x" ao lado do texto branco.
+  const accentColor = onDark ? "#E8A661" : "hsl(var(--brand-wordmark-accent))";
 
   // Renderização nítida em displays HiDPI e fundos coloridos — evita o efeito
   // "burr" das taglines pequenas em uppercase sobre navy.
