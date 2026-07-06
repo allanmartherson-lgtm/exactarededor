@@ -906,6 +906,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     document.title = "Dashboard | Exacta Approval";
+    hasLoadedRef.current = false; // troca de hospital → mostra skeleton de novo
     load();
   }, [load]);
 
