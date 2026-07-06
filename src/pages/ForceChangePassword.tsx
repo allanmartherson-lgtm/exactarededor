@@ -80,9 +80,10 @@ const ForceChangePassword = () => {
                 <Label htmlFor="confirm">Confirmar senha</Label>
                 <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={8} maxLength={72} />
               </div>
-              <Button type="submit" className="w-full" disabled={saving}>
+              <CuraSubmitButton disabled={saving}>
                 {saving ? "Salvando…" : "Salvar e entrar novamente"}
-              </Button>
+              </CuraSubmitButton>
+
             </form>
           </CardContent>
         </Card>
