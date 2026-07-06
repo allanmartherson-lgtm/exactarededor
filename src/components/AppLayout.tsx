@@ -1026,8 +1026,14 @@ export const AppLayout = () => {
               {canCreate && (
                 <Button
                   onClick={() => setModeModalOpen(true)}
-                  className="nova-base-btn h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5 shadow-sm"
+                  className="h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5 shadow-sm border-transparent hover:opacity-90"
                   aria-label="Nova base"
+                  style={{
+                    // CTA em accent-base CURA (#FF8200) — laranja Rede D'Or.
+                    // Style inline vence o bg-primary do shadcn Button no header.
+                    backgroundColor: "#FF8200",
+                    color: "#ffffff",
+                  }}
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span className="hidden md:inline">Nova base</span>
