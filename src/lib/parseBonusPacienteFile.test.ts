@@ -7,20 +7,25 @@ function makeFile(rows: (string | number | null)[][]): File {
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  return new File([buf], "bonus.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer | Uint8Array | number[];
+  const u8 = raw instanceof Uint8Array ? raw : raw instanceof ArrayBuffer ? new Uint8Array(raw) : new Uint8Array(raw as number[]);
+  const ab = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+  const file = new File([ab], "bonus.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  // jsdom não implementa File.prototype.arrayBuffer(); adicionamos a partir do buffer já em memória.
+  Object.defineProperty(file, "arrayBuffer", {
+    value: async () => ab,
+    writable: true,
+  });
+  return file;
 }
 
 describe("parseBonusPacienteFile · detecção de colunas", () => {
-  it("detecta paciente e valor mesmo com maiúsculas/acentos/espaços", () => {
-    return makeFile([["PACIENTE ", "Valor"], ["João", 100]]).arrayBuffer && parseBonusPacienteFile(
-      makeFile([["PACIENTE ", "Valor"], ["João", 100]])
-    ).then((r) => {
-      expect(r.detected_columns.patient).toBeDefined();
-      expect(r.detected_columns.value).toBeDefined();
-      expect(r.rows).toHaveLength(1);
-      expect(r.rows[0].gross_amount).toBe(100);
-    });
+  it("detecta paciente e valor mesmo com maiúsculas/acentos/espaços", async () => {
+    const r = await parseBonusPacienteFile(makeFile([["PACIENTE ", "Valor"], ["João", 100]]));
+    expect(r.detected_columns.patient).toBeDefined();
+    expect(r.detected_columns.value).toBeDefined();
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0].gross_amount).toBe(100);
   });
 
   it("lança erro se não houver coluna de valor", async () => {
