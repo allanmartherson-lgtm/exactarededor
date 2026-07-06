@@ -1895,6 +1895,15 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
     noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
     is_catch_all: !!c.is_catch_all,
+    // ---- Piso por procedimento (mínimo garantido) — só percentual_sobre_convenio ----
+    piso_habilitado: c.calculation_type === "percentual_sobre_convenio" ? !!c.piso_habilitado : false,
+    piso_escopo: c.calculation_type === "percentual_sobre_convenio" && c.piso_habilitado ? c.piso_escopo : null,
+    piso_valor_padrao: c.calculation_type === "percentual_sobre_convenio" && c.piso_habilitado ? numOrNull(c.piso_valor_padrao) : null,
+    piso_por_funcao: c.calculation_type === "percentual_sobre_convenio" && c.piso_habilitado
+      ? c.piso_por_funcao
+          .map((p) => ({ role: p.role, label: p.label, valor: numOrNull(p.valor) }))
+          .filter((p) => p.valor != null && (p.valor as number) > 0)
+      : [],
   };
 }
 
