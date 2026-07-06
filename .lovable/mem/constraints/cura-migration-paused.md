@@ -1,17 +1,25 @@
 ---
-name: Migração CURA — Fase 3 em andamento
-description: Status da migração para @rededor/cura-react; pacotes instalados via vendor/
+name: Migração CURA — concluída
+description: Status final da migração para @rededor/cura-react (Fases 1-4)
 type: constraint
 ---
-Fases 1 e 2 concluídas (tokens CURA em index.css/tailwind, Button/AppLayout ajustados).
+Migração CURA CONCLUÍDA em 2026-07-06.
 
-Fase 3 DESBLOQUEADA (2026-07-06): pacotes `@rededor/cura` e `@rededor/cura-react` (v2.0.0-alpha.14) instalados via `file:./vendor/rededor/*` a partir de zip enviado pelo usuário. Assets copiados para `public/assets/cura/`. `CuraInit` + `defineCustomElements` chamados em `src/main.tsx`. Types em `src/cura.d.ts`.
+**Aplicado:**
+- Fase 1: tokens CURA em `src/index.css` + `tailwind.config.ts`, fontes DM Sans/Playfair, `CuraInit` + `defineCustomElements` em `src/main.tsx`, types em `src/cura.d.ts`.
+- Fase 2: chrome (AppLayout header, sidebar, Button variants) tematizado com tokens CURA.
+- Fase 3: `CuraSubmitButton` nos CTAs primários de Auth/ForceChangePassword/SetPassword (usa hidden submit para preservar react-hook-form + zod).
 
-Substituições pontuais previstas (só onde CURA agrega e não quebra shadcn/react-hook-form):
-- `CuraToast` no lugar do toaster atual (usar `key` numérica, nunca `onToastClosed`)
-- `CuraButton` em CTAs primários de páginas simples (Auth, ForceChangePassword, SetPassword)
-- `<cura-icon>` para ícones institucionais
+**Descopado (justificado):**
+- `<cura-icon>` institucional / selo CURA no header — usuário rejeitou co-branding, header mantém só ExactaLogo.
+- `CuraToast` — Sonner já consome 100% dos tokens CURA (`bg-card`, `bg-success`, `bg-warning`, `bg-destructive` em `src/components/ui/sonner.tsx`). Migrar exigiria bridge ou reescrever 100+ chamadas `toast(...)`. Retrabalho sem ganho visual; ficamos com Sonner temado.
 
-MANTER shadcn em: Form/Input (react-hook-form + zod), Table/DataTable, Dialog, Sheet, Command, Popover, Calendar, Tabs, Accordion — CURA não cobre com paridade.
+**Mantido shadcn/Radix** em Form/Input (react-hook-form), Table/DataTable, Dialog, Sheet, Command, Popover, Calendar, Tabs, Accordion — CURA não cobre com paridade.
 
-Não reintroduzir wrapper local — pacote real está disponível em vendor/.
+**Pacotes locais** em `vendor/rededor/cura` e `vendor/rededor/cura-react` (v2.0.0-alpha.14). Assets em `public/assets/cura/`. Não reintroduzir wrapper local — usar pacote real.
+
+**Regras inegociáveis** ao mexer em componentes CURA:
+- `--cura-color-*` sempre dentro de `rgb()`/`rgba()`.
+- CuraButton: nunca `type="submit"` — usar `CuraSubmitButton` que delega para hidden submit.
+- CuraToast (se um dia usado): `key` numérica incrementada, nunca `onToastClosed`.
+- Header com fundo navy exige `--cura-font-color: #ffffff`.
