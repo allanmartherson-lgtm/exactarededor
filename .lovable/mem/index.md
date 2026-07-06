@@ -51,3 +51,4 @@ Identidade visual: azul `#003DA5` + bronze `#C6A27C`, Playfair Display + DM Sans
 - [KPI intervenção sem histórico](mem://constraints/intervention-kpi-excludes-historico) — get_intervention_savings ignora payments.import_mode='historico'
 - [Teste do motor vive em /regras](mem://features/rule-engine-test-page) — Dry-run promovido para /regras?tab=teste-motor; snapshot do banco (não props stale); analyze-payment pagina 1000 em 1000
 
+- [Migração CURA pausada](mem://constraints/cura-migration-paused) — Fase 3 aguardando tarball/registry; não reimplementar wrapper sem OK
