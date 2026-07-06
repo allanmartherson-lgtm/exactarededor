@@ -1026,7 +1026,7 @@ export const AppLayout = () => {
               {canCreate && (
                 <Button
                   onClick={() => setModeModalOpen(true)}
-                  className="h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5"
+                  className="nova-base-btn h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5 shadow-sm"
                   aria-label="Nova base"
                 >
                   <Plus className="h-3.5 w-3.5" />
