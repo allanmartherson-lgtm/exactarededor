@@ -55,7 +55,7 @@ export function InboxBadge() {
     <Link
       to="/notificacoes"
       aria-label={`Caixa de notificações${count > 0 ? ` (${count} não lidas)` : ""}`}
-      className="relative size-8 grid place-items-center rounded-md border border-border/60 bg-background hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+      className="relative size-8 grid place-items-center rounded-md text-current hover:bg-white/10 transition-colors"
     >
       <Inbox className="size-4" strokeWidth={1.7} />
       {count > 0 && (

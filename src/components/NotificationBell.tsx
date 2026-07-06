@@ -50,7 +50,7 @@ export function NotificationBell() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="relative size-8 grid place-items-center rounded-md border border-border/60 bg-background hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+          className="relative size-8 grid place-items-center rounded-md text-current hover:bg-white/10 transition-colors"
           aria-label={`Notificações${unread > 0 ? ` (${unread} não lidas)` : ""}`}
         >
           <Bell className="size-4" strokeWidth={1.7} />
