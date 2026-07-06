@@ -68,6 +68,7 @@ const loadStatusAnomalies = () => import("./pages/StatusAnomalies.tsx");
 const loadSlaSettings = () => import("./pages/SlaSettings.tsx");
 const loadPreviewPalettes = () => import("./pages/PreviewPalettes.tsx");
 const loadPreviewDesignSystems = () => import("./pages/PreviewDesignSystems.tsx");
+const loadPreviewCura = () => import("./pages/PreviewCura.tsx");
 const loadWcagAudit = () => import("./pages/WcagAudit.tsx");
 const loadKpis = () => import("./pages/Kpis.tsx");
 const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
@@ -165,6 +166,7 @@ const StatusAnomalies = lazy(loadStatusAnomalies);
 const SlaSettings = lazy(loadSlaSettings);
 const PreviewPalettes = lazy(loadPreviewPalettes);
 const PreviewDesignSystems = lazy(loadPreviewDesignSystems);
+const PreviewCura = lazy(loadPreviewCura);
 const WcagAudit = lazy(loadWcagAudit);
 const Kpis = lazy(loadKpis);
 const InterventionAdjustments = lazy(loadInterventionAdjustments);
@@ -309,6 +311,7 @@ const App = () => (
                 <Route path="/trocar-senha" element={<ForceChangePassword />} />
                 <Route path="/preview-paletas" element={<PreviewPalettes />} />
                 <Route path="/preview-design-systems" element={<PreviewDesignSystems />} />
+                <Route path="/preview-cura" element={<PreviewCura />} />
                 <Route path="/selecionar-hospital" element={<ProtectedRoute><SelectHospital /></ProtectedRoute>} />
                 
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
