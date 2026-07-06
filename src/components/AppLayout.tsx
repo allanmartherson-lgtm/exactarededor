@@ -961,12 +961,6 @@ export const AppLayout = () => {
                 <Button
                   onClick={() => setModeModalOpen(true)}
                   className="h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5"
-                  style={{
-                    borderRadius: 6,
-                    background: "hsl(var(--primary))",
-                    color: "hsl(var(--primary-foreground))",
-                    border: "none",
-                  }}
                   aria-label="Nova base"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -1264,12 +1258,6 @@ export const AppLayout = () => {
                 <Button
                   onClick={() => setModeModalOpen(true)}
                   className="h-11 px-5 text-[14px] font-medium gap-2"
-                  style={{
-                    borderRadius: 8,
-                    background: "hsl(var(--primary))",
-                    color: "hsl(var(--primary-foreground))",
-                    border: "none",
-                  }}
                 >
                   <Plus className="h-[18px] w-[18px]" />
                   <span className="hidden md:inline">Nova base</span>
