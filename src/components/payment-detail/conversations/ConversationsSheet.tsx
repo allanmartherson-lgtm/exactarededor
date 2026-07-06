@@ -72,7 +72,11 @@ type Props = {
   /** When set, the panel opens with composer pre-scoped to a company. */
   initialCompose?: { groupId?: string | null; companyName?: string | null } | null;
   onComposeConsumed?: () => void;
+  /** When set, forces the panel to open on this thread (root message id) and highlight it briefly. */
+  initialThreadId?: string | null;
+  onInitialThreadConsumed?: () => void;
 };
+
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "muted";
 
@@ -144,7 +148,10 @@ export function ConversationsSheet(props: Props) {
     currentRole,
     initialCompose,
     onComposeConsumed,
+    initialThreadId,
+    onInitialThreadConsumed,
   } = props;
+
 
   const { toast } = useToast();
   const {
@@ -164,6 +171,10 @@ export function ConversationsSheet(props: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composeMode, setComposeMode] = useState<null | { groupId: string | null; companyName?: string | null }>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
+  // ID da thread destacada momentaneamente após abertura via deep-link (`?thread=`).
+  // Serve só para o pulse visual — some depois de ~1.8s.
+  const [highlightThreadId, setHighlightThreadId] = useState<string | null>(null);
+
 
   // Honor parent's pre-scope (e.g. "Nova" clicked on a company card).
   useEffect(() => {
@@ -218,14 +229,36 @@ export function ConversationsSheet(props: Props) {
     [filteredThreads, threads, selectedId],
   );
 
+  // Deep-link: quando abrimos via `?thread=<rootId>`, forçamos a seleção da thread
+  // pedida (mesmo se estiver encerrada — trocamos o filtro para "todas") e disparamos
+  // um pulse visual para deixar claro que a conversa foi aberta, não só a página do lote.
+  useEffect(() => {
+    if (!open || !initialThreadId) return;
+    if (!threads.length) return; // aguarda o load completar
+    const exists = threads.some((t) => t.root.id === initialThreadId);
+    if (!exists) return;
+    setComposeMode(null);
+    setSelectedId(initialThreadId);
+    setMobileShowChat(true);
+    if (!filteredThreads.some((t) => t.root.id === initialThreadId)) {
+      setFilter("todas");
+    }
+    setHighlightThreadId(initialThreadId);
+    onInitialThreadConsumed?.();
+    const t = window.setTimeout(() => setHighlightThreadId(null), 1800);
+    return () => window.clearTimeout(t);
+  }, [open, initialThreadId, threads, filteredThreads, onInitialThreadConsumed]);
+
   // Auto-select first thread on open / when current selection vanishes.
   useEffect(() => {
     if (!open) return;
     if (composeMode) return;
+    if (initialThreadId) return; // deep-link tem prioridade
     if (selectedId && threads.some((t) => t.root.id === selectedId)) return;
     const first = filteredThreads[0]?.root.id ?? null;
     setSelectedId(first);
-  }, [open, threads, filteredThreads, selectedId, composeMode]);
+  }, [open, threads, filteredThreads, selectedId, composeMode, initialThreadId]);
+
 
   // Mark read when thread opens.
   useEffect(() => {
@@ -354,13 +387,23 @@ export function ConversationsSheet(props: Props) {
                   const renderThreadRow = (t: typeof filteredThreads[number]) => {
                     const isSelected = t.root.id === selectedId && !composeMode;
                     const unread = t.unreadForMe > 0;
+                    const isHighlighted = t.root.id === highlightThreadId;
                     const lastMsg = [t.root, ...t.replies].sort((a, b) =>
                       a.created_at.localeCompare(b.created_at),
                     ).at(-1)!;
                     const preview = stripPrefixes(lastMsg.message).body;
                     const sla = slaBadge(t.root.created_at, t.root.status === "encerrada");
                     return (
-                      <li key={t.root.id} className="relative">
+                      <li
+                        key={t.root.id}
+                        className="relative"
+                        ref={(el) => {
+                          // Scroll até a thread destacada quando aberta via deep-link.
+                          if (el && isHighlighted) {
+                            el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                          }
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => handleSelectThread(t.root.id)}
@@ -373,8 +416,10 @@ export function ConversationsSheet(props: Props) {
                               : unread
                               ? "hover:bg-chat-bg/60 border-l-chat-unread"
                               : "hover:bg-chat-bg/40 border-l-transparent",
+                            isHighlighted && "ring-2 ring-primary/70 ring-offset-1 ring-offset-background animate-pulse",
                           )}
                         >
+
                           <div className="flex items-center justify-between gap-2">
                             <span
                               className={cn(

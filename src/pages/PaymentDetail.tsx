@@ -363,10 +363,14 @@ const PaymentDetail = () => {
   >(null);
   // Painel lateral com todas as conversas (threads) do lote.
   const [threadsOpen, setThreadsOpen] = useState(false);
+  const [initialThreadId, setInitialThreadId] = useState<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("conversas") === "1") setThreadsOpen(true);
+    const tid = params.get("thread");
+    if (tid) setInitialThreadId(tid);
   }, [location.search]);
+
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
@@ -5230,14 +5234,19 @@ const PaymentDetail = () => {
           onOpenChange={setProductionValidationOpen}
         />
       )}
-      {id && user && (isAnalista || isValidador || isDiretor) && !isNfPhase && (
+      {id && user && (isAnalista || isValidador || isDiretor) && (
         <>
-          <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
+          {!isNfPhase && (
+            <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
+          )}
           <ConversationsSheet
             open={threadsOpen}
             onOpenChange={(o) => {
               setThreadsOpen(o);
-              if (!o) setAskQuestion(null);
+              if (!o) {
+                setAskQuestion(null);
+                setInitialThreadId(null);
+              }
             }}
             paymentId={id}
             paymentLabel={(payment as any).reference ?? (payment as any).competence_month ?? null}
@@ -5249,9 +5258,12 @@ const PaymentDetail = () => {
             currentRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
             initialCompose={askQuestion}
             onComposeConsumed={() => setAskQuestion(null)}
+            initialThreadId={initialThreadId}
+            onInitialThreadConsumed={() => setInitialThreadId(null)}
           />
         </>
       )}
+
     </>
   );
 };

@@ -39,6 +39,7 @@ type ThreadGroup = {
   paymentId: string;
   paymentLabel: string;
   paymentStatus: string | null;
+  rootId: string;
   totalMessages: number;
   unread: number;
   lastAt: string;
@@ -46,6 +47,7 @@ type ThreadGroup = {
   lastAuthor: string;
   status: QRow["status"];
 };
+
 
 export function ConversasInternasTab() {
   const navigate = useNavigate();
@@ -129,6 +131,7 @@ export function ConversasInternasTab() {
         paymentId,
         paymentLabel: label,
         paymentStatus: p?.status ?? null,
+        rootId: root.id,
         totalMessages: msgs.length,
         unread,
         lastAt: last.created_at,
@@ -136,6 +139,7 @@ export function ConversasInternasTab() {
         lastAuthor: last.author_name,
         status: root.status,
       });
+
     });
     // Prioriza threads com mensagens não lidas; em seguida, ordena pela mais recente.
     out.sort((a, b) => {
@@ -214,7 +218,7 @@ export function ConversasInternasTab() {
                     });
                   }
                 }
-                navigate(`/pagamentos/${g.paymentId}?conversas=1`);
+                navigate(`/pagamentos/${g.paymentId}?conversas=1&thread=${g.rootId}`);
               }}
               className={cn(
                 "w-full text-left px-4 py-3 border-b border-border/60 last:border-b-0 transition-colors flex flex-col gap-1.5 hover:bg-muted/50",
