@@ -130,7 +130,28 @@ export type CalcItem = {
    * filtros continuam valendo. Máximo 1 por regra.
    */
   is_catch_all: boolean;
+
+  // ---- Piso por procedimento (mínimo garantido) ----
+  // Só faz sentido em percentual_sobre_convenio. Aplica MAX(convênio, piso).
+  piso_habilitado: boolean;
+  piso_escopo: "por_item" | "por_atendimento";
+  piso_valor_padrao: string;
+  piso_por_funcao: PisoRoleItem[];
 };
+
+/** Piso por função médica — chaves canônicas do motor (classifyDoctorRole). */
+export type PisoRoleItem = {
+  role: "cirurgiao" | "primeiro_aux" | "demais_aux" | "instrumentador" | "outro";
+  label: string;
+  valor: string;
+};
+
+const DEFAULT_PISO_ROLES: PisoRoleItem[] = [
+  { role: "cirurgiao", label: "Cirurgião Principal", valor: "" },
+  { role: "primeiro_aux", label: "1º Auxiliar", valor: "" },
+  { role: "demais_aux", label: "Demais Auxiliares", valor: "" },
+  { role: "instrumentador", label: "Instrumentador", valor: "" },
+];
 
 /** Condição de contexto editável (strings nos inputs, convertidas no salvar). */
 export type ContextConditionItem = {
@@ -178,6 +199,10 @@ export function makeEmptyCalc(): CalcItem {
     noturno_inicio: "",
     noturno_fim: "",
     is_catch_all: false,
+    piso_habilitado: false,
+    piso_escopo: "por_item",
+    piso_valor_padrao: "",
+    piso_por_funcao: DEFAULT_PISO_ROLES.map((r) => ({ ...r })),
   };
 }
 
@@ -1386,6 +1411,96 @@ function CalcCard({
                 />
                 <span style={{ fontSize: "12px", fontWeight: 500, lineHeight: "1.4" }}>Considerar valor do convênio como já totalizado (ignora quantidade)</span>
               </label>
+
+              {/* Piso por procedimento — mínimo garantido */}
+              <div
+                className="mt-3 rounded-md border p-3 space-y-3"
+                style={{
+                  background: c.piso_habilitado ? "hsl(var(--primary) / 0.04)" : "hsl(var(--muted) / 0.3)",
+                  borderColor: c.piso_habilitado ? "hsl(var(--primary) / 0.35)" : "hsl(var(--border))",
+                }}
+              >
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                  <Checkbox
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                    checked={c.piso_habilitado}
+                    onCheckedChange={(v) => onChange({ piso_habilitado: !!v })}
+                  />
+                  <span style={{ fontSize: 12, lineHeight: 1.4 }}>
+                    <strong>Piso por procedimento</strong> (mínimo garantido).
+                    Aplica <code>MAX(percentual × convênio, piso da função)</code>. Se o convênio pagar
+                    mais que o piso, o convênio vence; se pagar menos, o piso vence.
+                  </span>
+                </label>
+
+                {c.piso_habilitado && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Escopo do piso</Label>
+                        <Select
+                          value={c.piso_escopo}
+                          onValueChange={(v) => onChange({ piso_escopo: v as "por_item" | "por_atendimento" })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="por_item">Por item (cada linha tem seu piso)</SelectItem>
+                            <SelectItem value="por_atendimento">Por atendimento (soma das linhas)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {c.piso_escopo === "por_atendimento" && (
+                          <p className="text-[11px] text-amber-600">
+                            ⚠ Escopo "por atendimento" ainda cai em "por item" no motor. Suporte completo
+                            será liberado em ajuste posterior.
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Piso padrão (R$)</Label>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="ex.: 1100,00"
+                          value={c.piso_valor_padrao}
+                          onChange={(e) => onChange({ piso_valor_padrao: e.target.value })}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Fallback quando a função do item não estiver na tabela abaixo.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Piso por função (opcional)</Label>
+                      <div className="rounded-md border divide-y">
+                        {c.piso_por_funcao.map((row, idx) => (
+                          <div
+                            key={row.role}
+                            className="flex items-center gap-2 px-2 py-1.5"
+                          >
+                            <span className="text-xs flex-1">{row.label}</span>
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="R$"
+                              className="max-w-[140px]"
+                              value={row.valor}
+                              onChange={(e) => {
+                                const next = c.piso_por_funcao.slice();
+                                next[idx] = { ...row, valor: e.target.value };
+                                onChange({ piso_por_funcao: next });
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Deixe em branco para usar o piso padrão. Funções fora dessa lista sempre usam o padrão.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
           {c.calculation_type === "valor_fixo" && (
@@ -1740,6 +1855,27 @@ export function calcFromDb(r: any): CalcItem {
     noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
     noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
     is_catch_all: !!r.is_catch_all,
+    piso_habilitado: !!(r as any).piso_habilitado,
+    piso_escopo: ((r as any).piso_escopo === "por_atendimento" ? "por_atendimento" : "por_item") as "por_item" | "por_atendimento",
+    piso_valor_padrao: (r as any).piso_valor_padrao != null ? String((r as any).piso_valor_padrao) : "",
+    piso_por_funcao: (() => {
+      const raw = (r as any).piso_por_funcao;
+      const byRole = new Map<string, PisoRoleItem>();
+      for (const d of DEFAULT_PISO_ROLES) byRole.set(d.role, { ...d });
+      if (Array.isArray(raw)) {
+        for (const item of raw) {
+          if (!item) continue;
+          const key = String(item.role ?? "") as PisoRoleItem["role"];
+          if (!byRole.has(key)) continue;
+          byRole.set(key, {
+            role: key,
+            label: String(item.label ?? byRole.get(key)!.label),
+            valor: item.valor != null ? String(item.valor) : "",
+          });
+        }
+      }
+      return Array.from(byRole.values());
+    })(),
   };
 }
 
@@ -1849,6 +1985,15 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
     noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
     is_catch_all: !!c.is_catch_all,
+    // ---- Piso por procedimento (mínimo garantido) — só percentual_sobre_convenio ----
+    piso_habilitado: c.calculation_type === "percentual_sobre_convenio" ? !!c.piso_habilitado : false,
+    piso_escopo: c.calculation_type === "percentual_sobre_convenio" && c.piso_habilitado ? c.piso_escopo : null,
+    piso_valor_padrao: c.calculation_type === "percentual_sobre_convenio" && c.piso_habilitado ? numOrNull(c.piso_valor_padrao) : null,
+    piso_por_funcao: c.calculation_type === "percentual_sobre_convenio" && c.piso_habilitado
+      ? c.piso_por_funcao
+          .map((p) => ({ role: p.role, label: p.label, valor: numOrNull(p.valor) }))
+          .filter((p) => p.valor != null && (p.valor as number) > 0)
+      : [],
   };
 }
 

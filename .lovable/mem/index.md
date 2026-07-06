@@ -52,3 +52,4 @@ Identidade visual: azul `#003DA5` + bronze `#C6A27C`, Playfair Display + DM Sans
 - [Teste do motor vive em /regras](mem://features/rule-engine-test-page) — Dry-run promovido para /regras?tab=teste-motor; snapshot do banco (não props stale); analyze-payment pagina 1000 em 1000
 
 - [Migração CURA pausada](mem://constraints/cura-migration-paused) — Fase 3 aguardando tarball/registry; não reimplementar wrapper sem OK
+- [Piso por procedimento](mem://features/piso-por-procedimento) — MAX(convenio, piso) por função em percentual_sobre_convenio; escopo por_atendimento ainda parcial
