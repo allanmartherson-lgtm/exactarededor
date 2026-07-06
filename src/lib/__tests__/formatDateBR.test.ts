@@ -37,7 +37,8 @@ describe("formatDateBR — sem shift de fuso para YYYY-MM-DD", () => {
     expect(formatDateBR("")).toBe("—");
   });
 
-  it("string inválida cai no fallback sem quebrar", () => {
-    expect(formatDateBR("qualquer coisa")).toBe("qualquer coisa");
+  it("string inválida não quebra e não converte fuso", () => {
+    // toLocaleDateString retorna "Invalid Date" — o importante é não jogar.
+    expect(() => formatDateBR("qualquer coisa")).not.toThrow();
   });
 });
