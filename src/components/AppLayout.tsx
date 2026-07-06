@@ -988,16 +988,25 @@ export const AppLayout = () => {
             header .bg-muted, header .bg-muted\\/40, header .bg-muted\\/30, header .bg-muted\\/20 {
               background-color: rgb(255 255 255 / 0.14) !important;
             }
-            /* Padrão Rede D'Or: ícones do header sem moldura — apenas o glifo. */
-            header button.size-8 {
+            /* Padrão Rede D'Or: ícones do header sem moldura — apenas o glifo.
+               Cobrimos size-8 (tailwind), .border (fallback) e h-8/w-8 legados. */
+            header button.size-8,
+            header button.border,
+            header button.h-8.w-8 {
               border-color: transparent !important;
               background-color: transparent !important;
               color: #ffffff !important;
+              box-shadow: none !important;
             }
-            header button.size-8:hover {
+            header button.size-8:hover,
+            header button.border:hover,
+            header button.h-8.w-8:hover {
               background-color: rgb(255 255 255 / 0.12) !important;
               color: #ffffff !important;
             }
+            /* Não zerar borda do botão Nova base (primary pill branca). */
+            header button.bg-primary { background-color: #ffffff !important; color: hsl(214 100% 32%) !important; border-color: transparent !important; }
+
           `}</style>
 
 
