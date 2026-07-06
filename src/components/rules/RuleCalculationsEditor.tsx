@@ -1267,12 +1267,24 @@ function CalcCard({
         : "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)",
       overflow: "hidden",
     }}>
-      {/* Header copper */}
-      <div style={{ background: "hsl(var(--accent))", borderBottom: "1px solid hsl(var(--border))", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+      {/* Header laranja Rede D'Or — força ícones/label em branco para contraste
+          AA sobre o accent (#FF8200). Sem esse override os botões ghost herdam
+          muted-foreground e somem no fundo laranja. */}
+      <div
+        className="calc-header-orange"
+        style={{ background: "hsl(var(--accent))", borderBottom: "1px solid hsl(var(--border))", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}
+      >
+        <style>{`
+          .calc-header-orange button { color: #ffffff !important; }
+          .calc-header-orange button:hover { background-color: rgb(255 255 255 / 0.18) !important; color: #ffffff !important; }
+          .calc-header-orange button.text-destructive { color: #ffffff !important; }
+          .calc-header-orange button.text-destructive:hover { background-color: rgb(255 255 255 / 0.22) !important; }
+          .calc-header-orange .calc-type-chip { background-color: rgb(255 255 255 / 0.20); color: #ffffff; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+        `}</style>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </Button>
-        <span style={{ color: "hsl(var(--primary))", fontSize: 11 }} className="uppercase tracking-wider font-semibold">
+        <span style={{ color: "#ffffff", fontSize: 11 }} className="uppercase tracking-wider font-bold">
           Cálculo #{index + 1}
         </span>
         <Input
@@ -1290,7 +1302,7 @@ function CalcCard({
             ! {errorMessages.length} {errorMessages.length === 1 ? "erro" : "erros"}
           </span>
         )}
-        <span className="ml-auto text-[10.5px] text-muted-foreground">
+        <span className="ml-auto text-[10.5px] calc-type-chip">
           {RULE_CALCULATION_TYPE_LABELS[c.calculation_type]}
         </span>
         <Button
