@@ -29,6 +29,14 @@ declare namespace React {
         size?: number | string;
         color?: string;
       };
+      "cura-button": React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLElement>, HTMLElement> & {
+        color?: string;
+        size?: string;
+        disabled?: boolean;
+        loading?: boolean;
+        expand?: string;
+      };
     }
   }
 }
+
