@@ -286,9 +286,10 @@ const Auth = () => {
                       <Label htmlFor="req-msg">Mensagem (opcional)</Label>
                       <Textarea id="req-msg" rows={2} value={reqForm.message} onChange={(e) => setReqForm({ ...reqForm, message: e.target.value })} />
                     </div>
-                    <Button type="submit" className="w-full" disabled={submitting}>
+                    <CuraSubmitButton disabled={submitting}>
                       {submitting ? "Enviando..." : "Solicitar acesso"}
-                    </Button>
+                    </CuraSubmitButton>
+
                     <p className="text-xs text-muted-foreground">
                       Sua solicitação será analisada por um administrador. Após a aprovação, você receberá um e-mail com o link para definir sua senha.
                     </p>
