@@ -82,8 +82,8 @@ function getInitials(name?: string | null, email?: string | null) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const Logo = ({ compact = false }: { compact?: boolean }) => (
-  <ExactaLogo variant={compact ? "icon" : "full"} iconSize={compact ? 34 : 36} wordmarkSize={20} />
+const Logo = ({ compact = false, onDark = false }: { compact?: boolean; onDark?: boolean }) => (
+  <ExactaLogo variant={compact ? "icon" : "full"} iconSize={compact ? 34 : 36} wordmarkSize={20} onDark={onDark} />
 );
 
 
@@ -945,12 +945,19 @@ export const AppLayout = () => {
       <div className="min-h-screen bg-background flex flex-col">
         {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
-          className="sticky top-0 z-40 bg-card border-b border-border/60"
-          style={{ height: 60, borderTop: "3px solid hsl(var(--primary))" }}
+          className="sticky top-0 z-40 border-b border-white/10 text-white"
+          style={{
+            height: 60,
+            // Header CURA: fundo navy sólido (primary-700). `--cura-font-color`
+            // garante que os Web Components CURA herdem texto branco.
+            background: "hsl(var(--primary))",
+            ["--cura-font-color" as string]: "#ffffff",
+          } as React.CSSProperties}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
-            <Logo />
+            <Logo onDark />
+
             <div className="hidden md:flex flex-1 min-w-0">
               <TopbarNav items={visibleTopNav} conversasUnread={conversasUnread} />
             </div>
