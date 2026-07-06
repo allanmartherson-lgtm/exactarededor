@@ -294,6 +294,22 @@ export interface RuleCalculationItem {
    * 1 por regra (garantido por índice único parcial em rule_calculations).
    */
   is_catch_all?: boolean | null;
+  /**
+   * Piso por procedimento (mínimo garantido). Quando ligado e o cálculo é
+   * `percentual_sobre_convenio`, o esperado do item passa a ser
+   *   MAX(percentual × base_convenio × fator_função, piso_para_a_função)
+   * O piso preserva o pagamento maior — se o convênio pagar mais que o piso,
+   * o esperado permanece no percentual. Escopo:
+   *   - `por_item`: piso é o mínimo de CADA linha (padrão).
+   *   - `por_atendimento`: piso é o mínimo da SOMA das linhas do atendimento
+   *     (ainda não implementado no motor — cai em `por_item` com alerta).
+   */
+  piso_habilitado?: boolean | null;
+  piso_escopo?: "por_item" | "por_atendimento" | null;
+  piso_valor_padrao?: number | null;
+  /** Lista `[{ role: "cirurgiao"|"primeiro_aux"|..., valor: number, label?: string }]`.
+   *  Se a função do item bate uma entrada, o valor vence `piso_valor_padrao`. */
+  piso_por_funcao?: Array<{ role: string; valor: number; label?: string | null }> | null;
 }
 
 /** Condição de contexto: substitui o valor padrão quando outros itens do
