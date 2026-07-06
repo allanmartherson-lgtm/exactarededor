@@ -900,6 +900,7 @@ const Dashboard = () => {
     }
 
     setCounts(c);
+    hasLoadedRef.current = true;
     setLoading(false);
   }, [user?.id, roles, hospitalId]);
 
