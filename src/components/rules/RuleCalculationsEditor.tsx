@@ -548,26 +548,24 @@ function ComplementosBlock({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-[11px]">Novo valor deste item quando o complemento estiver presente (R$)</Label>
-                    <Input
-                      type="number" step="0.01"
+                    <CurrencyInputBR
                       className="h-8 text-xs"
                       value={cond.value}
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...c.context_conditions];
-                        next[ci] = { ...cond, value: e.target.value };
+                        next[ci] = { ...cond, value: v };
                         onChange({ context_conditions: next });
                       }}
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px]">Valor esperado do complemento (R$)</Label>
-                    <Input
-                      type="number" step="0.01"
+                    <CurrencyInputBR
                       className="h-8 text-xs"
                       value={cond.complement_value}
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...c.context_conditions];
-                        next[ci] = { ...cond, complement_value: e.target.value };
+                        next[ci] = { ...cond, complement_value: v };
                         onChange({ context_conditions: next });
                       }}
                     />
