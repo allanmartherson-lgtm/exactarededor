@@ -29,12 +29,18 @@ export default defineConfig(async ({ command, mode }) => {
     },
     plugins: [react(), ...previewPlugins],
     resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "./src"),
+      alias: [
+        { find: "@", replacement: path.resolve(__dirname, "./src") },
+        // O pacote local `vendor/rededor/cura` contém apenas metadados/assets no
+        // repositório atual; seu package.json aponta para `dist/`, que não existe
+        // no ambiente de publicação. O shim mantém as APIs usadas pelo app sem
+        // fazer o Rollup resolver um entrypoint inexistente.
+        { find: /^@rededor\/cura$/, replacement: path.resolve(__dirname, "./src/lib/cura-runtime-shim.ts") },
+        { find: /^@rededor\/cura\/dist\/loader$/, replacement: path.resolve(__dirname, "./src/lib/cura-runtime-shim.ts") },
         // xlsx-js-style toca em `stream.Readable` só em caminhos Node; no
         // browser, um shim inerte evita o warning de externalização do Vite.
-        stream: path.resolve(__dirname, "./src/lib/stream-shim.ts"),
-      },
+        { find: "stream", replacement: path.resolve(__dirname, "./src/lib/stream-shim.ts") },
+      ],
       dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
     },
   };
