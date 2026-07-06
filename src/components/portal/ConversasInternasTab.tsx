@@ -39,6 +39,7 @@ type ThreadGroup = {
   paymentId: string;
   paymentLabel: string;
   paymentStatus: string | null;
+  rootId: string;
   totalMessages: number;
   unread: number;
   lastAt: string;
@@ -46,6 +47,7 @@ type ThreadGroup = {
   lastAuthor: string;
   status: QRow["status"];
 };
+
 
 export function ConversasInternasTab() {
   const navigate = useNavigate();
