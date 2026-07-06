@@ -199,6 +199,10 @@ export function makeEmptyCalc(): CalcItem {
     noturno_inicio: "",
     noturno_fim: "",
     is_catch_all: false,
+    piso_habilitado: false,
+    piso_escopo: "por_item",
+    piso_valor_padrao: "",
+    piso_por_funcao: DEFAULT_PISO_ROLES.map((r) => ({ ...r })),
   };
 }
 
