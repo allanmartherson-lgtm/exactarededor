@@ -171,6 +171,10 @@ export function ConversationsSheet(props: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composeMode, setComposeMode] = useState<null | { groupId: string | null; companyName?: string | null }>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
+  // ID da thread destacada momentaneamente após abertura via deep-link (`?thread=`).
+  // Serve só para o pulse visual — some depois de ~1.8s.
+  const [highlightThreadId, setHighlightThreadId] = useState<string | null>(null);
+
 
   // Honor parent's pre-scope (e.g. "Nova" clicked on a company card).
   useEffect(() => {
