@@ -973,6 +973,20 @@ export const AppLayout = () => {
             ["--ring" as string]: "0 0% 100%",
           } as React.CSSProperties}
         >
+          {/* Overrides pontuais para chips/pills que usam bg-primary/10 dentro
+              do header — a mistura white/10 sobre navy fica ilegível; elevamos
+              alpha e reforçamos texto branco para contraste AA em todos eles. */}
+          <style>{`
+            header .bg-primary\\/10 { background-color: rgb(255 255 255 / 0.22) !important; }
+            header .bg-primary\\/5  { background-color: rgb(255 255 255 / 0.14) !important; }
+            header .border-primary\\/20 { border-color: rgb(255 255 255 / 0.28) !important; }
+            header .border-primary\\/40 { border-color: rgb(255 255 255 / 0.45) !important; }
+            header .text-primary { color: #ffffff !important; }
+            header .bg-muted, header .bg-muted\\/40, header .bg-muted\\/30, header .bg-muted\\/20 {
+              background-color: rgb(255 255 255 / 0.14) !important;
+            }
+          `}</style>
+
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
             <Logo onDark />
