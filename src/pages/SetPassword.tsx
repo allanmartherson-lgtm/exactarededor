@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
+import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
+
 import { createPasswordRecoveryClient, preparePasswordRecoveryCodeVerifier } from "@/lib/passwordRecoveryClient";
 import { supabase as mainSupabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
