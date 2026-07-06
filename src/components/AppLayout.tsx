@@ -1333,6 +1333,40 @@ export const AppLayout = () => {
             ["--ring" as string]: "0 0% 100%",
           } as React.CSSProperties}
         >
+          {/* Overrides pontuais para legibilidade sobre navy — espelha o
+              tratamento do topbar mode: ícones sem moldura, chips brancos,
+              links do breadcrumb com hover branco. */}
+          <style>{`
+            header nav[aria-label="Breadcrumb"] a { color: rgb(255 255 255 / 0.78); }
+            header nav[aria-label="Breadcrumb"] a:hover { color: #ffffff; }
+            header nav[aria-label="Breadcrumb"] [aria-current="page"] { color: #ffffff; }
+            header .bg-primary\\/10 { background-color: rgb(255 255 255 / 0.22) !important; }
+            header .bg-primary\\/5  { background-color: rgb(255 255 255 / 0.14) !important; }
+            header .border-primary\\/20 { border-color: rgb(255 255 255 / 0.28) !important; }
+            header .text-primary { color: #ffffff !important; }
+            header .bg-muted, header .bg-muted\\/40, header .bg-muted\\/30, header .bg-muted\\/20 {
+              background-color: rgb(255 255 255 / 0.14) !important;
+            }
+            header button.size-8:not(.nova-base-btn),
+            header button.border:not(.nova-base-btn),
+            header button.h-8.w-8:not(.nova-base-btn),
+            header button.h-9.w-9:not(.nova-base-btn),
+            header button.size-9:not(.nova-base-btn) {
+              border-color: transparent !important;
+              background-color: transparent !important;
+              color: #ffffff !important;
+              box-shadow: none !important;
+            }
+            header button.size-8:not(.nova-base-btn):hover,
+            header button.border:not(.nova-base-btn):hover,
+            header button.h-8.w-8:not(.nova-base-btn):hover,
+            header button.h-9.w-9:not(.nova-base-btn):hover,
+            header button.size-9:not(.nova-base-btn):hover {
+              background-color: rgb(255 255 255 / 0.14) !important;
+              color: #ffffff !important;
+            }
+          `}</style>
+
           <div
             className="h-full flex items-center gap-3"
             style={{ padding: "0 24px" }}
