@@ -34,9 +34,14 @@ describe("parseBonusPacienteFile · detecção de colunas", () => {
 });
 
 describe("parseBonusPacienteFile · célula vazia vs zero (contrato)", () => {
-  it("linha com valor vazio e sem paciente é ignorada", async () => {
-    const r = await parseBonusPacienteFile(makeFile([["Paciente", "Valor"], [null, null]]));
-    expect(r.rows).toHaveLength(0);
+  it("linha vazia entre linhas válidas é ignorada, mantendo as válidas", async () => {
+    const r = await parseBonusPacienteFile(makeFile([["Paciente", "Valor"], ["Maria", 250], [null, null]]));
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0].patient_name).toBe("Maria");
+  });
+
+  it("planilha sem nenhuma linha de dados lança 'Planilha vazia'", async () => {
+    await expect(parseBonusPacienteFile(makeFile([["Paciente", "Valor"], [null, null]]))).rejects.toThrow(/vazia/i);
   });
 
   it("linha com zero explícito e sem paciente é ignorada", async () => {
