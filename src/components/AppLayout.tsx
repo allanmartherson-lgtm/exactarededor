@@ -946,7 +946,7 @@ export const AppLayout = () => {
         {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
           className="sticky top-0 z-40 bg-card border-b border-border/60"
-          style={{ height: 60 }}
+          style={{ height: 60, borderTop: "3px solid hsl(var(--primary))" }}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
@@ -1249,6 +1249,7 @@ export const AppLayout = () => {
             height: 64,
             background: "hsl(var(--card))",
             borderBottom: "1px solid hsl(var(--border))",
+            borderTop: "3px solid hsl(var(--primary))",
           }}
         >
           <div
