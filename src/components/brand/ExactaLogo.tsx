@@ -40,9 +40,10 @@ export const ExactaLogo = ({
   const resolvedWordmarkSize = wordmarkSize ?? (variant === "full" ? 22 : 18);
 
   const textColor = onDark ? "#FFFFFF" : "hsl(var(--foreground))";
-  const taglineColor = onDark ? "rgba(255,255,255,0.78)" : "hsl(var(--muted-foreground))";
-  // Token theme-aware: bronze escuro no claro, bronze claro no escuro; força claro em onDark
-  const accentColor = onDark ? "#E8C9A0" : "hsl(var(--brand-wordmark-accent))";
+  const taglineColor = onDark ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))";
+  const taglineColorSecondary = onDark ? "rgba(255,255,255,0.38)" : "hsl(var(--muted-foreground))";
+  // Wordmark accent: dourado #C6A27C sobre navy; token theme-aware caso contrário
+  const accentColor = onDark ? "#C6A27C" : "hsl(var(--brand-wordmark-accent))";
 
   const content = (
     <>
@@ -73,24 +74,35 @@ export const ExactaLogo = ({
             E<span style={{ color: accentColor }}>x</span>acta
           </p>
           {variant === "full" && (
-            <p
-              style={{
-                fontSize: Math.max(9, Math.round(resolvedWordmarkSize * 0.42)),
-                textTransform: "uppercase",
-                letterSpacing: "0.14em",
-                color: taglineColor,
-                marginTop: 4,
-                marginBottom: 0,
-                lineHeight: 1.2,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: "100%",
-              }}
-              title="Pagamento Médico · Rede D'Or"
-            >
-              Pagamento Médico · Rede D'Or
-            </p>
+            <div style={{ marginTop: 4 }}>
+              <p
+                style={{
+                  fontSize: Math.max(9, Math.round(resolvedWordmarkSize * 0.42)),
+                  textTransform: "uppercase",
+                  letterSpacing: "0.2em",
+                  color: taglineColor,
+                  margin: 0,
+                  lineHeight: 1.2,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Pagamento Médico
+              </p>
+              <p
+                style={{
+                  fontSize: Math.max(8, Math.round(resolvedWordmarkSize * 0.42 * 0.8)),
+                  textTransform: "uppercase",
+                  letterSpacing: "0.18em",
+                  color: taglineColorSecondary,
+                  margin: 0,
+                  marginTop: 2,
+                  lineHeight: 1.2,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Rede D'Or
+              </p>
+            </div>
           )}
         </div>
       )}
