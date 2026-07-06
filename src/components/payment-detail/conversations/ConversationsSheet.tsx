@@ -387,13 +387,23 @@ export function ConversationsSheet(props: Props) {
                   const renderThreadRow = (t: typeof filteredThreads[number]) => {
                     const isSelected = t.root.id === selectedId && !composeMode;
                     const unread = t.unreadForMe > 0;
+                    const isHighlighted = t.root.id === highlightThreadId;
                     const lastMsg = [t.root, ...t.replies].sort((a, b) =>
                       a.created_at.localeCompare(b.created_at),
                     ).at(-1)!;
                     const preview = stripPrefixes(lastMsg.message).body;
                     const sla = slaBadge(t.root.created_at, t.root.status === "encerrada");
                     return (
-                      <li key={t.root.id} className="relative">
+                      <li
+                        key={t.root.id}
+                        className="relative"
+                        ref={(el) => {
+                          // Scroll até a thread destacada quando aberta via deep-link.
+                          if (el && isHighlighted) {
+                            el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                          }
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => handleSelectThread(t.root.id)}
@@ -406,8 +416,10 @@ export function ConversationsSheet(props: Props) {
                               : unread
                               ? "hover:bg-chat-bg/60 border-l-chat-unread"
                               : "hover:bg-chat-bg/40 border-l-transparent",
+                            isHighlighted && "ring-2 ring-primary/70 ring-offset-1 ring-offset-background animate-pulse",
                           )}
                         >
+
                           <div className="flex items-center justify-between gap-2">
                             <span
                               className={cn(
