@@ -1765,6 +1765,27 @@ export function calcFromDb(r: any): CalcItem {
     noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
     noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
     is_catch_all: !!r.is_catch_all,
+    piso_habilitado: !!(r as any).piso_habilitado,
+    piso_escopo: ((r as any).piso_escopo === "por_atendimento" ? "por_atendimento" : "por_item") as "por_item" | "por_atendimento",
+    piso_valor_padrao: (r as any).piso_valor_padrao != null ? String((r as any).piso_valor_padrao) : "",
+    piso_por_funcao: (() => {
+      const raw = (r as any).piso_por_funcao;
+      const byRole = new Map<string, PisoRoleItem>();
+      for (const d of DEFAULT_PISO_ROLES) byRole.set(d.role, { ...d });
+      if (Array.isArray(raw)) {
+        for (const item of raw) {
+          if (!item) continue;
+          const key = String(item.role ?? "") as PisoRoleItem["role"];
+          if (!byRole.has(key)) continue;
+          byRole.set(key, {
+            role: key,
+            label: String(item.label ?? byRole.get(key)!.label),
+            valor: item.valor != null ? String(item.valor) : "",
+          });
+        }
+      }
+      return Array.from(byRole.values());
+    })(),
   };
 }
 
