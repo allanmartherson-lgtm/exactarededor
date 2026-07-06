@@ -1132,21 +1132,23 @@ export const AppLayout = () => {
         }}
         aria-label="Navegação lateral"
       >
-        {/* Header / Logo + collapse toggle */}
+        {/* Header / Logo + collapse toggle — pintado em navy para se conectar
+            visualmente com a top bar (a marca fica "colada" ao header navy,
+            e o corpo do sidebar permanece branco). */}
         <div
-          className="flex items-center"
+          className="flex items-center text-white"
           style={{
             height: 64,
             padding: sidebarCollapsed ? "0 8px" : "0 12px 0 16px",
-            borderBottom: "1px solid hsl(var(--sidebar-border))",
+            background: "hsl(214 100% 32%)",
+            borderBottom: "1px solid rgb(255 255 255 / 0.12)",
             justifyContent: sidebarCollapsed ? "center" : "space-between",
             gap: 8,
           }}
         >
           {!sidebarCollapsed && (
             <div className="flex-1 min-w-0 overflow-hidden">
-              <Logo preserveIconColors />
-
+              <Logo onDark preserveIconColors />
             </div>
           )}
           <Tooltip>
@@ -1156,7 +1158,8 @@ export const AppLayout = () => {
                 size="icon"
                 onClick={() => setSidebarCollapsed((v) => !v)}
                 aria-label={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md flex-shrink-0"
+                className="h-8 w-8 rounded-md flex-shrink-0 hover:bg-white/15"
+                style={{ color: "#ffffff" }}
               >
                 {sidebarCollapsed ? (
                   <ChevronsRight className="h-4 w-4" />
