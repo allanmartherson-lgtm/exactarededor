@@ -946,7 +946,7 @@ export const AppLayout = () => {
         {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
           className="sticky top-0 z-40 bg-card border-b border-border/60"
-          style={{ height: 60 }}
+          style={{ height: 60, borderTop: "3px solid hsl(var(--primary))" }}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
@@ -961,12 +961,6 @@ export const AppLayout = () => {
                 <Button
                   onClick={() => setModeModalOpen(true)}
                   className="h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5"
-                  style={{
-                    borderRadius: 6,
-                    background: "hsl(var(--primary))",
-                    color: "hsl(var(--primary-foreground))",
-                    border: "none",
-                  }}
                   aria-label="Nova base"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -1249,6 +1243,7 @@ export const AppLayout = () => {
             height: 64,
             background: "hsl(var(--card))",
             borderBottom: "1px solid hsl(var(--border))",
+            borderTop: "3px solid hsl(var(--primary))",
           }}
         >
           <div
@@ -1263,12 +1258,6 @@ export const AppLayout = () => {
                 <Button
                   onClick={() => setModeModalOpen(true)}
                   className="h-11 px-5 text-[14px] font-medium gap-2"
-                  style={{
-                    borderRadius: 8,
-                    background: "hsl(var(--primary))",
-                    color: "hsl(var(--primary-foreground))",
-                    border: "none",
-                  }}
                 >
                   <Plus className="h-[18px] w-[18px]" />
                   <span className="hidden md:inline">Nova base</span>
