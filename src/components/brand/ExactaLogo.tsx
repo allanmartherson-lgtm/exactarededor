@@ -48,15 +48,39 @@ export const ExactaLogo = ({
   // Wordmark accent: dourado #C6A27C sobre navy; token theme-aware caso contrário
   const accentColor = onDark ? "#C6A27C" : "hsl(var(--brand-wordmark-accent))";
 
+  // Em fundos navy da sidebar, envolvemos o badge oficial com um anel dourado
+  // para aumentar contraste com o fundo #002855 sem alterar as cores do ícone.
+  const showGoldRing = onDark && preserveIconColors;
+  const icon = (
+    <ExactaIcon
+      size={resolvedIconSize}
+      bg={onDark && !preserveIconColors ? "rgba(255,255,255,0.14)" : undefined}
+      check={onDark && !preserveIconColors ? "#FFFFFF" : undefined}
+    />
+  );
+
   const content = (
     <>
-      <ExactaIcon
-        size={resolvedIconSize}
-        // No sidebar navy, preservamos o badge oficial; no header navy usamos
-        // versão monocromática para não competir com os controles da topbar.
-        bg={onDark && !preserveIconColors ? "rgba(255,255,255,0.14)" : undefined}
-        check={onDark && !preserveIconColors ? "#FFFFFF" : undefined}
-      />
+      {showGoldRing ? (
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "9999px",
+            border: "2.5px solid #C6A27C",
+            padding: 2,
+            flexShrink: 0,
+            lineHeight: 0,
+          }}
+        >
+          {icon}
+        </span>
+      ) : (
+        icon
+      )}
+
       {variant !== "icon" && (
         <div className="min-w-0 leading-tight">
           <p
