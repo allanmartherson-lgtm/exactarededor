@@ -348,45 +348,38 @@ REGRAS:
 
     const systemPrompt = mode === "director" ? directorPrompt : generalPrompt;
 
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 600,
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
-        ],
-        tools: [{
-          name: "executive_summary",
-          description: "Resumo executivo do lote de pagamento",
-          input_schema: {
-            type: "object",
-            properties: {
-              headline: { type: "string", description: "Frase-resumo do lote" },
-              bullets: {
-                type: "array",
-                items: { type: "string" },
-                description: "3 a 5 bullets com os achados-chave",
-              },
-              risk_level: {
-                type: "string",
-                enum: ["baixo", "medio", "alto", "critico"],
-              },
-              recommended_action: { type: "string" },
+    const aiResp = await anthropicFetch({
+      model: "claude-sonnet-4-5",
+      max_tokens: 600,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
+      ],
+      tools: [{
+        name: "executive_summary",
+        description: "Resumo executivo do lote de pagamento",
+        input_schema: {
+          type: "object",
+          properties: {
+            headline: { type: "string", description: "Frase-resumo do lote" },
+            bullets: {
+              type: "array",
+              items: { type: "string" },
+              description: "3 a 5 bullets com os achados-chave",
             },
-            required: ["headline", "bullets", "risk_level", "recommended_action"],
-            additionalProperties: false,
+            risk_level: {
+              type: "string",
+              enum: ["baixo", "medio", "alto", "critico"],
+            },
+            recommended_action: { type: "string" },
           },
-        }],
-        tool_choice: { type: "tool", name: "executive_summary" },
-      }),
+          required: ["headline", "bullets", "risk_level", "recommended_action"],
+          additionalProperties: false,
+        },
+      }],
+      tool_choice: { type: "tool", name: "executive_summary" },
     });
+
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) {
