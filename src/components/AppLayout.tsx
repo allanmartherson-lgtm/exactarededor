@@ -948,11 +948,11 @@ export const AppLayout = () => {
           className="sticky top-0 z-40 border-b border-white/10 text-white"
           style={{
             height: 60,
-            // Header CURA: fundo navy sólido (primary-700). Sobrescrevemos os
-            // tokens de texto/borda no escopo do header para que todos os
-            // filhos (nav, hospital picker, botões ghost) herdem branco sem
-            // precisar de props "onDark" em cada componente.
-            background: "hsl(var(--primary))",
+            // Header CURA: fundo navy CURA (#003DA5 = hsl 214 100% 32%) HARD-CODED
+            // aqui porque nas linhas abaixo invertemos --primary→branco no
+            // escopo do header (para pills/chips ficarem legíveis). Se usarmos
+            // hsl(var(--primary)) o próprio header vira branco.
+            background: "hsl(214 100% 32%)",
             ["--cura-font-color" as string]: "#ffffff",
             ["--foreground" as string]: "0 0% 100%",
             ["--muted-foreground" as string]: "0 0% 100%",
