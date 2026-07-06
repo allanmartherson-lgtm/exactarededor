@@ -948,25 +948,45 @@ export const AppLayout = () => {
           className="sticky top-0 z-40 border-b border-white/10 text-white"
           style={{
             height: 60,
-            // Header CURA: fundo navy sólido (primary-700). Sobrescrevemos os
-            // tokens de texto/borda no escopo do header para que todos os
-            // filhos (nav, hospital picker, botões ghost) herdem branco sem
-            // precisar de props "onDark" em cada componente.
-            background: "hsl(var(--primary))",
+            // Header CURA: fundo navy CURA (#003DA5 = hsl 214 100% 32%) HARD-CODED
+            // aqui porque nas linhas abaixo invertemos --primary→branco no
+            // escopo do header (para pills/chips ficarem legíveis). Se usarmos
+            // hsl(var(--primary)) o próprio header vira branco.
+            background: "hsl(214 100% 32%)",
             ["--cura-font-color" as string]: "#ffffff",
             ["--foreground" as string]: "0 0% 100%",
             ["--muted-foreground" as string]: "0 0% 100%",
-            ["--border" as string]: "0 0% 100% / 0.18",
-            ["--input" as string]: "0 0% 100% / 0.18",
+            ["--border" as string]: "0 0% 100% / 0.22",
+            ["--input" as string]: "0 0% 100% / 0.22",
             ["--background" as string]: "0 0% 100% / 0",
-            ["--card" as string]: "0 0% 100% / 0.08",
-            ["--secondary" as string]: "0 0% 100% / 0.12",
+            ["--card" as string]: "0 0% 100% / 0.10",
+            ["--secondary" as string]: "0 0% 100% / 0.14",
             ["--secondary-foreground" as string]: "0 0% 100%",
-            ["--muted" as string]: "0 0% 100% / 0.14",
-            ["--accent" as string]: "0 0% 100% / 0.18",
+            ["--muted" as string]: "0 0% 100% / 0.16",
+            ["--accent" as string]: "0 0% 100% / 0.20",
             ["--accent-foreground" as string]: "0 0% 100%",
+            // Inverte primary dentro do header: pills e ícones ativos usam
+            // branco sobre navy; botões "primary" viram pílulas brancas com
+            // texto navy (contraste AAA sobre o header).
+            ["--primary" as string]: "0 0% 100%",
+            ["--primary-foreground" as string]: "214 100% 32%",
+            ["--ring" as string]: "0 0% 100%",
           } as React.CSSProperties}
         >
+          {/* Overrides pontuais para chips/pills que usam bg-primary/10 dentro
+              do header — a mistura white/10 sobre navy fica ilegível; elevamos
+              alpha e reforçamos texto branco para contraste AA em todos eles. */}
+          <style>{`
+            header .bg-primary\\/10 { background-color: rgb(255 255 255 / 0.22) !important; }
+            header .bg-primary\\/5  { background-color: rgb(255 255 255 / 0.14) !important; }
+            header .border-primary\\/20 { border-color: rgb(255 255 255 / 0.28) !important; }
+            header .border-primary\\/40 { border-color: rgb(255 255 255 / 0.45) !important; }
+            header .text-primary { color: #ffffff !important; }
+            header .bg-muted, header .bg-muted\\/40, header .bg-muted\\/30, header .bg-muted\\/20 {
+              background-color: rgb(255 255 255 / 0.14) !important;
+            }
+          `}</style>
+
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
             <Logo onDark />
