@@ -229,14 +229,36 @@ export function ConversationsSheet(props: Props) {
     [filteredThreads, threads, selectedId],
   );
 
+  // Deep-link: quando abrimos via `?thread=<rootId>`, forçamos a seleção da thread
+  // pedida (mesmo se estiver encerrada — trocamos o filtro para "todas") e disparamos
+  // um pulse visual para deixar claro que a conversa foi aberta, não só a página do lote.
+  useEffect(() => {
+    if (!open || !initialThreadId) return;
+    if (!threads.length) return; // aguarda o load completar
+    const exists = threads.some((t) => t.root.id === initialThreadId);
+    if (!exists) return;
+    setComposeMode(null);
+    setSelectedId(initialThreadId);
+    setMobileShowChat(true);
+    if (!filteredThreads.some((t) => t.root.id === initialThreadId)) {
+      setFilter("todas");
+    }
+    setHighlightThreadId(initialThreadId);
+    onInitialThreadConsumed?.();
+    const t = window.setTimeout(() => setHighlightThreadId(null), 1800);
+    return () => window.clearTimeout(t);
+  }, [open, initialThreadId, threads, filteredThreads, onInitialThreadConsumed]);
+
   // Auto-select first thread on open / when current selection vanishes.
   useEffect(() => {
     if (!open) return;
     if (composeMode) return;
+    if (initialThreadId) return; // deep-link tem prioridade
     if (selectedId && threads.some((t) => t.root.id === selectedId)) return;
     const first = filteredThreads[0]?.root.id ?? null;
     setSelectedId(first);
-  }, [open, threads, filteredThreads, selectedId, composeMode]);
+  }, [open, threads, filteredThreads, selectedId, composeMode, initialThreadId]);
+
 
   // Mark read when thread opens.
   useEffect(() => {
