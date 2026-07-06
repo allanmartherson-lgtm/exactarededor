@@ -1,0 +1,58 @@
+{
+  "name": "@rededor/cura",
+  "version": "2.0.0-alpha.14",
+  "description": "Cura Design System",
+  "author": "Rede D`Or São Luiz",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.js",
+  "es2015": "dist/esm/index.js",
+  "es2017": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
+  "collection": "dist/collection/collection-manifest.json",
+  "collection:main": "dist/collection/index.js",
+  "unpkg": "dist/components/index.js",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "stencil build --docs && npm run build-storybook",
+    "start": "stencil build --dev --watch --serve",
+    "test": "stencil test --spec --e2e",
+    "test.watch": "stencil test --spec --e2e --watchAll",
+    "generate": "stencil generate",
+    "build:iconset": "node ./node/iconset-builder.js",
+    "storybook": "npm run build && storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "test-storybook": "test-storybook --coverage"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.6.11",
+    "@stencil/core": "^4.43.3",
+    "element-internals-polyfill": "^3.0.2",
+    "imask": "^7.6.1",
+    "react-markdown": "^9.0.1",
+    "rehype-raw": "^7.0.0"
+  },
+  "devDependencies": {
+    "@stencil/react-output-target": "^0.5.1",
+    "@stencil/sass": "^3.0.4",
+    "@storybook/addon-essentials": "^7.6.7",
+    "@storybook/addon-interactions": "^7.6.7",
+    "@storybook/addon-links": "^7.6.7",
+    "@storybook/blocks": "^7.6.7",
+    "@storybook/html": "^7.6.7",
+    "@storybook/html-webpack5": "^7.6.7",
+    "@storybook/test": "^7.6.7",
+    "@types/jest": "^27.0.3",
+    "jest": "^27.4.5",
+    "jest-cli": "^27.4.5",
+    "puppeteer": "^22.13.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "storybook": "^7.6.7",
+    "svgo": "^3.3.2"
+  },
+  "gitHead": "b29b265ebf4484d4d5a1c3d888219c4e909eb9a2"
+}
