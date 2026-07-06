@@ -162,21 +162,21 @@ All colors MUST be HSL.
     --popover: 214 16% 17%;
     --popover-foreground: 210 17% 93%;
 
-    /* ── Brand: verde mais claro no dark ─────────────────── */
-    --primary: 211 90% 62%;              /* azul Apple claro p/ dark mode */
-    --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 40% 18%;
-    --primary-glow: 200 55% 60%;
-    --primary-dark: 213 55% 32%;      /* navy mais suave no dark */
+    /* ── Brand CURA dark: primary suavizado ─────────────────── */
+    --primary: 205 74% 68%;              /* #71C5E8 CURA primary-100 (mais legível no dark) */
+    --primary-foreground: 214 100% 12%;  /* texto em cima do primary claro */
+    --primary-soft: 214 40% 22%;
+    --primary-glow: 205 74% 78%;
+    --primary-dark: 214 100% 23%;
 
-    /* ── Accent: ouro Exacta ─────────────────────────────── */
-    --accent: 37 42% 61%;             /* #C6A27C — Pantone 728 C Rede D'Or */
-    --accent-foreground: 0 0% 100%;
-    --accent-light: 35 80% 86%;       /* #F7CEA7 — dourado claro D'Or */
-    --brand-wordmark-accent: 37 55% 70%; /* bronze claro p/ contraste em fundo escuro */
+    /* ── Accent CURA dark: laranja mais suave ──────────────── */
+    --accent: 34 100% 62%;               /* laranja levemente pastelizado */
+    --accent-foreground: 214 100% 12%;
+    --accent-light: 34 100% 74%;
+    --brand-wordmark-accent: 34 100% 74%;
 
-    --accent-blue: 211 90% 66%;
-    --accent-blue-soft: 222 25% 20%;
+    --accent-blue: 205 74% 68%;
+    --accent-blue-soft: 214 40% 22%;
 
     /* ── Copper ─────────────────────────────────────────────── */
     --copper: 28 55% 58%;
@@ -203,10 +203,10 @@ All colors MUST be HSL.
     --warning-soft: 35 55% 22%;
     --warning-text: 42 95% 78%;
 
-    --info: 211 90% 66%;
-    --info-foreground: 0 0% 100%;
-    --info-soft: 222 25% 20%;
-    --info-text: 211 92% 74%;
+    --info: 205 74% 68%;
+    --info-foreground: 214 100% 12%;
+    --info-soft: 214 40% 22%;
+    --info-text: 205 74% 78%;
 
     --destructive: 0 75% 58%;
     --destructive-foreground: 0 0% 100%;
@@ -219,8 +219,8 @@ All colors MUST be HSL.
     --border-highlight: 214 16% 30%;
     --input: 214 14% 40%;
     --input-bg: 214 18% 18%;
-    --ring: 211 90% 62%;              /* azul Apple dark mode */
-    --ring-soft: 214 80% 55% / 0.3;
+    --ring: 205 74% 68%;              /* CURA primary claro no dark */
+    --ring-soft: 205 74% 68% / 0.3;
     --track-soft: 214 12% 28%;
 
     --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.35);
@@ -255,14 +255,14 @@ All colors MUST be HSL.
     --sidebar-background: 214 28% 9%;
     --sidebar-foreground: 60 12% 70%;
     --sidebar-muted-foreground: 220 9% 50%;
-    --sidebar-primary: 211 90% 62%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 205 74% 68%;
+    --sidebar-primary-foreground: 214 100% 12%;
     --sidebar-hover: 214 22% 15%;
-    --sidebar-hover-foreground: 60 15% 90%;
-    --sidebar-accent: 214 40% 18%;    /* azul suave dark */
-    --sidebar-accent-foreground: 214 80% 80%;
+    --sidebar-hover-foreground: 205 74% 78%;
+    --sidebar-accent: 214 40% 22%;
+    --sidebar-accent-foreground: 205 74% 78%;
     --sidebar-border: 214 14% 16%;
-    --sidebar-ring: 211 90% 62%;
+    --sidebar-ring: 205 74% 68%;
   }
 
   /* ============================================================
