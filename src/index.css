@@ -174,7 +174,7 @@ All colors MUST be HSL.
     --accent: 34 100% 62%;               /* laranja levemente pastelizado */
     --accent-foreground: 214 100% 12%;
     --accent-light: 34 100% 74%;
-    --brand-wordmark-accent: 34 100% 74%;
+    --brand-wordmark-accent: 33 78% 62%; /* bronze dourado — destaca o "x" sem competir com o branco */
 
     --accent-blue: 205 74% 68%;
     --accent-blue-soft: 214 40% 22%;
