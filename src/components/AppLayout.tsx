@@ -1321,7 +1321,6 @@ export const AppLayout = () => {
             height: 64,
             background: "hsl(var(--card))",
             borderBottom: "1px solid hsl(var(--border))",
-            borderTop: "3px solid hsl(var(--primary))",
           }}
         >
           <div
