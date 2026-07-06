@@ -15,6 +15,8 @@ interface ExactaLogoProps {
   style?: CSSProperties;
   /** Força esquema escuro (texto branco). Útil em fundos azul institucional como o painel de login. */
   onDark?: boolean;
+  /** Mantém o ícone oficial azul + check dourado mesmo quando o texto usa versão escura. */
+  preserveIconColors?: boolean;
 }
 
 /**
@@ -35,6 +37,7 @@ export const ExactaLogo = ({
   className,
   style,
   onDark = false,
+  preserveIconColors = false,
 }: ExactaLogoProps) => {
   const resolvedIconSize = iconSize ?? (variant === "icon" ? 40 : variant === "full" ? 40 : 34);
   const resolvedWordmarkSize = wordmarkSize ?? (variant === "full" ? 22 : 18);
@@ -49,11 +52,10 @@ export const ExactaLogo = ({
     <>
       <ExactaIcon
         size={resolvedIconSize}
-        // Versão branca (monocromática) sobre header navy: círculo transparente
-        // com contorno branco sutil + check branco. Sobre fundo claro mantém o
-        // lockup oficial (círculo navy + check bronze).
-        bg={onDark ? "rgba(255,255,255,0.14)" : undefined}
-        check={onDark ? "#FFFFFF" : undefined}
+        // No sidebar navy, preservamos o badge oficial; no header navy usamos
+        // versão monocromática para não competir com os controles da topbar.
+        bg={onDark && !preserveIconColors ? "rgba(255,255,255,0.14)" : undefined}
+        check={onDark && !preserveIconColors ? "#FFFFFF" : undefined}
       />
       {variant !== "icon" && (
         <div className="min-w-0 leading-tight">

@@ -85,8 +85,14 @@ function getInitials(name?: string | null, email?: string | null) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const Logo = ({ compact = false, onDark = false }: { compact?: boolean; onDark?: boolean }) => (
-  <ExactaLogo variant={compact ? "icon" : "full"} iconSize={compact ? 34 : 36} wordmarkSize={20} onDark={onDark} />
+const Logo = ({ compact = false, onDark = false, preserveIconColors = false }: { compact?: boolean; onDark?: boolean; preserveIconColors?: boolean }) => (
+  <ExactaLogo
+    variant={compact ? "icon" : "full"}
+    iconSize={compact ? 34 : 36}
+    wordmarkSize={20}
+    onDark={onDark}
+    preserveIconColors={preserveIconColors}
+  />
 );
 
 
@@ -1139,7 +1145,7 @@ export const AppLayout = () => {
         >
           {!sidebarCollapsed && (
             <div className="flex-1 min-w-0 overflow-hidden">
-              <Logo />
+              <Logo onDark preserveIconColors />
             </div>
           )}
           <Tooltip>
