@@ -948,15 +948,24 @@ export const AppLayout = () => {
           className="sticky top-0 z-40 border-b border-white/10 text-white"
           style={{
             height: 60,
-            // Header CURA: fundo navy sólido (primary-700). `--cura-font-color`
-            // garante que os Web Components CURA herdem texto branco.
+            // Header CURA: fundo navy sólido (primary-700). Sobrescrevemos os
+            // tokens de texto/borda no escopo do header para que todos os
+            // filhos (nav, hospital picker, botões ghost) herdem branco sem
+            // precisar de props "onDark" em cada componente.
             background: "hsl(var(--primary))",
             ["--cura-font-color" as string]: "#ffffff",
+            ["--foreground" as string]: "0 0% 100%",
+            ["--muted-foreground" as string]: "0 0% 100%",
+            ["--border" as string]: "0 0% 100% / 0.18",
+            ["--input" as string]: "0 0% 100% / 0.18",
+            ["--accent" as string]: "0 0% 100% / 0.12",
+            ["--accent-foreground" as string]: "0 0% 100%",
           } as React.CSSProperties}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
             <Logo onDark />
+
 
             <div className="hidden md:flex flex-1 min-w-0">
               <TopbarNav items={visibleTopNav} conversasUnread={conversasUnread} />
