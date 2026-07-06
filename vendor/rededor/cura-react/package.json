@@ -1,0 +1,34 @@
+{
+  "name": "@rededor/cura-react",
+  "sideEffects": false,
+  "version": "2.0.0-alpha.14",
+  "description": "",
+  "author": "",
+  "scripts": {
+    "build": "npm run clean && npm run compile",
+    "clean": "rimraf dist",
+    "compile": "npm run tsc",
+    "tsc": "tsc -p ."
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "loader/"
+  ],
+  "dependencies": {
+    "@rededor/cura": "^2.0.0-alpha.14"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.15",
+    "@types/react-dom": "^17.0.9",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "rimraf": "^2.6.3",
+    "rollup": "^1.21.2",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "typescript": "^5.4.0"
+  },
+  "gitHead": "b29b265ebf4484d4d5a1c3d888219c4e909eb9a2"
+}

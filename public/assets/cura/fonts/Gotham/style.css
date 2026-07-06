@@ -1,0 +1,90 @@
+/* Thin */
+@font-face {
+  font-family: 'Gotham';
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url(./Gotham-Thin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Gotham';
+  font-style: italic;
+  font-weight: 100;
+  font-display: swap;
+  src: url(./Gotham-ThinItalic.woff2) format('woff2');
+}
+/* Light */
+@font-face {
+  font-family: 'Gotham';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url(./Gotham-Light.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Gotham';
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url(./Gotham-LightItalic.woff2) format('woff2');
+}
+/* Regular */
+@font-face {
+  font-family: 'Gotham';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./Gotham-Book.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Gotham';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./Gotham-BookItalic.woff2) format('woff2');
+}
+/* Medium */
+@font-face {
+  font-family: 'Gotham';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(./Gotham-Medium.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Gotham';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url(./Gotham-MediumItalic.woff2) format('woff2');
+}
+/* Bold */
+@font-face {
+  font-family: 'Gotham';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(./Gotham-Bold.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Gotham';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url(./Gotham-BoldItalic.woff2) format('woff2');
+}
+/* Black */
+@font-face {
+  font-family: 'Gotham';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(./Gotham-Ultra.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Gotham';
+  font-style: italic;
+  font-weight: 900;
+  font-display: swap;
+  src: url(./Gotham-UltraItalic.woff2) format('woff2');
+}
