@@ -1316,12 +1316,22 @@ export const AppLayout = () => {
       >
         {/* Slim top bar */}
         <header
-          className="sticky top-0 z-30"
+          className="sticky top-0 z-30 text-white"
           style={{
             height: 64,
-            background: "hsl(var(--card))",
-            borderBottom: "1px solid hsl(var(--border))",
-          }}
+            // Padrão Rede D'Or/CURA: header institucional em azul navy
+            // (primary-700 = #003DA5). Escopa --primary→branco para que
+            // pills/ícones ativos usem branco sobre navy.
+            background: "hsl(214 100% 32%)",
+            borderBottom: "1px solid rgb(255 255 255 / 0.12)",
+            ["--cura-font-color" as string]: "#ffffff",
+            ["--foreground" as string]: "0 0% 100%",
+            ["--muted-foreground" as string]: "0 0% 100%",
+            ["--border" as string]: "0 0% 100% / 0.22",
+            ["--primary" as string]: "0 0% 100%",
+            ["--primary-foreground" as string]: "214 100% 32%",
+            ["--ring" as string]: "0 0% 100%",
+          } as React.CSSProperties}
         >
           <div
             className="h-full flex items-center gap-3"
