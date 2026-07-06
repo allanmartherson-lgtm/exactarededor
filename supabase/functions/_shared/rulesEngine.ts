@@ -3767,6 +3767,8 @@ function finalizeAnalysis(
     ...(calc.calc_duplicity ? { calc_duplicity: calc.calc_duplicity } : {}),
     convenio_basis_detected: basisDetected,
     basis_confidence: basisConfidence,
+    piso_aplicado_valor: calc.piso_aplicado_valor ?? null,
+    piso_metodo_vencedor: calc.piso_metodo_vencedor ?? null,
   };
 }
 
