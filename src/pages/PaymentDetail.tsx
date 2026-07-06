@@ -5234,14 +5234,19 @@ const PaymentDetail = () => {
           onOpenChange={setProductionValidationOpen}
         />
       )}
-      {id && user && (isAnalista || isValidador || isDiretor) && !isNfPhase && (
+      {id && user && (isAnalista || isValidador || isDiretor) && (
         <>
-          <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
+          {!isNfPhase && (
+            <QuestionsFab openCount={openThreadsCount} onClick={() => setThreadsOpen(true)} />
+          )}
           <ConversationsSheet
             open={threadsOpen}
             onOpenChange={(o) => {
               setThreadsOpen(o);
-              if (!o) setAskQuestion(null);
+              if (!o) {
+                setAskQuestion(null);
+                setInitialThreadId(null);
+              }
             }}
             paymentId={id}
             paymentLabel={(payment as any).reference ?? (payment as any).competence_month ?? null}
@@ -5253,9 +5258,12 @@ const PaymentDetail = () => {
             currentRole={isDiretor ? "diretor" : isValidador ? "validador" : "analista"}
             initialCompose={askQuestion}
             onComposeConsumed={() => setAskQuestion(null)}
+            initialThreadId={initialThreadId}
+            onInitialThreadConsumed={() => setInitialThreadId(null)}
           />
         </>
       )}
+
     </>
   );
 };
