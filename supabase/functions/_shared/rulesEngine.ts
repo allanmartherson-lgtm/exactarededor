@@ -493,6 +493,10 @@ export interface AnalysisResult {
   convenio_basis_detected?: "unit" | "total" | "ambiguous" | "na";
   /** Desvio percentual da hipótese escolhida vs valor pago (0 = casa exato). */
   basis_confidence?: number | null;
+  /** Piso por procedimento — valor do piso vigente aplicado ao item (R$). null = piso não configurado. */
+  piso_aplicado_valor?: number | null;
+  /** Método vencedor do MAX(convenio, piso). null = sem piso. */
+  piso_metodo_vencedor?: "convenio" | "piso" | null;
 }
 
 
