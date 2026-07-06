@@ -435,9 +435,10 @@ const SetPassword = () => {
                   <Label htmlFor="confirm">Confirmar senha</Label>
                   <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={8} maxLength={72} />
                 </div>
-                <Button type="submit" className="w-full" disabled={phase === "saving"}>
+                <CuraSubmitButton disabled={phase === "saving"}>
                   {phase === "saving" ? "Salvando…" : flow === "invite" ? "Criar senha e entrar" : "Salvar nova senha"}
-                </Button>
+                </CuraSubmitButton>
+
                 {diagnostics.length > 0 && (
                   <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
                     {diagnostics.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}
