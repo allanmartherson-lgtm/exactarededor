@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Wallet, AlertTriangle, Loader2, Plus, Trash2, RefreshCw, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { toast } from "sonner";
 import { confirmDialog } from "@/lib/confirm";
 
@@ -293,6 +294,7 @@ export function DeductionsBanner({
 function AddManualDeductionDialog({
   paymentId, companyId, onClose,
 }: { paymentId: string; companyId: string; onClose: () => void }) {
+  const { hospital } = useHospital();
   const [adjustments, setAdjustments] = useState<any[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [overrideValor, setOverrideValor] = useState(false);
@@ -311,10 +313,12 @@ function AddManualDeductionDialog({
 
   const save = async () => {
     if (!selected) { toast.error("Selecione um débito/crédito"); return; }
+    if (!hospital?.id) { toast.error("Selecione uma unidade hospitalar"); return; }
     const finalValor = overrideValor ? Number(valor.replace(",", ".")) : parcelaValor;
     if (!finalValor || finalValor <= 0) { toast.error("Valor inválido"); return; }
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("company_adjustment_applications").insert({
+      hospital_id: hospital.id,
       payment_id: paymentId, company_id: companyId, adjustment_id: selected,
       valor_aplicado: finalValor,
       parcela_numero: (selectedAdj?.parcelas_pagas ?? 0) + 1,

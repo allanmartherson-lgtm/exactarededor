@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { formatDate } from "@/lib/status";
 import { MessageCircleQuestion, Paperclip, X, Download } from "lucide-react";
 import {
@@ -44,6 +45,7 @@ export const InvoiceQuestionsThread = ({
   notifyOnReply?: boolean;
 }) => {
   const { user } = useAuth();
+  const { hospital } = useHospital();
   const [items, setItems] = useState<InvoiceQuestion[]>(initial ?? []);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -139,10 +141,12 @@ export const InvoiceQuestionsThread = ({
       return;
     }
     if (!user) return;
+    if (!hospital?.id) { toast({ title: "Selecione uma unidade hospitalar", variant: "destructive" }); return; }
     setBusy(true);
     const { data, error } = await supabase
       .from("invoice_questions")
       .insert({
+        hospital_id: hospital.id,
         invoice_id: invoiceId,
         payment_id: paymentId,
         author_type: "analista",
@@ -179,6 +183,7 @@ export const InvoiceQuestionsThread = ({
       const { data: insAtt, error: insAttErr } = await supabase
         .from("invoice_question_attachments")
         .insert({
+          hospital_id: hospital.id,
           question_id: questionId,
           invoice_id: invoiceId,
           payment_id: paymentId,

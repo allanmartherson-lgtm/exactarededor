@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { toast } from "@/hooks/use-toast";
 import { Send } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function ProductionValidationButton({ paymentId, groups, currentUserId, onDone, open: openProp, onOpenChange }: Props) {
+  const { hospital } = useHospital();
   const [openInternal, setOpenInternal] = useState(false);
   const isControlled = openProp !== undefined;
   const open = isControlled ? openProp : openInternal;
@@ -51,12 +53,17 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
       toast({ title: "Selecione ao menos uma empresa", variant: "destructive" });
       return;
     }
+    if (!hospital?.id) {
+      toast({ title: "Selecione uma unidade hospitalar", variant: "destructive" });
+      return;
+    }
     setBusy(true);
     const targets = eligible.filter(g => selected.has(g.id));
     let ok = 0;
     for (const g of targets) {
       if (!g.company_id) continue;
       const { error } = await supabase.from("production_validations").insert({
+        hospital_id: hospital.id,
         payment_id: paymentId,
         company_id: g.company_id,
         company_name: g.company_name,
