@@ -3032,7 +3032,7 @@ const NewPayment = () => {
           sector_matched_by: it.sector_matched_by,
           sector_raw: it.sector,
         }));
-        const learned = await learnAliasesFromResolvedRows(learnRows, { doctorReg, convenioReg, sectorReg });
+        const learned = await learnAliasesFromResolvedRows(learnRows, { doctorReg, convenioReg, sectorReg }, hospital?.id ?? null);
         const total = learned.doctor + learned.convenio + learned.sector;
         if (total > 0) {
           toast({
