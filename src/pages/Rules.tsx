@@ -58,6 +58,7 @@ import {
   type CalcItem,
 } from "@/components/rules/RuleCalculationsEditor";
 import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
+import { PisoDefasagemCard } from "@/components/rules/PisoDefasagemCard";
 import { RuleConflictModal, type Problem as ConflictProblem, type Correction as ConflictCorrection } from "@/components/rules/RuleConflictModal";
 import { CloneRuleToHospitalDialog } from "@/components/rules/CloneRuleToHospitalDialog";
 import { DateInput } from "@/components/ui/date-input";
