@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Layers, Plus, Pencil, X, Upload, Loader2 } from "lucide-react";
+import { Layers, Plus, Pencil, X, Upload, Loader2, Building2, Globe2 } from "lucide-react";
 
 type Sector = {
   slug: string;
@@ -22,6 +26,7 @@ type Sector = {
   notes: string | null;
   tasy_code: string | null;
   classification: string | null;
+  hospital_id: string | null;
 };
 
 const empty: Sector = {
@@ -34,6 +39,7 @@ const empty: Sector = {
   notes: "",
   tasy_code: "",
   classification: "",
+  hospital_id: null,
 };
 
 const norm = (s: string) =>
@@ -49,6 +55,19 @@ function buildSlug(input: string) {
   return input.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+// Sufixo curto do hospital para evitar colisão de slug entre hospitais
+// (ex.: cc_hsl vs cc_hh para "Centro Cirúrgico" em Santa Luzia/Helena).
+function hospitalSlugSuffix(hospitalName: string) {
+  const n = hospitalName.trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "");
+  const initials = n.split(/\s+/).filter(Boolean).map(w => w[0]).join("");
+  return initials.slice(0, 4) || n.slice(0, 4);
+}
+
+type ScopeFilter = "all" | "current" | "global";
+
+
 type Props = { canManage?: boolean };
 
 /**
@@ -56,6 +75,10 @@ type Props = { canManage?: boolean };
  * Renderiza sem `PageHeader` próprio para se encaixar em layouts tabbed.
  */
 export default function SectorsManager({ canManage = true }: Props) {
+  const { hospital, availableHospitals } = useHospital() as {
+    hospital: { id: string; name: string } | null;
+    availableHospitals: { id: string; name: string }[];
+  };
   const [list, setList] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Sector | null>(null);
@@ -64,7 +87,16 @@ export default function SectorsManager({ canManage = true }: Props) {
   const [testInput, setTestInput] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const hospitalName = (id: string | null) =>
+    id ? (availableHospitals.find(h => h.id === id)?.name ?? "Outro hospital") : "Global";
+
+  // Escopo em que novos setores/importações entram: se filtro está em
+  // "Somente hospital atual", entram vinculados; caso contrário globais.
+  const importHospitalId = scopeFilter === "current" ? (hospital?.id ?? null) : null;
+  const importSuffix = importHospitalId && hospital ? hospitalSlugSuffix(hospital.name) : "";
 
   const load = async () => {
     setLoading(true);
@@ -76,19 +108,32 @@ export default function SectorsManager({ canManage = true }: Props) {
 
   useEffect(() => { load(); }, []);
 
-  const openNew = () => { setEditing({ ...empty }); setIsNew(true); setAliasInput(""); };
+  const openNew = () => {
+    const initialHospital = scopeFilter === "current" ? (hospital?.id ?? null) : null;
+    setEditing({ ...empty, hospital_id: initialHospital });
+    setIsNew(true);
+    setAliasInput("");
+  };
   const openEdit = (s: Sector) => { setEditing({ ...s, aliases: [...s.aliases] }); setIsNew(false); setAliasInput(""); };
 
   const save = async () => {
     if (!editing) return;
-    const slug = editing.slug.trim().toLowerCase().replace(/\s+/g, "_");
+    let slug = editing.slug.trim().toLowerCase().replace(/\s+/g, "_");
     if (!slug || !editing.name.trim()) { toast.error("Slug e nome são obrigatórios"); return; }
+    // Garante slug único quando o setor for de um hospital específico.
+    if (isNew && editing.hospital_id) {
+      const h = availableHospitals.find(x => x.id === editing.hospital_id);
+      const suffix = h ? hospitalSlugSuffix(h.name) : "";
+      if (suffix && !slug.endsWith(`_${suffix}`)) slug = `${slug}_${suffix}`;
+    }
     const payload = {
+
       ...editing,
       slug,
       aliases: editing.aliases.map(a => a.trim()).filter(Boolean),
       tasy_code: editing.tasy_code?.trim() || null,
       classification: editing.classification?.trim() || null,
+      hospital_id: editing.hospital_id ?? null,
     };
     const { error } = isNew
       ? await supabase.from("sectors").insert(payload)
@@ -98,6 +143,7 @@ export default function SectorsManager({ canManage = true }: Props) {
     setEditing(null);
     load();
   };
+
 
   const addAlias = () => {
     if (!editing || !aliasInput.trim()) return;
@@ -205,11 +251,14 @@ export default function SectorsManager({ canManage = true }: Props) {
         );
 
         payload.push({
-          slug, name: nome, aliases: mergedAliases,
+          slug: importHospitalId && importSuffix && !slug.endsWith(`_${importSuffix}`) ? `${slug}_${importSuffix}` : slug,
+          name: nome, aliases: mergedAliases,
           active: ativo, sort_order: ordem, notes: notas,
           tasy_code: codigo, classification,
+          hospital_id: importHospitalId,
         });
       }
+
 
       if (payload.length === 0) {
         toast.error(`Nenhuma linha válida encontrada${skipped ? ` (${skipped} ignoradas)` : ""}. Verifique se as colunas "nome" e "codigo/slug" estão presentes.`);
@@ -237,13 +286,24 @@ export default function SectorsManager({ canManage = true }: Props) {
   };
 
 
+  const visible = useMemo(() => {
+    const activeId = hospital?.id ?? null;
+    return list.filter(s => {
+      if (scopeFilter === "global") return s.hospital_id === null;
+      if (scopeFilter === "current") return s.hospital_id === activeId;
+      // "all" = escopo real: globais + do hospital ativo. Outros hospitais ocultos.
+      return s.hospital_id === null || s.hospital_id === activeId;
+    });
+  }, [list, scopeFilter, hospital?.id]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Layers className="h-5 w-5" /> Setores</h2>
           <p className="text-sm text-muted-foreground">
-            Padronização dos nomes de setor que vêm da base. Aliases capturam variações (acentos, abreviações, sufixos).
+            Cada setor pode ser <strong>global</strong> ou <strong>exclusivo de um hospital</strong>.
+            Santa Luzia e Helena podem ter setores próprios sem interferência mútua.
           </p>
         </div>
         {canManage && (
@@ -263,6 +323,25 @@ export default function SectorsManager({ canManage = true }: Props) {
           </div>
         )}
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={scopeFilter} onValueChange={(v) => setScopeFilter(v as ScopeFilter)}>
+          <SelectTrigger className="w-[280px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Global + {hospital?.name ?? "hospital atual"}</SelectItem>
+            <SelectItem value="current">Somente {hospital?.name ?? "hospital atual"}</SelectItem>
+            <SelectItem value="global">Somente globais</SelectItem>
+          </SelectContent>
+        </Select>
+        {scopeFilter === "current" && importHospitalId && (
+          <span className="text-xs text-muted-foreground">
+            Importações e novos setores serão vinculados a <strong>{hospital?.name}</strong>.
+          </span>
+        )}
+      </div>
+
 
       {canManage && (
         <Card>
@@ -302,12 +381,22 @@ export default function SectorsManager({ canManage = true }: Props) {
 
       <div className="grid gap-3">
         {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-        {!loading && list.length === 0 && <p className="text-sm text-muted-foreground">Nenhum setor cadastrado.</p>}
-        {list.map(s => (
+        {!loading && visible.length === 0 && <p className="text-sm text-muted-foreground">Nenhum setor neste escopo.</p>}
+        {visible.map(s => (
           <Card key={s.slug} className={s.active ? "" : "opacity-60"}>
             <CardContent className="p-4 flex items-start justify-between gap-4">
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {s.hospital_id ? (
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <Building2 className="h-3 w-3" />
+                      {hospitalName(s.hospital_id)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] gap-1">
+                      <Globe2 className="h-3 w-3" />Global
+                    </Badge>
+                  )}
                   {s.code && (
                     <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">{s.code}</code>
                   )}
@@ -321,6 +410,7 @@ export default function SectorsManager({ canManage = true }: Props) {
                   {s.classification && <Badge variant="outline" className="text-xs">{s.classification}</Badge>}
                   {!s.active && <Badge variant="destructive" className="text-xs">inativo</Badge>}
                 </div>
+
                 <div className="flex flex-wrap gap-1">
                   {s.aliases.length === 0 && <span className="text-xs text-muted-foreground">Sem aliases</span>}
                   {s.aliases.map(a => (
@@ -346,6 +436,29 @@ export default function SectorsManager({ canManage = true }: Props) {
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Escopo</Label>
+                <Select
+                  value={editing.hospital_id ?? "__global__"}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, hospital_id: v === "__global__" ? null : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__global__">Global — todos os hospitais</SelectItem>
+                    {availableHospitals.map(h => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Global = visível a todos os hospitais. Hospital específico = ninguém mais enxerga.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Código (Tasy)</Label>

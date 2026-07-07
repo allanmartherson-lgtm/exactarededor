@@ -9489,6 +9489,7 @@ export type Database = {
           alias_text: string
           created_at: string
           created_by: string | null
+          hospital_id: string | null
           id: string
           sector_slug: string
           source: string
@@ -9499,6 +9500,7 @@ export type Database = {
           alias_text: string
           created_at?: string
           created_by?: string | null
+          hospital_id?: string | null
           id?: string
           sector_slug: string
           source?: string
@@ -9509,12 +9511,20 @@ export type Database = {
           alias_text?: string
           created_at?: string
           created_by?: string | null
+          hospital_id?: string | null
           id?: string
           sector_slug?: string
           source?: string
           state_uf?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sector_aliases_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sector_aliases_sector_slug_fkey"
             columns: ["sector_slug"]
@@ -9596,6 +9606,7 @@ export type Database = {
           created_at: string
           created_by_user_id: string | null
           deactivated_at: string | null
+          hospital_id: string | null
           name: string
           notes: string | null
           pending_admin_review: boolean
@@ -9614,6 +9625,7 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           deactivated_at?: string | null
+          hospital_id?: string | null
           name: string
           notes?: string | null
           pending_admin_review?: boolean
@@ -9632,6 +9644,7 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           deactivated_at?: string | null
+          hospital_id?: string | null
           name?: string
           notes?: string | null
           pending_admin_review?: boolean
@@ -9642,7 +9655,15 @@ export type Database = {
           tasy_code?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sectors_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sheet_column_templates: {
         Row: {

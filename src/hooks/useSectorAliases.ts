@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { applySectorStems } from "@/lib/sectorStems";
 
 const norm = (s: string) =>
@@ -18,26 +19,41 @@ export type SectorAliasMap = {
   resolveSlug: (raw: string | null | undefined) => string | null;
 };
 
-let cached: SectorAliasMap | null = null;
-let inflight: Promise<SectorAliasMap> | null = null;
+// Cache por hospital: setores exclusivos de outros hospitais não podem vazar.
+const cacheByHospital = new Map<string, SectorAliasMap>();
+const inflightByHospital = new Map<string, Promise<SectorAliasMap>>();
 
-async function load(): Promise<SectorAliasMap> {
+async function load(activeId: string | null): Promise<SectorAliasMap> {
+  const cacheKey = activeId ?? "__global__";
+  const cached = cacheByHospital.get(cacheKey);
   if (cached) return cached;
+  const inflight = inflightByHospital.get(cacheKey);
   if (inflight) return inflight;
-  inflight = (async () => {
-    const { data } = await supabase.from("sectors").select("slug,name,aliases");
+
+  const promise = (async () => {
+    // Escopo: setores globais (hospital_id IS NULL) + do hospital ativo.
+    let query = supabase.from("sectors").select("slug,name,aliases,hospital_id");
+    query = activeId
+      ? query.or(`hospital_id.is.null,hospital_id.eq.${activeId}`)
+      : query.is("hospital_id", null);
+    const { data } = await query;
+
     const nameMap = new Map<string, string>();
     const slugMap = new Map<string, string>();
     for (const row of data ?? []) {
       const name = (row as any).name as string;
       const slug = (row as any).slug as string;
       const aliases = ((row as any).aliases ?? []) as string[];
+      const isHospitalScoped = !!(row as any).hospital_id;
       for (const key of [name, slug, ...aliases]) {
         if (!key) continue;
         const n = norm(key);
         if (!n) continue;
-        nameMap.set(n, name);
-        slugMap.set(n, slug);
+        // Hospital-específico vence global (mesmo texto → slug local do hospital).
+        if (!nameMap.has(n) || isHospitalScoped) {
+          nameMap.set(n, name);
+          slugMap.set(n, slug);
+        }
       }
     }
     const lookup = <T,>(m: Map<string, T>) => (raw: string | null | undefined): T | null => {
@@ -47,30 +63,46 @@ async function load(): Promise<SectorAliasMap> {
       const n = norm(raw);
       if (!n) return null;
       if (m.has(n)) return m.get(n)!;
-      // tenta sem o trailing parenthetical, ex.: "hemodinamicadfstar" → "hemodinamica"
       for (const [k, v] of m) {
         if (n.startsWith(k) && k.length >= 4) return v;
       }
       return null;
     };
-    cached = { resolve: lookup(nameMap), resolveSlug: lookup(slugMap) };
-    return cached;
+    const map: SectorAliasMap = { resolve: lookup(nameMap), resolveSlug: lookup(slugMap) };
+    cacheByHospital.set(cacheKey, map);
+    return map;
   })();
-  return inflight;
+
+  inflightByHospital.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inflightByHospital.delete(cacheKey);
+  }
 }
 
-/** Carrega o mapa de aliases sob demanda (fora de hook) — útil em handlers/save. */
-export async function loadSectorAliases(): Promise<SectorAliasMap> {
-  return load();
+/** Carrega o mapa de aliases sob demanda (fora de hook). Passe o hospital ativo se aplicável. */
+export async function loadSectorAliases(activeHospitalId: string | null = null): Promise<SectorAliasMap> {
+  return load(activeHospitalId);
+}
+
+/** Invalida o cache — chamar ao trocar de hospital ou após editar setores. */
+export function invalidateSectorAliasesCache() {
+  cacheByHospital.clear();
+  inflightByHospital.clear();
 }
 
 export function useSectorAliases(): SectorAliasMap | null {
-  const [state, setState] = useState<SectorAliasMap | null>(cached);
+  const { hospital } = useHospital() as { hospital: { id: string } | null };
+  const activeId = hospital?.id ?? null;
+  const cacheKey = activeId ?? "__global__";
+  const [state, setState] = useState<SectorAliasMap | null>(
+    cacheByHospital.get(cacheKey) ?? null,
+  );
   useEffect(() => {
-    if (cached) { setState(cached); return; }
     let active = true;
-    load().then((m) => { if (active) setState(m); });
+    load(activeId).then((m) => { if (active) setState(m); });
     return () => { active = false; };
-  }, []);
+  }, [activeId]);
   return state;
 }
