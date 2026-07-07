@@ -2347,6 +2347,7 @@ export function applyCalculation(
       temporal_surcharge_config?: ExpectedCalc["temporal_surcharge_config"];
       piso_aplicado_valor?: number | null;
       piso_metodo_vencedor?: "convenio" | "piso" | null;
+      piso_escopo?: "por_item" | "por_atendimento" | null;
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
