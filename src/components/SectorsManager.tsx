@@ -133,6 +133,7 @@ export default function SectorsManager({ canManage = true }: Props) {
       aliases: editing.aliases.map(a => a.trim()).filter(Boolean),
       tasy_code: editing.tasy_code?.trim() || null,
       classification: editing.classification?.trim() || null,
+      hospital_id: editing.hospital_id ?? null,
     };
     const { error } = isNew
       ? await supabase.from("sectors").insert(payload)
@@ -142,6 +143,7 @@ export default function SectorsManager({ canManage = true }: Props) {
     setEditing(null);
     load();
   };
+
 
   const addAlias = () => {
     if (!editing || !aliasInput.trim()) return;
