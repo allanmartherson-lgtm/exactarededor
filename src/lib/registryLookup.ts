@@ -220,18 +220,41 @@ export async function loadDoctorRegistry(force = false): Promise<DoctorRegistry>
   return reg;
 }
 
-export async function loadConvenioRegistry(force = false): Promise<ConvenioRegistry> {
+/**
+ * Filtro de escopo por hospital: sempre inclui os registros globais
+ * (hospital_id IS NULL) e, quando informado, restringe também ao hospital ativo.
+ * Convênios/setores exclusivos de outros hospitais NUNCA aparecem.
+ */
+function applyHospitalScope<T extends { or: (f: string) => T; is: (c: string, v: null) => T }>(
+  q: T,
+  hospitalId: string | null | undefined,
+): T {
+  if (hospitalId) return q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`);
+  return q.is("hospital_id", null);
+}
+
+export async function loadConvenioRegistry(
+  hospitalId: string | null = null,
+  force = false,
+): Promise<ConvenioRegistry> {
   const reg: ConvenioRegistry = { bySlug: new Map(), byAlias: new Map() };
+  const cacheKey = `registry.convenios.v3.${hospitalId ?? "__global__"}`;
   const { conv, aliases } = await cachedRows(
-    "registry.convenios.v2",
+    cacheKey,
     force,
     async () => {
       const [conv, aliases] = await Promise.all([
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("convenios").select("slug, name").eq("active", true).range(from, to),
+          applyHospitalScope(
+            supabase.from("convenios").select("slug, name, hospital_id").eq("active", true) as any,
+            hospitalId,
+          ).range(from, to),
         ),
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("convenio_aliases").select("convenio_slug, alias_normalized").range(from, to),
+          applyHospitalScope(
+            supabase.from("convenio_aliases").select("convenio_slug, alias_normalized, hospital_id") as any,
+            hospitalId,
+          ).range(from, to),
         ),
       ]);
       return { conv, aliases };
@@ -252,18 +275,28 @@ export async function loadConvenioRegistry(force = false): Promise<ConvenioRegis
   return reg;
 }
 
-export async function loadSectorRegistry(force = false): Promise<SectorRegistry> {
+export async function loadSectorRegistry(
+  hospitalId: string | null = null,
+  force = false,
+): Promise<SectorRegistry> {
   const reg: SectorRegistry = { bySlug: new Map(), byAlias: new Map() };
+  const cacheKey = `registry.sectors.v3.${hospitalId ?? "__global__"}`;
   const { sec, aliases } = await cachedRows(
-    "registry.sectors.v2",
+    cacheKey,
     force,
     async () => {
       const [sec, aliases] = await Promise.all([
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("sectors").select("slug, name").eq("active", true).range(from, to),
+          applyHospitalScope(
+            supabase.from("sectors").select("slug, name, hospital_id").eq("active", true) as any,
+            hospitalId,
+          ).range(from, to),
         ),
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("sector_aliases").select("sector_slug, alias_normalized").range(from, to),
+          applyHospitalScope(
+            supabase.from("sector_aliases").select("sector_slug, alias_normalized, hospital_id") as any,
+            hospitalId,
+          ).range(from, to),
         ),
       ]);
       return { sec, aliases };
