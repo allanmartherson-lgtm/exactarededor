@@ -11147,6 +11147,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      assert_hospital_access: {
+        Args: { _hospital_id: string }
+        Returns: undefined
+      }
       audit_hospital_scope: {
         Args: never
         Returns: {
