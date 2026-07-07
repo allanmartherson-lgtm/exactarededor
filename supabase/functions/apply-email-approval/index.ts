@@ -38,6 +38,20 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Role gate: apenas papéis internos com poder de aprovação podem aplicar aprovações por e-mail.
+  const admin0 = createClient(supabaseUrl, serviceKey);
+  const { data: rolesRows } = await admin0
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id);
+  const allowedRoles = new Set(["admin", "diretor", "analista", "validador"]);
+  const hasRole = (rolesRows ?? []).some((r: { role: string }) => allowedRoles.has(r.role));
+  if (!hasRole) {
+    return new Response(JSON.stringify({ error: "forbidden", message: "Sem permissão para aplicar aprovação por e-mail." }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   let approval_id: string | undefined;
   try { ({ approval_id } = await req.json()); } catch { /* */ }
   if (!approval_id) {
