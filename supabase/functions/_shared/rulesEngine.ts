@@ -2425,6 +2425,7 @@ export function applyCalculation(
           },
           piso_aplicado_valor: pisoAplicado,
           piso_metodo_vencedor: pisoVencedor,
+          piso_escopo: pisoEscopo,
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
