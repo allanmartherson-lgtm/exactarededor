@@ -359,6 +359,21 @@ const InvoicePortal = () => {
               </div>
             )}
 
+            {info?.piso_summary && info.piso_summary.items_piso_aplicado > 0 && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs space-y-1">
+                <p className="font-semibold text-amber-900 flex items-center gap-1.5">
+                  <span aria-hidden>🛡️</span> Piso mínimo aplicado
+                </p>
+                <p className="text-amber-800">
+                  Em <strong>{info.piso_summary.items_piso_aplicado}</strong> de{" "}
+                  {info.piso_summary.items_com_piso} procedimento(s), o piso mínimo
+                  garantido superou o valor do convênio e foi aplicado — total complementado:{" "}
+                  <strong>{formatCurrency(info.piso_summary.total_piso_aplicado)}</strong>.
+                </p>
+              </div>
+            )}
+
+
             {done ? (
               <div className={`rounded-lg p-4 text-sm space-y-2 ${done.matches ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive"}`}>
                 {done.matches ? (
