@@ -21,6 +21,8 @@ import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
 import { addBusinessDays, fmtMoney, formatCompetenceBR, formatDateBR, greetingBrasilia, joinPt } from "./text.ts";
 import { buildEmail } from "./templates.ts";
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
