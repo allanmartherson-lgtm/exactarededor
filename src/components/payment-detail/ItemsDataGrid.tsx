@@ -4858,6 +4858,7 @@ function ItemDetailsRow({
                         <span aria-hidden>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { emoji: "•" }).emoji}</span>
                         <span>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { label: it.applied_calc_method }).label}</span>
                       </p>
+                      <PisoAppliedBadge item={it} />
                     </div>
                   )}
                   {showTechnical && <CalcFormulaBlock item={it} />}
