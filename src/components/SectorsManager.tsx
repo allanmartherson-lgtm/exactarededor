@@ -436,6 +436,29 @@ export default function SectorsManager({ canManage = true }: Props) {
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Escopo</Label>
+                <Select
+                  value={editing.hospital_id ?? "__global__"}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, hospital_id: v === "__global__" ? null : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__global__">Global — todos os hospitais</SelectItem>
+                    {availableHospitals.map(h => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Global = visível a todos os hospitais. Hospital específico = ninguém mais enxerga.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Código (Tasy)</Label>
