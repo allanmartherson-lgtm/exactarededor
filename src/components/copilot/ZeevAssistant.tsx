@@ -256,7 +256,7 @@ export function ZeevAssistant({
   onApplyFilter,
   bulkContext,
   onBulkApplied,
-  side = "bottom-right",
+  side = "bottom-left",
   smartActionsEnabled = false,
   stagingContext,
 }: Props) {
