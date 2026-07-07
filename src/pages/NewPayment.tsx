@@ -1365,7 +1365,7 @@ const NewPayment = () => {
     let wb: XLSX.WorkBook;
     try {
       const buf = await f.arrayBuffer();
-      wb = XLSX.read(buf, { cellDates: false });
+      wb = readWorkbookPreservingText(buf, { cellDates: false });
     } catch (e) {
       throw new ParseFileError(
         "Não foi possível ler a planilha",
