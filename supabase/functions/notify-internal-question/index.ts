@@ -13,6 +13,8 @@
 // Suporta payload com `recipient_roles: string[]` (override explícito).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
