@@ -3932,7 +3932,7 @@ export function applyPisoPorAtendimento(
       it.doctor_id ?? "",
       it.attendance_number ?? "",
     ].join("|");
-    if (!key.replaceAll("|", "")) continue; // sem chave útil → ignora
+    if (!key.split("|").some(Boolean)) continue; // sem chave útil → ignora
     let arr = groups.get(key);
     if (!arr) { arr = []; groups.set(key, arr); }
     arr.push({ r, it });
