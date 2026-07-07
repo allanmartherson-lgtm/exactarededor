@@ -6,6 +6,8 @@
 // somando quantidade e valor — assim, se o médico alegou 2 vias e só 1 foi
 // paga, a diferença de quantidade aparece como pago_a_menos.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
