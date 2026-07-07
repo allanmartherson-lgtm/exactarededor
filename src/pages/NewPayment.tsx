@@ -547,6 +547,7 @@ const NewPayment = () => {
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
+  const [bucketFilter, setBucketFilter] = useState("");
   const [mappingDialog, setMappingDialog] = useState<{ open: boolean; bucketIdx: number | null }>({ open: false, bucketIdx: null });
   const { findMatching: findMatchingTemplate, markUsed: markTemplateUsed } = useSheetColumnTemplates(hospital?.id ?? null);
   const findMatchingTemplateRef = useRef(findMatchingTemplate);
@@ -3924,14 +3925,54 @@ const NewPayment = () => {
 
             {buckets.length > 0 && (
               <div className="space-y-2">
-                {buckets
-                  .map((b, idx) => ({ b, idx }))
-                  .sort((a, z) => {
-                    const an = (a.b.matchedCompany?.name ?? a.b.rawCompanyName ?? a.b.file.name ?? "").toLowerCase();
-                    const zn = (z.b.matchedCompany?.name ?? z.b.rawCompanyName ?? z.b.file.name ?? "").toLowerCase();
-                    return an.localeCompare(zn, "pt-BR", { sensitivity: "base" });
-                  })
-                  .map(({ b, idx }) => (
+                {buckets.length >= 5 && (
+                  <div className="flex items-center gap-2 sticky top-0 z-10 bg-background/95 backdrop-blur py-2 -mx-1 px-1 border-b border-border/40">
+                    <Input
+                      value={bucketFilter}
+                      onChange={(e) => setBucketFilter(e.target.value)}
+                      placeholder="Filtrar PJ por nome, CNPJ ou arquivo…"
+                      className="h-8 text-xs"
+                    />
+                    {bucketFilter && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => setBucketFilter("")}
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {(() => {
+                  const q = bucketFilter.trim().toLowerCase();
+                  const filtered = buckets
+                    .map((b, idx) => ({ b, idx }))
+                    .filter(({ b }) => {
+                      if (!q) return true;
+                      const doc = (b.matchedCompany as any)?.document ?? "";
+                      return (
+                        (b.matchedCompany?.name ?? "").toLowerCase().includes(q) ||
+                        (b.rawCompanyName ?? "").toLowerCase().includes(q) ||
+                        (b.file.name ?? "").toLowerCase().includes(q) ||
+                        String(doc).toLowerCase().includes(q)
+                      );
+                    })
+                    .sort((a, z) => {
+                      const an = (a.b.matchedCompany?.name ?? a.b.rawCompanyName ?? a.b.file.name ?? "").toLowerCase();
+                      const zn = (z.b.matchedCompany?.name ?? z.b.rawCompanyName ?? z.b.file.name ?? "").toLowerCase();
+                      return an.localeCompare(zn, "pt-BR", { sensitivity: "base" });
+                    });
+                  if (q && filtered.length === 0) {
+                    return (
+                      <p className="text-xs text-muted-foreground px-2 py-3">
+                        Nenhuma PJ encontrada para "{bucketFilter}".
+                      </p>
+                    );
+                  }
+                  return filtered.map(({ b, idx }) => (
                   <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
@@ -4405,7 +4446,8 @@ const NewPayment = () => {
                       </Button>
                     </div>
                   </div>
-                ))}
+                  ));
+                })()}
                 <p className="text-xs text-muted-foreground">
                   Total: {allRows.length} itens · {formatCurrency(total)}
                 </p>
