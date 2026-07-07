@@ -532,12 +532,12 @@ export default function SectorsManager({ canManage = true }: Props) {
       </Dialog>
 
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Pré-visualização da importação</DialogTitle>
           </DialogHeader>
           {preview && (
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1 overflow-y-auto pr-1 min-h-0">
               <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
                 <span>Arquivo: <code className="bg-muted px-1 rounded">{preview.fileName}</code></span>
                 <span>Linhas lidas: <b>{preview.totalRows}</b></span>
