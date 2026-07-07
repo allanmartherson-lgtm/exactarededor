@@ -30,6 +30,8 @@ import { EngineSourcesCard } from "@/components/payment-detail/EngineSourcesCard
 
 import { confirmDialog } from "@/lib/confirm";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
+
 
 const brl = (n: number | null | undefined) =>
   Number(n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -128,7 +130,13 @@ export default function PoolAnalysis() {
   }
 
   return (
+    <HospitalScopedGuard
+      recordHospitalId={(payment as { hospital_id?: string | null } | null)?.hospital_id ?? null}
+      entityLabel="pool"
+      fallbackHub="/pagamentos"
+    >
     <div className="p-4 md:p-6 space-y-4 max-w-[1400px] mx-auto">
+
       <PageHeader
         title={`Lote em pool · ${pool?.nome ?? "Pool"}`}
         description="Itens são coletivos do pool. O rateio financeiro é distribuído entre as PJs participantes."
@@ -313,8 +321,10 @@ export default function PoolAnalysis() {
         </CardContent>
       </Card>
     </div>
+    </HospitalScopedGuard>
   );
 }
+
 
 function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
   return (

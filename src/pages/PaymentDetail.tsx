@@ -113,6 +113,8 @@ import * as XLSX from "xlsx-js-style";
 import { confirmDialog } from "@/lib/confirm";
 import { DateInput } from "@/components/ui/date-input";
 import { CostCenterCombobox } from "@/components/CostCenterCombobox";
+import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
+
 
 const ObservationTypeSelector = ({
   value,
@@ -2715,7 +2717,13 @@ const PaymentDetail = () => {
   const isConfeccao = payment?.analysis_mode === "confeccao";
 
   return (
+    <HospitalScopedGuard
+      recordHospitalId={(payment as { hospital_id?: string | null } | null)?.hospital_id ?? null}
+      entityLabel="pagamento"
+      fallbackHub="/pagamentos"
+    >
     <>
+
       {isConfeccao && (
         <div
           className="sticky top-0 z-40 -mx-4 md:-mx-6 mb-2 border-b-2 border-amber-500/70 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 backdrop-blur-sm"
@@ -5265,7 +5273,9 @@ const PaymentDetail = () => {
       )}
 
     </>
+    </HospitalScopedGuard>
   );
 };
+
 
 export default PaymentDetail;
