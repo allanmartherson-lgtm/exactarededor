@@ -396,7 +396,7 @@ async function generateConfeccaoReportPdf(input: GeneratePaymentPdfInput): Promi
       const pisoVal = (i as any).piso_aplicado_valor;
       const pisoMet = (i as any).piso_metodo_vencedor;
       const pisoCell = pisoVal != null
-        ? `${formatCurrency(Number(pisoVal))}${pisoMet === "piso" ? "\n(piso venceu)" : pisoMet === "convenio" ? "\n(convênio venceu)" : ""}`
+        ? `${formatCurrency(Number(pisoVal))}${pisoMet === "piso" ? "\n(piso aplicado)" : pisoMet === "convenio" ? "\n(convênio prevaleceu)" : ""}`
         : "—";
       return [
         i.doctor_name,
