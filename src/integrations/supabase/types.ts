@@ -10825,6 +10825,53 @@ export type Database = {
         }
         Relationships: []
       }
+      isolation_events: {
+        Row: {
+          action: string | null
+          actor_id: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string | null
+          diff: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          hospital_id: string | null
+          id: string | null
+        }
+        Insert: {
+          action?: string | null
+          actor_id?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          diff?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          hospital_id?: string | null
+          id?: string | null
+        }
+        Update: {
+          action?: string | null
+          actor_id?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          diff?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          hospital_id?: string | null
+          id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mv_payments_flags: {
         Row: {
           has_divergence: boolean | null
@@ -11730,6 +11777,27 @@ export type Database = {
           invoice_id: string
           upload_token: string
         }[]
+      }
+      get_isolation_events: {
+        Args: { _days?: number; _limit?: number }
+        Returns: {
+          action: string | null
+          actor_id: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string | null
+          diff: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          hospital_id: string | null
+          id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "isolation_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_journal_balance: {
         Args: {
