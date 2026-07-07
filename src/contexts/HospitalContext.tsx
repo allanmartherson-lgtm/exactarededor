@@ -214,12 +214,32 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
           });
 
 
+        // Rotas hospital-scoped: se o usuário está numa página de detalhe
+        // (lote, empresa, pool, pendência, edição manual, etc), a URL/:id
+        // aponta para um registro do hospital ANTERIOR. Após o reload, a RLS
+        // do novo hospital bloqueia esse id e a tela trava. Solução:
+        // redirecionar para o hub correspondente ANTES do reload.
+        let redirectTo: string | null = null;
+        if (typeof window !== "undefined") {
+          const path = window.location.pathname;
+          if (/^\/pagamentos\/[^/]+/.test(path)) redirectTo = "/pagamentos";
+          else if (path.startsWith("/pagamentos/novo")) redirectTo = "/pagamentos";
+          else if (/^\/pendencias\/[^/]+/.test(path)) redirectTo = "/pendencias";
+          else if (/^\/bi\/lote/.test(path)) redirectTo = "/bi/pagamentos";
+          else if (/^\/pools\/[^/]+/.test(path)) redirectTo = "/pools";
+        }
+
         // Força reload completo da aplicação: garante que TODAS as telas
         // recarreguem com o novo hospital ativo — inclusive as que buscam
         // dados via RPC/fetch manual (ex.: Pagamentos), que não reagem ao
         // queryClient.clear(). Sem isso, dados da unidade anterior permanecem
         // visíveis até um refresh manual.
-        window.location.reload();
+        if (redirectTo) {
+          window.location.href = redirectTo;
+        } else {
+          window.location.reload();
+        }
+
       } finally {
         // Mantém o overlay visível até o reload assumir; caso o reload não
         // ocorra por algum motivo, libera o bloqueio de ações.
