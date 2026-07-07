@@ -119,11 +119,12 @@ Deno.serve(async (req) => {
     //     se confeccao_status='em_confeccao'.
     const { data: paymentRow, error: payErr } = await supabase
       .from("payments")
-      .select("analysis_mode, payment_type, competence_month")
+      .select("analysis_mode, payment_type, competence_month, hospital_id")
       .eq("id", payment_id)
       .single();
     if (payErr) throw payErr;
     const isConfeccao = (paymentRow as any)?.analysis_mode === "confeccao";
+    const paymentHospitalId = (paymentRow as any)?.hospital_id ?? null;
 
     // Gate de Parecer: lotes do tipo 'parecer' exigem ao menos um relatório
     // de parecer importado para o período (payment_parecer_reports). Sem isso,
@@ -297,6 +298,9 @@ Deno.serve(async (req) => {
       .from("payment_processing_jobs")
       .insert({
         payment_id,
+        // Escopo por hospital (invariante): job herda hospital do pagamento —
+        // service_role não tem sessão de usuário, então precisa passar explícito.
+        hospital_id: paymentHospitalId,
         total_companies: companyNames.length,
         processed_companies: 0,
         status: "em_andamento",
