@@ -198,6 +198,26 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     //    (ver bloco mais abaixo) — bases antigas não devem contaminar cadastros.
     const isHistorico = (payment as any)?.import_mode === "historico";
 
+    // ---------- 1b. Hidrata setores/convênios ESCOPADOS ao hospital ----------
+    // Globais (hospital_id IS NULL) + do hospital do pagamento. Convênios ou
+    // setores exclusivos de outros hospitais NUNCA entram no motor deste lote.
+    const __paymentHospitalId = ((payment as any)?.hospital_id as string | null) ?? null;
+    try {
+      let secQ = supabase.from("sectors").select("slug,name,aliases,hospital_id").eq("active", true);
+      if (__paymentHospitalId) secQ = secQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
+      else secQ = secQ.is("hospital_id", null);
+      const { data: secs } = await secQ;
+      if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
+    } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
+    try {
+      let convQ = supabase.from("convenios").select("slug,name,aliases,hospital_id").eq("active", true);
+      if (__paymentHospitalId) convQ = convQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
+      else convQ = convQ.is("hospital_id", null);
+      const { data: convs } = await convQ;
+      if (convs?.length) extendConvenioMap(convs as Array<{ slug: string; name: string; aliases: string[] }>);
+    } catch (_e) { /* fallback à normalização pura */ }
+
+
 
     // ---------- 2. carrega configurações globais e regras ----------
     const __rulesStart = Date.now();
