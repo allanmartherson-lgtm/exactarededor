@@ -13,8 +13,53 @@ const DEBOUNCE_SECONDS = 60;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // Só chamadores internos (service-role) OU usuários autenticados com papel interno.
+  // Evita que a Internet enumere/dispare notificações de aprovação via anon key.
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const bearer = authHeader.replace("Bearer ", "").trim();
+  const serviceKeyEnv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  let isInternal = bearer === serviceKeyEnv;
+  if (!isInternal) {
+    try {
+      const payload = JSON.parse(atob(bearer.split(".")[1] ?? ""));
+      if (payload?.role === "service_role") isInternal = true;
+    } catch { /* not JWT */ }
+  }
+  if (!isInternal) {
+    // Valida usuário + papel interno
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: userRes, error: userErr } = await supabaseAuth.auth.getUser(bearer);
+    if (userErr || !userRes?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", userRes.user.id);
+    const allowed = new Set(["admin", "diretor", "validador", "analista", "gestao_medica"]);
+    const has = (roles ?? []).some((r: { role: string }) => allowed.has(r.role));
+    if (!has) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   try {
     const { paymentId } = await req.json();
+
     if (!paymentId || typeof paymentId !== "string") {
       return new Response(JSON.stringify({ error: "paymentId obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
