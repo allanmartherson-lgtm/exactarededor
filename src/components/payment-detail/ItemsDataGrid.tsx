@@ -2235,7 +2235,7 @@ export function ItemsDataGrid({
               )}
             </div>
           )}
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || (isParecerPayment && parecerFilter !== "__all__")) && (
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || onlyPisoAplicado || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
               size="sm"
               variant="ghost"
@@ -2245,7 +2245,7 @@ export function ItemsDataGrid({
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
                 setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
-                setOnlyZero(false); setOnlySemRegra(false);
+                setOnlyZero(false); setOnlySemRegra(false); setOnlyPisoAplicado(false);
               }}
             >
               Limpar
