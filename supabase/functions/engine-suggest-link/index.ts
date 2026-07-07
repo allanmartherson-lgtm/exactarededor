@@ -6,6 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { entityNameSimilarity, classifySimilarity } from "../_shared/fuzzy.ts";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 
 type EntityType = "doctor" | "company" | "convenio" | "sector";
 
