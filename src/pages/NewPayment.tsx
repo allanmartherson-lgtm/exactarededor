@@ -2319,6 +2319,7 @@ const NewPayment = () => {
         doctor: r.doctor_name ?? null,
         date: r.procedure_date ?? null,
         procedure: r.procedure_name ?? r.procedure_code ?? null,
+        source_file: r.source_file ?? null,
       };
       const existing = map.get(key);
       if (existing) {
