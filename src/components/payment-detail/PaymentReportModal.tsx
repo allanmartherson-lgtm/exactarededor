@@ -1096,6 +1096,15 @@ export function PaymentReportModal({
                                   {findings?.expected_amount != null && (
                                     <p className="text-[10px] text-muted-foreground">Esperado: {formatCurrency(findings.expected_amount)}</p>
                                   )}
+                                  {(it as any).piso_aplicado_valor != null && (
+                                    <p className={cn(
+                                      "text-[10px] font-medium",
+                                      (it as any).piso_metodo_vencedor === "piso" ? "text-amber-600" : "text-emerald-600"
+                                    )} title={`Piso aplicado (${(it as any).piso_escopo ?? "item"})`}>
+                                      🛡️ Piso: {formatCurrency((it as any).piso_aplicado_valor)}
+                                      {(it as any).piso_metodo_vencedor === "piso" ? " (venceu)" : ""}
+                                    </p>
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                   <div className="space-y-1">
