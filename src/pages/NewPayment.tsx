@@ -160,7 +160,7 @@ const LINE_TYPE_LABELS: Record<LineType, string> = {
 // Classificação canônica: delegada ao parser único (word-boundary + exige
 // ausência de TUSS + ignora procedure_name para termos de complemento/bônus).
 // Evita falso-positivo de nomes TUSS como "... Adicional" caírem como bônus.
-import { classifyLine as canonicalClassifyLine } from "@/lib/parsePaymentFile";
+import { classifyLine as canonicalClassifyLine, readWorkbookPreservingText } from "@/lib/parsePaymentFile";
 
 const classifyLine = (
   r: Omit<ParsedRow, "tipo_linha" | "line_issues">,
@@ -1365,7 +1365,7 @@ const NewPayment = () => {
     let wb: XLSX.WorkBook;
     try {
       const buf = await f.arrayBuffer();
-      wb = XLSX.read(buf, { cellDates: false });
+      wb = readWorkbookPreservingText(buf, { cellDates: false });
     } catch (e) {
       throw new ParseFileError(
         "Não foi possível ler a planilha",
