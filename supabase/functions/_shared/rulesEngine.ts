@@ -3943,6 +3943,15 @@ export function analyzePaymentItems(
   const byId = new Map(resultsOrdered.map((r) => [r.item_id, r] as const));
   const out = items.map((it) => byId.get(it.id)!);
 
+  // === Piso por atendimento (mínimo garantido agregado) ===
+  // Aplica MAX(sum(convenio_do_atendimento), piso) por grupo
+  // (regra + cálculo + médico + atendimento). Quando o piso vence, o
+  // complemento é distribuído pro-rata pelos itens do grupo (ou dividido
+  // igualmente se o cálculo do convênio somou zero). Preserva o total do
+  // atendimento sem alterar itens de outros escopos/regras.
+  applyPisoPorAtendimento(out, items);
+
+
   // === Identificação determinística do procedimento principal ===
   // Agrupa por: atendimento | paciente | data | empresa | médico.
   const mainSelections = selectMainProcedures(items, filtered);
