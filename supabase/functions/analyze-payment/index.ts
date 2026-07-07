@@ -155,17 +155,10 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     );
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    // Hidrata aliases de setor a partir do cadastro (tabela `sectors`)
-    try {
-      const { data: secs } = await supabase.from("sectors").select("slug,name,aliases").eq("active", true);
-      if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
-    } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
-
-    // Hidrata aliases de convênio a partir do cadastro (tabela `convenios`)
-    try {
-      const { data: convs } = await supabase.from("convenios").select("slug,name,aliases").eq("active", true);
-      if (convs?.length) extendConvenioMap(convs as Array<{ slug: string; name: string; aliases: string[] }>);
-    } catch (_e) { /* fallback à normalização pura */ }
+    // Hidrata aliases de setor/convênio a partir do cadastro, filtrando por
+    // escopo do hospital do pagamento (globais + hospital-specific). Feito após
+    // carregar `payment` mais abaixo. Aqui só declaramos.
+    // (blocos movidos para após o fetch de `payment`)
 
     // Reanálise NÃO pode ser pulada por `payment_company_groups.updated_at`.
     // Esse timestamp também muda por rotinas paralelas (snapshots, financeiros,
