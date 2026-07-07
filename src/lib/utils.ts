@@ -12,15 +12,13 @@ export const normalizeNumericValue = (v: unknown): { value: number; invalid: boo
     return { value: isNaN(v) ? 0 : v, invalid };
   }
   
-  // Remove currency symbols, spaces, and other non-numeric chars except , and .
+  // Remove símbolos de moeda/espaços preservando separadores decimais.
   let s = String(v).replace(/[R$€£\s]/g, "").trim();
   if (!s) return { value: 0, invalid: false };
+  s = s.replace(/[^0-9,.-]/g, "");
 
-  // Handle common formats:
-  // 1.234,56 (European/Brazilian)
-  // 1,234.56 (US/UK)
-  // 1.234 (Could be 1234 or 1.234)
-  // 1,234 (Could be 1234 or 1.234)
+  const isNegative = s.startsWith("-");
+  if (isNegative) s = s.slice(1);
 
   const hasComma = s.includes(",");
   const hasPoint = s.includes(".");
@@ -37,21 +35,13 @@ export const normalizeNumericValue = (v: unknown): { value: number; invalid: boo
       s = s.replace(/,/g, "");
     }
   } else if (hasComma) {
-    // Check if it's a thousand separator (e.g., 1.000) or decimal (e.g., 1,50)
-    // If there's only one comma and it's followed by 3 digits, it MIGHT be a thousand separator,
-    // but in Brazil/Europe it's almost always a decimal.
-    // Heuristic: if it's "X,YY" it's decimal. If it's "X,YYY" it's likely thousand.
     const parts = s.split(",");
     if (parts.length > 2) {
       // Multiple commas: 1,000,000 -> 1000000
       s = s.replace(/,/g, "");
-    } else if (parts[1] && parts[1].length === 3) {
-      // Single comma followed by exactly 3 digits: could be 1,000. 
-      // But 1,000 is also a valid decimal. 
-      // Most spreadsheets use . for thousand and , for decimal in BR.
-      // If we only have comma, we assume it's a decimal unless it looks like 1,000,000
-      s = s.replace(",", ".");
     } else {
+      // Em bases hospitalares brasileiras, vírgula isolada é decimal — inclusive
+      // quando há 3+ casas por cálculo de acordo (ex.: "1.086,883125").
       s = s.replace(",", ".");
     }
   } else if (hasPoint) {
@@ -66,7 +56,7 @@ export const normalizeNumericValue = (v: unknown): { value: number; invalid: boo
     // Else: 1.50 -> 1.50 (already correct for parseFloat)
   }
 
-  const n = parseFloat(s);
+  const n = parseFloat(`${isNegative ? "-" : ""}${s}`);
   const invalid = isNaN(n) || n < 0;
   return { value: isNaN(n) ? 0 : n, invalid };
 };

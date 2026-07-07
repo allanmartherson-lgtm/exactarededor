@@ -160,7 +160,7 @@ const LINE_TYPE_LABELS: Record<LineType, string> = {
 // Classificação canônica: delegada ao parser único (word-boundary + exige
 // ausência de TUSS + ignora procedure_name para termos de complemento/bônus).
 // Evita falso-positivo de nomes TUSS como "... Adicional" caírem como bônus.
-import { classifyLine as canonicalClassifyLine, readWorkbookPreservingText } from "@/lib/parsePaymentFile";
+import { classifyLine as canonicalClassifyLine, preserveFormattedBrazilianNumbers, readWorkbookPreservingText } from "@/lib/parsePaymentFile";
 
 const classifyLine = (
   r: Omit<ParsedRow, "tipo_linha" | "line_issues">,
@@ -1383,6 +1383,7 @@ const NewPayment = () => {
       );
     }
     const sheet = wb.Sheets[wb.SheetNames[0]];
+    preserveFormattedBrazilianNumbers(sheet);
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
 
     // 4) Conteúdo mínimo
