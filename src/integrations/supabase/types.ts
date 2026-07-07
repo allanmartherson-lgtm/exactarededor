@@ -222,7 +222,7 @@ export type Database = {
           company_name: string
           created_at: string
           errors: Json
-          hospital_id: string | null
+          hospital_id: string
           id: string
           last_error: string | null
           last_job_id: string | null
@@ -238,7 +238,7 @@ export type Database = {
           company_name: string
           created_at?: string
           errors?: Json
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           last_error?: string | null
           last_job_id?: string | null
@@ -254,7 +254,7 @@ export type Database = {
           company_name?: string
           created_at?: string
           errors?: Json
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           last_error?: string | null
           last_job_id?: string | null
@@ -283,7 +283,7 @@ export type Database = {
           company_name: string | null
           created_at: string
           error: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           items_count: number
           job_id: string | null
@@ -299,7 +299,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           error?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           items_count?: number
           job_id?: string | null
@@ -315,7 +315,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           error?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           items_count?: number
           job_id?: string | null
