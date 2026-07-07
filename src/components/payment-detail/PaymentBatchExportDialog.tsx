@@ -327,6 +327,7 @@ export function PaymentBatchExportDialog({
       "Empresa", "Atendimento", "Paciente", "Data", "Médico", "CRM",
       "Especialidade", "Cód. Procedimento", "Procedimento", "Qtd",
       "Convênio", "Setor", "Valor Bruto", "Valor Esperado", "Diferença",
+      "Piso Aplicado", "Método Piso",
       "Status", "Regras Aplicadas", "Validações",
     ];
     const esc = (v: any) => {
@@ -342,6 +343,7 @@ export function PaymentBatchExportDialog({
         esc(r.medico), esc(r.crm), esc(r.especialidade), esc(r.procedimento_codigo),
         esc(r.procedimento_nome), esc(r.quantidade), esc(r.convenio), esc(r.setor),
         esc(fmtNum(r.valor_bruto)), esc(fmtNum(r.valor_esperado)), esc(fmtNum(r.diferenca)),
+        esc(r.piso_aplicado === "" ? "" : fmtNum(Number(r.piso_aplicado))), esc(r.piso_metodo),
         esc(r.status), esc(r.regras_aplicadas), esc(r.validacoes),
       ].join(";"));
     }
