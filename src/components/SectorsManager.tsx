@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Layers, Plus, Pencil, X, Upload, Loader2 } from "lucide-react";
+import { Layers, Plus, Pencil, X, Upload, Loader2, Building2, Globe2 } from "lucide-react";
 
 type Sector = {
   slug: string;
@@ -22,6 +26,7 @@ type Sector = {
   notes: string | null;
   tasy_code: string | null;
   classification: string | null;
+  hospital_id: string | null;
 };
 
 const empty: Sector = {
@@ -34,6 +39,7 @@ const empty: Sector = {
   notes: "",
   tasy_code: "",
   classification: "",
+  hospital_id: null,
 };
 
 const norm = (s: string) =>
@@ -48,6 +54,19 @@ const norm = (s: string) =>
 function buildSlug(input: string) {
   return input.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
+
+// Sufixo curto do hospital para evitar colisão de slug entre hospitais
+// (ex.: cc_hsl vs cc_hh para "Centro Cirúrgico" em Santa Luzia/Helena).
+function hospitalSlugSuffix(hospitalName: string) {
+  const n = hospitalName.trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "");
+  const initials = n.split(/\s+/).filter(Boolean).map(w => w[0]).join("");
+  return initials.slice(0, 4) || n.slice(0, 4);
+}
+
+type ScopeFilter = "all" | "current" | "global";
+
 
 type Props = { canManage?: boolean };
 
