@@ -15,6 +15,7 @@ Identidade visual: azul `#003DA5` + bronze `#C6A27C`, Playfair Display + DM Sans
 Escopo por hospital é INVARIANTE. Toda escrita operacional grava hospital_id do hospital ativo (nunca NULL, nunca inferido do cliente); toda leitura filtra por current_active_hospital(); IA/aprendizado/telemetria/dead-letter/hints por hospital — nenhum vazamento entre unidades. Cadastros globais explícitos: doctors, companies, item_types, payment_types, payment_models, specialties, manual_intervention_reasons, procedure_classifications, reference_tables, special_case_types. Centros de custo são por hospital (P12 padrão Rede D'Or, mas replicado por unidade via seed do DF Star).
 
 ## Memories
+- [Modais respeitam viewport](mem://design/modal-viewport-fit) — DialogContent/AlertDialogContent já limitam altura/largura e scroll interno; não patchar por modal
 - [Guard obrigatório em edge functions](mem://constraints/edge-function-auth-guard) — requireInternalOrRole + CI enforce; PUBLIC_ALLOWLIST documenta exceções
 - [Identidade Exacta/Rede D'Or](mem://design/brand-exacta-rededor) — Paleta, fontes, ícone oficial, favicon, pendências de marca
 
