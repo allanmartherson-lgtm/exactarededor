@@ -385,7 +385,7 @@ async function generateConfeccaoReportPdf(input: GeneratePaymentPdfInput): Promi
   // Itens
   autoTable(doc, {
     startY: cursorY,
-    head: [["Médico", "Doc", "Convênio", "Descrição", "Qtd", "Valor convênio", "Repasse", "Regra"]],
+    head: [["Médico", "Doc", "Convênio", "Descrição", "Qtd", "Valor convênio", "Repasse", "Piso", "Regra"]],
     body: items.map((i) => {
       const ruleId = (i as any).applied_rule_id ?? i.ai_findings?.matched_rule_ids?.[0] ?? null;
       const rule = ruleId ? rulesIndex?.[ruleId] : null;
@@ -393,6 +393,11 @@ async function generateConfeccaoReportPdf(input: GeneratePaymentPdfInput): Promi
       const ruleCell = rule?.name
         ? `${rule.name}${method ? `\n(${method})` : ""}`
         : (!ruleId && (!method || method === "sem_regra")) ? "— sem regra —" : (method || "—");
+      const pisoVal = (i as any).piso_aplicado_valor;
+      const pisoMet = (i as any).piso_metodo_vencedor;
+      const pisoCell = pisoVal != null
+        ? `${formatCurrency(Number(pisoVal))}${pisoMet === "piso" ? "\n(piso venceu)" : pisoMet === "convenio" ? "\n(convênio venceu)" : ""}`
+        : "—";
       return [
         i.doctor_name,
         i.doctor_document ?? "",
@@ -401,6 +406,7 @@ async function generateConfeccaoReportPdf(input: GeneratePaymentPdfInput): Promi
         String((i as any).quantity ?? 1),
         formatCurrency(Number((i as any).procedure_amount ?? 0)),
         formatCurrency(Number(i.expected_amount ?? 0)),
+        pisoCell,
         ruleCell,
       ];
     }),
