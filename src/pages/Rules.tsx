@@ -3008,6 +3008,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     />
       <div className="p-8 space-y-4">
         <RulesHealthPanel onSelectRule={(id) => { const r = rules.find((x) => x.id === id); if (r) { openEdit(r); setOpen(true); } }} />
+        <PisoDefasagemCard onSelectRule={(id) => { const r = rules.find((x) => x.id === id); if (r) { openEdit(r); setOpen(true); } }} />
         {/* Banner de regras incompletas */}
         {incompleteCount > 0 && (
           <Card className="border-warning/50 bg-warning/5">
