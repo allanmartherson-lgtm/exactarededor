@@ -16,6 +16,7 @@
 // Nunca sobrescreve itens com source = 'manual' (override do analista) ou
 // vínculos de parecer/cross-reference.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
   try {
     const { payment_id } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {

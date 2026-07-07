@@ -5,6 +5,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 
 const GATEWAY = "https://connector-gateway.lovable.dev";
 
@@ -23,30 +24,11 @@ const BodySchema = z.object({
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
-  const bearer = authHeader.replace("Bearer ", "").trim();
-
-  // Aceita chamadas internas (service-role) sem checar usuário —
-  // usado por funções como notify-campaign-decision.
-  const serviceKeyEnv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  let isInternal = bearer === serviceKeyEnv;
-  if (!isInternal) {
-    try {
-      const payload = JSON.parse(atob(bearer.split(".")[1] ?? ""));
-      if (payload?.role === "service_role") isInternal = true;
-    } catch { /* ignore */ }
-  }
-
-  if (!isInternal) {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(bearer);
-    if (claimsErr || !claims?.claims) return json({ error: "Unauthorized" }, 401);
-  }
+  // Restringe a service-role interno OU usuários com role interno
+  // (admin/diretor/analista/validador/gestao_medica). Portal users (empresa/médico)
+  // não podem enviar e-mail pelo mailbox corporativo.
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
