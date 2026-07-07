@@ -1,7 +1,6 @@
 // Envia notificação ao analista criador quando o supervisor aprova ou rejeita uma campanha.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -20,9 +19,6 @@ interface Body {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
-  const _auth = await requireInternalOrRole(req);
-  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
   try {
     const { campaign_id, decision, reason } = (await req.json()) as Body;
     if (!campaign_id || !decision) {

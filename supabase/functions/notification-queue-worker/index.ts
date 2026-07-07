@@ -7,7 +7,6 @@ import { processValidatorAssignment } from "./handlers/validatorAssignment.ts";
 import { processDirectorApproval } from "./handlers/directorApproval.ts";
 import { processDirectorReapproval } from "./handlers/directorReapproval.ts";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -27,9 +26,6 @@ const HANDLERS: Record<string, (supabase: any, row: any) => Promise<{ ok: boolea
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
-  const _auth = await requireInternalOrRole(req);
-  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

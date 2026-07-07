@@ -7,7 +7,6 @@
 //  - Se um pagamento ficou `em_analise_ia` sem job, re-dispara o dispatcher.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -19,9 +18,6 @@ const PAGE_SIZE = 2;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-  const _auth = await requireInternalOrRole(req);
-  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
