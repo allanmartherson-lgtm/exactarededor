@@ -75,6 +75,10 @@ type Props = { canManage?: boolean };
  * Renderiza sem `PageHeader` próprio para se encaixar em layouts tabbed.
  */
 export default function SectorsManager({ canManage = true }: Props) {
+  const { hospital, availableHospitals } = useHospital() as {
+    hospital: { id: string; name: string } | null;
+    availableHospitals: { id: string; name: string }[];
+  };
   const [list, setList] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Sector | null>(null);
@@ -83,7 +87,16 @@ export default function SectorsManager({ canManage = true }: Props) {
   const [testInput, setTestInput] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const hospitalName = (id: string | null) =>
+    id ? (availableHospitals.find(h => h.id === id)?.name ?? "Outro hospital") : "Global";
+
+  // Escopo em que novos setores/importações entram: se filtro está em
+  // "Somente hospital atual", entram vinculados; caso contrário globais.
+  const importHospitalId = scopeFilter === "current" ? (hospital?.id ?? null) : null;
+  const importSuffix = importHospitalId && hospital ? hospitalSlugSuffix(hospital.name) : "";
 
   const load = async () => {
     setLoading(true);
@@ -95,14 +108,26 @@ export default function SectorsManager({ canManage = true }: Props) {
 
   useEffect(() => { load(); }, []);
 
-  const openNew = () => { setEditing({ ...empty }); setIsNew(true); setAliasInput(""); };
+  const openNew = () => {
+    const initialHospital = scopeFilter === "current" ? (hospital?.id ?? null) : null;
+    setEditing({ ...empty, hospital_id: initialHospital });
+    setIsNew(true);
+    setAliasInput("");
+  };
   const openEdit = (s: Sector) => { setEditing({ ...s, aliases: [...s.aliases] }); setIsNew(false); setAliasInput(""); };
 
   const save = async () => {
     if (!editing) return;
-    const slug = editing.slug.trim().toLowerCase().replace(/\s+/g, "_");
+    let slug = editing.slug.trim().toLowerCase().replace(/\s+/g, "_");
     if (!slug || !editing.name.trim()) { toast.error("Slug e nome são obrigatórios"); return; }
+    // Garante slug único quando o setor for de um hospital específico.
+    if (isNew && editing.hospital_id) {
+      const h = availableHospitals.find(x => x.id === editing.hospital_id);
+      const suffix = h ? hospitalSlugSuffix(h.name) : "";
+      if (suffix && !slug.endsWith(`_${suffix}`)) slug = `${slug}_${suffix}`;
+    }
     const payload = {
+
       ...editing,
       slug,
       aliases: editing.aliases.map(a => a.trim()).filter(Boolean),
