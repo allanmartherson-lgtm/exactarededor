@@ -54,3 +54,4 @@ Escopo por hospital é INVARIANTE. Toda escrita operacional grava hospital_id do
 
 - [Migração CURA pausada](mem://constraints/cura-migration-paused) — Fase 3 aguardando tarball/registry; não reimplementar wrapper sem OK
 - [Piso por procedimento](mem://features/piso-por-procedimento) — MAX(convenio, piso) por função em percentual_sobre_convenio; escopo por_atendimento ainda parcial
+- [Escopo por hospital — invariante](mem://constraints/hospital-scope-invariant) — Regra completa: escrita, leitura, IA, cadastros globais permitidos, guardas
