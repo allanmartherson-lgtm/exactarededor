@@ -87,6 +87,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const auth = await requireInternalOrRole(req);
+    if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
     const body = await req.json().catch(() => ({}));
     const payment_id = body?.payment_id as string | undefined;
     const invoice_id = body?.invoice_id as string | undefined;
@@ -113,6 +116,12 @@ serve(async (req) => {
     const { data: payment } = await supabase.from("payments").select("*").eq("id", resolvedPaymentId).single();
     const { data: itemsRaw } = await supabase.from("payment_items").select("*").eq("payment_id", resolvedPaymentId);
     if (!payment || !itemsRaw) throw new Error("Pagamento não encontrado");
+
+    // Guard multi-tenant: valida que o caller tem acesso ao hospital do payment.
+    if ((payment as { hospital_id?: string | null }).hospital_id) {
+      const acc = await assertHospitalAccess(auth, (payment as { hospital_id: string }).hospital_id);
+      if (!acc.ok) return unauthorizedResponse(acc, corsHeaders);
+    }
     const items = itemsRaw as Item[];
 
     // ---- Pré-validação: CNPJ + carrega lista de e-mails das empresas ----
