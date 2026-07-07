@@ -413,12 +413,25 @@ async function insertAliasIgnoreDup(
   // trivial estoura o limite do PostgREST. Uma 2ª/3ª tentativa quase sempre
   // passa. Duplicidade segue sendo tratada como sucesso silencioso.
   let lastErr: any = null;
+  let syncedActive = false;
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await supabase.from(table as any).insert(payload as any);
     if (!res.error) return res;
     const msg = res.error.message ?? "";
     if (/duplicate|unique|conflict/i.test(msg)) return { data: null, error: null } as typeof res;
     lastErr = res.error;
+    // RLS por hospital: o servidor pode ter `user_active_hospital` desatualizado
+    // (troca em outra aba, RPC anterior falhou etc.). Ressincroniza uma vez
+    // usando o hospital_id do payload e tenta de novo.
+    const isRlsHospital = /row-level security|hospital_scope_restrictive/i.test(msg);
+    const hid = (payload as any)?.hospital_id as string | null | undefined;
+    if (isRlsHospital && hid && !syncedActive) {
+      syncedActive = true;
+      try {
+        await supabase.rpc("set_active_hospital", { p_hospital_id: hid } as any);
+      } catch { /* ignore — próxima iteração devolve o erro real */ }
+      continue;
+    }
     const isTimeout = /statement timeout|canceling statement|57014/i.test(msg);
     if (!isTimeout) return res;
     await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
