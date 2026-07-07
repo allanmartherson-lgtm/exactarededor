@@ -12580,8 +12580,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       silence_learned_pattern: {
         Args: { _new_status?: string; _pattern_id: string; _reason: string }
         Returns: undefined
@@ -12603,7 +12601,6 @@ export type Database = {
           test_name: string
         }[]
       }
-      unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
       update_doctor_notification_preferences: {
