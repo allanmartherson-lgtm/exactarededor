@@ -11151,7 +11151,7 @@ export type Database = {
         Args: never
         Returns: {
           args: string
-          motivo: string
+          missing_scope_for: string
           proname: string
         }[]
       }
