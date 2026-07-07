@@ -3905,7 +3905,7 @@ function preComputePackageWinners(
  * R$ 350 no acessório (= R$ 1.150), o piso não entra. Se pagaria R$ 600 +
  * R$ 200 (= R$ 800), o piso vence e complementa até R$ 1.100.
  *
- * Grupo = (matched_rule_id, applied_calc_id, doctor_id, attendance_number).
+ * Grupo = (matched_rule_id, doctor_id, attendance_number).
  * Distribuição pro-rata pelo esperado_convenio original; se todos zerarem,
  * divide igualmente. Ajusta a última linha para casar centavos.
  *
