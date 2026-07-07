@@ -381,12 +381,22 @@ export default function SectorsManager({ canManage = true }: Props) {
 
       <div className="grid gap-3">
         {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-        {!loading && list.length === 0 && <p className="text-sm text-muted-foreground">Nenhum setor cadastrado.</p>}
-        {list.map(s => (
+        {!loading && visible.length === 0 && <p className="text-sm text-muted-foreground">Nenhum setor neste escopo.</p>}
+        {visible.map(s => (
           <Card key={s.slug} className={s.active ? "" : "opacity-60"}>
             <CardContent className="p-4 flex items-start justify-between gap-4">
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {s.hospital_id ? (
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <Building2 className="h-3 w-3" />
+                      {hospitalName(s.hospital_id)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] gap-1">
+                      <Globe2 className="h-3 w-3" />Global
+                    </Badge>
+                  )}
                   {s.code && (
                     <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">{s.code}</code>
                   )}
@@ -400,6 +410,7 @@ export default function SectorsManager({ canManage = true }: Props) {
                   {s.classification && <Badge variant="outline" className="text-xs">{s.classification}</Badge>}
                   {!s.active && <Badge variant="destructive" className="text-xs">inativo</Badge>}
                 </div>
+
                 <div className="flex flex-wrap gap-1">
                   {s.aliases.length === 0 && <span className="text-xs text-muted-foreground">Sem aliases</span>}
                   {s.aliases.map(a => (
