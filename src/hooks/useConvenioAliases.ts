@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveHospitalId } from "@/integrations/supabase/activeHospital";
 
 const norm = (s: string) =>
   (s ?? "")
@@ -17,14 +18,28 @@ export type ConvenioAliasMap = {
   resolveSlug: (raw: string | null | undefined) => string | null;
 };
 
-let cached: ConvenioAliasMap | null = null;
-let inflight: Promise<ConvenioAliasMap> | null = null;
+// Cache por hospital: convênios exclusivos de outros hospitais não podem vazar.
+// Chave = active hospital id ("__global__" quando não há hospital selecionado).
+const cacheByHospital = new Map<string, ConvenioAliasMap>();
+const inflightByHospital = new Map<string, Promise<ConvenioAliasMap>>();
 
 async function load(): Promise<ConvenioAliasMap> {
+  const activeId = getActiveHospitalId();
+  const cacheKey = activeId ?? "__global__";
+  const cached = cacheByHospital.get(cacheKey);
   if (cached) return cached;
+  const inflight = inflightByHospital.get(cacheKey);
   if (inflight) return inflight;
-  inflight = (async () => {
-    const { data } = await supabase.from("convenios").select("slug,name,aliases");
+
+  const promise = (async () => {
+    // Escopo: convênios globais (hospital_id IS NULL) + do hospital ativo.
+    // Convênios de outros hospitais são invisíveis para este resolver.
+    let query = supabase.from("convenios").select("slug,name,aliases,hospital_id");
+    query = activeId
+      ? query.or(`hospital_id.is.null,hospital_id.eq.${activeId}`)
+      : query.is("hospital_id", null);
+    const { data } = await query;
+
     const nameMap = new Map<string, string>();
     const slugMap = new Map<string, string>();
     for (const row of data ?? []) {
@@ -35,8 +50,12 @@ async function load(): Promise<ConvenioAliasMap> {
         if (!key) continue;
         const n = norm(key);
         if (!n) continue;
-        nameMap.set(n, name);
-        slugMap.set(n, slug);
+        // Hospital-específico vence global (mesmo alias apontando para slug local).
+        const isHospitalScoped = !!(row as any).hospital_id;
+        if (!nameMap.has(n) || isHospitalScoped) {
+          nameMap.set(n, name);
+          slugMap.set(n, slug);
+        }
       }
     }
     const lookup = <T,>(m: Map<string, T>) => (raw: string | null | undefined): T | null => {
@@ -49,23 +68,38 @@ async function load(): Promise<ConvenioAliasMap> {
       }
       return null;
     };
-    cached = { resolve: lookup(nameMap), resolveSlug: lookup(slugMap) };
-    return cached;
+    const map: ConvenioAliasMap = { resolve: lookup(nameMap), resolveSlug: lookup(slugMap) };
+    cacheByHospital.set(cacheKey, map);
+    return map;
   })();
-  return inflight;
+
+  inflightByHospital.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inflightByHospital.delete(cacheKey);
+  }
 }
 
 export async function loadConvenioAliases(): Promise<ConvenioAliasMap> {
   return load();
 }
 
+/** Invalida o cache — chamar ao trocar de hospital ou após editar convênios. */
+export function invalidateConvenioAliasesCache() {
+  cacheByHospital.clear();
+  inflightByHospital.clear();
+}
+
 export function useConvenioAliases(): ConvenioAliasMap | null {
-  const [state, setState] = useState<ConvenioAliasMap | null>(cached);
+  const activeId = getActiveHospitalId() ?? "__global__";
+  const [state, setState] = useState<ConvenioAliasMap | null>(
+    cacheByHospital.get(activeId) ?? null,
+  );
   useEffect(() => {
-    if (cached) { setState(cached); return; }
     let active = true;
     load().then((m) => { if (active) setState(m); });
     return () => { active = false; };
-  }, []);
+  }, [activeId]);
   return state;
 }
