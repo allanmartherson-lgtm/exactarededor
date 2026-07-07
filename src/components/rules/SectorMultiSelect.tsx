@@ -5,31 +5,40 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 
 type SectorRow = { slug: string; name: string; codigo: string | null; classificacao: string | null; active: boolean };
 
-let _cache: SectorRow[] | null = null;
-let _pending: Promise<SectorRow[]> | null = null;
+// Cache por hospital: setor exclusivo de outro hospital não deve aparecer em
+// regras do hospital atual. Chave = hospital.id || "__global__".
+const cacheByHospital = new Map<string, SectorRow[]>();
+const pendingByHospital = new Map<string, Promise<SectorRow[]>>();
 
-async function loadSectors(): Promise<SectorRow[]> {
-  if (_cache) return _cache;
-  if (_pending) return _pending;
-  _pending = (async () => {
-    const { data, error } = await supabase
-      .from("sectors")
-      .select("slug,name,tasy_code,classification,active")
-      .order("name");
+async function loadSectors(hospitalId: string | null): Promise<SectorRow[]> {
+  const key = hospitalId ?? "__global__";
+  const cached = cacheByHospital.get(key);
+  if (cached) return cached;
+  const inflight = pendingByHospital.get(key);
+  if (inflight) return inflight;
+  const promise = (async () => {
+    let q = supabase.from("sectors").select("slug,name,tasy_code,classification,active,hospital_id").order("name");
+    q = hospitalId
+      ? q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+      : q.is("hospital_id", null);
+    const { data, error } = await q;
     if (error) throw error;
-    _cache = ((data || []) as Array<{ slug: string; name: string; tasy_code: string | null; classification: string | null; active: boolean }>).map((r) => ({
+    const rows = ((data || []) as Array<{ slug: string; name: string; tasy_code: string | null; classification: string | null; active: boolean }>).map((r) => ({
       slug: r.slug,
       name: r.name,
       codigo: r.tasy_code,
       classificacao: r.classification,
       active: r.active,
     }));
-    return _cache;
+    cacheByHospital.set(key, rows);
+    return rows;
   })();
-  return _pending;
+  pendingByHospital.set(key, promise);
+  try { return await promise; } finally { pendingByHospital.delete(key); }
 }
 
 interface Props {
@@ -39,17 +48,21 @@ interface Props {
 }
 
 export function SectorMultiSelect({ values, onChange, placeholder = "Selecionar setores…" }: Props) {
+  const { hospital } = useHospital() as { hospital: { id: string } | null };
+  const activeId = hospital?.id ?? null;
+  const cacheKey = activeId ?? "__global__";
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<SectorRow[]>(_cache || []);
-  const [loading, setLoading] = useState(!_cache);
+  const [rows, setRows] = useState<SectorRow[]>(cacheByHospital.get(cacheKey) || []);
+  const [loading, setLoading] = useState(!cacheByHospital.get(cacheKey));
 
   useEffect(() => {
     let alive = true;
-    loadSectors()
+    setLoading(!cacheByHospital.get(cacheKey));
+    loadSectors(activeId)
       .then((d) => { if (alive) { setRows(d); setLoading(false); } })
       .catch(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [activeId, cacheKey]);
 
   const bySlug = useMemo(() => {
     const m = new Map<string, SectorRow>();
