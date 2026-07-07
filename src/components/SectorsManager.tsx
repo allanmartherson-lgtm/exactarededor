@@ -286,13 +286,24 @@ export default function SectorsManager({ canManage = true }: Props) {
   };
 
 
+  const visible = useMemo(() => {
+    const activeId = hospital?.id ?? null;
+    return list.filter(s => {
+      if (scopeFilter === "global") return s.hospital_id === null;
+      if (scopeFilter === "current") return s.hospital_id === activeId;
+      // "all" = escopo real: globais + do hospital ativo. Outros hospitais ocultos.
+      return s.hospital_id === null || s.hospital_id === activeId;
+    });
+  }, [list, scopeFilter, hospital?.id]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Layers className="h-5 w-5" /> Setores</h2>
           <p className="text-sm text-muted-foreground">
-            Padronização dos nomes de setor que vêm da base. Aliases capturam variações (acentos, abreviações, sufixos).
+            Cada setor pode ser <strong>global</strong> ou <strong>exclusivo de um hospital</strong>.
+            Santa Luzia e Helena podem ter setores próprios sem interferência mútua.
           </p>
         </div>
         {canManage && (
@@ -312,6 +323,25 @@ export default function SectorsManager({ canManage = true }: Props) {
           </div>
         )}
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={scopeFilter} onValueChange={(v) => setScopeFilter(v as ScopeFilter)}>
+          <SelectTrigger className="w-[280px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Global + {hospital?.name ?? "hospital atual"}</SelectItem>
+            <SelectItem value="current">Somente {hospital?.name ?? "hospital atual"}</SelectItem>
+            <SelectItem value="global">Somente globais</SelectItem>
+          </SelectContent>
+        </Select>
+        {scopeFilter === "current" && importHospitalId && (
+          <span className="text-xs text-muted-foreground">
+            Importações e novos setores serão vinculados a <strong>{hospital?.name}</strong>.
+          </span>
+        )}
+      </div>
+
 
       {canManage && (
         <Card>
