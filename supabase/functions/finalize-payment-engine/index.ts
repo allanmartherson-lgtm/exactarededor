@@ -150,9 +150,9 @@ async function runPipeline(
     if (want("minimum_guarantee")) {
       const { data: mga } = await supabase
         .from("minimum_guarantee_applications")
-        .select("valor_complemento, status")
+        .select("complemento_valor, status")
         .eq("payment_id", payment_id);
-      const totalMg = (mga ?? []).reduce((s: number, r: any) => s + Number(r.valor_complemento ?? 0), 0);
+      const totalMg = (mga ?? []).reduce((s: number, r: any) => s + Number(r.complemento_valor ?? 0), 0);
       await markSource(payment_id, "minimum_guarantee", (mga ?? []).length, totalMg);
     }
   }
