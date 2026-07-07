@@ -2644,6 +2644,25 @@ const NewPayment = () => {
       if (!upErr) uploadedPaths.push(path);
     }
 
+    // Garante que o "hospital ativo" no servidor bate com o selecionado na UI
+    // ANTES de inserir. Cobre o caso em que a sincronização inicial falhou ou
+    // o usuário trocou de hospital em outra aba/dispositivo — a RLS
+    // `active_hospital_scope` compara com current_active_hospital() no banco.
+    if (hospital?.id) {
+      const { error: syncErr } = await supabase.rpc("set_active_hospital", {
+        p_hospital_id: hospital.id,
+      });
+      if (syncErr) {
+        toast({
+          title: "Não foi possível confirmar o hospital ativo",
+          description: syncErr.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+
     const { data: payment, error } = await supabase
       .from("payments")
       .insert({
