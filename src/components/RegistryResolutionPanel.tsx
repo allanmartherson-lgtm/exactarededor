@@ -119,6 +119,8 @@ function ResolutionRow({
   onResolved: () => Promise<void>;
 }) {
   const { user } = useAuth();
+  const { hospital } = useHospital() as { hospital: { id: string } | null };
+  const activeHospitalId = hospital?.id ?? null;
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
