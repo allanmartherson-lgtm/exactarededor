@@ -14,6 +14,18 @@ describe("normalizeNumericValue", () => {
     expect(result.invalid).toBe(false);
   });
 
+  it("should handle Tasy values with thousand point and 6 decimal digits", () => {
+    const result = normalizeNumericValue("1.086,883125");
+    expect(result.value).toBeCloseTo(1086.883125, 6);
+    expect(result.invalid).toBe(false);
+  });
+
+  it("should handle Tasy values with comma decimals that SheetJS often corrupts", () => {
+    expect(normalizeNumericValue("326,06").value).toBe(326.06);
+    expect(normalizeNumericValue("401,14").value).toBe(401.14);
+    expect(normalizeNumericValue("802,28").value).toBe(802.28);
+  });
+
   it("should handle 5687.40 (ponto decimal, sem milhar)", () => {
     const result = normalizeNumericValue("5687.40");
     expect(result.value).toBe(5687.4);

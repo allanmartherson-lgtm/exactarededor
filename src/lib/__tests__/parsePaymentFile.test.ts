@@ -11,7 +11,7 @@
  */
 import { describe, it, expect } from "vitest";
 import * as XLSX from "xlsx";
-import { parsePaymentFile, resolveSimpleFormulas, type CompanyRow } from "../parsePaymentFile";
+import { parsePaymentFile, preserveFormattedBrazilianNumbers, resolveSimpleFormulas, type CompanyRow } from "../parsePaymentFile";
 
 const COMPANIES: CompanyRow[] = [
   { id: "c-acme", name: "Acme Médica LTDA", aliases: ["Acme"] },
@@ -390,6 +390,22 @@ describe("parsePaymentFile — Vl a Repassar zero / vazio / fórmula sem cache",
     // Não resolve, mas também não joga erro nem corrompe o cell.
     expect(sheet["B2"].v).toBeUndefined();
     expect(sheet["B2"].f).toBe("SUM(A1:A2)");
+  });
+});
+
+describe("parsePaymentFile — moeda BR em TSV/XLS do Tasy", () => {
+  it("preserva o texto formatado quando SheetJS converte vírgula decimal para número americano", () => {
+    const ws: XLSX.WorkSheet = {
+      "!ref": "A1:B2",
+      A1: { t: "s", v: "Vl. Repasse" },
+      B1: { t: "s", v: "Valor Procedimento" },
+      A2: { t: "n", v: 1.086883125, w: "1.086,883125" },
+      B2: { t: "n", v: 32606, w: "326,06" },
+    };
+    preserveFormattedBrazilianNumbers(ws);
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: true });
+    expect(rows[0]["Vl. Repasse"]).toBe("1.086,883125");
+    expect(rows[0]["Valor Procedimento"]).toBe("326,06");
   });
 });
 

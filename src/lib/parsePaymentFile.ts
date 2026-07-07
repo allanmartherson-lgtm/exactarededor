@@ -375,6 +375,25 @@ export const readWorkbookPreservingText = (buf: ArrayBuffer, opts: XLSX.ParsingO
   const wb: XLSX.WorkBook = { SheetNames: ["Sheet1"], Sheets: { Sheet1: sheet } };
   return wb;
 };
+
+/**
+ * SheetJS, ao ler TSV/CSV disfarçado de XLS sem `raw:true`, converte moeda BR
+ * de forma irreversível: "326,06" vira 32606 e "1.086,883125" vira 1.086883125.
+ * Quando recebemos células numéricas com `w` preservando o texto original,
+ * restauramos `v` para esse texto antes de montar a matriz; depois o parser
+ * canônico pt-BR faz a conversão correta.
+ */
+export const preserveFormattedBrazilianNumbers = (sheet: XLSX.WorkSheet): void => {
+  for (const addr of Object.keys(sheet)) {
+    if (addr.startsWith("!")) continue;
+    const cell = (sheet as Record<string, XLSX.CellObject>)[addr];
+    if (!cell || cell.t !== "n" || typeof cell.w !== "string") continue;
+    const formatted = cell.w.trim();
+    if (!/^[-+]?\d{1,3}(?:\.\d{3})*,\d+$/.test(formatted) && !/^[-+]?\d+,\d+$/.test(formatted)) continue;
+    cell.t = "s";
+    cell.v = formatted;
+  }
+};
 const toStr = (v: unknown): string | null => {
   if (v == null) return null;
   const s = String(v).trim();
@@ -832,6 +851,7 @@ export const parsePaymentFile = async (
   const buf = await f.arrayBuffer();
   const wb = readWorkbookPreservingText(buf, { cellDates: false, cellFormula: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
+  preserveFormattedBrazilianNumbers(sheet);
   // Resolve fórmulas simples (=A1*B1, =A1*0.7, +, -, /) cujo valor cached não
   // foi salvo no arquivo — acontece quando o Excel/LibreOffice grava sem
   // recalcular. Sem isso, "Vl a Repassar" computado como =N3*O3 chega vazio
@@ -1125,6 +1145,7 @@ export const inspectFileHeaders = async (
   const buf = await f.arrayBuffer();
   const wb = readWorkbookPreservingText(buf, { cellDates: false });
   const sheet = wb.Sheets[wb.SheetNames[0]];
+  preserveFormattedBrazilianNumbers(sheet);
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
   const headerIdx = detectHeaderRow(matrix);
   const headerRow = (matrix[headerIdx] || []).map((h, i) => {
