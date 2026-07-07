@@ -40,6 +40,7 @@ export default function AuditoriaHub() {
   const content = useMemo(() => {
     switch (active) {
       case "log": return <AuditLog embedded />;
+      case "isolamento": return <IsolationEvents embedded />;
       case "hospitais": return <HospitalSwitchLog embedded />;
       case "exportacoes": return <ExportAudit embedded />;
       case "anomalias": return <StatusAnomalies embedded />;
