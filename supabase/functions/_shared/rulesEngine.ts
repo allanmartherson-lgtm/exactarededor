@@ -3929,7 +3929,6 @@ export function applyPisoPorAtendimento(
     if (!it) continue;
     const key = [
       r.matched_rule_id ?? "",
-      r.applied_calc_id ?? "",
       it.doctor_id ?? "",
       it.attendance_number ?? "",
     ].join("|");
