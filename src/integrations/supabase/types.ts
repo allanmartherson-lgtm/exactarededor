@@ -655,6 +655,7 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          hospital_id: string | null
           id: string
           resource: string
           resource_id: string
@@ -663,6 +664,7 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           resource: string
           resource_id: string
@@ -671,6 +673,7 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           resource?: string
           resource_id?: string
@@ -682,6 +685,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_access_log_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]
@@ -3858,6 +3868,7 @@ export type Database = {
       learned_pattern_events: {
         Row: {
           created_at: string
+          hospital_id: string | null
           id: string
           pattern_id: string
           payload: Json
@@ -3868,6 +3879,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          hospital_id?: string | null
           id?: string
           pattern_id: string
           payload?: Json
@@ -3878,6 +3890,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          hospital_id?: string | null
           id?: string
           pattern_id?: string
           payload?: Json
@@ -3887,6 +3900,13 @@ export type Database = {
           source_kind?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "learned_pattern_events_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "learned_pattern_events_pattern_id_fkey"
             columns: ["pattern_id"]
@@ -6321,6 +6341,7 @@ export type Database = {
           error_code: string | null
           error_message: string
           first_failed_at: string
+          hospital_id: string | null
           id: string
           last_attempt_at: string
           payment_id: string
@@ -6333,6 +6354,7 @@ export type Database = {
           error_code?: string | null
           error_message: string
           first_failed_at?: string
+          hospital_id?: string | null
           id?: string
           last_attempt_at?: string
           payment_id: string
@@ -6345,6 +6367,7 @@ export type Database = {
           error_code?: string | null
           error_message?: string
           first_failed_at?: string
+          hospital_id?: string | null
           id?: string
           last_attempt_at?: string
           payment_id?: string
@@ -6352,6 +6375,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_recompute_failures_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_recompute_failures_payment_id_fkey"
             columns: ["payment_id"]
@@ -7091,6 +7121,7 @@ export type Database = {
         Row: {
           channel: string
           created_at: string
+          hospital_id: string | null
           id: string
           pendencia_id: string
           priority: string
@@ -7101,6 +7132,7 @@ export type Database = {
         Insert: {
           channel?: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           pendencia_id: string
           priority: string
@@ -7111,6 +7143,7 @@ export type Database = {
         Update: {
           channel?: string
           created_at?: string
+          hospital_id?: string | null
           id?: string
           pendencia_id?: string
           priority?: string
@@ -7119,6 +7152,13 @@ export type Database = {
           recipient_user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pendencia_notification_log_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pendencia_notification_log_pendencia_id_fkey"
             columns: ["pendencia_id"]
@@ -7135,6 +7175,7 @@ export type Database = {
           attempted_thread_id: string | null
           created_at: string
           doctor_id: string | null
+          hospital_id: string | null
           id: string
           opened_by: string
           pendencia_id: string
@@ -7146,6 +7187,7 @@ export type Database = {
           attempted_thread_id?: string | null
           created_at?: string
           doctor_id?: string | null
+          hospital_id?: string | null
           id?: string
           opened_by: string
           pendencia_id: string
@@ -7157,12 +7199,21 @@ export type Database = {
           attempted_thread_id?: string | null
           created_at?: string
           doctor_id?: string | null
+          hospital_id?: string | null
           id?: string
           opened_by?: string
           pendencia_id?: string
           reason?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pendencia_routing_log_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pendencias: {
         Row: {
@@ -9996,6 +10047,7 @@ export type Database = {
           actor_email: string | null
           actor_id: string | null
           created_at: string
+          hospital_id: string | null
           id: string
           new_active: boolean | null
           new_name: string | null
@@ -10009,6 +10061,7 @@ export type Database = {
           actor_email?: string | null
           actor_id?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           new_active?: boolean | null
           new_name?: string | null
@@ -10022,6 +10075,7 @@ export type Database = {
           actor_email?: string | null
           actor_id?: string | null
           created_at?: string
+          hospital_id?: string | null
           id?: string
           new_active?: boolean | null
           new_name?: string | null
@@ -10030,7 +10084,15 @@ export type Database = {
           specialty_code?: string
           specialty_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "specialty_audit_log_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       status_anomalies: {
         Row: {

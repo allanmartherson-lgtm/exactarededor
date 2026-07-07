@@ -16,6 +16,8 @@ import {
   type ReferenceTableLookup,
   type ExceptionTableLookup,
 } from "../_shared/rulesEngine.ts";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,7 +58,15 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const auth = await requireInternalOrRole(req);
+    if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
     const body = (await req.json()) as SimInput;
+
+    if (body.hospital_id) {
+      const acc = await assertHospitalAccess(auth, body.hospital_id);
+      if (!acc.ok) return unauthorizedResponse(acc, corsHeaders);
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

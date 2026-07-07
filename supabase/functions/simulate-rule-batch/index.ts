@@ -17,6 +17,8 @@ import {
   type ReferenceTableLookup,
   type ExceptionTableLookup,
 } from "../_shared/rulesEngine.ts";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -135,8 +137,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const auth = await requireInternalOrRole(req);
+    if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
     const body = (await req.json()) as BatchInput;
     if (!body?.hospital_id) throw new Error("hospital_id é obrigatório");
+    const acc = await assertHospitalAccess(auth, body.hospital_id);
+    if (!acc.ok) return unauthorizedResponse(acc, corsHeaders);
     if (!Array.isArray(body.items) || body.items.length === 0)
       throw new Error("items vazio");
     if (body.items.length > 5000) throw new Error("máximo 5.000 itens por chamada");

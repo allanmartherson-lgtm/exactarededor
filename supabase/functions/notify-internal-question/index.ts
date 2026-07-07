@@ -13,6 +13,8 @@
 // Suporta payload com `recipient_roles: string[]` (override explícito).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,6 +76,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    const auth = await requireInternalOrRole(req);
+    if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
     const body = (await req.json()) as Body;
     if (!body?.payment_id || !body?.question_observation_id || !body?.event) {
       return new Response(
@@ -89,13 +94,19 @@ Deno.serve(async (req) => {
 
     const { data: payment } = await supabase
       .from("payments")
-      .select("id, reference, status, created_by, validated_by")
+      .select("id, reference, status, created_by, validated_by, hospital_id")
       .eq("id", body.payment_id)
       .maybeSingle();
     if (!payment) {
       return new Response(JSON.stringify({ error: "pagamento não encontrado" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Guard multi-tenant
+    if ((payment as { hospital_id?: string | null }).hospital_id) {
+      const acc = await assertHospitalAccess(auth, (payment as { hospital_id: string }).hospital_id);
+      if (!acc.ok) return unauthorizedResponse(acc, corsHeaders);
     }
 
     const source = body.source ?? "payment_observations";
