@@ -8,6 +8,7 @@
 // de parecer nunca define expected_amount/ai_status nem aceite financeiro.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -53,6 +54,9 @@ export function matchesParecerDate(row: any, procedureDate: string | null) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
+
+  const _auth = await requireInternalOrRole(req);
+  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
     return new Response(null, { headers: corsHeaders });
   try {
     const { payment_id, trigger_reanalysis = true, _background } = await req.json();

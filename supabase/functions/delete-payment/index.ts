@@ -9,6 +9,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -42,6 +43,9 @@ const ANALISTA_INITIAL_STATUSES = new Set([
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _auth = await requireInternalOrRole(req);
+  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

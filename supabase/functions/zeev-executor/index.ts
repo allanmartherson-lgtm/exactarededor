@@ -12,6 +12,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1197,6 +1198,9 @@ async function buildPaymentAggregates(sb: SB, paymentId: string, scopeCompanyId?
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _auth = await requireInternalOrRole(req);
+  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
     // Auth (required) — must validate BEFORE any DB access or LLM call

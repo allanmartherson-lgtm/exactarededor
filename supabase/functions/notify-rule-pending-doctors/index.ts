@@ -6,6 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -51,6 +52,9 @@ async function sendEmail(to: string, subject: string, text: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _auth = await requireInternalOrRole(req);
+  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

@@ -35,6 +35,14 @@ export async function requireInternalOrRole(
   req: Request,
   allowedRoles: InternalRole[] = DEFAULT_INTERNAL_ROLES,
 ): Promise<AuthCheckResult> {
+  // Aceita header `x-cron-secret` para chamadas por pg_cron/trigger internos.
+  // Valor gerado (CRON_SECRET) só existe no ambiente do backend.
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  const providedCron = req.headers.get("x-cron-secret") ?? "";
+  if (cronSecret && providedCron && providedCron === cronSecret) {
+    return { ok: true, is_internal: true, user_id: null };
+  }
+
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return { ok: false, status: 401, error: "Unauthorized" };

@@ -147,6 +147,21 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: bun run scripts/audit-hospital-scope.ts
 
+  # Job 7b: Guard de autenticação em edge functions (obrigatório — bloqueia merge)
+  # Falha se qualquer edge function nova esquecer requireInternalOrRole e não
+  # estiver na allowlist documentada de endpoints públicos intencionais.
+  edge-auth-guard:
+    name: Edge Function Auth Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+      - name: Audit edge function auth
+        run: deno run --allow-read scripts/audit-edge-auth.ts
+
   # Job 7: Testes de integração do motor de distribuição de pacotes (obrigatório — bloqueia merge)
   # Garante que o fluxo fim-a-fim (regras → matching → distribuição cirurgião/auxiliares
   # → fallback CBHPM → pacotes legados) não regrida silenciosamente. Cobre

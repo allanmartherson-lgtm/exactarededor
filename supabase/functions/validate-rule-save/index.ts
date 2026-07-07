@@ -13,6 +13,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { detectCalcOverlap, detectCrossRuleOverlap } from "../_shared/calcOverlap.ts";
 import type { RuleCalculationItem } from "../_shared/rulesEngine.ts";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import {
   detectDoctorMultiRule,
   doctorKey,
@@ -153,6 +154,9 @@ interface ValidateRuleSaveRequest {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
+
+  const _auth = await requireInternalOrRole(req);
+  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
     return new Response("ok", { headers: corsHeaders });
   }
   if (req.method !== "POST") {
