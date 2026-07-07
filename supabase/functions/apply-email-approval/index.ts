@@ -81,6 +81,22 @@ Deno.serve(async (req) => {
     }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
+  // Hospital gate: caller must have access to the approval's hospital (admin/diretor bypass).
+  const isAdminOrDir = (rolesRows ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "diretor");
+  if (!isAdminOrDir && approval.hospital_id) {
+    const { data: uh } = await admin0
+      .from("user_hospitals")
+      .select("hospital_id")
+      .eq("user_id", user.id)
+      .eq("hospital_id", approval.hospital_id)
+      .maybeSingle();
+    if (!uh) {
+      return new Response(JSON.stringify({ error: "forbidden_hospital", message: "Sem acesso a este hospital." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   // 2) Pega grupos aguardando aprovação
   const { data: groups, error: gErr } = await admin
     .from("payment_company_groups")
