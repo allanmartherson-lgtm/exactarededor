@@ -2376,6 +2376,7 @@ export function applyCalculation(
       // MAX(esperado_convenio, piso_da_funcao) e carimba método vencedor.
       let pisoAplicado: number | null = null;
       let pisoVencedor: "convenio" | "piso" | null = null;
+      let pisoEscopo: "por_item" | "por_atendimento" | null = null;
       if (
         r.expected !== null &&
         c.piso_habilitado === true &&
@@ -2384,10 +2385,14 @@ export function applyCalculation(
         const piso = resolvePisoForRole(c, item.doctor_role);
         if (piso !== null && piso > 0) {
           pisoAplicado = piso;
-          if (c.piso_escopo === "por_atendimento") {
-            r.alerts = [...r.alerts, "Piso por_atendimento ainda não é suportado — aplicando piso por item."];
-          }
-          if (piso > r.expected) {
+          pisoEscopo = c.piso_escopo === "por_atendimento" ? "por_atendimento" : "por_item";
+          if (pisoEscopo === "por_atendimento") {
+            // Agregação real acontece no post-pass em `analyzePaymentItems`.
+            // Aqui deixamos o vencedor pendente (null) — o post-pass soma
+            // o esperado_convenio de todas as linhas do mesmo atendimento,
+            // compara com o piso e distribui o complemento pro-rata.
+            pisoVencedor = null;
+          } else if (piso > r.expected) {
             r.explanation = `${r.explanation} · Piso R$ ${piso.toFixed(2)} > convênio R$ ${r.expected.toFixed(2)} → piso vence.`;
             r.expected = round2(piso);
             pisoVencedor = "piso";
@@ -2397,6 +2402,7 @@ export function applyCalculation(
           }
         }
       }
+
 
       if (r.expected !== null) {
         validCalcs.push({
