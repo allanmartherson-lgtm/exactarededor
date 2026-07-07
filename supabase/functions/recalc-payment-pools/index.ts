@@ -8,6 +8,7 @@
 // - Cria/atualiza grupo sintético para participantes "hospital_nao_paga" (total=0, auditoria)
 // - Persiste snapshot em pool_calculation_runs (1 por payment+pool)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,11 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
+
     const { payment_id, _background } = await req.json();
     if (!payment_id) {
       return new Response(JSON.stringify({ error: "payment_id obrigatório" }), {
