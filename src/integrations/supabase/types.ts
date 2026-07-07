@@ -21,7 +21,7 @@ export type Database = {
           department: string
           email: string
           full_name: string
-          hospital_id: string
+          hospital_id: string | null
           id: string
           message: string | null
           phone: string
@@ -39,7 +39,7 @@ export type Database = {
           department: string
           email: string
           full_name: string
-          hospital_id: string
+          hospital_id?: string | null
           id?: string
           message?: string | null
           phone: string
@@ -57,7 +57,7 @@ export type Database = {
           department?: string
           email?: string
           full_name?: string
-          hospital_id?: string
+          hospital_id?: string | null
           id?: string
           message?: string | null
           phone?: string
