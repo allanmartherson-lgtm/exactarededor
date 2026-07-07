@@ -884,6 +884,7 @@ export function ItemsDataGrid({
   // Filtros disparados pelo Zeev (event bus global). Limpos via "Limpar filtros".
   const [onlyZero, setOnlyZero] = useState(pf.onlyZero ?? false);
   const [onlySemRegra, setOnlySemRegra] = useState(pf.onlySemRegra ?? false);
+  const [onlyPisoAplicado, setOnlyPisoAplicado] = useState(pf.onlyPisoAplicado ?? false);
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
