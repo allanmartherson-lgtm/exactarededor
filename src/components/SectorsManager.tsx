@@ -251,11 +251,14 @@ export default function SectorsManager({ canManage = true }: Props) {
         );
 
         payload.push({
-          slug, name: nome, aliases: mergedAliases,
+          slug: importHospitalId && importSuffix && !slug.endsWith(`_${importSuffix}`) ? `${slug}_${importSuffix}` : slug,
+          name: nome, aliases: mergedAliases,
           active: ativo, sort_order: ordem, notes: notas,
           tasy_code: codigo, classification,
+          hospital_id: importHospitalId,
         });
       }
+
 
       if (payload.length === 0) {
         toast.error(`Nenhuma linha válida encontrada${skipped ? ` (${skipped} ignoradas)` : ""}. Verifique se as colunas "nome" e "codigo/slug" estão presentes.`);
