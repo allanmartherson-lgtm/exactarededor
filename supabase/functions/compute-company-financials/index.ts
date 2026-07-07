@@ -3,6 +3,7 @@
 // para um par (payment_id, company_id) e PERSISTE em payment_company_financials.
 // Toda a lógica que antes vivia em useFinancialComposition.ts agora roda server-side.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +13,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
   try {
+
     const { payment_id, company_id } = await req.json();
     if (!payment_id || !company_id) {
       return new Response(JSON.stringify({ error: "payment_id e company_id obrigatórios" }), {
