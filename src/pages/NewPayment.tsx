@@ -2234,11 +2234,12 @@ const NewPayment = () => {
 
   const reloadRegistries = async (force = false) => {
     if (!force && registriesLoadPromiseRef.current) return registriesLoadPromiseRef.current;
+    const activeHospitalId = hospital?.id ?? null;
     registriesLoadPromiseRef.current = (async () => {
       const [d, c, s] = await Promise.all([
         loadDoctorRegistry(force),
-        loadConvenioRegistry(force),
-        loadSectorRegistry(force),
+        loadConvenioRegistry(activeHospitalId, force),
+        loadSectorRegistry(activeHospitalId, force),
       ]);
       setDoctorReg(d);
       setConvenioReg(c);
