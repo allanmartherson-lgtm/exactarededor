@@ -909,6 +909,7 @@ export function ItemsDataGrid({
           parecerFilter,
           onlyZero,
           onlySemRegra,
+          onlyPisoAplicado,
         }),
       );
     } catch {
