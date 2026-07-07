@@ -24,6 +24,20 @@ const onlyDigits = (s: string | null | undefined) =>
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Auth gate: apenas chamadores internos (service-role) podem invocar esta função.
+  // A função baixa PDFs privados e gasta LOVABLE_API_KEY; nunca deve ser exposta ao browser.
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const serviceKeyEnv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  let isInternal = bearer.length > 0 && bearer === serviceKeyEnv;
+  if (!isInternal && bearer) {
+    try {
+      const payload = JSON.parse(atob(bearer.split(".")[1] ?? ""));
+      if (payload?.role === "service_role") isInternal = true;
+    } catch { /* not a JWT */ }
+  }
+  if (!isInternal) return json({ error: "Unauthorized" }, 401);
+
   try {
     const { invoice_id } = await req.json();
     if (!invoice_id || typeof invoice_id !== "string") {

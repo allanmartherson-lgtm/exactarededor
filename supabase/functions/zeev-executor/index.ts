@@ -1472,6 +1472,29 @@ Deno.serve(async (req) => {
       // Mutações no lote
       if (!body.payment_id || !pay) return jsonResp({ error: "payment_id obrigatório para executar" }, 400);
 
+      // Role gate: apenas papéis internos podem mutar o lote.
+      const okRole = await userHasInternalRole(sb, actorId);
+      if (!okRole) return jsonResp({ error: "Apenas papéis internos podem executar ações no lote." }, 403);
+
+      // Hospital gate: caller deve ter acesso ao hospital do lote (admin/diretor bypass).
+      if (pay.hospital_id) {
+        const { data: adminRoles } = await sb
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", actorId)
+          .in("role", ["admin", "diretor"]);
+        const bypass = (adminRoles?.length ?? 0) > 0;
+        if (!bypass) {
+          const { data: uh } = await sb
+            .from("user_hospitals")
+            .select("hospital_id")
+            .eq("user_id", actorId)
+            .eq("hospital_id", pay.hospital_id)
+            .maybeSingle();
+          if (!uh) return jsonResp({ error: "Sem acesso a este hospital." }, 403);
+        }
+      }
+
       let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[] };
       if (p.action === "set_sector") {
         result = await execSetSector(sb, body.payment_id, p.scope, p.payload);

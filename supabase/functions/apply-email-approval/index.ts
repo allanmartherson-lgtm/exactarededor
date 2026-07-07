@@ -38,6 +38,20 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Role gate: apenas papéis internos com poder de aprovação podem aplicar aprovações por e-mail.
+  const admin0 = createClient(supabaseUrl, serviceKey);
+  const { data: rolesRows } = await admin0
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id);
+  const allowedRoles = new Set(["admin", "diretor", "analista", "validador"]);
+  const hasRole = (rolesRows ?? []).some((r: { role: string }) => allowedRoles.has(r.role));
+  if (!hasRole) {
+    return new Response(JSON.stringify({ error: "forbidden", message: "Sem permissão para aplicar aprovação por e-mail." }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   let approval_id: string | undefined;
   try { ({ approval_id } = await req.json()); } catch { /* */ }
   if (!approval_id) {
@@ -65,6 +79,22 @@ Deno.serve(async (req) => {
       message: "Só aprovações com leitura validada podem ser aplicadas.",
       current_status: approval.status,
     }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
+  // Hospital gate: caller must have access to the approval's hospital (admin/diretor bypass).
+  const isAdminOrDir = (rolesRows ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "diretor");
+  if (!isAdminOrDir && approval.hospital_id) {
+    const { data: uh } = await admin0
+      .from("user_hospitals")
+      .select("hospital_id")
+      .eq("user_id", user.id)
+      .eq("hospital_id", approval.hospital_id)
+      .maybeSingle();
+    if (!uh) {
+      return new Response(JSON.stringify({ error: "forbidden_hospital", message: "Sem acesso a este hospital." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   // 2) Pega grupos aguardando aprovação

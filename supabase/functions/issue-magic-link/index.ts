@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
 
   const { data: claims, error: claimsErr } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
   if (claimsErr || !claims?.claims) return json({ error: "Unauthorized" }, 401);
+  const callerId = claims.claims.sub as string;
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
@@ -49,6 +50,50 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Role gate: só papéis internos autorizados podem emitir magic links de aprovação/rejeição.
+  const { data: callerRoles } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", callerId);
+  const allowedIssuerRoles = new Set(["admin", "diretor", "analista", "validador"]);
+  const canIssue = (callerRoles ?? []).some((r: { role: string }) => allowedIssuerRoles.has(r.role));
+  if (!canIssue) return json({ error: "forbidden" }, 403);
+
+  // Hospital gate: verifica que o pagamento existe e caller tem acesso ao hospital.
+  const { data: pay } = await admin
+    .from("payments")
+    .select("id, hospital_id")
+    .eq("id", body.payment_id)
+    .maybeSingle();
+  if (!pay) return json({ error: "payment_not_found" }, 404);
+
+  const isAdminOrDirector = (callerRoles ?? []).some(
+    (r: { role: string }) => r.role === "admin" || r.role === "diretor",
+  );
+  if (!isAdminOrDirector && pay.hospital_id) {
+    const { data: uh } = await admin
+      .from("user_hospitals")
+      .select("hospital_id")
+      .eq("user_id", callerId)
+      .eq("hospital_id", pay.hospital_id)
+      .maybeSingle();
+    if (!uh) return json({ error: "forbidden_hospital" }, 403);
+  }
+
+  // Destinatário do link deve ser um diretor cadastrado no hospital do pagamento.
+  if (pay.hospital_id) {
+    const { data: dir } = await admin
+      .from("hospital_directors")
+      .select("id, user_id, email, active")
+      .eq("hospital_id", pay.hospital_id)
+      .eq("active", true)
+      .or(
+        `user_id.eq.${body.issued_to_user_id},email.eq.${body.issued_to_email}`,
+      )
+      .maybeSingle();
+    if (!dir) return json({ error: "recipient_not_authorized_director" }, 403);
+  }
 
   // Pre-insert record to obtain the canonical id, then sign with that id.
   const expiresAt = new Date(Date.now() + body.ttl_hours * 3600 * 1000).toISOString();
