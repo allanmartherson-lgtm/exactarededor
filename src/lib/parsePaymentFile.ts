@@ -830,7 +830,7 @@ export const parsePaymentFile = async (
   const { manualMapping, paymentTypeMeta } = options;
 
   const buf = await f.arrayBuffer();
-  const wb = XLSX.read(buf, { cellDates: false, cellFormula: true });
+  const wb = readWorkbookPreservingText(buf, { cellDates: false, cellFormula: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   // Resolve fórmulas simples (=A1*B1, =A1*0.7, +, -, /) cujo valor cached não
   // foi salvo no arquivo — acontece quando o Excel/LibreOffice grava sem
