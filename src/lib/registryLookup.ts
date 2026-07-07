@@ -220,18 +220,41 @@ export async function loadDoctorRegistry(force = false): Promise<DoctorRegistry>
   return reg;
 }
 
-export async function loadConvenioRegistry(force = false): Promise<ConvenioRegistry> {
+/**
+ * Filtro de escopo por hospital: sempre inclui os registros globais
+ * (hospital_id IS NULL) e, quando informado, restringe também ao hospital ativo.
+ * Convênios/setores exclusivos de outros hospitais NUNCA aparecem.
+ */
+function applyHospitalScope<T extends { or: (f: string) => T; is: (c: string, v: null) => T }>(
+  q: T,
+  hospitalId: string | null | undefined,
+): T {
+  if (hospitalId) return q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`);
+  return q.is("hospital_id", null);
+}
+
+export async function loadConvenioRegistry(
+  hospitalId: string | null = null,
+  force = false,
+): Promise<ConvenioRegistry> {
   const reg: ConvenioRegistry = { bySlug: new Map(), byAlias: new Map() };
+  const cacheKey = `registry.convenios.v3.${hospitalId ?? "__global__"}`;
   const { conv, aliases } = await cachedRows(
-    "registry.convenios.v2",
+    cacheKey,
     force,
     async () => {
       const [conv, aliases] = await Promise.all([
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("convenios").select("slug, name").eq("active", true).range(from, to),
+          applyHospitalScope(
+            supabase.from("convenios").select("slug, name, hospital_id").eq("active", true) as any,
+            hospitalId,
+          ).range(from, to),
         ),
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("convenio_aliases").select("convenio_slug, alias_normalized").range(from, to),
+          applyHospitalScope(
+            supabase.from("convenio_aliases").select("convenio_slug, alias_normalized, hospital_id") as any,
+            hospitalId,
+          ).range(from, to),
         ),
       ]);
       return { conv, aliases };
@@ -252,18 +275,28 @@ export async function loadConvenioRegistry(force = false): Promise<ConvenioRegis
   return reg;
 }
 
-export async function loadSectorRegistry(force = false): Promise<SectorRegistry> {
+export async function loadSectorRegistry(
+  hospitalId: string | null = null,
+  force = false,
+): Promise<SectorRegistry> {
   const reg: SectorRegistry = { bySlug: new Map(), byAlias: new Map() };
+  const cacheKey = `registry.sectors.v3.${hospitalId ?? "__global__"}`;
   const { sec, aliases } = await cachedRows(
-    "registry.sectors.v2",
+    cacheKey,
     force,
     async () => {
       const [sec, aliases] = await Promise.all([
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("sectors").select("slug, name").eq("active", true).range(from, to),
+          applyHospitalScope(
+            supabase.from("sectors").select("slug, name, hospital_id").eq("active", true) as any,
+            hospitalId,
+          ).range(from, to),
         ),
         fetchAllPaginated<any>((from, to) =>
-          supabase.from("sector_aliases").select("sector_slug, alias_normalized").range(from, to),
+          applyHospitalScope(
+            supabase.from("sector_aliases").select("sector_slug, alias_normalized, hospital_id") as any,
+            hospitalId,
+          ).range(from, to),
         ),
       ]);
       return { sec, aliases };
@@ -396,11 +429,21 @@ async function insertAliasIgnoreDup(
 export async function createDoctorAlias(doctor_id: string, alias_text: string, source: AliasSource = "manual") {
   return insertAliasIgnoreDup("doctor_aliases", { doctor_id, alias_text, source });
 }
-export async function createConvenioAlias(convenio_slug: string, alias_text: string, source: AliasSource = "manual") {
-  return insertAliasIgnoreDup("convenio_aliases", { convenio_slug, alias_text, source });
+export async function createConvenioAlias(
+  convenio_slug: string,
+  alias_text: string,
+  source: AliasSource = "manual",
+  hospital_id: string | null = null,
+) {
+  return insertAliasIgnoreDup("convenio_aliases", { convenio_slug, alias_text, source, hospital_id });
 }
-export async function createSectorAlias(sector_slug: string, alias_text: string, source: AliasSource = "manual") {
-  return insertAliasIgnoreDup("sector_aliases", { sector_slug, alias_text, source });
+export async function createSectorAlias(
+  sector_slug: string,
+  alias_text: string,
+  source: AliasSource = "manual",
+  hospital_id: string | null = null,
+) {
+  return insertAliasIgnoreDup("sector_aliases", { sector_slug, alias_text, source, hospital_id });
 }
 
 // ====== auto-aprendizado em lote ======
@@ -428,10 +471,11 @@ type LearnRow = {
 export async function learnAliasesFromResolvedRows(
   rows: LearnRow[],
   registries: { doctorReg: DoctorRegistry | null; convenioReg: ConvenioRegistry | null; sectorReg: SectorRegistry | null },
+  hospitalId: string | null = null,
 ): Promise<{ doctor: number; convenio: number; sector: number }> {
   const doctor = new Map<string, { doctor_id: string; alias_text: string; source: AliasSource }>();
-  const convenio = new Map<string, { convenio_slug: string; alias_text: string; source: AliasSource }>();
-  const sector = new Map<string, { sector_slug: string; alias_text: string; source: AliasSource }>();
+  const convenio = new Map<string, { convenio_slug: string; alias_text: string; source: AliasSource; hospital_id: string | null }>();
+  const sector = new Map<string, { sector_slug: string; alias_text: string; source: AliasSource; hospital_id: string | null }>();
 
   const doctorById = new Map<string, DoctorRegistryEntry>();
   if (registries.doctorReg) {
@@ -450,14 +494,14 @@ export async function learnAliasesFromResolvedRows(
       const canN = normalize(registries.convenioReg?.bySlug.get(r.convenio_slug)?.name);
       const rawN = normalize(r.agreement_text);
       if (rawN && rawN !== canN && rawN !== r.convenio_slug.toLowerCase()) {
-        convenio.set(`${r.convenio_slug}::${rawN}`, { convenio_slug: r.convenio_slug, alias_text: r.agreement_text.trim(), source: "auto" });
+        convenio.set(`${r.convenio_slug}::${rawN}`, { convenio_slug: r.convenio_slug, alias_text: r.agreement_text.trim(), source: "auto", hospital_id: hospitalId });
       }
     }
     if (r.sector_slug && r.sector_matched_by === "slug" && r.sector_raw) {
       const canN = normalize(registries.sectorReg?.bySlug.get(r.sector_slug)?.name);
       const rawN = normalize(r.sector_raw);
       if (rawN && rawN !== canN && rawN !== r.sector_slug.toLowerCase()) {
-        sector.set(`${r.sector_slug}::${rawN}`, { sector_slug: r.sector_slug, alias_text: r.sector_raw.trim(), source: "auto" });
+        sector.set(`${r.sector_slug}::${rawN}`, { sector_slug: r.sector_slug, alias_text: r.sector_raw.trim(), source: "auto", hospital_id: hospitalId });
       }
     }
   }

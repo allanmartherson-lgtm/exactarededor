@@ -18,6 +18,7 @@ import {
   type SectorRegistry,
 } from "@/lib/registryLookup";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 
 export type UnresolvedOccurrence = {
   attendance?: string | null;
@@ -118,6 +119,8 @@ function ResolutionRow({
   onResolved: () => Promise<void>;
 }) {
   const { user } = useAuth();
+  const { hospital } = useHospital() as { hospital: { id: string } | null };
+  const activeHospitalId = hospital?.id ?? null;
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -159,8 +162,8 @@ function ResolutionRow({
       const aliasText = group.raw;
       let res;
       if (group.kind === "doctor") res = await createDoctorAlias(target, aliasText);
-      else if (group.kind === "convenio") res = await createConvenioAlias(target, aliasText);
-      else res = await createSectorAlias(target, aliasText);
+      else if (group.kind === "convenio") res = await createConvenioAlias(target, aliasText, "manual", activeHospitalId);
+      else res = await createSectorAlias(target, aliasText, "manual", activeHospitalId);
       if (res.error) throw res.error;
       toast({ title: "Alias criado", description: `"${aliasText}" vinculado ao cadastro.` });
       await onResolved();
@@ -169,6 +172,16 @@ function ResolutionRow({
     } finally {
       setBusy(false);
     }
+  };
+
+  // Sufixo para diferenciar slugs de convênios/setores homônimos entre hospitais.
+  // Ex.: 'unimed' cadastrado no DF Star + 'unimed_hsl' no Santa Luzia.
+  const hospitalSlugSuffix = (): string => {
+    const h = (hospital as any);
+    if (!h) return "";
+    const src = String(h.short_name ?? h.slug ?? h.name ?? "").toLowerCase();
+    const compact = src.replace(/[^a-z0-9]+/g, "").slice(-4);
+    return compact ? `_${compact}` : "";
   };
 
   const createNew = async () => {
@@ -201,34 +214,40 @@ function ResolutionRow({
         });
       } else if (group.kind === "convenio") {
         if (!user) throw new Error("Sessão expirada");
-        const slug = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 64);
+        const base = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 60);
+        // Sufixo por hospital evita colisão com PK global (slug) quando hospital
+        // já tem um convênio homônimo em outro hospital.
+        const slug = (activeHospitalId ? `${base}${hospitalSlugSuffix()}` : base).slice(0, 64);
         const { error } = await supabase.from("convenios").insert({
           slug,
           name: newName.trim(),
           active: true,
+          hospital_id: activeHospitalId,
           pending_admin_review: true,
           created_by_user_id: user.id,
           pending_review_note: `Cadastro provisório criado durante importação. Texto original na planilha: "${group.raw}".`,
         } as any);
         if (error) throw error;
-        await createConvenioAlias(slug, group.raw);
+        await createConvenioAlias(slug, group.raw, "manual", activeHospitalId);
         toast({
           title: "Convênio cadastrado provisoriamente",
           description: "Aguarda validação do administrador.",
         });
       } else {
         if (!user) throw new Error("Sessão expirada");
-        const slug = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 64);
+        const base = (newDoc.trim() || normalize(newName).replace(/\s+/g, "_")).slice(0, 60);
+        const slug = (activeHospitalId ? `${base}${hospitalSlugSuffix()}` : base).slice(0, 64);
         const { error } = await supabase.from("sectors").insert({
           slug,
           name: newName.trim(),
           active: true,
+          hospital_id: activeHospitalId,
           pending_admin_review: true,
           created_by_user_id: user.id,
           pending_review_note: `Cadastro provisório criado durante importação. Texto original na planilha: "${group.raw}".`,
         } as any);
         if (error) throw error;
-        await createSectorAlias(slug, group.raw);
+        await createSectorAlias(slug, group.raw, "manual", activeHospitalId);
         toast({
           title: "Setor cadastrado provisoriamente",
           description: "Aguarda validação do administrador.",

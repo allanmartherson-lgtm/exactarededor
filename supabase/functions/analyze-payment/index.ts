@@ -155,17 +155,10 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     );
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    // Hidrata aliases de setor a partir do cadastro (tabela `sectors`)
-    try {
-      const { data: secs } = await supabase.from("sectors").select("slug,name,aliases").eq("active", true);
-      if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
-    } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
-
-    // Hidrata aliases de convênio a partir do cadastro (tabela `convenios`)
-    try {
-      const { data: convs } = await supabase.from("convenios").select("slug,name,aliases").eq("active", true);
-      if (convs?.length) extendConvenioMap(convs as Array<{ slug: string; name: string; aliases: string[] }>);
-    } catch (_e) { /* fallback à normalização pura */ }
+    // Hidrata aliases de setor/convênio a partir do cadastro, filtrando por
+    // escopo do hospital do pagamento (globais + hospital-specific). Feito após
+    // carregar `payment` mais abaixo. Aqui só declaramos.
+    // (blocos movidos para após o fetch de `payment`)
 
     // Reanálise NÃO pode ser pulada por `payment_company_groups.updated_at`.
     // Esse timestamp também muda por rotinas paralelas (snapshots, financeiros,
@@ -204,6 +197,26 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // ⚠️ Auto-aprendizado de aliases continua suprimido para historico
     //    (ver bloco mais abaixo) — bases antigas não devem contaminar cadastros.
     const isHistorico = (payment as any)?.import_mode === "historico";
+
+    // ---------- 1b. Hidrata setores/convênios ESCOPADOS ao hospital ----------
+    // Globais (hospital_id IS NULL) + do hospital do pagamento. Convênios ou
+    // setores exclusivos de outros hospitais NUNCA entram no motor deste lote.
+    const __paymentHospitalId = ((payment as any)?.hospital_id as string | null) ?? null;
+    try {
+      let secQ = supabase.from("sectors").select("slug,name,aliases,hospital_id").eq("active", true);
+      if (__paymentHospitalId) secQ = secQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
+      else secQ = secQ.is("hospital_id", null);
+      const { data: secs } = await secQ;
+      if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
+    } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
+    try {
+      let convQ = supabase.from("convenios").select("slug,name,aliases,hospital_id").eq("active", true);
+      if (__paymentHospitalId) convQ = convQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
+      else convQ = convQ.is("hospital_id", null);
+      const { data: convs } = await convQ;
+      if (convs?.length) extendConvenioMap(convs as Array<{ slug: string; name: string; aliases: string[] }>);
+    } catch (_e) { /* fallback à normalização pura */ }
+
 
 
     // ---------- 2. carrega configurações globais e regras ----------
@@ -2873,7 +2886,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           // aprender junto com a tabela legada. Idempotente: ignora duplicidade
           // do índice único alias_normalized.
           if (aliases.length) {
-            const rows = aliases.map((a) => ({ convenio_slug: slug, alias_text: a, source: "auto" as const }));
+            // Escopa o alias aprendido ao hospital do pagamento — evita que um
+            // apelido aprendido no DF Star vaze e case convênio no Santa Luzia.
+            const rows = aliases.map((a) => ({
+              convenio_slug: slug,
+              alias_text: a,
+              source: "auto" as const,
+              hospital_id: __paymentHospitalId,
+            }));
             const { error: aliasErr } = await supabase.from("convenio_aliases").insert(rows);
             if (aliasErr && !/duplicate|unique|conflict/i.test(aliasErr.message ?? "")) {
               console.warn(`${__t} [learn-convenio] convenio_aliases insert falhou: ${aliasErr.message}`);

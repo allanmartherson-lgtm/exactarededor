@@ -7,25 +7,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 
 type ConvenioRow = { slug: string; name: string; aliases: string[]; active: boolean };
 
-let _cache: ConvenioRow[] | null = null;
-let _pending: Promise<ConvenioRow[]> | null = null;
+// Cache por hospital: convênio exclusivo de outro hospital não pode aparecer
+// na regra do hospital atual.
+const cacheByHospital = new Map<string, ConvenioRow[]>();
+const pendingByHospital = new Map<string, Promise<ConvenioRow[]>>();
 
-async function loadConvenios(): Promise<ConvenioRow[]> {
-  if (_cache) return _cache;
-  if (_pending) return _pending;
-  _pending = (async () => {
-    const { data, error } = await supabase
-      .from("convenios")
-      .select("slug,name,aliases,active")
-      .order("name");
+async function loadConvenios(hospitalId: string | null): Promise<ConvenioRow[]> {
+  const key = hospitalId ?? "__global__";
+  const cached = cacheByHospital.get(key);
+  if (cached) return cached;
+  const inflight = pendingByHospital.get(key);
+  if (inflight) return inflight;
+  const promise = (async () => {
+    let q = supabase.from("convenios").select("slug,name,aliases,active,hospital_id").order("name");
+    q = hospitalId
+      ? q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+      : q.is("hospital_id", null);
+    const { data, error } = await q;
     if (error) throw error;
-    _cache = ((data || []) as ConvenioRow[]);
-    return _cache;
+    const rows = (data || []) as ConvenioRow[];
+    cacheByHospital.set(key, rows);
+    return rows;
   })();
-  return _pending;
+  pendingByHospital.set(key, promise);
+  try { return await promise; } finally { pendingByHospital.delete(key); }
 }
 
 interface Props {
@@ -37,17 +46,21 @@ interface Props {
 }
 
 export function ConvenioMultiSelect({ values, onChange, matchMode, onMatchModeChange, placeholder = "Selecionar convênios…" }: Props) {
+  const { hospital } = useHospital() as { hospital: { id: string } | null };
+  const activeId = hospital?.id ?? null;
+  const cacheKey = activeId ?? "__global__";
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<ConvenioRow[]>(_cache || []);
-  const [loading, setLoading] = useState(!_cache);
+  const [rows, setRows] = useState<ConvenioRow[]>(cacheByHospital.get(cacheKey) || []);
+  const [loading, setLoading] = useState(!cacheByHospital.get(cacheKey));
 
   useEffect(() => {
     let alive = true;
-    loadConvenios()
+    setLoading(!cacheByHospital.get(cacheKey));
+    loadConvenios(activeId)
       .then((d) => { if (alive) { setRows(d); setLoading(false); } })
       .catch(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [activeId, cacheKey]);
 
   const bySlug = useMemo(() => {
     const m = new Map<string, ConvenioRow>();

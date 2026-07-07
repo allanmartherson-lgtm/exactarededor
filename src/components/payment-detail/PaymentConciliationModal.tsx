@@ -590,11 +590,11 @@ export function PaymentConciliationModal({
 
   useEffect(() => {
     let cancelled = false;
-    loadConvenioRegistry()
+    loadConvenioRegistry(hospital?.id ?? null)
       .then((reg) => { if (!cancelled) setConvenioRegistry(reg); })
       .catch((e) => console.warn('[Conciliação] falha ao carregar convenioRegistry — filtro cairá em match por texto puro.', e));
     return () => { cancelled = true; };
-  }, []);
+  }, [hospital?.id]);
 
   const loteCompanies = useMemo(
     () =>
