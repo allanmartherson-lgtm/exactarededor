@@ -3953,25 +3953,41 @@ const NewPayment = () => {
                   </div>
                 )}
                 {(() => {
-                  const q = bucketFilter.trim().toLowerCase();
+                  // Normaliza: remove acentos (NFD + strip diacríticos), lower, trim.
+                  // Aceita busca por "sao", "SÃO", "são" indiferentemente.
+                  const norm = (s: unknown) =>
+                    String(s ?? "")
+                      .normalize("NFD")
+                      .replace(/[\u0300-\u036f]/g, "")
+                      .toLowerCase()
+                      .trim();
+                  const digits = (s: unknown) => String(s ?? "").replace(/\D+/g, "");
+
+                  const rawQ = debouncedBucketFilter.trim();
+                  const q = norm(rawQ);
+                  const qDigits = digits(rawQ);
+
                   const filtered = buckets
                     .map((b, idx) => ({ b, idx }))
                     .filter(({ b }) => {
-                      if (!q) return true;
+                      if (!q && !qDigits) return true;
                       const doc = (b.matchedCompany as any)?.document ?? "";
-                      return (
-                        (b.matchedCompany?.name ?? "").toLowerCase().includes(q) ||
-                        (b.rawCompanyName ?? "").toLowerCase().includes(q) ||
-                        (b.file.name ?? "").toLowerCase().includes(q) ||
-                        String(doc).toLowerCase().includes(q)
-                      );
+                      const textMatch = q
+                        ? norm(b.matchedCompany?.name).includes(q) ||
+                          norm(b.rawCompanyName).includes(q) ||
+                          norm(b.file.name).includes(q) ||
+                          norm(doc).includes(q)
+                        : false;
+                      // Busca por CNPJ ignorando pontuação (ex: "12345678" acha "12.345.678/0001-99").
+                      const docMatch = qDigits.length >= 3 ? digits(doc).includes(qDigits) : false;
+                      return textMatch || docMatch;
                     })
                     .sort((a, z) => {
-                      const an = (a.b.matchedCompany?.name ?? a.b.rawCompanyName ?? a.b.file.name ?? "").toLowerCase();
-                      const zn = (z.b.matchedCompany?.name ?? z.b.rawCompanyName ?? z.b.file.name ?? "").toLowerCase();
+                      const an = norm(a.b.matchedCompany?.name ?? a.b.rawCompanyName ?? a.b.file.name);
+                      const zn = norm(z.b.matchedCompany?.name ?? z.b.rawCompanyName ?? z.b.file.name);
                       return an.localeCompare(zn, "pt-BR", { sensitivity: "base" });
                     });
-                  if (q && filtered.length === 0) {
+                  if ((q || qDigits) && filtered.length === 0) {
                     return (
                       <p className="text-xs text-muted-foreground px-2 py-3">
                         Nenhuma PJ encontrada para "{bucketFilter}".
