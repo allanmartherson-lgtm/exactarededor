@@ -2886,7 +2886,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           // aprender junto com a tabela legada. Idempotente: ignora duplicidade
           // do índice único alias_normalized.
           if (aliases.length) {
-            const rows = aliases.map((a) => ({ convenio_slug: slug, alias_text: a, source: "auto" as const }));
+            // Escopa o alias aprendido ao hospital do pagamento — evita que um
+            // apelido aprendido no DF Star vaze e case convênio no Santa Luzia.
+            const rows = aliases.map((a) => ({
+              convenio_slug: slug,
+              alias_text: a,
+              source: "auto" as const,
+              hospital_id: __paymentHospitalId,
+            }));
             const { error: aliasErr } = await supabase.from("convenio_aliases").insert(rows);
             if (aliasErr && !/duplicate|unique|conflict/i.test(aliasErr.message ?? "")) {
               console.warn(`${__t} [learn-convenio] convenio_aliases insert falhou: ${aliasErr.message}`);
