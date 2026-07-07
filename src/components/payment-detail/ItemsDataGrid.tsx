@@ -856,6 +856,7 @@ export function ItemsDataGrid({
     parecerFilter?: "__all__" | "missing" | "weak";
     onlyZero?: boolean;
     onlySemRegra?: boolean;
+    onlyPisoAplicado?: boolean;
   };
 
   const [activeId, setActiveId] = useState<string | null>(null);
