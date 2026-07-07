@@ -74,11 +74,9 @@ serve(async (req) => {
         .select("company_name, ai_status, gross_amount, expected_amount, applied_calc_method")
         .eq("payment_id", payment_id)
         .limit(20000),
-      supabase
-        .from("payment_items")
-        .select("id", { count: "exact", head: true })
-        .eq("payment_id", payment_id)
-        .eq("tuss_principal_used_as_key", false),
+      // TUSS principal audit é detectado no cliente (sem coluna dedicada);
+      // mantemos placeholder para preservar a forma do Promise.all.
+      Promise.resolve({ count: 0 }),
       supabase
         .from("system_configurations")
         .select("value")
