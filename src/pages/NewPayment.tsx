@@ -547,6 +547,7 @@ const NewPayment = () => {
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
+  const [bucketFilter, setBucketFilter] = useState("");
   const [mappingDialog, setMappingDialog] = useState<{ open: boolean; bucketIdx: number | null }>({ open: false, bucketIdx: null });
   const { findMatching: findMatchingTemplate, markUsed: markTemplateUsed } = useSheetColumnTemplates(hospital?.id ?? null);
   const findMatchingTemplateRef = useRef(findMatchingTemplate);
