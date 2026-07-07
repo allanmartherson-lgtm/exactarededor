@@ -2699,6 +2699,7 @@ export function applyCalculation(
       winner_calc_type: (winnerCalc.calculation_type as CalculationType) ?? null,
       piso_aplicado_valor: winnerCalc.piso_aplicado_valor ?? null,
       piso_metodo_vencedor: winnerCalc.piso_metodo_vencedor ?? null,
+      piso_escopo: winnerCalc.piso_escopo ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
