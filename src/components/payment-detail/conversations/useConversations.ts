@@ -249,7 +249,7 @@ export function useConversations({ paymentId, currentUserId, enabled }: Args) {
       await load();
       return messageId;
     },
-    [paymentId, currentUserId, load],
+    [paymentId, currentUserId, load, hospital?.id],
   );
 
   const markThreadRead = useCallback(
