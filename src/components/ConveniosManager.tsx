@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ShieldCheck, Plus, Pencil, X, Upload, Download } from "lucide-react";
+import { ShieldCheck, Plus, Pencil, X, Upload, Download, Building2, Globe2 } from "lucide-react";
 
 
 type Convenio = {
@@ -22,6 +26,7 @@ type Convenio = {
   sort_order: number;
   operator_code: string | null;
   notes: string | null;
+  hospital_id: string | null;
 };
 
 const empty: Convenio = {
@@ -33,6 +38,7 @@ const empty: Convenio = {
   sort_order: 50,
   operator_code: "",
   notes: "",
+  hospital_id: null,
 };
 
 function buildSlug(input: string) {
@@ -41,17 +47,37 @@ function buildSlug(input: string) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+// Sufixo curto/estável do hospital para desambiguar slugs quando um convênio
+// homônimo existe em hospitais diferentes (ex.: unimed_hsl / unimed_hh).
+function hospitalSlugSuffix(hospitalName: string) {
+  const norm = hospitalName.trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "");
+  const initials = norm.split(/\s+/).filter(Boolean).map(w => w[0]).join("");
+  return initials.slice(0, 4) || norm.slice(0, 4);
+}
+
 type Props = { canManage?: boolean };
 
+type ScopeFilter = "all" | "current" | "global";
+
 export default function ConveniosManager({ canManage = true }: Props) {
+  const { hospital, availableHospitals } = useHospital() as {
+    hospital: { id: string; name: string } | null;
+    availableHospitals: { id: string; name: string }[];
+  };
   const [list, setList] = useState<Convenio[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Convenio | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [aliasInput, setAliasInput] = useState("");
   const [search, setSearch] = useState("");
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
   const [importing, setImporting] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+
+  const hospitalName = (id: string | null) =>
+    id ? (availableHospitals.find(h => h.id === id)?.name ?? "Outro hospital") : "Global";
 
   const downloadTemplate = () => {
     const rows = [
@@ -68,6 +94,12 @@ export default function ConveniosManager({ canManage = true }: Props) {
     s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
+  // Importa com o mesmo escopo do filtro atual: se o usuário está vendo
+  // "Somente <hospital atual>", os convênios entram vinculados a ele; caso
+  // contrário entram como globais (comportamento antigo).
+  const importHospitalId = scopeFilter === "current" ? (hospital?.id ?? null) : null;
+  const importSuffix = importHospitalId && hospital ? hospitalSlugSuffix(hospital.name) : "";
+
   const handleImport = async (file: File) => {
     setImporting(true);
     try {
@@ -79,7 +111,6 @@ export default function ConveniosManager({ canManage = true }: Props) {
       const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
       if (rows.length === 0) { toast.error("Planilha vazia"); return; }
 
-      // Detectar colunas (Convênio / Alias) tolerando variações
       const headers = Object.keys(rows[0]);
       const norm = (s: string) => s.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       const nameCol = headers.find(h => ["convenio", "nome", "nome canonico", "convênio"].includes(norm(h)))
@@ -93,12 +124,15 @@ export default function ConveniosManager({ canManage = true }: Props) {
           if (!name) return null;
           const aliases = String(r[aliasCol] ?? "")
             .split(",").map(a => a.trim()).filter(Boolean);
+          const baseSlug = buildSlugLocal(name);
+          const slug = importHospitalId ? `${baseSlug}_${importSuffix}` : baseSlug;
           return {
-            slug: buildSlugLocal(name),
+            slug,
             name,
             aliases,
             active: true,
             sort_order: 50,
+            hospital_id: importHospitalId,
           };
         })
         .filter(Boolean) as any[];
@@ -107,7 +141,8 @@ export default function ConveniosManager({ canManage = true }: Props) {
 
       const { error } = await supabase.from("convenios").upsert(payload, { onConflict: "slug" });
       if (error) { toast.error("Erro ao importar: " + error.message); return; }
-      toast.success(`${payload.length} convênios importados/atualizados`);
+      const dest = importHospitalId ? hospital!.name : "cadastro global";
+      toast.success(`${payload.length} convênios importados para ${dest}`);
       load();
     } catch (e: any) {
       toast.error("Falha ao ler planilha: " + (e?.message ?? e));
@@ -128,7 +163,10 @@ export default function ConveniosManager({ canManage = true }: Props) {
   useEffect(() => { load(); }, []);
 
   const openNew = () => {
-    setEditing({ ...empty });
+    // Novo convênio herda o escopo do filtro atual, mas o usuário pode trocar
+    // no formulário antes de salvar.
+    const initialHospital = scopeFilter === "current" ? (hospital?.id ?? null) : null;
+    setEditing({ ...empty, hospital_id: initialHospital });
     setIsNew(true);
     setAliasInput("");
   };
@@ -140,10 +178,17 @@ export default function ConveniosManager({ canManage = true }: Props) {
 
   const save = async () => {
     if (!editing) return;
-    const slug = (editing.slug || buildSlug(editing.name)).trim().toLowerCase();
+    let slug = (editing.slug || buildSlug(editing.name)).trim().toLowerCase();
     if (!slug || !editing.name.trim()) {
       toast.error("Nome é obrigatório");
       return;
+    }
+    // Ao criar um convênio vinculado a hospital, garante slug único
+    // sufixando com iniciais do hospital caso o base já exista globalmente.
+    if (isNew && editing.hospital_id) {
+      const h = availableHospitals.find(x => x.id === editing.hospital_id);
+      const suffix = h ? hospitalSlugSuffix(h.name) : "";
+      if (suffix && !slug.endsWith(`_${suffix}`)) slug = `${slug}_${suffix}`;
     }
     const payload = {
       ...editing,
@@ -151,6 +196,7 @@ export default function ConveniosManager({ canManage = true }: Props) {
       aliases: editing.aliases.map(a => a.trim()).filter(Boolean),
       operator_code: editing.operator_code?.trim() || null,
       notes: editing.notes?.trim() || null,
+      hospital_id: editing.hospital_id ?? null,
     };
     const { error } = isNew
       ? await supabase.from("convenios").insert(payload)
@@ -177,14 +223,27 @@ export default function ConveniosManager({ canManage = true }: Props) {
     setEditing({ ...editing, aliases: editing.aliases.filter(x => x !== a) });
   };
 
-  const filtered = list.filter(c => {
-    if (!search.trim()) return true;
-    const s = search.toLowerCase();
-    return c.name.toLowerCase().includes(s)
-      || c.slug.toLowerCase().includes(s)
-      || c.aliases.some(a => a.toLowerCase().includes(s))
-      || (c.operator_code ?? "").toLowerCase().includes(s);
-  });
+  const visible = useMemo(() => {
+    // Filtro de escopo: por padrão mostra os do hospital ativo + globais
+    // (mesma coisa que o motor enxerga em runtime).
+    const activeId = hospital?.id ?? null;
+    return list.filter(c => {
+      if (scopeFilter === "global") {
+        if (c.hospital_id !== null) return false;
+      } else if (scopeFilter === "current") {
+        if (c.hospital_id !== activeId) return false;
+      } else {
+        // "all" = escopo real: globais + do hospital ativo. Outros hospitais ficam ocultos.
+        if (c.hospital_id !== null && c.hospital_id !== activeId) return false;
+      }
+      if (!search.trim()) return true;
+      const s = search.toLowerCase();
+      return c.name.toLowerCase().includes(s)
+        || c.slug.toLowerCase().includes(s)
+        || c.aliases.some(a => a.toLowerCase().includes(s))
+        || (c.operator_code ?? "").toLowerCase().includes(s);
+    });
+  }, [list, scopeFilter, hospital?.id, search]);
 
   return (
     <div className="space-y-6">
@@ -194,8 +253,9 @@ export default function ConveniosManager({ canManage = true }: Props) {
             <ShieldCheck className="h-5 w-5" /> Convênios
           </h2>
           <p className="text-sm text-muted-foreground">
-            Cadastro central de convênios/operadoras. Aliases capturam as variações de escrita
-            (ex.: "Bradesco", "BRADESCO SAÚDE", "BSAÚDE") usadas nas planilhas.
+            Cada convênio pode ser <strong>global</strong> (compartilhado entre todos os hospitais) ou
+            <strong> exclusivo de um hospital</strong>. Santa Luzia e Helena podem ter carteiras diferentes
+            de convênios ativos.
           </p>
         </div>
         {canManage && (
@@ -225,23 +285,54 @@ export default function ConveniosManager({ canManage = true }: Props) {
 
       </div>
 
-      <Input
-        placeholder="Buscar por nome, alias ou código…"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        className="max-w-md"
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Buscar por nome, alias ou código…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="max-w-md"
+        />
+        <Select value={scopeFilter} onValueChange={(v) => setScopeFilter(v as ScopeFilter)}>
+          <SelectTrigger className="w-[260px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">
+              Global + {hospital?.name ?? "hospital atual"}
+            </SelectItem>
+            <SelectItem value="current">
+              Somente {hospital?.name ?? "hospital atual"}
+            </SelectItem>
+            <SelectItem value="global">Somente globais</SelectItem>
+          </SelectContent>
+        </Select>
+        {scopeFilter === "current" && importHospitalId && (
+          <span className="text-xs text-muted-foreground">
+            Importações e novos convênios serão vinculados a <strong>{hospital?.name}</strong>.
+          </span>
+        )}
+      </div>
 
       <div className="grid gap-3">
         {loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-        {!loading && filtered.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhum convênio encontrado.</p>
+        {!loading && visible.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhum convênio encontrado neste escopo.</p>
         )}
-        {filtered.map(c => (
+        {visible.map(c => (
           <Card key={c.slug} className={c.active ? "" : "opacity-60"}>
             <CardContent className="p-4 flex items-start justify-between gap-4">
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {c.hospital_id ? (
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <Building2 className="h-3 w-3" />
+                      {hospitalName(c.hospital_id)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] gap-1">
+                      <Globe2 className="h-3 w-3" />Global
+                    </Badge>
+                  )}
                   {c.code && (
                     <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">{c.code}</code>
                   )}
@@ -281,6 +372,28 @@ export default function ConveniosManager({ canManage = true }: Props) {
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Escopo</Label>
+                <Select
+                  value={editing.hospital_id ?? "__global__"}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, hospital_id: v === "__global__" ? null : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__global__">Global — todos os hospitais</SelectItem>
+                    {availableHospitals.map(h => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Global = visível para todos os hospitais. Um hospital específico = ninguém mais enxerga.
+                </p>
+              </div>
               <div>
                 <Label className="text-xs">Nome canônico</Label>
                 <Input
