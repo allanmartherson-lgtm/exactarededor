@@ -128,6 +128,8 @@ import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNo
 import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerCrossReferencePanel";
 import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
 import { AutoClassifiedBanner } from "@/components/payment-detail/AutoClassifiedBanner";
+import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
+
 
 const HighlightBanner = ({
   observations,
@@ -3367,8 +3369,10 @@ export default function CompanyAnalysis() {
         />
       )}
     </div>
+    </HospitalScopedGuard>
   );
 }
+
 
 function Stat({
   label,

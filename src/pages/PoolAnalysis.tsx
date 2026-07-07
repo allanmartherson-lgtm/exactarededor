@@ -30,6 +30,8 @@ import { EngineSourcesCard } from "@/components/payment-detail/EngineSourcesCard
 
 import { confirmDialog } from "@/lib/confirm";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
+
 
 const brl = (n: number | null | undefined) =>
   Number(n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -319,8 +321,10 @@ export default function PoolAnalysis() {
         </CardContent>
       </Card>
     </div>
+    </HospitalScopedGuard>
   );
 }
+
 
 function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
   return (
