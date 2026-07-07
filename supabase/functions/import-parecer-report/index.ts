@@ -7,6 +7,7 @@
 //   - mode=finalize → atualiza row_count
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -16,6 +17,9 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
+
+  const _auth = await requireInternalOrRole(req);
+  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
     return new Response(null, { headers: corsHeaders });
 
   try {
