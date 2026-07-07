@@ -2155,8 +2155,10 @@ export interface ExpectedCalc {
   winner_calc_type?: CalculationType | null;
   /** Piso aplicado (mínimo garantido) — R$ do piso vigente para a função do item. */
   piso_aplicado_valor?: number | null;
-  /** Qual método venceu no MAX(): "convenio" (percentual do convênio) ou "piso" (mínimo garantido). */
+  /** Qual método venceu no MAX(): "convenio" (percentual do convênio) ou "piso" (mínimo garantido). null = pendente (post-pass). */
   piso_metodo_vencedor?: "convenio" | "piso" | null;
+  /** Escopo do piso (usado pelo post-pass para agregar por atendimento). */
+  piso_escopo?: "por_item" | "por_atendimento" | null;
 }
 
 
