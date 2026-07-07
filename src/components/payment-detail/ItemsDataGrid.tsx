@@ -4204,9 +4204,33 @@ function RowMain({
             baseCellBg,
           )}
         >
-          {isBonus
-            ? (!showGrossColumn && expN != null ? formatCurrency(expN) : "—")
-            : (expN != null ? formatCurrency(expN) : "—")}
+          <span className="inline-flex items-center gap-1 justify-end">
+            {(() => {
+              const metodo = (it as any).piso_metodo_vencedor as string | null | undefined;
+              const pisoVal = Number((it as any).piso_aplicado_valor ?? 0);
+              if (!metodo || !(pisoVal > 0)) return null;
+              const venceu = metodo === "piso";
+              return (
+                <span
+                  className={cn(
+                    "text-[10px] leading-none",
+                    venceu ? "text-warning-text" : "text-success",
+                  )}
+                  aria-label={venceu ? "Piso mínimo garantido aplicado" : "Cálculo do convênio superou o piso"}
+                  title={venceu
+                    ? `Piso mínimo garantido aplicado (R$ ${pisoVal.toFixed(2)}).`
+                    : `Convênio superou o piso (R$ ${pisoVal.toFixed(2)}).`}
+                >
+                  🛡️
+                </span>
+              );
+            })()}
+            <span>
+              {isBonus
+                ? (!showGrossColumn && expN != null ? formatCurrency(expN) : "—")
+                : (expN != null ? formatCurrency(expN) : "—")}
+            </span>
+          </span>
         </td>
         {showDiferencaCol && (
           <td
