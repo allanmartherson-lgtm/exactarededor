@@ -178,10 +178,12 @@ export function useConversations({ paymentId, currentUserId, enabled }: Args) {
     }) => {
       const trimmed = opts.text.trim();
       if (!trimmed) throw new Error("Mensagem vazia");
+      if (!hospital?.id) throw new Error("Selecione uma unidade hospitalar");
       const groupId = opts.threadRoot ? opts.threadRoot.company_group_id : (opts.companyGroupId ?? null);
       const { data: inserted, error } = await supabase
         .from("payment_questions")
         .insert({
+          hospital_id: hospital.id,
           payment_id: paymentId,
           company_group_id: groupId,
           parent_id: opts.threadRoot?.id ?? null,
