@@ -283,6 +283,7 @@ export function PaymentBatchExportDialog({
       "Empresa", "Atendimento", "Paciente", "Data", "Médico", "CRM",
       "Especialidade", "Cód. Procedimento", "Procedimento", "Qtd",
       "Convênio", "Setor", "Valor Bruto", "Valor Esperado", "Diferença",
+      "Piso Aplicado", "Método Piso",
       "Status", "Regras Aplicadas", "Validações",
     ];
     const aoa: any[][] = [
@@ -291,6 +292,7 @@ export function PaymentBatchExportDialog({
         r.empresa, r.atendimento, r.paciente, r.data, r.medico, r.crm,
         r.especialidade, r.procedimento_codigo, r.procedimento_nome, r.quantidade,
         r.convenio, r.setor, r.valor_bruto, r.valor_esperado, r.diferenca,
+        r.piso_aplicado, r.piso_metodo,
         r.status, r.regras_aplicadas, r.validacoes,
       ]),
     ];
@@ -299,7 +301,9 @@ export function PaymentBatchExportDialog({
     ws["!cols"] = [
       { wch: 28 }, { wch: 14 }, { wch: 26 }, { wch: 12 }, { wch: 26 }, { wch: 12 },
       { wch: 18 }, { wch: 14 }, { wch: 30 }, { wch: 6 }, { wch: 18 }, { wch: 18 },
-      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 40 }, { wch: 50 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 12 },
+      { wch: 12 }, { wch: 40 }, { wch: 50 },
     ];
     // Estilo no cabeçalho
     headers.forEach((_, i) => {
