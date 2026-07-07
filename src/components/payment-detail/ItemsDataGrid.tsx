@@ -2138,6 +2138,15 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Alertas assistenciais
           </Button>
+          <Button
+            size="sm"
+            variant={onlyPisoAplicado ? "default" : "outline"}
+            className="h-8 text-xs"
+            onClick={() => setOnlyPisoAplicado((v) => !v)}
+            title="Itens em que o piso mínimo superou o valor do convênio e foi aplicado"
+          >
+            <span aria-hidden className="mr-1">🛡️</span>
+            Piso aplicado
           {isParecerPayment && (
             <Select value={parecerFilter} onValueChange={(v) => setParecerFilter(v as typeof parecerFilter)}>
               <SelectTrigger className="h-8 w-44 text-xs">
