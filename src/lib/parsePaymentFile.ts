@@ -312,6 +312,69 @@ const toNumber = (v: unknown): number => {
   const n = Number(s);
   return isNaN(n) ? 0 : n;
 };
+
+/**
+ * Lê o workbook preservando texto quando o arquivo é TSV/CSV/HTML disfarçado
+ * de .xls (comum em exports do Tasy). Se o SheetJS parsear "326,06" como número,
+ * ele aplica convenção en-US (vírgula = milhar) e produz 32606 — bug crítico
+ * de importação. Detectamos formatos texto pelo magic byte e reparseamos com
+ * todas as células como string, deixando o toNumber (pt-BR) fazer o cast.
+ */
+const readWorkbookPreservingText = (buf: ArrayBuffer, opts: XLSX.ParsingOptions): XLSX.WorkBook => {
+  const bytes = new Uint8Array(buf);
+  const isOle = bytes[0] === 0xD0 && bytes[1] === 0xCF && bytes[2] === 0x11 && bytes[3] === 0xE0;
+  const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B && (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07);
+  if (isOle || isZip) return XLSX.read(buf, opts);
+
+  // Arquivo texto disfarçado. Decodifica (tenta UTF-8, cai para latin1) e
+  // detecta delimitador olhando a primeira linha não-vazia.
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+  } catch {
+    text = new TextDecoder("latin1").decode(buf);
+  }
+  const stripped = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const firstLine = stripped.split("\n").find((l) => l.trim().length > 0) ?? "";
+  const delim = firstLine.includes("\t") ? "\t" : firstLine.includes(";") ? ";" : ",";
+
+  const parseLine = (line: string): string[] => {
+    const out: string[] = [];
+    let cur = "";
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuote) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') { inQuote = false; }
+        else cur += ch;
+      } else if (ch === '"') {
+        inQuote = true;
+      } else if (ch === delim) {
+        out.push(cur); cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map((c) => c.trim());
+  };
+
+  const aoa: string[][] = stripped.split("\n").filter((l) => l.length > 0).map(parseLine);
+  const sheet = XLSX.utils.aoa_to_sheet(aoa, { cellDates: false });
+  // aoa_to_sheet auto-detecta números — forçar string em todas as células.
+  for (const addr of Object.keys(sheet)) {
+    if (addr.startsWith("!")) continue;
+    const cell = (sheet as Record<string, XLSX.CellObject>)[addr];
+    if (cell && cell.v != null) {
+      cell.t = "s";
+      cell.v = String(cell.v);
+      delete cell.w;
+    }
+  }
+  const wb: XLSX.WorkBook = { SheetNames: ["Sheet1"], Sheets: { Sheet1: sheet } };
+  return wb;
+};
 const toStr = (v: unknown): string | null => {
   if (v == null) return null;
   const s = String(v).trim();
