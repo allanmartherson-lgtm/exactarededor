@@ -2653,8 +2653,10 @@ const NewPayment = () => {
         p_hospital_id: hospital.id,
       });
       if (syncErr) {
-        toast.error("Não foi possível confirmar o hospital ativo", {
+        toast({
+          title: "Não foi possível confirmar o hospital ativo",
           description: syncErr.message,
+          variant: "destructive",
         });
         return;
       }
