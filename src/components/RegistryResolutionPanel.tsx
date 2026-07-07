@@ -17,6 +17,7 @@ import {
   type ConvenioRegistry,
   type SectorRegistry,
 } from "@/lib/registryLookup";
+import { applyConvenioStems } from "@/lib/convenioStems";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 
