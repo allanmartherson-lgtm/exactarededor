@@ -298,6 +298,9 @@ Deno.serve(async (req) => {
       .from("payment_processing_jobs")
       .insert({
         payment_id,
+        // Escopo por hospital (invariante): job herda hospital do pagamento —
+        // service_role não tem sessão de usuário, então precisa passar explícito.
+        hospital_id: paymentHospitalId,
         total_companies: companyNames.length,
         processed_companies: 0,
         status: "em_andamento",
