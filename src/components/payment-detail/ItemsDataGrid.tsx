@@ -930,6 +930,7 @@ export function ItemsDataGrid({
     parecerFilter,
     onlyZero,
     onlySemRegra,
+    onlyPisoAplicado,
   ]);
 
   // Tipos de pagamento usados pela reclassificação Visita × Parecer dentro do lote.
