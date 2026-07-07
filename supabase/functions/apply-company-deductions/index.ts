@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +12,11 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
+
     const { payment_id, company_id } = await req.json();
     if (!payment_id || !company_id) {
       return new Response(JSON.stringify({ error: "payment_id and company_id required" }), {
