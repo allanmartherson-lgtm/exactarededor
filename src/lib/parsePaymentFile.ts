@@ -320,7 +320,7 @@ const toNumber = (v: unknown): number => {
  * de importação. Detectamos formatos texto pelo magic byte e reparseamos com
  * todas as células como string, deixando o toNumber (pt-BR) fazer o cast.
  */
-const readWorkbookPreservingText = (buf: ArrayBuffer, opts: XLSX.ParsingOptions): XLSX.WorkBook => {
+export const readWorkbookPreservingText = (buf: ArrayBuffer, opts: XLSX.ParsingOptions): XLSX.WorkBook => {
   const bytes = new Uint8Array(buf);
   const isOle = bytes[0] === 0xD0 && bytes[1] === 0xCF && bytes[2] === 0x11 && bytes[3] === 0xE0;
   const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B && (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07);
