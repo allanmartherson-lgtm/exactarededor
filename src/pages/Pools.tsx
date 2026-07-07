@@ -198,6 +198,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     await supabase.from("pool_deductions").delete().eq("pool_id", poolId);
     if (editDeds.length) {
       const rows = editDeds.map((d, i) => ({
+        hospital_id: hospitalId,
         pool_id: poolId, ordem: i, tipo: d.tipo, descricao: d.descricao,
         valor: d.valor_variavel ? null : d.valor, company_id: d.company_id,
         obrigatoria: d.obrigatoria, valor_variavel: d.valor_variavel,
@@ -209,6 +210,7 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     await supabase.from("pool_participants").delete().eq("pool_id", poolId);
     if (editParts.length) {
       const rows = editParts.map((p, i) => ({
+        hospital_id: hospitalId,
         pool_id: poolId, participant_type: p.participant_type,
         company_id: p.participant_type === "company" ? p.company_id : null,
         percentual: p.percentual, ordem_exibicao: i,

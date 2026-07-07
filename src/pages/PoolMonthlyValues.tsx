@@ -101,6 +101,7 @@ export default function PoolMonthlyValues() {
 
   const save = async () => {
     if (!poolId) return;
+    if (!pool?.hospital_id) { toast.error("Pool sem hospital vinculado"); return; }
     const ups: any[] = [];
     for (const k of dirty) {
       const v = values[k];
@@ -108,6 +109,7 @@ export default function PoolMonthlyValues() {
       if (v.valor === null || Number.isNaN(Number(v.valor))) continue;
       ups.push({
         id: v.id,
+        hospital_id: pool.hospital_id,
         pool_id: poolId,
         pool_deduction_id: v.pool_deduction_id,
         competence_month: v.competence_month,
@@ -129,7 +131,9 @@ export default function PoolMonthlyValues() {
     // garante que existe registro (precisa do id para vincular o arquivo de forma estável)
     let valueId = row?.id;
     if (!valueId) {
+      if (!pool?.hospital_id) { toast.error("Pool sem hospital vinculado"); return; }
       const { data, error } = await supabase.from("pool_deduction_values").upsert({
+        hospital_id: pool.hospital_id,
         pool_id: poolId,
         pool_deduction_id: dedId,
         competence_month: comp,
