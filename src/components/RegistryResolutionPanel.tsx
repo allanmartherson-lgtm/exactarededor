@@ -18,6 +18,7 @@ import {
   type SectorRegistry,
 } from "@/lib/registryLookup";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 
 export type UnresolvedOccurrence = {
   attendance?: string | null;
