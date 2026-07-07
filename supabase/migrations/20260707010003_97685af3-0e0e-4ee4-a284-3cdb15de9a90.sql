@@ -1,0 +1,1 @@
+ALTER VIEW public.v_piso_recorrencia SET (security_invoker = true);

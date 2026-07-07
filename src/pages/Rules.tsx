@@ -58,6 +58,7 @@ import {
   type CalcItem,
 } from "@/components/rules/RuleCalculationsEditor";
 import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
+import { PisoDefasagemCard } from "@/components/rules/PisoDefasagemCard";
 import { RuleConflictModal, type Problem as ConflictProblem, type Correction as ConflictCorrection } from "@/components/rules/RuleConflictModal";
 import { CloneRuleToHospitalDialog } from "@/components/rules/CloneRuleToHospitalDialog";
 import { DateInput } from "@/components/ui/date-input";
@@ -3008,6 +3009,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     />
       <div className="p-8 space-y-4">
         <RulesHealthPanel onSelectRule={(id) => { const r = rules.find((x) => x.id === id); if (r) { openEdit(r); setOpen(true); } }} />
+        <PisoDefasagemCard onSelectRule={(id) => { const r = rules.find((x) => x.id === id); if (r) { openEdit(r); setOpen(true); } }} />
         {/* Banner de regras incompletas */}
         {incompleteCount > 0 && (
           <Card className="border-warning/50 bg-warning/5">

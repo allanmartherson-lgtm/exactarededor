@@ -5258,6 +5258,7 @@ export type Database = {
           patient_name: string | null
           payment_id: string
           piso_aplicado_valor: number | null
+          piso_context: Json | null
           piso_metodo_vencedor: string | null
           procedure_amount: number | null
           procedure_code: string | null
@@ -5386,6 +5387,7 @@ export type Database = {
           patient_name?: string | null
           payment_id: string
           piso_aplicado_valor?: number | null
+          piso_context?: Json | null
           piso_metodo_vencedor?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
@@ -5514,6 +5516,7 @@ export type Database = {
           patient_name?: string | null
           payment_id?: string
           piso_aplicado_valor?: number | null
+          piso_context?: Json | null
           piso_metodo_vencedor?: string | null
           procedure_amount?: number | null
           procedure_code?: string | null
@@ -10919,6 +10922,40 @@ export type Database = {
           transitions_count: number | null
         }
         Relationships: []
+      }
+      v_piso_recorrencia: {
+        Row: {
+          competencia: string | null
+          hospital_id: string | null
+          items_com_piso: number | null
+          items_piso_aplicado: number | null
+          pct_piso_aplicado: number | null
+          rule_id: string | null
+          total_complementado: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_items_applied_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_applied_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules_pending_doctors_summary"
+            referencedColumns: ["rule_id"]
+          },
+          {
+            foreignKeyName: "payment_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_group_rule_totals: {
         Row: {
