@@ -19,6 +19,9 @@ interface ContextHint {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
     const { text, file, inputKind, context } = await req.json() as {
       text?: string;
