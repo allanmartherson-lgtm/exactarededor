@@ -24,7 +24,7 @@ export type ConvenioAliasMap = {
 const cacheByHospital = new Map<string, ConvenioAliasMap>();
 const inflightByHospital = new Map<string, Promise<ConvenioAliasMap>>();
 
-async function load(): Promise<ConvenioAliasMap> {
+async function load(activeId: string | null): Promise<ConvenioAliasMap> {
   const activeId = getActiveHospitalId();
   const cacheKey = activeId ?? "__global__";
   const cached = cacheByHospital.get(cacheKey);
