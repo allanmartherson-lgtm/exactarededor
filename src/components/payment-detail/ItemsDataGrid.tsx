@@ -2147,6 +2147,7 @@ export function ItemsDataGrid({
           >
             <span aria-hidden className="mr-1">🛡️</span>
             Piso aplicado
+          </Button>
           {isParecerPayment && (
             <Select value={parecerFilter} onValueChange={(v) => setParecerFilter(v as typeof parecerFilter)}>
               <SelectTrigger className="h-8 w-44 text-xs">
