@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import type {
   AttachmentRow,
   EventRow,
@@ -29,6 +30,7 @@ type State = {
  * and keeps everything in sync via realtime subscriptions.
  */
 export function useConversations({ paymentId, currentUserId, enabled }: Args) {
+  const { hospital } = useHospital();
   const [state, setState] = useState<State>({
     loading: true,
     messages: [],

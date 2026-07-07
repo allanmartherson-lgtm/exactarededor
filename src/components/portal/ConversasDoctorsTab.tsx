@@ -183,8 +183,10 @@ export function ConversasDoctorsTab() {
 
   const sendReply = async () => {
     if (!selectedDoctorId || !reply.trim() || !user?.id) return;
+    if (!hospital?.id) return;
     setSending(true);
     const { error } = await supabase.from("doctor_messages").insert({
+      hospital_id: hospital.id,
       doctor_id: selectedDoctorId,
       author_type: "equipe_interna",
       author_user_id: user.id,
