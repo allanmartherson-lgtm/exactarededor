@@ -4446,7 +4446,8 @@ const NewPayment = () => {
                       </Button>
                     </div>
                   </div>
-                ))}
+                  ));
+                })()}
                 <p className="text-xs text-muted-foreground">
                   Total: {allRows.length} itens · {formatCurrency(total)}
                 </p>
