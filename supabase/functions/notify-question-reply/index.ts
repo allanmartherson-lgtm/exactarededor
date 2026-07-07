@@ -16,6 +16,9 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
     const { invoice_id, message, author_name, question_id } = await req.json();
     if (!invoice_id || typeof message !== "string" || message.trim().length === 0) {
