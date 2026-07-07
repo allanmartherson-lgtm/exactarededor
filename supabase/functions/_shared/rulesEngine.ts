@@ -3810,6 +3810,7 @@ function finalizeAnalysis(
     basis_confidence: basisConfidence,
     piso_aplicado_valor: calc.piso_aplicado_valor ?? null,
     piso_metodo_vencedor: calc.piso_metodo_vencedor ?? null,
+    piso_escopo: calc.piso_escopo ?? null,
   };
 }
 
