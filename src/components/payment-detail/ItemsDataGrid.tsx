@@ -3355,6 +3355,37 @@ function buildCalcFormula(it: {
   return lines;
 }
 
+/**
+ * Badge do piso por procedimento (mínimo garantido).
+ * Aparece só quando o motor gravou `piso_aplicado_valor`. Mostra qual valor
+ * venceu — o cálculo do convênio ou o piso configurado na regra.
+ */
+function PisoAppliedBadge({ item }: { item: Record<string, unknown> }) {
+  const valor = Number((item as { piso_aplicado_valor?: number | string | null }).piso_aplicado_valor ?? 0);
+  const metodo = (item as { piso_metodo_vencedor?: string | null }).piso_metodo_vencedor ?? null;
+  if (!metodo || !Number.isFinite(valor) || valor <= 0) return null;
+  const venceuPiso = metodo === "piso";
+  return (
+    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
+          venceuPiso
+            ? "border-warning/40 bg-warning-soft text-warning-text"
+            : "border-success/40 bg-success-soft text-success",
+        )}
+        title={venceuPiso
+          ? "O piso mínimo garantido superou o cálculo do convênio e foi aplicado."
+          : "O cálculo do convênio superou o piso — piso não foi necessário."}
+      >
+        <span aria-hidden>🛡️</span>
+        {venceuPiso ? "Piso aplicado" : "Convênio > piso"}
+        <span className="opacity-80">· {formatCurrency(valor)}</span>
+      </span>
+    </div>
+  );
+}
+
 function CalcFormulaBlock({
   item,
 }: {
