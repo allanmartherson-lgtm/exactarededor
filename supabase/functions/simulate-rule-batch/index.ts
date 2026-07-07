@@ -17,6 +17,8 @@ import {
   type ReferenceTableLookup,
   type ExceptionTableLookup,
 } from "../_shared/rulesEngine.ts";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
