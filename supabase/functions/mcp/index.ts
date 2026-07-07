@@ -6,7 +6,7 @@
 import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 
 // src/lib/mcp/tools/list-payments.ts
-import { createClient } from "npm:@supabase/supabase-js@^2.105.1";
+import { createClient } from "npm:@supabase/supabase-js@^2.110.1";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z } from "npm:zod@^4.4.3";
 function supabaseForUser(ctx) {
@@ -43,7 +43,7 @@ var list_payments_default = defineTool({
 });
 
 // src/lib/mcp/tools/get-payment.ts
-import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.105.1";
+import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.110.1";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z2 } from "npm:zod@^4.4.3";
 function supabaseForUser2(ctx) {
@@ -76,7 +76,7 @@ var get_payment_default = defineTool2({
 });
 
 // src/lib/mcp/tools/list-pendencias.ts
-import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.105.1";
+import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.110.1";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z3 } from "npm:zod@^4.4.3";
 function supabaseForUser3(ctx) {
