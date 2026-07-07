@@ -58,7 +58,15 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const auth = await requireInternalOrRole(req);
+    if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
     const body = (await req.json()) as SimInput;
+
+    if (body.hospital_id) {
+      const acc = await assertHospitalAccess(auth, body.hospital_id);
+      if (!acc.ok) return unauthorizedResponse(acc, corsHeaders);
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
