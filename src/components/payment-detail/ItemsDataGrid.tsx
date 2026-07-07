@@ -1433,6 +1433,9 @@ export function ItemsDataGrid({
       if (onlySemRegra) {
         if (((it as any).applied_calc_method ?? "") !== "sem_regra") return false;
       }
+      if (onlyPisoAplicado) {
+        if (((it as any).piso_metodo_vencedor ?? "") !== "piso") return false;
+      }
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
       const paciente = getPatient(it);
