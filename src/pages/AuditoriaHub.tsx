@@ -10,11 +10,13 @@ import ExportAudit from "./ExportAudit";
 import StatusAnomalies from "./StatusAnomalies";
 import ObservationInsights from "./ObservationInsights";
 import AuditoriaTussPrincipal from "./AuditoriaTussPrincipal";
+import IsolationEvents from "./IsolationEvents";
 
-type TabValue = "log" | "hospitais" | "exportacoes" | "anomalias" | "insights" | "tuss";
+type TabValue = "log" | "hospitais" | "exportacoes" | "anomalias" | "insights" | "tuss" | "isolamento";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "log", label: "Log geral" },
+  { value: "isolamento", label: "Isolamento de hospitais" },
   { value: "anomalias", label: "Anomalias de status" },
   { value: "tuss", label: "TUSS principal" },
   { value: "exportacoes", label: "Exportações" },
@@ -38,6 +40,7 @@ export default function AuditoriaHub() {
   const content = useMemo(() => {
     switch (active) {
       case "log": return <AuditLog embedded />;
+      case "isolamento": return <IsolationEvents embedded />;
       case "hospitais": return <HospitalSwitchLog embedded />;
       case "exportacoes": return <ExportAudit embedded />;
       case "anomalias": return <StatusAnomalies embedded />;
