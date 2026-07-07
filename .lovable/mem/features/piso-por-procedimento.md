@@ -18,13 +18,15 @@ Colunas (payment_items):
 
 Motor (`supabase/functions/_shared/rulesEngine.ts`):
 - `resolvePisoForRole(c, doctorRole)` — pura, prioriza função > padrão, ignora zero/negativo
-- Aplicada no loop de calc (`applyCalculationSingle` retorna primeiro, wrapper faz MAX depois)
-- `AnalysisResult.piso_aplicado_valor` / `piso_metodo_vencedor` propagam para writer
+- Aplicada no loop de calc para `por_item`; para `por_atendimento` deixa `piso_metodo_vencedor=null` (pendente)
+- `applyPisoPorAtendimento(results, items)` — post-pass agrupa por (rule_id, doctor_id, attendance_number), aplica `MAX(sum(convenio), piso)` e distribui pro-rata pelos itens quando piso vence; convênio zerado → divisão igual
+- `AnalysisResult.piso_aplicado_valor` / `piso_metodo_vencedor` / `piso_escopo` propagam para writer
 
-UI (`src/components/rules/RuleCalculationsEditor.tsx`):
-- Bloco aparece somente quando `calculation_type === 'percentual_sobre_convenio'`
-- Toggle → mostra select de escopo, input de piso padrão, grid por função (4 funções canônicas)
+UI:
+- `RuleCalculationsEditor.tsx`: bloco só quando `calculation_type === 'percentual_sobre_convenio'` — toggle, escopo, piso padrão, grid por função (4 funções canônicas)
+- `ItemsDataGrid.tsx`: badge "Piso aplicado" / "Convênio > piso" no drawer expandido do item (bloco de cálculo utilizado)
 
 Pendências conhecidas:
-- Escopo `por_atendimento` ainda não faz agregação real — motor emite alerta e trata como `por_item`
-- Badge visual no card do item ("Piso R$ X venceu") ainda não implementado
+- Exportações (PDF do lote, xlsx, DRE, portal do médico) ainda não trazem coluna/linha de piso — só visível no drawer
+- Sem coluna dedicada na tabela do grid (analista precisa expandir a linha para ver)
+

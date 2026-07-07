@@ -495,8 +495,10 @@ export interface AnalysisResult {
   basis_confidence?: number | null;
   /** Piso por procedimento — valor do piso vigente aplicado ao item (R$). null = piso não configurado. */
   piso_aplicado_valor?: number | null;
-  /** Método vencedor do MAX(convenio, piso). null = sem piso. */
+  /** Método vencedor do MAX(convenio, piso). null = pendente de agregação por atendimento (post-pass). */
   piso_metodo_vencedor?: "convenio" | "piso" | null;
+  /** Escopo declarado do piso (por_item | por_atendimento). Usado pelo post-pass. */
+  piso_escopo?: "por_item" | "por_atendimento" | null;
 }
 
 
@@ -2153,8 +2155,10 @@ export interface ExpectedCalc {
   winner_calc_type?: CalculationType | null;
   /** Piso aplicado (mínimo garantido) — R$ do piso vigente para a função do item. */
   piso_aplicado_valor?: number | null;
-  /** Qual método venceu no MAX(): "convenio" (percentual do convênio) ou "piso" (mínimo garantido). */
+  /** Qual método venceu no MAX(): "convenio" (percentual do convênio) ou "piso" (mínimo garantido). null = pendente (post-pass). */
   piso_metodo_vencedor?: "convenio" | "piso" | null;
+  /** Escopo do piso (usado pelo post-pass para agregar por atendimento). */
+  piso_escopo?: "por_item" | "por_atendimento" | null;
 }
 
 
@@ -2343,6 +2347,7 @@ export function applyCalculation(
       temporal_surcharge_config?: ExpectedCalc["temporal_surcharge_config"];
       piso_aplicado_valor?: number | null;
       piso_metodo_vencedor?: "convenio" | "piso" | null;
+      piso_escopo?: "por_item" | "por_atendimento" | null;
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
@@ -2371,6 +2376,7 @@ export function applyCalculation(
       // MAX(esperado_convenio, piso_da_funcao) e carimba método vencedor.
       let pisoAplicado: number | null = null;
       let pisoVencedor: "convenio" | "piso" | null = null;
+      let pisoEscopo: "por_item" | "por_atendimento" | null = null;
       if (
         r.expected !== null &&
         c.piso_habilitado === true &&
@@ -2379,10 +2385,14 @@ export function applyCalculation(
         const piso = resolvePisoForRole(c, item.doctor_role);
         if (piso !== null && piso > 0) {
           pisoAplicado = piso;
-          if (c.piso_escopo === "por_atendimento") {
-            r.alerts = [...r.alerts, "Piso por_atendimento ainda não é suportado — aplicando piso por item."];
-          }
-          if (piso > r.expected) {
+          pisoEscopo = c.piso_escopo === "por_atendimento" ? "por_atendimento" : "por_item";
+          if (pisoEscopo === "por_atendimento") {
+            // Agregação real acontece no post-pass em `analyzePaymentItems`.
+            // Aqui deixamos o vencedor pendente (null) — o post-pass soma
+            // o esperado_convenio de todas as linhas do mesmo atendimento,
+            // compara com o piso e distribui o complemento pro-rata.
+            pisoVencedor = null;
+          } else if (piso > r.expected) {
             r.explanation = `${r.explanation} · Piso R$ ${piso.toFixed(2)} > convênio R$ ${r.expected.toFixed(2)} → piso vence.`;
             r.expected = round2(piso);
             pisoVencedor = "piso";
@@ -2392,6 +2402,7 @@ export function applyCalculation(
           }
         }
       }
+
 
       if (r.expected !== null) {
         validCalcs.push({
@@ -2414,6 +2425,7 @@ export function applyCalculation(
           },
           piso_aplicado_valor: pisoAplicado,
           piso_metodo_vencedor: pisoVencedor,
+          piso_escopo: pisoEscopo,
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
@@ -2687,6 +2699,7 @@ export function applyCalculation(
       winner_calc_type: (winnerCalc.calculation_type as CalculationType) ?? null,
       piso_aplicado_valor: winnerCalc.piso_aplicado_valor ?? null,
       piso_metodo_vencedor: winnerCalc.piso_metodo_vencedor ?? null,
+      piso_escopo: winnerCalc.piso_escopo ?? null,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
@@ -3797,6 +3810,7 @@ function finalizeAnalysis(
     basis_confidence: basisConfidence,
     piso_aplicado_valor: calc.piso_aplicado_valor ?? null,
     piso_metodo_vencedor: calc.piso_metodo_vencedor ?? null,
+    piso_escopo: calc.piso_escopo ?? null,
   };
 }
 
@@ -3881,6 +3895,94 @@ function preComputePackageWinners(
   return winners;
 }
 
+/**
+ * Post-pass do piso escopo "por_atendimento".
+ *
+ * Regra de negócio: quando o piso é configurado por atendimento (e não por
+ * item), a garantia mínima vale para a SOMA do que o médico receberia pelos
+ * códigos daquele atendimento — não para cada linha isoladamente. Ex.: piso
+ * de R$ 1.100 para parto: se o convênio pagaria R$ 800 no principal +
+ * R$ 350 no acessório (= R$ 1.150), o piso não entra. Se pagaria R$ 600 +
+ * R$ 200 (= R$ 800), o piso vence e complementa até R$ 1.100.
+ *
+ * Grupo = (matched_rule_id, doctor_id, attendance_number).
+ * Distribuição pro-rata pelo esperado_convenio original; se todos zerarem,
+ * divide igualmente. Ajusta a última linha para casar centavos.
+ *
+ * `piso_metodo_vencedor === null` E `piso_aplicado_valor > 0` E
+ * `piso_escopo === 'por_atendimento'` marca os itens pendentes deixados
+ * pelo loop principal.
+ */
+export function applyPisoPorAtendimento(
+  results: AnalysisResult[],
+  items: ItemInput[],
+): void {
+  const itemById = new Map(items.map((it) => [it.id, it] as const));
+
+  type Pending = { r: AnalysisResult; it: ItemInput };
+  const groups = new Map<string, Pending[]>();
+  for (const r of results) {
+    if (r.piso_escopo !== "por_atendimento") continue;
+    if (!(r.piso_aplicado_valor && r.piso_aplicado_valor > 0)) continue;
+    if (r.piso_metodo_vencedor !== null) continue; // já resolvido
+    const it = itemById.get(r.item_id);
+    if (!it) continue;
+    const key = [
+      r.matched_rule_id ?? "",
+      it.doctor_id ?? "",
+      it.attendance_number ?? "",
+    ].join("|");
+    if (!key.replaceAll("|", "")) continue; // sem chave útil → ignora
+    let arr = groups.get(key);
+    if (!arr) { arr = []; groups.set(key, arr); }
+    arr.push({ r, it });
+  }
+
+  for (const arr of groups.values()) {
+    // Piso do atendimento — todos os itens do grupo compartilham o mesmo
+    // valor (mesma regra + mesmo cálculo + mesma função implícita pelo médico).
+    const piso = arr[0].r.piso_aplicado_valor ?? 0;
+    const convenioValues = arr.map((p) => Number(p.r.expected_amount ?? 0));
+    const sumConvenio = convenioValues.reduce((s, v) => s + v, 0);
+
+    if (piso <= sumConvenio) {
+      // Convênio vence — mantém expected por item, só carimba método.
+      for (const p of arr) {
+        p.r.piso_metodo_vencedor = "convenio";
+        p.r.calculation_explanation =
+          `${p.r.calculation_explanation ?? ""} · Piso atendimento R$ ${piso.toFixed(2)} ≤ soma convênio R$ ${sumConvenio.toFixed(2)} → convênio vence.`.trim();
+      }
+      continue;
+    }
+
+    // Piso vence — distribui o valor total do piso pelos itens do grupo.
+    let newValues: number[];
+    if (sumConvenio > 0) {
+      newValues = convenioValues.map((v) => Math.round((v / sumConvenio) * piso * 100) / 100);
+    } else {
+      const share = Math.round((piso / arr.length) * 100) / 100;
+      newValues = arr.map(() => share);
+    }
+    // Ajusta última linha para casar centavos com o piso exato.
+    const distributed = newValues.reduce((s, v) => s + v, 0);
+    const delta = Math.round((piso - distributed) * 100) / 100;
+    if (delta !== 0 && newValues.length > 0) {
+      newValues[newValues.length - 1] = Math.round((newValues[newValues.length - 1] + delta) * 100) / 100;
+    }
+
+    for (let i = 0; i < arr.length; i++) {
+      const p = arr[i];
+      const before = convenioValues[i];
+      p.r.expected_amount = newValues[i];
+      p.r.piso_metodo_vencedor = "piso";
+      p.r.calculation_explanation =
+        `${p.r.calculation_explanation ?? ""} · Piso atendimento R$ ${piso.toFixed(2)} > soma convênio R$ ${sumConvenio.toFixed(2)} → piso vence. Este item ajustado de R$ ${before.toFixed(2)} para R$ ${newValues[i].toFixed(2)} (rateio pro-rata).`.trim();
+    }
+  }
+}
+
+
+
 export function analyzePaymentItems(
   items: ItemInput[],
 
@@ -3928,6 +4030,15 @@ export function analyzePaymentItems(
   // Reordenar resultados para a ordem original de `items`
   const byId = new Map(resultsOrdered.map((r) => [r.item_id, r] as const));
   const out = items.map((it) => byId.get(it.id)!);
+
+  // === Piso por atendimento (mínimo garantido agregado) ===
+  // Aplica MAX(sum(convenio_do_atendimento), piso) por grupo
+  // (regra + cálculo + médico + atendimento). Quando o piso vence, o
+  // complemento é distribuído pro-rata pelos itens do grupo (ou dividido
+  // igualmente se o cálculo do convênio somou zero). Preserva o total do
+  // atendimento sem alterar itens de outros escopos/regras.
+  applyPisoPorAtendimento(out, items);
+
 
   // === Identificação determinística do procedimento principal ===
   // Agrupa por: atendimento | paciente | data | empresa | médico.
