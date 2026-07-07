@@ -265,14 +265,27 @@ function ResolutionRow({
 
   const [showOccurrences, setShowOccurrences] = useState(false);
   const samples = group.samples ?? [];
+  const sourceFiles = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of samples) {
+      const f = (s.source_file ?? "").trim();
+      if (f) set.add(f);
+    }
+    return Array.from(set);
+  }, [samples]);
 
   return (
     <div className="rounded-lg border bg-card p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary">{KIND_LABEL[group.kind]}</Badge>
             <span className="font-medium truncate">{group.raw || "(vazio)"}</span>
+            {sourceFiles.map((f) => (
+              <Badge key={f} variant="outline" className="font-normal max-w-[240px]" title={f}>
+                <span className="truncate">📄 {f}</span>
+              </Badge>
+            ))}
           </div>
           <button
             type="button"
@@ -295,19 +308,21 @@ function ResolutionRow({
 
       {showOccurrences && samples.length > 0 && (
         <div className="rounded-md border bg-muted/30 text-xs">
-          <div className="grid grid-cols-[1fr_1.5fr_1.5fr_1fr] gap-2 px-2 py-1 font-medium text-muted-foreground border-b">
+          <div className="grid grid-cols-[1fr_1.3fr_1.3fr_0.9fr_1.2fr] gap-2 px-2 py-1 font-medium text-muted-foreground border-b">
             <span>Atendimento</span>
             <span>Paciente</span>
             <span>Médico</span>
             <span>Data</span>
+            <span>Arquivo</span>
           </div>
           <div className="max-h-48 overflow-auto divide-y">
             {samples.map((s, i) => (
-              <div key={i} className="grid grid-cols-[1fr_1.5fr_1.5fr_1fr] gap-2 px-2 py-1">
+              <div key={i} className="grid grid-cols-[1fr_1.3fr_1.3fr_0.9fr_1.2fr] gap-2 px-2 py-1">
                 <span className="truncate">{s.attendance || "—"}</span>
                 <span className="truncate">{s.patient || "—"}</span>
                 <span className="truncate">{s.doctor || "—"}</span>
                 <span className="truncate">{s.date || "—"}</span>
+                <span className="truncate" title={s.source_file ?? ""}>{s.source_file || "—"}</span>
               </div>
             ))}
           </div>
@@ -318,6 +333,7 @@ function ResolutionRow({
           )}
         </div>
       )}
+
 
       <div className="flex items-center gap-2">
         <Input
