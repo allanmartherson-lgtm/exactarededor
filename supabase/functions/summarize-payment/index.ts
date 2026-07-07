@@ -24,6 +24,9 @@ interface ExecutiveSummary {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
     const { payment_id, mode: rawMode } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
