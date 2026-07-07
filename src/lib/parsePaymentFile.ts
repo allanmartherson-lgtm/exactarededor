@@ -1123,7 +1123,7 @@ export const inspectFileHeaders = async (
   f: File,
 ): Promise<{ headers: string[]; sampleRow: Record<string, unknown> | null }> => {
   const buf = await f.arrayBuffer();
-  const wb = XLSX.read(buf, { cellDates: false });
+  const wb = readWorkbookPreservingText(buf, { cellDates: false });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
   const headerIdx = detectHeaderRow(matrix);
