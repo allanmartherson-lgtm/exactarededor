@@ -83,8 +83,8 @@ async function load(activeId: string | null): Promise<ConvenioAliasMap> {
   }
 }
 
-export async function loadConvenioAliases(): Promise<ConvenioAliasMap> {
-  return load();
+export async function loadConvenioAliases(activeHospitalId: string | null = null): Promise<ConvenioAliasMap> {
+  return load(activeHospitalId);
 }
 
 /** Invalida o cache — chamar ao trocar de hospital ou após editar convênios. */
@@ -94,14 +94,17 @@ export function invalidateConvenioAliasesCache() {
 }
 
 export function useConvenioAliases(): ConvenioAliasMap | null {
-  const activeId = getActiveHospitalId() ?? "__global__";
+  const { hospital } = useHospital() as { hospital: { id: string } | null };
+  const activeId = hospital?.id ?? null;
+  const cacheKey = activeId ?? "__global__";
   const [state, setState] = useState<ConvenioAliasMap | null>(
-    cacheByHospital.get(activeId) ?? null,
+    cacheByHospital.get(cacheKey) ?? null,
   );
   useEffect(() => {
     let active = true;
-    load().then((m) => { if (active) setState(m); });
+    load(activeId).then((m) => { if (active) setState(m); });
     return () => { active = false; };
   }, [activeId]);
   return state;
 }
+
