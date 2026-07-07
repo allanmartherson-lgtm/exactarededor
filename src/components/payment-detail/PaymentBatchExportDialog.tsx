@@ -262,6 +262,14 @@ export function PaymentBatchExportDialog({
         valor_esperado: Number((it as any).expected_amount ?? 0),
         diferenca:
           Number((it as any).expected_amount ?? 0) - Number(it.gross_amount ?? 0),
+        piso_aplicado: (it as any).piso_aplicado_valor != null
+          ? Number((it as any).piso_aplicado_valor)
+          : "",
+        piso_metodo: (it as any).piso_metodo_vencedor === "piso"
+          ? "Piso"
+          : (it as any).piso_metodo_vencedor === "convenio"
+            ? "Convênio"
+            : "",
         status: String(it.ai_status ?? ""),
         regras_aplicadas: ruleSummary,
         validacoes: validationSummary,
