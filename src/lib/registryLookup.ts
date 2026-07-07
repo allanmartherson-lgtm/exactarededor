@@ -471,10 +471,11 @@ type LearnRow = {
 export async function learnAliasesFromResolvedRows(
   rows: LearnRow[],
   registries: { doctorReg: DoctorRegistry | null; convenioReg: ConvenioRegistry | null; sectorReg: SectorRegistry | null },
+  hospitalId: string | null = null,
 ): Promise<{ doctor: number; convenio: number; sector: number }> {
   const doctor = new Map<string, { doctor_id: string; alias_text: string; source: AliasSource }>();
-  const convenio = new Map<string, { convenio_slug: string; alias_text: string; source: AliasSource }>();
-  const sector = new Map<string, { sector_slug: string; alias_text: string; source: AliasSource }>();
+  const convenio = new Map<string, { convenio_slug: string; alias_text: string; source: AliasSource; hospital_id: string | null }>();
+  const sector = new Map<string, { sector_slug: string; alias_text: string; source: AliasSource; hospital_id: string | null }>();
 
   const doctorById = new Map<string, DoctorRegistryEntry>();
   if (registries.doctorReg) {
@@ -493,14 +494,14 @@ export async function learnAliasesFromResolvedRows(
       const canN = normalize(registries.convenioReg?.bySlug.get(r.convenio_slug)?.name);
       const rawN = normalize(r.agreement_text);
       if (rawN && rawN !== canN && rawN !== r.convenio_slug.toLowerCase()) {
-        convenio.set(`${r.convenio_slug}::${rawN}`, { convenio_slug: r.convenio_slug, alias_text: r.agreement_text.trim(), source: "auto" });
+        convenio.set(`${r.convenio_slug}::${rawN}`, { convenio_slug: r.convenio_slug, alias_text: r.agreement_text.trim(), source: "auto", hospital_id: hospitalId });
       }
     }
     if (r.sector_slug && r.sector_matched_by === "slug" && r.sector_raw) {
       const canN = normalize(registries.sectorReg?.bySlug.get(r.sector_slug)?.name);
       const rawN = normalize(r.sector_raw);
       if (rawN && rawN !== canN && rawN !== r.sector_slug.toLowerCase()) {
-        sector.set(`${r.sector_slug}::${rawN}`, { sector_slug: r.sector_slug, alias_text: r.sector_raw.trim(), source: "auto" });
+        sector.set(`${r.sector_slug}::${rawN}`, { sector_slug: r.sector_slug, alias_text: r.sector_raw.trim(), source: "auto", hospital_id: hospitalId });
       }
     }
   }
