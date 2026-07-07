@@ -26,6 +26,7 @@ export type UnresolvedOccurrence = {
   doctor?: string | null;
   date?: string | null;
   procedure?: string | null;
+  source_file?: string | null;
 };
 
 export type UnresolvedGroup = {
