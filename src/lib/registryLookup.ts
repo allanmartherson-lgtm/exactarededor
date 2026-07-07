@@ -429,11 +429,21 @@ async function insertAliasIgnoreDup(
 export async function createDoctorAlias(doctor_id: string, alias_text: string, source: AliasSource = "manual") {
   return insertAliasIgnoreDup("doctor_aliases", { doctor_id, alias_text, source });
 }
-export async function createConvenioAlias(convenio_slug: string, alias_text: string, source: AliasSource = "manual") {
-  return insertAliasIgnoreDup("convenio_aliases", { convenio_slug, alias_text, source });
+export async function createConvenioAlias(
+  convenio_slug: string,
+  alias_text: string,
+  source: AliasSource = "manual",
+  hospital_id: string | null = null,
+) {
+  return insertAliasIgnoreDup("convenio_aliases", { convenio_slug, alias_text, source, hospital_id });
 }
-export async function createSectorAlias(sector_slug: string, alias_text: string, source: AliasSource = "manual") {
-  return insertAliasIgnoreDup("sector_aliases", { sector_slug, alias_text, source });
+export async function createSectorAlias(
+  sector_slug: string,
+  alias_text: string,
+  source: AliasSource = "manual",
+  hospital_id: string | null = null,
+) {
+  return insertAliasIgnoreDup("sector_aliases", { sector_slug, alias_text, source, hospital_id });
 }
 
 // ====== auto-aprendizado em lote ======
