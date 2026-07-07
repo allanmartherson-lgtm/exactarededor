@@ -18,6 +18,8 @@
 // =============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { callFn as callFnBase, type CallFnResult } from "./callFn.ts";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
