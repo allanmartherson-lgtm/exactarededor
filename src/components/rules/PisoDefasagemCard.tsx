@@ -59,7 +59,7 @@ export function PisoDefasagemCard({ onSelectRule }: { onSelectRule?: (id: string
           .eq("hospital_id", activeHospitalId)
           .gte("competencia", cutoff.toISOString().slice(0, 10));
 
-        const raw = (data ?? []) as Row[];
+        const raw = (data ?? []) as unknown as Row[];
         if (raw.length === 0) {
           setRows([]);
           return;
