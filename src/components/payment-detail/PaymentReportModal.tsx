@@ -1102,7 +1102,7 @@ export function PaymentReportModal({
                                       (it as any).piso_metodo_vencedor === "piso" ? "text-amber-600" : "text-emerald-600"
                                     )} title={`Piso aplicado (${(it as any).piso_escopo ?? "item"})`}>
                                       🛡️ Piso: {formatCurrency((it as any).piso_aplicado_valor)}
-                                      {(it as any).piso_metodo_vencedor === "piso" ? " (venceu)" : ""}
+                                      {(it as any).piso_metodo_vencedor === "piso" ? " (aplicado)" : " (convênio prevaleceu)"}
                                     </p>
                                   )}
                                 </TableCell>

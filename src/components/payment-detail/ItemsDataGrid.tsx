@@ -856,6 +856,7 @@ export function ItemsDataGrid({
     parecerFilter?: "__all__" | "missing" | "weak";
     onlyZero?: boolean;
     onlySemRegra?: boolean;
+    onlyPisoAplicado?: boolean;
   };
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -884,6 +885,7 @@ export function ItemsDataGrid({
   // Filtros disparados pelo Zeev (event bus global). Limpos via "Limpar filtros".
   const [onlyZero, setOnlyZero] = useState(pf.onlyZero ?? false);
   const [onlySemRegra, setOnlySemRegra] = useState(pf.onlySemRegra ?? false);
+  const [onlyPisoAplicado, setOnlyPisoAplicado] = useState(pf.onlyPisoAplicado ?? false);
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
@@ -907,6 +909,7 @@ export function ItemsDataGrid({
           parecerFilter,
           onlyZero,
           onlySemRegra,
+          onlyPisoAplicado,
         }),
       );
     } catch {
@@ -927,6 +930,7 @@ export function ItemsDataGrid({
     parecerFilter,
     onlyZero,
     onlySemRegra,
+    onlyPisoAplicado,
   ]);
 
   // Tipos de pagamento usados pela reclassificação Visita × Parecer dentro do lote.
@@ -1429,6 +1433,9 @@ export function ItemsDataGrid({
       if (onlySemRegra) {
         if (((it as any).applied_calc_method ?? "") !== "sem_regra") return false;
       }
+      if (onlyPisoAplicado) {
+        if (((it as any).piso_metodo_vencedor ?? "") !== "piso") return false;
+      }
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
       const paciente = getPatient(it);
@@ -1551,7 +1558,7 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
 
   // Bridge global do Zeev → aplica filtro pedido via chat ("me leva pros zerados", etc.).
   // Limpa os filtros anteriores e marca apenas o requerido para evitar combinações esquisitas.
@@ -2131,6 +2138,16 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Alertas assistenciais
           </Button>
+          <Button
+            size="sm"
+            variant={onlyPisoAplicado ? "default" : "outline"}
+            className="h-8 text-xs"
+            onClick={() => setOnlyPisoAplicado((v) => !v)}
+            title="Itens em que o piso mínimo superou o valor do convênio e foi aplicado"
+          >
+            <span aria-hidden className="mr-1">🛡️</span>
+            Piso aplicado
+          </Button>
           {isParecerPayment && (
             <Select value={parecerFilter} onValueChange={(v) => setParecerFilter(v as typeof parecerFilter)}>
               <SelectTrigger className="h-8 w-44 text-xs">
@@ -2228,7 +2245,7 @@ export function ItemsDataGrid({
               )}
             </div>
           )}
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || (isParecerPayment && parecerFilter !== "__all__")) && (
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || onlyPisoAplicado || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
               size="sm"
               variant="ghost"
@@ -2238,7 +2255,7 @@ export function ItemsDataGrid({
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
                 setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
-                setOnlyZero(false); setOnlySemRegra(false);
+                setOnlyZero(false); setOnlySemRegra(false); setOnlyPisoAplicado(false);
               }}
             >
               Limpar
