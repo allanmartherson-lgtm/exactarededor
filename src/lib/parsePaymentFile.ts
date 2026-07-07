@@ -490,8 +490,25 @@ const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: bool
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     return { iso: `${s}T15:00:00.000Z`, hasTime: false };
   }
+  // String puramente numérica em coluna de data = serial Excel (comum após
+  // readWorkbookPreservingText forçar tudo para string). Reprocessa como número
+  // para evitar new Date("46165") virar ano 46165.
+  if (/^\d+(?:\.\d+)?$/.test(s)) {
+    const n = Number(s);
+    if (Number.isFinite(n) && n > 0 && n < 200000) {
+      const parts = excelSerialToParts(n);
+      if (parts) {
+        return { iso: new Date(Date.UTC(parts.y, parts.m - 1, parts.d, 15, 0, 0)).toISOString(), hasTime: false };
+      }
+    }
+    return { iso: null, hasTime: false };
+  }
   const d = new Date(s);
   if (isNaN(d.getTime())) return { iso: null, hasTime: false };
+  // Rejeita datas fora de um intervalo plausível (evita ISO estendido com
+  // ano de 6 dígitos que o Postgres rejeita: "time zone displacement out of range").
+  const y = d.getUTCFullYear();
+  if (y < 1970 || y > 2100) return { iso: null, hasTime: false };
   const hasTime = /T\d{2}:\d{2}/.test(s) && !/T00:00(?::00)?(?:\.000)?Z?$/.test(s);
   return { iso: d.toISOString(), hasTime };
 };
