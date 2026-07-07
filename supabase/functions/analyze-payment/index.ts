@@ -2056,6 +2056,18 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         // Piso por procedimento (mínimo garantido). null quando piso não configurado.
         piso_aplicado_valor: (r as any).piso_aplicado_valor ?? null,
         piso_metodo_vencedor: (r as any).piso_metodo_vencedor ?? null,
+        // Trilha de auditoria inline do piso — usada para contestações futuras
+        // e para a view v_piso_recorrencia (convênios defasados).
+        piso_context: ((r as any).piso_aplicado_valor != null && (r as any).piso_metodo_vencedor != null)
+          ? {
+              piso_valor: Number((r as any).piso_aplicado_valor),
+              metodo_vencedor: (r as any).piso_metodo_vencedor,
+              escopo: (r as any).piso_escopo ?? "por_item",
+              applied_at: new Date().toISOString(),
+              rule_id: (r as any).applied_rule_id ?? null,
+              calc_id: (r as any).applied_calc_id ?? null,
+            }
+          : null,
       });
 
 
