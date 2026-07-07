@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHospital } from "@/contexts/HospitalContext";
 import type {
   AttachmentRow,
   EventRow,
@@ -29,6 +30,7 @@ type State = {
  * and keeps everything in sync via realtime subscriptions.
  */
 export function useConversations({ paymentId, currentUserId, enabled }: Args) {
+  const { hospital } = useHospital();
   const [state, setState] = useState<State>({
     loading: true,
     messages: [],
@@ -176,10 +178,12 @@ export function useConversations({ paymentId, currentUserId, enabled }: Args) {
     }) => {
       const trimmed = opts.text.trim();
       if (!trimmed) throw new Error("Mensagem vazia");
+      if (!hospital?.id) throw new Error("Selecione uma unidade hospitalar");
       const groupId = opts.threadRoot ? opts.threadRoot.company_group_id : (opts.companyGroupId ?? null);
       const { data: inserted, error } = await supabase
         .from("payment_questions")
         .insert({
+          hospital_id: hospital.id,
           payment_id: paymentId,
           company_group_id: groupId,
           parent_id: opts.threadRoot?.id ?? null,
@@ -245,7 +249,7 @@ export function useConversations({ paymentId, currentUserId, enabled }: Args) {
       await load();
       return messageId;
     },
-    [paymentId, currentUserId, load],
+    [paymentId, currentUserId, load, hospital?.id],
   );
 
   const markThreadRead = useCallback(

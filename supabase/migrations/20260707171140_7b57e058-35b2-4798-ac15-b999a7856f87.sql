@@ -1,0 +1,1 @@
+ALTER TABLE public.access_requests ALTER COLUMN hospital_id DROP NOT NULL;

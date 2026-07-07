@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,6 +42,7 @@ type DoctorRow = {
 
 export function ConversasDoctorsTab() {
   const { user } = useAuth();
+  const { hospital } = useHospital();
   const [messages, setMessages] = useState<DoctorMessage[]>([]);
   const [doctorNames, setDoctorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -181,8 +183,10 @@ export function ConversasDoctorsTab() {
 
   const sendReply = async () => {
     if (!selectedDoctorId || !reply.trim() || !user?.id) return;
+    if (!hospital?.id) return;
     setSending(true);
     const { error } = await supabase.from("doctor_messages").insert({
+      hospital_id: hospital.id,
       doctor_id: selectedDoctorId,
       author_type: "equipe_interna",
       author_user_id: user.id,

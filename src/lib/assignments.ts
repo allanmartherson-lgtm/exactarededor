@@ -14,6 +14,18 @@ export async function claimPayment(
   source: "manual" | "auto" = "manual",
   note?: string,
 ): Promise<{ ok: true; created: boolean } | { ok: false; error: string }> {
+  // Busca hospital do pagamento para preencher hospital_id explicitamente
+  // (NOT NULL na tabela). Também valida indiretamente que o usuário
+  // tem acesso ao pagamento — RLS bloqueia se não tiver.
+  const { data: pay, error: payErr } = await supabase
+    .from("payments")
+    .select("hospital_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (payErr || !pay?.hospital_id) {
+    return { ok: false, error: payErr?.message ?? "Pagamento não encontrado ou sem hospital vinculado" };
+  }
+
   // Last assignment para inferir transferência vs. assumir.
   const { data: last } = await supabase
     .from("payment_assignments")
@@ -34,6 +46,7 @@ export async function claimPayment(
   const { error } = await supabase
     .from("payment_assignments")
     .insert({
+      hospital_id: pay.hospital_id,
       payment_id: paymentId,
       analyst_id: userId,
       previous_analyst_id: previous,

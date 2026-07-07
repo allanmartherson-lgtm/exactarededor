@@ -87,7 +87,7 @@ export type Database = {
           created_at: string
           expected_amount: number | null
           gross_amount_at_time: number | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           item_id: string
           matched_rule_ids: Json
@@ -104,7 +104,7 @@ export type Database = {
           created_at?: string
           expected_amount?: number | null
           gross_amount_at_time?: number | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           item_id: string
           matched_rule_ids?: Json
@@ -121,7 +121,7 @@ export type Database = {
           created_at?: string
           expected_amount?: number | null
           gross_amount_at_time?: number | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           item_id?: string
           matched_rule_ids?: Json
@@ -168,7 +168,7 @@ export type Database = {
           company_name: string
           created_at: string
           finished_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           last_error: string | null
           last_job_id: string | null
@@ -185,7 +185,7 @@ export type Database = {
           company_name: string
           created_at?: string
           finished_at?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           last_error?: string | null
           last_job_id?: string | null
@@ -202,7 +202,7 @@ export type Database = {
           company_name?: string
           created_at?: string
           finished_at?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           last_error?: string | null
           last_job_id?: string | null
@@ -694,7 +694,7 @@ export type Database = {
           company_id: string | null
           confirmed_at: string | null
           confirmed_by: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           parcela_numero: number
           payment_id: string
@@ -712,7 +712,7 @@ export type Database = {
           company_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           parcela_numero: number
           payment_id: string
@@ -730,7 +730,7 @@ export type Database = {
           company_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           parcela_numero?: number
           payment_id?: string
@@ -763,7 +763,7 @@ export type Database = {
           company_id: string
           created_at: string
           file_name: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           message_id: string | null
           mime_type: string
@@ -777,7 +777,7 @@ export type Database = {
           company_id: string
           created_at?: string
           file_name: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           message_id?: string | null
           mime_type: string
@@ -791,7 +791,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           file_name?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           message_id?: string | null
           mime_type?: string
@@ -841,7 +841,7 @@ export type Database = {
           data_fim: string | null
           data_inicio: string
           descricao: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           origem: string | null
           parcelas_pagas: number
@@ -860,7 +860,7 @@ export type Database = {
           data_fim?: string | null
           data_inicio?: string
           descricao: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           origem?: string | null
           parcelas_pagas?: number
@@ -879,7 +879,7 @@ export type Database = {
           data_fim?: string | null
           data_inicio?: string
           descricao?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           origem?: string | null
           parcelas_pagas?: number
@@ -918,7 +918,7 @@ export type Database = {
           created_at: string
           external_evidence_path: string | null
           external_note: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           items_snapshot: Json | null
           liquido_total: number
@@ -941,7 +941,7 @@ export type Database = {
           created_at?: string
           external_evidence_path?: string | null
           external_note?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           items_snapshot?: Json | null
           liquido_total?: number
@@ -964,7 +964,7 @@ export type Database = {
           created_at?: string
           external_evidence_path?: string | null
           external_note?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           items_snapshot?: Json | null
           liquido_total?: number
@@ -1132,7 +1132,7 @@ export type Database = {
           author_user_id: string | null
           company_id: string
           created_at: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           message: string
           read_by_company_at: string | null
@@ -1145,7 +1145,7 @@ export type Database = {
           author_user_id?: string | null
           company_id: string
           created_at?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           message: string
           read_by_company_at?: string | null
@@ -1158,7 +1158,7 @@ export type Database = {
           author_user_id?: string | null
           company_id?: string
           created_at?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           message?: string
           read_by_company_at?: string | null
@@ -1289,7 +1289,7 @@ export type Database = {
           due_day: number | null
           due_offset_days: number | null
           due_rule: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           inherit_default: boolean
           notes: string | null
@@ -1302,7 +1302,7 @@ export type Database = {
           due_day?: number | null
           due_offset_days?: number | null
           due_rule?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           inherit_default?: boolean
           notes?: string | null
@@ -1315,7 +1315,7 @@ export type Database = {
           due_day?: number | null
           due_offset_days?: number | null
           due_rule?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           inherit_default?: boolean
           notes?: string | null
@@ -1339,7 +1339,7 @@ export type Database = {
           created_at: string
           created_by_type: string
           created_by_user_id: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           invoice_id: string | null
           last_message_at: string
@@ -1358,7 +1358,7 @@ export type Database = {
           created_at?: string
           created_by_type: string
           created_by_user_id?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           invoice_id?: string | null
           last_message_at?: string
@@ -1377,7 +1377,7 @@ export type Database = {
           created_at?: string
           created_by_type?: string
           created_by_user_id?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           invoice_id?: string | null
           last_message_at?: string
@@ -1698,7 +1698,7 @@ export type Database = {
           created_count: number
           deactivated_count: number
           file_name: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           imported_at: string
           imported_by: string
@@ -1713,7 +1713,7 @@ export type Database = {
           created_count?: number
           deactivated_count?: number
           file_name?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           imported_at?: string
           imported_by: string
@@ -1728,7 +1728,7 @@ export type Database = {
           created_count?: number
           deactivated_count?: number
           file_name?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           imported_at?: string
           imported_by?: string
@@ -2052,7 +2052,7 @@ export type Database = {
           created_at: string
           doctor_id: string
           first_response_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           message: string
           payment_id: string | null
@@ -2073,7 +2073,7 @@ export type Database = {
           created_at?: string
           doctor_id: string
           first_response_at?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           message: string
           payment_id?: string | null
@@ -2094,7 +2094,7 @@ export type Database = {
           created_at?: string
           doctor_id?: string
           first_response_at?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           message?: string
           payment_id?: string | null
@@ -2207,7 +2207,7 @@ export type Database = {
           body: string | null
           created_at: string
           doctor_id: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           link_path: string | null
           payment_id: string | null
@@ -2221,7 +2221,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           doctor_id: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           link_path?: string | null
           payment_id?: string | null
@@ -2235,7 +2235,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           doctor_id?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           link_path?: string | null
           payment_id?: string | null
@@ -2476,7 +2476,7 @@ export type Database = {
           created_at: string
           filters: Json
           format: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           report_key: string
           report_label: string
@@ -2489,7 +2489,7 @@ export type Database = {
           created_at?: string
           filters?: Json
           format: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           report_key: string
           report_label: string
@@ -2502,7 +2502,7 @@ export type Database = {
           created_at?: string
           filters?: Json
           format?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           report_key?: string
           report_label?: string
@@ -2709,7 +2709,7 @@ export type Database = {
           created_at: string | null
           debt_id: string
           glosa_item_id: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
         }
         Insert: {
@@ -2718,7 +2718,7 @@ export type Database = {
           created_at?: string | null
           debt_id: string
           glosa_item_id: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
         }
         Update: {
@@ -2727,7 +2727,7 @@ export type Database = {
           created_at?: string | null
           debt_id?: string
           glosa_item_id?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
         }
         Relationships: [
@@ -2976,7 +2976,7 @@ export type Database = {
           created_at: string | null
           doctor_crm: string | null
           doctor_name: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           match_reason: string | null
           match_source: string | null
@@ -3005,7 +3005,7 @@ export type Database = {
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           match_reason?: string | null
           match_source?: string | null
@@ -3034,7 +3034,7 @@ export type Database = {
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           match_reason?: string | null
           match_source?: string | null
@@ -3142,7 +3142,7 @@ export type Database = {
           confirmed_by: string | null
           doctor_id: string | null
           glosa_debt_id: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           parcela_numero: number
           payment_id: string
@@ -3162,7 +3162,7 @@ export type Database = {
           confirmed_by?: string | null
           doctor_id?: string | null
           glosa_debt_id: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           parcela_numero: number
           payment_id: string
@@ -3182,7 +3182,7 @@ export type Database = {
           confirmed_by?: string | null
           doctor_id?: string | null
           glosa_debt_id?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           parcela_numero?: number
           payment_id?: string
@@ -3527,7 +3527,7 @@ export type Database = {
           author_type: string
           created_at: string
           file_name: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           invoice_id: string
           mime_type: string
@@ -3541,7 +3541,7 @@ export type Database = {
           author_type: string
           created_at?: string
           file_name: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           invoice_id: string
           mime_type: string
@@ -3555,7 +3555,7 @@ export type Database = {
           author_type?: string
           created_at?: string
           file_name?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           invoice_id?: string
           mime_type?: string
@@ -3590,7 +3590,7 @@ export type Database = {
           author_type: string
           created_at: string
           first_response_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           invoice_id: string
           message: string
@@ -3607,7 +3607,7 @@ export type Database = {
           author_type: string
           created_at?: string
           first_response_at?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           invoice_id: string
           message: string
@@ -3624,7 +3624,7 @@ export type Database = {
           author_type?: string
           created_at?: string
           first_response_at?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           invoice_id?: string
           message?: string
@@ -4135,7 +4135,7 @@ export type Database = {
           complemento_valor: number
           created_at: string
           doctor_id: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           notes: string | null
           payment_id: string | null
@@ -4156,7 +4156,7 @@ export type Database = {
           complemento_valor?: number
           created_at?: string
           doctor_id?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           notes?: string | null
           payment_id?: string | null
@@ -4177,7 +4177,7 @@ export type Database = {
           complemento_valor?: number
           created_at?: string
           doctor_id?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           notes?: string | null
           payment_id?: string | null
@@ -4364,7 +4364,7 @@ export type Database = {
           debounce_seconds: number
           events: Json
           first_event_at: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           kind: string
           last_event_at: string
@@ -4383,7 +4383,7 @@ export type Database = {
           debounce_seconds?: number
           events?: Json
           first_event_at?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           kind: string
           last_event_at?: string
@@ -4402,7 +4402,7 @@ export type Database = {
           debounce_seconds?: number
           events?: Json
           first_event_at?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           kind?: string
           last_event_at?: string
@@ -4451,7 +4451,7 @@ export type Database = {
           analyst_id: string
           created_at: string
           created_by: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           note: string | null
           payment_id: string
@@ -4463,7 +4463,7 @@ export type Database = {
           analyst_id: string
           created_at?: string
           created_by: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           note?: string | null
           payment_id: string
@@ -4475,7 +4475,7 @@ export type Database = {
           analyst_id?: string
           created_at?: string
           created_by?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           note?: string | null
           payment_id?: string
@@ -4844,7 +4844,7 @@ export type Database = {
       payment_director_notifications: {
         Row: {
           email_results: Json
-          hospital_id: string | null
+          hospital_id: string
           id: string
           notified_at: string
           payment_id: string
@@ -4852,7 +4852,7 @@ export type Database = {
         }
         Insert: {
           email_results?: Json
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           notified_at?: string
           payment_id: string
@@ -4860,7 +4860,7 @@ export type Database = {
         }
         Update: {
           email_results?: Json
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           notified_at?: string
           payment_id?: string
@@ -5703,7 +5703,7 @@ export type Database = {
         Row: {
           built_at: string
           context: Json
-          hospital_id: string | null
+          hospital_id: string
           is_snapshot: boolean
           job_id: string
           meta: Json
@@ -5713,7 +5713,7 @@ export type Database = {
         Insert: {
           built_at?: string
           context: Json
-          hospital_id?: string | null
+          hospital_id: string
           is_snapshot?: boolean
           job_id: string
           meta?: Json
@@ -5723,7 +5723,7 @@ export type Database = {
         Update: {
           built_at?: string
           context?: Json
-          hospital_id?: string | null
+          hospital_id?: string
           is_snapshot?: boolean
           job_id?: string
           meta?: Json
@@ -5954,7 +5954,7 @@ export type Database = {
       payment_parecer_reports: {
         Row: {
           created_at: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           imported_at: string
           imported_by: string | null
@@ -5969,7 +5969,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           imported_at?: string
           imported_by?: string | null
@@ -5984,7 +5984,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           imported_at?: string
           imported_by?: string | null
@@ -6032,7 +6032,7 @@ export type Database = {
         Row: {
           cache_key: string
           created_at: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           payment_id: string
           rows: Json
@@ -6040,7 +6040,7 @@ export type Database = {
         Insert: {
           cache_key: string
           created_at?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           payment_id: string
           rows: Json
@@ -6048,7 +6048,7 @@ export type Database = {
         Update: {
           cache_key?: string
           created_at?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           payment_id?: string
           rows?: Json
@@ -6091,7 +6091,7 @@ export type Database = {
           current_page: number
           failed_companies: Json
           finished_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           payment_id: string
           processed_companies: number
@@ -6107,7 +6107,7 @@ export type Database = {
           current_page?: number
           failed_companies?: Json
           finished_at?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           payment_id: string
           processed_companies?: number
@@ -6123,7 +6123,7 @@ export type Database = {
           current_page?: number
           failed_companies?: Json
           finished_at?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           payment_id?: string
           processed_companies?: number
@@ -6203,7 +6203,7 @@ export type Database = {
           company_group_id: string | null
           created_at: string
           first_response_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           message: string
           parent_id: string | null
@@ -6221,7 +6221,7 @@ export type Database = {
           company_group_id?: string | null
           created_at?: string
           first_response_at?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           message: string
           parent_id?: string | null
@@ -6239,7 +6239,7 @@ export type Database = {
           company_group_id?: string | null
           created_at?: string
           first_response_at?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           message?: string
           parent_id?: string | null
@@ -6379,7 +6379,7 @@ export type Database = {
         Row: {
           changed_at: string
           changed_by: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           payment_id: string
           status_from: Database["public"]["Enums"]["payment_status"] | null
@@ -6388,7 +6388,7 @@ export type Database = {
         Insert: {
           changed_at?: string
           changed_by?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           payment_id: string
           status_from?: Database["public"]["Enums"]["payment_status"] | null
@@ -6397,7 +6397,7 @@ export type Database = {
         Update: {
           changed_at?: string
           changed_by?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           payment_id?: string
           status_from?: Database["public"]["Enums"]["payment_status"] | null
@@ -6517,7 +6517,7 @@ export type Database = {
           doctor_name: string | null
           doctor_role: string | null
           gross_amount: number
-          hospital_id: string | null
+          hospital_id: string
           id: string
           ignored_reason: string | null
           match_score: number
@@ -6556,7 +6556,7 @@ export type Database = {
           doctor_name?: string | null
           doctor_role?: string | null
           gross_amount?: number
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           ignored_reason?: string | null
           match_score?: number
@@ -6595,7 +6595,7 @@ export type Database = {
           doctor_name?: string | null
           doctor_role?: string | null
           gross_amount?: number
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           ignored_reason?: string | null
           match_score?: number
@@ -7304,7 +7304,7 @@ export type Database = {
           created_by: string | null
           deductions_applied: Json
           error_detail: Json | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           invalidated_at: string | null
           invalidated_reason: string | null
@@ -7328,7 +7328,7 @@ export type Database = {
           created_by?: string | null
           deductions_applied?: Json
           error_detail?: Json | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           invalidated_at?: string | null
           invalidated_reason?: string | null
@@ -7352,7 +7352,7 @@ export type Database = {
           created_by?: string | null
           deductions_applied?: Json
           error_detail?: Json | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           invalidated_at?: string | null
           invalidated_reason?: string | null
@@ -7393,7 +7393,7 @@ export type Database = {
           competence_month: string
           created_at: string
           created_by: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           observacao: string | null
           pool_deduction_id: string
@@ -7412,7 +7412,7 @@ export type Database = {
           competence_month: string
           created_at?: string
           created_by?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           observacao?: string | null
           pool_deduction_id: string
@@ -7431,7 +7431,7 @@ export type Database = {
           competence_month?: string
           created_at?: string
           created_by?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           observacao?: string | null
           pool_deduction_id?: string
@@ -7469,7 +7469,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           descricao: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           obrigatoria: boolean
           ordem: number
@@ -7483,7 +7483,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           descricao: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           obrigatoria?: boolean
           ordem?: number
@@ -7497,7 +7497,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           descricao?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           obrigatoria?: boolean
           ordem?: number
@@ -7535,7 +7535,7 @@ export type Database = {
         Row: {
           competence_month: string
           created_at: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           payment_item_id: string
           pool_id: string
@@ -7544,7 +7544,7 @@ export type Database = {
         Insert: {
           competence_month: string
           created_at?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           payment_item_id: string
           pool_id: string
@@ -7553,7 +7553,7 @@ export type Database = {
         Update: {
           competence_month?: string
           created_at?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           payment_item_id?: string
           pool_id?: string
@@ -7601,7 +7601,7 @@ export type Database = {
         Row: {
           company_id: string | null
           created_at: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           ordem_exibicao: number
           participant_type: string
@@ -7611,7 +7611,7 @@ export type Database = {
         Insert: {
           company_id?: string | null
           created_at?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           ordem_exibicao?: number
           participant_type?: string
@@ -7621,7 +7621,7 @@ export type Database = {
         Update: {
           company_id?: string | null
           created_at?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           ordem_exibicao?: number
           participant_type?: string
@@ -7812,7 +7812,7 @@ export type Database = {
           doctor_name: string | null
           exclusion_detail: string | null
           exclusion_reason: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           kind: string
           patient_name: string | null
@@ -7832,7 +7832,7 @@ export type Database = {
           doctor_name?: string | null
           exclusion_detail?: string | null
           exclusion_reason?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           kind: string
           patient_name?: string | null
@@ -7852,7 +7852,7 @@ export type Database = {
           doctor_name?: string | null
           exclusion_detail?: string | null
           exclusion_reason?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           kind?: string
           patient_name?: string | null
@@ -7910,7 +7910,7 @@ export type Database = {
           confirmed_by_name: string | null
           created_at: string
           expires_at: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           notes: string | null
           payment_id: string
@@ -7926,7 +7926,7 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           notes?: string | null
           payment_id: string
@@ -7942,7 +7942,7 @@ export type Database = {
           confirmed_by_name?: string | null
           created_at?: string
           expires_at?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           notes?: string | null
           payment_id?: string
@@ -8177,7 +8177,7 @@ export type Database = {
           created_at: string
           diferenca_regra: number | null
           doctor_name: string | null
-          hospital_id: string | null
+          hospital_id: string
           ia_obs: string | null
           id: string
           match_diagnostics: Json | null
@@ -8211,7 +8211,7 @@ export type Database = {
           created_at?: string
           diferenca_regra?: number | null
           doctor_name?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           ia_obs?: string | null
           id?: string
           match_diagnostics?: Json | null
@@ -8245,7 +8245,7 @@ export type Database = {
           created_at?: string
           diferenca_regra?: number | null
           doctor_name?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           ia_obs?: string | null
           id?: string
           match_diagnostics?: Json | null
@@ -8344,7 +8344,7 @@ export type Database = {
           created_by: string | null
           divergencia_valor: number
           file_name: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           payment_id: string
           risco_mais: number
@@ -8361,7 +8361,7 @@ export type Database = {
           created_by?: string | null
           divergencia_valor?: number
           file_name?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           payment_id: string
           risco_mais?: number
@@ -8378,7 +8378,7 @@ export type Database = {
           created_by?: string | null
           divergencia_valor?: number
           file_name?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           payment_id?: string
           risco_mais?: number
@@ -9767,7 +9767,7 @@ export type Database = {
           attendance_number: string
           created_at: string
           doctor_id: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           item_id: string | null
           justification: string | null
@@ -9796,7 +9796,7 @@ export type Database = {
           attendance_number: string
           created_at?: string
           doctor_id?: string | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           item_id?: string | null
           justification?: string | null
@@ -9825,7 +9825,7 @@ export type Database = {
           attendance_number?: string
           created_at?: string
           doctor_id?: string | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           item_id?: string | null
           justification?: string | null
@@ -10223,7 +10223,7 @@ export type Database = {
           convenio_slug: string | null
           created_at: string
           def_key: string
-          hospital_id: string | null
+          hospital_id: string
           id: string
           note: string | null
           priority: number | null
@@ -10237,7 +10237,7 @@ export type Database = {
           convenio_slug?: string | null
           created_at?: string
           def_key: string
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           note?: string | null
           priority?: number | null
@@ -10251,7 +10251,7 @@ export type Database = {
           convenio_slug?: string | null
           created_at?: string
           def_key?: string
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           note?: string | null
           priority?: number | null
@@ -11259,7 +11259,7 @@ export type Database = {
           company_name: string
           created_at: string
           finished_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           last_error: string | null
           last_job_id: string | null
@@ -12018,7 +12018,7 @@ export type Database = {
           current_page: number
           failed_companies: Json
           finished_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           payment_id: string
           processed_companies: number
@@ -12218,7 +12218,7 @@ export type Database = {
           current_page: number
           failed_companies: Json
           finished_at: string | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           payment_id: string
           processed_companies: number
