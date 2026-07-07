@@ -50,8 +50,33 @@ serve(async (req) => {
           }),
         );
       }
+      // Resumo de piso mínimo aplicado nos itens deste pagamento — usado no
+      // portal para explicar ao médico quando o repasse foi puxado pelo piso.
+      let piso_summary: {
+        items_com_piso: number;
+        items_piso_aplicado: number;
+        total_piso_aplicado: number;
+      } | null = null;
+      if (invoice.payment_id) {
+        const { data: pisoRows } = await supabase
+          .from("payment_items")
+          .select("piso_aplicado_valor, piso_metodo_vencedor")
+          .eq("payment_id", invoice.payment_id)
+          .not("piso_aplicado_valor", "is", null);
+        if (pisoRows && pisoRows.length > 0) {
+          const aplicados = pisoRows.filter((r: any) => r.piso_metodo_vencedor === "piso");
+          piso_summary = {
+            items_com_piso: pisoRows.length,
+            items_piso_aplicado: aplicados.length,
+            total_piso_aplicado: aplicados.reduce(
+              (s: number, r: any) => s + Number(r.piso_aplicado_valor ?? 0),
+              0,
+            ),
+          };
+        }
+      }
       return new Response(
-        JSON.stringify({ invoice, payment, questions: questions ?? [], attachments }),
+        JSON.stringify({ invoice, payment, questions: questions ?? [], attachments, piso_summary }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
