@@ -18,6 +18,8 @@
 // =============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { callFn as callFnBase, type CallFnResult } from "./callFn.ts";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -200,8 +202,12 @@ declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void } | undefi
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
     const { payment_id, sources: requestedSources, force } = await req.json();
+
     if (!payment_id) {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

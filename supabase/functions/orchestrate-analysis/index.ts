@@ -4,6 +4,7 @@
 // Substitui a orquestração inline do dispatch-payment-analysis (que estourava
 // timeout em lotes com 100+ empresas).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,11 @@ const runInBackground = (promise: Promise<unknown>, label: string) => {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
+
     const body = await req.json();
     const {
       job_id,

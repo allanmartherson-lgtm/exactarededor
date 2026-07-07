@@ -5,6 +5,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+
 import {
   analyzePaymentItems,
   extendSectorMap,
@@ -75,7 +77,10 @@ function rawSectorFromRawData(raw: unknown): string | null {
 // comportamento síncrono original.
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
   const bodyText = await req.text();
+
   let asyncFlag = false;
   try { asyncFlag = JSON.parse(bodyText)?._async === true; } catch { /* body inválido — segue síncrono e deixa o handler tratar */ }
   const buildReq = () => new Request(req.url, { method: req.method, headers: req.headers, body: bodyText });
