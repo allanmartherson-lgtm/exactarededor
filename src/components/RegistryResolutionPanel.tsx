@@ -17,6 +17,7 @@ import {
   type ConvenioRegistry,
   type SectorRegistry,
 } from "@/lib/registryLookup";
+import { applyConvenioStems } from "@/lib/convenioStems";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 
@@ -335,6 +336,35 @@ function ResolutionRow({
       )}
 
 
+      {(() => {
+        // Sugestão automática via stems hardcoded (Sul América, Bradesco, Amil, CNU).
+        // Reaproveita as mesmas regras do motor de análise para que o painel
+        // ofereça 1-clique de vínculo em vez de o analista precisar abrir o
+        // cadastro para criar o alias manualmente.
+        if (group.kind !== "convenio") return null;
+        const stemSlug = applyConvenioStems(group.raw);
+        if (!stemSlug) return null;
+        const target = convenioReg.bySlug.get(stemSlug);
+        if (!target) return null; // slug canônico não existe no cadastro deste hospital
+        return (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1.5 text-sm">
+            <div className="min-w-0">
+              <span className="text-xs font-medium text-emerald-700">Sugerido:</span>{" "}
+              <span className="truncate">{target.name}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={busy}
+              onClick={() => linkAsAlias(target.slug)}
+            >
+              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <><LinkIcon className="h-3 w-3 mr-1" />Vincular</>}
+            </Button>
+          </div>
+        );
+      })()}
+
       <div className="flex items-center gap-2">
         <Input
           placeholder={`Buscar ${KIND_LABEL[group.kind].toLowerCase()} no cadastro...`}
@@ -343,6 +373,7 @@ function ResolutionRow({
           className="h-8"
         />
       </div>
+
 
       {candidates.length > 0 && (
         <div className="space-y-1">
