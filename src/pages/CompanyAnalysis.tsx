@@ -2079,7 +2079,13 @@ export default function CompanyAnalysis() {
 
 
   return (
+    <HospitalScopedGuard
+      recordHospitalId={(payment as { hospital_id?: string | null } | null)?.hospital_id ?? null}
+      entityLabel="pagamento"
+      fallbackHub="/pagamentos"
+    >
     <div className="space-y-4 pb-32 overflow-x-hidden max-w-full">
+
       {isConfeccao && (
         <div
           className="sticky top-0 z-40 -mx-3 md:-mx-6 mb-2 border-b-2 border-amber-500/70 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 backdrop-blur-sm"

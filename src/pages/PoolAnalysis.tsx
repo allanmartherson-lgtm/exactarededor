@@ -128,7 +128,13 @@ export default function PoolAnalysis() {
   }
 
   return (
+    <HospitalScopedGuard
+      recordHospitalId={(payment as { hospital_id?: string | null } | null)?.hospital_id ?? null}
+      entityLabel="pool"
+      fallbackHub="/pagamentos"
+    >
     <div className="p-4 md:p-6 space-y-4 max-w-[1400px] mx-auto">
+
       <PageHeader
         title={`Lote em pool · ${pool?.nome ?? "Pool"}`}
         description="Itens são coletivos do pool. O rateio financeiro é distribuído entre as PJs participantes."
