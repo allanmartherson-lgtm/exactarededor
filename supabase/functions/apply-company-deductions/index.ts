@@ -231,8 +231,9 @@ Deno.serve(async (req) => {
 
       const existingDebtIds = new Set((existingGpa ?? []).map((r: any) => r.glosa_debt_id));
 
-      for (const debt of debts ?? []) {
-        if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; continue; }
+      const glosaResult = await runInBatches(debts ?? [], 5, async (debt: any) => {
+       try {
+        if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; return; }
 
         // Resolve doctor → PJs vigentes na competência do pagamento.
         // Vínculos sem start_date contam como "sempre vigentes" (fallback retroativo).
@@ -256,9 +257,9 @@ Deno.serve(async (req) => {
             applied_by: user_id,
           });
           summary.glosas.sem_pj++;
-          continue;
+          return;
         }
-        if (!matchEmpresa) continue; // glosa não pertence a esta PJ
+        if (!matchEmpresa) return; // glosa não pertence a esta PJ
 
         // Se médico tem múltiplas PJs vinculadas E todas têm produção no lote → ambíguo
         if (vinculadas.length > 1) {
@@ -276,7 +277,7 @@ Deno.serve(async (req) => {
               applied_by: user_id,
             });
             summary.glosas.ambiguous++;
-            continue;
+            return;
           }
         }
 
@@ -286,7 +287,7 @@ Deno.serve(async (req) => {
           .from("glosa_payment_applications").select("*", { count: "exact", head: true })
           .eq("glosa_debt_id", debt.id).eq("status", "confirmado");
         const parcelaNumero = (aplicadas ?? 0) + 1;
-        if (parcelaNumero > parcelas) continue;
+        if (parcelaNumero > parcelas) return;
         const parcelaValor = Number(debt.total_debt) / parcelas;
 
         await supabase.from("glosa_payment_applications").insert({
@@ -296,7 +297,12 @@ Deno.serve(async (req) => {
         });
         summary.glosas.proposed++;
         summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaValor, parcela: `${parcelaNumero}/${parcelas}` });
-      }
+       } catch (err) {
+        console.error(`[apply-company-deductions] glosa ${debt?.id} falhou`, err);
+        throw err;
+       }
+      });
+      if (glosaResult.errors.length) summary.glosas.errors = glosaResult.errors.length;
     }
 
     return new Response(JSON.stringify({ ok: true, summary }), {
