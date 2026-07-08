@@ -8,7 +8,12 @@
  * NUNCA descarta silenciosamente; só APONTA suspeitas e exige decisão.
  */
 
-const FOOTER_TEXT_REGEX = /\b(total(?:\s+geral)?|subtotal|valor\s+(?:para\s+)?emiss[aã]o|nota\s+fiscal|nf\b|soma|grand\s+total)\b/i;
+const FOOTER_TEXT_REGEX = /\b(total\s+geral|subtotal|valor\s+(?:para\s+)?emiss[aã]o|nota\s+fiscal|grand\s+total)\b/i;
+// "total" sozinho é ambíguo (ex.: "Sinovectomia total", "Prótese total de joelho"),
+// então só conta como rodapé se aparecer no INÍCIO da célula ou isolado ("Total:", "TOTAL").
+const FOOTER_TOTAL_STANDALONE = /^\s*(?:sub)?total(?:\s+geral)?\s*[:\-]?\s*$|^\s*(?:sub)?total\b(?=\s*(?:r\$|\d))/i;
+// Colunas cujo texto NUNCA deve disparar footer-text (contêm nomes de procedimento).
+const PROCEDURE_TEXT_HEADERS = /(procedimento|descric|descrição|desc\.|nome|item|servico|serviço|exame|cirurgia)/i;
 
 export type SuspicionReason =
   | "footer-text"          // alguma célula bate em /total|nota fiscal|.../
@@ -62,16 +67,21 @@ export function detectSuspiciousRows(
     const raw = r.raw_data ?? {};
     const value = Math.abs(Number(r.gross_amount ?? 0)) || Math.abs(Number(r.procedure_amount ?? 0));
 
-    // 1) Texto de rodapé em qualquer célula
+    // 1) Texto de rodapé em qualquer célula — ignora colunas de procedimento
+    //    e exige que "total" apareça isolado, não dentro de nomes clínicos.
     let footerMatch = false;
-    for (const v of Object.values(raw)) {
+    for (const [header, v] of Object.entries(raw)) {
+      if (PROCEDURE_TEXT_HEADERS.test(String(header))) continue;
       const s = stringifyCell(v);
-      if (s && FOOTER_TEXT_REGEX.test(s)) { footerMatch = true; break; }
+      if (!s) continue;
+      if (FOOTER_TEXT_REGEX.test(s) || FOOTER_TOTAL_STANDALONE.test(s)) { footerMatch = true; break; }
     }
-    if (footerMatch) reasons.push("footer-text");
 
     // 2) Tem valor mas não tem nenhuma chave operacional
     const noKeys = empty(r.doctor_name) && empty(r.attendance_number) && empty(r.procedure_code);
+    // Só marca footer-text se a linha também não tem chaves operacionais —
+    // linha real de item (com médico+atendimento+TUSS) nunca é totalizador.
+    if (footerMatch && noKeys) reasons.push("footer-text");
     if (noKeys && value > 0) reasons.push("value-without-key");
 
     // 3) Linha de cauda com pouquíssimas células preenchidas e valor alto
