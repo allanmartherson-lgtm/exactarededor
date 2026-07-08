@@ -126,6 +126,7 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
     return () => {
       mounted = false;
       if (pollTimer) clearInterval(pollTimer);
+      if (tickTimer) clearInterval(tickTimer);
       supabase.removeChannel(channel);
     };
   }, [paymentId]);
@@ -136,6 +137,20 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
   const pct = job.total_companies > 0 ? Math.round((job.processed_companies / job.total_companies) * 100) : 0;
   const failed = job.failed_companies?.length ?? 0;
   const isSubsetJob = lotStats.companies > job.total_companies;
+  const stalledMin = stalledSince ? Math.max(1, Math.round((nowTick - stalledSince) / 60000)) : 0;
+  const isStalled = stalledMin > 0;
+
+  const forceReload = async () => {
+    setReloading(true);
+    try {
+      // Recarrega dados do lote inteiro; útil quando o job já terminou
+      // no banco mas o realtime/polling não capturou a transição.
+      window.location.reload();
+    } finally {
+      setReloading(false);
+    }
+  };
+
 
   const retryFailed = async () => {
     if (!failed) return;
