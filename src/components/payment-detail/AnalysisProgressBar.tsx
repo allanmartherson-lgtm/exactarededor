@@ -53,7 +53,7 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
       ]);
       if (!mounted) return;
       setJob((prev) => {
-        const next = data as ProcessingJob | null;
+        const next = data as unknown as ProcessingJob | null;
         // Toast quando o polling detecta transição (sem realtime).
         if (prev && prev.status === "em_andamento" && next && next.status !== "em_andamento") {
           const successCount = next.processed_companies - (next.failed_companies?.length ?? 0);
