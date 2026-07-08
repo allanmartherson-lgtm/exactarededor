@@ -67,7 +67,7 @@ export function PaymentModeSelectModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-[min(95vw,960px)] sm:!max-w-[min(95vw,960px)] max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[min(95vw,960px)] sm:!max-w-[min(95vw,960px)] p-6 sm:p-8">
         {step === "mode" ? (
           <>
             <DialogHeader className="space-y-2">
