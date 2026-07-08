@@ -472,8 +472,30 @@ const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: bool
     const iso = new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh || 0), Number(mi || 0))).toISOString();
     return { iso, hasTime };
   }
+  // ISO curto yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return { iso: `${s}T15:00:00.000Z`, hasTime: false };
+  }
+  // String puramente numérica = serial Excel (planilhas lidas preservando texto).
+  // Sem esta guarda, `new Date("46165")` vira ano 46165 e o Postgres rejeita
+  // com "time zone displacement out of range" ao gravar procedure_date.
+  if (/^\d+(?:\.\d+)?$/.test(s)) {
+    const n = Number(s);
+    if (Number.isFinite(n) && n > 0 && n < 200000) {
+      const d = XLSX.SSF.parse_date_code(n);
+      if (d) {
+        const hasTime = !!(d.H || d.M || d.S);
+        const iso = new Date(Date.UTC(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, Math.floor(d.S || 0))).toISOString();
+        return { iso, hasTime };
+      }
+    }
+    return { iso: null, hasTime: false };
+  }
   const d = new Date(s);
   if (isNaN(d.getTime())) return { iso: null, hasTime: false };
+  // Rejeita anos fora do intervalo plausível (mesma proteção do parsePaymentFile).
+  const y = d.getUTCFullYear();
+  if (y < 1970 || y > 2100) return { iso: null, hasTime: false };
   // Heurística para strings ISO/livres: se mencionar 'T' com hora ≠ 00:00, considera com hora.
   const hasTime = /T\d{2}:\d{2}/.test(s) && !/T00:00(?::00)?(?:\.000)?Z?$/.test(s);
   return { iso: d.toISOString(), hasTime };
