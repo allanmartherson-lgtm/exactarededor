@@ -93,6 +93,8 @@ export default function Pendencias() {
     setSearchParams(next, { replace: true });
   };
   const { user } = useAuth();
+  const { hospital, switching: hospitalSwitching } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [items, setItems] = useState<Pendencia[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
