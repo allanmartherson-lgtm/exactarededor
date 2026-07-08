@@ -216,6 +216,14 @@ const loadPersistedPaymentsState = (): PersistedPaymentsState => {
 
 const Payments = () => {
   const { roles, user } = useAuth();
+  // Hospital ativo — CRÍTICO no multi-tenant: sem depender daqui, a listagem
+  // continuava exibindo dados do hospital anterior após a troca no header,
+  // porque a RPC `list_payments` filtra por `current_active_hospital()` mas o
+  // load() não era re-disparado. Sintoma: usuário troca de DF Star para Santa
+  // Helena/Luzia e continua vendo os lotes do DF Star (grave — analista pode
+  // agir em lote da unidade errada).
+  const { hospital, switching: hospitalSwitching } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const isAnalista = roles.includes("analista") || roles.includes("admin");
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
   const isAdmin = roles.includes("admin");
