@@ -55,9 +55,9 @@ const readPage = (name: string) =>
  * Só considera colchetes no NÍVEL dos argumentos do useEffect (paren depth == 1),
  * ignorando array literals do corpo do callback.
  */
-function extractUseEffectDeps(source: string): string[] {
+function extractHookDeps(source: string, hookName: string): string[] {
   const deps: string[] = [];
-  const re = /useEffect\s*\(/g;
+  const re = new RegExp(`\\b${hookName}\\s*\\(`, "g");
   let m: RegExpExecArray | null;
   while ((m = re.exec(source)) !== null) {
     let i = m.index + m[0].length;
@@ -108,17 +108,23 @@ describe("Reatividade hospital-scope: páginas hub e relatórios", () => {
         );
       });
 
-      it("tem pelo menos um useEffect com o hospital ativo nas dependências", () => {
-        const depsList = extractUseEffectDeps(source);
+      it("tem pelo menos um useEffect/useCallback/useMemo com o hospital ativo nas dependências", () => {
+        // Aceita reatividade via useEffect direto OU via callback/memo com dep
+        // no hospital que é depois consumido por um useEffect (padrão do Dashboard).
+        const effectDeps = extractHookDeps(source, "useEffect");
+        const callbackDeps = extractHookDeps(source, "useCallback");
+        const memoDeps = extractHookDeps(source, "useMemo");
+        const all = [...effectDeps, ...callbackDeps, ...memoDeps];
+
         expect(
-          depsList.length,
+          effectDeps.length,
           `${page}: nenhum useEffect encontrado — página não recarrega ao trocar unidade`,
         ).toBeGreaterThan(0);
 
-        const reactive = depsList.some((d) => HOSPITAL_DEP_RE.test(d));
+        const reactive = all.some((d) => HOSPITAL_DEP_RE.test(d));
         expect(
           reactive,
-          `${page}: nenhum useEffect depende do hospital ativo — ao trocar unidade a tela mostrará dados do hospital anterior. Deps encontradas: ${JSON.stringify(depsList)}`,
+          `${page}: nenhum useEffect/useCallback/useMemo depende do hospital ativo — ao trocar unidade a tela mostrará dados do hospital anterior. Effect deps: ${JSON.stringify(effectDeps)}`,
         ).toBe(true);
       });
     });
