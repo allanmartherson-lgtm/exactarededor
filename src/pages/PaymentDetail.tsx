@@ -3544,8 +3544,8 @@ const PaymentDetail = () => {
                   </div>
                   <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
                     {reimportConfirm?.map((f, i) => (
-                      <li key={i} className="flex items-center justify-between gap-2 group">
-                        <span className="truncate flex-1">• {f.name}</span>
+                      <li key={i} className="flex items-center justify-between gap-2 group min-w-0">
+                        <span className="truncate flex-1 min-w-0" title={f.name}>• {f.name}</span>
                         <button type="button" onClick={() => setReimportConfirm((prev) => prev?.filter((_, idx) => idx !== i) || null)} className="text-muted-foreground hover:text-destructive p-0.5">
                           <X className="h-3 w-3" />
                         </button>
