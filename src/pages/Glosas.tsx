@@ -178,6 +178,7 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
 
 export default function Glosas() {
   const { user } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [batches, setBatches] = useState<any[]>([]);
