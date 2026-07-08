@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency, type PaymentStatus } from "@/lib/status";
 import {
   Activity, Clock, RotateCcw, CheckCircle2, Receipt, AlertTriangle,
@@ -43,6 +44,7 @@ const stageBuckets: { label: string; statuses: PaymentStatus[]; tone: string }[]
 
 const Kpis = () => {
   const { user, hasRole } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentLite[]>([]);
@@ -66,6 +68,13 @@ const Kpis = () => {
 
   useEffect(() => {
     document.title = "KPIs | Exacta";
+    // KPIs somam pagamentos/observações — todos hospital-scoped via RLS.
+    if (!activeHospitalId) {
+      setPayments([]); setPaymentsPrev([]); setObs([]); setObsPrev([]);
+      setHistory([]); setHistoryPrev([]); setInvoices([]); setInvoicesPrev([]);
+      setHistoricalIds(new Set()); setHistoricalCount(0); setLoading(false);
+      return;
+    }
     const { sinceCurr, sincePrev, untilPrev } = buildWindows(range);
     setLoading(true);
 
@@ -95,7 +104,7 @@ const Kpis = () => {
       setHistoricalCount(ids.size);
       setLoading(false);
     });
-  }, [range]);
+  }, [range, activeHospitalId]);
 
   const filterByRole = (list: PaymentLite[]) => {
     const base = list.filter((p) => !historicalIds.has(p.id));

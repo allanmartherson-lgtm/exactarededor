@@ -81,7 +81,8 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
-  const { hospital } = useHospital();
+  const { hospital, switching: hospitalSwitching } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [pools, setPools] = useState<Pool[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,7 +116,13 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     setLoading(false);
   };
 
-  useEffect(() => { loadAll(); }, []);
+  // Recarrega quando o hospital ativo muda — evita listar pools de outra unidade.
+  useEffect(() => {
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) { setPools([]); setCompanies([]); setLoading(false); return; }
+    void loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId, hospitalSwitching]);
 
   const openPool = async (pool: Pool | null) => {
     setEditing(pool ? { ...pool, filtros_captura: pool.filtros_captura ?? {} } : {

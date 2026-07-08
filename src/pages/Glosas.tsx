@@ -5,6 +5,7 @@ import PotentialDebtsPanel from "@/components/glosas/PotentialDebtsPanel";
 import GlosaDebtAuditLog from "@/components/glosas/GlosaDebtAuditLog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Upload, CheckCircle2, AlertTriangle, XCircle, RefreshCw, ChevronDown, ChevronRight, FileText } from "lucide-react";
@@ -177,6 +178,7 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
 
 export default function Glosas() {
   const { user } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [batches, setBatches] = useState<any[]>([]);
@@ -221,9 +223,11 @@ export default function Glosas() {
 
   useEffect(() => {
     document.title = "Glosas | Exacta";
+    // Reage à troca de hospital — glosa_batches/debts são hospital-scoped via RLS.
+    if (!activeHospitalId) { setBatches([]); setDebts([]); setLoading(false); return; }
     loadBatches();
     loadDebts();
-  }, [loadBatches, loadDebts]);
+  }, [loadBatches, loadDebts, activeHospitalId]);
 
   const processFile = async (file: File) => {
     const buf = await file.arrayBuffer();

@@ -15,6 +15,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -87,6 +88,7 @@ const brl = (n: number) =>
 export default function CreditosDebitos() {
   // D3.e: CFA filtra por payment_model do lote.
   const { list: paymentModels } = usePaymentTypes({ onlyActive: true, origin: "payment_model" });
+  const activeHospitalId = useActiveHospitalId();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [glosaDebts, setGlosaDebts] = useState<GlosaDebt[]>([]);
@@ -160,7 +162,13 @@ export default function CreditosDebitos() {
     setLoading(false);
   };
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    if (!activeHospitalId) {
+      setCompanies([]); setAdjustments([]); setGlosaDebts([]); setLoading(false); return;
+    }
+    void loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const openAdj = (a?: Adjustment) => {
     setEditingAdj(a ? { ...a } : {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ const fmtMoney = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
 
 export default function FinancialJournal() {
+  const activeHospitalId = useActiveHospitalId();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterTipo, setFilterTipo] = useState("");
@@ -51,9 +53,11 @@ export default function FinancialJournal() {
   };
 
   useEffect(() => {
+    // Livro contábil é hospital-scoped via RLS — precisa recarregar ao trocar unidade.
+    if (!activeHospitalId) { setEntries([]); setLoading(false); return; }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeHospitalId]);
 
   const totalCredito = entries.filter((e) => e.sinal === 1).reduce((s, e) => s + Number(e.valor), 0);
   const totalDebito = entries.filter((e) => e.sinal === -1).reduce((s, e) => s + Number(e.valor), 0);

@@ -13,6 +13,7 @@ import {
   FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 
 /**
@@ -110,6 +111,7 @@ function MiniBars({ values, color = "hsl(var(--primary))" }: { values: number[];
 }
 
 export default function BiPagamentos() {
+  const activeHospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -117,6 +119,7 @@ export default function BiPagamentos() {
 
   useEffect(() => {
     document.title = "BI · Pagamentos | Exacta";
+    if (!activeHospitalId) { setRows([]); setLoading(false); return; }
     (async () => {
       try {
         // 1) últimos pagamentos
@@ -189,7 +192,8 @@ export default function BiPagamentos() {
         setLoading(false);
       }
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/status";
 import { ArrowRight, TrendingDown, Wallet, type LucideIcon } from "lucide-react";
@@ -99,6 +100,7 @@ function fmtDate(dateStr: string | null | undefined): string {
 // ── Página principal ───────────────────────────────────────────────
 
 export default function AgingRecebiveis() {
+  const activeHospitalId = useActiveHospitalId();
   const [mode, setMode] = useState<AgingMode>("competencia");
   const [rows, setRows] = useState<AgingRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,8 +160,10 @@ export default function AgingRecebiveis() {
 
   useEffect(() => {
     document.title = "Aging de Contas a Pagar | Exacta";
+    // Reage à troca de hospital: aging olha payment_company_groups, hospital-scoped via RLS.
+    if (!activeHospitalId) { setRows([]); setLoading(false); return; }
     load();
-  }, [load]);
+  }, [load, activeHospitalId]);
 
   const enriched = useMemo<AgingRow[]>(() => {
     return rows.map((r: any) => {

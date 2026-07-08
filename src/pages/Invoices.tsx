@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, formatDate, type InvoiceStatus } from "@/lib/status";
@@ -76,6 +77,7 @@ const ageColorClass = (days: number | null) => {
 
 const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user, hasRole } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
   const [openQuestions, setOpenQuestions] = useState<InvoiceQuestion[]>([]);
@@ -148,8 +150,10 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   useEffect(() => {
     document.title = "Notas Fiscais | Exacta";
+    if (!activeHospitalId) { setRows([]); return; }
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const openThread = async (inv: InvoiceRow) => {
     setOpenInvoice(inv);
