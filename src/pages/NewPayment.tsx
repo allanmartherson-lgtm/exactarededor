@@ -2943,6 +2943,17 @@ const NewPayment = () => {
 
     const matchedItems: ReturnType<typeof buildItemRow>[] = [];
     const unmatchedItems: ReturnType<typeof buildUnmatchedRow>[] = [];
+    // Snapshot dos valores BRUTOS (pré-normalização) alinhado 1:1 com matchedItems.
+    // Necessário para o auto-aprendizado de aliases: `it.sector` guarda o SLUG já
+    // canonicalizado (bug histórico), então `sector_raw: it.sector` no learn nunca
+    // diferia do canônico e nenhum alias de setor era criado. Também mantemos aqui
+    // doctor_name/agreement_text para blindar contra futuras normalizações in-place.
+    // Sintoma observado: Santa Luzia/Helena com 0-1 aliases auto após várias semanas.
+    const matchedRawForLearn: Array<{
+      doctor_name: string | null;
+      agreement_text: string | null;
+      sector_raw: string | null;
+    }> = [];
     // Itera direto sobre allRows usando source_bucket_index — evita drift de offset
     // quando suspiciousDecisions filtram linhas (causa raiz de lotes presos em
     // em_analise_ia: buildItemRow recebia undefined e o try/catch externo
@@ -2956,7 +2967,18 @@ const NewPayment = () => {
       if (!b) { orphanRows.push(idx); continue; }
       const isUnmatched = rowWillBeUnmatched(r, b);
       if (isUnmatched) unmatchedItems.push(buildUnmatchedRow(r, b));
-      else matchedItems.push(buildItemRow(r, b));
+      else {
+        matchedItems.push(buildItemRow(r, b));
+        // Mesmo cálculo de sRawForLookup usado em buildItemRow, preservado ANTES
+        // da normalização para slug — o alias precisa do texto original do arquivo.
+        const rowSectorRaw = r.sector?.trim() || null;
+        const fallbackSector = b?.sectorMapping?.trim() || null;
+        matchedRawForLearn.push({
+          doctor_name: r.doctor_name ?? null,
+          agreement_text: r.agreement_text ?? null,
+          sector_raw: rowSectorRaw || fallbackSector,
+        });
+      }
     }
     if (orphanRows.length > 0) {
       setSubmitting(false);
