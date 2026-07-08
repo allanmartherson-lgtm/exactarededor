@@ -454,11 +454,25 @@ const excelSerialToParts = (
   };
 };
 
+/**
+ * Formata data-only como `YYYY-MM-DDT12:00:00.000Z`. Meio-dia UTC garante
+ * que a data-calendário seja idêntica em qualquer fuso de -11h a +11h,
+ * evitando que "15/03" salvo vire "14/03" ao ser exibido em BRT (-03).
+ */
+const dateOnlyIso = (y: number, m: number, d: number): string => {
+  const mm = String(m).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}T12:00:00.000Z`;
+};
+
 export const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: boolean } => {
   if (v == null || v === "") return { iso: null, hasTime: false };
   if (v instanceof Date) {
+    if (isNaN(v.getTime())) return { iso: null, hasTime: false };
     const hasTime = v.getUTCHours() + v.getUTCMinutes() + v.getUTCSeconds() > 0;
-    return { iso: v.toISOString(), hasTime };
+    if (hasTime) return { iso: v.toISOString(), hasTime: true };
+    // Data-only: normaliza para meio-dia UTC para evitar deslocamento por timezone.
+    return { iso: dateOnlyIso(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate()), hasTime: false };
   }
   if (typeof v === "number") {
     // Tenta usar XLSX.SSF se disponível; senão, conversor próprio.
@@ -472,7 +486,7 @@ export const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTim
           hasTime: true,
         };
       }
-      return { iso: new Date(Date.UTC(d.y, d.m - 1, d.d, 15, 0, 0)).toISOString(), hasTime: false };
+      return { iso: dateOnlyIso(d.y, d.m, d.d), hasTime: false };
     }
   }
 
@@ -485,10 +499,11 @@ export const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTim
     if (hasTime) {
       return { iso: new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh), Number(mi || 0))).toISOString(), hasTime: true };
     }
-    return { iso: new Date(Date.UTC(year, Number(mm) - 1, Number(dd), 15, 0, 0)).toISOString(), hasTime: false };
+    return { iso: dateOnlyIso(year, Number(mm), Number(dd)), hasTime: false };
   }
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    return { iso: `${s}T15:00:00.000Z`, hasTime: false };
+    const [yy, mm, dd] = s.split("-").map(Number);
+    return { iso: dateOnlyIso(yy, mm, dd), hasTime: false };
   }
   // String puramente numérica em coluna de data = serial Excel (comum após
   // readWorkbookPreservingText forçar tudo para string). Reprocessa como número
@@ -498,7 +513,7 @@ export const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTim
     if (Number.isFinite(n) && n > 0 && n < 200000) {
       const parts = excelSerialToParts(n);
       if (parts) {
-        return { iso: new Date(Date.UTC(parts.y, parts.m - 1, parts.d, 15, 0, 0)).toISOString(), hasTime: false };
+        return { iso: dateOnlyIso(parts.y, parts.m, parts.d), hasTime: false };
       }
     }
     return { iso: null, hasTime: false };
@@ -510,7 +525,8 @@ export const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTim
   const y = d.getUTCFullYear();
   if (y < 1970 || y > 2100) return { iso: null, hasTime: false };
   const hasTime = /T\d{2}:\d{2}/.test(s) && !/T00:00(?::00)?(?:\.000)?Z?$/.test(s);
-  return { iso: d.toISOString(), hasTime };
+  if (!hasTime) return { iso: dateOnlyIso(y, d.getUTCMonth() + 1, d.getUTCDate()), hasTime: false };
+  return { iso: d.toISOString(), hasTime: true };
 };
 
 const excelDateToISO = (v: unknown): string | null => excelDateToISOWithFlag(v).iso;
