@@ -262,6 +262,28 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
           </div>
         </div>
         <Progress value={pct} />
+        {isStalled && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-xs"
+          >
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+              Sem sinal de progresso há {stalledMin} min. O motor pode ter finalizado sem
+              notificar a tela.
+            </span>
+            <span className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={forceReload} disabled={reloading}>
+                {reloading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCcw className="h-3 w-3 mr-1" />}
+                Recarregar estado
+              </Button>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8" onClick={cancelJob} disabled={cancelling}>
+                <XCircle className="h-3 w-3 mr-1" />
+                Cancelar
+              </Button>
+            </span>
+          </div>
+        )}
         {failed > 0 && (
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer">Ver empresas com erro ({failed})</summary>
