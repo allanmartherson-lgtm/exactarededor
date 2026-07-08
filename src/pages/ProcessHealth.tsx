@@ -371,7 +371,7 @@ function useObservability() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [activeHospitalId]);
 
   return { dwell, returns, accuracy, loading };
 }
