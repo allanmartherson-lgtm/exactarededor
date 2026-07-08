@@ -73,6 +73,16 @@ export default function Conciliacao() {
   const [blockingCount, setBlockingCount] = useState<number | null>(null);
 
   useEffect(() => {
+    // Aguarda troca de hospital e evita listar lotes de outra unidade.
+    // RLS já filtra por hospital ativo, mas sem reagir à troca a UI mostrava
+    // resultados anteriores até o próximo refresh manual.
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) {
+      setRuns([]);
+      setPaymentsById({});
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -93,11 +103,50 @@ export default function Conciliacao() {
         const map: Record<string, PaymentLite> = {};
         (ps ?? []).forEach((p: PaymentLite) => { map[p.id] = p; });
         setPaymentsById(map);
+      } else {
+        setPaymentsById({});
       }
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [activeHospitalId, hospitalSwitching]);
+
+  // Contagem leve pra decidir se a aba "Divergências bloqueantes" aparece.
+  // Ignora lotes em modo histórico (regra de projeto: histórico não bloqueia).
+  useEffect(() => {
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) {
+      setBlockingCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: cfg } = await supabase
+        .from("system_configurations")
+        .select("value")
+        .eq("key", "divergence_thresholds")
+        .maybeSingle();
+      const v = (cfg?.value ?? {}) as Record<string, unknown>;
+      const blockPct = Number(v.group_block_pct ?? 0.5);
+      const blockAbs = Number(v.group_block_abs ?? 1.0);
+
+      const { data } = await supabase
+        .from("vw_group_rule_totals")
+        .select("payment_id,diferenca,diferenca_pct")
+        .limit(500);
+      const rows = (data ?? []) as Array<{ payment_id: string | null; diferenca: number | null; diferenca_pct: number | null }>;
+      const overLimit = rows.filter((r) => Math.abs(Number(r.diferenca ?? 0)) > blockAbs && Math.abs(Number(r.diferenca_pct ?? 0)) > blockPct);
+      const paymentIds = Array.from(new Set(overLimit.map((r) => r.payment_id).filter(Boolean))) as string[];
+      let historic = new Set<string>();
+      if (paymentIds.length) {
+        const { data: ps } = await supabase.from("payments").select("id,import_mode").in("id", paymentIds);
+        historic = new Set((ps ?? []).filter((p: { import_mode: string | null }) => p.import_mode === "historico").map((p: { id: string }) => p.id));
+      }
+      const count = overLimit.filter((r) => !r.payment_id || !historic.has(r.payment_id)).length;
+      if (!cancelled) setBlockingCount(count);
+    })();
+    return () => { cancelled = true; };
+  }, [activeHospitalId, hospitalSwitching]);
 
   // Contagem leve pra decidir se a aba "Divergências bloqueantes" aparece.
   // Ignora lotes em modo histórico (regra de projeto: histórico não bloqueia).
