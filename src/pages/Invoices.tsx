@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, formatDate, type InvoiceStatus } from "@/lib/status";
