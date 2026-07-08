@@ -218,6 +218,7 @@ const PaymentDetail = () => {
 
   const {
     payment,
+    paymentMissing,
     items,
     itemsLoading,
     itemsLoadIssue,
@@ -2189,7 +2190,43 @@ const PaymentDetail = () => {
     }
   }, [analysisJob]);
 
-  if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
+  if (!payment) {
+    // Se o fetch terminou e não achou o pagamento no hospital ativo, mostra
+    // uma tela clara em vez de "Carregando..." eterno. Cobre o caso comum
+    // após refresh: usuário volta ao hospital principal e a rota /:id
+    // aponta para um pagamento de outra unidade (bloqueado por RLS).
+    if (paymentMissing) {
+      return (
+        <div className="flex items-center justify-center min-h-[60vh] p-6">
+          <div className="max-w-lg w-full rounded-lg border bg-card p-6 shadow-card space-y-4">
+            <div className="flex items-center gap-2 text-amber-600">
+              <span className="text-xs font-medium uppercase tracking-wide">
+                Pagamento não disponível nesta unidade
+              </span>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Não encontramos este pagamento</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Ele pode pertencer a outro hospital ou ter sido removido. Troque
+                a unidade no seletor do topo se souber onde ele está, ou volte
+                para a lista de pagamentos.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => navigate("/pagamentos")}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Voltar para pagamentos
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
+  }
 
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");

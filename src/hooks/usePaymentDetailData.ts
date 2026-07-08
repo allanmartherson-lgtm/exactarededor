@@ -78,6 +78,7 @@ export type RuleLite = {
  */
 export function usePaymentDetailData(id: string | undefined, options?: { groupId?: string }) {
   const [payment, setPayment] = useState<PaymentRow | null>(null);
+  const [paymentMissing, setPaymentMissing] = useState(false);
   const [items, setItems] = useState<PaymentItemRow[]>([]);
   const [itemsLoading, setItemsLoading] = useState(true);
   const [itemsLoadIssue, setItemsLoadIssue] = useState<string | null>(null);
@@ -267,6 +268,10 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     const qs = questionsRes.data;
     const as = assignmentsRes.data;
     setPayment(p);
+    // Distingue "ainda carregando" de "não encontrado / RLS bloqueou (outro hospital)".
+    // Sem esse flag, o componente ficava eternamente em "Carregando..." quando o
+    // pagamento pertencia a outra unidade após troca de hospital.
+    setPaymentMissing(!paymentRes.error && !p);
     if (itemsRes.error) {
       console.error("[PaymentDetail] Falha ao carregar itens; mantendo estado anterior", itemsRes.error);
       setItemsLoadIssue("Falha temporária ao carregar itens. Recarregando…");
@@ -544,6 +549,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
   return {
     // state
     payment,
+    paymentMissing,
     items,
     itemsLoading,
     itemsLoadIssue,
