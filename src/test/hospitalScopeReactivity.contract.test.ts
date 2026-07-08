@@ -52,29 +52,38 @@ const readPage = (name: string) =>
 
 /**
  * Extrai o array de dependências de cada useEffect no arquivo.
- * Parser tolerante: procura por `useEffect(...)` e captura o último `[...]`
- * antes do fechamento do parêntese externo.
+ * Só considera colchetes no NÍVEL dos argumentos do useEffect (paren depth == 1),
+ * ignorando array literals do corpo do callback.
  */
 function extractUseEffectDeps(source: string): string[] {
   const deps: string[] = [];
   const re = /useEffect\s*\(/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(source)) !== null) {
-    // caminha até o parêntese de fechamento equivalente
     let i = m.index + m[0].length;
-    let depth = 1;
+    let parenDepth = 1;
+    let braceDepth = 0;
+    let bracketDepth = 0;
     let lastBracketOpen = -1;
     let lastBracketClose = -1;
-    while (i < source.length && depth > 0) {
+    while (i < source.length && parenDepth > 0) {
       const ch = source[i];
-      if (ch === "(") depth++;
+      if (ch === "(") parenDepth++;
       else if (ch === ")") {
-        depth--;
-        if (depth === 0) break;
-      } else if (ch === "[") {
-        lastBracketOpen = i;
+        parenDepth--;
+        if (parenDepth === 0) break;
+      } else if (ch === "{") braceDepth++;
+      else if (ch === "}") braceDepth--;
+      else if (ch === "[") {
+        if (parenDepth === 1 && braceDepth === 0 && bracketDepth === 0) {
+          lastBracketOpen = i;
+        }
+        bracketDepth++;
       } else if (ch === "]") {
-        lastBracketClose = i;
+        bracketDepth--;
+        if (parenDepth === 1 && braceDepth === 0 && bracketDepth === 0) {
+          lastBracketClose = i;
+        }
       }
       i++;
     }

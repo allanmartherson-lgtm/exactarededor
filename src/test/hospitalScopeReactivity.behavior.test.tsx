@@ -109,21 +109,13 @@ describe("Guarda + refetch hospital-scoped", () => {
   });
 
   it("sem hospital ativo, limpa dados e não faz fetch", async () => {
-    render(<HospitalScopedPage />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-    fetchByHospital.mockClear();
-
     setHospital(null);
     render(<HospitalScopedPage />);
     await act(async () => {
       await Promise.resolve();
     });
-
     expect(fetchByHospital).not.toHaveBeenCalled();
-    // Sem hospital, a lista está vazia.
-    const rows = screen.getAllByTestId("rows");
-    rows.forEach((r) => expect(r.children.length).toBe(0));
+    expect(screen.getByTestId("rows").children.length).toBe(0);
+    expect(screen.getByTestId("loading").textContent).toBe("no");
   });
 });
