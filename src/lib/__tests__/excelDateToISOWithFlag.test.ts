@@ -47,15 +47,15 @@ describe("excelDateToISOWithFlag", () => {
     });
   });
 
-  describe("strings de data comuns", () => {
+  describe("strings de data comuns (ancoradas em meio-dia UTC)", () => {
     it("aceita formato brasileiro dd/mm/aaaa", () => {
       const r = excelDateToISOWithFlag("15/03/2025");
-      expect(r.iso).toBe("2025-03-15T15:00:00.000Z");
+      expect(r.iso).toBe("2025-03-15T12:00:00.000Z");
       expect(r.hasTime).toBe(false);
     });
     it("aceita dd/mm/aa (2 dígitos no ano)", () => {
       const r = excelDateToISOWithFlag("15/03/25");
-      expect(r.iso).toBe("2025-03-15T15:00:00.000Z");
+      expect(r.iso).toBe("2025-03-15T12:00:00.000Z");
     });
     it("aceita dd/mm/aaaa hh:mm com hasTime=true", () => {
       const r = excelDateToISOWithFlag("15/03/2025 10:30");
@@ -64,21 +64,41 @@ describe("excelDateToISOWithFlag", () => {
     });
     it("aceita ISO aaaa-mm-dd", () => {
       const r = excelDateToISOWithFlag("2025-03-15");
-      expect(r.iso).toBe("2025-03-15T15:00:00.000Z");
+      expect(r.iso).toBe("2025-03-15T12:00:00.000Z");
     });
   });
 
   describe("Date nativo", () => {
-    it("aceita Date sem horário", () => {
+    it("normaliza Date à meia-noite UTC para meio-dia (evita deslocamento em BRT)", () => {
       const d = new Date(Date.UTC(2025, 2, 15));
       const r = excelDateToISOWithFlag(d);
-      expect(r.iso).toBe("2025-03-15T00:00:00.000Z");
+      expect(r.iso).toBe("2025-03-15T12:00:00.000Z");
       expect(r.hasTime).toBe(false);
     });
-    it("aceita Date com horário e marca hasTime", () => {
+    it("preserva horário quando presente", () => {
       const d = new Date(Date.UTC(2025, 2, 15, 10, 30));
       const r = excelDateToISOWithFlag(d);
+      expect(r.iso).toBe("2025-03-15T10:30:00.000Z");
       expect(r.hasTime).toBe(true);
+    });
+    it("retorna null para Date inválido", () => {
+      expect(excelDateToISOWithFlag(new Date("invalid"))).toEqual({ iso: null, hasTime: false });
+    });
+  });
+
+  describe("consistência de fuso — data salva == data exibida", () => {
+    it('serial "46165" gera mesma data-calendário em qualquer fuso (checa via UTC parts)', () => {
+      const r = excelDateToISOWithFlag("46165");
+      const dt = new Date(r.iso!);
+      // Meio-dia UTC: sobra ±11h de margem em cada direção sem virar de dia.
+      expect(dt.getUTCHours()).toBe(12);
+    });
+    it("todas as datas-only terminam em T12:00:00.000Z", () => {
+      const casos = ["15/03/2025", "2025-03-15", "46165", 46165];
+      for (const c of casos) {
+        const r = excelDateToISOWithFlag(c);
+        expect(r.iso).toMatch(/T12:00:00\.000Z$/);
+      }
     });
   });
 
