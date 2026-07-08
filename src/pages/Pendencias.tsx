@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { PageHeader } from "@/components/PageHeader";
 import { ListChecksIcon } from "@/config/icons/navIcons";
 import { Badge } from "@/components/ui/badge";
