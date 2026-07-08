@@ -1264,6 +1264,10 @@ const PaymentDetail = () => {
       return;
     }
     setBulkConcluding(true);
+    if (!(await ensureQuarantineResolved())) {
+      setBulkConcluding(false);
+      return;
+    }
     await autoClaim();
     // RPC atômica (SECURITY DEFINER) — antes era um loop com .update() que,
     // quando 0 linhas eram afetadas (RLS/gatilho recusando silenciosamente),
