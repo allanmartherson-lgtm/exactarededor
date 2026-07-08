@@ -30,6 +30,8 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
 
   useEffect(() => {
     let mounted = true;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
     const load = async () => {
       const [{ data }, groupCountRes, paymentRes] = await Promise.all([
         supabase
@@ -49,10 +51,27 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
           .eq("id", paymentId)
           .maybeSingle(),
       ]);
-      if (mounted) setJob(data as any);
-      if (mounted) setLotStats({ companies: groupCountRes.count ?? 0, items: paymentRes.data?.items_count ?? null });
+      if (!mounted) return;
+      setJob((prev) => {
+        const next = data as ProcessingJob | null;
+        // Toast quando o polling detecta transição (sem realtime).
+        if (prev && prev.status === "em_andamento" && next && next.status !== "em_andamento") {
+          const successCount = next.processed_companies - (next.failed_companies?.length ?? 0);
+          const failCount = next.failed_companies?.length ?? 0;
+          if (next.status === "concluido") toast.success(`Análise concluída: ${successCount} empresa(s) processada(s) com sucesso.`);
+          else if (next.status === "parcial") toast.warning(`Análise finalizada com erros: ${successCount} sucesso(s), ${failCount} falha(s).`);
+          else if (next.status === "cancelado") toast.info(`Análise interrompida pelo usuário: ${next.processed_companies} empresa(s) processada(s).`);
+        }
+        return next;
+      });
+      setLotStats({ companies: groupCountRes.count ?? 0, items: paymentRes.data?.items_count ?? null });
     };
     load();
+
+    // Fallback de polling a cada 10s: cobre casos em que o realtime não
+    // entrega o UPDATE (WS caiu, aba em background, race entre subscribe e
+    // finish do job) e evitava que o banner "em_andamento" ficasse travado.
+    pollTimer = setInterval(() => { load(); }, 10000);
 
     const channel = supabase
       .channel(`ppj-${paymentId}`)
@@ -62,31 +81,26 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
         (payload) => {
           if (payload.eventType === "DELETE") return;
           const newJob = payload.new as ProcessingJob;
-          
-          // Se o status mudou para concluído, parcial ou cancelado, dispara o toast
-          if (job && job.status === "em_andamento" && (newJob.status === "concluido" || newJob.status === "parcial" || newJob.status === "cancelado")) {
-            const successCount = newJob.processed_companies - (newJob.failed_companies?.length ?? 0);
-            const failCount = newJob.failed_companies?.length ?? 0;
-            
-            if (newJob.status === "concluido") {
-              toast.success(`Análise concluída: ${successCount} empresa(s) processada(s) com sucesso.`);
-            } else if (newJob.status === "parcial") {
-              toast.warning(`Análise finalizada com erros: ${successCount} sucesso(s), ${failCount} falha(s).`);
-            } else if (newJob.status === "cancelado") {
-              toast.info(`Análise interrompida pelo usuário: ${newJob.processed_companies} empresa(s) processada(s).`);
+          setJob((prev) => {
+            if (prev && prev.status === "em_andamento" && (newJob.status === "concluido" || newJob.status === "parcial" || newJob.status === "cancelado")) {
+              const successCount = newJob.processed_companies - (newJob.failed_companies?.length ?? 0);
+              const failCount = newJob.failed_companies?.length ?? 0;
+              if (newJob.status === "concluido") toast.success(`Análise concluída: ${successCount} empresa(s) processada(s) com sucesso.`);
+              else if (newJob.status === "parcial") toast.warning(`Análise finalizada com erros: ${successCount} sucesso(s), ${failCount} falha(s).`);
+              else if (newJob.status === "cancelado") toast.info(`Análise interrompida pelo usuário: ${newJob.processed_companies} empresa(s) processada(s).`);
             }
-          }
-          
-          setJob(newJob as any);
+            return newJob;
+          });
         },
       )
       .subscribe();
 
     return () => {
       mounted = false;
+      if (pollTimer) clearInterval(pollTimer);
       supabase.removeChannel(channel);
     };
-  }, [paymentId, job?.id, job?.status]);
+  }, [paymentId]);
 
   if (!job) return null;
   if ((job.status as string) !== "em_andamento") return null;
