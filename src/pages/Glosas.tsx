@@ -5,6 +5,7 @@ import PotentialDebtsPanel from "@/components/glosas/PotentialDebtsPanel";
 import GlosaDebtAuditLog from "@/components/glosas/GlosaDebtAuditLog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Upload, CheckCircle2, AlertTriangle, XCircle, RefreshCw, ChevronDown, ChevronRight, FileText } from "lucide-react";
