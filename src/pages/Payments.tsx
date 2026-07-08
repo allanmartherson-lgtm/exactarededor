@@ -666,7 +666,11 @@ const Payments = () => {
   }, [rpcFilters, rpcSort, page, pageSize, view, activeHospitalId, hospitalSwitching]);
 
   // Carrega stats globais (não dependem da página atual nem dos filtros locais).
+  // Depende de activeHospitalId: a RPC lê current_active_hospital() do banco;
+  // sem redisparar aqui, o "ver arquivados (N)" e competências seguem do hospital
+  // anterior mesmo após a troca no header.
   const loadGlobalStats = useCallback(async () => {
+    if (hospitalSwitching || !activeHospitalId) return;
     try {
       const { data, error } = await supabase.rpc("payments_global_stats");
       if (error) throw error;
@@ -677,10 +681,13 @@ const Payments = () => {
     } catch (e) {
       console.warn("payments_global_stats falhou", e);
     }
-  }, []);
+  }, [activeHospitalId, hospitalSwitching]);
 
   // Pools (rateios) ativos do hospital — alimenta o filtro de Pool.
+  // Mesma razão: RLS de `pools` já escopa por hospital, mas sem redisparar o
+  // fetch o combobox continuaria mostrando pools do hospital anterior.
   const loadPoolOptions = useCallback(async () => {
+    if (hospitalSwitching || !activeHospitalId) { setPoolOptions([]); return; }
     try {
       const { data, error } = await supabase
         .from("pools")
@@ -691,7 +698,7 @@ const Payments = () => {
     } catch (e) {
       console.warn("load pools falhou", e);
     }
-  }, []);
+  }, [activeHospitalId, hospitalSwitching]);
 
   useEffect(() => { loadPoolOptions(); }, [loadPoolOptions]);
 
