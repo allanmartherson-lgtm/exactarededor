@@ -9,6 +9,23 @@ const corsHeaders = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+// Executa `worker` em lotes de `concurrency` para evitar wall-time linear em
+// empresas grandes (muitos ajustes/glosas). Erros em uma iteração não abortam
+// as demais — são acumulados em `errors` para inspeção posterior.
+async function runInBatches<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<{ errors: unknown[] }> {
+  const errors: unknown[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const results = await Promise.allSettled(batch.map(worker));
+    for (const r of results) if (r.status === "rejected") errors.push(r.reason);
+  }
+  return { errors };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
