@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/status";
 import { ArrowRight, TrendingDown, Wallet, type LucideIcon } from "lucide-react";
