@@ -162,7 +162,13 @@ export default function CreditosDebitos() {
     setLoading(false);
   };
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    if (!activeHospitalId) {
+      setCompanies([]); setAdjustments([]); setGlosaDebts([]); setLoading(false); return;
+    }
+    void loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const openAdj = (a?: Adjustment) => {
     setEditingAdj(a ? { ...a } : {
