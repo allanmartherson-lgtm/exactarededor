@@ -55,41 +55,40 @@ const readPage = (name: string) =>
  * Só considera colchetes no NÍVEL dos argumentos do useEffect (paren depth == 1),
  * ignorando array literals do corpo do callback.
  */
+/**
+ * Extrai dependências de todos os `useEffect`/`useCallback`/`useMemo` do arquivo.
+ * Convenção React: deps são o último argumento no formato `}, [dep1, dep2])`
+ * (ou `, [deps])` para hooks sem callback com corpo). Assume que as deps não
+ * contêm `]` — verdadeiro em 100% dos casos práticos (identificadores + `.`/`?.`).
+ *
+ * Não tenta parsear string/comment — o corpo do callback é ignorado ao casar
+ * apenas o padrão de encerramento `}, [ ... ])` característico dos hooks.
+ */
 function extractHookDeps(source: string, hookName: string): string[] {
   const deps: string[] = [];
-  const re = new RegExp(`\\b${hookName}\\s*\\(`, "g");
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(source)) !== null) {
-    let i = m.index + m[0].length;
-    let parenDepth = 1;
-    let braceDepth = 0;
-    let bracketDepth = 0;
-    let lastBracketOpen = -1;
-    let lastBracketClose = -1;
-    while (i < source.length && parenDepth > 0) {
-      const ch = source[i];
-      if (ch === "(") parenDepth++;
-      else if (ch === ")") {
-        parenDepth--;
-        if (parenDepth === 0) break;
-      } else if (ch === "{") braceDepth++;
-      else if (ch === "}") braceDepth--;
-      else if (ch === "[") {
-        if (parenDepth === 1 && braceDepth === 0 && bracketDepth === 0) {
-          lastBracketOpen = i;
-        }
-        bracketDepth++;
-      } else if (ch === "]") {
-        bracketDepth--;
-        if (parenDepth === 1 && braceDepth === 0 && bracketDepth === 0) {
-          lastBracketClose = i;
-        }
-      }
-      i++;
-    }
-    if (lastBracketOpen >= 0 && lastBracketClose > lastBracketOpen) {
-      deps.push(source.slice(lastBracketOpen + 1, lastBracketClose));
-    }
+  // Casa o padrão de encerramento típico: `}, [ ... ] )` ou `, [ ... ] )` final.
+  // Precedido por `useEffect(` etc, mas com corpo arbitrário → varremos todas
+  // as ocorrências e depois filtramos as que efetivamente pertencem ao hook.
+  const openRe = new RegExp(`\\b${hookName}\\s*\\(`, "g");
+  const closeRe = /\}\s*,\s*\[([^\]]*)\]\s*\)\s*;?/g;
+  const opens: number[] = [];
+  let om: RegExpExecArray | null;
+  while ((om = openRe.exec(source)) !== null) opens.push(om.index);
+  if (!opens.length) return deps;
+
+  const closes: Array<{ index: number; end: number; deps: string }> = [];
+  let cm: RegExpExecArray | null;
+  while ((cm = closeRe.exec(source)) !== null) {
+    closes.push({ index: cm.index, end: cm.index + cm[0].length, deps: cm[1] });
+  }
+
+  // Para cada abertura, pega o primeiro fechamento após ela cujo próximo hookOpen
+  // (ou EOF) esteja depois — heurística boa para o padrão idiomático React.
+  for (let k = 0; k < opens.length; k++) {
+    const start = opens[k];
+    const nextOpen = k + 1 < opens.length ? opens[k + 1] : source.length;
+    const match = closes.find((c) => c.index > start && c.end <= nextOpen);
+    if (match) deps.push(match.deps);
   }
   return deps;
 }
