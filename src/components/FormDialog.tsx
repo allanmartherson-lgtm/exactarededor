@@ -40,24 +40,27 @@ export const FormDialog = ({
 }: FormDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
+      <DialogContent
         className={cn(
-          "w-[95vw] max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col",
+          // Altura automática: cresce até o teto do viewport definido no primitive.
+          // Sem flex/max-h próprios — o scroll fica no primitive, evitando "cascas"
+          // vazias que espremem conteúdo curto.
+          "w-[95vw] p-0 gap-0",
           maxWidthClasses[maxWidth],
-          className
+          className,
         )}
       >
-        <DialogHeader className="p-6 pb-2">
+        <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        
-        <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
+
+        <div className="px-6 py-4 space-y-4 min-w-0">
           {children}
         </div>
 
         {footer && (
-          <DialogFooter className="p-6 pt-4 border-t bg-muted/10">
+          <DialogFooter className="p-6 pt-4 border-t bg-muted/10 sticky bottom-0">
             {footer}
           </DialogFooter>
         )}
