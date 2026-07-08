@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { PageHeader } from "@/components/PageHeader";
 import { ListChecksIcon } from "@/config/icons/navIcons";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +93,8 @@ export default function Pendencias() {
     setSearchParams(next, { replace: true });
   };
   const { user } = useAuth();
+  const { hospital, switching: hospitalSwitching } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [items, setItems] = useState<Pendencia[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
@@ -150,9 +153,19 @@ export default function Pendencias() {
   };
 
   useEffect(() => {
+    // Aborta enquanto o contexto de hospital ainda está trocando — evita
+    // mostrar dados do hospital anterior. Sem hospital ativo, lista vazia.
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) {
+      setItems([]);
+      setCompanies({});
+      setProfileNames({});
+      setLoading(false);
+      return;
+    }
     void load();
     const channel = supabase
-      .channel("pendencias-list")
+      .channel(`pendencias-list-${activeHospitalId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pendencias" },
@@ -162,7 +175,8 @@ export default function Pendencias() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId, hospitalSwitching]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
