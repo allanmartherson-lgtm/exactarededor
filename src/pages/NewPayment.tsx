@@ -1410,7 +1410,7 @@ const NewPayment = () => {
     // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
     // "Unidade de Atendimento"). Quando a detecção foi por valores, deixamos
     // para o usuário confirmar manualmente — nunca inferimos sozinhos.
-    const sectorAliasesMap = await loadSectorAliases();
+    const sectorAliasesMap = await loadSectorAliases(hospital?.id ?? null);
     const detection = detectSectorColumn(headerNames, json, sectorAliasesMap.resolveSlug);
     const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
 
@@ -2801,7 +2801,7 @@ const NewPayment = () => {
     // Normaliza o setor lido (ou herdado do bucket) para o slug canônico via
     // tabela `sectors` + aliases. Garante que "Hemodinâmica (DFStar)" e variações
     // virem `hemodinamica` no banco, formato esperado pelo motor de regras.
-    const sectorAliases = await loadSectorAliases();
+    const sectorAliases = await loadSectorAliases(hospital?.id ?? null);
     const normalizeSector = (raw: string | null | undefined): string | null => {
       if (!raw) return null;
       const slug = sectorAliases.resolveSlug(raw);
