@@ -32,10 +32,16 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
   const [lotStats, setLotStats] = useState<{ companies: number; items: number | null }>({ companies: 0, items: null });
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const [stalledSince, setStalledSince] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const lastProgressRef = useRef<{ processed: number; at: number } | null>(null);
 
   useEffect(() => {
     let mounted = true;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let tickTimer: ReturnType<typeof setInterval> | null = null;
+
 
     const load = async () => {
       const [{ data }, groupCountRes, paymentRes] = await Promise.all([
