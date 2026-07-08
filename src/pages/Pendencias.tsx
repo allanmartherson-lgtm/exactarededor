@@ -153,9 +153,19 @@ export default function Pendencias() {
   };
 
   useEffect(() => {
+    // Aborta enquanto o contexto de hospital ainda está trocando — evita
+    // mostrar dados do hospital anterior. Sem hospital ativo, lista vazia.
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) {
+      setItems([]);
+      setCompanies({});
+      setProfileNames({});
+      setLoading(false);
+      return;
+    }
     void load();
     const channel = supabase
-      .channel("pendencias-list")
+      .channel(`pendencias-list-${activeHospitalId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pendencias" },
@@ -165,7 +175,8 @@ export default function Pendencias() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId, hospitalSwitching]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
