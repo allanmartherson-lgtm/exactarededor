@@ -111,6 +111,7 @@ function MiniBars({ values, color = "hsl(var(--primary))" }: { values: number[];
 }
 
 export default function BiPagamentos() {
+  const activeHospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -118,6 +119,7 @@ export default function BiPagamentos() {
 
   useEffect(() => {
     document.title = "BI · Pagamentos | Exacta";
+    if (!activeHospitalId) { setRows([]); setLoading(false); return; }
     (async () => {
       try {
         // 1) últimos pagamentos
