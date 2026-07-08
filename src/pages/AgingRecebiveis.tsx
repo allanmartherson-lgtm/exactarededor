@@ -160,8 +160,10 @@ export default function AgingRecebiveis() {
 
   useEffect(() => {
     document.title = "Aging de Contas a Pagar | Exacta";
+    // Reage à troca de hospital: aging olha payment_company_groups, hospital-scoped via RLS.
+    if (!activeHospitalId) { setRows([]); setLoading(false); return; }
     load();
-  }, [load]);
+  }, [load, activeHospitalId]);
 
   const enriched = useMemo<AgingRow[]>(() => {
     return rows.map((r: any) => {
