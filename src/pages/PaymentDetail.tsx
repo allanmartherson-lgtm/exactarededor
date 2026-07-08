@@ -4198,8 +4198,10 @@ const PaymentDetail = () => {
             </AlertDialogContent>
           </AlertDialog>
 
-          {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
-          {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+          <div data-quarantine-anchor="true" className="space-y-3">
+            {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
+            {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+          </div>
           {isAnalista && id && ["rascunho","em_analise_ia","revisao_analista","concluida_analista","devolvido_analista"].includes(String(payment.status)) && (
             <ProductionValidationPanel
               paymentId={id}
