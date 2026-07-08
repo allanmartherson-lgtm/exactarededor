@@ -81,7 +81,8 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 
 export default function Pools({ embedded = false }: { embedded?: boolean } = {}) {
-  const { hospital } = useHospital();
+  const { hospital, switching: hospitalSwitching } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const [pools, setPools] = useState<Pool[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
