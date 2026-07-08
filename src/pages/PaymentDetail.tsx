@@ -860,12 +860,53 @@ const PaymentDetail = () => {
     }
   };
 
+  /**
+   * Gate: bloqueia avanço do lote enquanto houver itens em quarentena
+   * (sem PJ vinculada) OU itens órfãos de empresa (company_id NULL não-pool).
+   * O analista precisa resolver via UnmatchedItemsPanel/UnregisteredCompaniesPanel
+   * antes de encerrar confecção, concluir em massa ou enviar para validação.
+   * Retorna true quando pode seguir, false quando bloqueou (já emitiu toast).
+   */
+  const ensureQuarantineResolved = async (): Promise<boolean> => {
+    if (!id) return true;
+    const [{ count: unmatched }, { count: orphans }] = await Promise.all([
+      supabase
+        .from("payment_unmatched_items")
+        .select("id", { count: "exact", head: true })
+        .eq("payment_id", id)
+        .eq("status", "pending"),
+      supabase
+        .from("payment_items")
+        .select("id", { count: "exact", head: true })
+        .eq("payment_id", id)
+        .is("company_id", null)
+        .or("is_pool_item.is.null,is_pool_item.eq.false"),
+    ]);
+    const totalPending = (unmatched ?? 0) + (orphans ?? 0);
+    if (totalPending > 0) {
+      toast({
+        title: "Fila de bases sem PJ pendente",
+        description: `${totalPending} item(ns) sem empresa vinculada aguardam sua revisão. Resolva o painel "Itens em quarentena" antes de seguir.`,
+        variant: "destructive",
+      });
+      // Rola até o painel para o analista agir sem procurar.
+      requestAnimationFrame(() => {
+        document
+          .querySelector('[data-quarantine-anchor="true"]')
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      return false;
+    }
+    return true;
+  };
+
   // Analista envia o lote para validação.
   // Grupos prontos = {concluida_analista, devolvido_analista}. Grupos pendentes
   // (revisao_analista) ficam para trás e disparam modal de aviso. A validação
   // é fila coletiva: qualquer validador pode assumir.
   const doSendForValidation = async (targets: typeof groups) => {
     if (!id || targets.length === 0) return;
+    if (!(await ensureQuarantineResolved())) return;
     // Gate: bloqueia envio enquanto houver médico provisório vinculado a
     // QUALQUER item deste pagamento. Admin precisa aprovar primeiro.
     {
@@ -1223,6 +1264,10 @@ const PaymentDetail = () => {
       return;
     }
     setBulkConcluding(true);
+    if (!(await ensureQuarantineResolved())) {
+      setBulkConcluding(false);
+      return;
+    }
     await autoClaim();
     // RPC atômica (SECURITY DEFINER) — antes era um loop com .update() que,
     // quando 0 linhas eram afetadas (RLS/gatilho recusando silenciosamente),
@@ -4153,8 +4198,10 @@ const PaymentDetail = () => {
             </AlertDialogContent>
           </AlertDialog>
 
-          {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
-          {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+          <div data-quarantine-anchor="true" className="space-y-3">
+            {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
+            {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+          </div>
           {isAnalista && id && ["rascunho","em_analise_ia","revisao_analista","concluida_analista","devolvido_analista"].includes(String(payment.status)) && (
             <ProductionValidationPanel
               paymentId={id}
