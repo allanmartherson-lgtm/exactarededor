@@ -223,9 +223,11 @@ export default function Glosas() {
 
   useEffect(() => {
     document.title = "Glosas | Exacta";
+    // Reage à troca de hospital — glosa_batches/debts são hospital-scoped via RLS.
+    if (!activeHospitalId) { setBatches([]); setDebts([]); setLoading(false); return; }
     loadBatches();
     loadDebts();
-  }, [loadBatches, loadDebts]);
+  }, [loadBatches, loadDebts, activeHospitalId]);
 
   const processFile = async (file: File) => {
     const buf = await file.arrayBuffer();
