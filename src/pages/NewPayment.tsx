@@ -3077,17 +3077,23 @@ const NewPayment = () => {
           description: "Aliases de médicos/convênios/setores não serão registrados neste lote.",
         });
       } else try {
-        const learnRows = matchedItems.map((it: any) => ({
-          doctor_id: it.doctor_id,
-          doctor_matched_by: it.doctor_matched_by,
-          doctor_name: it.doctor_name,
-          convenio_slug: it.convenio_slug,
-          convenio_matched_by: it.convenio_matched_by,
-          agreement_text: it.agreement_text,
-          sector_slug: it.sector_slug,
-          sector_matched_by: it.sector_matched_by,
-          sector_raw: it.sector,
-        }));
+        const learnRows = matchedItems.map((it: any, i: number) => {
+          const raw = matchedRawForLearn[i];
+          return {
+            doctor_id: it.doctor_id,
+            doctor_matched_by: it.doctor_matched_by,
+            // Sempre priorizar o texto BRUTO capturado da planilha. `it.doctor_name`
+            // e `it.agreement_text` são hoje idênticos ao raw, mas o snapshot blinda
+            // contra normalizações futuras. `it.sector` seria fatal aqui — é slug.
+            doctor_name: raw?.doctor_name ?? it.doctor_name,
+            convenio_slug: it.convenio_slug,
+            convenio_matched_by: it.convenio_matched_by,
+            agreement_text: raw?.agreement_text ?? it.agreement_text,
+            sector_slug: it.sector_slug,
+            sector_matched_by: it.sector_matched_by,
+            sector_raw: raw?.sector_raw ?? null,
+          };
+        });
         const learned = await learnAliasesFromResolvedRows(learnRows, { doctorReg, convenioReg, sectorReg }, hospital?.id ?? null);
         const total = learned.doctor + learned.convenio + learned.sector;
         if (total > 0) {
