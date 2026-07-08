@@ -116,7 +116,13 @@ export default function Pools({ embedded = false }: { embedded?: boolean } = {})
     setLoading(false);
   };
 
-  useEffect(() => { loadAll(); }, []);
+  // Recarrega quando o hospital ativo muda — evita listar pools de outra unidade.
+  useEffect(() => {
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) { setPools([]); setCompanies([]); setLoading(false); return; }
+    void loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId, hospitalSwitching]);
 
   const openPool = async (pool: Pool | null) => {
     setEditing(pool ? { ...pool, filtros_captura: pool.filtros_captura ?? {} } : {
