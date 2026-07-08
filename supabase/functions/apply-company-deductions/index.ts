@@ -113,7 +113,8 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const loteCompetence: string | null = (paymentRowForDate?.competence_month as string) ?? null;
 
-    for (const adj of adjustments ?? []) {
+    const adjResult = await runInBatches(adjustments ?? [], 5, async (adj: any) => {
+     try {
       const isRecorrente = !!adj.recorrente;
       const existingRows = existingByAdj.get(adj.id) ?? [];
 
@@ -127,7 +128,7 @@ Deno.serve(async (req) => {
             .eq("id", row.id);
           summary.debitos.reverted_stale++;
         }
-        continue;
+        return;
       }
 
       const parcelaValor = isRecorrente
@@ -152,11 +153,11 @@ Deno.serve(async (req) => {
         } else {
           summary.debitos.skipped_existing++;
         }
-        continue;
+        return;
       }
 
       const activeExisting = existingRows.find((r: any) => ["proposto", "confirmado"].includes(r.status));
-      if (activeExisting) { summary.debitos.skipped_existing++; continue; }
+      if (activeExisting) { summary.debitos.skipped_existing++; return; }
 
       const reusableReverted = existingRows.find((r: any) => r.status === "revertido" && Number(r.parcela_numero ?? 0) === parcelaNumero);
       if (reusableReverted) {
@@ -168,7 +169,7 @@ Deno.serve(async (req) => {
           summary.debitos.proposed++;
           summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel, action: "revived" });
         }
-        continue;
+        return;
       }
 
       const { error: insErr } = await supabase
@@ -182,7 +183,13 @@ Deno.serve(async (req) => {
         summary.debitos.proposed++;
         summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel });
       }
-    }
+     } catch (err) {
+      console.error(`[apply-company-deductions] adj ${adj?.id} falhou`, err);
+      throw err;
+     }
+    });
+    if (adjResult.errors.length) summary.debitos.errors = adjResult.errors.length;
+
 
     // ============ GLOSAS ============
     // Competência do lote para resolver a PJ vigente do médico na data correta
