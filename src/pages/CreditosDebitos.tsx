@@ -88,6 +88,7 @@ const brl = (n: number) =>
 export default function CreditosDebitos() {
   // D3.e: CFA filtra por payment_model do lote.
   const { list: paymentModels } = usePaymentTypes({ onlyActive: true, origin: "payment_model" });
+  const activeHospitalId = useActiveHospitalId();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [glosaDebts, setGlosaDebts] = useState<GlosaDebt[]>([]);
