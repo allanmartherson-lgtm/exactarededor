@@ -454,7 +454,7 @@ const excelSerialToParts = (
   };
 };
 
-const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: boolean } => {
+export const excelDateToISOWithFlag = (v: unknown): { iso: string | null; hasTime: boolean } => {
   if (v == null || v === "") return { iso: null, hasTime: false };
   if (v instanceof Date) {
     const hasTime = v.getUTCHours() + v.getUTCMinutes() + v.getUTCSeconds() > 0;
