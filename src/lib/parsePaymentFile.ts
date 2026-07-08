@@ -996,11 +996,19 @@ export const parsePaymentFile = async (
       if (s >= MATCH_AUTO_THRESHOLD) rowMatchedCompany = matched;
     }
 
+    // Só grava company_id quando temos identificação CONFIÁVEL (score >= AUTO_THRESHOLD),
+    // seja pelo nome do arquivo (filenameTrusted) ou por match exato da coluna EMPRESA da linha.
+    // NUNCA usar fileMatchedCompany como fallback quando filenameTrusted=false —
+    // isso vinculava PJ com baixa confiança silenciosamente (ex.: Cliego → UNICA a 50%),
+    // e o analista não conseguia colocar o lote em standby para conferir.
     const resolvedCompany = filenameTrusted
       ? fileMatchedCompany
-      : (rowCompanyNameRaw ? rowMatchedCompany : fileMatchedCompany);
+      : (rowCompanyNameRaw ? rowMatchedCompany : null);
+    // Preserva o nome cru pra exibição (raw_company_name em unmatched / diagnóstico),
+    // mesmo quando não gravamos id — analista precisa ver o que veio da planilha.
     const resolvedName = resolvedCompany?.name
-      || (filenameTrusted ? fileMatchedCompany!.name : (rowCompanyNameRaw || rawCompanyName))
+      || rowCompanyNameRaw
+      || rawCompanyName
       || null;
 
     let doctorNameRaw = toStr(pickField(row, "doctor_name", manualMapping));
