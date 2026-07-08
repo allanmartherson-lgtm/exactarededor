@@ -174,7 +174,7 @@ function ProdutividadeSection() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, activeHospitalId]);
 
   const topProcessor = rows[0];
   const bestQuality = useMemo(() => {
@@ -341,12 +341,15 @@ type Accuracy = {
 };
 
 function useObservability() {
+  const activeHospitalId = useActiveHospitalId();
   const [dwell, setDwell] = useState<Dwell[]>([]);
   const [returns, setReturns] = useState<Ret[]>([]);
   const [accuracy, setAccuracy] = useState<Accuracy | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // RPCs hospital-scoped → refaz ao trocar unidade.
+    if (!activeHospitalId) { setDwell([]); setReturns([]); setAccuracy(null); setLoading(false); return; }
     (async () => {
       setLoading(true);
       try {
