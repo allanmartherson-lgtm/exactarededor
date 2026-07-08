@@ -100,6 +100,7 @@ function fmtDate(dateStr: string | null | undefined): string {
 // ── Página principal ───────────────────────────────────────────────
 
 export default function AgingRecebiveis() {
+  const activeHospitalId = useActiveHospitalId();
   const [mode, setMode] = useState<AgingMode>("competencia");
   const [rows, setRows] = useState<AgingRow[]>([]);
   const [loading, setLoading] = useState(true);
