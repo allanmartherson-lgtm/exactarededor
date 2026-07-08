@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertTriangle, RefreshCcw, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "@/lib/confirm";
+
+// Após este tempo sem progresso (mudança em processed_companies) exibimos
+// um aviso explícito com botão de recarregar/cancelar. Evita spinner infinito
+// quando o worker cai silenciosamente antes do watchdog server-side atuar.
+const STALL_WARNING_MS = 3 * 60 * 1000;
 
 interface ProcessingJob {
   id: string;
@@ -27,10 +32,16 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
   const [lotStats, setLotStats] = useState<{ companies: number; items: number | null }>({ companies: 0, items: null });
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const [stalledSince, setStalledSince] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const lastProgressRef = useRef<{ processed: number; at: number } | null>(null);
 
   useEffect(() => {
     let mounted = true;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let tickTimer: ReturnType<typeof setInterval> | null = null;
+
 
     const load = async () => {
       const [{ data }, groupCountRes, paymentRes] = await Promise.all([
@@ -54,6 +65,19 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
       if (!mounted) return;
       setJob((prev) => {
         const next = data as unknown as ProcessingJob | null;
+        // Rastreia progresso para detecção de stall (sem depender de updated_at do DB).
+        if (next && next.status === "em_andamento") {
+          const last = lastProgressRef.current;
+          if (!last || last.processed !== next.processed_companies) {
+            lastProgressRef.current = { processed: next.processed_companies, at: Date.now() };
+            setStalledSince(null);
+          } else if (Date.now() - last.at > STALL_WARNING_MS) {
+            setStalledSince(last.at);
+          }
+        } else {
+          lastProgressRef.current = null;
+          setStalledSince(null);
+        }
         // Toast quando o polling detecta transição (sem realtime).
         if (prev && prev.status === "em_andamento" && next && next.status !== "em_andamento") {
           const successCount = next.processed_companies - (next.failed_companies?.length ?? 0);
@@ -72,6 +96,10 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
     // entrega o UPDATE (WS caiu, aba em background, race entre subscribe e
     // finish do job) e evitava que o banner "em_andamento" ficasse travado.
     pollTimer = setInterval(() => { load(); }, 10000);
+    // Tick a cada 15s só para reavaliar `stalledSince` visualmente
+    // (mostra "sem sinal há N min" incrementando sem precisar re-fetch).
+    tickTimer = setInterval(() => { if (mounted) setNowTick(Date.now()); }, 15000);
+
 
     const channel = supabase
       .channel(`ppj-${paymentId}`)
@@ -98,6 +126,7 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
     return () => {
       mounted = false;
       if (pollTimer) clearInterval(pollTimer);
+      if (tickTimer) clearInterval(tickTimer);
       supabase.removeChannel(channel);
     };
   }, [paymentId]);
@@ -108,6 +137,20 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
   const pct = job.total_companies > 0 ? Math.round((job.processed_companies / job.total_companies) * 100) : 0;
   const failed = job.failed_companies?.length ?? 0;
   const isSubsetJob = lotStats.companies > job.total_companies;
+  const stalledMin = stalledSince ? Math.max(1, Math.round((nowTick - stalledSince) / 60000)) : 0;
+  const isStalled = stalledMin > 0;
+
+  const forceReload = async () => {
+    setReloading(true);
+    try {
+      // Recarrega dados do lote inteiro; útil quando o job já terminou
+      // no banco mas o realtime/polling não capturou a transição.
+      window.location.reload();
+    } finally {
+      setReloading(false);
+    }
+  };
+
 
   const retryFailed = async () => {
     if (!failed) return;
@@ -219,6 +262,28 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
           </div>
         </div>
         <Progress value={pct} />
+        {isStalled && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-xs"
+          >
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+              Sem sinal de progresso há {stalledMin} min. O motor pode ter finalizado sem
+              notificar a tela.
+            </span>
+            <span className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={forceReload} disabled={reloading}>
+                {reloading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCcw className="h-3 w-3 mr-1" />}
+                Recarregar estado
+              </Button>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8" onClick={cancelJob} disabled={cancelling}>
+                <XCircle className="h-3 w-3 mr-1" />
+                Cancelar
+              </Button>
+            </span>
+          </div>
+        )}
         {failed > 0 && (
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer">Ver empresas com erro ({failed})</summary>
