@@ -9,6 +9,23 @@ const corsHeaders = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+// Executa `worker` em lotes de `concurrency` para evitar wall-time linear em
+// empresas grandes (muitos ajustes/glosas). Erros em uma iteração não abortam
+// as demais — são acumulados em `errors` para inspeção posterior.
+async function runInBatches<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<{ errors: unknown[] }> {
+  const errors: unknown[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const results = await Promise.allSettled(batch.map(worker));
+    for (const r of results) if (r.status === "rejected") errors.push(r.reason);
+  }
+  return { errors };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -96,7 +113,8 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const loteCompetence: string | null = (paymentRowForDate?.competence_month as string) ?? null;
 
-    for (const adj of adjustments ?? []) {
+    const adjResult = await runInBatches(adjustments ?? [], 5, async (adj: any) => {
+     try {
       const isRecorrente = !!adj.recorrente;
       const existingRows = existingByAdj.get(adj.id) ?? [];
 
@@ -110,7 +128,7 @@ Deno.serve(async (req) => {
             .eq("id", row.id);
           summary.debitos.reverted_stale++;
         }
-        continue;
+        return;
       }
 
       const parcelaValor = isRecorrente
@@ -135,11 +153,11 @@ Deno.serve(async (req) => {
         } else {
           summary.debitos.skipped_existing++;
         }
-        continue;
+        return;
       }
 
       const activeExisting = existingRows.find((r: any) => ["proposto", "confirmado"].includes(r.status));
-      if (activeExisting) { summary.debitos.skipped_existing++; continue; }
+      if (activeExisting) { summary.debitos.skipped_existing++; return; }
 
       const reusableReverted = existingRows.find((r: any) => r.status === "revertido" && Number(r.parcela_numero ?? 0) === parcelaNumero);
       if (reusableReverted) {
@@ -151,7 +169,7 @@ Deno.serve(async (req) => {
           summary.debitos.proposed++;
           summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel, action: "revived" });
         }
-        continue;
+        return;
       }
 
       const { error: insErr } = await supabase
@@ -165,7 +183,13 @@ Deno.serve(async (req) => {
         summary.debitos.proposed++;
         summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel });
       }
-    }
+     } catch (err) {
+      console.error(`[apply-company-deductions] adj ${adj?.id} falhou`, err);
+      throw err;
+     }
+    });
+    if (adjResult.errors.length) summary.debitos.errors = adjResult.errors.length;
+
 
     // ============ GLOSAS ============
     // Competência do lote para resolver a PJ vigente do médico na data correta
@@ -207,8 +231,9 @@ Deno.serve(async (req) => {
 
       const existingDebtIds = new Set((existingGpa ?? []).map((r: any) => r.glosa_debt_id));
 
-      for (const debt of debts ?? []) {
-        if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; continue; }
+      const glosaResult = await runInBatches(debts ?? [], 5, async (debt: any) => {
+       try {
+        if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; return; }
 
         // Resolve doctor → PJs vigentes na competência do pagamento.
         // Vínculos sem start_date contam como "sempre vigentes" (fallback retroativo).
@@ -232,9 +257,9 @@ Deno.serve(async (req) => {
             applied_by: user_id,
           });
           summary.glosas.sem_pj++;
-          continue;
+          return;
         }
-        if (!matchEmpresa) continue; // glosa não pertence a esta PJ
+        if (!matchEmpresa) return; // glosa não pertence a esta PJ
 
         // Se médico tem múltiplas PJs vinculadas E todas têm produção no lote → ambíguo
         if (vinculadas.length > 1) {
@@ -252,7 +277,7 @@ Deno.serve(async (req) => {
               applied_by: user_id,
             });
             summary.glosas.ambiguous++;
-            continue;
+            return;
           }
         }
 
@@ -262,7 +287,7 @@ Deno.serve(async (req) => {
           .from("glosa_payment_applications").select("*", { count: "exact", head: true })
           .eq("glosa_debt_id", debt.id).eq("status", "confirmado");
         const parcelaNumero = (aplicadas ?? 0) + 1;
-        if (parcelaNumero > parcelas) continue;
+        if (parcelaNumero > parcelas) return;
         const parcelaValor = Number(debt.total_debt) / parcelas;
 
         await supabase.from("glosa_payment_applications").insert({
@@ -272,7 +297,12 @@ Deno.serve(async (req) => {
         });
         summary.glosas.proposed++;
         summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaValor, parcela: `${parcelaNumero}/${parcelas}` });
-      }
+       } catch (err) {
+        console.error(`[apply-company-deductions] glosa ${debt?.id} falhou`, err);
+        throw err;
+       }
+      });
+      if (glosaResult.errors.length) summary.glosas.errors = glosaResult.errors.length;
     }
 
     return new Response(JSON.stringify({ ok: true, summary }), {
