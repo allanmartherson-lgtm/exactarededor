@@ -536,6 +536,11 @@ const Payments = () => {
       divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
 
   const load = useCallback(async () => {
+    // Enquanto o header ainda está sincronizando a troca de hospital, evita
+    // fazer fetch — a RPC leria `current_active_hospital()` do valor antigo e
+    // renderizaria os lotes da unidade anterior por alguns ms/segundos.
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) { setRows([]); setTotalRows(0); setLoading(false); return; }
     setLoading(true);
     try {
       // Em modo Kanban carregamos um lote maior para que todas as colunas
