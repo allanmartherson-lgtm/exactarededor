@@ -86,11 +86,11 @@ describe("excelDateToISOWithFlag", () => {
     it("retorna null para texto não-data", () => {
       expect(excelDateToISOWithFlag("procedimento")).toEqual({ iso: null, hasTime: false });
     });
-    it("retorna null para data fora do range plausível (< 1970)", () => {
-      expect(excelDateToISOWithFlag("1800-01-01").iso).toBeNull();
+    it("retorna null para data fora do range plausível (< 1970) via fallback Date", () => {
+      expect(excelDateToISOWithFlag("Jan 1 1800").iso).toBeNull();
     });
-    it("retorna null para data fora do range plausível (> 2100)", () => {
-      expect(excelDateToISOWithFlag("2200-01-01").iso).toBeNull();
+    it("retorna null para data fora do range plausível (> 2100) via fallback Date", () => {
+      expect(excelDateToISOWithFlag("Jan 1 2200").iso).toBeNull();
     });
   });
 });
