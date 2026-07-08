@@ -549,6 +549,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
   return {
     // state
     payment,
+    paymentMissing,
     items,
     itemsLoading,
     itemsLoadIssue,
