@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertTriangle, RefreshCcw, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "@/lib/confirm";
+
+// Após este tempo sem progresso (mudança em processed_companies) exibimos
+// um aviso explícito com botão de recarregar/cancelar. Evita spinner infinito
+// quando o worker cai silenciosamente antes do watchdog server-side atuar.
+const STALL_WARNING_MS = 3 * 60 * 1000;
 
 interface ProcessingJob {
   id: string;
