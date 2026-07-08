@@ -15,6 +15,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 
 type Company = { id: string; name: string };
 type Adjustment = {
