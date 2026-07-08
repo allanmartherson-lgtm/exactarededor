@@ -50,17 +50,17 @@ export const FormDialog = ({
           className,
         )}
       >
-        <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10">
+        <DialogHeader className="p-4 sm:p-6 pb-2 sticky top-0 bg-background z-10">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        <div className="px-6 py-4 space-y-4 min-w-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4 min-w-0">
           {children}
         </div>
 
         {footer && (
-          <DialogFooter className="p-6 pt-4 border-t bg-muted/10 sticky bottom-0">
+          <DialogFooter className="p-4 sm:p-6 pt-3 sm:pt-4 border-t bg-muted/10 sticky bottom-0">
             {footer}
           </DialogFooter>
         )}
