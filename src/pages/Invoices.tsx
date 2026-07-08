@@ -77,6 +77,7 @@ const ageColorClass = (days: number | null) => {
 
 const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user, hasRole } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
   const [openQuestions, setOpenQuestions] = useState<InvoiceQuestion[]>([]);
