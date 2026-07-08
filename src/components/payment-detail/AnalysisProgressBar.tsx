@@ -65,6 +65,19 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
       if (!mounted) return;
       setJob((prev) => {
         const next = data as unknown as ProcessingJob | null;
+        // Rastreia progresso para detecção de stall (sem depender de updated_at do DB).
+        if (next && next.status === "em_andamento") {
+          const last = lastProgressRef.current;
+          if (!last || last.processed !== next.processed_companies) {
+            lastProgressRef.current = { processed: next.processed_companies, at: Date.now() };
+            setStalledSince(null);
+          } else if (Date.now() - last.at > STALL_WARNING_MS) {
+            setStalledSince(last.at);
+          }
+        } else {
+          lastProgressRef.current = null;
+          setStalledSince(null);
+        }
         // Toast quando o polling detecta transição (sem realtime).
         if (prev && prev.status === "em_andamento" && next && next.status !== "em_andamento") {
           const successCount = next.processed_companies - (next.failed_companies?.length ?? 0);
@@ -83,6 +96,10 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
     // entrega o UPDATE (WS caiu, aba em background, race entre subscribe e
     // finish do job) e evitava que o banner "em_andamento" ficasse travado.
     pollTimer = setInterval(() => { load(); }, 10000);
+    // Tick a cada 15s só para reavaliar `stalledSince` visualmente
+    // (mostra "sem sinal há N min" incrementando sem precisar re-fetch).
+    tickTimer = setInterval(() => { if (mounted) setNowTick(Date.now()); }, 15000);
+
 
     const channel = supabase
       .channel(`ppj-${paymentId}`)
