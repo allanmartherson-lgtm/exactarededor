@@ -60,6 +60,9 @@ export default function Conciliacao() {
     setSearchParams(next, { replace: true });
   };
 
+  const { hospital, switching: hospitalSwitching } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
+
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [paymentsById, setPaymentsById] = useState<Record<string, PaymentLite>>({});
   const [loading, setLoading] = useState(true);
