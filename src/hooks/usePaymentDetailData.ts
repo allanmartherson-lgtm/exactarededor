@@ -78,6 +78,7 @@ export type RuleLite = {
  */
 export function usePaymentDetailData(id: string | undefined, options?: { groupId?: string }) {
   const [payment, setPayment] = useState<PaymentRow | null>(null);
+  const [paymentMissing, setPaymentMissing] = useState(false);
   const [items, setItems] = useState<PaymentItemRow[]>([]);
   const [itemsLoading, setItemsLoading] = useState(true);
   const [itemsLoadIssue, setItemsLoadIssue] = useState<string | null>(null);
