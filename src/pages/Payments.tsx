@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHospital } from "@/contexts/HospitalContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
 import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, ChevronsUpDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
@@ -216,6 +217,14 @@ const loadPersistedPaymentsState = (): PersistedPaymentsState => {
 
 const Payments = () => {
   const { roles, user } = useAuth();
+  // Hospital ativo — CRÍTICO no multi-tenant: sem depender daqui, a listagem
+  // continuava exibindo dados do hospital anterior após a troca no header,
+  // porque a RPC `list_payments` filtra por `current_active_hospital()` mas o
+  // load() não era re-disparado. Sintoma: usuário troca de DF Star para Santa
+  // Helena/Luzia e continua vendo os lotes do DF Star (grave — analista pode
+  // agir em lote da unidade errada).
+  const { hospital, switching: hospitalSwitching } = useHospital();
+  const activeHospitalId = hospital?.id ?? null;
   const isAnalista = roles.includes("analista") || roles.includes("admin");
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
   const isAdmin = roles.includes("admin");
@@ -527,6 +536,11 @@ const Payments = () => {
       divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
 
   const load = useCallback(async () => {
+    // Enquanto o header ainda está sincronizando a troca de hospital, evita
+    // fazer fetch — a RPC leria `current_active_hospital()` do valor antigo e
+    // renderizaria os lotes da unidade anterior por alguns ms/segundos.
+    if (hospitalSwitching) return;
+    if (!activeHospitalId) { setRows([]); setTotalRows(0); setLoading(false); return; }
     setLoading(true);
     try {
       // Em modo Kanban carregamos um lote maior para que todas as colunas
@@ -649,10 +663,14 @@ const Payments = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [rpcFilters, rpcSort, page, pageSize, view]);
+  }, [rpcFilters, rpcSort, page, pageSize, view, activeHospitalId, hospitalSwitching]);
 
   // Carrega stats globais (não dependem da página atual nem dos filtros locais).
+  // Depende de activeHospitalId: a RPC lê current_active_hospital() do banco;
+  // sem redisparar aqui, o "ver arquivados (N)" e competências seguem do hospital
+  // anterior mesmo após a troca no header.
   const loadGlobalStats = useCallback(async () => {
+    if (hospitalSwitching || !activeHospitalId) return;
     try {
       const { data, error } = await supabase.rpc("payments_global_stats");
       if (error) throw error;
@@ -663,10 +681,13 @@ const Payments = () => {
     } catch (e) {
       console.warn("payments_global_stats falhou", e);
     }
-  }, []);
+  }, [activeHospitalId, hospitalSwitching]);
 
   // Pools (rateios) ativos do hospital — alimenta o filtro de Pool.
+  // Mesma razão: RLS de `pools` já escopa por hospital, mas sem redisparar o
+  // fetch o combobox continuaria mostrando pools do hospital anterior.
   const loadPoolOptions = useCallback(async () => {
+    if (hospitalSwitching || !activeHospitalId) { setPoolOptions([]); return; }
     try {
       const { data, error } = await supabase
         .from("pools")
@@ -677,7 +698,7 @@ const Payments = () => {
     } catch (e) {
       console.warn("load pools falhou", e);
     }
-  }, []);
+  }, [activeHospitalId, hospitalSwitching]);
 
   useEffect(() => { loadPoolOptions(); }, [loadPoolOptions]);
 
