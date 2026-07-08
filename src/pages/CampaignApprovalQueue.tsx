@@ -37,6 +37,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Search, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 
@@ -90,6 +91,7 @@ async function rpcWithRetry<T = unknown>(
 
 export default function CampaignApprovalQueue({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasRole } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const navigate = useNavigate();
   const isSupervisor = hasRole("admin") || hasRole("diretor") || hasRole("validador");
 
@@ -124,6 +126,8 @@ export default function CampaignApprovalQueue({ embedded = false }: { embedded?:
 
   // carrega criadores e empresas para filtros (uma vez)
   useEffect(() => {
+    // Filtros dependem de comm_campaigns/companies do hospital → refaz ao trocar.
+    if (!activeHospitalId) { setCreators({}); setCompanyMap({}); return; }
     void (async () => {
       const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
       const creatorRows = await fetchAllPaginated<{ created_by: string }>((from, to) =>
@@ -151,7 +155,7 @@ export default function CampaignApprovalQueue({ embedded = false }: { embedded?:
       comps.forEach((c) => { cmap[c.id] = c.name; });
       setCompanyMap(cmap);
     })();
-  }, []);
+  }, [activeHospitalId]);
 
   const load = async () => {
     setLoading(true);
@@ -182,9 +186,11 @@ export default function CampaignApprovalQueue({ embedded = false }: { embedded?:
   };
 
   useEffect(() => {
+    // comm_campaigns hospital-scoped via RLS → limpa+recarrega ao trocar unidade.
+    if (!activeHospitalId) { setItems([]); setTotal(0); setLoading(false); return; }
     void load();
     const ch = supabase
-      .channel("comm-campaigns-approval-queue")
+      .channel(`comm-campaigns-approval-queue-${activeHospitalId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "comm_campaigns" },
@@ -193,7 +199,7 @@ export default function CampaignApprovalQueue({ embedded = false }: { embedded?:
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, search, channelFilter, creatorFilter, companyFilter, dateFrom, dateTo]);
+  }, [activeHospitalId, page, statusFilter, search, channelFilter, creatorFilter, companyFilter, dateFrom, dateTo]);
 
   const doApprove = async () => {
     if (!approveTarget) return;

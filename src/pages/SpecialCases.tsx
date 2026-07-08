@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ interface TypeRow { code: string; label: string; description: string | null; act
 
 export default function SpecialCases({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
+  const activeHospitalId = useActiveHospitalId();
   const [tab, setTab] = useState<Status>("pending");
   const [marks, setMarks] = useState<Mark[]>([]);
   const [types, setTypes] = useState<TypeRow[]>([]);
@@ -55,7 +57,12 @@ export default function SpecialCases({ embedded = false }: { embedded?: boolean 
     setLoading(false);
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tab]);
+  useEffect(() => {
+    // Marks/types podem ser hospital-scoped → limpa+recarrega ao trocar unidade.
+    if (!activeHospitalId) { setMarks([]); setLoading(false); return; }
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, activeHospitalId]);
 
   const labelOf = (code: string) => types.find(t => t.code === code)?.label ?? code;
 

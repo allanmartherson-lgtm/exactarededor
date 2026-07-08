@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ const bucketColor: Record<string, string> = {
 };
 
 export default function DreReport() {
+  const activeHospitalId = useActiveHospitalId();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [track, setTrack] = useState<TrackFilterValue>("all");
@@ -106,9 +108,11 @@ export default function DreReport() {
   };
 
   useEffect(() => {
+    // DRE é hospital-scoped via RLS/RPC → recarrega ao trocar unidade.
+    if (!activeHospitalId) { setDre([]); setOpen([]); setLoading(false); return; }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeHospitalId]);
 
   const totalBruto = dre.reduce((s, r) => s + Number(r.bruto), 0);
   const totalGlosas = dre.reduce((s, r) => s + Number(r.glosas), 0);

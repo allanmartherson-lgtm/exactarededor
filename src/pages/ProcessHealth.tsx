@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/ui/KpiCard";
@@ -100,11 +101,14 @@ type Row = {
 const TOUCH_TARGETS = new Set(["concluida_analista", "devolvido_analista", "aguardando_validacao"]);
 
 function ProdutividadeSection() {
+  const activeHospitalId = useActiveHospitalId();
   const [period, setPeriod] = useState<Period>("30");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Produtividade é hospital-scoped via RLS → limpa+recarrega ao trocar.
+    if (!activeHospitalId) { setRows([]); setLoading(false); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -170,7 +174,7 @@ function ProdutividadeSection() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, activeHospitalId]);
 
   const topProcessor = rows[0];
   const bestQuality = useMemo(() => {
@@ -337,12 +341,15 @@ type Accuracy = {
 };
 
 function useObservability() {
+  const activeHospitalId = useActiveHospitalId();
   const [dwell, setDwell] = useState<Dwell[]>([]);
   const [returns, setReturns] = useState<Ret[]>([]);
   const [accuracy, setAccuracy] = useState<Accuracy | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // RPCs hospital-scoped → refaz ao trocar unidade.
+    if (!activeHospitalId) { setDwell([]); setReturns([]); setAccuracy(null); setLoading(false); return; }
     (async () => {
       setLoading(true);
       try {
@@ -364,7 +371,7 @@ function useObservability() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [activeHospitalId]);
 
   return { dwell, returns, accuracy, loading };
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,12 +40,15 @@ type Anomaly = {
 };
 
 export default function MoneyHealth() {
+  const activeHospitalId = useActiveHospitalId();
   const [funnel, setFunnel] = useState<FunnelStage[]>([]);
   const [stuck, setStuck] = useState<StuckCompany[]>([]);
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // RPCs são hospital-scoped via current_active_hospital() → recarrega ao trocar.
+    if (!activeHospitalId) { setFunnel([]); setStuck([]); setAnomalies([]); setLoading(false); return; }
     (async () => {
       setLoading(true);
       try {
@@ -66,7 +70,7 @@ export default function MoneyHealth() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [activeHospitalId]);
 
   const maxValue = Math.max(1, ...funnel.map((f) => Number(f.total_value) || 0));
 

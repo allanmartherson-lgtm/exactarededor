@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw } from "lucide-react";
 import { PAYMENT_STATUS_LABELS, type PaymentStatus } from "@/lib/status";
@@ -81,6 +82,7 @@ const DiagnosticPanel = ({ kind }: { kind: string }) => {
 
 const StatusAnomalies = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"open" | "resolved" | "all">("open");
@@ -108,10 +110,12 @@ const StatusAnomalies = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   useEffect(() => {
     document.title = "Anomalias de status | Exacta Approval";
+    // Hospital-scoped via RLS → limpa+recarrega ao trocar unidade.
+    if (!activeHospitalId) { setRows([]); setRefs({}); setLoading(false); return; }
     load();
     // Realtime: novos incidentes aparecem ao vivo + toast.
     const ch = supabase
-      .channel("status_anomalies_live")
+      .channel(`status_anomalies_live_${activeHospitalId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "status_anomalies" },
@@ -125,7 +129,8 @@ const StatusAnomalies = ({ embedded = false }: { embedded?: boolean } = {}) => {
       )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const filtered = useMemo(() => {
     if (filter === "open") return rows.filter((r) => !r.resolved_at);
