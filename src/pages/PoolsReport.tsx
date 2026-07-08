@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function PoolsReport({ embedded = false }: { embedded?: boolean } = {}) {
+  const activeHospitalId = useActiveHospitalId();
   const [runs, setRuns] = useState<Run[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [payments, setPayments] = useState<Record<string, Payment>>({});
@@ -42,6 +44,8 @@ export default function PoolsReport({ embedded = false }: { embedded?: boolean }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // pools/runs são hospital-scoped via RLS → refaz ao trocar unidade.
+    if (!activeHospitalId) { setRuns([]); setPools([]); setPayments({}); setLoading(false); return; }
     (async () => {
       setLoading(true);
       const [{ data: rs }, { data: ps }] = await Promise.all([
@@ -66,7 +70,7 @@ export default function PoolsReport({ embedded = false }: { embedded?: boolean }
       }
       setLoading(false);
     })();
-  }, []);
+  }, [activeHospitalId]);
 
   const competencies = useMemo(() => {
     const set = new Set<string>();

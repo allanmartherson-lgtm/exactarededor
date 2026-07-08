@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,12 +19,15 @@ type Accuracy = {
 };
 
 export default function BusinessObservability() {
+  const activeHospitalId = useActiveHospitalId();
   const [dwell, setDwell] = useState<Dwell[]>([]);
   const [returns, setReturns] = useState<Ret[]>([]);
   const [accuracy, setAccuracy] = useState<Accuracy | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // RPCs hospital-scoped → refaz ao trocar unidade.
+    if (!activeHospitalId) { setDwell([]); setReturns([]); setAccuracy(null); setLoading(false); return; }
     (async () => {
       setLoading(true);
       try {
@@ -45,7 +49,7 @@ export default function BusinessObservability() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [activeHospitalId]);
 
   return (
     <div>

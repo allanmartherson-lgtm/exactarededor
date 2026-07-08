@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { Link } from "react-router-dom";
 import {
@@ -62,6 +63,7 @@ const SurfaceCardHeader = ({ title, icon: Icon, iconColor = "teal", rightAction 
 );
 
 export default function ExecutiveDashboard() {
+  const activeHospitalId = useActiveHospitalId();
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<any[]>([]);
   const [validationImpact, setValidationImpact] = useState<{ alertas: number; valor: number; byRule: Map<string, { alertas: number; valor: number }> }>({ alertas: 0, valor: 0, byRule: new Map() });
@@ -72,6 +74,13 @@ export default function ExecutiveDashboard() {
 
   useEffect(() => {
     document.title = "Dashboard Executivo | Exacta";
+    // Hospital-scoped: reseta e refaz ao trocar unidade.
+    if (!activeHospitalId) {
+      setPayments([]); setMonthlyCompetencia([]); setMonthlyProcessamento([]);
+      setValidationImpact({ alertas: 0, valor: 0, byRule: new Map() });
+      setLoading(false);
+      return;
+    }
     (async () => {
       const since = new Date();
       since.setMonth(since.getMonth() - 12);
@@ -129,9 +138,10 @@ export default function ExecutiveDashboard() {
       setValidationImpact({ alertas: totalAlertas, valor: totalValor, byRule });
       setLoading(false);
     })();
-  }, []);
+  }, [activeHospitalId]);
 
   useEffect(() => {
+    if (!activeHospitalId) { setTopEmpresas([]); return; }
     supabase.from("payment_company_groups")
       .select("company_name, total_amount, liquido_total")
       .order("liquido_total", { ascending: false })
@@ -143,7 +153,7 @@ export default function ExecutiveDashboard() {
         });
         setTopEmpresas(Array.from(map.entries()).map(([name, valor]) => ({ name, valor })).sort((a, b) => b.valor - a.valor).slice(0, 5));
       });
-  }, []);
+  }, [activeHospitalId]);
 
   const totalVolume = useMemo(() => payments.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0), [payments]);
   const totalItems = useMemo(() => payments.reduce((a, p) => a + Number(p.items_count ?? 0), 0), [payments]);

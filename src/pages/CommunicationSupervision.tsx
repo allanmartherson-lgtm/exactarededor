@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { StatTileGrid } from "@/components/ui/stat-tile-grid";
@@ -41,6 +42,7 @@ interface ThreadRow {
 
 export default function CommunicationSupervision({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, roles } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const navigate = useNavigate();
   const [rows, setRows] = useState<ThreadRow[]>([]);
   const [settings, setSettings] = useState<Record<CommChannel, CommSlaSetting | null>>({
@@ -75,7 +77,12 @@ export default function CommunicationSupervision({ embedded = false }: { embedde
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    // Threads são hospital-scoped via RLS → limpa+recarrega ao trocar unidade.
+    if (!activeHospitalId) { setRows([]); setLoading(false); return; }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const enriched = useMemo(() => {
     return rows.map((r) => {
