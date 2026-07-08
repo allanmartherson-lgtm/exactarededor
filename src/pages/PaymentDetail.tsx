@@ -218,6 +218,7 @@ const PaymentDetail = () => {
 
   const {
     payment,
+    paymentMissing,
     items,
     itemsLoading,
     itemsLoadIssue,
