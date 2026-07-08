@@ -663,7 +663,7 @@ const Payments = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [rpcFilters, rpcSort, page, pageSize, view]);
+  }, [rpcFilters, rpcSort, page, pageSize, view, activeHospitalId, hospitalSwitching]);
 
   // Carrega stats globais (não dependem da página atual nem dos filtros locais).
   const loadGlobalStats = useCallback(async () => {
