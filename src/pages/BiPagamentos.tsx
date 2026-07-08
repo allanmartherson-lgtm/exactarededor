@@ -192,7 +192,8 @@ export default function BiPagamentos() {
         setLoading(false);
       }
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
