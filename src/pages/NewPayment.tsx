@@ -1719,13 +1719,40 @@ const NewPayment = () => {
   /** Substitui o arquivo de um bucket existente sem perder os demais arquivos do lote. */
   const replaceBucketFile = async (idx: number, f: File) => {
     try {
-      const newBucket = await parseFile(f);
-      setBuckets((prev) => prev.map((b, i) => (i === idx ? newBucket : b)));
-      toast({ title: "Arquivo substituído", description: f.name });
+      const prev = buckets[idx];
+      const fresh = await parseFile(f);
+      // Preserva escolhas manuais que o analista já fez sobre este bucket —
+      // trocar o arquivo (ex.: corrigir formato) não deve apagar empresa
+      // manual, setor, mapeamento de colunas ou toggle de valor totalizado.
+      const preservedCompany =
+        prev?.manualOverride && prev.matchedCompany ? prev.matchedCompany : fresh.matchedCompany;
+      const preservedManualOverride = prev?.manualOverride ?? false;
+      const merged: FileBucket = {
+        ...fresh,
+        matchedCompany: preservedCompany,
+        matchScore: preservedCompany && preservedManualOverride ? 1 : fresh.matchScore,
+        manualOverride: preservedManualOverride || fresh.manualOverride,
+        sectorMapping: prev?.sectorMapping ?? fresh.sectorMapping,
+        convenioValueTotalized: prev?.convenioValueTotalized ?? fresh.convenioValueTotalized,
+        columnMapping: prev?.columnMapping ?? fresh.columnMapping,
+        columnOverrides: prev?.columnOverrides ?? fresh.columnOverrides,
+        // Re-estampa empresa preservada nas linhas recém-parseadas.
+        rows: preservedCompany
+          ? fresh.rows.map((r) => ({ ...r, company_id: preservedCompany.id, company_name: preservedCompany.name }))
+          : fresh.rows,
+      };
+      setBuckets((prevBuckets) => prevBuckets.map((b, i) => (i === idx ? merged : b)));
+      toast({
+        title: "Arquivo substituído",
+        description: preservedManualOverride
+          ? `${f.name} — empresa e ajustes anteriores preservados.`
+          : f.name,
+      });
     } catch (e) {
       reportParseError(f.name, e);
     }
   };
+
 
 
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
