@@ -44,6 +44,7 @@ const stageBuckets: { label: string; statuses: PaymentStatus[]; tone: string }[]
 
 const Kpis = () => {
   const { user, hasRole } = useAuth();
+  const activeHospitalId = useActiveHospitalId();
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentLite[]>([]);
