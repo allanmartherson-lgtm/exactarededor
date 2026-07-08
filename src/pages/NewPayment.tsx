@@ -3846,11 +3846,40 @@ const NewPayment = () => {
 
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-base">Arquivos (.xlsx, .xls, .csv)</CardTitle>
-            <CardDescription>
-              Pode anexar várias planilhas — cada arquivo representa uma empresa (detectada pelo nome). Colunas reconhecidas: Nr. Atendimento, Paciente, Convênio, Data, Proced/Mat, Via de Acesso, Código TUSS, Qtd, Valor Procedimento, Percentual, Vl. Repasse, Médico, Função.
-            </CardDescription>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <CardTitle className="text-base">Arquivos (.xlsx, .xls, .csv)</CardTitle>
+                <CardDescription>
+                  Pode anexar várias planilhas — cada arquivo representa uma empresa (detectada pelo nome). Colunas reconhecidas: Nr. Atendimento, Paciente, Convênio, Data, Proced/Mat, Via de Acesso, Código TUSS, Qtd, Valor Procedimento, Percentual, Vl. Repasse, Médico, Função.
+                </CardDescription>
+              </div>
+              {buckets.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0"
+                  disabled={submitting}
+                  onClick={() => {
+                    // Reset completo do estágio de upload — evita ter que excluir
+                    // rascunho e recomeçar quando o analista quer trocar todos
+                    // os arquivos de uma vez.
+                    const ok = window.confirm(
+                      `Remover todos os ${buckets.length} arquivo(s) e recomeçar? Nenhum dado é apagado do banco — apenas o estágio de importação é limpo.`,
+                    );
+                    if (!ok) return;
+                    setBuckets([]);
+                    setParseErrors([]);
+                    setSuspiciousDecisions({});
+                    setBucketFilter("");
+                  }}
+                >
+                  <X className="h-4 w-4 mr-1" /> Limpar todos os arquivos
+                </Button>
+              )}
+            </div>
           </CardHeader>
+
           <CardContent className="space-y-4">
             <label
               className="block border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary-soft/30 transition-colors"
