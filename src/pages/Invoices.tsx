@@ -150,8 +150,10 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   useEffect(() => {
     document.title = "Notas Fiscais | Exacta";
+    if (!activeHospitalId) { setRows([]); return; }
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHospitalId]);
 
   const openThread = async (inv: InvoiceRow) => {
     setOpenInvoice(inv);
