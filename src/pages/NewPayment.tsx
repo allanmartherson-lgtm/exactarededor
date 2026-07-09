@@ -1685,7 +1685,11 @@ const NewPayment = () => {
         ...b,
         sectorMapping: dec.sectorMapping ?? b.sectorMapping,
         matchedCompany: dec.matchedCompany ?? b.matchedCompany,
-        matchScore: dec.matchedCompany ? Math.max(b.matchScore, 1) : b.matchScore,
+        // NUNCA inflar o score fresco só porque o rascunho tinha uma sugestão salva —
+        // isso mascarava "requer confirmação" como "match 100%" após reload e o
+        // analista deixava de ver que precisava confirmar. Só sobe pra 1.0 quando
+        // houve confirmação manual explícita (manualOverride=true no rascunho).
+        matchScore: dec.manualOverride ? Math.max(b.matchScore, 1) : b.matchScore,
         manualOverride: dec.manualOverride ?? b.manualOverride,
         convenioValueTotalized: dec.convenioValueTotalized ?? b.convenioValueTotalized,
         headerRowIndex: dec.headerRowIndex ?? b.headerRowIndex,
