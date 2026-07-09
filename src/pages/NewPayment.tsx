@@ -4248,15 +4248,39 @@ const NewPayment = () => {
                             <Badge variant="secondary" className="gap-1 text-amber-600 border-amber-200 bg-amber-50">
                               <AlertTriangle className="h-3 w-3" /> requer confirmação ({Math.round(b.matchScore * 100)}%)
                             </Badge>
-                            <Button 
-                              type="button"
-                              size="sm" 
-                              variant="outline" 
-                              className="h-6 px-2 text-[10px] border-amber-200 hover:bg-amber-50"
-                              onClick={() => confirmBucketCompany(idx)}
-                            >
-                              Confirmar sugestão
-                            </Button>
+                            {b.matchScore >= MATCH_CONFIRM_MIN ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-[10px] border-amber-200 hover:bg-amber-50"
+                                onClick={() => confirmBucketCompany(idx)}
+                              >
+                                Confirmar sugestão
+                              </Button>
+                            ) : (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      disabled
+                                      className="h-6 px-2 text-[10px] border-amber-200 opacity-60 cursor-not-allowed"
+                                    >
+                                      Confirmar bloqueado
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs max-w-[240px]">
+                                    Confiança abaixo de {Math.round(MATCH_CONFIRM_MIN * 100)}% — para evitar vínculos incorretos,
+                                    escolha manualmente a PJ ou cadastre uma nova.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         ) : (
                           <Badge variant="secondary" className="gap-1 text-destructive border-destructive/30 bg-destructive/10">
@@ -4291,6 +4315,25 @@ const NewPayment = () => {
                               />
                             </PopoverContent>
                           </Popover>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px] text-primary hover:bg-primary/10"
+                            onClick={() =>
+                              setNewCompanyDialog({
+                                idx,
+                                name: b.matchedCompany ? "" : (b.rawCompanyName ?? ""),
+                                document: "",
+                                busy: false,
+                              })
+                            }
+                            title="Cadastrar uma nova PJ e vincular a este arquivo sem sair da tela."
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Cadastrar nova PJ
+                          </Button>
+                          </>
                           </>
                         )}
                         <div className="flex items-center gap-2 flex-wrap flex-1">
