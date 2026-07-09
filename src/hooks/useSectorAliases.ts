@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospital } from "@/contexts/HospitalContext";
 import { applySectorStems } from "@/lib/sectorStems";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 
 const norm = (s: string) =>
   (s ?? "")
@@ -24,7 +25,10 @@ const cacheByHospital = new Map<string, SectorAliasMap>();
 const inflightByHospital = new Map<string, Promise<SectorAliasMap>>();
 
 async function load(activeId: string | null): Promise<SectorAliasMap> {
-  const cacheKey = activeId ?? "__global__";
+  // Guarda sistêmica: null vindo do caller significa "resolve pra mim" — nunca
+  // silenciosamente cair no bucket "__global__" e devolver cadastro incompleto.
+  const effectiveId = activeId ?? (await resolveActiveHospitalId());
+  const cacheKey = effectiveId ?? "__global__";
   const cached = cacheByHospital.get(cacheKey);
   if (cached) return cached;
   const inflight = inflightByHospital.get(cacheKey);
@@ -33,8 +37,8 @@ async function load(activeId: string | null): Promise<SectorAliasMap> {
   const promise = (async () => {
     // Escopo: setores globais (hospital_id IS NULL) + do hospital ativo.
     let query = supabase.from("sectors").select("slug,name,aliases,hospital_id");
-    query = activeId
-      ? query.or(`hospital_id.is.null,hospital_id.eq.${activeId}`)
+    query = effectiveId
+      ? query.or(`hospital_id.is.null,hospital_id.eq.${effectiveId}`)
       : query.is("hospital_id", null);
     const { data } = await query;
 

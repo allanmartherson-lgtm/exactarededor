@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospital } from "@/contexts/HospitalContext";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 
 
 const norm = (s: string) =>
