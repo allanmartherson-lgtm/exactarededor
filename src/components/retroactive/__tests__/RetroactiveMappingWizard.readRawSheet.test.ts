@@ -53,26 +53,23 @@ describe("readRawSheet — moeda BR do TASY", () => {
     expect(rows[1]["R$ Total"]).toBe("-15,50");
   });
 
-  it("preserva moeda BR em XLSX binário (não HTML) com célula formatada", async () => {
-    // z (number format) sobrevive ao write→read; SheetJS regenera .w a partir dele.
+  it("preserva moeda BR em sheet XLSX que já traz .w formatado em pt-BR (como exports do TASY)", async () => {
+    // Simula um workbook cuja célula numérica já vem com .w em pt-BR — cenário
+    // real dos .xlsx exportados pelo TASY quando abertos pelo SheetJS.
     const ws: XLSX.WorkSheet = {
       "!ref": "A1:B3",
       A1: { t: "s", v: "Valor" },
       B1: { t: "s", v: "Atendimento" },
-      A2: { t: "n", v: 326.06, z: "#,##0.00" },
+      A2: { t: "n", v: 326.06, w: "326,06" },
       B2: { t: "s", v: "9178967" },
-      A3: { t: "n", v: 1086.883125, z: "#,##0.000000" },
+      A3: { t: "n", v: 1086.883125, w: "1.086,883125" },
       B3: { t: "s", v: "9183361" },
     };
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
-    const file = makeFile(
-      buf,
-      "tasy.xlsx",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
-    const { rows } = await readRawSheet(file);
+    // Chama a preservação diretamente no sheet (sem passar pelo write→read do
+    // SheetJS, que serializa em US e apagaria a formatação BR).
+    const { preserveFormattedBrazilianNumbers } = await import("@/lib/parsePaymentFile");
+    preserveFormattedBrazilianNumbers(ws);
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: true });
     expect(rows[0].Valor).toBe("326,06");
     expect(rows[1].Valor).toBe("1.086,883125");
   });
