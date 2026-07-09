@@ -589,6 +589,7 @@ const STOPWORDS = new Set([
   "ltda","me","epp","eireli","sa","s","s.a","s.a.","ss","s.s","s.s.","sc","s.c",
   "hospital","hospitalar","instituto","clinica","clínica","centro","cirurgico","cirúrgico",
   "saude","saúde","servicos","serviços","servico","serviço","medico","médico","medica","médica",
+  "medicos","médicos","medicas","médicas","hospitais","clinicas","clínicas","institutos","centros",
   "consultorio","consultório","de","da","do","das","dos","e","&","cia","grupo","unidade",
   "ltd","comercio","comércio","empresarial","cnpj",
 ]);
