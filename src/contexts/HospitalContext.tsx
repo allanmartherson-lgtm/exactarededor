@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { setActiveHospitalId } from "@/integrations/supabase/activeHospital";
+import { invalidateActiveHospitalCache } from "@/lib/resolveActiveHospitalId";
 
 export interface Hospital {
   id: string;
@@ -184,6 +185,10 @@ export const HospitalProvider = ({ children }: { children: ReactNode }) => {
 
         // Limpa cache: nenhum dado do hospital anterior pode aparecer no novo
         queryClient.clear();
+        // Invalida a memoização do resolver de hospital ativo — próxima chamada
+        // relê do servidor e evita servir o hospital antigo para loaders que
+        // são chamados sem id explícito.
+        invalidateActiveHospitalCache();
 
         // CRÍTICO (multi-tenant): grava o hospital ativo no servidor ANTES de
         // qualquer refetch — current_active_hospital() lê do banco. Bloqueia
