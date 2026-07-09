@@ -10,6 +10,7 @@
  *    ou cadastrar novo). Resolve o caso "paciente colocado como médico".
  */
 import { supabase } from "@/integrations/supabase/client";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 
 export type MatchedBy = "crm" | "cpf" | "slug" | "name" | "alias" | null;
 
