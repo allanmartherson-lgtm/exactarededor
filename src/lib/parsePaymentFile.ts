@@ -714,6 +714,7 @@ export const similarity = (a: string, b: string): number => {
   // marcas totalmente distintas (ex.: "ZAHO" vs "B A S").
   const brandAnchorsA = brandA.filter((t) => t.length >= 4);
   const brandAnchorsB = brandB.filter((t) => t.length >= 4);
+  if ((globalThis as any).__DBG_SIM) console.log('DBG', {ta, tb, brandA, brandB, brandAnchorsA, brandAnchorsB, scoreBefore: score});
   if (brandAnchorsA.length && brandAnchorsB.length) {
     const brandAnchorHit = brandAnchorsA.some((t) =>
       brandAnchorsB.some((u) => tokensEquivalent(t, u)),
