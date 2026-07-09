@@ -712,8 +712,8 @@ export const similarity = (a: string, b: string): number => {
   // MATCH_REVIEW_THRESHOLD (0.55) para forçar seleção manual. Cobre o caso em
   // que sufixos idênticos ("SERVICOS MEDICOS LTDA") inflam o levSim entre
   // marcas totalmente distintas (ex.: "ZAHO" vs "B A S").
-  const brandAnchorsA = brandA.filter((t) => t.length >= 5);
-  const brandAnchorsB = brandB.filter((t) => t.length >= 5);
+  const brandAnchorsA = brandA.filter((t) => t.length >= 4);
+  const brandAnchorsB = brandB.filter((t) => t.length >= 4);
   if (brandAnchorsA.length && brandAnchorsB.length) {
     const brandAnchorHit = brandAnchorsA.some((t) =>
       brandAnchorsB.some((u) => tokensEquivalent(t, u)),
@@ -722,6 +722,10 @@ export const similarity = (a: string, b: string): number => {
   } else if (brandAnchorsA.length || brandAnchorsB.length) {
     // Um lado tem marca, o outro não tem NENHUMA marca comparável (só genéricos
     // ou tokens curtos, ex.: "B A S"). Sem forma de validar a marca → cap 0.5.
+    score = Math.min(score, 0.5);
+  } else if (ta.length === 0 || tb.length === 0) {
+    // Sequer há tokens de conteúdo em um dos lados após stopwords: não dá para
+    // afirmar similaridade — evita 0.9 vindo apenas de sufixos jurídicos.
     score = Math.min(score, 0.5);
   }
   return Math.min(1, score);
