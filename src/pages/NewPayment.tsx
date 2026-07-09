@@ -4334,7 +4334,6 @@ const NewPayment = () => {
                             Cadastrar nova PJ
                           </Button>
                           </>
-                          </>
                         )}
                         <div className="flex items-center gap-2 flex-wrap flex-1">
 
