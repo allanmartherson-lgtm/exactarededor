@@ -39,7 +39,7 @@ import { applySectorStems } from "@/lib/sectorStems";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { AlertTriangle } from "lucide-react";
+
 import {
   loadDoctorRegistry,
   loadConvenioRegistry,
