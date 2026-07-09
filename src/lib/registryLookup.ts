@@ -237,8 +237,12 @@ export async function loadConvenioRegistry(
   hospitalId: string | null = null,
   force = false,
 ): Promise<ConvenioRegistry> {
+  // Guarda sistêmica: se o caller não passou hospitalId, NUNCA caia no bucket
+  // "__global__" — resolve no servidor. Evita o bug recorrente do resolver
+  // devolvendo cadastro incompleto por hidratação tardia do HospitalContext.
+  const effectiveHospitalId = hospitalId ?? (await resolveActiveHospitalId());
   const reg: ConvenioRegistry = { bySlug: new Map(), byAlias: new Map() };
-  const cacheKey = `registry.convenios.v3.${hospitalId ?? "__global__"}`;
+  const cacheKey = `registry.convenios.v3.${effectiveHospitalId ?? "__global__"}`;
   const { conv, aliases } = await cachedRows(
     cacheKey,
     force,
@@ -247,13 +251,13 @@ export async function loadConvenioRegistry(
         fetchAllPaginated<any>((from, to) =>
           applyHospitalScope(
             supabase.from("convenios").select("slug, name, hospital_id").eq("active", true) as any,
-            hospitalId,
+            effectiveHospitalId,
           ).range(from, to),
         ),
         fetchAllPaginated<any>((from, to) =>
           applyHospitalScope(
             supabase.from("convenio_aliases").select("convenio_slug, alias_normalized, hospital_id") as any,
-            hospitalId,
+            effectiveHospitalId,
           ).range(from, to),
         ),
       ]);
@@ -279,8 +283,10 @@ export async function loadSectorRegistry(
   hospitalId: string | null = null,
   force = false,
 ): Promise<SectorRegistry> {
+  // Mesma guarda sistêmica de loadConvenioRegistry — ver comentário lá.
+  const effectiveHospitalId = hospitalId ?? (await resolveActiveHospitalId());
   const reg: SectorRegistry = { bySlug: new Map(), byAlias: new Map() };
-  const cacheKey = `registry.sectors.v3.${hospitalId ?? "__global__"}`;
+  const cacheKey = `registry.sectors.v3.${effectiveHospitalId ?? "__global__"}`;
   const { sec, aliases } = await cachedRows(
     cacheKey,
     force,
@@ -289,13 +295,13 @@ export async function loadSectorRegistry(
         fetchAllPaginated<any>((from, to) =>
           applyHospitalScope(
             supabase.from("sectors").select("slug, name, hospital_id").eq("active", true) as any,
-            hospitalId,
+            effectiveHospitalId,
           ).range(from, to),
         ),
         fetchAllPaginated<any>((from, to) =>
           applyHospitalScope(
             supabase.from("sector_aliases").select("sector_slug, alias_normalized, hospital_id") as any,
-            hospitalId,
+            effectiveHospitalId,
           ).range(from, to),
         ),
       ]);
