@@ -4948,6 +4948,80 @@ const NewPayment = () => {
         );
       })()}
 
+      <Dialog
+        open={!!newCompanyDialog}
+        onOpenChange={(o) => !o && !newCompanyDialog?.busy && setNewCompanyDialog(null)}
+      >
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="pr-10 break-words leading-snug">
+              Cadastrar nova PJ
+            </DialogTitle>
+          </DialogHeader>
+          {newCompanyDialog && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                A empresa será criada no cadastro geral e vinculada a este arquivo.
+                {(() => {
+                  const raw = buckets[newCompanyDialog.idx]?.rawCompanyName?.trim();
+                  return raw ? ` "${raw}" será salvo como apelido para reconhecer automaticamente nas próximas importações.` : "";
+                })()}
+              </p>
+              <div className="space-y-1">
+                <Label>Nome</Label>
+                <Input
+                  value={newCompanyDialog.name}
+                  onChange={(e) =>
+                    setNewCompanyDialog((d) => (d ? { ...d, name: e.target.value } : d))
+                  }
+                  placeholder="Razão social ou nome fantasia"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>CNPJ (opcional)</Label>
+                <Input
+                  value={newCompanyDialog.document}
+                  onChange={(e) =>
+                    setNewCompanyDialog((d) => (d ? { ...d, document: e.target.value } : d))
+                  }
+                  placeholder="00.000.000/0000-00"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNewCompanyDialog(null)}
+              disabled={!!newCompanyDialog?.busy}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!newCompanyDialog) return;
+                setNewCompanyDialog((d) => (d ? { ...d, busy: true } : d));
+                const ok = await registerAndBindNewCompany(
+                  newCompanyDialog.idx,
+                  newCompanyDialog.name,
+                  newCompanyDialog.document,
+                );
+                if (ok) {
+                  setNewCompanyDialog(null);
+                } else {
+                  setNewCompanyDialog((d) => (d ? { ...d, busy: false } : d));
+                }
+              }}
+              disabled={!newCompanyDialog || newCompanyDialog.busy || !newCompanyDialog.name.trim()}
+            >
+              {newCompanyDialog?.busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Cadastrar e vincular
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <ZeevAssistant
         pageLabel={modoConfeccao ? "Confecção de pagamento" : "Novo lote de pagamento"}
