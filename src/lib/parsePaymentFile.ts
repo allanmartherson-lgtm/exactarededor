@@ -589,8 +589,33 @@ const STOPWORDS = new Set([
   "ltda","me","epp","eireli","sa","s","s.a","s.a.","ss","s.s","s.s.","sc","s.c",
   "hospital","hospitalar","instituto","clinica","clínica","centro","cirurgico","cirúrgico",
   "saude","saúde","servicos","serviços","servico","serviço","medico","médico","medica","médica",
+  "medicos","médicos","medicas","médicas","hospitais","clinicas","clínicas","institutos","centros",
   "consultorio","consultório","de","da","do","das","dos","e","&","cia","grupo","unidade",
   "ltd","comercio","comércio","empresarial","cnpj",
+]);
+
+// Termos clínicos/administrativos genéricos que aparecem em MUITAS PJs diferentes
+// (especialidades, público-alvo, tipos de serviço). Passam pelo tokenizer porque têm
+// ≥5 chars, mas não podem valer como "token de marca" — se forem os ÚNICOS pontos de
+// contato entre dois nomes, o match é falso-positivo (ex.: "REVITALITE MULHER" vs
+// "CLINICA DA MULHER GINECOLOGIA OBSTETRICIA" batia 92% só via mulher/ginecologia/obstetricia).
+// Mantém stopwords tradicionais em STOPWORDS acima; aqui vai o que é específico do domínio médico.
+const DOMAIN_GENERIC = new Set([
+  "mulher","mulheres","homem","homens","adulto","adultos","infantil","infantis","crianca","criancas",
+  "feminina","feminino","masculina","masculino","geral","especializada","especializado","especialidade",
+  "assistencia","assistencial","atendimento","atendimentos","cuidados","cuidado",
+  "diagnostico","diagnosticos","imagem","imagens","laboratorio","laboratorios",
+  "reabilitacao","fisioterapia","psicologia","nutricao","estetica",
+  "ginecologia","ginecologica","ginecologico","obstetricia","obstetrica","obstetrico",
+  "cardiologia","cardiologica","ortopedia","ortopedica","pediatria","pediatrica",
+  "dermatologia","dermatologica","urologia","urologica","neurologia","neurologica",
+  "oncologia","oncologica","radiologia","radiologica","anestesia","anestesiologia",
+  "cirurgia","cirurgica","cirurgias","endocrinologia","gastroenterologia","otorrino",
+  "otorrinolaringologia","oftalmologia","oftalmologica","reumatologia","nefrologia",
+  "pneumologia","psiquiatria","hematologia","infectologia","mastologia","proctologia",
+  "vascular","vasculares","plastica","plasticas","bucomaxilo","bariatrica","bariatria",
+  "parecer","pareceres","visita","visitas","consulta","consultas","ambulatorio","ambulatorial",
+  "internacao","enfermaria","uti","emergencia","urgencia","pronto","socorro","hemodinamica",
 ]);
 
 const stripDiacritics = (s: string) =>
@@ -660,30 +685,50 @@ export const similarity = (a: string, b: string): number => {
   const j = jaccard(ta, tb);
   const l = levSim(a, b);
   let score = 0.65 * j + 0.35 * l;
+  // Tokens "de marca" = removem stopwords jurídicas E termos clínicos genéricos.
+  // Só eles servem para diferenciar PJs (ex.: "REVITALITE", "ZAHO", "OTOEX").
+  const brandA = ta.filter((t) => !DOMAIN_GENERIC.has(t));
+  const brandB = tb.filter((t) => !DOMAIN_GENERIC.has(t));
   if (ta.length && tb.length) {
     const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
     const hits = shorter.filter((t) => longer.some((u) => tokensEquivalent(t, u))).length;
     const ratio = hits / shorter.length;
-    if (ratio === 1 && shorter.length >= 2) score = Math.max(score, 0.92);
-    else if (ratio >= 0.7 && shorter.length >= 3) score = Math.min(1, score + 0.18);
-    else if (ratio >= 0.6 && shorter.length >= 2) score = Math.min(1, score + 0.1);
-  }
-  // Guarda de TOKEN DISTINTIVO: nomes incomuns (ex.: "OTOEX", "CHAIN VILLAR")
-  // não podem ser auto-sugeridos para PJs cujo conteúdo significativo é totalmente
-  // diferente. Se AMBOS os lados possuem um token "âncora" (≥5 chars, não-stopword)
-  // e NENHUM token âncora do lado mais curto bate (mesmo fuzzy) com algum do outro
-  // lado, limitamos o score abaixo do MATCH_REVIEW_THRESHOLD (0.55) para forçar
-  // seleção manual em vez de empurrar um falso-positivo ao analista.
-  if (ta.length && tb.length) {
-    const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
-    const shorterAnchors = shorter.filter((t) => t.length >= 5);
-    const longerAnchors = longer.filter((t) => t.length >= 5);
-    if (shorterAnchors.length && longerAnchors.length) {
-      const anchorHit = shorterAnchors.some((t) =>
-        longerAnchors.some((u) => tokensEquivalent(t, u)),
-      );
-      if (!anchorHit) score = Math.min(score, 0.5);
+    // Bônus de containment/cobertura só faz sentido se pelo menos UM token de marca
+    // do lado mais curto participou do match. Sem isso, o "containment" é 100%
+    // genérico (todos os tokens comuns são clínicos) e infla falsos-positivos
+    // como "CLINICA DA MULHER GINECOLOGIA OBSTETRICIA" ↔ "REVITALITE MULHER ...".
+    const shorterBrand = shorter.filter((t) => !DOMAIN_GENERIC.has(t));
+    const longerBrand = longer.filter((t) => !DOMAIN_GENERIC.has(t));
+    const brandHit = shorterBrand.length === 0
+      ? false
+      : shorterBrand.some((t) => longerBrand.some((u) => tokensEquivalent(t, u)));
+    if (brandHit) {
+      if (ratio === 1 && shorter.length >= 2) score = Math.max(score, 0.92);
+      else if (ratio >= 0.7 && shorter.length >= 3) score = Math.min(1, score + 0.18);
+      else if (ratio >= 0.6 && shorter.length >= 2) score = Math.min(1, score + 0.1);
     }
+  }
+  // Guarda de TOKEN DE MARCA: se ambos os lados têm tokens de marca (≥5 chars
+  // e fora de DOMAIN_GENERIC) mas NENHUM bate fuzzy, cap abaixo do
+  // MATCH_REVIEW_THRESHOLD (0.55) para forçar seleção manual. Cobre o caso em
+  // que sufixos idênticos ("SERVICOS MEDICOS LTDA") inflam o levSim entre
+  // marcas totalmente distintas (ex.: "ZAHO" vs "B A S").
+  const brandAnchorsA = brandA.filter((t) => t.length >= 4);
+  const brandAnchorsB = brandB.filter((t) => t.length >= 4);
+  
+  if (brandAnchorsA.length && brandAnchorsB.length) {
+    const brandAnchorHit = brandAnchorsA.some((t) =>
+      brandAnchorsB.some((u) => tokensEquivalent(t, u)),
+    );
+    if (!brandAnchorHit) score = Math.min(score, 0.5);
+  } else if (brandAnchorsA.length || brandAnchorsB.length) {
+    // Um lado tem marca, o outro não tem NENHUMA marca comparável (só genéricos
+    // ou tokens curtos, ex.: "B A S"). Sem forma de validar a marca → cap 0.5.
+    score = Math.min(score, 0.5);
+  } else if (ta.length === 0 || tb.length === 0) {
+    // Sequer há tokens de conteúdo em um dos lados após stopwords: não dá para
+    // afirmar similaridade — evita 0.9 vindo apenas de sufixos jurídicos.
+    score = Math.min(score, 0.5);
   }
   return Math.min(1, score);
 };
