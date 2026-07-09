@@ -18,7 +18,8 @@ import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_LABELS, PAYMENT_TRACK_DESCRIPTIONS, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
-import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil, RefreshCw, Calculator, History, Focus, Target, Bot } from "lucide-react";
+import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, AlertTriangle, Pencil, Plus, RefreshCw, Calculator, History, Focus, Target, Bot } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
@@ -38,7 +39,7 @@ import { applySectorStems } from "@/lib/sectorStems";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { AlertTriangle } from "lucide-react";
+
 import {
   loadDoctorRegistry,
   loadConvenioRegistry,
@@ -57,6 +58,7 @@ import {
   matchCompany,
   MATCH_AUTO_THRESHOLD,
   MATCH_REVIEW_THRESHOLD,
+  MATCH_CONFIRM_MIN,
   excelDateToISOWithFlag as excelDateToISOWithFlagLib,
 } from "@/lib/parsePaymentFile";
 import {
@@ -526,6 +528,11 @@ const NewPayment = () => {
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
+  // Dialog de cadastro rápido de PJ ancorado no card do arquivo.
+  const [newCompanyDialog, setNewCompanyDialog] = useState<
+    | { idx: number; name: string; document: string; busy: boolean }
+    | null
+  >(null);
   const [bucketFilter, setBucketFilter] = useState("");
   // Debounce: evita refiltrar a lista a cada tecla em lotes grandes (300ms).
   const [debouncedBucketFilter, setDebouncedBucketFilter] = useState("");
@@ -1872,6 +1879,65 @@ const NewPayment = () => {
       title: "Empresa confirmada",
       description: `A sugestão "${picked.name}" foi aceita para este arquivo.`,
     });
+  };
+
+  /**
+   * Cadastro rápido de PJ direto do card de arquivo (fluxo de nova importação).
+   * Cria a empresa, adiciona ao cache local e reaproveita `overrideBucketCompany`
+   * para vincular + aprender apelido, evitando que o analista saia da tela
+   * para cadastrar cada nova PJ do lote.
+   */
+  const registerAndBindNewCompany = async (
+    idx: number,
+    name: string,
+    document: string,
+  ): Promise<boolean> => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast({ title: "Informe o nome da empresa", variant: "destructive" });
+      return false;
+    }
+    const b = buckets[idx];
+    if (!b) return false;
+    const doc = document.trim() || null;
+    const rawAlias = b.rawCompanyName?.trim() ?? "";
+    const aliases = rawAlias && rawAlias !== trimmed ? [rawAlias] : [];
+    try {
+      const { data: created, error } = await supabase
+        .from("companies")
+        .insert({ name: trimmed, document: doc, aliases })
+        .select("id, name, document, aliases")
+        .single();
+      if (error) throw error;
+
+      // Atualiza cache local para o próximo match / combobox reconhecer.
+      const nextRow: CompanyRow = {
+        id: created.id,
+        name: created.name,
+        aliases: (created as any).aliases ?? aliases,
+      };
+      companiesRef.current = [...companiesRef.current, nextRow];
+      setCompanies((prev) => [...prev, nextRow]);
+
+      await overrideBucketCompany(idx, {
+        id: created.id,
+        name: created.name,
+        document: (created as any).document ?? doc,
+      });
+
+      toast({
+        title: "Empresa cadastrada",
+        description: `${created.name} foi criada e vinculada ao arquivo.`,
+      });
+      return true;
+    } catch (e: any) {
+      toast({
+        title: "Erro ao cadastrar empresa",
+        description: e?.message ?? String(e),
+        variant: "destructive",
+      });
+      return false;
+    }
   };
 
   const toggleBucketConvenioTotalized = (idx: number) => {
@@ -4182,15 +4248,39 @@ const NewPayment = () => {
                             <Badge variant="secondary" className="gap-1 text-amber-600 border-amber-200 bg-amber-50">
                               <AlertTriangle className="h-3 w-3" /> requer confirmação ({Math.round(b.matchScore * 100)}%)
                             </Badge>
-                            <Button 
-                              type="button"
-                              size="sm" 
-                              variant="outline" 
-                              className="h-6 px-2 text-[10px] border-amber-200 hover:bg-amber-50"
-                              onClick={() => confirmBucketCompany(idx)}
-                            >
-                              Confirmar sugestão
-                            </Button>
+                            {b.matchScore >= MATCH_CONFIRM_MIN ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-[10px] border-amber-200 hover:bg-amber-50"
+                                onClick={() => confirmBucketCompany(idx)}
+                              >
+                                Confirmar sugestão
+                              </Button>
+                            ) : (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      disabled
+                                      className="h-6 px-2 text-[10px] border-amber-200 opacity-60 cursor-not-allowed"
+                                    >
+                                      Confirmar bloqueado
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs max-w-[240px]">
+                                    Confiança abaixo de {Math.round(MATCH_CONFIRM_MIN * 100)}% — para evitar vínculos incorretos,
+                                    escolha manualmente a PJ ou cadastre uma nova.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         ) : (
                           <Badge variant="secondary" className="gap-1 text-destructive border-destructive/30 bg-destructive/10">
@@ -4225,6 +4315,24 @@ const NewPayment = () => {
                               />
                             </PopoverContent>
                           </Popover>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px] text-primary hover:bg-primary/10"
+                            onClick={() =>
+                              setNewCompanyDialog({
+                                idx,
+                                name: b.matchedCompany ? "" : (b.rawCompanyName ?? ""),
+                                document: "",
+                                busy: false,
+                              })
+                            }
+                            title="Cadastrar uma nova PJ e vincular a este arquivo sem sair da tela."
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Cadastrar nova PJ
+                          </Button>
                           </>
                         )}
                         <div className="flex items-center gap-2 flex-wrap flex-1">
@@ -4839,6 +4947,80 @@ const NewPayment = () => {
           />
         );
       })()}
+
+      <Dialog
+        open={!!newCompanyDialog}
+        onOpenChange={(o) => !o && !newCompanyDialog?.busy && setNewCompanyDialog(null)}
+      >
+        <DialogContent className="max-w-[min(32rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="pr-10 break-words leading-snug">
+              Cadastrar nova PJ
+            </DialogTitle>
+          </DialogHeader>
+          {newCompanyDialog && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                A empresa será criada no cadastro geral e vinculada a este arquivo.
+                {(() => {
+                  const raw = buckets[newCompanyDialog.idx]?.rawCompanyName?.trim();
+                  return raw ? ` "${raw}" será salvo como apelido para reconhecer automaticamente nas próximas importações.` : "";
+                })()}
+              </p>
+              <div className="space-y-1">
+                <Label>Nome</Label>
+                <Input
+                  value={newCompanyDialog.name}
+                  onChange={(e) =>
+                    setNewCompanyDialog((d) => (d ? { ...d, name: e.target.value } : d))
+                  }
+                  placeholder="Razão social ou nome fantasia"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>CNPJ (opcional)</Label>
+                <Input
+                  value={newCompanyDialog.document}
+                  onChange={(e) =>
+                    setNewCompanyDialog((d) => (d ? { ...d, document: e.target.value } : d))
+                  }
+                  placeholder="00.000.000/0000-00"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNewCompanyDialog(null)}
+              disabled={!!newCompanyDialog?.busy}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!newCompanyDialog) return;
+                setNewCompanyDialog((d) => (d ? { ...d, busy: true } : d));
+                const ok = await registerAndBindNewCompany(
+                  newCompanyDialog.idx,
+                  newCompanyDialog.name,
+                  newCompanyDialog.document,
+                );
+                if (ok) {
+                  setNewCompanyDialog(null);
+                } else {
+                  setNewCompanyDialog((d) => (d ? { ...d, busy: false } : d));
+                }
+              }}
+              disabled={!newCompanyDialog || newCompanyDialog.busy || !newCompanyDialog.name.trim()}
+            >
+              {newCompanyDialog?.busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Cadastrar e vincular
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
 
       <ZeevAssistant

@@ -748,6 +748,11 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
 // abaixo de 1.0 entra em revisão manual; abaixo de 0.55 vai pra "sem PJ".
 export const MATCH_AUTO_THRESHOLD = 1.0;
 export const MATCH_REVIEW_THRESHOLD = 0.55;
+// Piso para permitir que o analista aceite a sugestão automática do sistema.
+// Abaixo disso, o botão "Confirmar sugestão" fica bloqueado — o analista
+// precisa escolher manualmente ou cadastrar uma nova PJ para evitar vínculos
+// incorretos (ex.: 63% de similaridade linkando empresas homônimas erradas).
+export const MATCH_CONFIRM_MIN = 0.8;
 
 // Palavras-âncora que indicam que uma linha é cabeçalho de dados de pagamento.
 // Usadas para pular metadados (empresa, CNPJ, vigência, valor da NF) que
