@@ -54,13 +54,14 @@ describe("readRawSheet — moeda BR do TASY", () => {
   });
 
   it("preserva moeda BR em XLSX binário (não HTML) com célula formatada", async () => {
+    // z (number format) sobrevive ao write→read; SheetJS regenera .w a partir dele.
     const ws: XLSX.WorkSheet = {
       "!ref": "A1:B3",
       A1: { t: "s", v: "Valor" },
       B1: { t: "s", v: "Atendimento" },
-      A2: { t: "n", v: 326.06, w: "326,06" },
+      A2: { t: "n", v: 326.06, z: "#,##0.00" },
       B2: { t: "s", v: "9178967" },
-      A3: { t: "n", v: 1086.883125, w: "1.086,883125" },
+      A3: { t: "n", v: 1086.883125, z: "#,##0.000000" },
       B3: { t: "s", v: "9183361" },
     };
     const wb = XLSX.utils.book_new();
