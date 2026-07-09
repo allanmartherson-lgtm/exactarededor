@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircleIcon, FileSpreadsheetIcon, ArrowLeftIcon } from "lucide-react";
 import { CompanyMappingList, type MappingRow } from "@/components/shared/CompanyMappingList";
 import { findCompanyMatch, type AliasMap } from "@/lib/companyMatching";
+import { preserveFormattedBrazilianNumbers } from "@/lib/parsePaymentFile";
 
 export type TargetField = {
   key: string;
@@ -136,9 +137,18 @@ function parseCellDate(v: unknown): string {
 
 export async function readRawSheet(file: File): Promise<{ headers: string[]; rows: RawRow[] }> {
   const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
+  const preview = new TextDecoder("utf-8").decode(new Uint8Array(buf).slice(0, 4096)).trimStart();
+  // Exportações TASY em .xls frequentemente são HTML disfarçado. No navegador,
+  // a leitura por ArrayBuffer pode cair no parser CSV e quebrar valores "326,06".
+  const wb = /<table[\s>]/i.test(preview) || /^<(?:!doctype\s+html|html)\b/i.test(preview)
+    ? XLSX.read(new TextDecoder("utf-8").decode(buf).trimStart(), { type: "string" })
+    : XLSX.read(buf, { type: "array" });
   const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { defval: "" });
+  if (!sheet) return { headers: [], rows: [] };
+  // O TASY costuma exportar moeda BR em XLS/HTML. Sem restaurar o texto
+  // formatado, SheetJS pode transformar "326,06" em 32606 e inflar a apuração.
+  preserveFormattedBrazilianNumbers(sheet);
+  const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { defval: "", raw: true });
   const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
   return { headers, rows };
 }
