@@ -2337,9 +2337,16 @@ const NewPayment = () => {
     }
   };
 
+  // Recarrega cadastros sempre que houver linhas E o hospital ativo mudar/carregar.
+  // Bug anterior: se o `hospital` ainda estava carregando quando `allRows` chegava,
+  // as registries eram buscadas com `hospital_id IS NULL`, deixando de fora os
+  // aliases escopados ao hospital (ex.: "Codevasf - Casec" no Santa Helena) e
+  // fazendo o alias já salvo reaparecer como "não resolvido".
   useEffect(() => {
-    if (allRows.length === 0 || (doctorReg && convenioReg && sectorReg)) return;
-    reloadRegistries().catch((error) => {
+    if (allRows.length === 0) return;
+    // Força recarregar quando o hospital muda: cache é por hospitalId, então
+    // não há custo desnecessário caso o hospital já esteja estável.
+    reloadRegistries(true).catch((error) => {
       console.error("[NewPayment] reloadRegistries", error);
       toast({
         title: "Cadastros oficiais ainda não carregaram",
@@ -2347,7 +2354,8 @@ const NewPayment = () => {
         variant: "destructive",
       });
     });
-  }, [allRows.length, doctorReg, convenioReg, sectorReg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRows.length, hospital?.id]);
 
   // Quando a linha já traz setor, ela é a fonte de verdade. O seletor do bucket
   // é apenas fallback para arquivo sem setor reconhecido — não pode transformar
