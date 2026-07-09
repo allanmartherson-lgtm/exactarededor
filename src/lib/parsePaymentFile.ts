@@ -593,6 +593,30 @@ const STOPWORDS = new Set([
   "ltd","comercio","comércio","empresarial","cnpj",
 ]);
 
+// Termos clínicos/administrativos genéricos que aparecem em MUITAS PJs diferentes
+// (especialidades, público-alvo, tipos de serviço). Passam pelo tokenizer porque têm
+// ≥5 chars, mas não podem valer como "token de marca" — se forem os ÚNICOS pontos de
+// contato entre dois nomes, o match é falso-positivo (ex.: "REVITALITE MULHER" vs
+// "CLINICA DA MULHER GINECOLOGIA OBSTETRICIA" batia 92% só via mulher/ginecologia/obstetricia).
+// Mantém stopwords tradicionais em STOPWORDS acima; aqui vai o que é específico do domínio médico.
+const DOMAIN_GENERIC = new Set([
+  "mulher","mulheres","homem","homens","adulto","adultos","infantil","infantis","crianca","criancas",
+  "feminina","feminino","masculina","masculino","geral","especializada","especializado","especialidade",
+  "assistencia","assistencial","atendimento","atendimentos","cuidados","cuidado",
+  "diagnostico","diagnosticos","imagem","imagens","laboratorio","laboratorios",
+  "reabilitacao","fisioterapia","psicologia","nutricao","estetica",
+  "ginecologia","ginecologica","ginecologico","obstetricia","obstetrica","obstetrico",
+  "cardiologia","cardiologica","ortopedia","ortopedica","pediatria","pediatrica",
+  "dermatologia","dermatologica","urologia","urologica","neurologia","neurologica",
+  "oncologia","oncologica","radiologia","radiologica","anestesia","anestesiologia",
+  "cirurgia","cirurgica","cirurgias","endocrinologia","gastroenterologia","otorrino",
+  "otorrinolaringologia","oftalmologia","oftalmologica","reumatologia","nefrologia",
+  "pneumologia","psiquiatria","hematologia","infectologia","mastologia","proctologia",
+  "vascular","vasculares","plastica","plasticas","bucomaxilo","bariatrica","bariatria",
+  "parecer","pareceres","visita","visitas","consulta","consultas","ambulatorio","ambulatorial",
+  "internacao","enfermaria","uti","emergencia","urgencia","pronto","socorro","hemodinamica",
+]);
+
 const stripDiacritics = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
