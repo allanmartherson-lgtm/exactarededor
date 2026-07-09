@@ -15,7 +15,12 @@ export const normalizeNumericValue = (v: unknown): { value: number; invalid: boo
   // Remove símbolos de moeda/espaços preservando separadores decimais.
   let s = String(v).replace(/[R$€£\s]/g, "").trim();
   if (!s) return { value: 0, invalid: false };
+  // Placeholders contábeis de "zero" comuns em planilhas brasileiras: "-",
+  // "--", "–", "—". Tratar como zero legítimo, não como valor inválido.
+  if (/^[-–—]+$/.test(s)) return { value: 0, invalid: false };
   s = s.replace(/[^0-9,.-]/g, "");
+  // Após limpeza pode sobrar só sinal (ex.: original "R$ -") — também é zero.
+  if (!s || /^-+$/.test(s)) return { value: 0, invalid: false };
 
   const isNegative = s.startsWith("-");
   if (isNegative) s = s.slice(1);
@@ -57,8 +62,10 @@ export const normalizeNumericValue = (v: unknown): { value: number; invalid: boo
   }
 
   const n = parseFloat(`${isNegative ? "-" : ""}${s}`);
-  const invalid = isNaN(n) || n < 0;
-  return { value: isNaN(n) ? 0 : n, invalid };
+  // Só texto realmente não-numérico ("abc") marca invalid. Zero e vazios já
+  // foram tratados acima como zero legítimo.
+  if (isNaN(n)) return { value: 0, invalid: true };
+  return { value: n, invalid: n < 0 };
 };
 
 /**
