@@ -417,12 +417,33 @@ REGRAS:
 
     const aiData = await aiResp.json();
     const tc = aiData.content?.find((b: { type: string }) => b.type === "tool_use");
-    const summary = (tc?.input ?? null) as ExecutiveSummary | null;
+    let summary = (tc?.input ?? null) as ExecutiveSummary | null;
+    // Fallback: se o modelo (ex.: gateway OpenAI de fallback) não emitiu tool_use
+    // mas devolveu texto, tenta extrair JSON do bloco de texto.
     if (!summary) {
-      return new Response(JSON.stringify({ error: "IA não retornou estrutura esperada" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const textBlock = aiData.content?.find((b: { type: string; text?: string }) => b.type === "text");
+      const raw = String(textBlock?.text ?? "").trim();
+      if (raw) {
+        const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "");
+        const start = cleaned.search(/[\{\[]/);
+        const end = cleaned.lastIndexOf("}");
+        if (start !== -1 && end > start) {
+          try {
+            const parsed = JSON.parse(cleaned.slice(start, end + 1));
+            if (parsed && typeof parsed === "object" && parsed.headline) {
+              summary = parsed as ExecutiveSummary;
+            }
+          } catch { /* segue para fallback */ }
+        }
+      }
+    }
+    if (!summary) {
+      console.error("summarize-payment: sem tool_use e sem JSON parseável", JSON.stringify(aiData).slice(0, 500));
+      // Não derruba a UI — devolve 200 + fallback para o cliente esconder o card.
+      return new Response(
+        JSON.stringify({ error: "IA não retornou estrutura esperada", fallback: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const generated_at = new Date().toISOString();
