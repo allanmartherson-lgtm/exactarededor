@@ -528,6 +528,11 @@ const NewPayment = () => {
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
+  // Dialog de cadastro rápido de PJ ancorado no card do arquivo.
+  const [newCompanyDialog, setNewCompanyDialog] = useState<
+    | { idx: number; name: string; document: string; busy: boolean }
+    | null
+  >(null);
   const [bucketFilter, setBucketFilter] = useState("");
   // Debounce: evita refiltrar a lista a cada tecla em lotes grandes (300ms).
   const [debouncedBucketFilter, setDebouncedBucketFilter] = useState("");
