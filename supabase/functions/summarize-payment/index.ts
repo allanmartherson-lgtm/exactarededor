@@ -354,7 +354,7 @@ REGRAS:
 
     const aiResp = await anthropicFetch({
       model: "claude-sonnet-4-5",
-      max_tokens: 600,
+      max_tokens: 1500,
       system: systemPrompt,
       messages: [
         { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
