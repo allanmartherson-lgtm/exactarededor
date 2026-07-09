@@ -2014,24 +2014,24 @@ const Payments = () => {
                             </div>
                           </td>
                           <td className="px-3 py-3 align-middle hidden md:table-cell">
-                            <div className="flex flex-col text-[11px]">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-sm font-semibold text-foreground capitalize leading-tight">
+                                {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
+                              </span>
                               {SLA_EXEMPT_STATUSES.has(p.status) ? (
-                                <span className="text-muted-foreground">—</span>
+                                <span className="text-[11px] text-muted-foreground">—</span>
                               ) : (
                                 <span
                                   className={cn(
-                                    "font-bold",
-                                    finalLvl === "critico" && "text-destructive",
-                                    finalLvl === "leve" && "text-warning-text",
-                                    finalLvl === "none" && "text-foreground",
+                                    "text-[11px]",
+                                    finalLvl === "critico" && "text-destructive font-medium",
+                                    finalLvl === "leve" && "text-warning-text font-medium",
+                                    finalLvl === "none" && "text-muted-foreground",
                                   )}
                                 >
                                   {formatDuration(elapsedMs)} no status
                                 </span>
                               )}
-                              <span className="text-muted-foreground text-[10px] capitalize">
-                                {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
-                              </span>
                             </div>
                           </td>
                           <td className="px-3 py-3 align-middle text-right hidden md:table-cell">
