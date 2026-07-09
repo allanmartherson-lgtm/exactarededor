@@ -1876,6 +1876,65 @@ const NewPayment = () => {
     });
   };
 
+  /**
+   * Cadastro rápido de PJ direto do card de arquivo (fluxo de nova importação).
+   * Cria a empresa, adiciona ao cache local e reaproveita `overrideBucketCompany`
+   * para vincular + aprender apelido, evitando que o analista saia da tela
+   * para cadastrar cada nova PJ do lote.
+   */
+  const registerAndBindNewCompany = async (
+    idx: number,
+    name: string,
+    document: string,
+  ): Promise<boolean> => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast({ title: "Informe o nome da empresa", variant: "destructive" });
+      return false;
+    }
+    const b = buckets[idx];
+    if (!b) return false;
+    const doc = document.trim() || null;
+    const rawAlias = b.rawCompanyName?.trim() ?? "";
+    const aliases = rawAlias && rawAlias !== trimmed ? [rawAlias] : [];
+    try {
+      const { data: created, error } = await supabase
+        .from("companies")
+        .insert({ name: trimmed, document: doc, aliases })
+        .select("id, name, document, aliases")
+        .single();
+      if (error) throw error;
+
+      // Atualiza cache local para o próximo match / combobox reconhecer.
+      const nextRow: CompanyRow = {
+        id: created.id,
+        name: created.name,
+        aliases: (created as any).aliases ?? aliases,
+      };
+      companiesRef.current = [...companiesRef.current, nextRow];
+      setCompanies((prev) => [...prev, nextRow]);
+
+      await overrideBucketCompany(idx, {
+        id: created.id,
+        name: created.name,
+        document: (created as any).document ?? doc,
+      });
+
+      toast({
+        title: "Empresa cadastrada",
+        description: `${created.name} foi criada e vinculada ao arquivo.`,
+      });
+      return true;
+    } catch (e: any) {
+      toast({
+        title: "Erro ao cadastrar empresa",
+        description: e?.message ?? String(e),
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const toggleBucketConvenioTotalized = (idx: number) => {
     setBuckets((prev) =>
       prev.map((x, i) => (i === idx ? { ...x, convenioValueTotalized: !x.convenioValueTotalized } : x))
