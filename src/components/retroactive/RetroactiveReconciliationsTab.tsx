@@ -7409,6 +7409,94 @@ function EncaminharApuracaoModal({
     }
   }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
+  // Líquido da PJ no lote vigente, casando hospital + centro de custos + trilha.
+  // Chave: company_id → snapshot do lote (referência, competência, líquido).
+  // Sem lote → PJ vai para "débito futuro" (fila de espera até nova produção).
+  type RefLote = {
+    payment_id: string;
+    reference: string;
+    competence_month: string;
+    liquido_total: number;
+    status: string;
+  };
+  const [refLoteByCompany, setRefLoteByCompany] = useState<Record<string, RefLote>>({});
+  const [refLoteLoading, setRefLoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const companyIds = Array.from(
+      new Set(groups.map((g) => g.company_id).filter((v): v is string => !!v)),
+    );
+    if (
+      companyIds.length === 0
+      || !refScope.hospital_id
+      || !refScope.cost_center_code
+      || !refScope.analysis_mode
+    ) {
+      setRefLoteByCompany({});
+      return;
+    }
+    let cancelled = false;
+    setRefLoteLoading(true);
+    (async () => {
+      // Buscamos todos os pagamentos abertos (não cancelados) do mesmo CC+trilha
+      // e cruzamos com payment_company_groups pra achar o líquido da PJ.
+      // Ordem: competência mais recente primeiro; ficamos com o 1º por company_id.
+      const { data: payments, error: payErr } = await supabase
+        .from("payments")
+        .select("id, reference, competence_month, status")
+        .eq("hospital_id", refScope.hospital_id)
+        .eq("cost_center_code", refScope.cost_center_code)
+        .eq("analysis_mode", refScope.analysis_mode)
+        .neq("status", "cancelada")
+        .order("competence_month", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      if (payErr || !payments || payments.length === 0) {
+        setRefLoteByCompany({});
+        setRefLoteLoading(false);
+        return;
+      }
+      const paymentIds = payments.map((p) => p.id as string);
+      const { data: pcgs, error: pcgErr } = await supabase
+        .from("payment_company_groups")
+        .select("payment_id, company_id, liquido_total, status")
+        .in("payment_id", paymentIds)
+        .in("company_id", companyIds);
+      if (cancelled) return;
+      if (pcgErr || !pcgs) {
+        setRefLoteByCompany({});
+        setRefLoteLoading(false);
+        return;
+      }
+      const paymentIndex = new Map(payments.map((p, i) => [p.id as string, i]));
+      const bestByCompany = new Map<string, { pcg: typeof pcgs[number]; order: number }>();
+      for (const g of pcgs) {
+        const order = paymentIndex.get(g.payment_id as string) ?? 999;
+        const prev = bestByCompany.get(g.company_id as string);
+        if (!prev || order < prev.order) {
+          bestByCompany.set(g.company_id as string, { pcg: g, order });
+        }
+      }
+      const out: Record<string, RefLote> = {};
+      for (const [companyId, { pcg }] of bestByCompany) {
+        const p = payments.find((pp) => pp.id === pcg.payment_id);
+        if (!p) continue;
+        out[companyId] = {
+          payment_id: p.id as string,
+          reference: (p.reference as string) ?? "",
+          competence_month: (p.competence_month as string) ?? "",
+          liquido_total: Number(pcg.liquido_total ?? 0),
+          status: String(pcg.status ?? ""),
+        };
+      }
+      setRefLoteByCompany(out);
+      setRefLoteLoading(false);
+    })().catch(() => { if (!cancelled) setRefLoteLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, groups, refScope.hospital_id, refScope.cost_center_code, refScope.analysis_mode]);
+
   // Números aqui vêm literalmente do mesmo objeto que alimenta os cards
   // "Total a complementar" / "Total a retirar" do relatório — o pai calcula
   // uma vez via computeTvrHeadlineTotals(results) e passa pra cá.
