@@ -169,7 +169,15 @@ export function RuleFormStepper({
 
         <div style={{ display: "flex", gap: 6 }}>
           {!isLastStep && (
-            <Button type="button" variant="outline" onClick={() => setActiveStep(s => s + 1)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleNext}
+              aria-disabled={blockNext}
+              title={blockNext ? "Complete os campos obrigatórios desta etapa para avançar" : undefined}
+              style={blockNext ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+            >
+              {blockNext ? <Lock className="h-4 w-4 mr-1" /> : null}
               Próximo <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           )}
