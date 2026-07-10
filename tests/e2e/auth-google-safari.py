@@ -49,47 +49,46 @@ async def run_case(playwright, viewport, next_target):
     )
     page = await context.new_page()
 
-    # O helper `@lovable.dev/cloud-auth-js` abre um popup para o endpoint OAuth
-    # do provider. Interceptamos `window.open` para capturar a URL — o
-    # parâmetro `redirect_uri` DEVE ser o origin puro; qualquer sufixo (ex.
-    # `/dashboard` ou `?next=...`) quebra o retorno via `web_message` no
-    # Safari mobile.
-    await page.add_init_script(
-        """
-        window.__openCalls = [];
-        const origOpen = window.open.bind(window);
-        window.open = (url, ...rest) => {
-          try { window.__openCalls.push(String(url)); } catch {}
-          // Devolve um stub para o helper não explodir — não navegamos de fato.
-          return {
-            closed: false, close: () => {}, focus: () => {},
-            postMessage: () => {}, location: { href: '' },
-          };
-        };
-        """
-    )
+    # Fora de iframe (nosso cenário headless), o helper faz
+    # `window.location.href = <broker>?redirect_uri=...` — top-level navigation.
+    # Interceptamos qualquer request cujo query contenha `redirect_uri` e
+    # abortamos para não sair do domínio.
+    captured: list[str] = []
+
+    async def route_handler(route):
+        req = route.request
+        url = req.url
+        if "redirect_uri=" in url:
+            captured.append(url)
+            await route.abort()
+        else:
+            await route.continue_()
+
+    await page.route("**/*", route_handler)
 
     url = f"{BASE_URL}/auth?next={next_target}"
     await page.goto(url, wait_until="domcontentloaded")
     await page.wait_for_selector("text=Entrar com Google")
 
-    await page.get_by_role("button", name="Entrar com Google").click()
-    # O helper abre o popup de forma síncrona no handler do clique.
-    await page.wait_for_function("() => (window.__openCalls || []).length > 0", timeout=10_000)
-
-    open_calls = await page.evaluate("window.__openCalls")
     origin = await page.evaluate("window.location.origin")
+
+    await page.get_by_role("button", name="Entrar com Google").click()
+
+    # Aguarda a navegação/request que o helper dispara.
+    for _ in range(50):
+        if captured:
+            break
+        await asyncio.sleep(0.1)
 
     shot = OUT / f"{viewport['name']}-{next_target.replace('/', '_').replace('?', '_')}.png"
     await page.screenshot(path=str(shot))
 
     await browser.close()
 
-    assert open_calls, f"[{viewport['name']} next={next_target}] window.open não foi chamado"
-    popup_url = open_calls[0]
-    # Extrai redirect_uri do querystring (URL-encoded).
+    assert captured, f"[{viewport['name']} next={next_target}] nenhum request de OAuth capturado"
+    broker_url = captured[0]
     from urllib.parse import urlparse, parse_qs, unquote
-    parsed = urlparse(popup_url)
+    parsed = urlparse(broker_url)
     qs = parse_qs(parsed.query)
     redirect = None
     for key in ("redirect_uri", "redirect_to"):
@@ -98,11 +97,12 @@ async def run_case(playwright, viewport, next_target):
             break
     assert redirect == origin, (
         f"[{viewport['name']} next={next_target}] redirect_uri DEVE ser origin puro "
-        f"({origin!r}), mas veio {redirect!r} (popup URL: {popup_url}). "
+        f"({origin!r}), mas veio {redirect!r} (broker URL: {broker_url}). "
         "Concatenar `next`/rota protegida quebra o web_message do Safari mobile — "
         "reverta a alteração em src/pages/Auth.tsx."
     )
     return {"viewport": viewport["name"], "next": next_target, "redirect_uri": redirect}
+
 
 
 
