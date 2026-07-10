@@ -4039,52 +4039,89 @@ export function PaymentConciliationModal({
                 </Card>
               ) : (
                 <div className="space-y-2">
+                  {selectedBases.length > 1 && (
+                    <div className="flex items-center justify-between px-3 py-2 rounded-md bg-accent/40 border border-border text-xs">
+                      <span className="font-medium text-foreground">
+                        {selectedBases.length} bases selecionadas · {selectedBases.reduce((s, b) => s + (b.total_rows ?? 0), 0)} linhas totais
+                      </span>
+                      <span className="text-muted-foreground">
+                        Primária: <strong className="text-foreground">{primaryBase?.reference}</strong>
+                      </span>
+                    </div>
+                  )}
                   {concBases.map(base => {
-                    const isSelected = selectedBase?.id === base.id;
+                    const isSelected = selectedBases.some(b => b.id === base.id);
+                    const isPrimary = isSelected && primaryBase?.id === base.id;
                     return (
-                      <button
+                      <div
                         key={base.id}
-                        type="button"
-                        onClick={() => handleSelectBase(base)}
                         className={cn(
-                          "w-full text-left p-4 rounded-lg border transition-all",
+                          "w-full p-4 rounded-lg border transition-all",
                           isSelected
                             ? "border-primary/60 bg-accent/60 shadow-sm"
                             : "border-border bg-card hover:bg-muted/40"
                         )}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleBase(base)}
+                            className="h-4 w-4 rounded shrink-0"
+                            style={{ accentColor: "hsl(var(--primary))" }}
+                            aria-label={`Selecionar base ${base.reference}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBase(base)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
+                              {isPrimary && selectedBases.length > 1 && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary text-primary-foreground shrink-0">
+                                  primária
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
                               {base.competence_month && ` · competência ${formatCompetenceBR(base.competence_month)}`}
                             </p>
-                          </div>
+                          </button>
+                          {isSelected && !isPrimary && selectedBases.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimaryBase(base)}
+                              className="text-[10px] font-medium px-2 py-1 rounded border border-border hover:bg-muted shrink-0"
+                            >
+                              tornar primária
+                            </button>
+                          )}
                           {isSelected && (
                             <div className="shrink-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                               <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
                             </div>
                           )}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
               )}
 
-              {selectedBase && availableSectors.length > 0 && (
+              {primaryBase && availableSectors.length > 0 && (
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Filtrar por setor</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Selecione apenas os setores pertinentes a este lote. Deixe todos desmarcados para incluir a base completa (não recomendado — pode gerar ruído entre tipos de atendimento).
+                      Setores exibidos referem-se à base primária. O filtro é aplicado em todas as bases selecionadas. Deixe todos desmarcados para incluir as bases completas (não recomendado — pode gerar ruído entre tipos de atendimento).
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
                     {availableSectors.map(sector => {
                       const checked = selectedSectors.includes(sector);
-                      const count = (selectedBase.raw_data ?? []).filter((r: any) => {
+                      const count = (primaryBase.raw_data ?? []).filter((r: any) => {
                         const sectorCol = Object.keys(r).find(k => {
                           const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
                           return n.includes("setor") || n.includes("centro") || n.includes("custos");
@@ -4117,32 +4154,35 @@ export function PaymentConciliationModal({
                   {selectedSectors.length > 0 && (
                     <p className="text-xs text-primary font-medium">
                       {selectedSectors.length} setor(es) selecionado(s) · {
-                        (selectedBase.raw_data ?? []).filter((r: any) => {
+                        (primaryBase.raw_data ?? []).filter((r: any) => {
                           const sectorCol = Object.keys(r).find(k => {
                             const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
                             return n.includes("setor") || n.includes("centro") || n.includes("custos");
                           });
                           return sectorCol && selectedSectors.includes(String(r[sectorCol] ?? "").trim());
                         }).length
-                      } linhas serão analisadas
+                      } linhas da base primária serão analisadas
                     </p>
                   )}
                 </div>
               )}
 
-              {selectedBase && (
+              {primaryBase && (
                 <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground">
                   <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <span>
                     <strong className="text-foreground">Lógica de cruzamento:</strong> chave = <strong className="text-foreground">Nº de atendimento + código TUSS</strong>. A comparação financeira é <strong className="text-foreground">tabela do convênio × tabela do convênio</strong> (valor antes da aplicação de qualquer regra/acordo). Divergências aqui indicam diferenças na tabela do convênio entre as duas bases — não erro do motor de regras.
+                    {selectedBases.length > 1 && (
+                      <> Com múltiplas bases selecionadas, itens duplicados (mesmo atendimento + TUSS + médico + função) são resolvidos pelo desempate: <strong className="text-foreground">competência do lote vence</strong>, depois <strong className="text-foreground">upload mais recente</strong>.</>
+                    )}
                   </span>
                 </div>
               )}
 
-              {selectedBase && (
+              {primaryBase && (
                 <div className="flex justify-end pt-2 border-t border-border">
                   <Button
-                    disabled={!selectedBase}
+                    disabled={selectedBases.length === 0}
                     onClick={handleProcessFromBase}
                   >
                     Continuar → Vincular empresas
