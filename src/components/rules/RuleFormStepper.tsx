@@ -54,7 +54,10 @@ export function RuleFormStepper({
   const isFirstStep = activeStep === 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, maxHeight: "calc(90vh - 80px)" }}>
+    // Sem altura fixa: quem clampa é o DialogContent (primitive). O stepper apenas
+    // organiza indicadores → conteúdo → footer em coluna e deixa o scroll para o pai.
+    <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+
 
       {/* ── Step indicators ── */}
       <div style={{ display: "flex", alignItems: "stretch", marginBottom: 0, background: "hsl(var(--muted) / 0.5)", borderRadius: 10, padding: 4, gap: 2 }}>
