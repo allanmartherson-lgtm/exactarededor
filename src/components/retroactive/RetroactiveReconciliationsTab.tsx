@@ -7319,6 +7319,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             modoMedicoUnico={modoMedicoUnico}
             busy={encaminharBusy}
             onConfirm={runEncaminharFluxo}
+            refScope={{
+              hospital_id: recon?.hospital_id ?? null,
+              cost_center_code: recon?.cost_center_code ?? null,
+              analysis_mode: recon?.analysis_mode ?? null,
+            }}
           />
         );
       })()}
