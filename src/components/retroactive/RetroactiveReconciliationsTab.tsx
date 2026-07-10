@@ -5874,10 +5874,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     doctor_id: string;
     doctor_name: string;
     doctor_crm: string | null;
+    company_id: string | null;
+    company_name: string | null;
     items: TvrResult[];
   };
 
   const modoMedicoUnico = !!recon?.doctor_id;
+
+  // Map doctor_id → PJ ativa (regra: 1 PJ ativa por médico). Quando o médico
+  // tem múltiplas PJs ativas, deixamos null e o backend resolve na hora do envio.
+  const [doctorPjMap, setDoctorPjMap] = useState<Record<string, { company_id: string; company_name: string } | null>>({});
 
   // Carrega map id→{full_name,crm} para os doctor_ids presentes nos itens a retirar
   // quando a apuração é só-PJ. Em modo médico-único isso não é usado.
@@ -5909,6 +5915,58 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return () => { cancelled = true; };
   }, [results, modoMedicoUnico, groupDoctorsMap]);
 
+  // Carrega a PJ ativa de cada médico via doctor_companies (end_date null).
+  // Só marca quando o médico tem exatamente 1 PJ ativa; múltiplas → ambíguo (null).
+  useEffect(() => {
+    if (modoMedicoUnico) return;
+    const ids = Array.from(
+      new Set(
+        (results ?? [])
+          .filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5)
+          .map((r) => r.matched_doctor_id)
+          .filter((x): x is string => !!x),
+      ),
+    );
+    const missing = ids.filter((id) => !(id in doctorPjMap));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: links } = await supabase
+        .from("doctor_companies" as never)
+        .select("doctor_id, company_id")
+        .in("doctor_id", missing)
+        .is("end_date", null);
+      const rows = (links ?? []) as Array<{ doctor_id: string; company_id: string }>;
+      const byDoctor = new Map<string, Set<string>>();
+      for (const l of rows) {
+        const s = byDoctor.get(l.doctor_id) ?? new Set<string>();
+        s.add(l.company_id);
+        byDoctor.set(l.doctor_id, s);
+      }
+      const companyIds = Array.from(new Set(rows.map((l) => l.company_id)));
+      const { data: comps } = companyIds.length
+        ? await supabase.from("companies" as never).select("id, name").in("id", companyIds)
+        : { data: [] as Array<{ id: string; name: string }> };
+      const nameById = new Map<string, string>();
+      for (const c of (comps ?? []) as Array<{ id: string; name: string | null }>) {
+        nameById.set(c.id, c.name ?? "PJ");
+      }
+      if (cancelled) return;
+      const next: Record<string, { company_id: string; company_name: string } | null> = { ...doctorPjMap };
+      for (const did of missing) {
+        const set = byDoctor.get(did);
+        if (set && set.size === 1) {
+          const cid = Array.from(set)[0];
+          next[did] = { company_id: cid, company_name: nameById.get(cid) ?? "PJ" };
+        } else {
+          next[did] = null;
+        }
+      }
+      setDoctorPjMap(next);
+    })();
+    return () => { cancelled = true; };
+  }, [results, modoMedicoUnico, doctorPjMap]);
+
   const buildGlosaGroups = (retirar: TvrResult[]): { groups: GlosaGroup[]; unassigned: TvrResult[] } => {
     if (modoMedicoUnico) {
       if (!doctorInfo.id || (!doctorInfo.name && !doctorInfo.crm)) {
@@ -5919,6 +5977,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           doctor_id: doctorInfo.id,
           doctor_name: doctorInfo.name ?? "Médico",
           doctor_crm: doctorInfo.crm,
+          company_id: recon?.company_id ?? null,
+          company_name: null,
           items: retirar,
         }],
         unassigned: [],
@@ -5936,14 +5996,23 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const groups: GlosaGroup[] = [];
     for (const [did, items] of byDoctor) {
       const info = groupDoctorsMap[did];
+      const pj = doctorPjMap[did] ?? null;
       groups.push({
         doctor_id: did,
         doctor_name: info?.full_name ?? "Médico",
         doctor_crm: info?.crm ?? null,
+        company_id: pj?.company_id ?? null,
+        company_name: pj?.company_name ?? null,
         items,
       });
     }
-    groups.sort((a, b) => a.doctor_name.localeCompare(b.doctor_name));
+    // Ordena por PJ (ambíguas por último) e depois por médico — sempre tratamos a PJ primeiro.
+    groups.sort((a, b) => {
+      const ac = a.company_name ?? "\uFFFF";
+      const bc = b.company_name ?? "\uFFFF";
+      if (ac !== bc) return ac.localeCompare(bc);
+      return a.doctor_name.localeCompare(b.doctor_name);
+    });
     return { groups, unassigned };
   };
 
@@ -7237,6 +7306,8 @@ type GlosaGroupView = {
   doctor_id: string;
   doctor_name: string;
   doctor_crm: string | null;
+  company_id: string | null;
+  company_name: string | null;
   items: TvrResult[];
 };
 
@@ -7489,61 +7560,114 @@ function EncaminharApuracaoModal({
                         cobrados assim que houver produção — não precisa tratar em separado.
                       </div>
                       <div className="rounded border border-border bg-background divide-y divide-border">
-                        {groups.map((g) => {
-                          const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
-                          const isExpanded = expandedGroups.has(g.doctor_id);
-                          const isSel = selectedDoctorIds.has(g.doctor_id);
-                          return (
-                            <div key={g.doctor_id} className="px-2 py-1.5 text-[11px]">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  checked={isSel}
-                                  disabled={busy}
-                                  onCheckedChange={() => toggleDoctor(g.doctor_id)}
-                                />
-                                <div className="flex-1 min-w-0 truncate">
-                                  <span className="font-medium">{g.doctor_name}</span>
-                                  {g.doctor_crm && <span className="text-muted-foreground"> ({g.doctor_crm})</span>}
+                        {(() => {
+                          // Agrupa visualmente por PJ — sempre tratamos a PJ primeiro,
+                          // depois os médicos vinculados a ela. PJs ambíguas ficam por último.
+                          const byPj = new Map<string, { key: string; company_name: string; items: typeof groups }>();
+                          for (const g of groups) {
+                            const key = g.company_id ?? "__ambigua__";
+                            const label = g.company_name ?? "PJ a resolver no envio (múltiplas ativas)";
+                            const bucket = byPj.get(key) ?? { key, company_name: label, items: [] };
+                            bucket.items.push(g);
+                            byPj.set(key, bucket);
+                          }
+                          const pjList = Array.from(byPj.values()).sort((a, b) => {
+                            if (a.key === "__ambigua__") return 1;
+                            if (b.key === "__ambigua__") return -1;
+                            return a.company_name.localeCompare(b.company_name);
+                          });
+                          return pjList.map((pj) => {
+                            const pjSubtotal = pj.items.reduce(
+                              (s, g) => s + g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0),
+                              0,
+                            );
+                            const pjDoctorIds = pj.items.map((g) => g.doctor_id);
+                            const pjAllSel = pjDoctorIds.every((id) => selectedDoctorIds.has(id));
+                            const pjSomeSel = pjDoctorIds.some((id) => selectedDoctorIds.has(id));
+                            return (
+                              <div key={pj.key}>
+                                <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/40 text-[11px] font-semibold sticky top-0">
+                                  <Checkbox
+                                    checked={pjAllSel ? true : pjSomeSel ? "indeterminate" : false}
+                                    disabled={busy}
+                                    onCheckedChange={() => {
+                                      // Alterna todos os médicos da PJ de uma vez.
+                                      setSelectedDoctorIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (pjAllSel) {
+                                          for (const id of pjDoctorIds) next.delete(id);
+                                        } else {
+                                          for (const id of pjDoctorIds) next.add(id);
+                                        }
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                  <span className="flex-1 min-w-0 truncate uppercase tracking-wide text-[10px] text-muted-foreground">
+                                    PJ · <span className="text-foreground normal-case tracking-normal">{pj.company_name}</span>
+                                  </span>
+                                  <span className="text-muted-foreground font-normal">{pj.items.length} médico(s)</span>
+                                  <span className="font-mono w-24 text-right">{brl(pjSubtotal)}</span>
                                 </div>
-                                <span className="text-muted-foreground">{g.items.length} itens</span>
-                                <span className="font-mono w-24 text-right">{brl(subtotal)}</span>
-                                <Select
-                                  value={String(parcelasByDoctor[g.doctor_id] ?? 1)}
-                                  onValueChange={(v) =>
-                                    setParcelasByDoctor((prev) => ({ ...prev, [g.doctor_id]: Number(v) }))
-                                  }
-                                  disabled={busy || !isSel}
-                                >
-                                  <SelectTrigger className="h-6 w-[68px] text-[11px] px-2">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
-                                      <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <button
-                                  type="button"
-                                  className="text-[10px] text-destructive underline"
-                                  onClick={() => toggleGroupExpand(g.doctor_id)}
-                                >
-                                  {isExpanded ? "ocultar" : "ver itens"}
-                                </button>
-                              </div>
-                              {isExpanded && (
-                                <div className="mt-1 ml-6 max-h-32 overflow-auto rounded bg-muted/40">
-                                  {g.items.map((r) => (
-                                    <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border/50 last:border-b-0">
-                                      <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
-                                      <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
+                                {pj.items.map((g) => {
+                                  const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+                                  const isExpanded = expandedGroups.has(g.doctor_id);
+                                  const isSel = selectedDoctorIds.has(g.doctor_id);
+                                  return (
+                                    <div key={g.doctor_id} className="px-2 py-1.5 pl-6 text-[11px] border-t border-border/40">
+                                      <div className="flex items-center gap-2">
+                                        <Checkbox
+                                          checked={isSel}
+                                          disabled={busy}
+                                          onCheckedChange={() => toggleDoctor(g.doctor_id)}
+                                        />
+                                        <div className="flex-1 min-w-0 truncate">
+                                          <span className="font-medium">{g.doctor_name}</span>
+                                          {g.doctor_crm && <span className="text-muted-foreground"> ({g.doctor_crm})</span>}
+                                        </div>
+                                        <span className="text-muted-foreground">{g.items.length} itens</span>
+                                        <span className="font-mono w-24 text-right">{brl(subtotal)}</span>
+                                        <Select
+                                          value={String(parcelasByDoctor[g.doctor_id] ?? 1)}
+                                          onValueChange={(v) =>
+                                            setParcelasByDoctor((prev) => ({ ...prev, [g.doctor_id]: Number(v) }))
+                                          }
+                                          disabled={busy || !isSel}
+                                        >
+                                          <SelectTrigger className="h-6 w-[68px] text-[11px] px-2">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
+                                              <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        <button
+                                          type="button"
+                                          className="text-[10px] text-destructive underline"
+                                          onClick={() => toggleGroupExpand(g.doctor_id)}
+                                        >
+                                          {isExpanded ? "ocultar" : "ver itens"}
+                                        </button>
+                                      </div>
+                                      {isExpanded && (
+                                        <div className="mt-1 ml-6 max-h-32 overflow-auto rounded bg-muted/40">
+                                          {g.items.map((r) => (
+                                            <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border/50 last:border-b-0">
+                                              <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
+                                              <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                  );
+                                })}
+                              </div>
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
                   )}
