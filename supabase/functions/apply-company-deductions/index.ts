@@ -261,7 +261,12 @@ Deno.serve(async (req) => {
           summary.glosas.sem_pj++;
           return;
         }
-        if (!matchEmpresa) return; // glosa não pertence a esta PJ
+        // Glosa clássica: precisa que a PJ do lote seja uma das vinculadas.
+        // Débito residual de conciliação: aceita qualquer PJ vinculada dentro deste hospital
+        // (o escopo por hospital já é garantido pelo filtro implícito de RLS + query anterior).
+        const isResidual = debt.origem === "conciliacao_residual";
+        if (!isResidual && !matchEmpresa) return; // glosa clássica não pertence a esta PJ
+        if (isResidual && !matchEmpresa) return; // residual só entra na PJ que tem produção da médica neste lote (senão outra iteração pega)
 
         // Se médico tem múltiplas PJs vinculadas E todas têm produção no lote → ambíguo
         if (vinculadas.length > 1) {
