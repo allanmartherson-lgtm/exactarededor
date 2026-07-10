@@ -170,6 +170,11 @@ type ReconRow = {
   period_end: string;
   status: "em_analise" | "concluida" | "cancelada";
   title: string | null;
+  // Origem do lote que gerou a apuração — usado para cruzar centro de custos
+  // e trilha (prioritária/habitual) com o lote vigente da PJ na hora da glosa.
+  source_payment_id?: string | null;
+  cost_center_code?: string | null;
+  analysis_mode?: string | null;
   summary: {
     mode?: ReconMode;
     total?: number;
@@ -401,7 +406,7 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
     const { data } = await supabase
       .from("retroactive_reconciliations" as never)
       .select(
-        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
+        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, source_payment_id, cost_center_code, analysis_mode",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -593,6 +598,10 @@ function NewView({
     reference: string;
     company_ids: string[];
     doctor_ids: string[];
+    // Centro de custos e trilha (prioritária/habitual/padrao) do lote —
+    // herdados pela apuração para casar com o lote vigente na hora da glosa.
+    cost_center_code: string | null;
+    analysis_mode: string | null;
   };
   const [availableLotes, setAvailableLotes] = useState<LoteOpt[]>([]);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<string[]>([]);
@@ -647,7 +656,7 @@ function NewView({
         const endComp = end.slice(0, 7);
         const { data: payments } = await supabase
           .from("payments")
-          .select("id, reference, competence_month")
+          .select("id, reference, competence_month, cost_center_code, analysis_mode")
           .eq("hospital_id", hospitalId)
           .gte("competence_month", `${startComp}-01`)
           .lte("competence_month", `${endComp}-01`)
@@ -655,7 +664,11 @@ function NewView({
           .order("reference", { ascending: true });
         if (cancelled) return;
         const paymentRows = (payments ?? []) as Array<{
-          id: string; reference: string | null; competence_month: string | null;
+          id: string;
+          reference: string | null;
+          competence_month: string | null;
+          cost_center_code: string | null;
+          analysis_mode: string | null;
         }>;
         if (paymentRows.length === 0) {
           setAvailableLotes([]);
@@ -702,6 +715,8 @@ function NewView({
             reference: ref,
             company_ids: Array.from(compsByPayment.get(p.id) ?? []),
             doctor_ids: Array.from(docsByPayment.get(p.id) ?? []),
+            cost_center_code: p.cost_center_code,
+            analysis_mode: p.analysis_mode,
           };
         });
         setAvailableLotes(opts);
@@ -816,6 +831,15 @@ function NewView({
         title: title.trim(),
         summary,
         created_by: userId,
+        // Herda origem do PRIMEIRO lote selecionado — âncora para casar
+        // centro de custos + trilha na hora de calcular parcelamento da glosa.
+        // Se múltiplos lotes tiverem CC/trilha diferentes, guarda o do primeiro
+        // (analista pode revisar depois; a UI da glosa avisa quando divergir).
+        source_payment_id: selectedPaymentIds[0] ?? null,
+        cost_center_code:
+          availableLotes.find((l) => l.id === selectedPaymentIds[0])?.cost_center_code ?? null,
+        analysis_mode:
+          availableLotes.find((l) => l.id === selectedPaymentIds[0])?.analysis_mode ?? null,
       })
       .select("id")
       .single();
@@ -1298,7 +1322,7 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     const { data: r } = await supabase
       .from("retroactive_reconciliations" as never)
       .select(
-        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
+        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, source_payment_id, cost_center_code, analysis_mode",
       )
       .eq("id", id)
       .single();
@@ -3144,7 +3168,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const loadTvrReconciliation = async () => {
     const { data } = await supabase
       .from("retroactive_reconciliations" as never)
-      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, hospital_id")
+      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, hospital_id, source_payment_id, cost_center_code, analysis_mode")
       .eq("id", id)
       .single();
     const row = data as unknown as ReconRow;

@@ -8856,8 +8856,10 @@ export type Database = {
       retroactive_reconciliations: {
         Row: {
           adjustment_ids: string[]
+          analysis_mode: string | null
           company_id: string | null
           concluded_at: string | null
+          cost_center_code: string | null
           created_at: string
           created_by: string | null
           doctor_id: string | null
@@ -8866,6 +8868,7 @@ export type Database = {
           notes: string | null
           period_end: string
           period_start: string
+          source_payment_id: string | null
           status: Database["public"]["Enums"]["retro_recon_status"]
           summary: Json
           title: string | null
@@ -8873,8 +8876,10 @@ export type Database = {
         }
         Insert: {
           adjustment_ids?: string[]
+          analysis_mode?: string | null
           company_id?: string | null
           concluded_at?: string | null
+          cost_center_code?: string | null
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
@@ -8883,6 +8888,7 @@ export type Database = {
           notes?: string | null
           period_end: string
           period_start: string
+          source_payment_id?: string | null
           status?: Database["public"]["Enums"]["retro_recon_status"]
           summary?: Json
           title?: string | null
@@ -8890,8 +8896,10 @@ export type Database = {
         }
         Update: {
           adjustment_ids?: string[]
+          analysis_mode?: string | null
           company_id?: string | null
           concluded_at?: string | null
+          cost_center_code?: string | null
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
@@ -8900,6 +8908,7 @@ export type Database = {
           notes?: string | null
           period_end?: string
           period_start?: string
+          source_payment_id?: string | null
           status?: Database["public"]["Enums"]["retro_recon_status"]
           summary?: Json
           title?: string | null
@@ -8926,6 +8935,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliations_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliations_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retroactive_reconciliations_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
           },
         ]
       }
