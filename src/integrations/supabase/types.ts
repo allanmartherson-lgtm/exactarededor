@@ -5316,6 +5316,7 @@ export type Database = {
           sector_original: string | null
           sector_slug: string | null
           source: string
+          source_file_name: string | null
           special_case_code: string | null
           special_case_status:
             | Database["public"]["Enums"]["special_case_status"]
@@ -5445,6 +5446,7 @@ export type Database = {
           sector_original?: string | null
           sector_slug?: string | null
           source?: string
+          source_file_name?: string | null
           special_case_code?: string | null
           special_case_status?:
             | Database["public"]["Enums"]["special_case_status"]
@@ -5574,6 +5576,7 @@ export type Database = {
           sector_original?: string | null
           sector_slug?: string | null
           source?: string
+          source_file_name?: string | null
           special_case_code?: string | null
           special_case_status?:
             | Database["public"]["Enums"]["special_case_status"]
@@ -6568,6 +6571,7 @@ export type Database = {
           resolved_company_id: string | null
           sector: string | null
           source_file: string | null
+          source_file_name: string | null
           specialty: string | null
           status: string
           tipo_linha: string | null
@@ -6607,6 +6611,7 @@ export type Database = {
           resolved_company_id?: string | null
           sector?: string | null
           source_file?: string | null
+          source_file_name?: string | null
           specialty?: string | null
           status?: string
           tipo_linha?: string | null
@@ -6646,6 +6651,7 @@ export type Database = {
           resolved_company_id?: string | null
           sector?: string | null
           source_file?: string | null
+          source_file_name?: string | null
           specialty?: string | null
           status?: string
           tipo_linha?: string | null

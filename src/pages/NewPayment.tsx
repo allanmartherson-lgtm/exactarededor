@@ -2929,6 +2929,7 @@ const NewPayment = () => {
       return ({
         hospital_id: (payment as any).hospital_id ?? hospital?.id,
         payment_id: payment.id,
+        source_file_name: currentBucket?.file?.name ?? (r as any).source_file ?? null,
         doctor_name: r.doctor_name,
         doctor_document: r.doctor_document,
         doctor_email: r.doctor_email,
@@ -2989,6 +2990,7 @@ const NewPayment = () => {
     const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
       payment_id: payment.id,
       source_file: b.file.name,
+      source_file_name: b.file.name,
       raw_company_name: (r.company_name || b.rawCompanyName || "—").trim(),
       match_score: b.matchScore || 0,
       match_suggestion_id: b.matchedCompany?.id ?? null,
