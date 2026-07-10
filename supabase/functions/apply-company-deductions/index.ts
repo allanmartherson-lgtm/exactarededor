@@ -192,14 +192,17 @@ Deno.serve(async (req) => {
 
 
     // ============ GLOSAS ============
-    // Competência do lote para resolver a PJ vigente do médico na data correta
+    // Competência + hospital do lote (hospital_id é crítico: edge function usa service_role
+    // e bypassa RLS, então precisamos filtrar hospital explicitamente para não vazar dívidas
+    // de outras unidades quando a médica atende em múltiplos hospitais).
     const { data: paymentRow } = await supabase
       .from("payments")
-      .select("competence_month")
+      .select("competence_month, hospital_id")
       .eq("id", payment_id)
       .maybeSingle();
     const competenceDate: string = (paymentRow?.competence_month as string)
       || new Date().toISOString().slice(0, 10);
+    const paymentHospitalId: string | null = (paymentRow?.hospital_id as string) ?? null;
 
     // Doctors with production in this lote/company
     const { data: items } = await supabase
@@ -212,7 +215,7 @@ Deno.serve(async (req) => {
     const doctorIds = Array.from(new Set((items ?? []).map((i: any) => i.doctor_id).filter(Boolean)));
 
     if (doctorIds.length > 0) {
-      const { data: debts } = await supabase
+      let debtsQ = supabase
         .from("glosa_debts")
         .select("*")
         .eq("status", "ativo")
@@ -222,6 +225,8 @@ Deno.serve(async (req) => {
         // Débito residual de conciliação: escopado por hospital, sem target — cobra em qualquer lote da médica.
         .or(`target_payment_id.eq.${payment_id},origem.eq.conciliacao_residual`)
         .or("resolution_status.is.null,resolution_status.neq.ignorado");
+      if (paymentHospitalId) debtsQ = debtsQ.eq("hospital_id", paymentHospitalId);
+      const { data: debts } = await debtsQ;
 
 
       const { data: existingGpa } = await supabase
