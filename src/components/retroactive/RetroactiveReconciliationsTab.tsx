@@ -170,6 +170,11 @@ type ReconRow = {
   period_end: string;
   status: "em_analise" | "concluida" | "cancelada";
   title: string | null;
+  // Origem do lote que gerou a apuração — usado para cruzar centro de custos
+  // e trilha (prioritária/habitual) com o lote vigente da PJ na hora da glosa.
+  source_payment_id?: string | null;
+  cost_center_code?: string | null;
+  analysis_mode?: string | null;
   summary: {
     mode?: ReconMode;
     total?: number;
@@ -593,6 +598,10 @@ function NewView({
     reference: string;
     company_ids: string[];
     doctor_ids: string[];
+    // Centro de custos e trilha (prioritária/habitual/padrao) do lote —
+    // herdados pela apuração para casar com o lote vigente na hora da glosa.
+    cost_center_code: string | null;
+    analysis_mode: string | null;
   };
   const [availableLotes, setAvailableLotes] = useState<LoteOpt[]>([]);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<string[]>([]);
@@ -647,7 +656,7 @@ function NewView({
         const endComp = end.slice(0, 7);
         const { data: payments } = await supabase
           .from("payments")
-          .select("id, reference, competence_month")
+          .select("id, reference, competence_month, cost_center_code, analysis_mode")
           .eq("hospital_id", hospitalId)
           .gte("competence_month", `${startComp}-01`)
           .lte("competence_month", `${endComp}-01`)
@@ -655,7 +664,11 @@ function NewView({
           .order("reference", { ascending: true });
         if (cancelled) return;
         const paymentRows = (payments ?? []) as Array<{
-          id: string; reference: string | null; competence_month: string | null;
+          id: string;
+          reference: string | null;
+          competence_month: string | null;
+          cost_center_code: string | null;
+          analysis_mode: string | null;
         }>;
         if (paymentRows.length === 0) {
           setAvailableLotes([]);
@@ -702,6 +715,8 @@ function NewView({
             reference: ref,
             company_ids: Array.from(compsByPayment.get(p.id) ?? []),
             doctor_ids: Array.from(docsByPayment.get(p.id) ?? []),
+            cost_center_code: p.cost_center_code,
+            analysis_mode: p.analysis_mode,
           };
         });
         setAvailableLotes(opts);
