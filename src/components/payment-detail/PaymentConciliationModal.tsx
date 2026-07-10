@@ -878,8 +878,17 @@ export function PaymentConciliationModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialCompany]);
 
-  const handleSelectBase = (base: any) => {
-    setSelectedBase(base);
+  // Reconstrói contexto derivado (setores, colunas, col_map) a partir da base
+  // primária escolhida. Chamado sempre que a primária muda.
+  const rebuildBaseContext = (base: any | null) => {
+    if (!base) {
+      setAvailableSectors([]);
+      setSelectedSectors([]);
+      setAvailableColumns([]);
+      setColSamples({});
+      setColMapping({});
+      return;
+    }
     const rows: Record<string, unknown>[] = base.raw_data ?? [];
     const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
       const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -890,10 +899,8 @@ export function PaymentConciliationModal({
     )).sort();
     setAvailableSectors(sectors);
     setSelectedSectors([]);
-
     const cols = Object.keys(rows[0] ?? {});
     setAvailableColumns(cols);
-
     const samples: Record<string, string> = {};
     for (const col of cols) {
       for (const row of rows.slice(0, 10)) {
@@ -902,7 +909,6 @@ export function PaymentConciliationModal({
       }
     }
     setColSamples(samples);
-
     const saved: Record<string, string> = base.col_map ?? {};
     const autoDetected = detectColumns(rows);
     const initial: Record<string, string> = {};
@@ -918,21 +924,114 @@ export function PaymentConciliationModal({
     setColMapping(initial);
   };
 
-  const handleProcessFromBase = () => {
-    if (!selectedBase) return;
-    const rows: Record<string, unknown>[] = selectedBase.raw_data ?? [];
-
-    const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
-      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-      return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+  // Marca/desmarca uma base. Ao marcar a primeira, ela vira primária.
+  const handleToggleBase = (base: any) => {
+    setSelectedBases(prev => {
+      const exists = prev.some(b => b.id === base.id);
+      const next = exists ? prev.filter(b => b.id !== base.id) : [...prev, base];
+      let nextPrimaryId = primaryBaseId;
+      if (exists && primaryBaseId === base.id) {
+        nextPrimaryId = next[0]?.id ?? null;
+      } else if (!exists && prev.length === 0) {
+        nextPrimaryId = base.id;
+      }
+      setPrimaryBaseId(nextPrimaryId);
+      const nextPrimary = nextPrimaryId ? next.find(b => b.id === nextPrimaryId) ?? null : null;
+      rebuildBaseContext(nextPrimary);
+      return next;
     });
+  };
 
-    const filteredRows = selectedSectors.length > 0 && sectorCol
-      ? rows.filter(r => selectedSectors.includes(String(r[sectorCol] ?? "").trim()))
-      : rows;
+  // Promove uma base já selecionada a primária (redefine col_map/setores exibidos).
+  const handleSetPrimaryBase = (base: any) => {
+    if (!selectedBases.some(b => b.id === base.id)) return;
+    setPrimaryBaseId(base.id);
+    rebuildBaseContext(base);
+  };
 
-    setParsedRows(filteredRows);
-    setPendingFileName(selectedBase.file_name ?? selectedBase.reference);
+  const handleProcessFromBase = () => {
+    if (selectedBases.length === 0 || !primaryBase) return;
+    const paymentComp = paymentCompetenceMonth ?? "";
+
+    // Detecta coluna de setor por LINHA — bases distintas podem nomear a coluna
+    // de forma levemente diferente, então evitamos travar num único header.
+    const findSectorCol = (row: Record<string, unknown>) =>
+      Object.keys(row).find(k => {
+        const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+      });
+
+    type Stamped = Record<string, unknown> & {
+      __baseId: string;
+      __baseCompetence: string;
+      __baseUploadedAt: string;
+    };
+    const allRows: Stamped[] = [];
+    for (const b of selectedBases) {
+      const bComp = String(b.competence_month ?? "").slice(0, 7);
+      const bUp = String(b.created_at ?? "");
+      const rows: Record<string, unknown>[] = b.raw_data ?? [];
+      for (const r of rows) {
+        allRows.push({ ...r, __baseId: b.id, __baseCompetence: bComp, __baseUploadedAt: bUp });
+      }
+    }
+
+    const filteredRows = selectedSectors.length > 0
+      ? allRows.filter(r => {
+          const col = findSectorCol(r);
+          return col ? selectedSectors.includes(String(r[col] ?? "").trim()) : false;
+        })
+      : allRows;
+
+    // Dedup determinístico só quando há 2+ bases.
+    // Chave: atendimento | TUSS(8d) | médico | função — usando col_map da primária.
+    // Desempate 1: base cuja competência bate com o lote vence.
+    // Desempate 2: base com upload mais recente vence.
+    let finalRows: Record<string, unknown>[] = filteredRows;
+    if (selectedBases.length > 1) {
+      const map = (primaryBase.col_map ?? colMapping ?? {}) as Record<string, string>;
+      const attCol = map["attendance"];
+      const codeCol = map["tuss"] || map["code"] || map["procedure_code"];
+      const docCol = map["doctor"] || map["doctor_name"];
+      const funcCol = map["function"] || map["role"];
+      const norm = (s: unknown) =>
+        String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normCode = (s: unknown) => String(s ?? "").replace(/\D/g, "").slice(0, 8);
+      const keyOf = (r: Stamped): string | null => {
+        if (!attCol || !codeCol) return null;
+        const att = norm(r[attCol]);
+        const code = normCode(r[codeCol]);
+        if (!att || !code) return null;
+        return `${att}|${code}|${docCol ? norm(r[docCol]) : ""}|${funcCol ? norm(r[funcCol]) : ""}`;
+      };
+      const best = new Map<string, Stamped>();
+      const noKey: Stamped[] = [];
+      let collisions = 0;
+      for (const r of filteredRows as Stamped[]) {
+        const k = keyOf(r);
+        if (!k) { noKey.push(r); continue; }
+        const cur = best.get(k);
+        if (!cur) { best.set(k, r); continue; }
+        collisions++;
+        const rMatch = paymentComp && r.__baseCompetence === paymentComp ? 1 : 0;
+        const cMatch = paymentComp && cur.__baseCompetence === paymentComp ? 1 : 0;
+        if (rMatch !== cMatch) {
+          if (rMatch > cMatch) best.set(k, r);
+        } else if (r.__baseUploadedAt > cur.__baseUploadedAt) {
+          best.set(k, r);
+        }
+      }
+      finalRows = [...best.values(), ...noKey];
+      if (collisions > 0) {
+        console.info(`[Conciliação] dedup multi-base: ${collisions} colisões resolvidas (${finalRows.length} linhas finais)`);
+      }
+    }
+
+    setParsedRows(finalRows);
+    const label = selectedBases.length === 1
+      ? (primaryBase.file_name ?? primaryBase.reference)
+      : `${selectedBases.length} bases · ${primaryBase.file_name ?? primaryBase.reference} +${selectedBases.length - 1}`;
+    setPendingFileName(label);
     setStep("col_mapping");
   };
 
