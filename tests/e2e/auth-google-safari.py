@@ -49,36 +49,35 @@ async def run_case(playwright, viewport, next_target):
     )
     page = await context.new_page()
 
-    # Intercepta a chamada real ao helper: substituímos `lovable.auth.signInWithOAuth`
-    # por um espião que grava as opções e evita a navegação para o provider.
+    # O helper `@lovable.dev/cloud-auth-js` abre um popup para o endpoint OAuth
+    # do provider. Interceptamos `window.open` para capturar a URL — o
+    # parâmetro `redirect_uri` DEVE ser o origin puro; qualquer sufixo (ex.
+    # `/dashboard` ou `?next=...`) quebra o retorno via `web_message` no
+    # Safari mobile.
     await page.add_init_script(
         """
-        window.__oauthCalls = [];
-        const install = () => {
-          const l = window.lovable;
-          if (!l || !l.auth || !l.auth.signInWithOAuth) return false;
-          const original = l.auth.signInWithOAuth.bind(l.auth);
-          l.auth.signInWithOAuth = async (provider, opts) => {
-            window.__oauthCalls.push({ provider, opts });
-            return { error: null, redirected: false };
+        window.__openCalls = [];
+        const origOpen = window.open.bind(window);
+        window.open = (url, ...rest) => {
+          try { window.__openCalls.push(String(url)); } catch {}
+          // Devolve um stub para o helper não explodir — não navegamos de fato.
+          return {
+            closed: false, close: () => {}, focus: () => {},
+            postMessage: () => {}, location: { href: '' },
           };
-          return true;
         };
-        if (!install()) {
-          const iv = setInterval(() => { if (install()) clearInterval(iv); }, 50);
-        }
         """
     )
 
     url = f"{BASE_URL}/auth?next={next_target}"
     await page.goto(url, wait_until="domcontentloaded")
     await page.wait_for_selector("text=Entrar com Google")
-    # Garante que o shim foi instalado antes do clique.
-    await page.wait_for_function("() => window.lovable && window.lovable.auth")
 
     await page.get_by_role("button", name="Entrar com Google").click()
+    # O helper abre o popup de forma síncrona no handler do clique.
+    await page.wait_for_function("() => (window.__openCalls || []).length > 0", timeout=10_000)
 
-    calls = await page.evaluate("window.__oauthCalls")
+    open_calls = await page.evaluate("window.__openCalls")
     origin = await page.evaluate("window.location.origin")
 
     shot = OUT / f"{viewport['name']}-{next_target.replace('/', '_').replace('?', '_')}.png"
@@ -86,16 +85,25 @@ async def run_case(playwright, viewport, next_target):
 
     await browser.close()
 
-    assert len(calls) == 1, f"[{viewport['name']} next={next_target}] esperado 1 chamada, veio {len(calls)}"
-    call = calls[0]
-    assert call["provider"] == "google", f"provider incorreto: {call['provider']}"
-    redirect = (call.get("opts") or {}).get("redirect_uri")
+    assert open_calls, f"[{viewport['name']} next={next_target}] window.open não foi chamado"
+    popup_url = open_calls[0]
+    # Extrai redirect_uri do querystring (URL-encoded).
+    from urllib.parse import urlparse, parse_qs, unquote
+    parsed = urlparse(popup_url)
+    qs = parse_qs(parsed.query)
+    redirect = None
+    for key in ("redirect_uri", "redirect_to"):
+        if key in qs:
+            redirect = unquote(qs[key][0])
+            break
     assert redirect == origin, (
         f"[{viewport['name']} next={next_target}] redirect_uri DEVE ser origin puro "
-        f"({origin!r}), mas veio {redirect!r}. Concatenar `next` quebra o web_message "
-        "do Safari mobile — reverta a alteração em src/pages/Auth.tsx."
+        f"({origin!r}), mas veio {redirect!r} (popup URL: {popup_url}). "
+        "Concatenar `next`/rota protegida quebra o web_message do Safari mobile — "
+        "reverta a alteração em src/pages/Auth.tsx."
     )
     return {"viewport": viewport["name"], "next": next_target, "redirect_uri": redirect}
+
 
 
 async def main():
