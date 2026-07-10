@@ -2990,6 +2990,7 @@ const NewPayment = () => {
     const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
       payment_id: payment.id,
       source_file: b.file.name,
+      source_file_name: b.file.name,
       raw_company_name: (r.company_name || b.rawCompanyName || "—").trim(),
       match_score: b.matchScore || 0,
       match_suggestion_id: b.matchedCompany?.id ?? null,
