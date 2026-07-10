@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronLeft, ChevronRight, AlertCircle, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, AlertCircle, X, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ErrorDetail = { id: string; title: string; messages: string[] };
 
