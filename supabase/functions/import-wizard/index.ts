@@ -255,21 +255,27 @@ Deno.serve(async (req) => {
       }
 
       // Pós-processo em lote: vínculos doctor -> companies por nome
+      // ATENÇÃO — reescrito em 10/07/2026: nunca fazer delete-then-insert.
+      // Regra: preservar vínculos ativos que continuem na nova lista, encerrar (soft-close)
+      // os que sumiram, inserir apenas os inéditos com start_date = CURRENT_DATE.
+      // Isso evita perda silenciosa de histórico (caso Angioplastika × Cirurgia Brasília, 03/06/2026).
       if (hasDoctorCompanies) {
         const crms = [...new Set(records.map((rec) => String(rec.crm ?? "")).filter(Boolean))];
         const { data: docs } = await admin.from("doctors").select("id,crm,crm_uf").in("crm", crms);
         const doctorByKey = new Map<string, string>();
         for (const doc of (docs ?? []) as any[]) doctorByKey.set(`${doc.crm}||${doc.crm_uf}`, doc.id);
-        const links: { doctor_id: string; company_id: string }[] = [];
-        const doctorIds = new Set<string>();
+
+        // Monta desejo: doctor_id -> Set<company_id> vindos da planilha
+        const desired = new Map<string, Set<string>>();
+        const doctorsInFile = new Set<string>();
         for (const rec of records) {
           const doctorId = doctorByKey.get(`${rec.crm}||${rec.crm_uf}`);
           if (!doctorId) continue;
+          doctorsInFile.add(doctorId);
           const cids = (Array.isArray(rec.companies_raw) ? rec.companies_raw : [])
             .map((n: string) => {
               const raw = String(n).trim();
               if (!raw) return undefined;
-              // Tenta CNPJ primeiro (mais confiável), depois nome/alias
               const digits = raw.replace(/\D/g, "");
               if (digits.length >= 11) {
                 const byCnpj = companyByKey.get(`cnpj::${digits}`);
@@ -278,11 +284,60 @@ Deno.serve(async (req) => {
               return companyByKey.get(`name::${raw.toLowerCase()}`);
             })
             .filter(Boolean) as string[];
-          for (const cid of [...new Set(cids)]) links.push({ doctor_id: doctorId, company_id: cid });
-          if (cids.length) doctorIds.add(doctorId);
+          if (!desired.has(doctorId)) desired.set(doctorId, new Set());
+          for (const cid of cids) desired.get(doctorId)!.add(cid);
         }
-        if (doctorIds.size) await admin.from("doctor_companies").delete().in("doctor_id", [...doctorIds]);
-        if (links.length) await admin.from("doctor_companies").insert(links);
+
+        if (doctorsInFile.size) {
+          // Vínculos ativos hoje para os médicos da planilha
+          const { data: existing } = await admin
+            .from("doctor_companies")
+            .select("id,doctor_id,company_id,start_date,end_date")
+            .in("doctor_id", [...doctorsInFile])
+            .is("end_date", null);
+
+          const existingByDoctor = new Map<string, Array<{ id: string; company_id: string; start_date: string | null }>>();
+          for (const row of (existing ?? []) as any[]) {
+            if (!existingByDoctor.has(row.doctor_id)) existingByDoctor.set(row.doctor_id, []);
+            existingByDoctor.get(row.doctor_id)!.push(row);
+          }
+
+          const today = new Date().toISOString().slice(0, 10);
+          const toClose: string[] = [];        // ids de vínculos a soft-close
+          const toInsert: Array<{ doctor_id: string; company_id: string; start_date: string }> = [];
+
+          for (const doctorId of doctorsInFile) {
+            const want = desired.get(doctorId) ?? new Set<string>();
+            const active = existingByDoctor.get(doctorId) ?? [];
+            const activeCompanyIds = new Set(active.map((a) => a.company_id));
+
+            // 1) Encerrar vínculos ativos que não vieram na planilha
+            //    Só encerra se a planilha listou PELO MENOS UMA PJ para esse médico —
+            //    evita apagar tudo quando a linha veio sem coluna PJ preenchida.
+            if (want.size > 0) {
+              for (const a of active) {
+                if (!want.has(a.company_id)) toClose.push(a.id);
+              }
+            }
+
+            // 2) Inserir vínculos novos (não existentes ativos)
+            for (const cid of want) {
+              if (!activeCompanyIds.has(cid)) {
+                toInsert.push({ doctor_id: doctorId, company_id: cid, start_date: today });
+              }
+            }
+          }
+
+          if (toClose.length) {
+            await admin
+              .from("doctor_companies")
+              .update({ end_date: today, end_reason: "substituido_por_import" })
+              .in("id", toClose);
+          }
+          if (toInsert.length) {
+            await admin.from("doctor_companies").insert(toInsert);
+          }
+        }
       }
     }
 
