@@ -5874,10 +5874,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     doctor_id: string;
     doctor_name: string;
     doctor_crm: string | null;
+    company_id: string | null;
+    company_name: string | null;
     items: TvrResult[];
   };
 
   const modoMedicoUnico = !!recon?.doctor_id;
+
+  // Map doctor_id → PJ ativa (regra: 1 PJ ativa por médico). Quando o médico
+  // tem múltiplas PJs ativas, deixamos null e o backend resolve na hora do envio.
+  const [doctorPjMap, setDoctorPjMap] = useState<Record<string, { company_id: string; company_name: string } | null>>({});
 
   // Carrega map id→{full_name,crm} para os doctor_ids presentes nos itens a retirar
   // quando a apuração é só-PJ. Em modo médico-único isso não é usado.
@@ -5909,6 +5915,58 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     return () => { cancelled = true; };
   }, [results, modoMedicoUnico, groupDoctorsMap]);
 
+  // Carrega a PJ ativa de cada médico via doctor_companies (end_date null).
+  // Só marca quando o médico tem exatamente 1 PJ ativa; múltiplas → ambíguo (null).
+  useEffect(() => {
+    if (modoMedicoUnico) return;
+    const ids = Array.from(
+      new Set(
+        (results ?? [])
+          .filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5)
+          .map((r) => r.matched_doctor_id)
+          .filter((x): x is string => !!x),
+      ),
+    );
+    const missing = ids.filter((id) => !(id in doctorPjMap));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: links } = await supabase
+        .from("doctor_companies" as never)
+        .select("doctor_id, company_id")
+        .in("doctor_id", missing)
+        .is("end_date", null);
+      const rows = (links ?? []) as Array<{ doctor_id: string; company_id: string }>;
+      const byDoctor = new Map<string, Set<string>>();
+      for (const l of rows) {
+        const s = byDoctor.get(l.doctor_id) ?? new Set<string>();
+        s.add(l.company_id);
+        byDoctor.set(l.doctor_id, s);
+      }
+      const companyIds = Array.from(new Set(rows.map((l) => l.company_id)));
+      const { data: comps } = companyIds.length
+        ? await supabase.from("companies" as never).select("id, name").in("id", companyIds)
+        : { data: [] as Array<{ id: string; name: string }> };
+      const nameById = new Map<string, string>();
+      for (const c of (comps ?? []) as Array<{ id: string; name: string | null }>) {
+        nameById.set(c.id, c.name ?? "PJ");
+      }
+      if (cancelled) return;
+      const next: Record<string, { company_id: string; company_name: string } | null> = { ...doctorPjMap };
+      for (const did of missing) {
+        const set = byDoctor.get(did);
+        if (set && set.size === 1) {
+          const cid = Array.from(set)[0];
+          next[did] = { company_id: cid, company_name: nameById.get(cid) ?? "PJ" };
+        } else {
+          next[did] = null;
+        }
+      }
+      setDoctorPjMap(next);
+    })();
+    return () => { cancelled = true; };
+  }, [results, modoMedicoUnico, doctorPjMap]);
+
   const buildGlosaGroups = (retirar: TvrResult[]): { groups: GlosaGroup[]; unassigned: TvrResult[] } => {
     if (modoMedicoUnico) {
       if (!doctorInfo.id || (!doctorInfo.name && !doctorInfo.crm)) {
@@ -5919,6 +5977,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           doctor_id: doctorInfo.id,
           doctor_name: doctorInfo.name ?? "Médico",
           doctor_crm: doctorInfo.crm,
+          company_id: recon?.company_id ?? null,
+          company_name: null,
           items: retirar,
         }],
         unassigned: [],
@@ -5936,14 +5996,23 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const groups: GlosaGroup[] = [];
     for (const [did, items] of byDoctor) {
       const info = groupDoctorsMap[did];
+      const pj = doctorPjMap[did] ?? null;
       groups.push({
         doctor_id: did,
         doctor_name: info?.full_name ?? "Médico",
         doctor_crm: info?.crm ?? null,
+        company_id: pj?.company_id ?? null,
+        company_name: pj?.company_name ?? null,
         items,
       });
     }
-    groups.sort((a, b) => a.doctor_name.localeCompare(b.doctor_name));
+    // Ordena por PJ (ambíguas por último) e depois por médico — sempre tratamos a PJ primeiro.
+    groups.sort((a, b) => {
+      const ac = a.company_name ?? "\uFFFF";
+      const bc = b.company_name ?? "\uFFFF";
+      if (ac !== bc) return ac.localeCompare(bc);
+      return a.doctor_name.localeCompare(b.doctor_name);
+    });
     return { groups, unassigned };
   };
 
