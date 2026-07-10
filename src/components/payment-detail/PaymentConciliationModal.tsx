@@ -2918,6 +2918,51 @@ export function PaymentConciliationModal({
     return base;
   }, [items, initialCompany, companyFilter, doctorFilter, minValue, maxValue, searchTerm]);
 
+  // ============================================================
+  // Bucket derivado (Fase 1, sem migration) — "Outra competência".
+  // ------------------------------------------------------------
+  // Itens hoje classificados como `so_exacta` mas cuja `procedure_date`
+  // cai FORA dos meses cobertos pela base TASY carregada nesta run
+  // não são "ausente TASY" reais — são apenas de outra competência.
+  //
+  //  • baseMonthsCarregada  → meses efetivamente presentes na base cruzada
+  //                           (derivados dos itens que TIVERAM linha do
+  //                           hospital: so_hospital / conciliado / *divergente).
+  //  • baseMonthsAll        → meses com base TASY existente no hospital
+  //                           (concBases carregado no open do modal).
+  //
+  // Sub-rótulo:
+  //   - "aguardando"  → a base para aquele mês nunca foi importada.
+  //   - "disponivel"  → a base existe, mas não foi carregada nesta run.
+  //
+  // Se baseMonthsCarregada estiver vazio (run sem lado hospital), NÃO
+  // reclassifica nada — falta de sinal para decidir.
+  // ============================================================
+  const outraCompetenciaBuckets = useMemo(() => {
+    const buckets = new Map<string, "aguardando" | "disponivel">();
+    const baseMonthsCarregada = new Set<string>();
+    for (const it of items) {
+      const s = it.status;
+      if (s === "so_hospital" || s === "conciliado" || s === "valor_divergente" || s === "qtd_divergente") {
+        const d = it.procedure_date ? String(it.procedure_date).slice(0, 7) : "";
+        if (d) baseMonthsCarregada.add(d);
+      }
+    }
+    if (baseMonthsCarregada.size === 0) return buckets;
+    const baseMonthsAll = new Set<string>(
+      (concBases ?? [])
+        .map((b) => String(b?.competence_month ?? "").slice(0, 7))
+        .filter(Boolean),
+    );
+    for (const it of items) {
+      if (it.status !== "so_exacta") continue;
+      const m = it.procedure_date ? String(it.procedure_date).slice(0, 7) : "";
+      if (!m || baseMonthsCarregada.has(m)) continue;
+      buckets.set(it.id, baseMonthsAll.has(m) ? "disponivel" : "aguardando");
+    }
+    return buckets;
+  }, [items, concBases]);
+
   const scopedStats = useMemo(() => {
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0, possivel_pacote = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
