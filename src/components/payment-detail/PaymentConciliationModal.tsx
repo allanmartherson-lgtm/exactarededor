@@ -3644,7 +3644,7 @@ export function PaymentConciliationModal({
         const { data: existingDebt } = await supabase
           .from('glosa_debts')
           .select('id, total_debt')
-          .eq('doctor_id', piRow.doctor_id)
+          .eq('doctor_id', resolvedDoctorId)
           .eq('hospital_id', piRow.hospital_id)
           .eq('status', 'ativo')
           .eq('origem', 'conciliacao_residual')
@@ -3677,7 +3677,7 @@ export function PaymentConciliationModal({
           const { data: newDebt, error: insErr } = await supabase
             .from('glosa_debts')
             .insert({
-              doctor_id: piRow.doctor_id,
+              doctor_id: resolvedDoctorId,
               doctor_name: item.doctor_name ?? '—',
               hospital_id: piRow.hospital_id,
               company_id: piRow.company_id ?? null,
