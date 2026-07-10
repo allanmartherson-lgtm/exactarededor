@@ -12705,6 +12705,14 @@ export type Database = {
         Returns: boolean
       }
       user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
+      user_is_empresa_recipient_of: {
+        Args: { _campaign_id: string }
+        Returns: boolean
+      }
+      user_is_medico_recipient_of: {
+        Args: { _campaign_id: string }
+        Returns: boolean
+      }
       user_state_ufs: { Args: { _uid: string }; Returns: string[] }
       validate_rule_save: {
         Args: {
