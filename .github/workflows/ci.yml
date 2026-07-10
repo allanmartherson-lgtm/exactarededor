@@ -188,3 +188,63 @@ jobs:
             supabase/functions/analyze-payment/mixed_logic_test.ts \
             supabase/functions/analyze-payment/sector_reapply_recovery_test.ts \
             supabase/functions/analyze-payment/no_status_writeback_test.ts
+
+  # Job 8: Login Google — redirect_uri em WebKit/Safari (obrigatório — bloqueia merge)
+  # Garante que o botão "Entrar com Google" na tela /auth sempre envia
+  # `redirect_uri = window.location.origin` (origin puro), mesmo com `?next=`
+  # apontando para rota protegida ou consent OAuth. Concatenar `next` no
+  # redirect_uri quebra o retorno `web_message` do @lovable.dev/cloud-auth-js
+  # no Safari mobile (usuário fica preso em "conectando").
+  auth-google-webkit:
+    name: Auth Google (WebKit / Safari)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright + WebKit
+        run: |
+          python -m pip install --no-cache-dir playwright
+          python -m playwright install --with-deps webkit
+
+      - name: Start dev server
+        run: |
+          bun run dev &
+          echo $! > /tmp/dev.pid
+          # Espera o Vite responder na 8080.
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080 >/dev/null 2>&1; then
+              echo "dev server up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "dev server did not start"; exit 1
+
+      - name: Run Google OAuth redirect_uri contract (WebKit)
+        env:
+          E2E_BASE_URL: http://localhost:8080
+        run: python tests/e2e/auth-google-safari.py
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-google-webkit-screenshots
+          path: /tmp/browser/auth-google-safari/
+
+      - name: Stop dev server
+        if: always()
+        run: kill "$(cat /tmp/dev.pid)" || true
+
