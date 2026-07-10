@@ -6036,13 +6036,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const createdDebtIds: string[] = [];
     try {
       for (const { group: g, item_ids } of allInsertedIdsByGroup) {
+        const parcelasGrupo = Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback);
         const { error: debtErr } = await supabase.rpc(
           "create_glosa_debt_with_items" as never,
           {
             p_company_id: recon.company_id,
             p_doctor_crm: g.doctor_crm,
             p_doctor_name: g.doctor_name,
-            p_parcelas: parcelas,
+            p_parcelas: parcelasGrupo,
             p_item_ids: item_ids,
           } as never,
         );
@@ -6070,12 +6071,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       throw e;
     }
 
+    // Resumo humano de parcelas: se todos iguais, "Nx"; caso contrário, "variável (min-max×)"
+    const usados = groups.map((g) => Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback));
+    const min = Math.min(...usados);
+    const max = Math.max(...usados);
+    const parcelasResumo = min === max ? `${min}×` : `variável (${min}–${max}×)`;
+
     return {
       batch_id: batchId,
       debts: groups.length,
       items: allItems.length,
       total: totalGlosa,
-      parcelas,
+      parcelasResumo,
     };
   };
 
