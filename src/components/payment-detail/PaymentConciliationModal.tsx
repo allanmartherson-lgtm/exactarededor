@@ -5214,6 +5214,7 @@ export function PaymentConciliationModal({
                                                     it.action_taken === 'revisar_manual' && 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300',
                                                     it.action_taken === 'marcar_glosa' && 'bg-yellow-500/10 text-yellow-800 border-yellow-500/30 dark:text-yellow-300',
                                                     it.action_taken === 'cancelado_conciliacao' && 'bg-destructive/10 text-destructive border-destructive/30',
+                                                    it.action_taken === 'rolar_debito_residual' && 'bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300',
                                                   )}>
                                                     {({
                                                       incorporar_credito: '✓ Crédito incorporado ao próximo lote',
@@ -5222,6 +5223,7 @@ export function PaymentConciliationModal({
                                                       revisar_manual: '⚠ Revisão manual pendente',
                                                       marcar_glosa: '⚠ Marcado como glosa',
                                                       cancelado_conciliacao: '✓ Cancelado via conciliação',
+                                                      rolar_debito_residual: '↻ Débito residual rolado — próxima produção',
                                                     } as Record<string, string>)[it.action_taken!] ?? it.action_taken}
                                                   </div>
                                                 )}
