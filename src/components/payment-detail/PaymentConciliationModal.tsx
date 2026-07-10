@@ -529,6 +529,7 @@ export function PaymentConciliationModal({
           const firstDay = m ? `${m[1]}-${m[2]}-01` : earliest;
           setPeriodStartAuto(firstDay);
           setPeriodStartOverride((prev) => prev || firstDay);
+          setPaymentCompetenceMonth(m ? `${m[1]}-${m[2]}` : earliest.slice(0, 7));
         }
       } catch (e) {
         console.warn("[Conciliação] falha ao ler competência do lote", e);
@@ -544,12 +545,23 @@ export function PaymentConciliationModal({
   const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
   const [pendingFileName, setPendingFileName] = useState<string>("");
 
-  // Seleção de base importada
+  // Seleção de base(s) importada(s) — Fase 2: multi-select.
+  // primaryBaseId define o col_map exibido e é onde `saveColMapping` persiste.
   const [concBases, setConcBases] = useState<any[]>([]);
-  const [selectedBase, setSelectedBase] = useState<any | null>(null);
+  const [selectedBases, setSelectedBases] = useState<any[]>([]);
+  const [primaryBaseId, setPrimaryBaseId] = useState<string | null>(null);
   const [availableSectors, setAvailableSectors] = useState<string[]>([]);
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
   const [loadingBases, setLoadingBases] = useState(false);
+  // Competência do lote — usada como desempate primário no dedup multi-base.
+  const [paymentCompetenceMonth, setPaymentCompetenceMonth] = useState<string | null>(null);
+
+  // Base "primária": fonte de col_map/setores exibidos. Compat com código legado
+  // que assumia uma única base selecionada.
+  const primaryBase = useMemo(() => {
+    if (selectedBases.length === 0) return null;
+    return selectedBases.find(b => b.id === primaryBaseId) ?? selectedBases[0];
+  }, [selectedBases, primaryBaseId]);
 
   // Mapeamento de colunas: campo interno → coluna real da planilha
   const [colMapping, setColMapping] = useState<Record<string, string>>({});
@@ -866,8 +878,17 @@ export function PaymentConciliationModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialCompany]);
 
-  const handleSelectBase = (base: any) => {
-    setSelectedBase(base);
+  // Reconstrói contexto derivado (setores, colunas, col_map) a partir da base
+  // primária escolhida. Chamado sempre que a primária muda.
+  const rebuildBaseContext = (base: any | null) => {
+    if (!base) {
+      setAvailableSectors([]);
+      setSelectedSectors([]);
+      setAvailableColumns([]);
+      setColSamples({});
+      setColMapping({});
+      return;
+    }
     const rows: Record<string, unknown>[] = base.raw_data ?? [];
     const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
       const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -878,10 +899,8 @@ export function PaymentConciliationModal({
     )).sort();
     setAvailableSectors(sectors);
     setSelectedSectors([]);
-
     const cols = Object.keys(rows[0] ?? {});
     setAvailableColumns(cols);
-
     const samples: Record<string, string> = {};
     for (const col of cols) {
       for (const row of rows.slice(0, 10)) {
@@ -890,7 +909,6 @@ export function PaymentConciliationModal({
       }
     }
     setColSamples(samples);
-
     const saved: Record<string, string> = base.col_map ?? {};
     const autoDetected = detectColumns(rows);
     const initial: Record<string, string> = {};
@@ -906,21 +924,114 @@ export function PaymentConciliationModal({
     setColMapping(initial);
   };
 
-  const handleProcessFromBase = () => {
-    if (!selectedBase) return;
-    const rows: Record<string, unknown>[] = selectedBase.raw_data ?? [];
-
-    const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
-      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-      return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+  // Marca/desmarca uma base. Ao marcar a primeira, ela vira primária.
+  const handleToggleBase = (base: any) => {
+    setSelectedBases(prev => {
+      const exists = prev.some(b => b.id === base.id);
+      const next = exists ? prev.filter(b => b.id !== base.id) : [...prev, base];
+      let nextPrimaryId = primaryBaseId;
+      if (exists && primaryBaseId === base.id) {
+        nextPrimaryId = next[0]?.id ?? null;
+      } else if (!exists && prev.length === 0) {
+        nextPrimaryId = base.id;
+      }
+      setPrimaryBaseId(nextPrimaryId);
+      const nextPrimary = nextPrimaryId ? next.find(b => b.id === nextPrimaryId) ?? null : null;
+      rebuildBaseContext(nextPrimary);
+      return next;
     });
+  };
 
-    const filteredRows = selectedSectors.length > 0 && sectorCol
-      ? rows.filter(r => selectedSectors.includes(String(r[sectorCol] ?? "").trim()))
-      : rows;
+  // Promove uma base já selecionada a primária (redefine col_map/setores exibidos).
+  const handleSetPrimaryBase = (base: any) => {
+    if (!selectedBases.some(b => b.id === base.id)) return;
+    setPrimaryBaseId(base.id);
+    rebuildBaseContext(base);
+  };
 
-    setParsedRows(filteredRows);
-    setPendingFileName(selectedBase.file_name ?? selectedBase.reference);
+  const handleProcessFromBase = () => {
+    if (selectedBases.length === 0 || !primaryBase) return;
+    const paymentComp = paymentCompetenceMonth ?? "";
+
+    // Detecta coluna de setor por LINHA — bases distintas podem nomear a coluna
+    // de forma levemente diferente, então evitamos travar num único header.
+    const findSectorCol = (row: Record<string, unknown>) =>
+      Object.keys(row).find(k => {
+        const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+      });
+
+    type Stamped = Record<string, unknown> & {
+      __baseId: string;
+      __baseCompetence: string;
+      __baseUploadedAt: string;
+    };
+    const allRows: Stamped[] = [];
+    for (const b of selectedBases) {
+      const bComp = String(b.competence_month ?? "").slice(0, 7);
+      const bUp = String(b.created_at ?? "");
+      const rows: Record<string, unknown>[] = b.raw_data ?? [];
+      for (const r of rows) {
+        allRows.push({ ...r, __baseId: b.id, __baseCompetence: bComp, __baseUploadedAt: bUp });
+      }
+    }
+
+    const filteredRows = selectedSectors.length > 0
+      ? allRows.filter(r => {
+          const col = findSectorCol(r);
+          return col ? selectedSectors.includes(String(r[col] ?? "").trim()) : false;
+        })
+      : allRows;
+
+    // Dedup determinístico só quando há 2+ bases.
+    // Chave: atendimento | TUSS(8d) | médico | função — usando col_map da primária.
+    // Desempate 1: base cuja competência bate com o lote vence.
+    // Desempate 2: base com upload mais recente vence.
+    let finalRows: Record<string, unknown>[] = filteredRows;
+    if (selectedBases.length > 1) {
+      const map = (primaryBase.col_map ?? colMapping ?? {}) as Record<string, string>;
+      const attCol = map["attendance"];
+      const codeCol = map["tuss"] || map["code"] || map["procedure_code"];
+      const docCol = map["doctor"] || map["doctor_name"];
+      const funcCol = map["function"] || map["role"];
+      const norm = (s: unknown) =>
+        String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normCode = (s: unknown) => String(s ?? "").replace(/\D/g, "").slice(0, 8);
+      const keyOf = (r: Stamped): string | null => {
+        if (!attCol || !codeCol) return null;
+        const att = norm(r[attCol]);
+        const code = normCode(r[codeCol]);
+        if (!att || !code) return null;
+        return `${att}|${code}|${docCol ? norm(r[docCol]) : ""}|${funcCol ? norm(r[funcCol]) : ""}`;
+      };
+      const best = new Map<string, Stamped>();
+      const noKey: Stamped[] = [];
+      let collisions = 0;
+      for (const r of filteredRows as Stamped[]) {
+        const k = keyOf(r);
+        if (!k) { noKey.push(r); continue; }
+        const cur = best.get(k);
+        if (!cur) { best.set(k, r); continue; }
+        collisions++;
+        const rMatch = paymentComp && r.__baseCompetence === paymentComp ? 1 : 0;
+        const cMatch = paymentComp && cur.__baseCompetence === paymentComp ? 1 : 0;
+        if (rMatch !== cMatch) {
+          if (rMatch > cMatch) best.set(k, r);
+        } else if (r.__baseUploadedAt > cur.__baseUploadedAt) {
+          best.set(k, r);
+        }
+      }
+      finalRows = [...best.values(), ...noKey];
+      if (collisions > 0) {
+        console.info(`[Conciliação] dedup multi-base: ${collisions} colisões resolvidas (${finalRows.length} linhas finais)`);
+      }
+    }
+
+    setParsedRows(finalRows);
+    const label = selectedBases.length === 1
+      ? (primaryBase.file_name ?? primaryBase.reference)
+      : `${selectedBases.length} bases · ${primaryBase.file_name ?? primaryBase.reference} +${selectedBases.length - 1}`;
+    setPendingFileName(label);
     setStep("col_mapping");
   };
 
@@ -935,11 +1046,12 @@ export function PaymentConciliationModal({
       return;
     }
 
-    if (saveColMapping && selectedBase) {
+    // Persiste col_map apenas na base primária (bases secundárias mantêm o seu).
+    if (saveColMapping && primaryBase) {
       await (supabase as any)
         .from("conciliation_bases")
         .update({ col_map: colMapping })
-        .eq("id", selectedBase.id);
+        .eq("id", primaryBase.id);
     }
 
     const companyCol = colMapping["company"] || "";
@@ -3519,7 +3631,8 @@ export function PaymentConciliationModal({
     setCompanyMapping({});
     setHospitalCompanies([]);
     setPendingFileName("");
-    setSelectedBase(null);
+    setSelectedBases([]);
+    setPrimaryBaseId(null);
     setAvailableSectors([]);
     setSelectedSectors([]);
     setColMapping({});
@@ -3785,11 +3898,14 @@ export function PaymentConciliationModal({
       if (actionErr) throw new Error(actionErr.message);
 
       if (action === 'incorporar_credito' || action === 'incorporar_debito') {
-        if (selectedBase?.id) {
+        // Marca TODAS as bases envolvidas na run como "tem itens aplicados"
+        // — não só a primária, porque o item pode ter vindo de qualquer uma.
+        const baseIds = selectedBases.map(b => b.id).filter(Boolean);
+        if (baseIds.length > 0) {
           await supabase
             .from('conciliation_bases')
             .update({ tem_itens_aplicados: true } as any)
-            .eq('id', selectedBase.id);
+            .in('id', baseIds);
         }
       }
 
@@ -3923,52 +4039,89 @@ export function PaymentConciliationModal({
                 </Card>
               ) : (
                 <div className="space-y-2">
+                  {selectedBases.length > 1 && (
+                    <div className="flex items-center justify-between px-3 py-2 rounded-md bg-accent/40 border border-border text-xs">
+                      <span className="font-medium text-foreground">
+                        {selectedBases.length} bases selecionadas · {selectedBases.reduce((s, b) => s + (b.total_rows ?? 0), 0)} linhas totais
+                      </span>
+                      <span className="text-muted-foreground">
+                        Primária: <strong className="text-foreground">{primaryBase?.reference}</strong>
+                      </span>
+                    </div>
+                  )}
                   {concBases.map(base => {
-                    const isSelected = selectedBase?.id === base.id;
+                    const isSelected = selectedBases.some(b => b.id === base.id);
+                    const isPrimary = isSelected && primaryBase?.id === base.id;
                     return (
-                      <button
+                      <div
                         key={base.id}
-                        type="button"
-                        onClick={() => handleSelectBase(base)}
                         className={cn(
-                          "w-full text-left p-4 rounded-lg border transition-all",
+                          "w-full p-4 rounded-lg border transition-all",
                           isSelected
                             ? "border-primary/60 bg-accent/60 shadow-sm"
                             : "border-border bg-card hover:bg-muted/40"
                         )}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleBase(base)}
+                            className="h-4 w-4 rounded shrink-0"
+                            style={{ accentColor: "hsl(var(--primary))" }}
+                            aria-label={`Selecionar base ${base.reference}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBase(base)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
+                              {isPrimary && selectedBases.length > 1 && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary text-primary-foreground shrink-0">
+                                  primária
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
                               {base.competence_month && ` · competência ${formatCompetenceBR(base.competence_month)}`}
                             </p>
-                          </div>
+                          </button>
+                          {isSelected && !isPrimary && selectedBases.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimaryBase(base)}
+                              className="text-[10px] font-medium px-2 py-1 rounded border border-border hover:bg-muted shrink-0"
+                            >
+                              tornar primária
+                            </button>
+                          )}
                           {isSelected && (
                             <div className="shrink-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                               <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
                             </div>
                           )}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
               )}
 
-              {selectedBase && availableSectors.length > 0 && (
+              {primaryBase && availableSectors.length > 0 && (
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Filtrar por setor</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Selecione apenas os setores pertinentes a este lote. Deixe todos desmarcados para incluir a base completa (não recomendado — pode gerar ruído entre tipos de atendimento).
+                      Setores exibidos referem-se à base primária. O filtro é aplicado em todas as bases selecionadas. Deixe todos desmarcados para incluir as bases completas (não recomendado — pode gerar ruído entre tipos de atendimento).
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
                     {availableSectors.map(sector => {
                       const checked = selectedSectors.includes(sector);
-                      const count = (selectedBase.raw_data ?? []).filter((r: any) => {
+                      const count = (primaryBase.raw_data ?? []).filter((r: any) => {
                         const sectorCol = Object.keys(r).find(k => {
                           const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
                           return n.includes("setor") || n.includes("centro") || n.includes("custos");
@@ -4001,32 +4154,35 @@ export function PaymentConciliationModal({
                   {selectedSectors.length > 0 && (
                     <p className="text-xs text-primary font-medium">
                       {selectedSectors.length} setor(es) selecionado(s) · {
-                        (selectedBase.raw_data ?? []).filter((r: any) => {
+                        (primaryBase.raw_data ?? []).filter((r: any) => {
                           const sectorCol = Object.keys(r).find(k => {
                             const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
                             return n.includes("setor") || n.includes("centro") || n.includes("custos");
                           });
                           return sectorCol && selectedSectors.includes(String(r[sectorCol] ?? "").trim());
                         }).length
-                      } linhas serão analisadas
+                      } linhas da base primária serão analisadas
                     </p>
                   )}
                 </div>
               )}
 
-              {selectedBase && (
+              {primaryBase && (
                 <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground">
                   <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <span>
                     <strong className="text-foreground">Lógica de cruzamento:</strong> chave = <strong className="text-foreground">Nº de atendimento + código TUSS</strong>. A comparação financeira é <strong className="text-foreground">tabela do convênio × tabela do convênio</strong> (valor antes da aplicação de qualquer regra/acordo). Divergências aqui indicam diferenças na tabela do convênio entre as duas bases — não erro do motor de regras.
+                    {selectedBases.length > 1 && (
+                      <> Com múltiplas bases selecionadas, itens duplicados (mesmo atendimento + TUSS + médico + função) são resolvidos pelo desempate: <strong className="text-foreground">competência do lote vence</strong>, depois <strong className="text-foreground">upload mais recente</strong>.</>
+                    )}
                   </span>
                 </div>
               )}
 
-              {selectedBase && (
+              {primaryBase && (
                 <div className="flex justify-end pt-2 border-t border-border">
                   <Button
-                    disabled={!selectedBase}
+                    disabled={selectedBases.length === 0}
                     onClick={handleProcessFromBase}
                   >
                     Continuar → Vincular empresas

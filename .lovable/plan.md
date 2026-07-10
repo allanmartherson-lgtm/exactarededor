@@ -1,79 +1,72 @@
-# Migração Exacta → Design System CURA (Rede D'Or)
+## Fase 2 — Multi-select de bases na conciliação
 
-## Realidade do escopo escolhido
+Antes do plano, respondo direto às três dúvidas.
 
-Você pediu **"Migração completa para @rededor/cura-react"** + **substituição definitiva**. Preciso ser honesto:
+### 1) Multi-base é sempre necessário?
 
-- O Exacta tem **~180 páginas** e centenas de componentes shadcn (Button, Input, Select, Dialog, Table, Tabs, Command, DataTable, Sheet, DropdownMenu, Popover, Calendar, Toast, Form etc.) usados em praticamente toda tela.
-- `@rededor/cura-react` **não cobre 1:1** o shadcn. Não existe `CuraDataTable`, `CuraCommand`, `CuraCalendar`, `CuraSheet`, `CuraPopover`, `CuraDropdownMenu` com paridade funcional. Componentes densos (BI, conciliação, auditoria) dependem de shadcn/Radix.
-- Migração 100% literal a `CuraButton`/`CuraInput`/`CuraToast` **quebraria os formulários complexos** (react-hook-form + zod + shadcn Form), tabelas com filtros, comandos, calendários, popovers de filtro etc. — é semana(s) de retrabalho manual.
+Não. É opcional e retrocompatível. O estado deixa de ser `selectedBase: Base | null` e vira `selectedBases: Base[]` (0, 1 ou N bases). Selecionar 1 base = comportamento atual idêntico. Quem só olha o mês corrente nunca precisa marcar mais de uma.
 
-## Proposta: "CURA por fora, shadcn por dentro"
+### 2) De onde vem `__baseCreatedAt`? É o "fechamento do TASY"?
 
-Trato CURA como **tema visual + componentes onde há paridade real**, mantendo shadcn/Radix para componentes densos que CURA não cobre. Resultado visual: 100% Rede D'Or. Resultado técnico: app continua funcionando.
+**Honesto:** hoje o único timestamp disponível por base é `conciliation_bases.created_at` / `uploaded_at` — isso é **quando o analista subiu o arquivo**, não quando o TASY fechou. O TASY não devolve carimbo de fechamento no `raw_data` de forma padronizada.
 
-## Plano em 4 fases (cada uma entregável e reversível por commit)
+Isso muda o critério de desempate. Proponho:
 
-### Fase 1 — Fundação de tokens (base de tudo)
-- Instalar `@rededor/cura` e `@rededor/cura-react` (2.x).
-- Criar `src/cura.d.ts` com declarations.
-- Chamar `CuraInit({ localAssetsPath: '/assets/cura' })` + `defineCustomElements(window)` no `main.tsx`.
-- Reescrever `src/index.css`:
-  - Substituir `--primary`, `--background`, `--card`, `--border`, `--muted`, `--accent`, `--destructive`, `--success`, `--warning`, `--info` (+ `-foreground`, `-soft`, `-text`) pelos valores CURA (`primary-700 #003DA5`, `accent-500 #FF8200`, neutral-0/100/200/500/600/700, success/warning/error/info conforme paleta enviada).
-  - Manter HSL (padrão shadcn) → converter as cores CURA para HSL para não quebrar `hsl(var(--...))` que está em todo lugar.
-  - Radius: `--radius: 0.5rem` (8px cards) — atualmente 12px. Botões usam 4px via variant.
-- Trocar fonte: instalar `@fontsource/dm-sans` (fallback Gotham indisponível publicamente) + `@fontsource/playfair-display` para hero. Setar em `tailwind.config.ts`.
-- **Nada mais é tocado.** Todas as 180 telas passam a exibir a paleta CURA automaticamente.
+- **Chave de dedup**: `atendimento | TUSS (8d) | médico normalizado | função`.
+- **Desempate primário**: `base.competence_month` — se um mesmo item aparece na base de Abril e na base de Março, **a base cuja competência bate com `payment.competence_month` vence**. Isso reflete a regra de negócio real (o item pertence à competência do lote que estamos analisando).
+- **Desempate secundário**: `base.created_at` (upload mais recente) — só usado quando as competências das bases envolvidas são iguais, o que na prática significa "o analista subiu uma versão corrigida do mesmo mês".
+- **Nome do campo carimbado**: renomear para `__baseCompetence` + `__baseUploadedAt` (dois carimbos, sem esconder a semântica).
 
-### Fase 2 — Chrome do app (o que o usuário vê primeiro)
-- `AppLayout` header: fundo `primary-700` + `--cura-font-color: #ffffff`.
-- Sidebar: neutral-0 + estados hover/active em primary-100/700.
-- `Button` (shadcn): variants reescritos para casar com CuraButton (radius 4px, primary sólido, secondary outlined).
-- `Badge`, `Card`, `KpiCard`, `SafeCard`: revistos para casar com o preview `/preview-cura`.
-- Logo/wordmark Exacta permanece (é a marca do produto), mas assinado "por Rede D'Or".
+Se no futuro conseguirmos extrair carimbo de fechamento do TASY (ex.: célula com data de emissão do relatório), viramos o desempate primário para esse campo — mas isso é fora do escopo desta fase.
 
-### Fase 3 — Componentes CURA onde faz sentido
-Substituição pontual, só onde CURA agrega e não quebra:
-- `CuraToast` no lugar do toaster atual (via key numérica, sem `onToastClosed`).
-- `CuraButton` em CTAs primários de páginas simples (login, force-change-password, set-password).
-- `cura-icon` para ícones institucionais (logo Rede D'Or).
-- **Manter shadcn** em: Form/Input (react-hook-form), Table/DataTable, Dialog, Sheet, Command, Popover, Calendar, Select complexo, Tabs, Accordion — CURA não cobre com paridade.
+### 3) O bucket âmbar sai sozinho quando a base chega?
 
-### Fase 4 — Auditoria e polimento
-- Rodar checklist `/skill:cura-review` em todo arquivo tocado.
-- Rodar `bun run build` + `bun run test` a cada fase.
-- Corrigir contrastes (o tema atual tem `--warning-soft`/`--info-soft` bem calibrados para light+dark — refazer para CURA sem quebrar dark mode).
-- Screenshot comparativo antes/depois em 6 telas críticas (Dashboard, Pagamentos, Regras, Conciliação, Auditoria, Notas Fiscais).
+**Sim, automaticamente e sem ação explícita.** O bucket `outra_competencia` é 100% derivado (`useMemo`) do conjunto atual de itens em memória. Quando a analista marca a base que faltava e clica "Processar":
+- Os itens daquela competência entram no lookup consolidado.
+- Os itens do Exacta que antes eram `so_exacta` sem match encontram par → viram `conciliado` ou `divergente` normalmente.
+- O `useMemo` do bucket recalcula e o card âmbar decrementa.
 
-## O que NÃO farei nesta migração
-- Não vou trocar shadcn Form → CuraInput em todas as 40+ telas de formulário. Isso é retrabalho sem ganho visual proporcional.
-- Não vou tocar em telas de BI/relatórios que dependem de Recharts + shadcn Table — só re-tokenizo cores.
-- Não vou mexer em edge functions, lógica de negócio, hooks de dados.
-- Não vou remover dark mode — CURA é primariamente light; se você usa dark, preciso saber (pergunta abaixo).
+Nenhum botão "reprocessar bucket". Nenhuma persistência extra. É o mesmo motor da Fase 1, só que agora com mais bases alimentando o lookup.
 
-## Detalhes técnicos
+---
 
-**Estratégia HSL:** shadcn/Tailwind usa `hsl(var(--primary))` em todo lugar. Converto os hex CURA para HSL:
-- `primary-700 #003DA5` → `hsl(214, 100%, 32%)`
-- `accent-500 #FF8200` → `hsl(31, 100%, 50%)`
-- `neutral-100 #F6F6F6` → `hsl(0, 0%, 96%)`
-- `neutral-600 #6E6E6E` → `hsl(0, 0%, 43%)`
-- `success-500 #5FD290` → `hsl(140, 55%, 60%)`
-- `error-500 #CE2A2A` → `hsl(0, 66%, 49%)`
-- etc.
+## O que muda no código
 
-**Coexistência:** os arquivos `PreviewCura.tsx` e `PreviewDesignSystems.tsx` continuam existindo como referência — não removo.
+**Arquivo único:** `src/components/payment-detail/PaymentConciliationModal.tsx`.
 
-**Migração de tokens é reversível** por revert de commit único (fase 1). As fases 2-4 são commits independentes.
+**Estado:**
+- `selectedBase: Base | null` → `selectedBases: Base[]`.
+- Novo `primaryBaseId: string | null` — a base "primária" define o `col_map` e a lista de setores exibida na UI de mapeamento (evita conflito quando bases têm colunas diferentes). Default: primeira base marcada.
 
-## Pergunta bloqueante antes de começar
+**UI da lista de bases:**
+- Checkbox por linha em vez de rádio.
+- Badge "primária" ao lado da primeira selecionada; clicar em outra troca a primária.
+- Contador "N bases selecionadas · X linhas totais".
+- Botão continua "Processar bases selecionadas".
 
-Duas coisas que muito impactam a Fase 1 e preciso confirmar:
+**`handleProcessFromBase`:**
+- Concatena `raw_data` de todas as bases selecionadas.
+- Para cada linha, carimba dois campos: `__baseCompetence` (de `base.competence_month`) e `__baseUploadedAt` (de `base.created_at`).
+- Aplica dedup determinístico com a chave e os desempates acima **antes** de mandar para o motor.
+- Se houver conflito de `col_map` entre bases, usa o da primária e loga aviso no console (analista já viu antes de importar; não bloqueia).
 
-1. **Dark mode:** o Exacta hoje tem dark mode funcional (via `ThemeContext`). CURA não define uma paleta dark oficial. Opções:
-   - (a) Descontinuar dark mode (mais alinhado com CURA, mais simples).
-   - (b) Manter dark, eu derivo uma paleta dark a partir dos neutrals CURA.
+**Bucket âmbar (`outraCompetenciaBuckets`):**
+- Continua sendo `useMemo`. Só amplia a definição de "base disponível": agora considera qualquer base **não selecionada** cujo `competence_month` cobre o item — não só as importadas mas não carregadas antes.
+- Rótulo do card se ajusta sozinho quando os buckets esvaziam.
 
-2. **Fonte:** Gotham (padrão CURA no app médico) é licenciada e não está disponível como npm/@fontsource. Uso **DM Sans** (já na sua brand memory) como fallback oficial? Ou você tem os arquivos `.woff2` da Gotham para eu embutir?
+**Persistência:** nenhuma. `saveColMapping` continua salvando só na base primária. Sem migração de banco.
 
-Responda essas duas e eu executo a Fase 1 imediatamente (uma leva de tokens + fontes + init CURA, sem tocar em componente nenhum ainda).
+**Retrocompatibilidade:** se `selectedBases.length === 1`, comportamento é indistinguível da Fase 1.
+
+## Testes
+
+- Unit test do dedup: 4 casos (mesma chave em 2 bases com competências diferentes → vence a que bate com o lote; mesma competência → vence upload mais recente; chaves distintas → mantém ambos; base única → passthrough).
+- Teste manual no HDF Abril/2026 com bases de Março + Abril: os 46 itens hoje no bucket âmbar devem virar `conciliado`/`divergente` normais.
+
+## Fora do escopo
+
+- Persistir `selectedBases` no banco (hoje seleção já é volátil).
+- Reprocessar automaticamente ao chegar uma base nova sem clicar em "Processar" (mantém controle explícito da analista).
+- Extrair timestamp de fechamento do TASY do `raw_data`.
+
+Ok para implementar?
