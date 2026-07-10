@@ -7567,12 +7567,12 @@ function EncaminharApuracaoModal({
             onClick={() => onConfirm({
               includeComplementar,
               gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0,
-              parcelas,
+              parcelas: parcelas > 0 ? parcelas : 1,
+              parcelasByDoctor,
               selectedDoctorIds: Array.from(selectedDoctorIds),
             })}
             disabled={
               busy ||
-              (gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0 && parcelas < 1) ||
               (!includeComplementar &&
                 (gerarGlosa !== "agora" || retirar.length === 0 || selectedDoctorIds.size === 0))
             }
