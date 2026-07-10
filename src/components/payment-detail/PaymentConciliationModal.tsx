@@ -1046,11 +1046,12 @@ export function PaymentConciliationModal({
       return;
     }
 
-    if (saveColMapping && selectedBase) {
+    // Persiste col_map apenas na base primária (bases secundárias mantêm o seu).
+    if (saveColMapping && primaryBase) {
       await (supabase as any)
         .from("conciliation_bases")
         .update({ col_map: colMapping })
-        .eq("id", selectedBase.id);
+        .eq("id", primaryBase.id);
     }
 
     const companyCol = colMapping["company"] || "";
