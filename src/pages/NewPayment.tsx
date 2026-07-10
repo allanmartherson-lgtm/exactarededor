@@ -2929,6 +2929,7 @@ const NewPayment = () => {
       return ({
         hospital_id: (payment as any).hospital_id ?? hospital?.id,
         payment_id: payment.id,
+        source_file_name: currentBucket?.file?.name ?? (r as any).source_file ?? null,
         doctor_name: r.doctor_name,
         doctor_document: r.doctor_document,
         doctor_email: r.doctor_email,
