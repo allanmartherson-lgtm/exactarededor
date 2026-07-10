@@ -217,8 +217,10 @@ Deno.serve(async (req) => {
         .select("*")
         .eq("status", "ativo")
         .not("confirmed_at", "is", null)
-        .eq("target_payment_id", payment_id)
         .in("doctor_id", doctorIds)
+        // Glosa clássica: precisa apontar para este lote via target_payment_id.
+        // Débito residual de conciliação: escopado por hospital, sem target — cobra em qualquer lote da médica.
+        .or(`target_payment_id.eq.${payment_id},origem.eq.conciliacao_residual`)
         .or("resolution_status.is.null,resolution_status.neq.ignorado");
 
 
