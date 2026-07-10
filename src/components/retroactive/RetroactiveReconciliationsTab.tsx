@@ -7198,7 +7198,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       {(() => {
         const retirar = toRetirarItems(results ?? []);
         const { groups, unassigned } = buildGlosaGroups(retirar);
-        const canGerarGlosa = !!recon?.company_id && groups.some((g) => g.items.length > 0);
+        // Modo médico único (apuração vinculada a 1 PJ+médico) exige recon.company_id.
+        // Modo multi-médico: cada débito é criado por médico e a PJ é resolvida via
+        // doctor_companies dentro de create_glosa_debt_with_items, então não faz
+        // sentido travar pelo company_id do cabeçalho da apuração.
+        const canGerarGlosa = groups.some((g) => g.items.length > 0)
+          && (modoMedicoUnico ? !!recon?.company_id : true);
         return (
           <EncaminharApuracaoModal
             open={encaminharOpen}
