@@ -2918,8 +2918,54 @@ export function PaymentConciliationModal({
     return base;
   }, [items, initialCompany, companyFilter, doctorFilter, minValue, maxValue, searchTerm]);
 
+  // ============================================================
+  // Bucket derivado (Fase 1, sem migration) — "Outra competência".
+  // ------------------------------------------------------------
+  // Itens hoje classificados como `so_exacta` mas cuja `procedure_date`
+  // cai FORA dos meses cobertos pela base TASY carregada nesta run
+  // não são "ausente TASY" reais — são apenas de outra competência.
+  //
+  //  • baseMonthsCarregada  → meses efetivamente presentes na base cruzada
+  //                           (derivados dos itens que TIVERAM linha do
+  //                           hospital: so_hospital / conciliado / *divergente).
+  //  • baseMonthsAll        → meses com base TASY existente no hospital
+  //                           (concBases carregado no open do modal).
+  //
+  // Sub-rótulo:
+  //   - "aguardando"  → a base para aquele mês nunca foi importada.
+  //   - "disponivel"  → a base existe, mas não foi carregada nesta run.
+  //
+  // Se baseMonthsCarregada estiver vazio (run sem lado hospital), NÃO
+  // reclassifica nada — falta de sinal para decidir.
+  // ============================================================
+  const outraCompetenciaBuckets = useMemo(() => {
+    const buckets = new Map<string, "aguardando" | "disponivel">();
+    const baseMonthsCarregada = new Set<string>();
+    for (const it of items) {
+      const s = it.status;
+      if (s === "so_hospital" || s === "conciliado" || s === "valor_divergente" || s === "qtd_divergente") {
+        const d = it.procedure_date ? String(it.procedure_date).slice(0, 7) : "";
+        if (d) baseMonthsCarregada.add(d);
+      }
+    }
+    if (baseMonthsCarregada.size === 0) return buckets;
+    const baseMonthsAll = new Set<string>(
+      (concBases ?? [])
+        .map((b) => String(b?.competence_month ?? "").slice(0, 7))
+        .filter(Boolean),
+    );
+    for (const it of items) {
+      if (it.status !== "so_exacta") continue;
+      const m = it.procedure_date ? String(it.procedure_date).slice(0, 7) : "";
+      if (!m || baseMonthsCarregada.has(m)) continue;
+      buckets.set(it.id, baseMonthsAll.has(m) ? "disponivel" : "aguardando");
+    }
+    return buckets;
+  }, [items, concBases]);
+
   const scopedStats = useMemo(() => {
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0, possivel_pacote = 0;
+    let outra_competencia = 0, outra_competencia_aguardando = 0, outra_competencia_disponivel = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     let diferenca_total = 0;
     let cancelado_conc = 0;
@@ -2931,6 +2977,15 @@ export function PaymentConciliationModal({
         conciliado++;
         cancelado_conc++;
         continue;
+      }
+      // Reclassificação virtual (não persistida): so_exacta cuja data cai fora
+      // da(s) competência(s) cobertas pela base carregada vira "outra_competencia".
+      const bucket = it.status === "so_exacta" ? outraCompetenciaBuckets.get(it.id) : undefined;
+      if (bucket) {
+        outra_competencia++;
+        if (bucket === "aguardando") outra_competencia_aguardando++;
+        else outra_competencia_disponivel++;
+        continue; // não conta como so_exacta nem soma risco_menos.
       }
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
@@ -2945,8 +3000,6 @@ export function PaymentConciliationModal({
         const diff = vh - vm;
         divergencia_valor += Math.abs(diff);
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
-        // DIFERENÇA TOTAL: prioriza diferenca_regra persistida; fallback
-        // calcula (valor_pago_exacta - valor_regra) quando ambos disponíveis.
         const dr = (it as any).diferenca_regra;
         if (typeof dr === "number" && Number.isFinite(dr)) {
           diferenca_total += dr;
@@ -2974,25 +3027,37 @@ export function PaymentConciliationModal({
     return {
       total: scopedItems.length,
       conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente, possivel_pacote,
+      outra_competencia, outra_competencia_aguardando, outra_competencia_disponivel,
       cancelado_conc,
       risco_mais, risco_menos, divergencia_valor, diferenca_total,
     };
-  }, [scopedItems]);
+  }, [scopedItems, outraCompetenciaBuckets]);
 
 
   const filteredItems = useMemo(() => {
     if (activeFilter === "todos") return scopedItems;
     if (activeFilter === "conciliado") {
-      // Inclui cancelados via conciliação no bucket de conciliados (decisão do analista).
       return scopedItems.filter(
         (it) => it.status === "conciliado" || (it as any).action_taken === "cancelado_conciliacao",
       );
     }
-    // Demais abas (divergências): cancelados via conciliação não aparecem.
+    // Filtro virtual: itens de outra competência (reclassificados a partir de so_exacta).
+    if (activeFilter === "outra_competencia") {
+      return scopedItems.filter((it) => outraCompetenciaBuckets.has(it.id));
+    }
+    // Ao filtrar por "so_exacta" na barra, exclui os itens promovidos para "outra_competencia".
+    if (activeFilter === "so_exacta") {
+      return scopedItems.filter(
+        (it) => it.status === "so_exacta"
+          && !outraCompetenciaBuckets.has(it.id)
+          && (it as any).action_taken !== "cancelado_conciliacao",
+      );
+    }
     return scopedItems.filter(
       (it) => it.status === activeFilter && (it as any).action_taken !== "cancelado_conciliacao",
     );
-  }, [scopedItems, activeFilter]);
+  }, [scopedItems, activeFilter, outraCompetenciaBuckets]);
+
 
   // Sempre que mudam filtros/escopo/pageSize, zera o "mostrar mais" por
   // empresa para não acumular DOM com a base anterior.
@@ -3470,6 +3535,7 @@ export function PaymentConciliationModal({
     { key: "qtd_divergente", label: "Qtd divergente", count: scopedStats.qtd_divergente },
     { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
     { key: "so_exacta", label: "Só no Exacta", count: scopedStats.so_exacta },
+    { key: "outra_competencia", label: "Outra competência", count: scopedStats.outra_competencia },
     { key: "empresa_ausente", label: "Empresa ausente", count: scopedStats.empresa_ausente },
     { key: "possivel_pacote", label: "Possível pacote", count: scopedStats.possivel_pacote },
   ];
@@ -4624,6 +4690,21 @@ export function PaymentConciliationModal({
                 />
                 <KpiCard
                   icon={AlertTriangle}
+                  tone="warning"
+                  label="Outra competência"
+                  value={`${scopedStats.outra_competencia} itens`}
+                  hint={
+                    scopedStats.outra_competencia === 0
+                      ? "data fora do mês da base"
+                      : `${scopedStats.outra_competencia_aguardando} aguardando base · ${scopedStats.outra_competencia_disponivel} base disponível`
+                  }
+                  active={activeFilter === "outra_competencia"}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === "outra_competencia" ? "todos" : "outra_competencia")
+                  }
+                />
+                <KpiCard
+                  icon={AlertTriangle}
                   tone="info"
                   label="Empresa ausente"
                   value={`${scopedStats.empresa_ausente} itens`}
@@ -5042,14 +5123,31 @@ export function PaymentConciliationModal({
                                           );
                                         })()}
                                         <TableCell className="px-3 py-2">
-                                          <span
-                                            className={cn(
-                                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border",
-                                              STATUS_TONE[it.status],
-                                            )}
-                                          >
-                                            {STATUS_LABEL[it.status]}
-                                          </span>
+                                          {(() => {
+                                            const oc = outraCompetenciaBuckets.get(it.id);
+                                            if (oc) {
+                                              return (
+                                                <div className="flex flex-col gap-1">
+                                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border border-warning/40 bg-warning/10 text-warning">
+                                                    Outra competência
+                                                  </span>
+                                                  <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+                                                    {oc === "aguardando" ? "aguardando base" : "base disponível"}
+                                                  </span>
+                                                </div>
+                                              );
+                                            }
+                                            return (
+                                              <span
+                                                className={cn(
+                                                  "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border",
+                                                  STATUS_TONE[it.status],
+                                                )}
+                                              >
+                                                {STATUS_LABEL[it.status]}
+                                              </span>
+                                            );
+                                          })()}
                                         </TableCell>
                                       </TableRow>
                                       {isRowOpen && (it.ia_obs || it.match_diagnostics) && (
