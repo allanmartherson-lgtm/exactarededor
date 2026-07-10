@@ -406,7 +406,7 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
     const { data } = await supabase
       .from("retroactive_reconciliations" as never)
       .select(
-        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
+        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, source_payment_id, cost_center_code, analysis_mode",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -1322,7 +1322,7 @@ function AlegacaoDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     const { data: r } = await supabase
       .from("retroactive_reconciliations" as never)
       .select(
-        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at",
+        "id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, source_payment_id, cost_center_code, analysis_mode",
       )
       .eq("id", id)
       .single();
@@ -3168,7 +3168,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const loadTvrReconciliation = async () => {
     const { data } = await supabase
       .from("retroactive_reconciliations" as never)
-      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, hospital_id")
+      .select("id, doctor_id, company_id, period_start, period_end, status, title, summary, adjustment_ids, created_at, concluded_at, hospital_id, source_payment_id, cost_center_code, analysis_mode")
       .eq("id", id)
       .single();
     const row = data as unknown as ReconRow;
