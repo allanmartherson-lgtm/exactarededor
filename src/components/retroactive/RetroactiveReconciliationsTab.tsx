@@ -6118,10 +6118,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (selected.length === 0) {
           throw new Error("Nenhum médico selecionado para gerar glosa.");
         }
-        const result = await createAuditoriaGlosaForGroups(selected, opts.parcelas);
+        const result = await createAuditoriaGlosaForGroups(selected, opts.parcelasByDoctor, opts.parcelas);
         toast({
           title: "Glosa de auditoria lançada",
-          description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s) cada. Veja em /glosas.`,
+          description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} · parcelas ${result.parcelasResumo}. Veja em /glosas.`,
         });
       }
       if (opts.includeComplementar) {
