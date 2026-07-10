@@ -3631,7 +3631,8 @@ export function PaymentConciliationModal({
     setCompanyMapping({});
     setHospitalCompanies([]);
     setPendingFileName("");
-    setSelectedBase(null);
+    setSelectedBases([]);
+    setPrimaryBaseId(null);
     setAvailableSectors([]);
     setSelectedSectors([]);
     setColMapping({});
