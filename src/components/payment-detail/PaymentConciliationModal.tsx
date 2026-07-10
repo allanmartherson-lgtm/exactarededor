@@ -3513,7 +3513,7 @@ export function PaymentConciliationModal({
 
   const handleAction = async (
     item: ReconciliationItem,
-    action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar',
+    action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar' | 'rolar_debito_residual',
     note?: string,
   ) => {
     if (!user) return;
@@ -3583,16 +3583,107 @@ export function PaymentConciliationModal({
         });
       }
 
+      // ============ Rolar saldo residual para próxima produção da médica ============
+      // Cria/soma glosa_debts (origem='conciliacao_residual') escopado ao hospital
+      // do lote — a cobrança recai em qualquer PJ vinculada à médica no mesmo hospital.
+      let carryGlosaDebtId: string | null = null;
+      if (action === 'rolar_debito_residual') {
+        const diff = Number(item.diferenca_regra ?? 0);
+        if (!(diff > 0)) {
+          toast({ title: 'Nada a rolar', description: 'Este item não tem saldo residual positivo (a recuperar).', variant: 'destructive' });
+          return;
+        }
+        if (!item.payment_item_id) {
+          toast({ title: 'Item sem vínculo de pagamento', description: 'Não é possível rolar — item sem ligação com payment_items.', variant: 'destructive' });
+          return;
+        }
+
+        // Resolve doctor_id + hospital_id via payment_items (ReconciliationItem não os expõe)
+        const { data: piRow, error: piErr } = await supabase
+          .from('payment_items')
+          .select('doctor_id, company_id, hospital_id')
+          .eq('id', item.payment_item_id)
+          .maybeSingle();
+        if (piErr || !piRow?.doctor_id || !piRow?.hospital_id) {
+          toast({ title: 'Não foi possível resolver médica ou hospital', description: piErr?.message ?? 'Dados incompletos no payment_item.', variant: 'destructive' });
+          return;
+        }
+
+        // Upsert semântico: uma única dívida residual ativa por médica+hospital.
+        // Se existir, soma; se não, cria.
+        const { data: existingDebt } = await supabase
+          .from('glosa_debts')
+          .select('id, total_debt')
+          .eq('doctor_id', piRow.doctor_id)
+          .eq('hospital_id', piRow.hospital_id)
+          .eq('status', 'ativo')
+          .eq('origem', 'conciliacao_residual')
+          .maybeSingle();
+
+        if (existingDebt?.id) {
+          const newTotal = Number(existingDebt.total_debt ?? 0) + diff;
+          const { error: updErr } = await supabase
+            .from('glosa_debts')
+            .update({ total_debt: newTotal, updated_at: new Date().toISOString() })
+            .eq('id', existingDebt.id);
+          if (updErr) throw new Error(updErr.message);
+          carryGlosaDebtId = existingDebt.id;
+
+          // Auditoria: registra que este item acresceu à dívida existente
+          await supabase.from('audit_log').insert({
+            entity_type: 'glosa_debt',
+            entity_id: existingDebt.id,
+            action: 'append_residual',
+            actor_id: user.id,
+            company_id: piRow.company_id ?? null,
+            diff: {
+              added: diff,
+              new_total: newTotal,
+              source_reconciliation_item_id: item.id,
+              source_payment_id: paymentId,
+            },
+          } as never);
+        } else {
+          const { data: newDebt, error: insErr } = await supabase
+            .from('glosa_debts')
+            .insert({
+              doctor_id: piRow.doctor_id,
+              doctor_name: item.doctor_name ?? '—',
+              hospital_id: piRow.hospital_id,
+              company_id: piRow.company_id ?? null,
+              total_debt: diff,
+              parcelas_default: 12,
+              status: 'ativo',
+              resolution_status: 'vinculada',
+              origem: 'conciliacao_residual',
+              origem_reconciliation_item_id: item.id,
+              origem_payment_id: paymentId,
+              confirmed_at: new Date().toISOString(),
+              confirmed_by: user.id,
+            } as never)
+            .select('id')
+            .single();
+          if (insErr || !newDebt) throw new Error(insErr?.message ?? 'Erro ao criar dívida residual.');
+          carryGlosaDebtId = newDebt.id;
+        }
+
+        toast({
+          title: 'Saldo residual rolado para próximo repasse',
+          description: `R$ ${diff.toFixed(2)} em 12 parcelas — cobra na próxima produção da médica em qualquer PJ vinculada neste hospital.`,
+        });
+      }
+
       const { error: actionErr } = await supabase
         .from('reconciliation_items')
         .update({
           action_taken: action,
           action_by: user.id,
           action_at: new Date().toISOString(),
-          action_note: note ?? null,
+          action_note: note ?? (action === 'rolar_debito_residual' ? `Rolado como débito residual — glosa_debts ${carryGlosaDebtId}` : null),
           applied_payment_id: appliedPaymentId,
           applied_payment_item_id: appliedPaymentItemId,
-        } as any)
+          ...(carryGlosaDebtId ? { carry_glosa_debt_id: carryGlosaDebtId } : {}),
+        } as never)
         .eq('id', item.id);
 
       if (actionErr) throw new Error(actionErr.message);
@@ -5076,6 +5167,21 @@ export function PaymentConciliationModal({
                                                     >
                                                       Revisar manualmente
                                                     </Button>
+                                                    {/* Rolar débito residual: quando há valor "a recuperar" (diferenca_regra > 0)
+                                                        e a produção do lote não cobre. Vira glosa_debts parcelada e cobra
+                                                        na próxima produção da médica em qualquer PJ vinculada neste hospital. */}
+                                                    {Number(it.diferenca_regra ?? 0) > 0 && it.payment_item_id && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'rolar_debito_residual'); }}
+                                                        className="border-orange-500/30 bg-orange-500/10 text-orange-700 hover:bg-orange-500/20 dark:text-orange-300"
+                                                        title="Cria débito parcelado (12x) cobrado na próxima produção da médica em qualquer PJ vinculada neste hospital"
+                                                      >
+                                                        ↻ Rolar para próximo repasse
+                                                      </Button>
+                                                    )}
                                                     {it.status === 'so_exacta' && (
                                                       <Button
                                                         size="sm"
@@ -5123,6 +5229,7 @@ export function PaymentConciliationModal({
                                                     it.action_taken === 'revisar_manual' && 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300',
                                                     it.action_taken === 'marcar_glosa' && 'bg-yellow-500/10 text-yellow-800 border-yellow-500/30 dark:text-yellow-300',
                                                     it.action_taken === 'cancelado_conciliacao' && 'bg-destructive/10 text-destructive border-destructive/30',
+                                                    it.action_taken === 'rolar_debito_residual' && 'bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300',
                                                   )}>
                                                     {({
                                                       incorporar_credito: '✓ Crédito incorporado ao próximo lote',
@@ -5131,6 +5238,7 @@ export function PaymentConciliationModal({
                                                       revisar_manual: '⚠ Revisão manual pendente',
                                                       marcar_glosa: '⚠ Marcado como glosa',
                                                       cancelado_conciliacao: '✓ Cancelado via conciliação',
+                                                      rolar_debito_residual: '↻ Débito residual rolado — próxima produção',
                                                     } as Record<string, string>)[it.action_taken!] ?? it.action_taken}
                                                   </div>
                                                 )}

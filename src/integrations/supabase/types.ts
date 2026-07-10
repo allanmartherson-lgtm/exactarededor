@@ -2788,6 +2788,9 @@ export type Database = {
           ignored_reason: string | null
           last_applied_at: string | null
           last_payment_id: string | null
+          origem: string
+          origem_payment_id: string | null
+          origem_reconciliation_item_id: string | null
           parcelas_default: number
           resolution_reason: string | null
           resolution_status: string
@@ -2812,6 +2815,9 @@ export type Database = {
           ignored_reason?: string | null
           last_applied_at?: string | null
           last_payment_id?: string | null
+          origem?: string
+          origem_payment_id?: string | null
+          origem_reconciliation_item_id?: string | null
           parcelas_default?: number
           resolution_reason?: string | null
           resolution_status?: string
@@ -2836,6 +2842,9 @@ export type Database = {
           ignored_reason?: string | null
           last_applied_at?: string | null
           last_payment_id?: string | null
+          origem?: string
+          origem_payment_id?: string | null
+          origem_reconciliation_item_id?: string | null
           parcelas_default?: number
           resolution_reason?: string | null
           resolution_status?: string
@@ -2879,6 +2888,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_payments_flow_scope"
             referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "glosa_debts_origem_payment_id_fkey"
+            columns: ["origem_payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "glosa_debts_origem_payment_id_fkey"
+            columns: ["origem_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_debts_origem_payment_id_fkey"
+            columns: ["origem_payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "glosa_debts_origem_reconciliation_item_id_fkey"
+            columns: ["origem_reconciliation_item_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_items"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "glosa_debts_target_payment_id_fkey"
@@ -8230,6 +8267,7 @@ export type Database = {
           applied_payment_item_id: string | null
           applied_rule_label: string | null
           attendance_number: string | null
+          carry_glosa_debt_id: string | null
           company_name: string | null
           created_at: string
           diferenca_regra: number | null
@@ -8264,6 +8302,7 @@ export type Database = {
           applied_payment_item_id?: string | null
           applied_rule_label?: string | null
           attendance_number?: string | null
+          carry_glosa_debt_id?: string | null
           company_name?: string | null
           created_at?: string
           diferenca_regra?: number | null
@@ -8298,6 +8337,7 @@ export type Database = {
           applied_payment_item_id?: string | null
           applied_rule_label?: string | null
           attendance_number?: string | null
+          carry_glosa_debt_id?: string | null
           company_name?: string | null
           created_at?: string
           diferenca_regra?: number | null
@@ -8363,6 +8403,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_payment_items_registration_issues"
             referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "reconciliation_items_carry_glosa_debt_id_fkey"
+            columns: ["carry_glosa_debt_id"]
+            isOneToOne: false
+            referencedRelation: "glosa_debts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_items_carry_glosa_debt_id_fkey"
+            columns: ["carry_glosa_debt_id"]
+            isOneToOne: false
+            referencedRelation: "v_glosa_debts_balance"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "reconciliation_items_hospital_id_fkey"
