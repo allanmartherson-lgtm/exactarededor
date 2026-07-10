@@ -544,12 +544,23 @@ export function PaymentConciliationModal({
   const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
   const [pendingFileName, setPendingFileName] = useState<string>("");
 
-  // Seleção de base importada
+  // Seleção de base(s) importada(s) — Fase 2: multi-select.
+  // primaryBaseId define o col_map exibido e é onde `saveColMapping` persiste.
   const [concBases, setConcBases] = useState<any[]>([]);
-  const [selectedBase, setSelectedBase] = useState<any | null>(null);
+  const [selectedBases, setSelectedBases] = useState<any[]>([]);
+  const [primaryBaseId, setPrimaryBaseId] = useState<string | null>(null);
   const [availableSectors, setAvailableSectors] = useState<string[]>([]);
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
   const [loadingBases, setLoadingBases] = useState(false);
+  // Competência do lote — usada como desempate primário no dedup multi-base.
+  const [paymentCompetenceMonth, setPaymentCompetenceMonth] = useState<string | null>(null);
+
+  // Base "primária": fonte de col_map/setores exibidos. Compat com código legado
+  // que assumia uma única base selecionada.
+  const primaryBase = useMemo(() => {
+    if (selectedBases.length === 0) return null;
+    return selectedBases.find(b => b.id === primaryBaseId) ?? selectedBases[0];
+  }, [selectedBases, primaryBaseId]);
 
   // Mapeamento de colunas: campo interno → coluna real da planilha
   const [colMapping, setColMapping] = useState<Record<string, string>>({});
