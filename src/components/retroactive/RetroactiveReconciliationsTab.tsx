@@ -7358,11 +7358,18 @@ type EncaminharModalProps = {
     parcelasByDoctor: Record<string, number>;
     selectedDoctorIds: string[];
   }) => void;
+  // Escopo do lote de referência para cruzar líquido da PJ.
+  // Vem da apuração e casa hospital + centro de custos + trilha (prioritária/habitual).
+  refScope: {
+    hospital_id: string | null;
+    cost_center_code: string | null;
+    analysis_mode: string | null;
+  };
 };
 
 function EncaminharApuracaoModal({
   open, onOpenChange, headline, actionable, retirar,
-  groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm,
+  groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm, refScope,
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
