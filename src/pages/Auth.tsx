@@ -45,6 +45,31 @@ const safeNext = (raw: string | null): string => {
   return raw;
 };
 
+const isEmbeddedMobilePreview = () => {
+  const ua = navigator.userAgent;
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(ua)
+    || (navigator.maxTouchPoints > 1 && window.innerWidth <= 900);
+  let isEmbedded = false;
+  try {
+    isEmbedded = window.self !== window.top;
+  } catch {
+    isEmbedded = true;
+  }
+  return isMobile && isEmbedded;
+};
+
+const startGoogleFullPageRedirect = () => {
+  const state = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const url = new URL("/~oauth/initiate", window.location.origin);
+  url.searchParams.set("provider", "google");
+  url.searchParams.set("redirect_uri", window.location.origin);
+  url.searchParams.set("state", state);
+
+  const target = url.toString();
+  const opened = window.open(target, "_top");
+  if (!opened) window.location.assign(target);
+};
+
 const Auth = () => {
   const { user, loading, roles, rolesLoading, accountActive, signIn } = useAuth();
   const navigate = useNavigate();
@@ -65,6 +90,15 @@ const Auth = () => {
     // Preserva o destino via sessionStorage — redirect_uri precisa ser sempre
     // origin puro para não quebrar a validação de popup/redirect no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
+
+    // No preview mobile, o app roda embutido e o popup/web_message do helper
+    // pode ficar preso em "Conectando..." após a escolha da conta Google.
+    // Nesse cenário usamos o mesmo broker, mas em navegação de página inteira.
+    if (isEmbeddedMobilePreview()) {
+      startGoogleFullPageRedirect();
+      return;
+    }
+
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
