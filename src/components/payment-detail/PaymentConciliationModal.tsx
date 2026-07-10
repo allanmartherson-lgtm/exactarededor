@@ -5167,6 +5167,21 @@ export function PaymentConciliationModal({
                                                     >
                                                       Revisar manualmente
                                                     </Button>
+                                                    {/* Rolar débito residual: quando há valor "a recuperar" (diferenca_regra > 0)
+                                                        e a produção do lote não cobre. Vira glosa_debts parcelada e cobra
+                                                        na próxima produção da médica em qualquer PJ vinculada neste hospital. */}
+                                                    {Number(it.diferenca_regra ?? 0) > 0 && it.payment_item_id && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'rolar_debito_residual'); }}
+                                                        className="border-orange-500/30 bg-orange-500/10 text-orange-700 hover:bg-orange-500/20 dark:text-orange-300"
+                                                        title="Cria débito parcelado (12x) cobrado na próxima produção da médica em qualquer PJ vinculada neste hospital"
+                                                      >
+                                                        ↻ Rolar para próximo repasse
+                                                      </Button>
+                                                    )}
                                                     {it.status === 'so_exacta' && (
                                                       <Button
                                                         size="sm"
