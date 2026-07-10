@@ -7255,6 +7255,7 @@ type EncaminharModalProps = {
     includeComplementar: boolean;
     gerarGlosa: boolean;
     parcelas: number;
+    parcelasByDoctor: Record<string, number>;
     selectedDoctorIds: string[];
   }) => void;
 };
