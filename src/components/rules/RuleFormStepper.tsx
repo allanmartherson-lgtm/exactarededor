@@ -116,12 +116,15 @@ export function RuleFormStepper({
         </div>
       )}
 
-      {/* ── Step content ── */}
+      {/* ── Step content ──
+          Sem overflow interno: o scroll fica no DialogContent (evita duplo scroll e
+          primeiro campo cortado). scrollMarginTop dá respiro do sticky header. */}
       <div style={{
-        flex: 1, overflowY: "auto", minHeight: 0, marginTop: 16,
+        marginTop: 16, scrollMarginTop: 24,
         background: "hsl(var(--muted) / 0.25)", borderRadius: 10,
-        border: "1px solid hsl(var(--border))", padding: "20px",
+        border: "1px solid hsl(var(--border))", padding: "24px 20px",
       }}>
+
         {steps[activeStep]?.content}
       </div>
 
