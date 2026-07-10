@@ -4690,6 +4690,21 @@ export function PaymentConciliationModal({
                 />
                 <KpiCard
                   icon={AlertTriangle}
+                  tone="warning"
+                  label="Outra competência"
+                  value={`${scopedStats.outra_competencia} itens`}
+                  hint={
+                    scopedStats.outra_competencia === 0
+                      ? "data fora do mês da base"
+                      : `${scopedStats.outra_competencia_aguardando} aguardando base · ${scopedStats.outra_competencia_disponivel} base disponível`
+                  }
+                  active={activeFilter === "outra_competencia"}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === "outra_competencia" ? "todos" : "outra_competencia")
+                  }
+                />
+                <KpiCard
+                  icon={AlertTriangle}
                   tone="info"
                   label="Empresa ausente"
                   value={`${scopedStats.empresa_ausente} itens`}
