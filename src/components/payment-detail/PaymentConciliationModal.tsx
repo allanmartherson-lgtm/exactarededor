@@ -3898,11 +3898,14 @@ export function PaymentConciliationModal({
       if (actionErr) throw new Error(actionErr.message);
 
       if (action === 'incorporar_credito' || action === 'incorporar_debito') {
-        if (selectedBase?.id) {
+        // Marca TODAS as bases envolvidas na run como "tem itens aplicados"
+        // — não só a primária, porque o item pode ter vindo de qualquer uma.
+        const baseIds = selectedBases.map(b => b.id).filter(Boolean);
+        if (baseIds.length > 0) {
           await supabase
             .from('conciliation_bases')
             .update({ tem_itens_aplicados: true } as any)
-            .eq('id', selectedBase.id);
+            .in('id', baseIds);
         }
       }
 
