@@ -3535,6 +3535,7 @@ export function PaymentConciliationModal({
     { key: "qtd_divergente", label: "Qtd divergente", count: scopedStats.qtd_divergente },
     { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
     { key: "so_exacta", label: "Só no Exacta", count: scopedStats.so_exacta },
+    { key: "outra_competencia", label: "Outra competência", count: scopedStats.outra_competencia },
     { key: "empresa_ausente", label: "Empresa ausente", count: scopedStats.empresa_ausente },
     { key: "possivel_pacote", label: "Possível pacote", count: scopedStats.possivel_pacote },
   ];
