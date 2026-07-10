@@ -6090,6 +6090,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     includeComplementar: boolean;
     gerarGlosa: boolean;
     parcelas: number;
+    parcelasByDoctor: Record<string, number>;
     selectedDoctorIds: string[];
   }) => {
     if (!results) return;
