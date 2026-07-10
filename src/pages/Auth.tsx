@@ -62,10 +62,11 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const redirectBase = window.location.origin;
-    const redirectUri = nextTarget === "/" ? redirectBase : `${redirectBase}${nextTarget}`;
+    // Preserva o destino via sessionStorage — redirect_uri precisa ser sempre
+    // origin puro para não quebrar a validação de popup/redirect no mobile.
+    try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: redirectUri,
+      redirect_uri: window.location.origin,
     });
     if (result.error) {
       setGoogleLoading(false);
@@ -74,7 +75,12 @@ const Auth = () => {
     }
     if (result.redirected) return;
     setGoogleLoading(false);
-    navigate(nextTarget, { replace: true });
+    let target = nextTarget;
+    try {
+      const stored = sessionStorage.getItem("exacta-oauth-next");
+      if (stored) { target = safeNext(stored); sessionStorage.removeItem("exacta-oauth-next"); }
+    } catch { /* noop */ }
+    navigate(target, { replace: true });
   };
 
   useEffect(() => {
@@ -237,9 +243,9 @@ const Auth = () => {
                       <Label htmlFor="signin-password">Senha</Label>
                       <Input id="signin-password" name="password" type="password" autoComplete="current-password" required />
                     </div>
-                    <CuraSubmitButton disabled={submitting}>
+                    <Button type="submit" className="w-full" disabled={submitting}>
                       {submitting ? "Entrando..." : "Entrar"}
-                    </CuraSubmitButton>
+                    </Button>
 
                     <button
                       type="button"
@@ -286,9 +292,9 @@ const Auth = () => {
                       <Label htmlFor="req-msg">Mensagem (opcional)</Label>
                       <Textarea id="req-msg" rows={2} value={reqForm.message} onChange={(e) => setReqForm({ ...reqForm, message: e.target.value })} />
                     </div>
-                    <CuraSubmitButton disabled={submitting}>
+                    <Button type="submit" className="w-full" disabled={submitting}>
                       {submitting ? "Enviando..." : "Solicitar acesso"}
-                    </CuraSubmitButton>
+                    </Button>
 
                     <p className="text-xs text-muted-foreground">
                       Sua solicitação será analisada por um administrador. Após a aprovação, você receberá um e-mail com o link para definir sua senha.
