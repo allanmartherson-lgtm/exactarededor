@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronLeft, ChevronRight, AlertCircle, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, AlertCircle, X, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ErrorDetail = { id: string; title: string; messages: string[] };
 
@@ -52,6 +53,22 @@ export function RuleFormStepper({
 
   const isLastStep = activeStep === steps.length - 1;
   const isFirstStep = activeStep === 0;
+
+  // Gate assimétrico: em modo criação, bloqueia "Próximo" se a etapa atual tem erros.
+  // Em edição, mantém navegação livre (analista pode revisar qualquer etapa isoladamente).
+  const currentStepErrors = steps[activeStep]?.errorCount ?? 0;
+  const blockNext = !isEditing && currentStepErrors > 0;
+
+  const handleNext = () => {
+    if (blockNext) {
+      toast.error(
+        `Preencha os campos obrigatórios desta etapa antes de continuar (${currentStepErrors} pendente${currentStepErrors > 1 ? "s" : ""}).`,
+        { description: "A etapa em vermelho no topo indica onde estão as pendências." }
+      );
+      return;
+    }
+    setActiveStep((s) => s + 1);
+  };
 
   return (
     // Sem altura fixa: quem clampa é o DialogContent (primitive). O stepper apenas
@@ -152,7 +169,15 @@ export function RuleFormStepper({
 
         <div style={{ display: "flex", gap: 6 }}>
           {!isLastStep && (
-            <Button type="button" variant="outline" onClick={() => setActiveStep(s => s + 1)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleNext}
+              aria-disabled={blockNext}
+              title={blockNext ? "Complete os campos obrigatórios desta etapa para avançar" : undefined}
+              style={blockNext ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+            >
+              {blockNext ? <Lock className="h-4 w-4 mr-1" /> : null}
               Próximo <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           )}
