@@ -5950,8 +5950,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   // ===== Caminho B — gera glosa de auditoria por grupos (1 batch, N débitos) =====
   const createAuditoriaGlosaForGroups = async (
     groups: GlosaGroup[],
-    parcelas: number,
-  ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelas: number }> => {
+    parcelasByDoctor: Record<string, number>,
+    parcelasFallback: number,
+  ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelasResumo: string }> => {
     if (groups.length === 0) throw new Error("Nenhum grupo selecionado.");
     if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
     const allItems = groups.flatMap((g) => g.items);
