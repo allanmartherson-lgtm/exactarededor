@@ -7267,9 +7267,22 @@ function EncaminharApuracaoModal({
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
   const [parcelas, setParcelas] = useState<number>(0);
+  const [parcelasByDoctor, setParcelasByDoctor] = useState<Record<string, number>>({});
   const [showCompList, setShowCompList] = useState(false);
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // Sugestão automática de parcelas por porte do débito.
+  // Valores pequenos ficam em 1× (não faz sentido parcelar R$ 200);
+  // valores maiores vão diluindo para reduzir impacto no próximo lote da PJ.
+  const suggestParcelas = (subtotal: number): number => {
+    if (subtotal <= 500) return 1;
+    if (subtotal <= 2000) return 2;
+    if (subtotal <= 5000) return 3;
+    if (subtotal <= 15000) return 6;
+    if (subtotal <= 30000) return 10;
+    return 12;
+  };
 
   useEffect(() => {
     if (open) {
@@ -7279,6 +7292,13 @@ function EncaminharApuracaoModal({
       setShowCompList(false);
       setSelectedDoctorIds(new Set(groups.map((g) => g.doctor_id)));
       setExpandedGroups(new Set());
+      // Pré-carrega sugestão inteligente por médico ao abrir o modal.
+      const seed: Record<string, number> = {};
+      for (const g of groups) {
+        const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+        seed[g.doctor_id] = suggestParcelas(subtotal);
+      }
+      setParcelasByDoctor(seed);
     }
   }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
