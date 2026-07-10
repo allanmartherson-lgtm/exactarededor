@@ -7319,6 +7319,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             modoMedicoUnico={modoMedicoUnico}
             busy={encaminharBusy}
             onConfirm={runEncaminharFluxo}
+            refScope={{
+              hospital_id: recon?.hospital_id ?? null,
+              cost_center_code: recon?.cost_center_code ?? null,
+              analysis_mode: recon?.analysis_mode ?? null,
+            }}
           />
         );
       })()}
@@ -7353,11 +7358,18 @@ type EncaminharModalProps = {
     parcelasByDoctor: Record<string, number>;
     selectedDoctorIds: string[];
   }) => void;
+  // Escopo do lote de referência para cruzar líquido da PJ.
+  // Vem da apuração e casa hospital + centro de custos + trilha (prioritária/habitual).
+  refScope: {
+    hospital_id: string | null;
+    cost_center_code: string | null;
+    analysis_mode: string | null;
+  };
 };
 
 function EncaminharApuracaoModal({
   open, onOpenChange, headline, actionable, retirar,
-  groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm,
+  groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm, refScope,
 }: EncaminharModalProps) {
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
@@ -7396,6 +7408,94 @@ function EncaminharApuracaoModal({
       setParcelasByDoctor(seed);
     }
   }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
+
+  // Líquido da PJ no lote vigente, casando hospital + centro de custos + trilha.
+  // Chave: company_id → snapshot do lote (referência, competência, líquido).
+  // Sem lote → PJ vai para "débito futuro" (fila de espera até nova produção).
+  type RefLote = {
+    payment_id: string;
+    reference: string;
+    competence_month: string;
+    liquido_total: number;
+    status: string;
+  };
+  const [refLoteByCompany, setRefLoteByCompany] = useState<Record<string, RefLote>>({});
+  const [refLoteLoading, setRefLoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const companyIds = Array.from(
+      new Set(groups.map((g) => g.company_id).filter((v): v is string => !!v)),
+    );
+    if (
+      companyIds.length === 0
+      || !refScope.hospital_id
+      || !refScope.cost_center_code
+      || !refScope.analysis_mode
+    ) {
+      setRefLoteByCompany({});
+      return;
+    }
+    let cancelled = false;
+    setRefLoteLoading(true);
+    (async () => {
+      // Buscamos todos os pagamentos abertos (não cancelados) do mesmo CC+trilha
+      // e cruzamos com payment_company_groups pra achar o líquido da PJ.
+      // Ordem: competência mais recente primeiro; ficamos com o 1º por company_id.
+      const { data: payments, error: payErr } = await supabase
+        .from("payments")
+        .select("id, reference, competence_month, status")
+        .eq("hospital_id", refScope.hospital_id)
+        .eq("cost_center_code", refScope.cost_center_code)
+        .eq("analysis_mode", refScope.analysis_mode as never)
+        .neq("status", "cancelado" as never)
+        .order("competence_month", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      if (payErr || !payments || payments.length === 0) {
+        setRefLoteByCompany({});
+        setRefLoteLoading(false);
+        return;
+      }
+      const paymentIds = payments.map((p) => p.id as string);
+      const { data: pcgs, error: pcgErr } = await supabase
+        .from("payment_company_groups")
+        .select("payment_id, company_id, liquido_total, status")
+        .in("payment_id", paymentIds)
+        .in("company_id", companyIds);
+      if (cancelled) return;
+      if (pcgErr || !pcgs) {
+        setRefLoteByCompany({});
+        setRefLoteLoading(false);
+        return;
+      }
+      const paymentIndex = new Map(payments.map((p, i) => [p.id as string, i]));
+      const bestByCompany = new Map<string, { pcg: typeof pcgs[number]; order: number }>();
+      for (const g of pcgs) {
+        const order = paymentIndex.get(g.payment_id as string) ?? 999;
+        const prev = bestByCompany.get(g.company_id as string);
+        if (!prev || order < prev.order) {
+          bestByCompany.set(g.company_id as string, { pcg: g, order });
+        }
+      }
+      const out: Record<string, RefLote> = {};
+      for (const [companyId, { pcg }] of bestByCompany) {
+        const p = payments.find((pp) => pp.id === pcg.payment_id);
+        if (!p) continue;
+        out[companyId] = {
+          payment_id: p.id as string,
+          reference: (p.reference as string) ?? "",
+          competence_month: (p.competence_month as string) ?? "",
+          liquido_total: Number(pcg.liquido_total ?? 0),
+          status: String(pcg.status ?? ""),
+        };
+      }
+      setRefLoteByCompany(out);
+      setRefLoteLoading(false);
+    })().catch(() => { if (!cancelled) setRefLoteLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, groups, refScope.hospital_id, refScope.cost_center_code, refScope.analysis_mode]);
 
   // Números aqui vêm literalmente do mesmo objeto que alimenta os cards
   // "Total a complementar" / "Total a retirar" do relatório — o pai calcula
@@ -7608,6 +7708,36 @@ function EncaminharApuracaoModal({
                             const pjDoctorIds = pj.items.map((g) => g.doctor_id);
                             const pjAllSel = pjDoctorIds.every((id) => selectedDoctorIds.has(id));
                             const pjSomeSel = pjDoctorIds.some((id) => selectedDoctorIds.has(id));
+                            const refLote = pj.key !== "__ambigua__" ? refLoteByCompany[pj.key] : undefined;
+                            // Somamos o parcelamento previsto por médico dentro da PJ
+                            // pra estimar quanto entra no PRÓXIMO lote (1ª parcela).
+                            const proximaParcelaPJ = pj.items
+                              .filter((g) => selectedDoctorIds.has(g.doctor_id))
+                              .reduce((s, g) => {
+                                const sub = g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0);
+                                const n = Math.max(1, parcelasByDoctor[g.doctor_id] ?? 1);
+                                return s + sub / n;
+                              }, 0);
+                            const liquido = refLote?.liquido_total ?? 0;
+                            const cabe = refLote ? proximaParcelaPJ <= liquido + 0.005 : false;
+                            const faltando = refLote ? Math.max(0, proximaParcelaPJ - liquido) : 0;
+                            const fitParcelas = (): void => {
+                              // Ajusta cada médico da PJ pra que a soma das 1ªs parcelas caiba no líquido.
+                              // Distribuímos proporcionalmente ao subtotal de cada médico.
+                              if (!refLote || liquido <= 0) return;
+                              setParcelasByDoctor((prev) => {
+                                const next = { ...prev };
+                                for (const g of pj.items) {
+                                  if (!selectedDoctorIds.has(g.doctor_id)) continue;
+                                  const sub = g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0);
+                                  if (sub <= 0) continue;
+                                  const share = (sub / pjSubtotal) * liquido;
+                                  const nCalc = Math.ceil(sub / Math.max(share, 0.01));
+                                  next[g.doctor_id] = Math.min(24, Math.max(1, nCalc));
+                                }
+                                return next;
+                              });
+                            };
                             return (
                               <div key={pj.key}>
                                 <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/40 text-[11px] font-semibold sticky top-0">
@@ -7633,6 +7763,49 @@ function EncaminharApuracaoModal({
                                   <span className="text-muted-foreground font-normal">{pj.items.length} médico(s)</span>
                                   <span className="font-mono w-24 text-right">{brl(pjSubtotal)}</span>
                                 </div>
+                                {pj.key !== "__ambigua__" && (
+                                  <div className="flex items-center flex-wrap gap-2 px-2 py-1 pl-8 bg-muted/20 text-[10px] border-t border-border/40">
+                                    {refLoteLoading ? (
+                                      <span className="text-muted-foreground italic">carregando lote de referência…</span>
+                                    ) : refLote ? (
+                                      <>
+                                        <span className="rounded bg-background border border-border px-1.5 py-0.5">
+                                          Lote {refLote.reference || "—"}
+                                          {refLote.competence_month && ` · ${refLote.competence_month.slice(0, 7)}`}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                          Líquido PJ: <span className="font-mono text-foreground">{brl(liquido)}</span>
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                          1ª parcela: <span className="font-mono text-foreground">{brl(proximaParcelaPJ)}</span>
+                                        </span>
+                                        {cabe ? (
+                                          <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5">
+                                            cabe no lote
+                                          </span>
+                                        ) : (
+                                          <>
+                                            <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">
+                                              excede em {brl(faltando)}
+                                            </span>
+                                            <button
+                                              type="button"
+                                              className="text-primary underline"
+                                              disabled={busy}
+                                              onClick={fitParcelas}
+                                            >
+                                              ajustar parcelas p/ caber
+                                            </button>
+                                          </>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="rounded bg-slate-100 text-slate-700 px-1.5 py-0.5">
+                                        sem lote em aberto — vira débito futuro
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 {pj.items.map((g) => {
                                   const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
                                   const isExpanded = expandedGroups.has(g.doctor_id);
