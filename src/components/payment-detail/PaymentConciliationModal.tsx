@@ -5123,14 +5123,31 @@ export function PaymentConciliationModal({
                                           );
                                         })()}
                                         <TableCell className="px-3 py-2">
-                                          <span
-                                            className={cn(
-                                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border",
-                                              STATUS_TONE[it.status],
-                                            )}
-                                          >
-                                            {STATUS_LABEL[it.status]}
-                                          </span>
+                                          {(() => {
+                                            const oc = outraCompetenciaBuckets.get(it.id);
+                                            if (oc) {
+                                              return (
+                                                <div className="flex flex-col gap-1">
+                                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border border-warning/40 bg-warning/10 text-warning">
+                                                    Outra competência
+                                                  </span>
+                                                  <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+                                                    {oc === "aguardando" ? "aguardando base" : "base disponível"}
+                                                  </span>
+                                                </div>
+                                              );
+                                            }
+                                            return (
+                                              <span
+                                                className={cn(
+                                                  "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border",
+                                                  STATUS_TONE[it.status],
+                                                )}
+                                              >
+                                                {STATUS_LABEL[it.status]}
+                                              </span>
+                                            );
+                                          })()}
                                         </TableCell>
                                       </TableRow>
                                       {isRowOpen && (it.ia_obs || it.match_diagnostics) && (
