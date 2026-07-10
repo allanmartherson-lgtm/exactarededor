@@ -54,6 +54,22 @@ export function RuleFormStepper({
   const isLastStep = activeStep === steps.length - 1;
   const isFirstStep = activeStep === 0;
 
+  // Gate assimétrico: em modo criação, bloqueia "Próximo" se a etapa atual tem erros.
+  // Em edição, mantém navegação livre (analista pode revisar qualquer etapa isoladamente).
+  const currentStepErrors = steps[activeStep]?.errorCount ?? 0;
+  const blockNext = !isEditing && currentStepErrors > 0;
+
+  const handleNext = () => {
+    if (blockNext) {
+      toast.error(
+        `Preencha os campos obrigatórios desta etapa antes de continuar (${currentStepErrors} pendente${currentStepErrors > 1 ? "s" : ""}).`,
+        { description: "A etapa em vermelho no topo indica onde estão as pendências." }
+      );
+      return;
+    }
+    setActiveStep((s) => s + 1);
+  };
+
   return (
     // Sem altura fixa: quem clampa é o DialogContent (primitive). O stepper apenas
     // organiza indicadores → conteúdo → footer em coluna e deixa o scroll para o pai.
