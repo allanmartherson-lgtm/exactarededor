@@ -831,6 +831,15 @@ function NewView({
         title: title.trim(),
         summary,
         created_by: userId,
+        // Herda origem do PRIMEIRO lote selecionado — âncora para casar
+        // centro de custos + trilha na hora de calcular parcelamento da glosa.
+        // Se múltiplos lotes tiverem CC/trilha diferentes, guarda o do primeiro
+        // (analista pode revisar depois; a UI da glosa avisa quando divergir).
+        source_payment_id: selectedPaymentIds[0] ?? null,
+        cost_center_code:
+          availableLotes.find((l) => l.id === selectedPaymentIds[0])?.cost_center_code ?? null,
+        analysis_mode:
+          availableLotes.find((l) => l.id === selectedPaymentIds[0])?.analysis_mode ?? null,
       })
       .select("id")
       .single();
