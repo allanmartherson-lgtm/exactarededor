@@ -62,10 +62,11 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const redirectBase = window.location.origin;
-    const redirectUri = nextTarget === "/" ? redirectBase : `${redirectBase}${nextTarget}`;
+    // Preserva o destino via sessionStorage — redirect_uri precisa ser sempre
+    // origin puro para não quebrar a validação de popup/redirect no mobile.
+    try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: redirectUri,
+      redirect_uri: window.location.origin,
     });
     if (result.error) {
       setGoogleLoading(false);
@@ -74,7 +75,12 @@ const Auth = () => {
     }
     if (result.redirected) return;
     setGoogleLoading(false);
-    navigate(nextTarget, { replace: true });
+    let target = nextTarget;
+    try {
+      const stored = sessionStorage.getItem("exacta-oauth-next");
+      if (stored) { target = safeNext(stored); sessionStorage.removeItem("exacta-oauth-next"); }
+    } catch { /* noop */ }
+    navigate(target, { replace: true });
   };
 
   useEffect(() => {
