@@ -3604,10 +3604,40 @@ export function PaymentConciliationModal({
           .select('doctor_id, company_id, hospital_id')
           .eq('id', item.payment_item_id)
           .maybeSingle();
-        if (piErr || !piRow?.doctor_id || !piRow?.hospital_id) {
-          toast({ title: 'Não foi possível resolver médica ou hospital', description: piErr?.message ?? 'Dados incompletos no payment_item.', variant: 'destructive' });
+        if (piErr || !piRow?.hospital_id) {
+          toast({ title: 'Não foi possível resolver hospital', description: piErr?.message ?? 'Dados incompletos no payment_item.', variant: 'destructive' });
           return;
         }
+
+        // Fallback: quando o payment_item não tem doctor_id vinculado (comum em bases
+        // antigas), resolve pelo nome exato do médico da linha de conciliação. A busca
+        // é escopada por hospital (isolamento) e só aceita match único — caso contrário
+        // exige que o analista vincule o médico manualmente no cadastro antes de rolar.
+        let resolvedDoctorId: string | null = piRow.doctor_id ?? null;
+        if (!resolvedDoctorId && item.doctor_name) {
+          const { data: docMatches } = await supabase
+            .from('doctors')
+            .select('id')
+            .ilike('full_name', item.doctor_name.trim())
+            .limit(2);
+          if ((docMatches?.length ?? 0) === 1) {
+            resolvedDoctorId = docMatches![0].id as string;
+          } else {
+            toast({
+              title: 'Médica não vinculada ao item',
+              description: (docMatches?.length ?? 0) > 1
+                ? `Múltiplos médicos com o nome "${item.doctor_name}" — vincule manualmente antes de rolar.`
+                : `Não achei "${item.doctor_name}" no cadastro deste hospital — vincule antes de rolar.`,
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+        if (!resolvedDoctorId) {
+          toast({ title: 'Item sem médica identificada', description: 'Sem nome nem vínculo — impossível rolar.', variant: 'destructive' });
+          return;
+        }
+
 
         // Upsert semântico: uma única dívida residual ativa por médica+hospital.
         // Se existir, soma; se não, cria.
