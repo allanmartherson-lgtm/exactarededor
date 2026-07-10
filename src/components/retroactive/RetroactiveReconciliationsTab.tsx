@@ -5950,8 +5950,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   // ===== Caminho B — gera glosa de auditoria por grupos (1 batch, N débitos) =====
   const createAuditoriaGlosaForGroups = async (
     groups: GlosaGroup[],
-    parcelas: number,
-  ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelas: number }> => {
+    parcelasByDoctor: Record<string, number>,
+    parcelasFallback: number,
+  ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelasResumo: string }> => {
     if (groups.length === 0) throw new Error("Nenhum grupo selecionado.");
     if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
     const allItems = groups.flatMap((g) => g.items);
@@ -6035,13 +6036,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const createdDebtIds: string[] = [];
     try {
       for (const { group: g, item_ids } of allInsertedIdsByGroup) {
+        const parcelasGrupo = Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback);
         const { error: debtErr } = await supabase.rpc(
           "create_glosa_debt_with_items" as never,
           {
             p_company_id: recon.company_id,
             p_doctor_crm: g.doctor_crm,
             p_doctor_name: g.doctor_name,
-            p_parcelas: parcelas,
+            p_parcelas: parcelasGrupo,
             p_item_ids: item_ids,
           } as never,
         );
@@ -6069,12 +6071,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       throw e;
     }
 
+    // Resumo humano de parcelas: se todos iguais, "Nx"; caso contrário, "variável (min-max×)"
+    const usados = groups.map((g) => Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback));
+    const min = Math.min(...usados);
+    const max = Math.max(...usados);
+    const parcelasResumo = min === max ? `${min}×` : `variável (${min}–${max}×)`;
+
     return {
       batch_id: batchId,
       debts: groups.length,
       items: allItems.length,
       total: totalGlosa,
-      parcelas,
+      parcelasResumo,
     };
   };
 
@@ -6082,6 +6090,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     includeComplementar: boolean;
     gerarGlosa: boolean;
     parcelas: number;
+    parcelasByDoctor: Record<string, number>;
     selectedDoctorIds: string[];
   }) => {
     if (!results) return;
@@ -6109,10 +6118,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         if (selected.length === 0) {
           throw new Error("Nenhum médico selecionado para gerar glosa.");
         }
-        const result = await createAuditoriaGlosaForGroups(selected, opts.parcelas);
+        const result = await createAuditoriaGlosaForGroups(selected, opts.parcelasByDoctor, opts.parcelas);
         toast({
           title: "Glosa de auditoria lançada",
-          description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} em ${result.parcelas} parcela(s) cada. Veja em /glosas.`,
+          description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} · parcelas ${result.parcelasResumo}. Veja em /glosas.`,
         });
       }
       if (opts.includeComplementar) {
@@ -7246,6 +7255,7 @@ type EncaminharModalProps = {
     includeComplementar: boolean;
     gerarGlosa: boolean;
     parcelas: number;
+    parcelasByDoctor: Record<string, number>;
     selectedDoctorIds: string[];
   }) => void;
 };
@@ -7257,9 +7267,22 @@ function EncaminharApuracaoModal({
   const [includeComplementar, setIncludeComplementar] = useState(true);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
   const [parcelas, setParcelas] = useState<number>(0);
+  const [parcelasByDoctor, setParcelasByDoctor] = useState<Record<string, number>>({});
   const [showCompList, setShowCompList] = useState(false);
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // Sugestão automática de parcelas por porte do débito.
+  // Valores pequenos ficam em 1× (não faz sentido parcelar R$ 200);
+  // valores maiores vão diluindo para reduzir impacto no próximo lote da PJ.
+  const suggestParcelas = (subtotal: number): number => {
+    if (subtotal <= 500) return 1;
+    if (subtotal <= 2000) return 2;
+    if (subtotal <= 5000) return 3;
+    if (subtotal <= 15000) return 6;
+    if (subtotal <= 30000) return 10;
+    return 12;
+  };
 
   useEffect(() => {
     if (open) {
@@ -7269,6 +7292,13 @@ function EncaminharApuracaoModal({
       setShowCompList(false);
       setSelectedDoctorIds(new Set(groups.map((g) => g.doctor_id)));
       setExpandedGroups(new Set());
+      // Pré-carrega sugestão inteligente por médico ao abrir o modal.
+      const seed: Record<string, number> = {};
+      for (const g of groups) {
+        const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+        seed[g.doctor_id] = suggestParcelas(subtotal);
+      }
+      setParcelasByDoctor(seed);
     }
   }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
 
@@ -7383,12 +7413,23 @@ function EncaminharApuracaoModal({
                   </div>
                   {gerarGlosa === "agora" && groups.length > 0 && (
                     <div className="ml-6 mt-2 space-y-2">
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="text-muted-foreground">
-                          Parcelas (aplicado a todos) <span className="text-destructive">*</span>:
+                          Padrão (aplicar a todos):
                         </span>
-                        <Select value={parcelas > 0 ? String(parcelas) : ""} onValueChange={(v) => setParcelas(Number(v))}>
-                          <SelectTrigger className={`h-7 w-28 text-xs ${parcelas === 0 ? "border-destructive" : ""}`}>
+                        <Select
+                          value={parcelas > 0 ? String(parcelas) : ""}
+                          onValueChange={(v) => {
+                            const n = Number(v);
+                            setParcelas(n);
+                            // Aplica o padrão sobrescrevendo todas as linhas — a analista
+                            // ainda pode ajustar caso a caso depois.
+                            const next: Record<string, number> = {};
+                            for (const g of groups) next[g.doctor_id] = n;
+                            setParcelasByDoctor(next);
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-28 text-xs">
                             <SelectValue placeholder="Escolher…" />
                           </SelectTrigger>
                           <SelectContent>
@@ -7397,9 +7438,25 @@ function EncaminharApuracaoModal({
                             ))}
                           </SelectContent>
                         </Select>
-                        {parcelas === 0 && (
-                          <span className="text-[10px] text-destructive">obrigatório</span>
-                        )}
+                        <button
+                          type="button"
+                          className="text-[10px] text-primary underline"
+                          onClick={() => {
+                            // Restaura sugestão inteligente por porte de débito.
+                            const seed: Record<string, number> = {};
+                            for (const g of groups) {
+                              const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+                              seed[g.doctor_id] = suggestParcelas(subtotal);
+                            }
+                            setParcelasByDoctor(seed);
+                            setParcelas(0);
+                          }}
+                        >
+                          Sugerir por valor
+                        </button>
+                        <span className="text-[10px] text-muted-foreground">
+                          · valores pequenos ficam 1×, valores altos são diluídos
+                        </span>
                       </div>
                       {!modoMedicoUnico && (
                         <div className="flex items-center justify-between gap-2 text-[11px] rounded border border-border bg-muted/30 px-2 py-1.5">
@@ -7450,6 +7507,22 @@ function EncaminharApuracaoModal({
                                 </div>
                                 <span className="text-muted-foreground">{g.items.length} itens</span>
                                 <span className="font-mono w-24 text-right">{brl(subtotal)}</span>
+                                <Select
+                                  value={String(parcelasByDoctor[g.doctor_id] ?? 1)}
+                                  onValueChange={(v) =>
+                                    setParcelasByDoctor((prev) => ({ ...prev, [g.doctor_id]: Number(v) }))
+                                  }
+                                  disabled={busy || !isSel}
+                                >
+                                  <SelectTrigger className="h-6 w-[68px] text-[11px] px-2">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
+                                      <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <button
                                   type="button"
                                   className="text-[10px] text-destructive underline"
@@ -7494,12 +7567,12 @@ function EncaminharApuracaoModal({
             onClick={() => onConfirm({
               includeComplementar,
               gerarGlosa: gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0,
-              parcelas,
+              parcelas: parcelas > 0 ? parcelas : 1,
+              parcelasByDoctor,
               selectedDoctorIds: Array.from(selectedDoctorIds),
             })}
             disabled={
               busy ||
-              (gerarGlosa === "agora" && retirar.length > 0 && canGerarGlosa && selectedDoctorIds.size > 0 && parcelas < 1) ||
               (!includeComplementar &&
                 (gerarGlosa !== "agora" || retirar.length === 0 || selectedDoctorIds.size === 0))
             }
