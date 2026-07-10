@@ -7306,6 +7306,8 @@ type GlosaGroupView = {
   doctor_id: string;
   doctor_name: string;
   doctor_crm: string | null;
+  company_id: string | null;
+  company_name: string | null;
   items: TvrResult[];
 };
 
