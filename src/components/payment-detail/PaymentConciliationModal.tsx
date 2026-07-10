@@ -529,6 +529,7 @@ export function PaymentConciliationModal({
           const firstDay = m ? `${m[1]}-${m[2]}-01` : earliest;
           setPeriodStartAuto(firstDay);
           setPeriodStartOverride((prev) => prev || firstDay);
+          setPaymentCompetenceMonth(m ? `${m[1]}-${m[2]}` : earliest.slice(0, 7));
         }
       } catch (e) {
         console.warn("[Conciliação] falha ao ler competência do lote", e);
