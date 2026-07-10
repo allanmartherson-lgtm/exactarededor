@@ -7396,6 +7396,36 @@ function EncaminharApuracaoModal({
                           <span className="text-[10px] text-destructive">obrigatório</span>
                         )}
                       </div>
+                      {!modoMedicoUnico && (
+                        <div className="flex items-center justify-between gap-2 text-[11px] rounded border border-border bg-muted/30 px-2 py-1.5">
+                          <span className="text-muted-foreground">
+                            <span className="font-semibold text-foreground">{selectedDoctorIds.size}</span> de {groups.length} médico(s) selecionado(s)
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              className="text-primary underline disabled:opacity-40 disabled:no-underline"
+                              disabled={busy || selectedDoctorIds.size === groups.length}
+                              onClick={() => setSelectedDoctorIds(new Set(groups.map((g) => g.doctor_id)))}
+                            >
+                              Selecionar todos
+                            </button>
+                            <button
+                              type="button"
+                              className="text-muted-foreground underline disabled:opacity-40 disabled:no-underline"
+                              disabled={busy || selectedDoctorIds.size === 0}
+                              onClick={() => setSelectedDoctorIds(new Set())}
+                            >
+                              Limpar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="text-[11px] text-muted-foreground rounded border border-dashed border-border bg-background/60 px-2 py-1.5 leading-snug">
+                        Cada débito fica <span className="font-semibold text-foreground">ativo</span> por médico e é abatido
+                        automaticamente no próximo lote da PJ. Médicos sem pagamento em aberto entram na fila e são
+                        cobrados assim que houver produção — não precisa tratar em separado.
+                      </div>
                       <div className="rounded border border-border bg-background divide-y divide-border">
                         {groups.map((g) => {
                           const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
