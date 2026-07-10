@@ -7447,8 +7447,8 @@ function EncaminharApuracaoModal({
         .select("id, reference, competence_month, status")
         .eq("hospital_id", refScope.hospital_id)
         .eq("cost_center_code", refScope.cost_center_code)
-        .eq("analysis_mode", refScope.analysis_mode)
-        .neq("status", "cancelada")
+        .eq("analysis_mode", refScope.analysis_mode as never)
+        .neq("status", "cancelado" as never)
         .order("competence_month", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(50);
