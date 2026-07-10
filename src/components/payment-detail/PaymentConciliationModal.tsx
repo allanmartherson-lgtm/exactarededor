@@ -2965,6 +2965,7 @@ export function PaymentConciliationModal({
 
   const scopedStats = useMemo(() => {
     let conciliado = 0, valor_divergente = 0, qtd_divergente = 0, so_hospital = 0, so_exacta = 0, empresa_ausente = 0, possivel_pacote = 0;
+    let outra_competencia = 0, outra_competencia_aguardando = 0, outra_competencia_disponivel = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     let diferenca_total = 0;
     let cancelado_conc = 0;
@@ -2976,6 +2977,15 @@ export function PaymentConciliationModal({
         conciliado++;
         cancelado_conc++;
         continue;
+      }
+      // Reclassificação virtual (não persistida): so_exacta cuja data cai fora
+      // da(s) competência(s) cobertas pela base carregada vira "outra_competencia".
+      const bucket = it.status === "so_exacta" ? outraCompetenciaBuckets.get(it.id) : undefined;
+      if (bucket) {
+        outra_competencia++;
+        if (bucket === "aguardando") outra_competencia_aguardando++;
+        else outra_competencia_disponivel++;
+        continue; // não conta como so_exacta nem soma risco_menos.
       }
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
@@ -2990,8 +3000,6 @@ export function PaymentConciliationModal({
         const diff = vh - vm;
         divergencia_valor += Math.abs(diff);
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
-        // DIFERENÇA TOTAL: prioriza diferenca_regra persistida; fallback
-        // calcula (valor_pago_exacta - valor_regra) quando ambos disponíveis.
         const dr = (it as any).diferenca_regra;
         if (typeof dr === "number" && Number.isFinite(dr)) {
           diferenca_total += dr;
@@ -3019,25 +3027,37 @@ export function PaymentConciliationModal({
     return {
       total: scopedItems.length,
       conciliado, valor_divergente, qtd_divergente, so_hospital, so_exacta, empresa_ausente, possivel_pacote,
+      outra_competencia, outra_competencia_aguardando, outra_competencia_disponivel,
       cancelado_conc,
       risco_mais, risco_menos, divergencia_valor, diferenca_total,
     };
-  }, [scopedItems]);
+  }, [scopedItems, outraCompetenciaBuckets]);
 
 
   const filteredItems = useMemo(() => {
     if (activeFilter === "todos") return scopedItems;
     if (activeFilter === "conciliado") {
-      // Inclui cancelados via conciliação no bucket de conciliados (decisão do analista).
       return scopedItems.filter(
         (it) => it.status === "conciliado" || (it as any).action_taken === "cancelado_conciliacao",
       );
     }
-    // Demais abas (divergências): cancelados via conciliação não aparecem.
+    // Filtro virtual: itens de outra competência (reclassificados a partir de so_exacta).
+    if (activeFilter === "outra_competencia") {
+      return scopedItems.filter((it) => outraCompetenciaBuckets.has(it.id));
+    }
+    // Ao filtrar por "so_exacta" na barra, exclui os itens promovidos para "outra_competencia".
+    if (activeFilter === "so_exacta") {
+      return scopedItems.filter(
+        (it) => it.status === "so_exacta"
+          && !outraCompetenciaBuckets.has(it.id)
+          && (it as any).action_taken !== "cancelado_conciliacao",
+      );
+    }
     return scopedItems.filter(
       (it) => it.status === activeFilter && (it as any).action_taken !== "cancelado_conciliacao",
     );
-  }, [scopedItems, activeFilter]);
+  }, [scopedItems, activeFilter, outraCompetenciaBuckets]);
+
 
   // Sempre que mudam filtros/escopo/pageSize, zera o "mostrar mais" por
   // empresa para não acumular DOM com a base anterior.
