@@ -121,7 +121,15 @@ const Auth = () => {
       toast({ title: "Não foi possível entrar com Google", description: result.error.message ?? "Tente novamente.", variant: "destructive" });
       return;
     }
-    if (result.redirected) return;
+    if (result.redirected) {
+      setGoogleLoading(false);
+      toast({
+        title: "Aguardando retorno do Google",
+        description: "Se a tela do Google já fechou, toque em Entrar com Google novamente para concluir a sessão.",
+        variant: "destructive",
+      });
+      return;
+    }
     setGoogleLoading(false);
     let target = nextTarget;
     try {
