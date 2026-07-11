@@ -6244,10 +6244,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           throw new Error("Nenhum médico selecionado para gerar glosa.");
         }
         const result = await createAuditoriaGlosaForGroups(selected, opts.parcelasByDoctor, opts.parcelas);
-        toast({
-          title: "Glosa de auditoria lançada",
-          description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} · parcelas ${result.parcelasResumo}. Veja em /glosas.`,
-        });
+        const skippedMsg = result.skipped.length
+          ? ` · ${result.skipped.length} pulado(s): ${result.skipped.map((s) => s.doctor_name).join(", ")}`
+          : "";
+        if (result.debts === 0) {
+          toast({
+            title: "Nenhuma glosa gerada",
+            description: `Todos os médicos selecionados já possuem débito ATIVO na PJ. Quite/arquive em /glosas.${skippedMsg}`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: result.skipped.length ? "Glosa lançada parcialmente" : "Glosa de auditoria lançada",
+            description: `${result.debts} débito(s) · ${result.items} itens · ${brl(result.total)} · parcelas ${result.parcelasResumo}${skippedMsg}. Veja em /glosas.`,
+          });
+        }
       }
       if (opts.includeComplementar) {
         setEncaminharOpen(false);
