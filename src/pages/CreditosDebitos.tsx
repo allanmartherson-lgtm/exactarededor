@@ -135,6 +135,8 @@ export default function CreditosDebitos() {
   const [loading, setLoading] = useState(true);
   const [adjDialogOpen, setAdjDialogOpen] = useState(false);
   const [editingAdj, setEditingAdj] = useState<Partial<Adjustment> | null>(null);
+  const [savingAdj, setSavingAdj] = useState(false);
+  const [deletingAdjIds, setDeletingAdjIds] = useState<Set<string>>(new Set());
   const [editingGlosa, setEditingGlosa] = useState<GlosaDebt | null>(null);
   const [glosaParc, setGlosaParc] = useState<number>(1);
   const [busyGlosa, setBusyGlosa] = useState(false);
@@ -264,6 +266,7 @@ export default function CreditosDebitos() {
     setAdjDialogOpen(true);
   };
   const saveAdj = async () => {
+    if (savingAdj) return;
     if (!editingAdj?.company_id || !editingAdj.descricao || !editingAdj.valor_total) {
       toast.error("Preencha empresa, descrição e valor"); return;
     }
@@ -279,18 +282,50 @@ export default function CreditosDebitos() {
       recorrente,
       data_fim: recorrente ? (editingAdj.data_fim || null) : null,
     };
-    const { error } = editingAdj.id
-      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id)
-      : await supabase.from("company_financial_adjustments").insert(payload);
-    if (error) { toast.error(error.message); return; }
+    setSavingAdj(true);
+    const result = editingAdj.id
+      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*").single()
+      : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
+    setSavingAdj(false);
+    if (result.error) { toast.error(result.error.message); return; }
+    const row = result.data as Adjustment;
+    const saved = {
+      ...row,
+      _company_name: companies.find(c => c.id === row.company_id)?.name,
+    };
+    setAdjustments(prev => editingAdj.id
+      ? prev.map(a => a.id === saved.id ? saved : a)
+      : [saved, ...prev]
+    );
     toast.success("Ajuste salvo");
-    setAdjDialogOpen(false); setEditingAdj(null); loadAll();
+    setAdjDialogOpen(false); setEditingAdj(null);
   };
   const removeAdj = async (id: string) => {
     if (!confirm("Excluir este ajuste?")) return;
-    const { error } = await supabase.from("company_financial_adjustments").delete().eq("id", id);
+    setDeletingAdjIds(prev => new Set(prev).add(id));
+    const { data, error } = await (supabase as any).rpc("delete_company_financial_adjustment", {
+      _adjustment_id: id,
+      _reason: "Exclusão manual pela tela de Créditos e Débitos",
+    });
+    setDeletingAdjIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     if (error) { toast.error(error.message); return; }
-    loadAll();
+    if (data?.deleted === false) { toast.error("Ajuste não encontrado ou já removido."); return; }
+    setAdjustments(prev => prev.filter(a => a.id !== id));
+    setAppsByAdj(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setHistoryOpen(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    toast.success("Ajuste excluído");
   };
 
   const fmtCompetence = (s: string | null) => {
@@ -381,8 +416,16 @@ export default function CreditosDebitos() {
     toast.success(editingGlosa.confirmed_at
       ? `Reparcelado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
       : `Débito confirmado em ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`);
+    setGlosaDebts(prev => prev.map(g => g.id === editingGlosa.id
+      ? {
+        ...g,
+        parcelas_default: glosaParc,
+        target_payment_id: lotePick,
+        confirmed_at: editingGlosa.confirmed_at ?? patch.confirmed_at ?? new Date().toISOString(),
+      }
+      : g
+    ));
     setEditingGlosa(null);
-    loadAll();
   };
 
   const reopenGlosa = async (g: GlosaDebt) => {
@@ -390,7 +433,7 @@ export default function CreditosDebitos() {
     const { error } = await (supabase as any).from("glosa_debts").update({ confirmed_at: null, confirmed_by: null }).eq("id", g.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Débito reaberto");
-    loadAll();
+    setGlosaDebts(prev => prev.map(item => item.id === g.id ? { ...item, confirmed_at: null } : item));
   };
 
   // ============ APLICAR FILTROS ============
@@ -493,6 +536,7 @@ export default function CreditosDebitos() {
     const nowIso = new Date().toISOString();
     const uid = userData.user?.id ?? null;
     const errors: string[] = [];
+    const successIds: string[] = [];
     for (const g of massTargets) {
       const { error } = await (supabase as any)
         .from("glosa_debts")
@@ -504,6 +548,7 @@ export default function CreditosDebitos() {
         })
         .eq("id", g.id);
       if (error) errors.push(`${g.doctor_name}: ${error.message}`);
+      else successIds.push(g.id);
     }
     setBusyMass(false);
     if (errors.length) {
@@ -515,10 +560,15 @@ export default function CreditosDebitos() {
     setMassDialogPjId(null);
     setSelectedPending(prev => {
       const next = new Set(prev);
-      massTargets.forEach(g => next.delete(g.id));
+      successIds.forEach(id => next.delete(id));
       return next;
     });
-    loadAll();
+    if (successIds.length) {
+      setGlosaDebts(prev => prev.map(g => successIds.includes(g.id)
+        ? { ...g, parcelas_default: massParc, target_payment_id: massLotePick, confirmed_at: g.confirmed_at ?? nowIso }
+        : g
+      ));
+    }
   };
 
   const openGlobalMass = async () => {
@@ -619,6 +669,8 @@ export default function CreditosDebitos() {
     const uid = userData.user?.id ?? null;
     const nowIso = new Date().toISOString();
     let ok = 0; const errors: string[] = [];
+    const successIds: string[] = [];
+    const nextPaymentLabels: Record<string, string> = {};
     for (const g of targets) {
       const target = globalLoteByPj[g.company_id];
       const { error } = await (supabase as any).from("glosa_debts").update({
@@ -627,7 +679,12 @@ export default function CreditosDebitos() {
         confirmed_at: g.confirmed_at ?? nowIso,
         confirmed_by: g.confirmed_at ? undefined : uid,
       }).eq("id", g.id);
-      if (error) errors.push(`${g.doctor_name}: ${error.message}`); else ok++;
+      if (error) errors.push(`${g.doctor_name}: ${error.message}`); else {
+        ok++;
+        successIds.push(g.id);
+        const lote = globalLotesByPj[g.company_id]?.find(l => l.id === target);
+        if (lote) nextPaymentLabels[target] = lote.label;
+      }
     }
     setBusyGlobal(false);
     if (errors.length) {
@@ -637,8 +694,20 @@ export default function CreditosDebitos() {
       toast.success(`${ok} débitos confirmados em ${globalParc}× (todas as PJs).`);
     }
     setGlobalDialogOpen(false);
-    setSelectedPending(new Set());
-    loadAll();
+    setSelectedPending(prev => {
+      const next = new Set(prev);
+      successIds.forEach(id => next.delete(id));
+      return next;
+    });
+    if (Object.keys(nextPaymentLabels).length) {
+      setPaymentLabels(prev => ({ ...prev, ...nextPaymentLabels }));
+    }
+    if (successIds.length) {
+      setGlosaDebts(prev => prev.map(g => successIds.includes(g.id)
+        ? { ...g, parcelas_default: globalParc, target_payment_id: globalLoteByPj[g.company_id], confirmed_at: g.confirmed_at ?? nowIso }
+        : g
+      ));
+    }
   };
 
   // ============ Agrupamento por PJ ============
@@ -956,6 +1025,7 @@ export default function CreditosDebitos() {
                 const aplicadasCount = ativas.length;
                 const revertidasCount = apps.length - ativas.length;
                 const isOpen = !!historyOpen[a.id];
+                const deleting = deletingAdjIds.has(a.id);
                 return (
                   <div key={a.id} className="border border-border rounded-md px-3 py-2">
                     <div className="flex justify-between items-center">
@@ -988,8 +1058,10 @@ export default function CreditosDebitos() {
                           {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                           <span className="ml-1 text-xs">{apps.length}</span>
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => openAdj(a)}><Pencil className="w-4 h-4" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => openAdj(a)} disabled={deleting}><Pencil className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)} disabled={deleting}>
+                          <Trash2 className={`w-4 h-4 ${deleting ? "text-muted-foreground" : "text-destructive"}`} />
+                        </Button>
                       </div>
                     </div>
                     {isOpen && (
@@ -1365,8 +1437,8 @@ export default function CreditosDebitos() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={saveAdj}>Salvar</Button>
+            <Button variant="outline" onClick={() => setAdjDialogOpen(false)} disabled={savingAdj}>Cancelar</Button>
+            <Button onClick={saveAdj} disabled={savingAdj}>{savingAdj ? "Salvando…" : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

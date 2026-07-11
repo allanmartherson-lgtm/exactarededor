@@ -11670,6 +11670,10 @@ export type Database = {
         Args: { _applicable?: boolean; _payment_id: string; _source: string }
         Returns: undefined
       }
+      delete_company_financial_adjustment: {
+        Args: { _adjustment_id: string; _reason?: string }
+        Returns: Json
+      }
       delete_parecer_report: {
         Args: { p_report_id: string }
         Returns: undefined
