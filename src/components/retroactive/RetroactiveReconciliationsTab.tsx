@@ -2512,17 +2512,24 @@ function detectTvrSuspiciousTasyScale(tasyRows: TasyRow[], pagRows: PagRow[]) {
   const tasyValues = tasyRows.map((r) => num(r.tasy_valor_unit)).filter((v) => Math.abs(v) > 0.5);
   const pagTotal = pagRows.reduce((sum, r) => sum + Math.abs(num(r.pag_valor_base)), 0);
   const tasyTotal = tasyValues.reduce((sum, v) => sum + Math.abs(v), 0);
-  const suspiciousIntegerCount = tasyValues.filter((v) => Number.isInteger(v) && Math.abs(v) >= 100000).length;
+  // Threshold calibrado para o cenário Luzia: valores inflados 100-1000×
+  // (ex.: R$ 6.421 virava R$ 6.421.000). Procedimento cirúrgico legítimo
+  // dificilmente passa de R$ 500k por linha; usamos R$ 1M como piso para
+  // classificar como "provavelmente inflado".
+  const suspiciousIntegerCount = tasyValues.filter((v) => Number.isInteger(v) && Math.abs(v) >= 1_000_000).length;
+  // Ratio TASY (100% convênio) / pag_valor_base (repasse do médico) é
+  // naturalmente 5-15× — só disparamos em ≥ 20×, que indica escala errada.
   const ratio = pagTotal > 0 ? tasyTotal / pagTotal : 0;
 
   return {
-    isSuspicious: suspiciousIntegerCount >= 10 && ratio >= 5,
+    isSuspicious: suspiciousIntegerCount >= 10 && ratio >= 20,
     tasyTotal,
     pagTotal,
     suspiciousIntegerCount,
     ratio,
   };
 }
+
 
 export function mapTvrStatusToStoredClassification(status: TvrStatus): string {
   // Grava o status TVR direto (sem CHECK constraint na coluna).
