@@ -48,7 +48,10 @@ type GlosaDebt = {
   created_at: string;
   confirmed_at: string | null;
   target_payment_id: string | null;
+  origem_payment_id: string | null;
   _company_name?: string;
+  _origem_cc?: string | null;
+  _origem_track?: string | null;
 };
 
 type LoteOption = {
@@ -57,6 +60,8 @@ type LoteOption = {
   liquido: number | null;
   status: string;
   competence: string | null;
+  cost_center_code: string | null;
+  payment_track: string | null;
 };
 
 type AdjApplication = {
