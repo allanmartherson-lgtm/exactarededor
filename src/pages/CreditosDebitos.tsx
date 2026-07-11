@@ -288,9 +288,10 @@ export default function CreditosDebitos() {
       : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
     setSavingAdj(false);
     if (result.error) { toast.error(result.error.message); return; }
+    const row = result.data as Adjustment;
     const saved = {
-      ...(result.data as Adjustment),
-      _company_name: companies.find(c => c.id === result.data.company_id)?.name,
+      ...row,
+      _company_name: companies.find(c => c.id === row.company_id)?.name,
     };
     setAdjustments(prev => editingAdj.id
       ? prev.map(a => a.id === saved.id ? saved : a)
@@ -990,6 +991,7 @@ export default function CreditosDebitos() {
                 const aplicadasCount = ativas.length;
                 const revertidasCount = apps.length - ativas.length;
                 const isOpen = !!historyOpen[a.id];
+                const deleting = deletingAdjIds.has(a.id);
                 return (
                   <div key={a.id} className="border border-border rounded-md px-3 py-2">
                     <div className="flex justify-between items-center">
@@ -1022,8 +1024,10 @@ export default function CreditosDebitos() {
                           {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                           <span className="ml-1 text-xs">{apps.length}</span>
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => openAdj(a)}><Pencil className="w-4 h-4" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => openAdj(a)} disabled={deleting}><Pencil className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => removeAdj(a.id)} disabled={deleting}>
+                          <Trash2 className={`w-4 h-4 ${deleting ? "text-muted-foreground" : "text-destructive"}`} />
+                        </Button>
                       </div>
                     </div>
                     {isOpen && (
@@ -1399,8 +1403,8 @@ export default function CreditosDebitos() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={saveAdj}>Salvar</Button>
+            <Button variant="outline" onClick={() => setAdjDialogOpen(false)} disabled={savingAdj}>Cancelar</Button>
+            <Button onClick={saveAdj} disabled={savingAdj}>{savingAdj ? "Salvando…" : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
