@@ -6101,7 +6101,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             status: "vinculado",
             matched_payment_item_id: r.matched_payment_item_id ?? null,
             matched_payment_id: r.matched_payment_id ?? null,
-            matched_company_id: recon.company_id,
+            matched_company_id: groupCompanyId,
             match_source: "auditoria_retroativa",
             matched_at: new Date().toISOString(),
             hospital_id: hospitalIdRecon,
