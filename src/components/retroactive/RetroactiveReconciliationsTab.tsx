@@ -6128,10 +6128,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     try {
       for (const { group: g, item_ids } of allInsertedIdsByGroup) {
         const parcelasGrupo = Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback);
+        const groupCompanyId = g.company_id ?? recon?.company_id ?? null;
         const { error: debtErr } = await supabase.rpc(
           "create_glosa_debt_with_items" as never,
           {
-            p_company_id: recon.company_id,
+            p_company_id: groupCompanyId,
             p_doctor_crm: g.doctor_crm,
             p_doctor_name: g.doctor_name,
             p_parcelas: parcelasGrupo,
