@@ -265,7 +265,7 @@ export default function CreditosDebitos() {
     setEditingGlosa(g);
     setGlosaParc(g.parcelas_default && g.parcelas_default > 0 ? g.parcelas_default : 1);
     setLotePick(g.target_payment_id ?? "");
-    loadOpenLotes(g);
+    loadOpenLotes(g.company_id);
   };
   const saveGlosa = async () => {
     if (!editingGlosa) return;
