@@ -283,9 +283,6 @@ export default function CreditosDebitos() {
       data_fim: recorrente ? (editingAdj.data_fim || null) : null,
     };
     setSavingAdj(true);
-    const { error } = editingAdj.id
-      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*").single()
-      : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
     const result = editingAdj.id
       ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*").single()
       : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
