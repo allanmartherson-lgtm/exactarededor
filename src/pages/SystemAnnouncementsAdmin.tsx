@@ -190,6 +190,32 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
                 <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
               </div>
             </div>
+            <div>
+              <Label>Público-alvo (opcional)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Se nenhum for marcado, o aviso é exibido para todos os usuários. Caso contrário, só aparece para quem tem uma das funções selecionadas.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {AVAILABLE_ROLES.map((r) => {
+                  const checked = form.target_roles.includes(r.value);
+                  return (
+                    <label key={r.value} className="flex items-center gap-2 text-sm border rounded px-2 py-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const next = e.target.checked
+                            ? [...form.target_roles, r.value]
+                            : form.target_roles.filter((x) => x !== r.value);
+                          setForm({ ...form, target_roles: next });
+                        }}
+                      />
+                      {r.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
