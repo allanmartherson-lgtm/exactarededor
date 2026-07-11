@@ -1,5 +1,10 @@
 // Envia notificação ao analista criador quando o supervisor aprova ou rejeita uma campanha.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,10 +24,14 @@ interface Body {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
     const { campaign_id, decision, reason } = (await req.json()) as Body;
-    if (!campaign_id || !decision) {
-      return new Response(JSON.stringify({ error: "campaign_id e decision são obrigatórios" }), {
+    if (!campaign_id || !decision || (decision !== "approved" && decision !== "rejected")) {
+      return new Response(JSON.stringify({ error: "campaign_id e decision (approved|rejected) são obrigatórios" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -57,18 +66,24 @@ Deno.serve(async (req) => {
     const url = `${APP_BASE_URL}/comunicacao/massa`;
     const supName = (supervisor as { full_name?: string } | null)?.full_name ?? "Supervisor";
     const title = camp.title ?? "(sem título)";
+    const analystName = analyst?.full_name ?? "analista";
+    const rawReason = reason ?? camp.rejection_reason ?? "";
     const isApproved = decision === "approved";
     const subject = isApproved
       ? `✅ Campanha aprovada: ${title}`
       : `❌ Campanha rejeitada: ${title}`;
+    const eTitle = escapeHtml(title);
+    const eSup = escapeHtml(supName);
+    const eAnalyst = escapeHtml(analystName);
+    const eReason = escapeHtml(rawReason);
     const html = isApproved
-      ? `<p>Olá, ${analyst?.full_name ?? "analista"}.</p>
-         <p>Sua campanha <b>${title}</b> foi <b>aprovada</b> por ${supName}.</p>
+      ? `<p>Olá, ${eAnalyst}.</p>
+         <p>Sua campanha <b>${eTitle}</b> foi <b>aprovada</b> por ${eSup}.</p>
          <p>Ela já pode ser disparada.</p>
          <p><a href="${url}">Abrir campanha</a></p>`
-      : `<p>Olá, ${analyst?.full_name ?? "analista"}.</p>
-         <p>Sua campanha <b>${title}</b> foi <b>rejeitada</b> por ${supName}.</p>
-         ${reason || camp.rejection_reason ? `<p><b>Motivo:</b> ${reason ?? camp.rejection_reason}</p>` : ""}
+      : `<p>Olá, ${eAnalyst}.</p>
+         <p>Sua campanha <b>${eTitle}</b> foi <b>rejeitada</b> por ${eSup}.</p>
+         ${rawReason ? `<p><b>Motivo:</b> ${eReason}</p>` : ""}
          <p><a href="${url}">Revisar campanha</a></p>`;
 
     const results: Record<string, unknown> = { email: null, inbox: null };

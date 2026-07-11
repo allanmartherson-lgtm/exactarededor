@@ -3,6 +3,7 @@
 // e dispara o handler do `kind` correspondente.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import { processValidatorAssignment } from "./handlers/validatorAssignment.ts";
 import { processDirectorApproval } from "./handlers/directorApproval.ts";
 import { processDirectorReapproval } from "./handlers/directorReapproval.ts";
@@ -26,6 +27,10 @@ const HANDLERS: Record<string, (supabase: any, row: any) => Promise<{ ok: boolea
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
