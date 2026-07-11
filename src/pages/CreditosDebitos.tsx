@@ -388,7 +388,7 @@ export default function CreditosDebitos() {
       const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
       if (!ids.length) return [pjId, [] as LoteOption[]] as const;
       const [{ data: pays }, { data: fins }] = await Promise.all([
-        supabase.from("payments").select("id, competence_month, status")
+        supabase.from("payments").select("id, reference, competence_month, status")
           .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
           .order("competence_month", { ascending: false }),
         supabase.from("payment_company_financials").select("payment_id, liquido")
@@ -401,7 +401,7 @@ export default function CreditosDebitos() {
         status: p.status,
         competence: p.competence_month,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
-        label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${liqMap.has(p.id) ? ` · Líq. ${brl(liqMap.get(p.id) as number)}` : ""}`,
+        label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
       }));
       return [pjId, opts] as const;
     }));
