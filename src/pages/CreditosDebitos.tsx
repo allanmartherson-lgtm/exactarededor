@@ -115,6 +115,13 @@ export default function CreditosDebitos() {
   const [massLotePick, setMassLotePick] = useState<string>("");
   const [busyMass, setBusyMass] = useState(false);
 
+  // Confirmação global (todas as PJs de uma vez)
+  const [globalDialogOpen, setGlobalDialogOpen] = useState(false);
+  const [globalParc, setGlobalParc] = useState<number>(1);
+  const [globalLoteByPj, setGlobalLoteByPj] = useState<Record<string, string>>({});
+  const [globalLotesByPj, setGlobalLotesByPj] = useState<Record<string, LoteOption[]>>({});
+  const [busyGlobal, setBusyGlobal] = useState(false);
+
   const loadAll = async () => {
     setLoading(true);
 
