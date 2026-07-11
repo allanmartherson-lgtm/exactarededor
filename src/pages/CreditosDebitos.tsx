@@ -172,7 +172,7 @@ export default function CreditosDebitos() {
         .from("payments").select("id, competence_month, status").in("id", tgtIds);
       const labels: Record<string, string> = {};
       ((pays as any[]) ?? []).forEach(p => {
-        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)} · #${p.id.slice(0, 6)}`;
+        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
       });
       setPaymentLabels(prev => ({ ...prev, ...labels }));
     }
