@@ -1950,7 +1950,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
           ? c.weekdays
           : c.time_mode === "fim_de_semana"
             ? [0, 6]
-            : (c.time_mode === "dias_uteis" || c.time_mode === "comercial")
+            : c.time_mode === "comercial"
               ? [1, 2, 3, 4, 5]
               : [])
       : [],
