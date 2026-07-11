@@ -491,7 +491,36 @@ export default function CreditosDebitos() {
                   ) : pendentes.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhuma glosa pendente de confirmação.</p>
                   ) : (
-                    (() => {
+                    <>
+                    {/* Barra de ação global (todas as PJs) */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border border-primary/30 bg-primary/5 rounded-md px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedPending.size === pendentes.length && pendentes.length > 0}
+                          onCheckedChange={(checked) => {
+                            setSelectedPending(checked ? new Set(pendentes.map(g => g.id)) : new Set());
+                          }}
+                        />
+                        <span className="text-sm font-medium">Selecionar todas ({pendentes.length})</span>
+                        {selectedPending.size > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            · {selectedPending.size} sel. · {brl(
+                              pendentes.filter(g => selectedPending.has(g.id))
+                                .reduce((s, g) => s + Number(g.total_debt), 0)
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={openGlobalMass}
+                        title="Confirma todas as glosas selecionadas (ou todas as pendentes se nada estiver marcado), aplicando parcelamento global e escolhendo o melhor lote de cada PJ"
+                      >
+                        <Pencil className="w-3.5 h-3.5 mr-1" />
+                        Confirmar {selectedPending.size > 0 ? `${selectedPending.size} selecionadas` : "todas"} em massa
+                      </Button>
+                    </div>
+                    {(() => {
                       const byPj = new Map<string, GlosaDebt[]>();
                       pendentes.forEach(g => {
                         const arr = byPj.get(g.company_id) ?? [];
