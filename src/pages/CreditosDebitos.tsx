@@ -508,7 +508,7 @@ export default function CreditosDebitos() {
     setGlobalLotesByPj(prev => {
       const list = prev[pjId] ?? [];
       const next = list.map(o => o.id === loteId
-        ? { ...o, liquido: liq, label: buildLoteLabel({ id: o.id, reference: null, competence_month: o.competence, status: o.status } as any, liq) }
+        ? { ...o, liquido: liq, label: buildLoteLabel({ id: o.id, reference: o.reference ?? null, competence_month: o.competence, status: o.status }, liq) }
         : o);
       return { ...prev, [pjId]: next };
     });
