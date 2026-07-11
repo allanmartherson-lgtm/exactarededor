@@ -1,51 +1,79 @@
-## Objetivo
-Melhorar o modal "Confirmar débito" em `/financeiro/creditos-debitos`:
-1. Exibir rótulo de lote mais completo/único (hospital, competência, status, id curto, valor líquido previsto).
-2. Adicionar ação "Confirmar em massa" para várias glosas de uma mesma PJ, escolhendo o lote-alvo ideal.
-3. Ensinar o sistema a respeitar a capacidade do lote: se a parcela for maior que o líquido disponível da PJ naquele lote, ela é **postergada** para o próximo ciclo em vez de aplicada.
+# Refatoração — Créditos e Débitos
 
-## Escopo — Frontend (`src/pages/CreditosDebitos.tsx`)
+Hoje a tela renderiza todos os ajustes e glosas em listas planas, sem filtros ou paginação. Com o crescimento dos dados vira uma tela ingerenciável. O plano abaixo mantém a mesma lógica de negócio (motor, RPCs, edge functions) e foca 100% em UX/estrutura de apresentação.
 
-### 1. Rótulos de lote enriquecidos
-- Trocar `label` de `LoteOption` para: `"MM/YYYY · <status> · Líq. R$ X · #<id8>"`.
-- Buscar líquido previsto por PJ via `payment_company_financials` (`liquido`) ao carregar lotes.
-- Usar o mesmo label na lista principal (`paymentLabels`) para eliminar duplicidade visual ("05/2026 · revisão" x2).
+## Objetivos
 
-### 2. Confirmação em massa
-- Adicionar checkbox por linha na seção "Glosas a confirmar" (agrupadas por PJ).
-- Novo botão fixo no topo do agrupamento: **"Parcelar e confirmar em massa"** (habilitado quando 2+ selecionadas da mesma PJ).
-- Modal em massa mostra: total consolidado, campo parcelas (1–24) aplicado a todos, select do lote-alvo com labels enriquecidos + coluna **"Cabe no lote?"** (líquido − soma das parcelas do ciclo).
-- Ao confirmar: um `update` batch por id com `parcelas_default` + `target_payment_id` + `confirmed_at`.
+- Achar qualquer PJ/médico/lote em segundos.
+- Trabalhar por recorte (período, status, hospital, PJ, trilha, centro de custo).
+- Reduzir o custo cognitivo com agrupamentos, contadores e resumos.
+- Escalar para milhares de linhas sem travar o navegador.
 
-### 3. Regra de capacidade (postergação automática)
-Executada quando o motor de aplicação de glosas roda em um lote (Edge Function `apply-company-deductions` — não muda contrato, só lógica interna):
-- Calcular `capacidade = liquido_pj_no_lote − Σ(outras deduções já aplicadas no ciclo)`.
-- Se `parcela_prevista > capacidade`: **não aplica**, gera registro em `glosa_payment_applications` com `status='postponed'` e `reason='insufficient_net'`, e mantém a glosa ativa. No próximo lote da PJ, entra automaticamente.
-- Se `capacidade > 0` mas menor que parcela: aplica parcialmente (`valor_aplicado=capacidade`) e rola resto (mesmo fluxo do débito residual já existente para médico).
-- UI da glosa passa a mostrar badge "Postergada: lote sem saldo" quando houver applications `postponed`.
+## Estrutura nova da tela
+
+```text
+┌───────────────────────────────────────────────────────────────┐
+│ Cabeçalho: título + KPIs (Total pendente | Em andamento |     │
+│            Postergado | Aplicado no mês)                      │
+├───────────────────────────────────────────────────────────────┤
+│ Barra de filtros persistente (sticky):                        │
+│   [Busca ▸ PJ/médico/lote] [Período ▾] [Status ▾]             │
+│   [Trilha ▾] [Centro de custo ▾] [PJ ▾] [Limpar]              │
+├───────────────────────────────────────────────────────────────┤
+│ Abas: Glosas · Ajustes manuais · Histórico aplicado           │
+├───────────────────────────────────────────────────────────────┤
+│ Conteúdo agrupado por PJ (accordion), com:                    │
+│   - resumo por PJ (qtd, valor pendente, líquido próximo lote) │
+│   - ações em massa por PJ                                     │
+│   - lista virtualizada dos itens                              │
+└───────────────────────────────────────────────────────────────┘
+```
+
+## Filtros (o núcleo da refatoração)
+
+- **Busca global** (debounced): nome da PJ, nome do médico, referência do lote, número do atendimento.
+- **Período**: presets (Este mês, Mês passado, Últimos 90 dias, Ano) + range custom via DateRangePicker. Aplica em `competence_month` das glosas e `created_at` dos ajustes.
+- **Status**: Pendente, Proposto, Parcial, Postergado, Aplicado, Revertido.
+- **Trilha**: HDF Ambulatório / CC+Hemo / etc. (derivado de `payment_types` + `cost_centers`).
+- **Centro de custo**: multi-select vindo de `cost_centers` do hospital ativo.
+- **PJ (empresa)**: multi-select com busca.
+- **Hospital ativo** continua vindo do contexto global (já isolado).
+- Estado dos filtros salvo em **URL query params** (`?period=90d&status=pendente&pj=...`) para permitir compartilhar link e voltar sem perder recorte.
+
+## Agrupamento e visualização
+
+- **Aba Glosas** (foco atual do usuário):
+  - Agrupada por PJ (accordion `<Collapsible>` do shadcn), fechada por padrão quando > 5 PJs.
+  - Header do grupo: nome da PJ · qtd itens · soma pendente · botão "Confirmar em massa (n)".
+  - Dentro do grupo: tabela enxuta com colunas Médico · Competência · Origem (lote) · Valor · Parcela sugerida · Cabe? · Ações.
+  - Sub-agrupamento opcional por médico (toggle no header do grupo).
+- **Aba Ajustes manuais**: mesma estrutura, agrupado por PJ, com badge de tipo (crédito/débito).
+- **Aba Histórico aplicado**: read-only, ordenado por `applied_at desc`, com filtro de período e PJ; serve para auditoria rápida sem poluir as abas ativas.
+
+## Performance
+
+- Virtualização com `@tanstack/react-virtual` nas listas quando o grupo tem > 50 linhas.
+- Queries no Supabase paginadas por PJ + filtro server-side (`.in('company_id', ...)`, `.gte('competence_month', ...)`, `.eq('confirmed_at', null)`), em vez de trazer tudo e filtrar em memória.
+- Contadores e KPIs por queries `count` separadas (não dependem do fetch completo).
+- Debounce de 250 ms na busca; memoização dos agrupamentos derivados.
+
+## Ações em massa (mantidas, reorganizadas)
+
+- Botão global "Confirmar em massa" continua, mas só age **sobre o recorte visível** dos filtros — deixa claro no dialog "aplicando 42 glosas filtradas em 6 PJs".
+- Sugestão de lote-alvo por PJ continua (centro de custo → trilha), agora exibida em coluna dedicada com badge quando o lote está finalizado (bloqueado) — reforça a blindagem recente do motor.
 
 ## Detalhes técnicos
 
-**Novos campos / migração**
-- `glosa_payment_applications.status` já existe → adicionar valores permitidos `'postponed'` e `'partial'` (check constraint). Adicionar coluna `reason text` se ainda não existe.
-- Trigger opcional para não bloquear glosa ativa quando existir application `postponed`.
+- Novo hook `useCreditosDebitosFilters()` centraliza estado + sync com URL.
+- Extrair para componentes: `FiltersBar`, `PjGroupCard`, `GlosaRow`, `AdjustmentRow`, `MassConfirmDialog`, `KpiHeader`, `HistoryTab`.
+- Manter as RPCs/edge functions atuais (`apply-company-deductions`, reversões, ensureLoteLiquido) sem mudança de assinatura.
+- `ensureLoteLiquido` passa a ter cache por `(pj, lote)` com invalidação ao aplicar/reverter.
+- Ordenação padrão: PJ A→Z; dentro do grupo, competência desc, valor desc.
+- Skeleton loaders por seção, sem bloquear a tela inteira.
+- Zero mudança em schema ou lógica de negócio.
 
-**Edge Function afetada**
-- `supabase/functions/apply-company-deductions/index.ts`: incluir cálculo de capacidade por PJ (usa `payment_company_financials.liquido` do snapshot do lote) e ordenar deduções por prioridade (débitos manuais → glosas mais antigas → recorrentes) antes de aplicar.
+## Escopo fora deste plano
 
-**Hooks/queries**
-- Nova query em `loadOpenLotes`: join lateral com `payment_company_financials` para trazer `liquido` por PJ.
-
-**Testes**
-- Unit em `apply-company-deductions`: cenários (a) cabe tudo, (b) postergação total, (c) aplicação parcial + rolagem.
-- UI: garantir que confirmação em massa só habilita para mesma PJ.
-
-## Fora do escopo
-- Não altera schema de `glosa_debts` além do necessário.
-- Não mexe no fluxo de encaminhamento da apuração retroativa.
-- Não altera rotina de cálculo de `liquido` (só consome o snapshot).
-
-## Entrega em 3 PRs sequenciais
-1. Labels enriquecidos + query com líquido (baixo risco).
-2. Confirmação em massa (frontend puro).
-3. Regra de capacidade + postergação (edge function + migração + badge UI).
+- Não altera cálculo do motor, não mexe em `glosa_debts`/`company_financial_adjustments`.
+- Não muda regras de gate de lote finalizado (já implementadas).
+- Exportação CSV pode entrar em iteração seguinte.
