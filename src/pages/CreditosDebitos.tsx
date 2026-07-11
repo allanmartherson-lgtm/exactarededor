@@ -172,7 +172,7 @@ export default function CreditosDebitos() {
         .from("payments").select("id, competence_month, status").in("id", tgtIds);
       const labels: Record<string, string> = {};
       ((pays as any[]) ?? []).forEach(p => {
-        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)} · #${p.id.slice(0, 6)}`;
+        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
       });
       setPaymentLabels(prev => ({ ...prev, ...labels }));
     }
@@ -237,7 +237,7 @@ export default function CreditosDebitos() {
   const buildLoteLabel = (p: { id: string; competence_month: string | null; status: string }, liquido: number | null) => {
     const base = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
     const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
-    return `${base}${liq} · #${p.id.slice(0, 6)}`;
+    return `${base}${liq}`;
   };
 
   const loadOpenLotes = async (companyId: string) => {
@@ -400,7 +400,7 @@ export default function CreditosDebitos() {
         status: p.status,
         competence: p.competence_month,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
-        label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${liqMap.has(p.id) ? ` · Líq. ${brl(liqMap.get(p.id) as number)}` : ""} · #${p.id.slice(0, 6)}`,
+        label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${liqMap.has(p.id) ? ` · Líq. ${brl(liqMap.get(p.id) as number)}` : ""}`,
       }));
       return [pjId, opts] as const;
     }));
