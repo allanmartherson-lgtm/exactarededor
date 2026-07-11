@@ -346,9 +346,20 @@ const Users = () => {
   };
 
   const toggle = async (userId: string, role: AppRole, has: boolean) => {
-    if (has) await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
-    else await supabase.from("user_roles").insert({ user_id: userId, role });
-    load(); toast({ title: "Atualizado" });
+    // Checa erro em toda mutação — antes a UI mostrava sucesso mesmo quando o banco recusava
+    const res = has
+      ? await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role)
+      : await supabase.from("user_roles").insert({ user_id: userId, role });
+    if (res.error) {
+      toast({
+        title: has ? "Falha ao remover permissão" : "Falha ao adicionar permissão",
+        description: res.error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    await load();
+    toast({ title: has ? "Permissão removida" : "Permissão adicionada" });
   };
 
   const resendInvite = async (u: { id: string; email: string }) => {
