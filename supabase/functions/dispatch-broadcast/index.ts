@@ -47,46 +47,21 @@ const json = (b: unknown, s = 200) =>
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
-  const bearer = authHeader.slice("Bearer ".length).trim();
+  // Auth: só aceita service-role JWT / x-cron-secret (internal) ou usuário
+  // autenticado com role interna (admin/diretor/analista/validador). A anon key
+  // é pública e NÃO pode disparar campanhas reais.
+  const auth = await requireInternalOrRole(req, [
+    "admin",
+    "diretor",
+    "analista",
+    "validador",
+  ]);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+  const isInternal = !!auth.is_internal;
+  const actorId: string | null = auth.user_id ?? null;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-  // Modo "internal" (trigger / cron): chamado com a anon key ou service-role,
-  // sem usuário associado. A campanha só é disparada se já estiver approved
-  // (validado mais abaixo), portanto é seguro pular o role check.
-  let jwtRole: string | null = null;
-  try {
-    const payload = JSON.parse(atob(bearer.split(".")[1] ?? ""));
-    jwtRole = typeof payload?.role === "string" ? payload.role : null;
-  } catch { /* ignore */ }
-  const isInternal =
-    bearer === anonKey || bearer === serviceKey ||
-    jwtRole === "anon" || jwtRole === "service_role";
-
-  let actorId: string | null = null;
-  if (!isInternal) {
-    // Authn: valida o token do chamador.
-    const supaUser = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userRes, error: userErr } = await supaUser.auth.getUser();
-    if (userErr || !userRes?.user) return json({ error: "Unauthorized" }, 401);
-    actorId = userRes.user.id;
-
-    // Authz: precisa ser admin/diretor/analista/validador/diretor
-    const { data: roles } = await supaUser
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", actorId);
-    const allowed = (roles ?? []).some((r) =>
-      ["admin", "diretor", "analista", "validador"].includes(String(r.role)),
-    );
-    if (!allowed) return json({ error: "Forbidden" }, 403);
-  }
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
