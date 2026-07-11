@@ -316,6 +316,51 @@ export default function CreditosDebitos() {
     loadAll();
   };
 
+  const massTargets = massDialogPjId
+    ? glosaDebts.filter(g => !g.confirmed_at && g.company_id === massDialogPjId && selectedPending.has(g.id))
+    : [];
+  const massTotal = massTargets.reduce((s, g) => s + Number(g.total_debt), 0);
+  const massParcelaSoma = massParc > 0 ? massTotal / massParc : 0;
+  const massLoteObj = openLotes.find(l => l.id === massLotePick);
+  const massCabe = massLoteObj?.liquido == null ? null : (massLoteObj.liquido - massParcelaSoma);
+
+  const confirmMass = async () => {
+    if (!massDialogPjId || massTargets.length === 0) return;
+    if (massParc < 1 || massParc > 24) { toast.error("Parcelas entre 1 e 24"); return; }
+    if (!massLotePick) { toast.error("Escolha o lote-alvo"); return; }
+    setBusyMass(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const nowIso = new Date().toISOString();
+    const uid = userData.user?.id ?? null;
+    const errors: string[] = [];
+    for (const g of massTargets) {
+      const { error } = await (supabase as any)
+        .from("glosa_debts")
+        .update({
+          parcelas_default: massParc,
+          target_payment_id: massLotePick,
+          confirmed_at: g.confirmed_at ?? nowIso,
+          confirmed_by: g.confirmed_at ? undefined : uid,
+        })
+        .eq("id", g.id);
+      if (error) errors.push(`${g.doctor_name}: ${error.message}`);
+    }
+    setBusyMass(false);
+    if (errors.length) {
+      toast.error(`${massTargets.length - errors.length} confirmadas · ${errors.length} falharam`);
+      console.error("[mass confirm]", errors);
+    } else {
+      toast.success(`${massTargets.length} débitos confirmados em ${massParc}×.`);
+    }
+    setMassDialogPjId(null);
+    setSelectedPending(prev => {
+      const next = new Set(prev);
+      massTargets.forEach(g => next.delete(g.id));
+      return next;
+    });
+    loadAll();
+  };
+
 
   return (
     <div>
