@@ -1945,7 +1945,15 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     allowed_access_routes: c.allowed_access_routes.length > 0 ? c.allowed_access_routes : null,
     has_conditions: c.has_conditions,
     time_mode: c.has_conditions ? c.time_mode : "qualquer",
-    weekdays: c.has_conditions && c.time_mode === "personalizado" ? c.weekdays : [],
+    weekdays: c.has_conditions
+      ? (c.time_mode === "personalizado"
+          ? c.weekdays
+          : c.time_mode === "fim_de_semana"
+            ? [0, 6]
+            : c.time_mode === "comercial"
+              ? [1, 2, 3, 4, 5]
+              : [])
+      : [],
     time_start: c.has_conditions ? (c.time_start || null) : null,
     time_end: c.has_conditions ? (c.time_end || null) : null,
     includes_holidays: c.has_conditions ? c.includes_holidays : false,
