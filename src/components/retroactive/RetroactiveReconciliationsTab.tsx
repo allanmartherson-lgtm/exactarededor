@@ -2663,13 +2663,15 @@ function num(v: string | number | undefined | null): number {
   } else if (hasComma) {
     s = s.replace(",", ".");
   } else if (hasDot) {
-    // "1.234" (milhar BR) vs "1234.56" (decimal US)
+    // Múltiplos pontos = separador de milhar BR ("1.234.567" → 1234567).
+    // Um único ponto: SEMPRE decimal. Não adivinhamos "900.025" como milhar
+    // aqui: valores de planilha já vêm normalizados por parseCellMoney,
+    // e valores de re-hidratação são sempre `String(number)` do JS
+    // (ponto = decimal). O heurístico antigo (3 dígitos após o ponto = milhar)
+    // inflacionava unit_tasy de 1800.05/2 = 900.025 em 1000×, produzindo
+    // R$ 900.025,00 no lugar de R$ 900,03.
     const parts = s.split(".");
-    if (parts.length > 2) {
-      s = s.replace(/\./g, "");
-    } else if (parts[1] && parts[1].length === 3 && parts[0].length <= 3) {
-      s = s.replace(".", "");
-    }
+    if (parts.length > 2) s = s.replace(/\./g, "");
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -3198,7 +3200,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_atendimento: r.atendimento,
         tasy_tuss: r.tuss,
         tasy_qtd: String(r.qtd_tasy || 1),
-        tasy_valor_unit: String(r.valor_unit_tasy || 0),
+        // Motor consome `tasy_valor_unit` como TOTAL da linha (tasyValueIsLineTotal=true).
+        // Re-hidratando com valor_total_tasy garante recomputo estável e evita
+        // deflação (unit ≠ total quando qtd > 1). `.toFixed(2)` também blinda
+        // contra ambiguidade dot-thousand em números como 900.025.
+        tasy_valor_unit: (Number(r.valor_total_tasy) || 0).toFixed(2),
         tasy_procedimento: r.procedimento,
         tasy_paciente: r.paciente,
         tasy_data: r.data,
@@ -3212,8 +3218,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         pag_atendimento: r.atendimento,
         pag_tuss: r.tuss,
         pag_qtd: String(r.qtd_por_func || 1),
-        pag_valor_base: String(r.valor_pago_base || 0),
-        pag_valor_com_acordo: String(r.valor_com_acordo || 0),
+        pag_valor_base: (Number(r.valor_pago_base) || 0).toFixed(2),
+        pag_valor_com_acordo: (Number(r.valor_com_acordo) || 0).toFixed(2),
         pag_funcao: r.funcao || r.funcoes_pagas,
         pag_medico: r.medico,
         pag_data: r.data,
