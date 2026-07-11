@@ -416,8 +416,16 @@ export default function CreditosDebitos() {
     toast.success(editingGlosa.confirmed_at
       ? `Reparcelado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
       : `Débito confirmado em ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`);
+    setGlosaDebts(prev => prev.map(g => g.id === editingGlosa.id
+      ? {
+        ...g,
+        parcelas_default: glosaParc,
+        target_payment_id: lotePick,
+        confirmed_at: editingGlosa.confirmed_at ?? patch.confirmed_at ?? new Date().toISOString(),
+      }
+      : g
+    ));
     setEditingGlosa(null);
-    loadAll();
   };
 
   const reopenGlosa = async (g: GlosaDebt) => {
@@ -425,7 +433,7 @@ export default function CreditosDebitos() {
     const { error } = await (supabase as any).from("glosa_debts").update({ confirmed_at: null, confirmed_by: null }).eq("id", g.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Débito reaberto");
-    loadAll();
+    setGlosaDebts(prev => prev.map(item => item.id === g.id ? { ...item, confirmed_at: null } : item));
   };
 
   // ============ APLICAR FILTROS ============
@@ -528,6 +536,7 @@ export default function CreditosDebitos() {
     const nowIso = new Date().toISOString();
     const uid = userData.user?.id ?? null;
     const errors: string[] = [];
+    const successIds: string[] = [];
     for (const g of massTargets) {
       const { error } = await (supabase as any)
         .from("glosa_debts")
@@ -539,6 +548,7 @@ export default function CreditosDebitos() {
         })
         .eq("id", g.id);
       if (error) errors.push(`${g.doctor_name}: ${error.message}`);
+      else successIds.push(g.id);
     }
     setBusyMass(false);
     if (errors.length) {
@@ -550,10 +560,15 @@ export default function CreditosDebitos() {
     setMassDialogPjId(null);
     setSelectedPending(prev => {
       const next = new Set(prev);
-      massTargets.forEach(g => next.delete(g.id));
+      successIds.forEach(id => next.delete(id));
       return next;
     });
-    loadAll();
+    if (successIds.length) {
+      setGlosaDebts(prev => prev.map(g => successIds.includes(g.id)
+        ? { ...g, parcelas_default: massParc, target_payment_id: massLotePick, confirmed_at: g.confirmed_at ?? nowIso }
+        : g
+      ));
+    }
   };
 
   const openGlobalMass = async () => {
@@ -654,6 +669,8 @@ export default function CreditosDebitos() {
     const uid = userData.user?.id ?? null;
     const nowIso = new Date().toISOString();
     let ok = 0; const errors: string[] = [];
+    const successIds: string[] = [];
+    const nextPaymentLabels: Record<string, string> = {};
     for (const g of targets) {
       const target = globalLoteByPj[g.company_id];
       const { error } = await (supabase as any).from("glosa_debts").update({
@@ -662,7 +679,12 @@ export default function CreditosDebitos() {
         confirmed_at: g.confirmed_at ?? nowIso,
         confirmed_by: g.confirmed_at ? undefined : uid,
       }).eq("id", g.id);
-      if (error) errors.push(`${g.doctor_name}: ${error.message}`); else ok++;
+      if (error) errors.push(`${g.doctor_name}: ${error.message}`); else {
+        ok++;
+        successIds.push(g.id);
+        const lote = globalLotesByPj[g.company_id]?.find(l => l.id === target);
+        if (lote) nextPaymentLabels[target] = lote.label;
+      }
     }
     setBusyGlobal(false);
     if (errors.length) {
@@ -672,8 +694,20 @@ export default function CreditosDebitos() {
       toast.success(`${ok} débitos confirmados em ${globalParc}× (todas as PJs).`);
     }
     setGlobalDialogOpen(false);
-    setSelectedPending(new Set());
-    loadAll();
+    setSelectedPending(prev => {
+      const next = new Set(prev);
+      successIds.forEach(id => next.delete(id));
+      return next;
+    });
+    if (Object.keys(nextPaymentLabels).length) {
+      setPaymentLabels(prev => ({ ...prev, ...nextPaymentLabels }));
+    }
+    if (successIds.length) {
+      setGlosaDebts(prev => prev.map(g => successIds.includes(g.id)
+        ? { ...g, parcelas_default: globalParc, target_payment_id: globalLoteByPj[g.company_id], confirmed_at: g.confirmed_at ?? nowIso }
+        : g
+      ));
+    }
   };
 
   // ============ Agrupamento por PJ ============
