@@ -34,10 +34,12 @@ const SEVERITY_STYLES: Record<Announcement["severity"], { bg: string; icon: type
 };
 
 export function SystemAnnouncementBanner() {
+  const { roles, rolesLoading } = useAuth();
   const [items, setItems] = useState<Announcement[]>([]);
   const [dismissed, setDismissedState] = useState<string[]>(getDismissed());
 
   useEffect(() => {
+    if (rolesLoading) return;
     let mounted = true;
     (async () => {
       const nowIso = new Date().toISOString();
@@ -48,13 +50,19 @@ export function SystemAnnouncementBanner() {
         .lte("starts_at", nowIso)
         .order("created_at", { ascending: false });
       if (!mounted) return;
-      const filtered = ((data as Announcement[] | null) ?? []).filter(
-        (a) => !a.ends_at || new Date(a.ends_at) > new Date(),
-      );
+      const userRoles = new Set(roles as string[]);
+      const filtered = ((data as Announcement[] | null) ?? []).filter((a) => {
+        if (a.ends_at && new Date(a.ends_at) <= new Date()) return false;
+        // Sem público-alvo = aviso global. Com público-alvo = só quem tem uma das roles.
+        if (a.target_roles && a.target_roles.length > 0) {
+          return a.target_roles.some((r) => userRoles.has(r));
+        }
+        return true;
+      });
       setItems(filtered);
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [roles, rolesLoading]);
 
   const visible = items.filter((a) => !dismissed.includes(a.id));
   if (visible.length === 0) return null;
