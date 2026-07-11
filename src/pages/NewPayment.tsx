@@ -36,6 +36,7 @@ import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
 import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type FileDecision } from "@/lib/newPaymentDraft";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { applySectorStems } from "@/lib/sectorStems";
+import { sha256Hex, inferBucketRole } from "@/lib/fileHash";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
