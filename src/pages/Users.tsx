@@ -253,7 +253,8 @@ const Users = () => {
 
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("*");
-    const { data: roles } = await supabase.from("user_roles").select("*");
+    // Só considera permissões ativas — revogadas ficam retidas para auditoria (soft-close)
+    const { data: roles } = await supabase.from("user_roles").select("*").is("revoked_at", null);
     const map = (profiles ?? []).map((p) => ({ ...p, roles: (roles ?? []).filter((r) => r.user_id === p.id).map((r) => r.role) }));
     setUsers(map);
   };
