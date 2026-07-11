@@ -6123,8 +6123,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       throw e;
     }
 
-    // 3+4) Um RPC por grupo. Se qualquer um falhar, rollback total: deletar débitos já criados + items + batch.
+    // 3+4) Um RPC por grupo.
+    //  - Se o grupo bater no unique-violation (23505 — já existe débito ATIVO
+    //    para o par médico/PJ), NÃO abortar o lote: remove os glosa_items
+    //    daquele grupo, registra em `skipped` e segue para os próximos médicos.
+    //  - Qualquer outro erro faz rollback total (débitos criados + items + batch).
     const createdDebtIds: string[] = [];
+    const skipped: Array<{ doctor_name: string; company_name: string | null; reason: string }> = [];
+    const okGroups: GlosaGroup[] = [];
     try {
       for (const { group: g, item_ids } of allInsertedIdsByGroup) {
         const parcelasGrupo = Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback);
@@ -6141,20 +6147,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         );
         if (debtErr) {
           const raw = debtErr.message || String(debtErr);
-          // 23505 = unique_violation. O índice ativo é (company_id, doctor_id)
-          // WHERE status='ativo' — então bate quando já existe débito em aberto
-          // para o mesmo médico/PJ. Traduz para linguagem operacional.
           const isUnique = (debtErr as { code?: string })?.code === "23505"
             || /duplicate key|unique constraint|glosa_debts_company_doctor_active_key/i.test(raw);
           if (isUnique) {
-            throw new Error(
-              `${g.doctor_name}: já existe um débito ATIVO desse médico para a PJ ${g.company_name ?? ""}. `
-              + `Quite/arquive o débito anterior em /glosas antes de gerar um novo, ou desmarque este médico e reenvie os demais.`,
-            );
+            // Skip apenas este médico: apaga os glosa_items dele (ninguém foi
+            // vinculado ainda) e segue. Não conta em `matched_items` do batch.
+            await supabase.from("glosa_items" as never).delete().in("id", item_ids);
+            skipped.push({
+              doctor_name: g.doctor_name,
+              company_name: g.company_name ?? null,
+              reason: "Já existe débito ATIVO para este médico/PJ — quite/arquive em /glosas antes de gerar novo.",
+            });
+            continue;
           }
+          // Erro estrutural: rollback total.
           throw new Error(`${g.doctor_name}: ${raw}`);
         }
-        // Descobre o debt_id criado pelo RPC (para rollback se algum próximo falhar)
         const { data: linkRows } = await supabase
           .from("glosa_debt_items" as never)
           .select("debt_id")
@@ -6163,10 +6171,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           new Set(((linkRows ?? []) as Array<{ debt_id: string }>).map((x) => x.debt_id)),
         );
         createdDebtIds.push(...ids);
+        okGroups.push(g);
       }
     } catch (e) {
-      // Rollback total: apaga débitos criados nesta execução (CASCADE limpa glosa_debt_items),
-      // depois items e batch.
       if (createdDebtIds.length > 0) {
         await supabase.from("glosa_debts" as never).delete().in("id", createdDebtIds);
       }
@@ -6175,18 +6182,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       throw e;
     }
 
-    // Resumo humano de parcelas: se todos iguais, "Nx"; caso contrário, "variável (min-max×)"
-    const usados = groups.map((g) => Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback));
-    const min = Math.min(...usados);
-    const max = Math.max(...usados);
-    const parcelasResumo = min === max ? `${min}×` : `variável (${min}–${max}×)`;
+    // Se TODOS foram pulados, o batch fica órfão — apaga.
+    if (okGroups.length === 0) {
+      await supabase.from("glosa_items" as never).delete().eq("batch_id", batchId);
+      await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
+    }
+
+    const usados = okGroups.map((g) => Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback));
+    const min = usados.length ? Math.min(...usados) : 0;
+    const max = usados.length ? Math.max(...usados) : 0;
+    const parcelasResumo = usados.length === 0
+      ? "—"
+      : min === max ? `${min}×` : `variável (${min}–${max}×)`;
+
+    const okItemsCount = okGroups.reduce((s, g) => s + g.items.length, 0);
+    const okTotal = okGroups.reduce(
+      (s, g) => s + g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0),
+      0,
+    );
 
     return {
-      batch_id: batchId,
-      debts: groups.length,
-      items: allItems.length,
-      total: totalGlosa,
+      batch_id: okGroups.length ? batchId : null,
+      debts: okGroups.length,
+      items: okItemsCount,
+      total: okTotal,
       parcelasResumo,
+      skipped,
     };
   };
 
