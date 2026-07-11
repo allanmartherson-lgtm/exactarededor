@@ -18,7 +18,6 @@ const PUBLIC_ALLOWLIST: Record<string, string> = {
   // Chamados por pg_cron/trigger com anon key (sem service-role em SQL).
   // São idempotentes, não recebem input do usuário externo — payloads vêm do próprio DB.
   "notification-queue-worker": "cron 30s; drena fila interna; sem input externo",
-  "analysis-watchdog": "cron 2min; ressuscita jobs travados; sem input externo",
   "notify-campaign-decision": "chamado por trigger DB; payload = NEW.id",
   "dispatch-broadcast": "chamado por trigger DB; payload = NEW.id",
   // Admins têm checagem manual robusta (has_role admin + audit_log)
