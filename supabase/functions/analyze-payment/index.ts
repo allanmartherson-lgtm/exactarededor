@@ -2153,102 +2153,163 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
-    // ===== Split de bônus: o motor de regras soma o bônus no expected_amount
-    // do item de procedimento. Aqui revertemos isso — o procedimento volta
-    // a ter só seu honorário base, e o bônus vira uma linha independente
-    // (tipo_linha='complemento_bonus', tipo_item='bonus') ligada ao item pai
-    // via origem_referencia. Não altera rulesEngine.ts; apenas persistência.
+    // ===== Síntese de linhas de bônus (Fase B) =====
+    // Regras de bônus NÃO competem no matching por-item (fase A no motor).
+    // Aqui percorremos as regras de bônus ativas e emitimos 1 linha
+    // (tipo_linha='complemento_bonus', tipo_item='bonus', synthetic_bonus=true)
+    // por (regra × atendimento) ancorada no cirurgião principal. O cálculo é
+    // independente do TUSS pai: base é procedure_amount conforme application_unit
+    // (por_item = âncora; por_atendimento/por_paciente_dia = soma do grupo).
     const bonusLinesToInsert: Record<string, unknown>[] = [];
     const bonusCompanyNames = new Set<string>();
-    // Invariantes do split (capturados ANTES de mutar u.expected_amount):
-    // - bonusTotalByCompany: soma dos bônus extraídos por empresa.
-    //   Após o split deve bater com soma(expected) das linhas de bônus inseridas.
-    // - preSplitExpectedByCompany: soma(expected) dos pais ANTES da reversão.
-    //   Deve bater com soma(expected pais pós-revert) + bonusTotalByCompany.
     const bonusTotalByCompany: Record<string, number> = {};
     const preSplitExpectedByCompany: Record<string, number> = {};
-    for (const u of itemUpdates) {
-      if (u.applied_calc_method !== "bonus") continue;
-      const parent = itemsById[u.id];
-      if (!parent) continue;
-      // Base do honorário para split do bônus:
-      // - ANÁLISE: gross_amount é o valor pago pelo hospital.
-      // - CONFECÇÃO: a base do analista traz apenas procedure_amount (valor cru,
-      //   sem acordo, sem cálculo). O gross_amount é PRODUZIDO pelo motor a
-      //   partir da regra — portanto para isolar o "honorário base" (sem bônus)
-      //   usamos procedure_amount, e o complemento sintético leva o restante.
-      const parentBase = isConfeccao
-        ? Number(parent.procedure_amount ?? 0)
-        : Number(parent.gross_amount ?? 0);
-      const exp = u.expected_amount;
-      if (exp == null || exp <= parentBase + 0.01) continue;
-      const bonusAmt = Number((exp - parentBase).toFixed(2));
-      const compKey = (parent.company_name ?? "Sem empresa").trim() || "Sem empresa";
-      preSplitExpectedByCompany[compKey] = (preSplitExpectedByCompany[compKey] ?? 0) + exp;
-      bonusTotalByCompany[compKey] = (bonusTotalByCompany[compKey] ?? 0) + bonusAmt;
-      // Procedimento volta a refletir só o honorário base.
-      u.expected_amount = parentBase;
-      // Espelhar a reversão dentro de ai_findings (JSONB lido pela UI).
-      if (u.ai_findings && typeof u.ai_findings === "object") {
-        const af = u.ai_findings as Record<string, unknown>;
-        af.expected_amount = parentBase;
-        // Remover alerts originados da divergência do bônus.
-        if (Array.isArray(af.alerts)) {
-          const bonusRe = /b[oô]nus|R\$\s?1[\.\s]?500/i;
-          const filtered = (af.alerts as unknown[]).filter((a) => {
-            const s = typeof a === "string" ? a : JSON.stringify(a ?? "");
-            return !bonusRe.test(s);
+
+    // 1) Descobre regras de bônus (rule-level OR calc-level).
+    const activeBonusRules = (rules ?? []).filter((r: any) => {
+      if ((r?.calculation_type ?? "") === "bonus") return true;
+      const cs = Array.isArray(r?.calculations) ? r.calculations : [];
+      return cs.some((c: any) => (c?.calculation_type ?? "") === "bonus");
+    });
+
+    if (activeBonusRules.length > 0) {
+      // 2) Agrupa itens por attendance_group_key (fallback attendance_number).
+      const groups = new Map<string, { anchor: ItemInput; groupItems: ItemInput[] }>();
+      // Mapa item_id -> AnalysisResult (para descobrir main / group key)
+      const resultByItemId = new Map<string, AnalysisResult>();
+      for (const r of results) resultByItemId.set(r.item_id, r);
+
+      const groupKeyFor = (it: ItemInput): string | null => {
+        const r = resultByItemId.get((it as any).id);
+        const gk = (r?.attendance_group_key as string | undefined) ?? (it.attendance_number ?? null);
+        return gk && String(gk).trim() ? String(gk).trim() : null;
+      };
+
+      // Bucket
+      const buckets = new Map<string, ItemInput[]>();
+      for (const it of items) {
+        const gk = groupKeyFor(it);
+        if (!gk) continue;
+        let arr = buckets.get(gk); if (!arr) { arr = []; buckets.set(gk, arr); }
+        arr.push(it);
+      }
+
+      // Anchor por grupo: main procedure + role cirurgião principal quando possível.
+      const isCirurgiaoPrincipal = (role: string | null | undefined) => {
+        const s = String(role ?? "").toLowerCase();
+        return /cirurg/.test(s) && !/aux/.test(s) && !/instrument/.test(s);
+      };
+      for (const [gk, arr] of buckets) {
+        const withMeta = arr.map((it) => ({ it, res: resultByItemId.get((it as any).id) }));
+        const anchor =
+          withMeta.find((x) => x.res?.is_main_procedure && isCirurgiaoPrincipal(x.it.doctor_role)) ??
+          withMeta.find((x) => x.res?.is_main_procedure) ??
+          withMeta.find((x) => isCirurgiaoPrincipal(x.it.doctor_role)) ??
+          withMeta[0];
+        if (anchor?.it) groups.set(gk, { anchor: anchor.it, groupItems: arr });
+      }
+
+      // 3) Para cada regra de bônus × grupo, testa aplicabilidade e emite linha.
+      for (const rule of activeBonusRules) {
+        const calcs = Array.isArray((rule as any).calculations) ? (rule as any).calculations : [];
+        const bonusCalc = calcs.find((c: any) => (c?.calculation_type ?? "") === "bonus") ?? null;
+
+        for (const [gk, { anchor, groupItems }] of groups) {
+          // Se o worker é per-company, restringe às empresas do worker.
+          if (company_name && typeof company_name === "string") {
+            if ((anchor.company_name ?? "") !== company_name) continue;
+          }
+
+          // 3a) Rule-level: reutiliza selectWinningRule com APENAS esta regra
+          //     como candidata (aplica escopo hospital/medico/grupo/pj,
+          //     agreement, allowed_access_routes, sector, etc).
+          let ruleApplies = false;
+          try {
+            const sel = selectWinningRule(anchor, [rule as any], ctx);
+            ruleApplies = !!sel?.rule && sel.rule.id === (rule as any).id;
+          } catch (_e) { ruleApplies = false; }
+          if (!ruleApplies) continue;
+
+          // 3b) Calc-level (time_mode / weekdays / includes_holidays / elective_mode
+          //     / doctor_roles / sectors / agreement_aliases): calcItemMatches.
+          if (bonusCalc) {
+            try {
+              const m = calcItemMatches(bonusCalc as any, anchor);
+              if (!m.ok) continue;
+            } catch (_e) { continue; }
+          }
+
+          // 3c) Base pela unidade de aplicação.
+          const applicationUnit =
+            (bonusCalc?.application_unit as string | null) ??
+            ((rule as any).application_unit as string | null) ??
+            "por_atendimento";
+          let base = 0;
+          if (applicationUnit === "por_item") {
+            base = Number(anchor.procedure_amount ?? 0);
+          } else {
+            for (const it of groupItems) base += Number(it.procedure_amount ?? 0);
+          }
+
+          // 3d) Valor do bônus (rule-level ou calc-level; calc vence).
+          const fixed = Number(
+            (bonusCalc?.bonus_amount ?? (rule as any).bonus_amount) ?? 0,
+          );
+          const pct = Number(
+            (bonusCalc?.bonus_pct ?? (rule as any).bonus_pct) ?? 0,
+          );
+          if (!fixed && !pct) continue; // regra mal configurada — não emite
+          const bonusAmt = Number((fixed + base * (pct / 100)).toFixed(2));
+          if (!(bonusAmt > 0)) continue;
+
+          const compKey = (anchor.company_name ?? "Sem empresa").trim() || "Sem empresa";
+          bonusTotalByCompany[compKey] = (bonusTotalByCompany[compKey] ?? 0) + bonusAmt;
+          if (anchor.company_name) bonusCompanyNames.add(anchor.company_name);
+
+          const ruleLabel = (rule as any).name ?? "Bônus";
+          const ruleId = (rule as any).id ?? null;
+
+          bonusLinesToInsert.push({
+            payment_id,
+            doctor_name: anchor.doctor_name ?? null,
+            doctor_id: (anchor as any).doctor_id ?? null,
+            company_name: anchor.company_name ?? null,
+            company_id: (anchor as any).company_id ?? null,
+            attendance_number: anchor.attendance_number ?? null,
+            patient_name: (anchor as any).patient_name ?? null,
+            sector: (anchor as any).sector ?? null,
+            procedure_date: (anchor as any).procedure_date ?? null,
+            gross_amount: bonusAmt,
+            expected_amount: bonusAmt,
+            procedure_name: ruleLabel,
+            tipo_linha: "complemento_bonus",
+            tipo_item: "bonus",
+            item_origem: "pagamento_atual",
+            origem_referencia: (anchor as any).id ?? null,
+            applied_calc_method: "bonus",
+            applied_rule_label: ruleLabel,
+            applied_rule_id: ruleId,
+            ai_status: "aprovado",
+            applied_at: new Date().toISOString(),
+            synthetic_bonus: true,
+            ai_findings: {
+              expected_amount: bonusAmt,
+              calculation_type: "bonus",
+              applied_rule_label: ruleLabel,
+              applied_rule_id: ruleId,
+              application_unit: applicationUnit,
+              base_used: Number(base.toFixed(2)),
+              alerts: [],
+            },
+            validation_findings: [],
+            convenio_value_totalized: false,
+            authorized_exception: false,
+            empresa_tem_pool: false,
           });
-          af.alerts = filtered;
         }
       }
-      // Após reverter, expected == base para o pai → aprovar.
-      if (u.ai_status === "reprovado" || u.ai_status === "alerta") {
-        u.ai_status = "aprovado";
-      }
-      bonusLinesToInsert.push({
-        payment_id,
-        doctor_name: parent.doctor_name ?? null,
-        doctor_id: parent.doctor_id ?? null,
-        company_name: parent.company_name ?? null,
-        company_id: parent.company_id ?? null,
-        attendance_number: parent.attendance_number ?? null,
-        patient_name: parent.patient_name ?? null,
-        sector: parent.sector ?? null,
-        procedure_date: parent.procedure_date ?? null,
-        // payment_items.gross_amount é NOT NULL e também alimenta totais de
-        // grupos. Em CONFECÇÃO a coluna de "valor pago" fica escondida na UI,
-        // mas a linha sintética precisa carregar o mesmo valor do repasse para
-        // persistir e consolidar corretamente.
-        gross_amount: bonusAmt,
-        expected_amount: bonusAmt,
-        procedure_name: u.applied_rule_label,
-        tipo_linha: "complemento_bonus",
-        tipo_item: "bonus",
-        item_origem: "pagamento_atual",
-        origem_referencia: u.id,
-        applied_calc_method: "bonus",
-        applied_rule_label: u.applied_rule_label,
-        applied_rule_id: u.applied_rule_id,
-        ai_status: "aprovado",
-        applied_at: new Date().toISOString(),
-        // A UI (ItemsDataGrid) lê o valor da coluna "Esperado/Repasse
-        // calculado" de ai_findings.expected_amount. Sem este campo as
-        // linhas de bônus aparecem com "—" no grid.
-        ai_findings: {
-          expected_amount: bonusAmt,
-          calculation_type: "bonus",
-          applied_rule_label: u.applied_rule_label,
-          applied_rule_id: u.applied_rule_id,
-          alerts: [],
-        },
-        validation_findings: [],
-        convenio_value_totalized: false,
-        authorized_exception: false,
-        empresa_tem_pool: false,
-      });
-      if (parent.company_name) bonusCompanyNames.add(parent.company_name);
     }
+
 
     // Helper: executa promessas em chunks paralelos (limita conexões simultâneas).
     const runChunked = async <T,>(arr: T[], size: number, fn: (x: T) => Promise<unknown>) => {
