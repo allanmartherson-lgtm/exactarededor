@@ -103,34 +103,17 @@ export function parseCellMoney(v: unknown): string {
   const cleaned = raw.replace(/[^\d,.]/g, "");
   if (!cleaned) return "";
 
+  // Regra do domínio: TODO valor monetário é BRL. Vírgula é sempre decimal,
+  // ponto é sempre separador de milhar. Isso elimina ambiguidades típicas
+  // de TASY (ex.: "629.765" = 629.765, não 629,765; "50.000,00" = 50000).
   const lastComma = cleaned.lastIndexOf(",");
-  const lastDot = cleaned.lastIndexOf(".");
-
-  if (lastComma >= 0 && lastDot >= 0) {
-    // Usa o último separador como decimal para suportar BR (1.234,56) e US (1,234.56).
-    const decimalSeparator = lastComma > lastDot ? "," : ".";
-    const thousandSeparator = decimalSeparator === "," ? "." : ",";
-    return sign + cleaned.replace(new RegExp(`\\${thousandSeparator}`, "g"), "").replace(decimalSeparator, ".");
-  }
-
   if (lastComma >= 0) {
-    const parts = cleaned.split(",");
-    if (parts.length > 2) {
-      const decimal = parts.pop() ?? "";
-      return sign + parts.join("") + (decimal ? `.${decimal}` : "");
-    }
-    return sign + cleaned.replace(",", ".");
+    const intPart = cleaned.slice(0, lastComma).replace(/\./g, "");
+    const decPart = cleaned.slice(lastComma + 1).replace(/\./g, "");
+    return sign + (intPart || "0") + (decPart ? `.${decPart}` : "");
   }
-
-  const dotParts = cleaned.split(".");
-  if (dotParts.length > 2) {
-    const decimal = dotParts.pop() ?? "";
-    return sign + dotParts.join("") + (decimal ? `.${decimal}` : "");
-  }
-
-  // Um único ponto em exportações TASY costuma representar decimal real (ex.: 629.765),
-  // não milhar. Não remover esse ponto evita inflar valores 1000x.
-  return sign + cleaned;
+  // Sem vírgula: pontos são milhar. "50.000" → 50000; "1.234.567" → 1234567.
+  return sign + cleaned.replace(/\./g, "");
 }
 
 function parseCellDate(v: unknown): string {
