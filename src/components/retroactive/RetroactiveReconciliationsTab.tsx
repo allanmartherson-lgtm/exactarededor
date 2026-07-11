@@ -3353,13 +3353,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               .from("payment_items" as never)
               .select("id, attendance_number, procedure_code, quantity, procedure_amount, expected_amount, doctor_role, doctor_name, doctor_id, procedure_date, patient_name, procedure_name, convenio_slug, payment_id, company_id, applied_rule_id, applied_rule_label, applied_calc_id, applied_calc_method");
             if (hasSelectedLotes) {
-              // Lote + período formam o universo. O payment_id evita misturar
-              // bases; a janela evita puxar produção retroativa fora do período
-              // que o analista delimitou para esta apuração.
-              q = q.in("payment_id", selectedPidsPre).gte("procedure_date", startYmd).lt("procedure_date", endExclusiveYmd);
+              // Lote define o universo — eixo financeiro segue a competência do
+              // LOTE (memória "Lote de remessa"), então NÃO filtramos por
+              // procedure_date aqui. Itens realizados em competências anteriores
+              // mas pagos neste lote (descompasso normal) precisam entrar como
+              // "ausente TASY" quando não constam no arquivo TASY carregado.
+              q = q.in("payment_id", selectedPidsPre);
             } else {
               q = q.gte("procedure_date", startYmd).lt("procedure_date", endExclusiveYmd);
             }
+
             if (isMulti) {
               if (multiCompanyIds.length > 0) q = q.in("company_id", multiCompanyIds);
               if (multiDoctorIds.length > 0) q = q.in("doctor_id", multiDoctorIds);
