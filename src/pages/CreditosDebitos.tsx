@@ -135,6 +135,8 @@ export default function CreditosDebitos() {
   const [loading, setLoading] = useState(true);
   const [adjDialogOpen, setAdjDialogOpen] = useState(false);
   const [editingAdj, setEditingAdj] = useState<Partial<Adjustment> | null>(null);
+  const [savingAdj, setSavingAdj] = useState(false);
+  const [deletingAdjIds, setDeletingAdjIds] = useState<Set<string>>(new Set());
   const [editingGlosa, setEditingGlosa] = useState<GlosaDebt | null>(null);
   const [glosaParc, setGlosaParc] = useState<number>(1);
   const [busyGlosa, setBusyGlosa] = useState(false);
@@ -264,6 +266,7 @@ export default function CreditosDebitos() {
     setAdjDialogOpen(true);
   };
   const saveAdj = async () => {
+    if (savingAdj) return;
     if (!editingAdj?.company_id || !editingAdj.descricao || !editingAdj.valor_total) {
       toast.error("Preencha empresa, descrição e valor"); return;
     }
@@ -279,18 +282,52 @@ export default function CreditosDebitos() {
       recorrente,
       data_fim: recorrente ? (editingAdj.data_fim || null) : null,
     };
+    setSavingAdj(true);
     const { error } = editingAdj.id
-      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id)
-      : await supabase.from("company_financial_adjustments").insert(payload);
-    if (error) { toast.error(error.message); return; }
+      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*").single()
+      : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
+    const result = editingAdj.id
+      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*").single()
+      : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
+    setSavingAdj(false);
+    if (result.error) { toast.error(result.error.message); return; }
+    const saved = {
+      ...(result.data as Adjustment),
+      _company_name: companies.find(c => c.id === result.data.company_id)?.name,
+    };
+    setAdjustments(prev => editingAdj.id
+      ? prev.map(a => a.id === saved.id ? saved : a)
+      : [saved, ...prev]
+    );
     toast.success("Ajuste salvo");
-    setAdjDialogOpen(false); setEditingAdj(null); loadAll();
+    setAdjDialogOpen(false); setEditingAdj(null);
   };
   const removeAdj = async (id: string) => {
     if (!confirm("Excluir este ajuste?")) return;
-    const { error } = await supabase.from("company_financial_adjustments").delete().eq("id", id);
+    setDeletingAdjIds(prev => new Set(prev).add(id));
+    const { data, error } = await (supabase as any).rpc("delete_company_financial_adjustment", {
+      _adjustment_id: id,
+      _reason: "Exclusão manual pela tela de Créditos e Débitos",
+    });
+    setDeletingAdjIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     if (error) { toast.error(error.message); return; }
-    loadAll();
+    if (data?.deleted === false) { toast.error("Ajuste não encontrado ou já removido."); return; }
+    setAdjustments(prev => prev.filter(a => a.id !== id));
+    setAppsByAdj(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setHistoryOpen(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    toast.success("Ajuste excluído");
   };
 
   const fmtCompetence = (s: string | null) => {
