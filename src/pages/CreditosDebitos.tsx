@@ -429,7 +429,7 @@ export default function CreditosDebitos() {
       const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
       if (!ids.length) return [pjId, [] as LoteOption[]] as const;
       const [{ data: pays }, { data: fins }] = await Promise.all([
-        supabase.from("payments").select("id, reference, competence_month, status")
+        supabase.from("payments").select("id, reference, competence_month, status, cost_center_code, payment_track")
           .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
           .order("competence_month", { ascending: false }),
         supabase.from("payment_company_financials").select("payment_id, liquido")
@@ -441,18 +441,40 @@ export default function CreditosDebitos() {
         id: p.id,
         status: p.status,
         competence: p.competence_month,
+        cost_center_code: p.cost_center_code ?? null,
+        payment_track: p.payment_track ?? null,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
         label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
       }));
       return [pjId, opts] as const;
     }));
 
+    // Origem dominante (CC + track) dos débitos selecionados por PJ — usada para casar "igual com igual"
+    const originByPj = new Map<string, { cc: string | null; track: string | null }>();
+    selectedList.forEach(g => {
+      const arr = (originByPj.get(g.company_id)?.cc ? [originByPj.get(g.company_id)] : []) as any[];
+      arr.push({ cc: g._origem_cc ?? null, track: g._origem_track ?? null });
+    });
+    // Recalcula corretamente por PJ
+    pjIds.forEach(pjId => {
+      const debtsPj = selectedList.filter(d => d.company_id === pjId);
+      originByPj.set(pjId, {
+        cc: dominant(debtsPj.map(d => d._origem_cc ?? null)),
+        track: dominant(debtsPj.map(d => d._origem_track ?? null)),
+      });
+    });
+
     const lotesMap: Record<string, LoteOption[]> = {};
     const pickMap: Record<string, string> = {};
     results.forEach(([pjId, opts]) => {
       lotesMap[pjId] = opts;
-      // Sugere o lote com MAIOR líquido disponível; empate → mais recente
-      const sug = [...opts].sort((a, b) => (Number(b.liquido ?? 0) - Number(a.liquido ?? 0)))[0];
+      const origem = originByPj.get(pjId) ?? { cc: null, track: null };
+      // Sugere: (1) maior compatibilidade CC/trilha, (2) maior líquido, (3) mais recente
+      const sug = [...opts].sort((a, b) => {
+        const ds = scoreLoteMatch(b, origem.cc, origem.track) - scoreLoteMatch(a, origem.cc, origem.track);
+        if (ds !== 0) return ds;
+        return Number(b.liquido ?? 0) - Number(a.liquido ?? 0);
+      })[0];
       if (sug) pickMap[pjId] = sug.id;
     });
     setGlobalLotesByPj(lotesMap);
