@@ -182,7 +182,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     // (constraint usa range inclusivo — vínculos encerrados no próprio "start" também bloqueiam).
     const { data: conflicts } = await supabase
       .from("doctor_companies")
-      .select("id, company_id, start_date, end_date, companies:company_id(name)")
+      .select("id, company_id, start_date, end_date, end_reason, companies:company_id(name)")
       .eq("doctor_id", doctor.id)
       .lte("start_date", start)
       .or(`end_date.is.null,end_date.gte.${start}`);
@@ -192,6 +192,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       company_id: string;
       start_date: string | null;
       end_date: string | null;
+      end_reason: string | null;
       companies?: { name: string } | null;
     };
     const rows = (conflicts ?? []) as Row[];
