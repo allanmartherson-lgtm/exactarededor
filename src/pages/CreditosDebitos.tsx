@@ -54,6 +54,9 @@ type GlosaDebt = {
 type LoteOption = {
   id: string;
   label: string;
+  liquido: number | null;
+  status: string;
+  competence: string | null;
 };
 
 type AdjApplication = {
