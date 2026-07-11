@@ -347,10 +347,38 @@ const Users = () => {
   };
 
   const toggle = async (userId: string, role: AppRole, has: boolean) => {
-    // Checa erro em toda mutação — antes a UI mostrava sucesso mesmo quando o banco recusava
-    const res = has
-      ? await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role)
-      : await supabase.from("user_roles").insert({ user_id: userId, role });
+    // Soft-close: revogamos marcando revoked_at em vez de deletar fisicamente
+    // (consistente com o resto do sistema — mantém rastro para auditoria/reativação).
+    const { data: auth } = await supabase.auth.getUser();
+    const actorId = auth?.user?.id ?? null;
+    let res;
+    if (has) {
+      // Revoga permissão ativa
+      res = await supabase
+        .from("user_roles")
+        .update({ revoked_at: new Date().toISOString(), revoked_by: actorId } as never)
+        .eq("user_id", userId)
+        .eq("role", role)
+        .is("revoked_at", null);
+    } else {
+      // Tenta reativar uma revogação anterior; se não existir, insere nova
+      const { data: previous } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("role", role)
+        .not("revoked_at", "is", null)
+        .order("revoked_at", { ascending: false })
+        .limit(1);
+      if (previous && previous.length > 0) {
+        res = await supabase
+          .from("user_roles")
+          .update({ revoked_at: null, revoked_by: null } as never)
+          .eq("id", previous[0].id);
+      } else {
+        res = await supabase.from("user_roles").insert({ user_id: userId, role });
+      }
+    }
     if (res.error) {
       toast({
         title: has ? "Falha ao remover permissão" : "Falha ao adicionar permissão",
