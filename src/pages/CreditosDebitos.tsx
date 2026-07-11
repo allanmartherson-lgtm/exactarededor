@@ -138,7 +138,7 @@ export default function CreditosDebitos() {
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
-        .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id")
+        .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id, origem_payment_id")
         .eq("status", "ativo")
         .order("created_at", { ascending: false }),
 
@@ -147,8 +147,22 @@ export default function CreditosDebitos() {
     const cMap = new Map(companiesAll.map((x) => [x.id, x.name]));
     const adjs = (a.data || []) as Adjustment[];
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
-    const debts = ((g as any).data || []) as GlosaDebt[];
-    setGlosaDebts(debts.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
+    const debtsRaw = ((g as any).data || []) as GlosaDebt[];
+    // Enriquece cada débito com CC + track do lote de origem, para casar "igual com igual" ao sugerir lote-alvo
+    const origIds = Array.from(new Set(debtsRaw.map(d => d.origem_payment_id).filter(Boolean))) as string[];
+    const origMeta = new Map<string, { cc: string | null; track: string | null }>();
+    if (origIds.length) {
+      const { data: origPays } = await supabase
+        .from("payments").select("id, cost_center_code, payment_track").in("id", origIds);
+      ((origPays as any[]) ?? []).forEach(p => origMeta.set(p.id, { cc: p.cost_center_code ?? null, track: p.payment_track ?? null }));
+    }
+    const debts = debtsRaw.map(x => ({
+      ...x,
+      _company_name: cMap.get(x.company_id),
+      _origem_cc: x.origem_payment_id ? origMeta.get(x.origem_payment_id)?.cc ?? null : null,
+      _origem_track: x.origem_payment_id ? origMeta.get(x.origem_payment_id)?.track ?? null : null,
+    }));
+    setGlosaDebts(debts);
 
     // Carrega histórico real de aplicações por ajuste
     const adjIds = adjs.map(x => x.id);
