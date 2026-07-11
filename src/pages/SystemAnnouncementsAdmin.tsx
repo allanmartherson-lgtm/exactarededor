@@ -53,6 +53,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
   const [form, setForm] = useState({
     title: "", message: "", severity: "info" as Announcement["severity"],
     active: true, dismissible: true, starts_at: "", ends_at: "",
+    target_roles: [] as string[],
   });
 
   async function load() {
@@ -65,7 +66,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
 
   function openNew() {
     setEditing(null);
-    setForm({ title: "", message: "", severity: "info", active: true, dismissible: true, starts_at: toLocalInput(new Date().toISOString()), ends_at: "" });
+    setForm({ title: "", message: "", severity: "info", active: true, dismissible: true, starts_at: toLocalInput(new Date().toISOString()), ends_at: "", target_roles: [] });
     setOpen(true);
   }
   function openEdit(a: Announcement) {
@@ -74,6 +75,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
       title: a.title ?? "", message: a.message, severity: a.severity,
       active: a.active, dismissible: a.dismissible,
       starts_at: toLocalInput(a.starts_at), ends_at: toLocalInput(a.ends_at),
+      target_roles: a.target_roles ?? [],
     });
     setOpen(true);
   }
@@ -85,6 +87,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
       active: form.active, dismissible: form.dismissible,
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : new Date().toISOString(),
       ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
+      target_roles: form.target_roles,
       created_by: user?.id ?? null,
     };
     const res = editing
