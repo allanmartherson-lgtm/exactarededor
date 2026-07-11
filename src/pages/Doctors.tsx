@@ -386,68 +386,98 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
         );
       }
 
+      // Acumula falhas de mutação de vínculo. Antes o código ignorava o `error`
+      // dos delete()/update() e ainda mostrava toast de sucesso — o vínculo
+      // continuava ativo no banco e o log de auditoria ficava vazio. Agora
+      // qualquer falha aborta o fluxo e informa o usuário.
+      const linkErrors: string[] = [];
+
       if (applyLinkChanges && toEnd.length > 0) {
         // Para permitir iniciar uma nova vigência hoje sem violar a constraint de
         // sobreposição (daterange '[]'), encerra a antiga em "ontem". Se o vínculo
         // antigo tiver começado hoje (sem histórico útil), deleta a linha.
         for (const cid of toEnd) {
-          const { data: existing } = await supabase
+          const { data: existing, error: selErr } = await supabase
             .from("doctor_companies")
             .select("id,start_date")
             .eq("doctor_id", savedId)
             .eq("company_id", cid)
             .is("end_date", null)
             .maybeSingle();
+          if (selErr) { linkErrors.push(selErr.message); continue; }
           if (!existing) continue;
           if (existing.start_date && existing.start_date >= today) {
-            await supabase.from("doctor_companies").delete().eq("id", existing.id);
+            // Zero-day: vínculo criado hoje sem histórico útil → remove.
+            // Se algum dia um trigger de proteção passar a bloquear DELETE
+            // nesta tabela, o erro cai aqui e o usuário é avisado (em vez de
+            // silenciosamente falhar como antes).
+            const { error: delErr } = await supabase
+              .from("doctor_companies")
+              .delete()
+              .eq("id", existing.id);
+            if (delErr) linkErrors.push(`Não foi possível remover o vínculo zero-day: ${delErr.message}`);
           } else {
-            await supabase
+            const { error: updErr } = await supabase
               .from("doctor_companies")
               .update({ end_date: yesterday, end_reason: toAdd.length > 0 ? "troca_pj" : "desvinculo_manual" })
               .eq("id", existing.id);
+            if (updErr) linkErrors.push(`Não foi possível encerrar o vínculo: ${updErr.message}`);
           }
         }
       }
 
-      if (applyLinkChanges && toAdd.length > 0) {
+      if (applyLinkChanges && toAdd.length > 0 && linkErrors.length === 0) {
         // Blindagem: qualquer vínculo do médico com end_date=hoje (ex.: encerrado
         // em tentativa anterior antes do fix) sobrepõe o daterange '[]' e barra
         // o insert. Recua para ontem antes de inserir a nova PJ.
-        await supabase
+        const { error: shiftErr } = await supabase
           .from("doctor_companies")
           .update({ end_date: yesterday })
           .eq("doctor_id", savedId!)
           .eq("end_date", today);
+        if (shiftErr) linkErrors.push(`Falha ao preparar nova vigência: ${shiftErr.message}`);
 
-        const { error: linkErr } = await supabase.from("doctor_companies").insert(
-          toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today })),
-        );
-        if (linkErr) {
-          toast({
-            title: "Vínculo conflita com PJ atual",
-            description: "Existe outro vínculo vigente sobreposto. Encerre-o antes de iniciar um novo na mesma data.",
-            variant: "destructive",
-          });
-        } else {
-          // Notificação em tempo real: vínculo MANUAL pela UI → avisa supervisores
-          // se a PJ tem regra ativa com allowlist específica (modo híbrido).
-          for (const cid of toAdd) {
-            supabase.functions.invoke("notify-rule-pending-doctors", {
-              body: { mode: "realtime", doctor_id: savedId, company_id: cid },
-            }).catch((e) => console.warn("[notify-rule-pending] falhou", e));
+        if (linkErrors.length === 0) {
+          const { error: linkErr } = await supabase.from("doctor_companies").insert(
+            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today })),
+          );
+          if (linkErr) {
+            // Conflito de vigência é uma condição esperada — mensagem específica.
+            linkErrors.push(
+              "Vínculo conflita com PJ atual: existe outro vínculo vigente sobreposto. " +
+              "Encerre-o antes de iniciar um novo na mesma data.",
+            );
+          } else {
+            // Notificação em tempo real: vínculo MANUAL pela UI → avisa supervisores
+            // se a PJ tem regra ativa com allowlist específica (modo híbrido).
+            for (const cid of toAdd) {
+              supabase.functions.invoke("notify-rule-pending-doctors", {
+                body: { mode: "realtime", doctor_id: savedId, company_id: cid },
+              }).catch((e) => console.warn("[notify-rule-pending] falhou", e));
+            }
           }
         }
       }
 
+      // Se algo falhou nos vínculos, avisa e mantém o modal aberto para retry —
+      // o médico em si já foi salvo (update/insert acima). O usuário pode ajustar
+      // e tentar de novo sem perder o trabalho.
+      if (linkErrors.length > 0) {
+        toast({
+          title: "Alterações de vínculo não aplicadas",
+          description: linkErrors.slice(0, 3).join(" • "),
+          variant: "destructive",
+        });
+        await load(); // refetch para refletir estado real do banco
+        return;
+      }
     }
-
-
 
     toast({ title: editing.id ? "Médico atualizado" : "Médico criado" });
     setOpen(false);
-    load();
+    await load();
   };
+
 
   const handleErr = (error: any) => {
     if (error.code === "23505") {
