@@ -143,6 +143,38 @@ const Auth = () => {
     full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
   });
 
+  // Diagnóstico do login Google (mobile). Ativa via ?diag=1 ou localStorage.
+  const [diagEnabled, setDiagEnabled] = useState<boolean>(() => isOAuthDiagEnabled());
+  const [diagLogs, setDiagLogs] = useState<DiagEntry[]>([]);
+  useEffect(() => {
+    diagPush = (label: string, data?: unknown) => {
+      const entry: DiagEntry = { t: Date.now(), label, data: data !== undefined ? safeSerialize(data) : undefined };
+      // eslint-disable-next-line no-console
+      console.log("[oauth-diag]", label, entry.data ?? "");
+      setDiagLogs((prev) => [...prev, entry].slice(-200));
+    };
+    return () => { diagPush = () => {}; };
+  }, []);
+  useEffect(() => {
+    if (!diagEnabled) return;
+    diagPush("boot", {
+      ua: navigator.userAgent,
+      href: window.location.href,
+      origin: window.location.origin,
+      inIframe: window !== window.parent,
+      standalone: (window.matchMedia?.("(display-mode: standalone)").matches) ?? false,
+      cookieEnabled: navigator.cookieEnabled,
+      lang: navigator.language,
+      hasLocalStorage: (() => { try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); return true; } catch { return false; } })(),
+    });
+    const onAuth = supabase.auth.onAuthStateChange((event, session) => {
+      diagPush("auth.onAuthStateChange", { event, hasSession: !!session, userId: session?.user?.id });
+    });
+    const onVis = () => diagPush("visibility", { state: document.visibilityState });
+    document.addEventListener("visibilitychange", onVis);
+    return () => { onAuth.data.subscription.unsubscribe(); document.removeEventListener("visibilitychange", onVis); };
+  }, [diagEnabled]);
+
   // Preserva o destino pretendido (ex.: /.lovable/oauth/consent?authorization_id=...)
   // para que o fluxo de conexão MCP não caia em "/" após o login.
   const nextTarget = safeNext(new URLSearchParams(window.location.search).get("next"));
@@ -154,11 +186,14 @@ const Auth = () => {
     // origin puro para não quebrar a validação do broker OAuth no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
+    diagPush("google.click", { nextTarget, redirect_uri: window.location.origin });
     const bridge = startOAuthWebMessageBridge();
     const signInPromise = lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
-    });
+    }).then((r) => { diagPush("google.signInWithOAuth.resolved", { redirected: (r as { redirected?: boolean })?.redirected, hasError: !!(r as { error?: unknown })?.error }); return r; })
+      .catch((e) => { diagPush("google.signInWithOAuth.threw", { error: e instanceof Error ? e.message : String(e) }); throw e; });
     const result = await Promise.race([signInPromise, bridge.promise]);
+    diagPush("google.race.result", { kind: typeof result === "string" ? result : "object" });
     const sessionDeadline = result === "timeout" ? deadline : Date.now() + 5_000;
     const session = await waitForSessionAfterGoogle(sessionDeadline);
     bridge.cleanup();
