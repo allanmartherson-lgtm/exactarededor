@@ -237,7 +237,7 @@ export default function CreditosDebitos() {
   const buildLoteLabel = (p: { id: string; competence_month: string | null; status: string }, liquido: number | null) => {
     const base = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
     const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
-    return `${base}${liq} · #${p.id.slice(0, 6)}`;
+    return `${base}${liq}`;
   };
 
   const loadOpenLotes = async (companyId: string) => {
