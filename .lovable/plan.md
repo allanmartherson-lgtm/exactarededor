@@ -1,68 +1,51 @@
-# Tarefa 1 — Persistir planilha original para auditoria
-
-## Situação atual
-
-- Upload já grava no bucket `payment-files`, mas só o **primeiro** arquivo é anexado ao lote (`source_file_path = uploadedPaths[0]`). Lotes multi-arquivo (SAT + Bônus + Sobreaviso) perdem os demais.
-- Sem hash → não é possível provar "a planilha X gerou o cálculo Y".
-- Sem metadata (tamanho, mime, sheet_name, nome original preservado).
-- 45 de 80 pagamentos recentes (56%) ficaram **sem** `source_file_path`. Erros silenciosos de upload (só checa `!upErr`) sem alertar o analista.
-- Bucket `payment-files` **não tem RLS policy** — leitura/escrita hoje depende do papel do usuário no dashboard, o que é frágil.
-
 ## Objetivo
+Melhorar o modal "Confirmar débito" em `/financeiro/creditos-debitos`:
+1. Exibir rótulo de lote mais completo/único (hospital, competência, status, id curto, valor líquido previsto).
+2. Adicionar ação "Confirmar em massa" para várias glosas de uma mesma PJ, escolhendo o lote-alvo ideal.
+3. Ensinar o sistema a respeitar a capacidade do lote: se a parcela for maior que o líquido disponível da PJ naquele lote, ela é **postergada** para o próximo ciclo em vez de aplicada.
 
-Guardar **todos** os arquivos enviados no lote, com hash SHA-256 e metadados, vinculados ao `payment_id`, acessíveis para reprocessar/auditar sem depender do que ficou serializado no motor.
+## Escopo — Frontend (`src/pages/CreditosDebitos.tsx`)
 
-## Plano
+### 1. Rótulos de lote enriquecidos
+- Trocar `label` de `LoteOption` para: `"MM/YYYY · <status> · Líq. R$ X · #<id8>"`.
+- Buscar líquido previsto por PJ via `payment_company_financials` (`liquido`) ao carregar lotes.
+- Usar o mesmo label na lista principal (`paymentLabels`) para eliminar duplicidade visual ("05/2026 · revisão" x2).
 
-### 1. Tabela `payment_source_files` (nova)
+### 2. Confirmação em massa
+- Adicionar checkbox por linha na seção "Glosas a confirmar" (agrupadas por PJ).
+- Novo botão fixo no topo do agrupamento: **"Parcelar e confirmar em massa"** (habilitado quando 2+ selecionadas da mesma PJ).
+- Modal em massa mostra: total consolidado, campo parcelas (1–24) aplicado a todos, select do lote-alvo com labels enriquecidos + coluna **"Cabe no lote?"** (líquido − soma das parcelas do ciclo).
+- Ao confirmar: um `update` batch por id com `parcelas_default` + `target_payment_id` + `confirmed_at`.
 
-```
-payment_id            uuid  FK payments(id) ON DELETE CASCADE
-storage_path          text  (payment-files/{user_id}/{ts}-{name})
-original_filename     text
-mime_type             text
-size_bytes            bigint
-sha256                text  (calculado no client antes do upload)
-sheet_name            text  nullable (aba processada)
-bucket_role           text  ('sat' | 'bonus' | 'sobreaviso' | 'outros')
-uploaded_at           timestamptz default now()
-uploaded_by           uuid  FK auth.users
-```
+### 3. Regra de capacidade (postergação automática)
+Executada quando o motor de aplicação de glosas roda em um lote (Edge Function `apply-company-deductions` — não muda contrato, só lógica interna):
+- Calcular `capacidade = liquido_pj_no_lote − Σ(outras deduções já aplicadas no ciclo)`.
+- Se `parcela_prevista > capacidade`: **não aplica**, gera registro em `glosa_payment_applications` com `status='postponed'` e `reason='insufficient_net'`, e mantém a glosa ativa. No próximo lote da PJ, entra automaticamente.
+- Se `capacidade > 0` mas menor que parcela: aplica parcialmente (`valor_aplicado=capacidade`) e rola resto (mesmo fluxo do débito residual já existente para médico).
+- UI da glosa passa a mostrar badge "Postergada: lote sem saldo" quando houver applications `postponed`.
 
-- Unique `(payment_id, sha256)` — mesmo arquivo enviado 2×  não duplica.
-- RLS: leitura pelos papéis já autorizados a ver o `payment` (via `has_role` + `hospital_id` do lote).
-- GRANT `SELECT/INSERT` a `authenticated`; `ALL` a `service_role`.
+## Detalhes técnicos
 
-### 2. RLS no bucket `payment-files`
+**Novos campos / migração**
+- `glosa_payment_applications.status` já existe → adicionar valores permitidos `'postponed'` e `'partial'` (check constraint). Adicionar coluna `reason text` se ainda não existe.
+- Trigger opcional para não bloquear glosa ativa quando existir application `postponed`.
 
-Criar policies em `storage.objects` restringindo por `hospital_id` (extraível do `path` ou via join com `payment_source_files`). Fecha buraco identificado nesta investigação.
+**Edge Function afetada**
+- `supabase/functions/apply-company-deductions/index.ts`: incluir cálculo de capacidade por PJ (usa `payment_company_financials.liquido` do snapshot do lote) e ordenar deduções por prioridade (débitos manuais → glosas mais antigas → recorrentes) antes de aplicar.
 
-### 3. Fluxo de upload (`NewPayment.tsx`)
+**Hooks/queries**
+- Nova query em `loadOpenLotes`: join lateral com `payment_company_financials` para trazer `liquido` por PJ.
 
-- Calcular SHA-256 no client (`crypto.subtle.digest`).
-- Fazer upload de **cada** bucket file, não só o primeiro.
-- Após inserir `payments`, gravar N linhas em `payment_source_files`.
-- Se algum upload falhar, **bloquear** o submit e mostrar toast — nunca gravar o lote sem os arquivos.
-- Manter `payments.source_file_path` populado com o primeiro (compat), mas passar a ser derivado.
-
-### 4. UI de auditoria
-
-Botão "Arquivos originais" em `PaymentDetail` → lista com nome, tamanho, hash truncado, botão download (URL assinada 5 min). Habilitado para roles `admin`, `analista`, `validador`.
-
-### 5. Backfill (opcional, mesma migration)
-
-Popular `payment_source_files` a partir dos `payments.source_file_path` existentes (35 registros). Hash fica `null` — flag `legacy=true` para diferenciar.
+**Testes**
+- Unit em `apply-company-deductions`: cenários (a) cabe tudo, (b) postergação total, (c) aplicação parcial + rolagem.
+- UI: garantir que confirmação em massa só habilita para mesma PJ.
 
 ## Fora do escopo
+- Não altera schema de `glosa_debts` além do necessário.
+- Não mexe no fluxo de encaminhamento da apuração retroativa.
+- Não altera rotina de cálculo de `liquido` (só consome o snapshot).
 
-- Reprocessar historicamente qualquer lote a partir do arquivo salvo (fica para tarefa futura).
-- Versionamento (edição do arquivo original). Se o analista subir novo arquivo = novo lote.
-
-## Ordem de execução
-
-1. Migration: cria tabela + RLS + policies do bucket + GRANTs.
-2. Após aprovação, ajusto o front (upload multi-arquivo + hash + gravação em `payment_source_files`).
-3. Componente `<PaymentSourceFilesList />` em `PaymentDetail`.
-4. Backfill dos 35 registros existentes.
-
-Confirmo para iniciar pela migration?
+## Entrega em 3 PRs sequenciais
+1. Labels enriquecidos + query com líquido (baixo risco).
+2. Confirmação em massa (frontend puro).
+3. Regra de capacidade + postergação (edge function + migração + badge UI).
