@@ -32,6 +32,29 @@ const OAUTH_MESSAGE_ORIGINS = new Set([
   PROJECT_PREVIEW_ORIGIN,
   "https://exactarededor.lovable.app",
 ]);
+const OAUTH_DIAG_STORAGE_KEY = "exacta-oauth-diag";
+
+type DiagEntry = { t: number; label: string; data?: unknown };
+// Sink usado tanto dentro do componente quanto por helpers de módulo.
+let diagPush: (label: string, data?: unknown) => void = () => {};
+const isOAuthDiagEnabled = () => {
+  try {
+    if (new URLSearchParams(window.location.search).get("diag") === "1") {
+      try { localStorage.setItem(OAUTH_DIAG_STORAGE_KEY, "1"); } catch { /* noop */ }
+      return true;
+    }
+    return localStorage.getItem(OAUTH_DIAG_STORAGE_KEY) === "1";
+  } catch { return false; }
+};
+const safeSerialize = (value: unknown) => {
+  try {
+    return JSON.parse(JSON.stringify(value, (_k, v) => {
+      if (v instanceof Error) return { name: v.name, message: v.message };
+      if (typeof v === "string" && v.length > 400) return v.slice(0, 400) + "…";
+      return v;
+    }));
+  } catch { return String(value); }
+};
 
 const getPasswordRecoveryOrigin = () => {
   if (window.location.hostname.endsWith(".lovableproject.com")) return PROJECT_PREVIEW_ORIGIN;
