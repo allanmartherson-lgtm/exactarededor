@@ -368,6 +368,98 @@ export default function CreditosDebitos() {
     loadAll();
   };
 
+  const openGlobalMass = async () => {
+    const pendentes = glosaDebts.filter(g => !g.confirmed_at);
+    if (pendentes.length === 0) return;
+    // Se nada selecionado, considera TODAS as pendentes
+    const selectedList = selectedPending.size > 0
+      ? pendentes.filter(g => selectedPending.has(g.id))
+      : pendentes;
+    if (selectedList.length === 0) return;
+    const pjIds = Array.from(new Set(selectedList.map(g => g.company_id)));
+    setGlobalDialogOpen(true);
+    setGlobalParc(1);
+
+    // Carrega lotes em aberto de cada PJ em paralelo
+    const results = await Promise.all(pjIds.map(async (pjId) => {
+      const { data: pcg } = await (supabase as any)
+        .from("payment_company_groups").select("payment_id").eq("company_id", pjId);
+      const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
+      if (!ids.length) return [pjId, [] as LoteOption[]] as const;
+      const [{ data: pays }, { data: fins }] = await Promise.all([
+        supabase.from("payments").select("id, competence_month, status")
+          .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
+          .order("competence_month", { ascending: false }),
+        supabase.from("payment_company_financials").select("payment_id, liquido")
+          .in("payment_id", ids).eq("company_id", pjId),
+      ]);
+      const liqMap = new Map<string, number>();
+      ((fins as any[]) ?? []).forEach(f => liqMap.set(f.payment_id, Number(f.liquido ?? 0)));
+      const opts: LoteOption[] = ((pays as any[]) ?? []).map(p => ({
+        id: p.id,
+        status: p.status,
+        competence: p.competence_month,
+        liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
+        label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${liqMap.has(p.id) ? ` · Líq. ${brl(liqMap.get(p.id) as number)}` : ""} · #${p.id.slice(0, 6)}`,
+      }));
+      return [pjId, opts] as const;
+    }));
+
+    const lotesMap: Record<string, LoteOption[]> = {};
+    const pickMap: Record<string, string> = {};
+    results.forEach(([pjId, opts]) => {
+      lotesMap[pjId] = opts;
+      // Sugere o lote com MAIOR líquido disponível; empate → mais recente
+      const sug = [...opts].sort((a, b) => (Number(b.liquido ?? 0) - Number(a.liquido ?? 0)))[0];
+      if (sug) pickMap[pjId] = sug.id;
+    });
+    setGlobalLotesByPj(lotesMap);
+    setGlobalLoteByPj(pickMap);
+  };
+
+  const confirmGlobalMass = async () => {
+    if (globalParc < 1 || globalParc > 24) { toast.error("Parcelas entre 1 e 24"); return; }
+    const pendentes = glosaDebts.filter(g => !g.confirmed_at);
+    const targets = selectedPending.size > 0
+      ? pendentes.filter(g => selectedPending.has(g.id))
+      : pendentes;
+    const pjsSemLote = Array.from(new Set(targets.map(g => g.company_id)))
+      .filter(pj => !globalLoteByPj[pj]);
+    if (pjsSemLote.length) {
+      toast.error(`${pjsSemLote.length} PJ(s) sem lote-alvo selecionado`);
+      return;
+    }
+    setBusyGlobal(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id ?? null;
+    const nowIso = new Date().toISOString();
+    let ok = 0; const errors: string[] = [];
+    for (const g of targets) {
+      const target = globalLoteByPj[g.company_id];
+      const { error } = await (supabase as any)
+        .from("glosa_debts")
+        .update({
+          parcelas_default: globalParc,
+          target_payment_id: target,
+          confirmed_at: g.confirmed_at ?? nowIso,
+          confirmed_by: g.confirmed_at ? undefined : uid,
+        })
+        .eq("id", g.id);
+      if (error) errors.push(`${g.doctor_name}: ${error.message}`); else ok++;
+    }
+    setBusyGlobal(false);
+    if (errors.length) {
+      toast.error(`${ok} confirmadas · ${errors.length} falharam`);
+      console.error("[global mass confirm]", errors);
+    } else {
+      toast.success(`${ok} débitos confirmados em ${globalParc}× (todas as PJs).`);
+    }
+    setGlobalDialogOpen(false);
+    setSelectedPending(new Set());
+    loadAll();
+  };
+
+
 
   return (
     <div>
