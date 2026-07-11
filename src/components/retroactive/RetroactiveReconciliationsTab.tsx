@@ -6036,7 +6036,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     groups: GlosaGroup[],
     parcelasByDoctor: Record<string, number>,
     parcelasFallback: number,
-  ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelasResumo: string }> => {
+  ): Promise<{ batch_id: string | null; debts: number; items: number; total: number; parcelasResumo: string; skipped: Array<{ doctor_name: string; company_name: string | null; reason: string }> }> => {
     if (groups.length === 0) throw new Error("Nenhum grupo selecionado.");
     // Multi-PJ: cada grupo carrega sua própria company_id (via doctor_companies).
     // Só exige recon.company_id como fallback no modo médico único.
