@@ -3200,7 +3200,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         tasy_atendimento: r.atendimento,
         tasy_tuss: r.tuss,
         tasy_qtd: String(r.qtd_tasy || 1),
-        tasy_valor_unit: String(r.valor_unit_tasy || 0),
+        // Motor consome `tasy_valor_unit` como TOTAL da linha (tasyValueIsLineTotal=true).
+        // Re-hidratando com valor_total_tasy garante recomputo estável e evita
+        // deflação (unit ≠ total quando qtd > 1). `.toFixed(2)` também blinda
+        // contra ambiguidade dot-thousand em números como 900.025.
+        tasy_valor_unit: (Number(r.valor_total_tasy) || 0).toFixed(2),
         tasy_procedimento: r.procedimento,
         tasy_paciente: r.paciente,
         tasy_data: r.data,
