@@ -461,6 +461,69 @@ const Auth = () => {
               </Tabs>
             </CardContent>
           </Card>
+
+          {/* Painel de diagnóstico do login Google — habilite com ?diag=1 */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              className="text-[11px] text-muted-foreground/70 hover:text-foreground underline"
+              onClick={() => {
+                const next = !diagEnabled;
+                setDiagEnabled(next);
+                try {
+                  if (next) localStorage.setItem(OAUTH_DIAG_STORAGE_KEY, "1");
+                  else localStorage.removeItem(OAUTH_DIAG_STORAGE_KEY);
+                } catch { /* noop */ }
+              }}
+            >
+              {diagEnabled ? "Ocultar diagnóstico OAuth" : "Ativar diagnóstico OAuth"}
+            </button>
+          </div>
+          {diagEnabled && (
+            <Card className="mt-3 border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20">
+              <CardHeader className="py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm">Diagnóstico OAuth Google</CardTitle>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 rounded border border-border bg-background hover:bg-muted"
+                      onClick={() => setDiagLogs([])}
+                    >Limpar</button>
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 rounded border border-border bg-background hover:bg-muted"
+                      onClick={() => {
+                        const text = diagLogs.map((e) => `${new Date(e.t).toISOString()} ${e.label} ${e.data ? JSON.stringify(e.data) : ""}`).join("\n");
+                        void navigator.clipboard?.writeText(text).then(
+                          () => toast({ title: "Log copiado", description: `${diagLogs.length} eventos` }),
+                          () => toast({ title: "Falha ao copiar", variant: "destructive" }),
+                        );
+                      }}
+                    >Copiar</button>
+                  </div>
+                </div>
+                <CardDescription className="text-[11px]">
+                  {diagLogs.length} eventos · UA: {navigator.userAgent.slice(0, 60)}…
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="max-h-72 overflow-auto rounded border border-border bg-background p-2 font-mono text-[10px] leading-relaxed">
+                  {diagLogs.length === 0 ? (
+                    <p className="text-muted-foreground">Nenhum evento ainda. Toque em “Entrar com Google” para começar a instrumentação.</p>
+                  ) : diagLogs.map((e, i) => (
+                    <div key={i} className="border-b border-border/40 py-1 break-words">
+                      <span className="text-muted-foreground">+{((e.t - (diagLogs[0]?.t ?? e.t)) / 1000).toFixed(2)}s</span>{" "}
+                      <span className="font-semibold">{e.label}</span>
+                      {e.data !== undefined && (
+                        <pre className="whitespace-pre-wrap text-muted-foreground">{JSON.stringify(e.data, null, 0)}</pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
