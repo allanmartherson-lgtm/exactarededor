@@ -66,18 +66,24 @@ Deno.serve(async (req) => {
     const url = `${APP_BASE_URL}/comunicacao/massa`;
     const supName = (supervisor as { full_name?: string } | null)?.full_name ?? "Supervisor";
     const title = camp.title ?? "(sem título)";
+    const analystName = analyst?.full_name ?? "analista";
+    const rawReason = reason ?? camp.rejection_reason ?? "";
     const isApproved = decision === "approved";
     const subject = isApproved
       ? `✅ Campanha aprovada: ${title}`
       : `❌ Campanha rejeitada: ${title}`;
+    const eTitle = escapeHtml(title);
+    const eSup = escapeHtml(supName);
+    const eAnalyst = escapeHtml(analystName);
+    const eReason = escapeHtml(rawReason);
     const html = isApproved
-      ? `<p>Olá, ${analyst?.full_name ?? "analista"}.</p>
-         <p>Sua campanha <b>${title}</b> foi <b>aprovada</b> por ${supName}.</p>
+      ? `<p>Olá, ${eAnalyst}.</p>
+         <p>Sua campanha <b>${eTitle}</b> foi <b>aprovada</b> por ${eSup}.</p>
          <p>Ela já pode ser disparada.</p>
          <p><a href="${url}">Abrir campanha</a></p>`
-      : `<p>Olá, ${analyst?.full_name ?? "analista"}.</p>
-         <p>Sua campanha <b>${title}</b> foi <b>rejeitada</b> por ${supName}.</p>
-         ${reason || camp.rejection_reason ? `<p><b>Motivo:</b> ${reason ?? camp.rejection_reason}</p>` : ""}
+      : `<p>Olá, ${eAnalyst}.</p>
+         <p>Sua campanha <b>${eTitle}</b> foi <b>rejeitada</b> por ${eSup}.</p>
+         ${rawReason ? `<p><b>Motivo:</b> ${eReason}</p>` : ""}
          <p><a href="${url}">Revisar campanha</a></p>`;
 
     const results: Record<string, unknown> = { email: null, inbox: null };
