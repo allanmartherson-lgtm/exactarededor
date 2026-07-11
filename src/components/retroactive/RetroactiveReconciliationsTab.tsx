@@ -6140,7 +6140,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           } as never,
         );
         if (debtErr) {
-          throw new Error(`${g.doctor_name}: ${debtErr.message}`);
+          const raw = debtErr.message || String(debtErr);
+          // 23505 = unique_violation. O índice ativo é (company_id, doctor_id)
+          // WHERE status='ativo' — então bate quando já existe débito em aberto
+          // para o mesmo médico/PJ. Traduz para linguagem operacional.
+          const isUnique = (debtErr as { code?: string })?.code === "23505"
+            || /duplicate key|unique constraint|glosa_debts_company_doctor_active_key/i.test(raw);
+          if (isUnique) {
+            throw new Error(
+              `${g.doctor_name}: já existe um débito ATIVO desse médico para a PJ ${g.company_name ?? ""}. `
+              + `Quite/arquive o débito anterior em /glosas antes de gerar um novo, ou desmarque este médico e reenvie os demais.`,
+            );
+          }
+          throw new Error(`${g.doctor_name}: ${raw}`);
         }
         // Descobre o debt_id criado pelo RPC (para rollback se algum próximo falhar)
         const { data: linkRows } = await supabase
@@ -7390,23 +7402,52 @@ function EncaminharApuracaoModal({
     return 12;
   };
 
+  // Chave estável dos grupos — evita re-semear o estado a cada render do pai
+  // (buildGlosaGroups gera um novo array de referência em toda passagem, o que
+  // fazia o efeito abaixo reexecutar e sobrescrever as seleções do usuário,
+  // remarcando todos os médicos ao clicar em "Confirmar encaminhamento").
+  const groupsKey = useMemo(
+    () => groups.map((g) => g.doctor_id).sort().join("|"),
+    [groups],
+  );
+
+  // Só (re)inicializa quando o modal abre OU quando a composição real de
+  // grupos muda enquanto ele já está aberto (ex.: novo médico apareceu).
+  const wasOpenRef = useRef(false);
+  const lastGroupsKeyRef = useRef<string>("");
   useEffect(() => {
-    if (open) {
+    const justOpened = open && !wasOpenRef.current;
+    const groupsChangedWhileOpen = open && wasOpenRef.current && groupsKey !== lastGroupsKeyRef.current;
+    wasOpenRef.current = open;
+    if (!open) return;
+    lastGroupsKeyRef.current = groupsKey;
+    if (!justOpened && !groupsChangedWhileOpen) return;
+
+    if (justOpened) {
       setIncludeComplementar(actionable.length > 0);
       setGerarGlosa(retirar.length > 0 && canGerarGlosa ? "agora" : "depois");
       setParcelas(1);
       setShowCompList(false);
-      setSelectedDoctorIds(new Set(groups.map((g) => g.doctor_id)));
       setExpandedGroups(new Set());
-      // Pré-carrega sugestão inteligente por médico ao abrir o modal.
-      const seed: Record<string, number> = {};
-      for (const g of groups) {
-        const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
-        seed[g.doctor_id] = suggestParcelas(subtotal);
-      }
-      setParcelasByDoctor(seed);
     }
-  }, [open, actionable.length, retirar.length, canGerarGlosa, groups]);
+    // Ao abrir: seleciona todos. Se grupos mudarem enquanto aberto: preserva
+    // as escolhas atuais e apenas adiciona os novos médicos como selecionados.
+    setSelectedDoctorIds((prev) => {
+      if (justOpened) return new Set(groups.map((g) => g.doctor_id));
+      const next = new Set(prev);
+      for (const g of groups) if (!next.has(g.doctor_id)) next.add(g.doctor_id);
+      return next;
+    });
+    setParcelasByDoctor((prev) => {
+      const next: Record<string, number> = justOpened ? {} : { ...prev };
+      for (const g of groups) {
+        if (!justOpened && next[g.doctor_id] != null) continue;
+        const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+        next[g.doctor_id] = suggestParcelas(subtotal);
+      }
+      return next;
+    });
+  }, [open, groupsKey, actionable.length, retirar.length, canGerarGlosa, groups]);
 
   // Líquido da PJ no lote vigente, casando hospital + centro de custos + trilha.
   // Chave: company_id → snapshot do lote (referência, competência, líquido).
