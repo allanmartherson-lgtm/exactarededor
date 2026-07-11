@@ -1,5 +1,10 @@
 // Envia notificação ao analista criador quando o supervisor aprova ou rejeita uma campanha.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
