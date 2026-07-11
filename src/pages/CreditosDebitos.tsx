@@ -62,6 +62,7 @@ type LoteOption = {
   competence: string | null;
   cost_center_code: string | null;
   payment_track: string | null;
+  reference?: string | null;
 };
 
 type AdjApplication = {
