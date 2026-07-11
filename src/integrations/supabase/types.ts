@@ -10275,6 +10275,7 @@ export type Database = {
           message: string
           severity: string
           starts_at: string
+          target_roles: string[]
           title: string | null
           updated_at: string
         }
@@ -10288,6 +10289,7 @@ export type Database = {
           message: string
           severity?: string
           starts_at?: string
+          target_roles?: string[]
           title?: string | null
           updated_at?: string
         }
@@ -10301,6 +10303,7 @@ export type Database = {
           message?: string
           severity?: string
           starts_at?: string
+          target_roles?: string[]
           title?: string | null
           updated_at?: string
         }
