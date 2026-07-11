@@ -62,6 +62,7 @@ type LoteOption = {
   competence: string | null;
   cost_center_code: string | null;
   payment_track: string | null;
+  reference?: string | null;
 };
 
 type AdjApplication = {
@@ -443,6 +444,7 @@ export default function CreditosDebitos() {
         competence: p.competence_month,
         cost_center_code: p.cost_center_code ?? null,
         payment_track: p.payment_track ?? null,
+        reference: p.reference ?? null,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
         label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
       }));
@@ -479,6 +481,37 @@ export default function CreditosDebitos() {
     });
     setGlobalLotesByPj(lotesMap);
     setGlobalLoteByPj(pickMap);
+    // Garante liquido também para os lotes sugeridos automaticamente
+    Object.entries(pickMap).forEach(([pj, lid]) => { void ensureLoteLiquido(pj, lid, lotesMap[pj]); });
+  };
+
+  // Busca liquido sob demanda quando o lote escolhido não tem financeiro calculado ainda
+  const ensureLoteLiquido = async (pjId: string, loteId: string, optsHint?: LoteOption[]) => {
+    const currentOpts = optsHint ?? globalLotesByPj[pjId] ?? [];
+    const target = currentOpts.find(o => o.id === loteId);
+    if (!target || target.liquido != null) return;
+    // 1) tenta payment_company_financials
+    const { data: fin } = await (supabase as any)
+      .from("payment_company_financials")
+      .select("liquido").eq("payment_id", loteId).eq("company_id", pjId).maybeSingle();
+    let liq: number | null = fin?.liquido != null ? Number(fin.liquido) : null;
+    // 2) fallback: soma gross_amount dos payment_items dessa PJ nesse lote
+    if (liq == null) {
+      const { data: items } = await supabase
+        .from("payment_items").select("gross_amount")
+        .eq("payment_id", loteId).eq("company_id", pjId);
+      if (items && items.length) {
+        liq = (items as any[]).reduce((s, r) => s + Number(r.gross_amount ?? 0), 0);
+      }
+    }
+    if (liq == null) return;
+    setGlobalLotesByPj(prev => {
+      const list = prev[pjId] ?? [];
+      const next = list.map(o => o.id === loteId
+        ? { ...o, liquido: liq, label: buildLoteLabel({ id: o.id, reference: o.reference ?? null, competence_month: o.competence, status: o.status }, liq) }
+        : o);
+      return { ...prev, [pjId]: next };
+    });
   };
 
   const confirmGlobalMass = async () => {
@@ -1014,7 +1047,10 @@ export default function CreditosDebitos() {
                             ) : (
                               <Select
                                 value={pick}
-                                onValueChange={(v) => setGlobalLoteByPj(prev => ({ ...prev, [pjId]: v }))}
+                                onValueChange={(v) => {
+                                  setGlobalLoteByPj(prev => ({ ...prev, [pjId]: v }));
+                                  void ensureLoteLiquido(pjId, v);
+                                }}
                               >
                                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                                 <SelectContent>
