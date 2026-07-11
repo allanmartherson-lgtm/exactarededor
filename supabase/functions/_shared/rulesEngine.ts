@@ -1931,6 +1931,13 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // Dia da semana — preferimos o array `weekdays` (modo personalizado) e,
   // quando vazio, derivamos do `time_mode` (fim_de_semana / comercial / fora_comercial).
   const tm = (c.time_mode ?? "qualquer") as string;
+  // Preset "feriado": aceita SOMENTE se a data do procedimento for feriado nacional.
+  // Não depende de weekdays; força includes_holidays semanticamente.
+  if (tm === "feriado" && item.procedure_date) {
+    if (!isBrazilianNationalHoliday(item.procedure_date)) {
+      return { ok: false, reason: "feriado" };
+    }
+  }
   let effectiveWeekdays: number[] | null = Array.isArray(c.weekdays) && c.weekdays.length > 0
     ? c.weekdays
     : null;
