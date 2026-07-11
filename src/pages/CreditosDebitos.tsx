@@ -234,8 +234,9 @@ export default function CreditosDebitos() {
   const statusShort = (s: string) =>
     ({ rascunho: "rascunho", em_analise_ia: "análise IA", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
 
-  const buildLoteLabel = (p: { id: string; competence_month: string | null; status: string }, liquido: number | null) => {
-    const base = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+  const buildLoteLabel = (p: { id: string; reference?: string | null; competence_month: string | null; status: string }, liquido: number | null) => {
+    const ref = p.reference ? `${p.reference} · ` : "";
+    const base = `${ref}${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
     const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
     return `${base}${liq}`;
   };
