@@ -466,28 +466,45 @@ export default function RetroactiveMappingWizard({
                   Mapeamento de colunas
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2.5">
-                  {targets.map((t) => (
-                    <div key={t.key} className="min-w-0">
-                      <Label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
-                        <span className="truncate">{t.label}</span>
-                        {t.required && <span className="text-destructive">*</span>}
-                      </Label>
-                      <Select
-                        value={mapping[t.key] ?? NONE}
-                        onValueChange={(v) => setMapping((m) => ({ ...m, [t.key]: v }))}
-                      >
-                        <SelectTrigger className="h-8 text-xs w-full">
-                          <SelectValue placeholder="Selecione…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE}>— Não mapear —</SelectItem>
-                          {headers.map((h) => (
-                            <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
+                  {targets.map((t) => {
+                    const col = mapping[t.key];
+                    const sampleValues = col && col !== NONE
+                      ? filteredRows
+                          .map((r) => String(r[col] ?? "").trim())
+                          .filter(Boolean)
+                          .slice(0, 3)
+                      : [];
+                    return (
+                      <div key={t.key} className="min-w-0">
+                        <Label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
+                          <span className="truncate">{t.label}</span>
+                          {t.required && <span className="text-destructive">*</span>}
+                        </Label>
+                        <Select
+                          value={mapping[t.key] ?? NONE}
+                          onValueChange={(v) => setMapping((m) => ({ ...m, [t.key]: v }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs w-full">
+                            <SelectValue placeholder="Selecione…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NONE}>— Não mapear —</SelectItem>
+                            {headers.map((h) => (
+                              <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {sampleValues.length > 0 && (
+                          <p
+                            className="mt-1 text-[10px] text-muted-foreground truncate"
+                            title={`Amostra: ${sampleValues.join(" · ")}`}
+                          >
+                            <span className="opacity-70">ex.:</span> {sampleValues.join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
