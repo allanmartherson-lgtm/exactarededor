@@ -3,6 +3,7 @@
 // e dispara o handler do `kind` correspondente.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import { processValidatorAssignment } from "./handlers/validatorAssignment.ts";
 import { processDirectorApproval } from "./handlers/directorApproval.ts";
 import { processDirectorReapproval } from "./handlers/directorReapproval.ts";
