@@ -28,6 +28,10 @@ const HANDLERS: Record<string, (supabase: any, row: any) => Promise<{ ok: boolea
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
