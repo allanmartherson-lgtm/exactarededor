@@ -400,7 +400,7 @@ export default function CreditosDebitos() {
         status: p.status,
         competence: p.competence_month,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
-        label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${liqMap.has(p.id) ? ` · Líq. ${brl(liqMap.get(p.id) as number)}` : ""} · #${p.id.slice(0, 6)}`,
+        label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${liqMap.has(p.id) ? ` · Líq. ${brl(liqMap.get(p.id) as number)}` : ""}`,
       }));
       return [pjId, opts] as const;
     }));
