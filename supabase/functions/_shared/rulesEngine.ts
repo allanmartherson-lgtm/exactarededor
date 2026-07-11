@@ -2766,23 +2766,33 @@ function applyCalculationSingle(
 }
 
 function calcBonus(rule: RuleInput, item: ItemInput): ExpectedCalc {
-  const base = item.procedure_amount;
-  if (base == null) return { expected: null, explanation: "Bônus — valor base ausente.", alerts: ["procedure_amount ausente."] };
+  // Bônus NUNCA compete no matching por-item (fase A) — a síntese em
+  // analyze-payment/index.ts (Fase B) é o caminho de produção. Esta função
+  // existe como fallback defensivo e DEVE bater com a fórmula do sintetizador:
+  // expected = bonus_fixed + base * (bonus_pct/100) — ou seja, SOMENTE o bônus.
+  // A base fica auditável em ai_findings/colunas bonus_*; jamais some com base
+  // aqui para não gerar rótulo enganoso na tela (duplicidade de "base + bônus").
+  const base = item.procedure_amount ?? 0;
   const hasFixed = rule.bonus_amount != null;
   const hasPct = rule.bonus_pct != null;
   if (!hasFixed && !hasPct) {
     return {
       expected: null,
-      explanation: "Bônus mal configurado: nenhum valor (bonus_amount) nem percentual (bonus_pct) definido no cálculo.",
+      explanation: "Bônus mal configurado: nenhum valor (bonus_amount) nem percentual (bonus_pct) definido.",
       alerts: ["Cálculo de bônus sem bonus_amount e sem bonus_pct — regra ignorada."],
     };
   }
   const fixed = rule.bonus_amount ?? 0;
   const pct = rule.bonus_pct ?? 0;
-  const value = base + fixed + base * (pct / 100);
-  const expected = Number(value.toFixed(2));
-  return { expected, explanation: `R$ ${base.toFixed(2)} + R$ ${fixed.toFixed(2)} + ${pct}% = R$ ${expected.toFixed(2)}`, alerts: [] };
+  const pctAmt = base * (pct / 100);
+  const expected = Number((fixed + pctAmt).toFixed(2));
+  return {
+    expected,
+    explanation: `Bônus = R$ ${fixed.toFixed(2)} (fixo) + ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`,
+    alerts: [],
+  };
 }
+
 
 function calcComplemento(rule: RuleInput, item: ItemInput): ExpectedCalc {
   if (rule.target_amount == null) return { expected: null, explanation: "Complemento sem valor alvo.", alerts: ["target_amount não configurado."] };

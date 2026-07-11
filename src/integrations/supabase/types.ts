@@ -5253,6 +5253,9 @@ export type Database = {
           attendance_number: string | null
           authorized_exception: boolean
           basis_confidence: number | null
+          bonus_base_amount: number | null
+          bonus_fixed_amount: number | null
+          bonus_pct_amount: number | null
           calc_exception_marked_at: string | null
           calc_exception_marked_by: string | null
           calc_exception_reason: string | null
@@ -5384,6 +5387,9 @@ export type Database = {
           attendance_number?: string | null
           authorized_exception?: boolean
           basis_confidence?: number | null
+          bonus_base_amount?: number | null
+          bonus_fixed_amount?: number | null
+          bonus_pct_amount?: number | null
           calc_exception_marked_at?: string | null
           calc_exception_marked_by?: string | null
           calc_exception_reason?: string | null
@@ -5515,6 +5521,9 @@ export type Database = {
           attendance_number?: string | null
           authorized_exception?: boolean
           basis_confidence?: number | null
+          bonus_base_amount?: number | null
+          bonus_fixed_amount?: number | null
+          bonus_pct_amount?: number | null
           calc_exception_marked_at?: string | null
           calc_exception_marked_by?: string | null
           calc_exception_reason?: string | null
