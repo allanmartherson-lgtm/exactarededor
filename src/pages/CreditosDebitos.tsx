@@ -897,6 +897,95 @@ export default function CreditosDebitos() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: confirmação global (todas as PJs) */}
+      <Dialog open={globalDialogOpen} onOpenChange={setGlobalDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Confirmar débitos em massa (todas as PJs)</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const pendentes = glosaDebts.filter(g => !g.confirmed_at);
+            const targets = selectedPending.size > 0
+              ? pendentes.filter(g => selectedPending.has(g.id))
+              : pendentes;
+            const byPj = new Map<string, GlosaDebt[]>();
+            targets.forEach(g => {
+              const arr = byPj.get(g.company_id) ?? [];
+              arr.push(g); byPj.set(g.company_id, arr);
+            });
+            return (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <Label>Parcelas (1–24) — aplicado a todas as PJs</Label>
+                  <Input
+                    type="number" min={1} max={24}
+                    value={globalParc}
+                    onChange={e => setGlobalParc(Math.min(24, Math.max(1, parseInt(e.target.value) || 1)))}
+                  />
+                </div>
+
+                <div className="border border-border rounded-md">
+                  <div className="grid grid-cols-[1fr_auto_2fr_auto] gap-2 px-3 py-2 bg-muted/40 text-xs font-medium border-b">
+                    <div>PJ</div><div className="text-right">Total</div><div>Lote-alvo</div><div>Cabe?</div>
+                  </div>
+                  <div className="divide-y max-h-[45vh] overflow-y-auto">
+                    {Array.from(byPj.entries()).map(([pjId, list]) => {
+                      const pjName = list[0]?._company_name ?? "PJ";
+                      const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
+                      const parcelaSoma = globalParc > 0 ? total / globalParc : 0;
+                      const opts = globalLotesByPj[pjId] ?? [];
+                      const pick = globalLoteByPj[pjId] ?? "";
+                      const loteObj = opts.find(o => o.id === pick);
+                      const cabe = loteObj?.liquido == null ? null : (loteObj.liquido - parcelaSoma);
+                      return (
+                        <div key={pjId} className="grid grid-cols-[1fr_auto_2fr_auto] gap-2 px-3 py-2 items-center">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{pjName}</div>
+                            <div className="text-[11px] text-muted-foreground">{list.length} médicos</div>
+                          </div>
+                          <div className="text-right font-mono text-destructive text-xs">{brl(total)}</div>
+                          <div>
+                            {opts.length === 0 ? (
+                              <span className="text-xs text-amber-600">Sem lote em aberto</span>
+                            ) : (
+                              <Select
+                                value={pick}
+                                onValueChange={(v) => setGlobalLoteByPj(prev => ({ ...prev, [pjId]: v }))}
+                              >
+                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                                <SelectContent>
+                                  {opts.map(l => <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                          <div className="text-xs">
+                            {cabe == null ? "—" : cabe >= 0
+                              ? <span className="text-emerald-600">✓ {brl(cabe)}</span>
+                              : <span className="text-amber-600">⚠ falta {brl(-cabe)}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  ⚠ Quando o líquido do lote não cobrir a parcela, o motor aplica o que couber e posterga o saldo para o próximo ciclo (não bloqueia a confirmação).
+                </p>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGlobalDialogOpen(false)} disabled={busyGlobal}>Cancelar</Button>
+            <Button onClick={confirmGlobalMass} disabled={busyGlobal}>
+              {busyGlobal ? "Confirmando…" : "Confirmar todos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
 
       {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
