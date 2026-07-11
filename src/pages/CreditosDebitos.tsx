@@ -444,6 +444,7 @@ export default function CreditosDebitos() {
         competence: p.competence_month,
         cost_center_code: p.cost_center_code ?? null,
         payment_track: p.payment_track ?? null,
+        reference: p.reference ?? null,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
         label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
       }));
