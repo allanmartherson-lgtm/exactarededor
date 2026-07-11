@@ -24,10 +24,14 @@ interface Body {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const auth = await requireInternalOrRole(req);
+  if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
+
   try {
     const { campaign_id, decision, reason } = (await req.json()) as Body;
-    if (!campaign_id || !decision) {
-      return new Response(JSON.stringify({ error: "campaign_id e decision são obrigatórios" }), {
+    if (!campaign_id || !decision || (decision !== "approved" && decision !== "rejected")) {
+      return new Response(JSON.stringify({ error: "campaign_id e decision (approved|rejected) são obrigatórios" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
