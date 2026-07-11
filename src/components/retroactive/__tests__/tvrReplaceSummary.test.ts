@@ -254,18 +254,20 @@ describe("buildTvrReplaceSummary — preserva escopo do lote em reprocessos repe
   });
 });
 
-describe("parseCellMoney — não infla valores TASY", () => {
-  it("mantém ponto decimal único como decimal real", () => {
-    expect(parseCellMoney("6297.65")).toBe("6297.65");
-    expect(parseCellMoney("629.765")).toBe("629.765");
-  });
-
-  it("interpreta formatos BR e US com separador de milhar", () => {
+describe("parseCellMoney — BRL determinístico (vírgula=decimal, ponto=milhar)", () => {
+  it("interpreta formato BR canônico", () => {
     expect(parseCellMoney("1.234,56")).toBe("1234.56");
-    expect(parseCellMoney("1,234.56")).toBe("1234.56");
+    expect(parseCellMoney("50.000,00")).toBe("50000.00");
+    expect(parseCellMoney("326,06")).toBe("326.06");
   });
 
-  it("preserva números puros e zero", () => {
+  it("sem vírgula: pontos são sempre milhar", () => {
+    expect(parseCellMoney("629.765")).toBe("629765");
+    expect(parseCellMoney("1.234.567")).toBe("1234567");
+    expect(parseCellMoney("50.000")).toBe("50000");
+  });
+
+  it("preserva números puros e vazio", () => {
     expect(parseCellMoney(1234.56)).toBe("1234.56");
     expect(parseCellMoney(0)).toBe("0");
     expect(parseCellMoney("")).toBe("");
@@ -273,29 +275,18 @@ describe("parseCellMoney — não infla valores TASY", () => {
     expect(parseCellMoney(undefined)).toBe("");
   });
 
-  it("mantém sinal negativo (glosas/estornos não viram positivo)", () => {
+  it("mantém sinal negativo", () => {
     expect(parseCellMoney("-1.234,56")).toBe("-1234.56");
     expect(parseCellMoney("-500")).toBe("-500");
     expect(parseCellMoney("R$ -1.234,56")).toBe("-1234.56");
   });
 
-  it("aceita símbolos monetários e espaços sem inflar", () => {
+  it("aceita símbolos monetários e espaços", () => {
     expect(parseCellMoney("R$ 1.234,56")).toBe("1234.56");
     expect(parseCellMoney(" 1234,56 ")).toBe("1234.56");
-    expect(parseCellMoney("BRL 200.00")).toBe("200.00");
   });
 
-  it("múltiplos separadores de milhar — não perde dígitos e não multiplica", () => {
+  it("múltiplos milhares em BR", () => {
     expect(parseCellMoney("1.234.567,89")).toBe("1234567.89");
-    expect(parseCellMoney("1,234,567.89")).toBe("1234567.89");
-    // Só vírgulas, mais de duas → todas viram milhar exceto a última (decimal).
-    expect(parseCellMoney("1,234,567")).toBe("1234.567");
-  });
-
-  it("regressão — 6297.65 NÃO pode virar 6297650 (bug de inflar 1000x)", () => {
-    // Parse + Number: valor final coerente com a planilha TASY original.
-    expect(Number(parseCellMoney("6297.65"))).toBeCloseTo(6297.65, 2);
-    expect(Number(parseCellMoney("629.765"))).toBeCloseTo(629.765, 3);
-    expect(Number(parseCellMoney("1.234,56"))).toBeCloseTo(1234.56, 2);
   });
 });
