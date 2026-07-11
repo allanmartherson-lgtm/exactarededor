@@ -23,9 +23,19 @@ type Announcement = {
   starts_at: string;
   ends_at: string | null;
   dismissible: boolean;
+  target_roles: string[] | null;
 };
 
 const SEVERITIES = ["info", "success", "warning", "critical"] as const;
+const AVAILABLE_ROLES = [
+  { value: "admin", label: "Administrador" },
+  { value: "diretor", label: "Diretor" },
+  { value: "validador", label: "Supervisor" },
+  { value: "analista", label: "Analista" },
+  { value: "gestao_medica", label: "Gestão Médica" },
+  { value: "empresa", label: "Empresa" },
+  { value: "medico", label: "Médico" },
+] as const;
 
 function toLocalInput(iso: string | null) {
   if (!iso) return "";
