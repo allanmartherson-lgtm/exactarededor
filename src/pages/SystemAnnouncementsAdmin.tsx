@@ -23,9 +23,19 @@ type Announcement = {
   starts_at: string;
   ends_at: string | null;
   dismissible: boolean;
+  target_roles: string[] | null;
 };
 
 const SEVERITIES = ["info", "success", "warning", "critical"] as const;
+const AVAILABLE_ROLES = [
+  { value: "admin", label: "Administrador" },
+  { value: "diretor", label: "Diretor" },
+  { value: "validador", label: "Supervisor" },
+  { value: "analista", label: "Analista" },
+  { value: "gestao_medica", label: "Gestão Médica" },
+  { value: "empresa", label: "Empresa" },
+  { value: "medico", label: "Médico" },
+] as const;
 
 function toLocalInput(iso: string | null) {
   if (!iso) return "";
@@ -43,6 +53,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
   const [form, setForm] = useState({
     title: "", message: "", severity: "info" as Announcement["severity"],
     active: true, dismissible: true, starts_at: "", ends_at: "",
+    target_roles: [] as string[],
   });
 
   async function load() {
@@ -55,7 +66,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
 
   function openNew() {
     setEditing(null);
-    setForm({ title: "", message: "", severity: "info", active: true, dismissible: true, starts_at: toLocalInput(new Date().toISOString()), ends_at: "" });
+    setForm({ title: "", message: "", severity: "info", active: true, dismissible: true, starts_at: toLocalInput(new Date().toISOString()), ends_at: "", target_roles: [] });
     setOpen(true);
   }
   function openEdit(a: Announcement) {
@@ -64,6 +75,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
       title: a.title ?? "", message: a.message, severity: a.severity,
       active: a.active, dismissible: a.dismissible,
       starts_at: toLocalInput(a.starts_at), ends_at: toLocalInput(a.ends_at),
+      target_roles: a.target_roles ?? [],
     });
     setOpen(true);
   }
@@ -75,6 +87,7 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
       active: form.active, dismissible: form.dismissible,
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : new Date().toISOString(),
       ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
+      target_roles: form.target_roles,
       created_by: user?.id ?? null,
     };
     const res = editing
@@ -117,6 +130,13 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
                   <Badge>{a.severity}</Badge>
                   <Badge variant={a.active ? "default" : "secondary"}>{a.active ? "Ativo" : "Inativo"}</Badge>
                   {a.ends_at && new Date(a.ends_at) < new Date() && <Badge variant="outline">Expirado</Badge>}
+                  {a.target_roles && a.target_roles.length > 0 ? (
+                    <Badge variant="outline">
+                      Público: {a.target_roles.map((r) => AVAILABLE_ROLES.find((x) => x.value === r)?.label ?? r).join(", ")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Público: todos</Badge>
+                  )}
                 </div>
                 {a.title && <p className="font-medium">{a.title}</p>}
                 <p className="text-sm text-muted-foreground">{a.message}</p>
@@ -168,6 +188,32 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
               <div>
                 <Label>Fim (opcional)</Label>
                 <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label>Público-alvo (opcional)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Se nenhum for marcado, o aviso é exibido para todos os usuários. Caso contrário, só aparece para quem tem uma das funções selecionadas.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {AVAILABLE_ROLES.map((r) => {
+                  const checked = form.target_roles.includes(r.value);
+                  return (
+                    <label key={r.value} className="flex items-center gap-2 text-sm border rounded px-2 py-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const next = e.target.checked
+                            ? [...form.target_roles, r.value]
+                            : form.target_roles.filter((x) => x !== r.value);
+                          setForm({ ...form, target_roles: next });
+                        }}
+                      />
+                      {r.label}
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
