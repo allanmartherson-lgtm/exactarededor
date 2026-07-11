@@ -3193,6 +3193,7 @@ export type Database = {
           id: string
           parcela_numero: number
           payment_id: string
+          postpone_reason: string | null
           resolution_note: string | null
           reverted_at: string | null
           reverted_by: string | null
@@ -3213,6 +3214,7 @@ export type Database = {
           id?: string
           parcela_numero: number
           payment_id: string
+          postpone_reason?: string | null
           resolution_note?: string | null
           reverted_at?: string | null
           reverted_by?: string | null
@@ -3233,6 +3235,7 @@ export type Database = {
           id?: string
           parcela_numero?: number
           payment_id?: string
+          postpone_reason?: string | null
           resolution_note?: string | null
           reverted_at?: string | null
           reverted_by?: string | null

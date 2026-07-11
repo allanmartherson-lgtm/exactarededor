@@ -54,6 +54,9 @@ type GlosaDebt = {
 type LoteOption = {
   id: string;
   label: string;
+  liquido: number | null;
+  status: string;
+  competence: string | null;
 };
 
 type AdjApplication = {
@@ -105,6 +108,13 @@ export default function CreditosDebitos() {
   const [appsByAdj, setAppsByAdj] = useState<Record<string, AdjApplication[]>>({});
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
 
+  // Confirmação em massa (agrupada por PJ)
+  const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set());
+  const [massDialogPjId, setMassDialogPjId] = useState<string | null>(null);
+  const [massParc, setMassParc] = useState<number>(1);
+  const [massLotePick, setMassLotePick] = useState<string>("");
+  const [busyMass, setBusyMass] = useState(false);
+
   const loadAll = async () => {
     setLoading(true);
 
@@ -155,7 +165,7 @@ export default function CreditosDebitos() {
         .from("payments").select("id, competence_month, status").in("id", tgtIds);
       const labels: Record<string, string> = {};
       ((pays as any[]) ?? []).forEach(p => {
-        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)} · #${p.id.slice(0, 6)}`;
       });
       setPaymentLabels(prev => ({ ...prev, ...labels }));
     }
@@ -217,25 +227,37 @@ export default function CreditosDebitos() {
   const statusShort = (s: string) =>
     ({ rascunho: "rascunho", em_analise_ia: "análise IA", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
 
-  const loadOpenLotes = async (g: GlosaDebt) => {
+  const buildLoteLabel = (p: { id: string; competence_month: string | null; status: string }, liquido: number | null) => {
+    const base = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+    const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
+    return `${base}${liq} · #${p.id.slice(0, 6)}`;
+  };
+
+  const loadOpenLotes = async (companyId: string) => {
     setLoadingLotes(true);
     setOpenLotes([]);
     // Lotes em aberto que contêm a PJ do débito (via payment_company_groups).
     const { data: pcg } = await (supabase as any)
       .from("payment_company_groups")
       .select("payment_id")
-      .eq("company_id", g.company_id);
+      .eq("company_id", companyId);
     const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
     if (!ids.length) { setLoadingLotes(false); return; }
-    const { data: pays } = await supabase
-      .from("payments")
-      .select("id, competence_month, status")
-      .in("id", ids)
-      .in("status", OPEN_PAYMENT_STATUSES)
-      .order("competence_month", { ascending: false });
+    const [{ data: pays }, { data: fins }] = await Promise.all([
+      supabase.from("payments").select("id, competence_month, status")
+        .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
+        .order("competence_month", { ascending: false }),
+      supabase.from("payment_company_financials").select("payment_id, liquido")
+        .in("payment_id", ids).eq("company_id", companyId),
+    ]);
+    const liqMap = new Map<string, number>();
+    ((fins as any[]) ?? []).forEach(f => liqMap.set(f.payment_id, Number(f.liquido ?? 0)));
     const opts: LoteOption[] = ((pays as any[]) ?? []).map(p => ({
       id: p.id,
-      label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`,
+      status: p.status,
+      competence: p.competence_month,
+      liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
+      label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
     }));
     setOpenLotes(opts);
     setPaymentLabels(prev => {
@@ -250,7 +272,7 @@ export default function CreditosDebitos() {
     setEditingGlosa(g);
     setGlosaParc(g.parcelas_default && g.parcelas_default > 0 ? g.parcelas_default : 1);
     setLotePick(g.target_payment_id ?? "");
-    loadOpenLotes(g);
+    loadOpenLotes(g.company_id);
   };
   const saveGlosa = async () => {
     if (!editingGlosa) return;
@@ -294,6 +316,51 @@ export default function CreditosDebitos() {
     loadAll();
   };
 
+  const massTargets = massDialogPjId
+    ? glosaDebts.filter(g => !g.confirmed_at && g.company_id === massDialogPjId && selectedPending.has(g.id))
+    : [];
+  const massTotal = massTargets.reduce((s, g) => s + Number(g.total_debt), 0);
+  const massParcelaSoma = massParc > 0 ? massTotal / massParc : 0;
+  const massLoteObj = openLotes.find(l => l.id === massLotePick);
+  const massCabe = massLoteObj?.liquido == null ? null : (massLoteObj.liquido - massParcelaSoma);
+
+  const confirmMass = async () => {
+    if (!massDialogPjId || massTargets.length === 0) return;
+    if (massParc < 1 || massParc > 24) { toast.error("Parcelas entre 1 e 24"); return; }
+    if (!massLotePick) { toast.error("Escolha o lote-alvo"); return; }
+    setBusyMass(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const nowIso = new Date().toISOString();
+    const uid = userData.user?.id ?? null;
+    const errors: string[] = [];
+    for (const g of massTargets) {
+      const { error } = await (supabase as any)
+        .from("glosa_debts")
+        .update({
+          parcelas_default: massParc,
+          target_payment_id: massLotePick,
+          confirmed_at: g.confirmed_at ?? nowIso,
+          confirmed_by: g.confirmed_at ? undefined : uid,
+        })
+        .eq("id", g.id);
+      if (error) errors.push(`${g.doctor_name}: ${error.message}`);
+    }
+    setBusyMass(false);
+    if (errors.length) {
+      toast.error(`${massTargets.length - errors.length} confirmadas · ${errors.length} falharam`);
+      console.error("[mass confirm]", errors);
+    } else {
+      toast.success(`${massTargets.length} débitos confirmados em ${massParc}×.`);
+    }
+    setMassDialogPjId(null);
+    setSelectedPending(prev => {
+      const next = new Set(prev);
+      massTargets.forEach(g => next.delete(g.id));
+      return next;
+    });
+    loadAll();
+  };
+
 
   return (
     <div>
@@ -319,38 +386,100 @@ export default function CreditosDebitos() {
                     Saldos gerados por auditoria. Defina o parcelamento e confirme — o próximo lote da PJ só desconta o que estiver confirmado.
                   </p>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-4">
                   {loading ? (
                     <p className="text-sm text-muted-foreground">Carregando…</p>
                   ) : pendentes.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhuma glosa pendente de confirmação.</p>
                   ) : (
-                    pendentes.map(g => {
-                      const parc = g.parcelas_default ?? 1;
-                      return (
-                        <div key={g.id} className="flex items-center justify-between border border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/10 rounded-md px-3 py-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{g.doctor_name}</span>
-                              {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
-                              <span className="text-xs text-muted-foreground">·</span>
-                              <span className="text-xs text-muted-foreground truncate">{g._company_name ?? "—"}</span>
+                    (() => {
+                      const byPj = new Map<string, GlosaDebt[]>();
+                      pendentes.forEach(g => {
+                        const arr = byPj.get(g.company_id) ?? [];
+                        arr.push(g); byPj.set(g.company_id, arr);
+                      });
+                      return Array.from(byPj.entries()).map(([pjId, list]) => {
+                        const pjName = list[0]?._company_name ?? "PJ";
+                        const selectedHere = list.filter(g => selectedPending.has(g.id));
+                        const allSelected = selectedHere.length === list.length && list.length > 0;
+                        const someSelected = selectedHere.length > 0;
+                        const totalSelected = selectedHere.reduce((s, g) => s + Number(g.total_debt), 0);
+                        return (
+                          <div key={pjId} className="border border-border rounded-md">
+                            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Checkbox
+                                  checked={allSelected}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedPending(prev => {
+                                      const next = new Set(prev);
+                                      list.forEach(g => checked ? next.add(g.id) : next.delete(g.id));
+                                      return next;
+                                    });
+                                  }}
+                                />
+                                <span className="font-medium text-sm truncate">{pjName}</span>
+                                <Badge variant="outline">{list.length}</Badge>
+                                {someSelected && (
+                                  <span className="text-xs text-muted-foreground">
+                                    · {selectedHere.length} sel. · {brl(totalSelected)}
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                disabled={selectedHere.length < 2}
+                                onClick={() => {
+                                  setMassDialogPjId(pjId);
+                                  setMassParc(1);
+                                  setMassLotePick("");
+                                  loadOpenLotes(pjId);
+                                }}
+                                title={selectedHere.length < 2 ? "Selecione 2+ glosas desta PJ" : "Parcelar e confirmar em massa"}
+                              >
+                                <Pencil className="w-3.5 h-3.5 mr-1" /> Confirmar em massa ({selectedHere.length})
+                              </Button>
                             </div>
-                            <div className="text-xs mt-0.5">
-                              <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
-                              {" · "}
-                              <span className="text-amber-600 font-medium">
-                                sugestão {parc}× de {brl(g.total_debt / parc)}
-                              </span>
-                              <span className="ml-1 text-[10px] text-amber-600">(aguardando confirmação)</span>
+                            <div className="divide-y">
+                              {list.map(g => {
+                                const parc = g.parcelas_default ?? 1;
+                                const checked = selectedPending.has(g.id);
+                                return (
+                                  <div key={g.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                                    <Checkbox
+                                      checked={checked}
+                                      onCheckedChange={(v) => {
+                                        setSelectedPending(prev => {
+                                          const next = new Set(prev);
+                                          v ? next.add(g.id) : next.delete(g.id);
+                                          return next;
+                                        });
+                                      }}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-medium text-sm">{g.doctor_name}</span>
+                                        {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
+                                      </div>
+                                      <div className="text-xs mt-0.5">
+                                        <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
+                                        {" · "}
+                                        <span className="text-amber-600 font-medium">
+                                          sugestão {parc}× de {brl(g.total_debt / parc)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <Button size="sm" onClick={() => openGlosa(g)}>
+                                      <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar e confirmar
+                                    </Button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                          <Button size="sm" onClick={() => openGlosa(g)}>
-                            <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar e confirmar
-                          </Button>
-                        </div>
-                      );
-                    })
+                        );
+                      });
+                    })()
                   )}
                 </CardContent>
               </Card>
@@ -569,6 +698,76 @@ export default function CreditosDebitos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: confirmação em massa por PJ */}
+      <Dialog open={!!massDialogPjId} onOpenChange={(o) => !o && setMassDialogPjId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar {massTargets.length} débitos em massa</DialogTitle>
+          </DialogHeader>
+          {massDialogPjId && (
+            <div className="space-y-3 text-sm">
+              <div className="rounded border border-border bg-muted/30 px-3 py-2">
+                <div className="font-medium">
+                  {glosaDebts.find(g => g.company_id === massDialogPjId)?._company_name ?? "PJ"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {massTargets.length} médicos selecionados
+                </div>
+                <div className="mt-1 font-mono text-destructive">Total: {brl(massTotal)}</div>
+              </div>
+
+              <div>
+                <Label>Parcelas (1–24) — aplicado a todos</Label>
+                <Input
+                  type="number" min={1} max={24}
+                  value={massParc}
+                  onChange={e => setMassParc(Math.min(24, Math.max(1, parseInt(e.target.value) || 1)))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Soma das parcelas por ciclo: <span className="font-mono">{brl(massParcelaSoma)}</span>
+                </p>
+              </div>
+
+              <div>
+                <Label>Lote-alvo (aplicado a todos)</Label>
+                <Select value={massLotePick} onValueChange={setMassLotePick} disabled={loadingLotes}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingLotes ? "Carregando lotes…" : "Selecione um lote em aberto"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {openLotes.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        Nenhum lote em aberto encontrado para esta PJ.
+                      </div>
+                    ) : (
+                      openLotes.map(l => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.label}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {massCabe != null && (
+                  <p className={`text-xs mt-1 ${massCabe >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                    {massCabe >= 0
+                      ? `Cabe no lote (sobra ${brl(massCabe)} de líquido).`
+                      : `⚠ Não cabe: parcela excede o líquido em ${brl(-massCabe)}. O motor vai aplicar o que couber e postergar o resto para o próximo ciclo.`}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMassDialogPjId(null)} disabled={busyMass}>Cancelar</Button>
+            <Button onClick={confirmMass} disabled={busyMass || !massLotePick}>
+              {busyMass ? "Confirmando…" : `Confirmar ${massTargets.length} débitos`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
