@@ -1952,11 +1952,15 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
             ? [0, 6]
             : c.time_mode === "comercial"
               ? [1, 2, 3, 4, 5]
-              : [])
+              : c.time_mode === "fora_comercial"
+                ? [1, 2, 3, 4, 5]
+                : [])
       : [],
     time_start: c.has_conditions ? (c.time_start || null) : null,
     time_end: c.has_conditions ? (c.time_end || null) : null,
-    includes_holidays: c.has_conditions ? c.includes_holidays : false,
+    // Preset "feriado" força includes_holidays=true — garante que o motor
+    // identifique a intenção mesmo se a UI não marcou o checkbox manualmente.
+    includes_holidays: c.has_conditions ? (c.time_mode === "feriado" ? true : c.includes_holidays) : false,
     elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
     sectors: c.has_conditions ? c.sectors : [],
     specialties: c.has_conditions ? c.specialties : [],
