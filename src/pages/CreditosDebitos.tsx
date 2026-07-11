@@ -341,38 +341,100 @@ export default function CreditosDebitos() {
                     Saldos gerados por auditoria. Defina o parcelamento e confirme — o próximo lote da PJ só desconta o que estiver confirmado.
                   </p>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-4">
                   {loading ? (
                     <p className="text-sm text-muted-foreground">Carregando…</p>
                   ) : pendentes.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhuma glosa pendente de confirmação.</p>
                   ) : (
-                    pendentes.map(g => {
-                      const parc = g.parcelas_default ?? 1;
-                      return (
-                        <div key={g.id} className="flex items-center justify-between border border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/10 rounded-md px-3 py-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{g.doctor_name}</span>
-                              {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
-                              <span className="text-xs text-muted-foreground">·</span>
-                              <span className="text-xs text-muted-foreground truncate">{g._company_name ?? "—"}</span>
+                    (() => {
+                      const byPj = new Map<string, GlosaDebt[]>();
+                      pendentes.forEach(g => {
+                        const arr = byPj.get(g.company_id) ?? [];
+                        arr.push(g); byPj.set(g.company_id, arr);
+                      });
+                      return Array.from(byPj.entries()).map(([pjId, list]) => {
+                        const pjName = list[0]?._company_name ?? "PJ";
+                        const selectedHere = list.filter(g => selectedPending.has(g.id));
+                        const allSelected = selectedHere.length === list.length && list.length > 0;
+                        const someSelected = selectedHere.length > 0;
+                        const totalSelected = selectedHere.reduce((s, g) => s + Number(g.total_debt), 0);
+                        return (
+                          <div key={pjId} className="border border-border rounded-md">
+                            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Checkbox
+                                  checked={allSelected}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedPending(prev => {
+                                      const next = new Set(prev);
+                                      list.forEach(g => checked ? next.add(g.id) : next.delete(g.id));
+                                      return next;
+                                    });
+                                  }}
+                                />
+                                <span className="font-medium text-sm truncate">{pjName}</span>
+                                <Badge variant="outline">{list.length}</Badge>
+                                {someSelected && (
+                                  <span className="text-xs text-muted-foreground">
+                                    · {selectedHere.length} sel. · {brl(totalSelected)}
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                disabled={selectedHere.length < 2}
+                                onClick={() => {
+                                  setMassDialogPjId(pjId);
+                                  setMassParc(1);
+                                  setMassLotePick("");
+                                  loadOpenLotes(pjId);
+                                }}
+                                title={selectedHere.length < 2 ? "Selecione 2+ glosas desta PJ" : "Parcelar e confirmar em massa"}
+                              >
+                                <Pencil className="w-3.5 h-3.5 mr-1" /> Confirmar em massa ({selectedHere.length})
+                              </Button>
                             </div>
-                            <div className="text-xs mt-0.5">
-                              <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
-                              {" · "}
-                              <span className="text-amber-600 font-medium">
-                                sugestão {parc}× de {brl(g.total_debt / parc)}
-                              </span>
-                              <span className="ml-1 text-[10px] text-amber-600">(aguardando confirmação)</span>
+                            <div className="divide-y">
+                              {list.map(g => {
+                                const parc = g.parcelas_default ?? 1;
+                                const checked = selectedPending.has(g.id);
+                                return (
+                                  <div key={g.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                                    <Checkbox
+                                      checked={checked}
+                                      onCheckedChange={(v) => {
+                                        setSelectedPending(prev => {
+                                          const next = new Set(prev);
+                                          v ? next.add(g.id) : next.delete(g.id);
+                                          return next;
+                                        });
+                                      }}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-medium text-sm">{g.doctor_name}</span>
+                                        {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
+                                      </div>
+                                      <div className="text-xs mt-0.5">
+                                        <span className="font-mono text-destructive">{brl(g.total_debt)}</span>
+                                        {" · "}
+                                        <span className="text-amber-600 font-medium">
+                                          sugestão {parc}× de {brl(g.total_debt / parc)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <Button size="sm" onClick={() => openGlosa(g)}>
+                                      <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar e confirmar
+                                    </Button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                          <Button size="sm" onClick={() => openGlosa(g)}>
-                            <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar e confirmar
-                          </Button>
-                        </div>
-                      );
-                    })
+                        );
+                      });
+                    })()
                   )}
                 </CardContent>
               </Card>
