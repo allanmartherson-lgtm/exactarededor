@@ -169,10 +169,10 @@ export default function CreditosDebitos() {
     ]));
     if (tgtIds.length) {
       const { data: pays } = await supabase
-        .from("payments").select("id, competence_month, status").in("id", tgtIds);
+        .from("payments").select("id, reference, competence_month, status").in("id", tgtIds);
       const labels: Record<string, string> = {};
       ((pays as any[]) ?? []).forEach(p => {
-        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+        labels[p.id] = `${p.reference} · ${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
       });
       setPaymentLabels(prev => ({ ...prev, ...labels }));
     }
