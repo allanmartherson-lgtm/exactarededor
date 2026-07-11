@@ -254,11 +254,16 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       });
       if (!ok) return;
 
-      // Se o vínculo começou no mesmo dia ou depois, não dá pra encerrar antes → deleta
+      // Se o vínculo começou no mesmo dia ou depois, não dá pra encerrar antes.
+      // Fazemos soft-close (end_date = start_date, "zero-day") — o trigger block_physical_delete
+      // proíbe delete físico, e o soft-close preserva rastro na auditoria.
       if (active.start_date && active.start_date >= start) {
-        const del = await supabase.from("doctor_companies").delete().eq("id", active.id);
-        if (del.error) {
-          toast({ title: "Falha ao remover vínculo anterior", description: del.error.message, variant: "destructive" });
+        const upd = await supabase
+          .from("doctor_companies")
+          .update({ end_date: active.start_date, end_reason: "transferencia_vinculo_zero_day" })
+          .eq("id", active.id);
+        if (upd.error) {
+          toast({ title: "Falha ao encerrar vínculo anterior", description: upd.error.message, variant: "destructive" });
           return;
         }
       } else {
@@ -273,15 +278,17 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
       }
     }
 
-    // Caso 2: vínculos JÁ ENCERRADOS que ainda bloqueiam o range inclusivo
-    // (encerrados no próprio dia da nova vigência). Recua end_date em 1 dia,
-    // ou remove se for zero-day, para liberar o range.
+    // Caso 2: vínculos JÁ ENCERRADOS que ainda bloqueiam o range inclusivo.
+    // Recua end_date em 1 dia; se zero-day, mantém end_date=start_date (não deleta).
     for (const c of closed) {
       if (!c.end_date) continue;
       if (c.start_date && c.start_date >= start) {
-        const del = await supabase.from("doctor_companies").delete().eq("id", c.id);
-        if (del.error) {
-          toast({ title: "Falha ao limpar vínculo residual", description: del.error.message, variant: "destructive" });
+        const upd = await supabase
+          .from("doctor_companies")
+          .update({ end_date: c.start_date, end_reason: c.end_reason ?? "ajuste_zero_day" })
+          .eq("id", c.id);
+        if (upd.error) {
+          toast({ title: "Falha ao limpar vínculo residual", description: upd.error.message, variant: "destructive" });
           return;
         }
       } else if (c.end_date >= start) {
