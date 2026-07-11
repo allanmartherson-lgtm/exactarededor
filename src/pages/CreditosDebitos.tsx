@@ -108,6 +108,13 @@ export default function CreditosDebitos() {
   const [appsByAdj, setAppsByAdj] = useState<Record<string, AdjApplication[]>>({});
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
 
+  // Confirmação em massa (agrupada por PJ)
+  const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set());
+  const [massDialogPjId, setMassDialogPjId] = useState<string | null>(null);
+  const [massParc, setMassParc] = useState<number>(1);
+  const [massLotePick, setMassLotePick] = useState<string>("");
+  const [busyMass, setBusyMass] = useState(false);
+
   const loadAll = async () => {
     setLoading(true);
 
