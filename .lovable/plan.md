@@ -1,69 +1,68 @@
+# Tarefa 1 — Persistir planilha original para auditoria
 
-# Plano — Limpeza de Duplicatas de Regras (evento 12/jun/2026 00:52:12)
+## Situação atual
 
-## Contexto
-
-Em `2026-06-12 00:52:12` foram criadas **20 regras** em massa (mesmo timestamp exato, ao segundo). Todas colidem em `(hospital_id, name)` com regras já existentes. Das 20:
-
-- **17** ficaram inativas (`active=false`) — ruído, mas sem efeito no motor
-- **3** ficaram ativas e são as perigosas:
-  - `Regra Cirurgia do Aparelho Digestivo (Bariátrica)` — 2 duplicatas ativas
-  - `Regra Geral - Repasse 100% Convênio + Parecer + Visita + Consulta` — ativa
-  - `Acordo Coluna` / `Acordo Flávio Brito` / `Acordo Ortopedia` — 1 ativa cada
-
-Padrão comum: as duplicatas foram gravadas com `has_conditions=false` e `time_mode='qualquer'` — perdendo as restrições da regra original. É esse padrão que causou os bônus de FDS pagos em dias úteis (Otorrino, Cir. Geral).
-
-Não há relação direta com o form de edição (`RuleCalculationsEditor`); trata-se de um evento de gravação em lote (script, seed, importação ou botão de "clonar/replicar"). A causa raiz precisa ser identificada antes de fechar.
+- Upload já grava no bucket `payment-files`, mas só o **primeiro** arquivo é anexado ao lote (`source_file_path = uploadedPaths[0]`). Lotes multi-arquivo (SAT + Bônus + Sobreaviso) perdem os demais.
+- Sem hash → não é possível provar "a planilha X gerou o cálculo Y".
+- Sem metadata (tamanho, mime, sheet_name, nome original preservado).
+- 45 de 80 pagamentos recentes (56%) ficaram **sem** `source_file_path`. Erros silenciosos de upload (só checa `!upErr`) sem alertar o analista.
+- Bucket `payment-files` **não tem RLS policy** — leitura/escrita hoje depende do papel do usuário no dashboard, o que é frágil.
 
 ## Objetivo
 
-1. Neutralizar o efeito atual das duplicatas
-2. Descobrir a origem do evento
-3. Impedir que aconteça de novo
+Guardar **todos** os arquivos enviados no lote, com hash SHA-256 e metadados, vinculados ao `payment_id`, acessíveis para reprocessar/auditar sem depender do que ficou serializado no motor.
 
-## Passos
+## Plano
 
-### 1. Snapshot e auditoria (leitura)
-- Exportar as 20 regras suspeitas + suas "originais" (mesma `(hospital_id, name)`) para `rule_snapshots` com motivo `"duplicate_cleanup_2026_06_12"`.
-- Rodar diff campo-a-campo (weekdays, time_mode, has_conditions, exception_table_ids, calculations count) e gerar relatório.
-- Consultar `audit_log` entre `2026-06-12 00:50:00` e `00:55:00` filtrando `entity='rules'` para identificar `actor_id` / rota / user-agent.
-- Verificar `git log` das migrations e edge functions com deploy próximo a essa data.
+### 1. Tabela `payment_source_files` (nova)
 
-### 2. Desativação segura das duplicatas
-- Para cada duplicata onde existe uma "irmã" mais antiga com `has_conditions=true` ou config mais rica: `active=false` na duplicata, registrar em `audit_log` com `reason='duplicate_cleanup_2026_06_12'`.
-- Para as 3 ativas problemáticas: revisar 1-a-1 antes de desativar (podem ter tido edições após 12/jun que valem preservar).
-- Não deletar fisicamente (mantém histórico e evita quebra de FKs em `rule_calculations`, `rule_snapshots`, `payment_items.matched_rule_id`).
+```
+payment_id            uuid  FK payments(id) ON DELETE CASCADE
+storage_path          text  (payment-files/{user_id}/{ts}-{name})
+original_filename     text
+mime_type             text
+size_bytes            bigint
+sha256                text  (calculado no client antes do upload)
+sheet_name            text  nullable (aba processada)
+bucket_role           text  ('sat' | 'bonus' | 'sobreaviso' | 'outros')
+uploaded_at           timestamptz default now()
+uploaded_by           uuid  FK auth.users
+```
 
-### 3. Recomputo dos pagamentos afetados
-- Identificar `payment_items` com `matched_rule_id` apontando para uma das duplicatas desativadas.
-- Estimar impacto financeiro por lote/PJ antes de reprocessar.
-- Reprocessar apenas os lotes onde a mudança altera `expected_amount`; abrir glosa retroativa para os débitos e crédito manual para os créditos, conforme padrão já usado no caso do Jairo.
+- Unique `(payment_id, sha256)` — mesmo arquivo enviado 2×  não duplica.
+- RLS: leitura pelos papéis já autorizados a ver o `payment` (via `has_role` + `hospital_id` do lote).
+- GRANT `SELECT/INSERT` a `authenticated`; `ALL` a `service_role`.
 
-### 4. Hardening no banco
-- Índice único parcial: `CREATE UNIQUE INDEX ON rules(hospital_id, lower(name)) WHERE active = true;` — impede duas regras ativas com mesmo nome no mesmo hospital.
-- Trigger `BEFORE INSERT/UPDATE ON rules` que bloqueia gravar `time_mode IN ('fim_de_semana','dias_uteis','personalizado')` com `weekdays='{}'` e/ou `has_conditions=false` — inconsistência semântica.
-- Ampliar `audit_log` para gravar `old_row`/`new_row` completos em qualquer operação de INSERT/UPDATE em `rules` (hoje só grava campos "importantes").
+### 2. RLS no bucket `payment-files`
 
-### 5. Hardening no código
-- `calcToDbPayload` (`RuleCalculationsEditor.tsx`): derivar `weekdays` a partir de `time_mode` mesmo quando não é "personalizado" (defesa em profundidade).
-- Motor (`rulesEngine.ts`): quando `time_mode ∈ {fim_de_semana, dias_uteis}` e `weekdays='{}'`, logar `data_integrity_warning` em `analysis_telemetry` e usar o preset como fonte da verdade (nunca cair em "qualquer dia").
-- Se algum caminho de "clonar regra" existir na UI, garantir que copia `weekdays`, `exception_table_ids` e `has_conditions` — provável suspeito da origem.
+Criar policies em `storage.objects` restringindo por `hospital_id` (extraível do `path` ou via join com `payment_source_files`). Fecha buraco identificado nesta investigação.
 
-### 6. Documentação
-- Fechar `.lovable/mem/features/rule-weekdays-persistence-bug.md` com o diagnóstico real (não era o form, era o evento de duplicação).
-- Abrir `.lovable/mem/features/rule-duplicate-cleanup-2026-06.md` registrando: causa raiz identificada, itens desativados, hardening aplicado.
+### 3. Fluxo de upload (`NewPayment.tsx`)
 
-## Detalhes técnicos
+- Calcular SHA-256 no client (`crypto.subtle.digest`).
+- Fazer upload de **cada** bucket file, não só o primeiro.
+- Após inserir `payments`, gravar N linhas em `payment_source_files`.
+- Se algum upload falhar, **bloquear** o submit e mostrar toast — nunca gravar o lote sem os arquivos.
+- Manter `payments.source_file_path` populado com o primeiro (compat), mas passar a ser derivado.
 
-- **Ordem de execução:** 1 → 2 → 4 (constraint) → 5 → 3 (recompute com constraint já ativa) → 6.
-- **Motivo:** aplicar a UNIQUE constraint antes do recompute evita que qualquer bug residual crie nova duplicata durante o reprocessamento.
-- **Reversibilidade:** snapshot completo em `rule_snapshots` permite reativar qualquer duplicata desativada por engano.
-- **Impacto no motor:** `active=false` já é filtro nativo do `rulesEngine`, então basta o UPDATE — nenhum código muda para a neutralização em si.
+### 4. UI de auditoria
 
-## O que fica de fora deste plano
-- Correção dos 5 débitos do Jairo/Marcelo/Leonardo/Pedro/Rodrigo (já aplicada na etapa anterior).
-- Upload da planilha original para auditoria (tarefa separada, sem urgência).
+Botão "Arquivos originais" em `PaymentDetail` → lista com nome, tamanho, hash truncado, botão download (URL assinada 5 min). Habilitado para roles `admin`, `analista`, `validador`.
 
-## Confirmação necessária antes de executar
-- OK em desativar as **3 duplicatas ativas** listadas (Bariátrica x2, Repasse 100% Convênio Geral, Acordo Coluna/Flávio/Ortopedia)?
-- OK em reprocessar automaticamente os lotes afetados no passo 3, ou prefere revisão manual item-a-item?
+### 5. Backfill (opcional, mesma migration)
+
+Popular `payment_source_files` a partir dos `payments.source_file_path` existentes (35 registros). Hash fica `null` — flag `legacy=true` para diferenciar.
+
+## Fora do escopo
+
+- Reprocessar historicamente qualquer lote a partir do arquivo salvo (fica para tarefa futura).
+- Versionamento (edição do arquivo original). Se o analista subir novo arquivo = novo lote.
+
+## Ordem de execução
+
+1. Migration: cria tabela + RLS + policies do bucket + GRANTs.
+2. Após aprovação, ajusto o front (upload multi-arquivo + hash + gravação em `payment_source_files`).
+3. Componente `<PaymentSourceFilesList />` em `PaymentDetail`.
+4. Backfill dos 35 registros existentes.
+
+Confirmo para iniciar pela migration?
