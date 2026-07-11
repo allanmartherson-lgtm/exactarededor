@@ -1,0 +1,3 @@
+ALTER TABLE public.payment_items ADD COLUMN IF NOT EXISTS synthetic_bonus boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_payment_items_synthetic_bonus ON public.payment_items (payment_id, applied_rule_id) WHERE synthetic_bonus = true;
+COMMENT ON COLUMN public.payment_items.synthetic_bonus IS 'true = linha gerada pelo motor a partir de regra calculation_type=bonus. Não vem da planilha de origem. Removida e recriada a cada reprocesso.';

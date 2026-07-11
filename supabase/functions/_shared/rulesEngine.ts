@@ -3054,9 +3054,17 @@ function findFallbackGeneralRule(
 export function analyzeItem(
 
   item: ItemInput,
-  preFilteredRules: RuleInput[],
+  preFilteredRulesRaw: RuleInput[],
   ctx?: EngineCtx,
 ): AnalysisResult {
+  // Regras de bônus NÃO devem competir no matching por item TUSS.
+  // Elas geram uma linha sintética (tipo_linha='complemento_bonus') por
+  // atendimento em fase separada de síntese (ver `analyze-payment/index.ts`).
+  // Permitir que uma regra de bônus vença um TUSS aqui faria o item ser
+  // rotulado como "bonus" na conciliação, sequestrando o cálculo original.
+  const preFilteredRules = preFilteredRulesRaw.filter(
+    (r) => (r.calculation_type ?? "") !== "bonus",
+  );
   // === Tratamento Manual (Fase 1) ===
   // Quando o analista marcou o item com um motivo de intervenção manual
   // (reclassificação clínica ou aceite financeiro), o motor NÃO aplica regra:

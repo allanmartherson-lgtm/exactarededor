@@ -5359,6 +5359,7 @@ export type Database = {
             | Database["public"]["Enums"]["special_case_status"]
             | null
           specialty: string | null
+          synthetic_bonus: boolean
           tipo_item: string | null
           tipo_linha: string | null
           validation_findings: Json
@@ -5489,6 +5490,7 @@ export type Database = {
             | Database["public"]["Enums"]["special_case_status"]
             | null
           specialty?: string | null
+          synthetic_bonus?: boolean
           tipo_item?: string | null
           tipo_linha?: string | null
           validation_findings?: Json
@@ -5619,6 +5621,7 @@ export type Database = {
             | Database["public"]["Enums"]["special_case_status"]
             | null
           specialty?: string | null
+          synthetic_bonus?: boolean
           tipo_item?: string | null
           tipo_linha?: string | null
           validation_findings?: Json
