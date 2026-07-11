@@ -1,73 +1,77 @@
-## Contexto
+# Correção da regra de bônus
 
-O trigger `trg_audit_doctor_companies` foi criado só depois do batch de 03/06/2026. Resultado: nenhum rastro de quem/quando/como deletou vínculos naquele dia. O caso Luis Augusto (CRM 8182) provou que houve **deletes silenciosos** — a PJ Consultório recebia pagamentos antes do batch, sumiu do cadastro em 03/06, e só voltou porque o usuário recriou manualmente em 02/07.
+## Objetivo
+Regra `calculation_type=bonus` deve gerar uma **linha nova** de pagamento por atendimento (`tipo_linha='complemento_bonus'`) em vez de sobrescrever `applied_calc_method` de um item TUSS existente. As linhas TUSS ficam intactas com seu cálculo original (percentual_convenio, tabela, etc.).
 
-Além do Luis, a análise cruzada identificou 4 outros médicos com PJs pagadoras que "sumiram" do cadastro (candidatos a restauração).
+## Escopo funcional
+- Bônus nunca vira `matched_rule` de um item pré-existente.
+- Para cada atendimento elegível, o motor gera **1 linha sintética** `complemento_bonus` no anchor (cirurgião principal), com `expected_amount = bonus_amount + base * bonus_pct/100`, onde `base` depende de `application_unit`:
+  - `por_item`: `base` = `procedure_amount` do item âncora.
+  - `por_atendimento` / `por_paciente_dia`: `base` = soma de `procedure_amount` dos itens do grupo (mesmo atendimento/paciente/data/empresa) que baterem nos filtros da regra.
+- Se a regra tem só `bonus_amount` (caso atual), `base` é irrelevante — apenas soma o valor fixo.
+- Regras de bônus continuam respeitando todos os filtros já existentes (dia/semana, elective, feriado, PJ, médicos incluídos/excluídos, setor, especialidade, TUSS quando informado, convênio, tipo pagamento).
+- Se nenhum item do atendimento bater na regra, nenhuma linha é criada.
+- Se o atendimento não tem cirurgião principal identificado, gera linha em modo `pendente_revisao` com alerta pedindo inclusão manual.
 
-## Objetivos
+## Mudanças no motor (`supabase/functions/_shared/rulesEngine.ts`)
 
-1. **Reconstruir o que foi deletado** em 03/06/2026 usando as únicas evidências disponíveis (payment_items + backup se existir).
-2. **Fechar o gap do audit_log** para que isso nunca mais aconteça sem rastro.
-3. **Executar as reversões restantes** (11 vínculos verdes já validados, menos Luis Augusto).
+### 1. Excluir bônus do matching por item
+Na fase de matching (função que produz `AnalysisResult` por item), regras com `calculation_type='bonus'` são **puladas** — nunca aparecem como `matched_rule_id` de um item TUSS.
 
-## Fase 1 — Restaurar PJs deletadas pelo batch
+### 2. Nova fase pós-matching: `synthesizeBonusLines(items, rules, ctx)`
+- Enumera regras ativas cujo cálculo (algum `rule_calculations`) é `bonus`.
+- Para cada regra, seleciona itens candidatos aplicando os mesmos filtros usados no matcher (data/hora/elective/setor/convênio/PJ/médicos/TUSS/tipo pagamento).
+- Agrupa por `attendance|patient|date|company` (chave sem médico).
+- Escolhe anchor = item cujo `doctor_role` classifica como `cirurgiao`.
+- Calcula `base` conforme `application_unit`.
+- Retorna lista de linhas sintéticas com forma `{ attendance, patient, date, company_id, doctor_id (anchor), rule_id, calc_id, expected_amount, tipo_linha: 'complemento_bonus', complement_reason: rule.name }`.
+- Se não houver anchor: linha em modo pendente (mesma lógica já existente).
 
-Para os 4 candidatos identificados (Tiago Freitas, Antonio Jorge, Daniele Manera, Mario Netto):
+### 3. Persistência das linhas sintéticas (`supabase/functions/analyze-payment/index.ts`)
+Após rodar o motor, para cada linha sintética:
+- Faz `upsert` em `payment_items` com chave estável (`payment_id + attendance + rule_id + tipo_linha`) — reprocessos não duplicam.
+- Marca `synthetic_bonus=true` (nova coluna booleana) para permitir cleanup/backfill sem afetar itens reais da planilha.
+- Gera `AnalysisResult` correspondente com `calculation_type_used='bonus'`, status normal.
+- Ao reprocessar um pagamento, remove todos os itens `synthetic_bonus=true` antes de sintetizar de novo — evita duplicidade se a regra mudou/desligou.
 
-- Validar com a analista se cada PJ pagadora é vínculo legítimo (mesmo padrão do Luis) ou exceção pontual.
-- Se legítima: recriar `doctor_companies` (doctor_id, company_id, start_date = data do primeiro pagamento nesse hospital, `created_by` = user do sistema com nota "restauração pós-batch 20260603").
-- Registrar cada recriação em `audit_log` com `action='restore_after_batch_20260603'` e diff apontando para os pagamentos-evidência.
+### 4. Remove passe atual de dedup de bônus (linhas 4103-4179)
+Fica obsoleto — bônus vira linha própria em vez de sobrescrever item existente.
 
-## Fase 2 — Executar reversão dos 11 vínculos verdes
+## Mudanças de schema
+Migration única:
+- `ALTER TABLE payment_items ADD COLUMN synthetic_bonus boolean NOT NULL DEFAULT false;`
+- Index parcial: `CREATE INDEX ON payment_items (payment_id, matched_rule_id) WHERE synthetic_bonus = true;`
 
-Já validados na análise anterior, menos o Luis Augusto. Executar em migração única:
+## Backfill dos lotes já processados
+Edge function nova `backfill-bonus-rule` (invocada manualmente):
+1. Lista `payment_items` com `applied_calc_method='bonus'` (itens onde o rótulo foi aplicado indevidamente sobre um TUSS real).
+2. Para cada item: reseta `matched_rule_id`, `applied_calc_method`, `expected_amount`, `calculation_explanation` a partir da segunda melhor regra (roda o matcher só naquele item, ignorando bônus).
+3. Recalcula `diff_pct`, `status`.
+4. Coleta os `payment_id` afetados e para cada um chama a fase 2 do motor (`synthesizeBonusLines`) para inserir as linhas de bônus corretas.
+5. Registra no `audit_log` (`action='backfill_bonus'`) com contagem por lote.
+6. Ao final: relatório em `/mnt/documents/backfill_bonus_YYYYMMDD.csv` (payment_id, itens_corrigidos, linhas_bonus_criadas).
 
-- `UPDATE doctor_companies SET end_date = CURRENT_DATE, end_reason = 'reversao_import_indevida_20260603' WHERE id IN (...)`
-- Trigger `trg_audit_doctor_companies` vai capturar cada mudança automaticamente.
+Botão temporário em `/admin/manutencao` (ou similar já existente) para disparar o backfill manualmente, restrito a `admin`.
 
-## Fase 3 — Reforçar o audit_log para nunca mais falhar silenciosamente
+## UI (impacto mínimo)
+- `PaymentConciliationModal.tsx`: já reconhece `tipo_linha='complemento_bonus'` e trata como linha extra. Verificar que:
+  - Não entra no matching contra base hospitalar (não tem TUSS a bater).
+  - Aparece explicitamente rotulada "Bônus — <nome da regra>" no relatório.
+- `RuleFormStepper.tsx`: adicionar aviso visual no cálculo `bonus` explicando que "esta regra gera uma linha adicional no pagamento — não altera valores de itens TUSS existentes".
 
-O trigger existe hoje, mas há três lacunas:
+## Testes
+- `supabase/functions/analyze-payment/bonus_per_attendance_test.ts`: atualizar para verificar linha nova sintética + item TUSS original intacto.
+- Novo teste: bônus com `por_item` gera 1 linha por item elegível.
+- Novo teste: bônus com filtros que não batem em nenhum item do atendimento → 0 linhas.
+- Novo teste: reprocesso não duplica linhas sintéticas.
 
-**3.1 Verificar se o trigger dispara em TODAS as operações e não engole erros**
+## Detalhes técnicos
+- Chave estável do item sintético: `${payment_id}::bonus::${rule_id}::${attendance}::${patient_hash}::${date}` — para o upsert.
+- `synthetic_bonus` NÃO conta em soma bruta da planilha (relatórios de "total base hospitalar"), mas conta em "total repasse".
+- Motor grava `applied_calc_method='bonus'` **apenas** em itens `synthetic_bonus=true`.
+- Ordem de fases no motor: match por item → suplemento (complemento existente) → **novo: synthesizeBonusLines** → dedup residuais → main procedure selection.
 
-- Confirmar que existe trigger `AFTER INSERT OR UPDATE OR DELETE` em `doctor_companies`.
-- Revisar o corpo da função: qualquer `EXCEPTION WHEN OTHERS THEN NULL` é proibido — deve ao menos `RAISE WARNING` para logs do Postgres. Se o insert do audit_log falhar, a operação principal deve rolar com aviso, nunca silenciar.
-
-**3.2 Bloquear DELETE físico em `doctor_companies` (obrigar soft-delete)**
-
-Vínculo médico↔PJ é dado financeiro sensível — não pode ser apagado fisicamente. Nova regra:
-
-- Trigger `BEFORE DELETE` que bloqueia com erro claro: "DELETE físico proibido em doctor_companies — use end_date + end_reason".
-- Exceção controlada: role `service_role` em migração explícita, se algum dia for necessário.
-
-**3.3 Estender auditoria imutável para as outras tabelas de vínculo crítico**
-
-Mesma cobertura para: `doctor_hospital_overrides`, `company_hospital_overrides`, `doctor_aliases`, `convenio_aliases`, `sector_aliases`. Se um batch corromper aliases, hoje também não temos rastro.
-
-**3.4 Página de leitura do audit_log**
-
-Analista deve conseguir ver o histórico de qualquer médico/PJ sem precisar de SQL. Rota `/admin/auditoria` com filtro por entity_type + entity_id + intervalo de datas, mostrando actor, ação e diff.
-
-## Fase 4 — Prevenir batches destrutivos
-
-O `import-wizard` já foi corrigido (diff em vez de delete-then-insert), mas para garantir que nenhuma outra rota do sistema faça o mesmo:
-
-- Adicionar teste E2E `tests/e2e/import-wizard-no-destructive-delete.spec.ts` que roda import de amostra e assert: zero DELETEs em `doctor_companies` durante o batch.
-- Adicionar tag `[destructive-batch-suspect]` em qualquer PR que toque `doctor_companies` sem passar por `end_date`.
-
-## Ordem sugerida
-
-1. Fase 3.1 e 3.2 primeiro (proteção — bloqueia novos estragos imediatamente).
-2. Fase 1 (restauração dos 4, com confirmação da analista caso a caso).
-3. Fase 2 (reversão dos 11 verdes).
-4. Fase 3.3 e 3.4 (auditoria estendida + UI).
-5. Fase 4 (guarda-corpo contra regressão).
-
-## Aspectos técnicos
-
-- Fases 1–3.3 são migrations SQL puras.
-- Fase 3.4 é UI React + query em `audit_log` (paginada, filtros server-side).
-- Fase 4 é teste Playwright novo + checklist de PR.
-
-Quer que eu comece pela Fase 3.1/3.2 (proteção primeiro) ou prefere validar os 4 restaurar com a analista antes?
+## Não-objetivos
+- Não altera a semântica de outras `calculation_type` (valor_fixo, percentual_convenio, tabela_diferenciada, etc.).
+- Não muda a UI de conciliação além do rótulo — a mesma tela já suporta `complemento_bonus`.
+- Não remove a coluna `bonus_amount`/`bonus_pct` de `rule_calculations`.
