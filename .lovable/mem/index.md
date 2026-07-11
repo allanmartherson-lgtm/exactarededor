@@ -58,3 +58,4 @@ Escopo por hospital é INVARIANTE. Toda escrita operacional grava hospital_id do
 - [Piso por procedimento](mem://features/piso-por-procedimento) — MAX(convenio, piso) por função em percentual_sobre_convenio; escopo por_atendimento ainda parcial
 - [Escopo por hospital — invariante](mem://constraints/hospital-scope-invariant) — Regra completa: escrita, leitura, IA, cadastros globais permitidos, guardas
 - [Centros de custo por hospital com clone](mem://features/cost-centers-per-hospital-clone) — P12 padrão Rede D'Or replicado por hospital; UNIQUE(hospital_id, code_p12); novo hospital = seed do DF Star
+- [Planilha original para auditoria](mem://features/planilha-original-auditoria) — Tarefa aberta: arquivo bruto do TASY salvo em Storage por lote; RLS por hospital; imutável após pago
