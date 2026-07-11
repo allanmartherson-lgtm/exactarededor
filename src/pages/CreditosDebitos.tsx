@@ -169,10 +169,10 @@ export default function CreditosDebitos() {
     ]));
     if (tgtIds.length) {
       const { data: pays } = await supabase
-        .from("payments").select("id, competence_month, status").in("id", tgtIds);
+        .from("payments").select("id, reference, competence_month, status").in("id", tgtIds);
       const labels: Record<string, string> = {};
       ((pays as any[]) ?? []).forEach(p => {
-        labels[p.id] = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+        labels[p.id] = `${p.reference} · ${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
       });
       setPaymentLabels(prev => ({ ...prev, ...labels }));
     }
@@ -234,8 +234,9 @@ export default function CreditosDebitos() {
   const statusShort = (s: string) =>
     ({ rascunho: "rascunho", em_analise_ia: "análise IA", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
 
-  const buildLoteLabel = (p: { id: string; competence_month: string | null; status: string }, liquido: number | null) => {
-    const base = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+  const buildLoteLabel = (p: { id: string; reference?: string | null; competence_month: string | null; status: string }, liquido: number | null) => {
+    const ref = p.reference ? `${p.reference} · ` : "";
+    const base = `${ref}${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
     const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
     return `${base}${liq}`;
   };
@@ -251,7 +252,7 @@ export default function CreditosDebitos() {
     const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
     if (!ids.length) { setLoadingLotes(false); return; }
     const [{ data: pays }, { data: fins }] = await Promise.all([
-      supabase.from("payments").select("id, competence_month, status")
+      supabase.from("payments").select("id, reference, competence_month, status")
         .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
         .order("competence_month", { ascending: false }),
       supabase.from("payment_company_financials").select("payment_id, liquido")
@@ -387,7 +388,7 @@ export default function CreditosDebitos() {
       const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
       if (!ids.length) return [pjId, [] as LoteOption[]] as const;
       const [{ data: pays }, { data: fins }] = await Promise.all([
-        supabase.from("payments").select("id, competence_month, status")
+        supabase.from("payments").select("id, reference, competence_month, status")
           .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
           .order("competence_month", { ascending: false }),
         supabase.from("payment_company_financials").select("payment_id, liquido")
@@ -400,7 +401,7 @@ export default function CreditosDebitos() {
         status: p.status,
         competence: p.competence_month,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
-        label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}${liqMap.has(p.id) ? ` · Líq. ${brl(liqMap.get(p.id) as number)}` : ""}`,
+        label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
       }));
       return [pjId, opts] as const;
     }));
