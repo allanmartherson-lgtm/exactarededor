@@ -36,6 +36,7 @@ import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
 import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type FileDecision } from "@/lib/newPaymentDraft";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { applySectorStems } from "@/lib/sectorStems";
+import { sha256Hex, inferBucketRole } from "@/lib/fileHash";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -2721,13 +2722,44 @@ const NewPayment = () => {
 
     setSubmitting(true);
 
-    // Upload de todos os arquivos
-    const uploadedPaths: string[] = [];
-    for (const b of buckets) {
-      const path = `${user!.id}/${Date.now()}-${b.file.name}`;
-      const { error: upErr } = await supabase.storage.from("payment-files").upload(path, b.file);
-      if (!upErr) uploadedPaths.push(path);
+    // Upload de TODOS os arquivos originais (auditoria).
+    // Falha aqui = bloqueia o submit — não gravamos o lote sem os arquivos.
+    type UploadedFile = {
+      storage_path: string;
+      original_filename: string;
+      mime_type: string | null;
+      size_bytes: number;
+      sha256: string;
+      bucket_role: ReturnType<typeof inferBucketRole>;
+    };
+    const uploadedFiles: UploadedFile[] = [];
+    try {
+      for (const b of buckets) {
+        const path = `${user!.id}/${Date.now()}-${b.file.name}`;
+        const hash = await sha256Hex(b.file);
+        const { error: upErr } = await supabase.storage
+          .from("payment-files")
+          .upload(path, b.file, { upsert: false, contentType: b.file.type || undefined });
+        if (upErr) throw new Error(`Falha ao enviar "${b.file.name}": ${upErr.message}`);
+        uploadedFiles.push({
+          storage_path: path,
+          original_filename: b.file.name,
+          mime_type: b.file.type || null,
+          size_bytes: b.file.size,
+          sha256: hash,
+          bucket_role: inferBucketRole(b.file.name),
+        });
+      }
+    } catch (uploadErr) {
+      setSubmitting(false);
+      toast({
+        title: "Não foi possível salvar os arquivos originais",
+        description: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
+        variant: "destructive",
+      });
+      return;
     }
+    const uploadedPaths = uploadedFiles.map((f) => f.storage_path);
 
     // Garante que o "hospital ativo" no servidor bate com o selecionado na UI
     // ANTES de inserir. Cobre o caso em que a sincronização inicial falhou ou
@@ -2797,6 +2829,29 @@ const NewPayment = () => {
       toast({ title: "Erro ao criar pagamento", description: error?.message, variant: "destructive" });
       return;
     }
+
+    // Registra planilhas originais para auditoria (payment_source_files).
+    // Falha aqui é tolerada — o pagamento já foi criado; log e segue.
+    if (uploadedFiles.length > 0) {
+      const sourceRows = uploadedFiles.map((f) => ({
+        payment_id: payment.id,
+        storage_bucket: "payment-files",
+        storage_path: f.storage_path,
+        original_filename: f.original_filename,
+        mime_type: f.mime_type,
+        size_bytes: f.size_bytes,
+        sha256: f.sha256,
+        bucket_role: f.bucket_role,
+        uploaded_by: user!.id,
+      }));
+      const { error: psfErr } = await (supabase as any)
+        .from("payment_source_files")
+        .insert(sourceRows);
+      if (psfErr) {
+        console.warn("[NewPayment] payment_source_files insert falhou:", psfErr);
+      }
+    }
+
 
     const rollbackCreatedPayment = async (context: string) => {
       const { error: rollbackErr } = await (supabase as any).rpc("rollback_new_payment", {

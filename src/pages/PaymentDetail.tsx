@@ -21,6 +21,7 @@ import { humanizeCompanyGroupStatus } from "@/lib/companyGroupGuards";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
+import { PaymentSourceFilesList } from "@/components/payment-detail/PaymentSourceFilesList";
 import { ParecerReportCard } from "@/components/payment-detail/ParecerReportCard";
 import RemessaCompetenceBuckets from "@/components/payment-detail/RemessaCompetenceBuckets";
 import { ProducaoDescompassoBanner } from "@/components/payment-detail/ProducaoDescompassoBanner";
@@ -2583,7 +2584,8 @@ const PaymentDetail = () => {
             {canComment && <TabsTrigger value="comment">Comentar item</TabsTrigger>}
           </TabsList>
 
-          <TabsContent value="timeline" className="mt-3">
+          <TabsContent value="timeline" className="mt-3 space-y-3">
+            {payment?.id && <PaymentSourceFilesList paymentId={payment.id} />}
             <PaymentTimeline
               observations={filteredObs}
               items={items}

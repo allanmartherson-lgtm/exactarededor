@@ -6448,6 +6448,79 @@ export type Database = {
           },
         ]
       }
+      payment_source_files: {
+        Row: {
+          bucket_role: string
+          created_at: string
+          id: string
+          is_legacy: boolean
+          mime_type: string | null
+          original_filename: string
+          payment_id: string
+          sha256: string | null
+          sheet_name: string | null
+          size_bytes: number | null
+          storage_bucket: string
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          bucket_role?: string
+          created_at?: string
+          id?: string
+          is_legacy?: boolean
+          mime_type?: string | null
+          original_filename: string
+          payment_id: string
+          sha256?: string | null
+          sheet_name?: string | null
+          size_bytes?: number | null
+          storage_bucket?: string
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          bucket_role?: string
+          created_at?: string
+          id?: string
+          is_legacy?: boolean
+          mime_type?: string | null
+          original_filename?: string
+          payment_id?: string
+          sha256?: string | null
+          sheet_name?: string | null
+          size_bytes?: number | null
+          storage_bucket?: string
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_source_files_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_source_files_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_source_files_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
       payment_status_history: {
         Row: {
           changed_at: string
