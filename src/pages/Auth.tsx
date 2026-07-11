@@ -47,8 +47,7 @@ const safeNext = (raw: string | null): string => {
   return raw;
 };
 
-const waitForSessionAfterGoogle = async () => {
-  const deadline = Date.now() + GOOGLE_SIGN_IN_TIMEOUT_MS;
+const waitForSessionAfterGoogle = async (deadline: number) => {
 
   while (Date.now() < deadline) {
     const { data } = await supabase.auth.getSession();
@@ -89,6 +88,7 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    const deadline = Date.now() + GOOGLE_SIGN_IN_TIMEOUT_MS;
     // Preserva o destino via sessionStorage — redirect_uri precisa ser sempre
     // origin puro para não quebrar a validação do broker OAuth no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
@@ -96,7 +96,7 @@ const Auth = () => {
     const result = await withGoogleTimeout(lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     }));
-    const session = await waitForSessionAfterGoogle();
+    const session = await waitForSessionAfterGoogle(deadline);
     if (session) {
       setGoogleLoading(false);
       let target = nextTarget;
