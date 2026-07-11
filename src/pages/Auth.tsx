@@ -24,8 +24,14 @@ import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "exacta-password-recovery-email";
 const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
-const GOOGLE_SIGN_IN_TIMEOUT_MS = 25_000;
+const GOOGLE_SIGN_IN_TIMEOUT_MS = 120_000;
 const GOOGLE_SESSION_POLL_MS = 700;
+const OAUTH_MESSAGE_ORIGINS = new Set([
+  "https://oauth.lovable.app",
+  "https://lovable.dev",
+  PROJECT_PREVIEW_ORIGIN,
+  "https://exactarededor.lovable.app",
+]);
 
 const getPasswordRecoveryOrigin = () => {
   if (window.location.hostname.endsWith(".lovableproject.com")) return PROJECT_PREVIEW_ORIGIN;
@@ -58,17 +64,37 @@ const waitForSessionAfterGoogle = async (deadline: number) => {
   return null;
 };
 
-const withGoogleTimeout = async <T,>(promise: Promise<T>) => {
-  let timeoutId: number | undefined;
-  const timeout = new Promise<"timeout">((resolve) => {
-    timeoutId = window.setTimeout(() => resolve("timeout"), GOOGLE_SIGN_IN_TIMEOUT_MS);
-  });
+const isTrustedOAuthMessageOrigin = (origin: string) => origin === window.location.origin || OAUTH_MESSAGE_ORIGINS.has(origin);
 
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
+const startOAuthWebMessageBridge = () => {
+  let done = false;
+  let timeoutId: number | undefined;
+  let resolveBridge!: (value: "session" | "timeout") => void;
+  const promise = new Promise<"session" | "timeout">((resolve) => { resolveBridge = resolve; });
+
+  const finish = (value: "session" | "timeout") => {
+    if (done) return;
+    done = true;
+    window.removeEventListener("message", onMessage);
     if (timeoutId) window.clearTimeout(timeoutId);
-  }
+    resolveBridge(value);
+  };
+
+  const onMessage = (event: MessageEvent) => {
+    if (!isTrustedOAuthMessageOrigin(event.origin)) return;
+    const payload = event.data as { type?: unknown; response?: { access_token?: unknown; refresh_token?: unknown } } | null;
+    if (!payload || payload.type !== "authorization_response") return;
+    const accessToken = payload.response?.access_token;
+    const refreshToken = payload.response?.refresh_token;
+    if (typeof accessToken !== "string" || typeof refreshToken !== "string") return;
+    void supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+      if (!error) finish("session");
+    });
+  };
+
+  window.addEventListener("message", onMessage);
+  timeoutId = window.setTimeout(() => finish("timeout"), GOOGLE_SIGN_IN_TIMEOUT_MS);
+  return { promise, cleanup: () => finish("timeout") };
 };
 
 const Auth = () => {
@@ -93,10 +119,13 @@ const Auth = () => {
     // origin puro para não quebrar a validação do broker OAuth no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
-    const result = await withGoogleTimeout(lovable.auth.signInWithOAuth("google", {
+    const bridge = startOAuthWebMessageBridge();
+    const signInPromise = lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
-    }));
+    });
+    const result = await Promise.race([signInPromise, bridge.promise]);
     const session = await waitForSessionAfterGoogle(deadline);
+    bridge.cleanup();
     if (session) {
       setGoogleLoading(false);
       let target = nextTarget;
@@ -111,11 +140,12 @@ const Auth = () => {
       setGoogleLoading(false);
       toast({
         title: "Login Google não finalizou",
-        description: "A seleção da conta foi concluída, mas a sessão não voltou para o app. Feche a janela do Google e tente novamente; se estiver no 5G, teste também no Wi‑Fi.",
+        description: "Não recebemos o retorno seguro do Google. Feche a janela do Google e toque novamente em Entrar com Google.",
         variant: "destructive",
       });
       return;
     }
+    if (result === "session") return;
     if (result.error) {
       setGoogleLoading(false);
       toast({ title: "Não foi possível entrar com Google", description: result.error.message ?? "Tente novamente.", variant: "destructive" });
