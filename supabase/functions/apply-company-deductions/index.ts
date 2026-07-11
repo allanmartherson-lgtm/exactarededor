@@ -231,31 +231,50 @@ Deno.serve(async (req) => {
 
       const { data: existingGpa } = await supabase
         .from("glosa_payment_applications")
-        .select("glosa_debt_id, status")
+        .select("glosa_debt_id, status, valor_aplicado")
         .eq("payment_id", payment_id)
         .eq("company_id", company_id)
-        .in("status", ["proposto", "confirmado", "pending_manual_resolution"]);
+        .in("status", ["proposto", "confirmado", "pending_manual_resolution", "partial"]);
 
       const existingDebtIds = new Set((existingGpa ?? []).map((r: any) => r.glosa_debt_id));
 
-      const glosaResult = await runInBatches(debts ?? [], 5, async (debt: any) => {
-       try {
-        if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; return; }
+      // Capacidade da PJ neste lote: líquido previsto (snapshot em payment_company_financials)
+      // menos o que já foi consumido por outras deduções deste ciclo.
+      const { data: pcf } = await supabase
+        .from("payment_company_financials")
+        .select("liquido, glosas")
+        .eq("payment_id", payment_id)
+        .eq("company_id", company_id)
+        .maybeSingle();
+      const snapshotLiquido = Number(pcf?.liquido ?? 0);
+      const snapshotGlosas = Number(pcf?.glosas ?? 0);
+      // liquido já vem descontado de glosas snapshotadas; capacidade "livre" para
+      // novas glosas = liquido + glosas_snapshotadas − glosas_deste_ciclo.
+      let capacidadeRestante = round2(snapshotLiquido + snapshotGlosas
+        - (existingGpa ?? [])
+            .filter((r: any) => ["proposto", "confirmado", "partial"].includes(r.status))
+            .reduce((s: number, r: any) => s + Number(r.valor_aplicado || 0), 0));
+      summary.glosas.capacidade_inicial = capacidadeRestante;
 
-        // Resolve doctor → PJs vigentes na competência do pagamento.
-        // Vínculos sem start_date contam como "sempre vigentes" (fallback retroativo).
+      // Sequencial (não paralelo) para respeitar capacidade decrementalmente.
+      // Ordena FIFO por created_at do débito para que os mais antigos entrem primeiro.
+      const debtsOrdenadas = [...(debts ?? [])].sort((a: any, b: any) =>
+        String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")));
+
+      for (const debt of debtsOrdenadas) {
+       try {
+        if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; continue; }
+
         const { data: vinculos } = await supabase
           .rpc("companies_for_doctor_at", {
             _doctor_id: debt.doctor_id,
             _on_date: competenceDate,
           });
 
-
         const vinculadas = (vinculos ?? []).map((v: any) => v.company_id);
         const matchEmpresa = vinculadas.includes(company_id);
 
         if (vinculadas.length === 0) {
-          // Sem PJ vinculada — alerta
           await supabase.from("glosa_payment_applications").insert({
             payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
             parcela_numero: 0, valor_aplicado: 0,
@@ -264,16 +283,10 @@ Deno.serve(async (req) => {
             applied_by: user_id,
           });
           summary.glosas.sem_pj++;
-          return;
+          continue;
         }
-        // Glosa clássica exige `matchEmpresa` porque a dívida é escopada à PJ original.
-        // Débito residual de conciliação também: cobra apenas quando a PJ deste lote
-        // é uma das vinculadas à médica. Se não for, alguma outra iteração/lote em
-        // outra PJ vinculada pega — sem cross-hospital porque a query já filtra por
-        // hospital via RLS (active_hospital_scope).
-        if (!matchEmpresa) return;
+        if (!matchEmpresa) continue;
 
-        // Se médico tem múltiplas PJs vinculadas E todas têm produção no lote → ambíguo
         if (vinculadas.length > 1) {
           const { data: outrasProd } = await supabase
             .from("payment_items").select("company_id")
@@ -289,32 +302,62 @@ Deno.serve(async (req) => {
               applied_by: user_id,
             });
             summary.glosas.ambiguous++;
-            return;
+            continue;
           }
         }
 
-        // OK: aplica parcela
         const parcelas = debt.parcelas_default ?? 12;
         const { count: aplicadas } = await supabase
           .from("glosa_payment_applications").select("*", { count: "exact", head: true })
           .eq("glosa_debt_id", debt.id).eq("status", "confirmado");
         const parcelaNumero = (aplicadas ?? 0) + 1;
-        if (parcelaNumero > parcelas) return;
-        const parcelaValor = Number(debt.total_debt) / parcelas;
+        if (parcelaNumero > parcelas) continue;
+        const parcelaPrevista = round2(Number(debt.total_debt) / parcelas);
+
+        // === REGRA DE CAPACIDADE ===
+        if (capacidadeRestante <= 0.01) {
+          await supabase.from("glosa_payment_applications").insert({
+            payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+            parcela_numero: parcelaNumero, valor_aplicado: 0,
+            status: "postponed", source: "auto",
+            postpone_reason: "insufficient_net",
+            resolution_note: `Lote sem líquido disponível para a PJ (capacidade R$ ${capacidadeRestante.toFixed(2)}). Débito rola para o próximo ciclo.`,
+            applied_by: user_id,
+          });
+          summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
+          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
+          continue;
+        }
+
+        if (parcelaPrevista > capacidadeRestante) {
+          const parcial = round2(capacidadeRestante);
+          await supabase.from("glosa_payment_applications").insert({
+            payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+            parcela_numero: parcelaNumero, valor_aplicado: parcial,
+            status: "partial", source: "auto",
+            postpone_reason: "partial_capacity",
+            resolution_note: `Aplicado parcialmente: R$ ${parcial.toFixed(2)} de R$ ${parcelaPrevista.toFixed(2)} previstos. Saldo continua no débito.`,
+            applied_by: user_id,
+          });
+          capacidadeRestante = 0;
+          summary.glosas.partial = (summary.glosas.partial ?? 0) + 1;
+          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcial, parcela: `${parcelaNumero}/${parcelas}`, action: "partial" });
+          continue;
+        }
 
         await supabase.from("glosa_payment_applications").insert({
           payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-          parcela_numero: parcelaNumero, valor_aplicado: parcelaValor,
+          parcela_numero: parcelaNumero, valor_aplicado: parcelaPrevista,
           status: "proposto", source: "auto", applied_by: user_id,
         });
+        capacidadeRestante = round2(capacidadeRestante - parcelaPrevista);
         summary.glosas.proposed++;
-        summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaValor, parcela: `${parcelaNumero}/${parcelas}` });
+        summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaPrevista, parcela: `${parcelaNumero}/${parcelas}` });
        } catch (err) {
         console.error(`[apply-company-deductions] glosa ${debt?.id} falhou`, err);
-        throw err;
        }
-      });
-      if (glosaResult.errors.length) summary.glosas.errors = glosaResult.errors.length;
+      }
+      summary.glosas.capacidade_restante = capacidadeRestante;
     }
 
     return new Response(JSON.stringify({ ok: true, summary }), {
