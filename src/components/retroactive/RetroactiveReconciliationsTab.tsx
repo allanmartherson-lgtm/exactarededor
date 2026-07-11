@@ -6140,7 +6140,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           } as never,
         );
         if (debtErr) {
-          throw new Error(`${g.doctor_name}: ${debtErr.message}`);
+          const raw = debtErr.message || String(debtErr);
+          // 23505 = unique_violation. O índice ativo é (company_id, doctor_id)
+          // WHERE status='ativo' — então bate quando já existe débito em aberto
+          // para o mesmo médico/PJ. Traduz para linguagem operacional.
+          const isUnique = (debtErr as { code?: string })?.code === "23505"
+            || /duplicate key|unique constraint|glosa_debts_company_doctor_active_key/i.test(raw);
+          if (isUnique) {
+            throw new Error(
+              `${g.doctor_name}: já existe um débito ATIVO desse médico para a PJ ${g.company_name ?? ""}. `
+              + `Quite/arquive o débito anterior em /glosas antes de gerar um novo, ou desmarque este médico e reenvie os demais.`,
+            );
+          }
+          throw new Error(`${g.doctor_name}: ${raw}`);
         }
         // Descobre o debt_id criado pelo RPC (para rollback se algum próximo falhar)
         const { data: linkRows } = await supabase
