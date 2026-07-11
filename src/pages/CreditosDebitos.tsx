@@ -1014,7 +1014,10 @@ export default function CreditosDebitos() {
                             ) : (
                               <Select
                                 value={pick}
-                                onValueChange={(v) => setGlobalLoteByPj(prev => ({ ...prev, [pjId]: v }))}
+                                onValueChange={(v) => {
+                                  setGlobalLoteByPj(prev => ({ ...prev, [pjId]: v }));
+                                  void ensureLoteLiquido(pjId, v);
+                                }}
                               >
                                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                                 <SelectContent>
