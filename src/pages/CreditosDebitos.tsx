@@ -260,6 +260,26 @@ export default function CreditosDebitos() {
     return `${base}${liq}`;
   };
 
+  const trackShort = (t: string | null | undefined) =>
+    t === "prioritaria" ? "prioritária" : t === "habitual" ? "habitual" : t ?? "";
+
+  /** Pontua compatibilidade do lote-alvo com a origem do débito. CC vale mais que trilha. */
+  const scoreLoteMatch = (lote: LoteOption, cc: string | null | undefined, track: string | null | undefined) => {
+    let s = 0;
+    if (cc && lote.cost_center_code && lote.cost_center_code === cc) s += 10;
+    if (track && lote.payment_track && lote.payment_track === track) s += 3;
+    return s;
+  };
+
+  /** Dominante entre uma lista de débitos (para PJ com origens mistas). */
+  const dominant = <T extends string | null | undefined>(vals: T[]): T | null => {
+    const m = new Map<string, number>();
+    vals.forEach(v => { if (v) m.set(v, (m.get(v) ?? 0) + 1); });
+    let best: string | null = null; let n = 0;
+    m.forEach((c, k) => { if (c > n) { best = k; n = c; } });
+    return best as T | null;
+  };
+
   const loadOpenLotes = async (companyId: string) => {
     setLoadingLotes(true);
     setOpenLotes([]);
@@ -271,7 +291,7 @@ export default function CreditosDebitos() {
     const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
     if (!ids.length) { setLoadingLotes(false); return; }
     const [{ data: pays }, { data: fins }] = await Promise.all([
-      supabase.from("payments").select("id, reference, competence_month, status")
+      supabase.from("payments").select("id, reference, competence_month, status, cost_center_code, payment_track")
         .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
         .order("competence_month", { ascending: false }),
       supabase.from("payment_company_financials").select("payment_id, liquido")
@@ -283,6 +303,8 @@ export default function CreditosDebitos() {
       id: p.id,
       status: p.status,
       competence: p.competence_month,
+      cost_center_code: p.cost_center_code ?? null,
+      payment_track: p.payment_track ?? null,
       liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
       label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
     }));
