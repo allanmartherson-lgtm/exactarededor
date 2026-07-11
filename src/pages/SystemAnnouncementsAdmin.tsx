@@ -130,6 +130,13 @@ export default function SystemAnnouncementsAdmin({ embedded = false }: { embedde
                   <Badge>{a.severity}</Badge>
                   <Badge variant={a.active ? "default" : "secondary"}>{a.active ? "Ativo" : "Inativo"}</Badge>
                   {a.ends_at && new Date(a.ends_at) < new Date() && <Badge variant="outline">Expirado</Badge>}
+                  {a.target_roles && a.target_roles.length > 0 ? (
+                    <Badge variant="outline">
+                      Público: {a.target_roles.map((r) => AVAILABLE_ROLES.find((x) => x.value === r)?.label ?? r).join(", ")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Público: todos</Badge>
+                  )}
                 </div>
                 {a.title && <p className="font-medium">{a.title}</p>}
                 <p className="text-sm text-muted-foreground">{a.message}</p>
