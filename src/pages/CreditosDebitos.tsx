@@ -220,25 +220,37 @@ export default function CreditosDebitos() {
   const statusShort = (s: string) =>
     ({ rascunho: "rascunho", em_analise_ia: "análise IA", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
 
-  const loadOpenLotes = async (g: GlosaDebt) => {
+  const buildLoteLabel = (p: { id: string; competence_month: string | null; status: string }, liquido: number | null) => {
+    const base = `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+    const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
+    return `${base}${liq} · #${p.id.slice(0, 6)}`;
+  };
+
+  const loadOpenLotes = async (companyId: string) => {
     setLoadingLotes(true);
     setOpenLotes([]);
     // Lotes em aberto que contêm a PJ do débito (via payment_company_groups).
     const { data: pcg } = await (supabase as any)
       .from("payment_company_groups")
       .select("payment_id")
-      .eq("company_id", g.company_id);
+      .eq("company_id", companyId);
     const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
     if (!ids.length) { setLoadingLotes(false); return; }
-    const { data: pays } = await supabase
-      .from("payments")
-      .select("id, competence_month, status")
-      .in("id", ids)
-      .in("status", OPEN_PAYMENT_STATUSES)
-      .order("competence_month", { ascending: false });
+    const [{ data: pays }, { data: fins }] = await Promise.all([
+      supabase.from("payments").select("id, competence_month, status")
+        .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
+        .order("competence_month", { ascending: false }),
+      supabase.from("payment_company_financials").select("payment_id, liquido")
+        .in("payment_id", ids).eq("company_id", companyId),
+    ]);
+    const liqMap = new Map<string, number>();
+    ((fins as any[]) ?? []).forEach(f => liqMap.set(f.payment_id, Number(f.liquido ?? 0)));
     const opts: LoteOption[] = ((pays as any[]) ?? []).map(p => ({
       id: p.id,
-      label: `${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`,
+      status: p.status,
+      competence: p.competence_month,
+      liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
+      label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
     }));
     setOpenLotes(opts);
     setPaymentLabels(prev => {
