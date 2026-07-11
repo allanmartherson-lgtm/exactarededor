@@ -2830,6 +2830,29 @@ const NewPayment = () => {
       return;
     }
 
+    // Registra planilhas originais para auditoria (payment_source_files).
+    // Falha aqui é tolerada — o pagamento já foi criado; log e segue.
+    if (uploadedFiles.length > 0) {
+      const sourceRows = uploadedFiles.map((f) => ({
+        payment_id: payment.id,
+        storage_bucket: "payment-files",
+        storage_path: f.storage_path,
+        original_filename: f.original_filename,
+        mime_type: f.mime_type,
+        size_bytes: f.size_bytes,
+        sha256: f.sha256,
+        bucket_role: f.bucket_role,
+        uploaded_by: user!.id,
+      }));
+      const { error: psfErr } = await (supabase as any)
+        .from("payment_source_files")
+        .insert(sourceRows);
+      if (psfErr) {
+        console.warn("[NewPayment] payment_source_files insert falhou:", psfErr);
+      }
+    }
+
+
     const rollbackCreatedPayment = async (context: string) => {
       const { error: rollbackErr } = await (supabase as any).rpc("rollback_new_payment", {
         _payment_id: payment.id,
