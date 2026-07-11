@@ -74,9 +74,23 @@ function normKey(k: string): string {
 function autoSuggest(headers: string[], targets: TargetField[]): Record<string, string> {
   const norm = headers.map((h) => ({ h, n: normKey(h) }));
   const out: Record<string, string> = {};
+  const used = new Set<string>();
   for (const t of targets) {
-    const hit = norm.find(({ n }) => t.aliases.some((a) => n.includes(a)));
-    if (hit) out[t.key] = hit.h;
+    // Prioridade importa: itera aliases em ordem e para cada alias procura o
+    // primeiro header que contenha o alias. Sem isso, um header genérico como
+    // "Valor Convênio" ganhava do específico "Valor Total" só por vir antes na
+    // planilha — causando confusão entre colunas com o mesmo prefixo.
+    let picked: string | null = null;
+    for (const a of t.aliases) {
+      const exact = norm.find(({ h, n }) => !used.has(h) && n === a);
+      if (exact) { picked = exact.h; break; }
+      const partial = norm.find(({ h, n }) => !used.has(h) && n.includes(a));
+      if (partial) { picked = partial.h; break; }
+    }
+    if (picked) {
+      out[t.key] = picked;
+      used.add(picked);
+    }
   }
   return out;
 }
