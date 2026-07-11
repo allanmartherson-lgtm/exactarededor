@@ -124,7 +124,8 @@ const Auth = () => {
       redirect_uri: window.location.origin,
     });
     const result = await Promise.race([signInPromise, bridge.promise]);
-    const session = await waitForSessionAfterGoogle(deadline);
+    const sessionDeadline = result === "timeout" ? deadline : Date.now() + 5_000;
+    const session = await waitForSessionAfterGoogle(sessionDeadline);
     bridge.cleanup();
     if (session) {
       setGoogleLoading(false);
