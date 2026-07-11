@@ -24,6 +24,8 @@ import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
 const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "exacta-password-recovery-email";
 const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
+const GOOGLE_SIGN_IN_TIMEOUT_MS = 25_000;
+const GOOGLE_SESSION_POLL_MS = 700;
 
 const getPasswordRecoveryOrigin = () => {
   if (window.location.hostname.endsWith(".lovableproject.com")) return PROJECT_PREVIEW_ORIGIN;
@@ -43,6 +45,31 @@ const safeNext = (raw: string | null): string => {
   if (!raw) return "/";
   if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
   return raw;
+};
+
+const waitForSessionAfterGoogle = async () => {
+  const deadline = Date.now() + GOOGLE_SIGN_IN_TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) return data.session;
+    await new Promise((resolve) => window.setTimeout(resolve, GOOGLE_SESSION_POLL_MS));
+  }
+
+  return null;
+};
+
+const withGoogleTimeout = async <T,>(promise: Promise<T>) => {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<"timeout">((resolve) => {
+    timeoutId = window.setTimeout(() => resolve("timeout"), GOOGLE_SIGN_IN_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  }
 };
 
 const Auth = () => {
@@ -66,9 +93,29 @@ const Auth = () => {
     // origin puro para não quebrar a validação do broker OAuth no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
-    const result = await lovable.auth.signInWithOAuth("google", {
+    const result = await withGoogleTimeout(lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
-    });
+    }));
+    const session = await waitForSessionAfterGoogle();
+    if (session) {
+      setGoogleLoading(false);
+      let target = nextTarget;
+      try {
+        const stored = sessionStorage.getItem("exacta-oauth-next");
+        if (stored) { target = safeNext(stored); sessionStorage.removeItem("exacta-oauth-next"); }
+      } catch { /* noop */ }
+      navigate(target, { replace: true });
+      return;
+    }
+    if (result === "timeout") {
+      setGoogleLoading(false);
+      toast({
+        title: "Login Google não finalizou",
+        description: "A seleção da conta foi concluída, mas a sessão não voltou para o app. Feche a janela do Google e tente novamente; se estiver no 5G, teste também no Wi‑Fi.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (result.error) {
       setGoogleLoading(false);
       toast({ title: "Não foi possível entrar com Google", description: result.error.message ?? "Tente novamente.", variant: "destructive" });
