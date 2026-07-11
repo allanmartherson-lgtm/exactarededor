@@ -77,13 +77,14 @@ const safeNext = (raw: string | null): string => {
 };
 
 const waitForSessionAfterGoogle = async (deadline: number) => {
-
+  let attempts = 0;
   while (Date.now() < deadline) {
-    const { data } = await supabase.auth.getSession();
+    attempts++;
+    const { data, error } = await supabase.auth.getSession();
+    diagPush("poll.getSession", { attempts, hasSession: !!data.session, userId: data.session?.user?.id, error: error?.message });
     if (data.session?.user) return data.session;
     await new Promise((resolve) => window.setTimeout(resolve, GOOGLE_SESSION_POLL_MS));
   }
-
   return null;
 };
 
@@ -100,23 +101,34 @@ const startOAuthWebMessageBridge = () => {
     done = true;
     window.removeEventListener("message", onMessage);
     if (timeoutId) window.clearTimeout(timeoutId);
+    diagPush("bridge.finish", { value });
     resolveBridge(value);
   };
 
   const onMessage = (event: MessageEvent) => {
-    if (!isTrustedOAuthMessageOrigin(event.origin)) return;
+    const trusted = isTrustedOAuthMessageOrigin(event.origin);
     const payload = event.data as { type?: unknown; response?: { access_token?: unknown; refresh_token?: unknown } } | null;
+    diagPush("bridge.message", {
+      origin: event.origin,
+      trusted,
+      type: payload?.type,
+      hasAccess: typeof payload?.response?.access_token === "string",
+      hasRefresh: typeof payload?.response?.refresh_token === "string",
+    });
+    if (!trusted) return;
     if (!payload || payload.type !== "authorization_response") return;
     const accessToken = payload.response?.access_token;
     const refreshToken = payload.response?.refresh_token;
     if (typeof accessToken !== "string" || typeof refreshToken !== "string") return;
     void supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+      diagPush("bridge.setSession", { ok: !error, error: error?.message });
       if (!error) finish("session");
     });
   };
 
   window.addEventListener("message", onMessage);
   timeoutId = window.setTimeout(() => finish("timeout"), GOOGLE_SIGN_IN_TIMEOUT_MS);
+  diagPush("bridge.start", { timeoutMs: GOOGLE_SIGN_IN_TIMEOUT_MS });
   return { promise, cleanup: () => finish("timeout") };
 };
 
