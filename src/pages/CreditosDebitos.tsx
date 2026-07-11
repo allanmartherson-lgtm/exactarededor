@@ -48,7 +48,10 @@ type GlosaDebt = {
   created_at: string;
   confirmed_at: string | null;
   target_payment_id: string | null;
+  origem_payment_id: string | null;
   _company_name?: string;
+  _origem_cc?: string | null;
+  _origem_track?: string | null;
 };
 
 type LoteOption = {
@@ -57,6 +60,8 @@ type LoteOption = {
   liquido: number | null;
   status: string;
   competence: string | null;
+  cost_center_code: string | null;
+  payment_track: string | null;
 };
 
 type AdjApplication = {
@@ -133,7 +138,7 @@ export default function CreditosDebitos() {
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
-        .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id")
+        .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id, origem_payment_id")
         .eq("status", "ativo")
         .order("created_at", { ascending: false }),
 
@@ -142,8 +147,22 @@ export default function CreditosDebitos() {
     const cMap = new Map(companiesAll.map((x) => [x.id, x.name]));
     const adjs = (a.data || []) as Adjustment[];
     setAdjustments(adjs.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
-    const debts = ((g as any).data || []) as GlosaDebt[];
-    setGlosaDebts(debts.map(x => ({ ...x, _company_name: cMap.get(x.company_id) })));
+    const debtsRaw = ((g as any).data || []) as GlosaDebt[];
+    // Enriquece cada débito com CC + track do lote de origem, para casar "igual com igual" ao sugerir lote-alvo
+    const origIds = Array.from(new Set(debtsRaw.map(d => d.origem_payment_id).filter(Boolean))) as string[];
+    const origMeta = new Map<string, { cc: string | null; track: string | null }>();
+    if (origIds.length) {
+      const { data: origPays } = await supabase
+        .from("payments").select("id, cost_center_code, payment_track").in("id", origIds);
+      ((origPays as any[]) ?? []).forEach(p => origMeta.set(p.id, { cc: p.cost_center_code ?? null, track: p.payment_track ?? null }));
+    }
+    const debts = debtsRaw.map(x => ({
+      ...x,
+      _company_name: cMap.get(x.company_id),
+      _origem_cc: x.origem_payment_id ? origMeta.get(x.origem_payment_id)?.cc ?? null : null,
+      _origem_track: x.origem_payment_id ? origMeta.get(x.origem_payment_id)?.track ?? null : null,
+    }));
+    setGlosaDebts(debts);
 
     // Carrega histórico real de aplicações por ajuste
     const adjIds = adjs.map(x => x.id);
@@ -241,6 +260,26 @@ export default function CreditosDebitos() {
     return `${base}${liq}`;
   };
 
+  const trackShort = (t: string | null | undefined) =>
+    t === "prioritaria" ? "prioritária" : t === "habitual" ? "habitual" : t ?? "";
+
+  /** Pontua compatibilidade do lote-alvo com a origem do débito. CC vale mais que trilha. */
+  const scoreLoteMatch = (lote: LoteOption, cc: string | null | undefined, track: string | null | undefined) => {
+    let s = 0;
+    if (cc && lote.cost_center_code && lote.cost_center_code === cc) s += 10;
+    if (track && lote.payment_track && lote.payment_track === track) s += 3;
+    return s;
+  };
+
+  /** Dominante entre uma lista de débitos (para PJ com origens mistas). */
+  const dominant = <T extends string | null | undefined>(vals: T[]): T | null => {
+    const m = new Map<string, number>();
+    vals.forEach(v => { if (v) m.set(v, (m.get(v) ?? 0) + 1); });
+    let best: string | null = null; let n = 0;
+    m.forEach((c, k) => { if (c > n) { best = k; n = c; } });
+    return best as T | null;
+  };
+
   const loadOpenLotes = async (companyId: string) => {
     setLoadingLotes(true);
     setOpenLotes([]);
@@ -252,7 +291,7 @@ export default function CreditosDebitos() {
     const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
     if (!ids.length) { setLoadingLotes(false); return; }
     const [{ data: pays }, { data: fins }] = await Promise.all([
-      supabase.from("payments").select("id, reference, competence_month, status")
+      supabase.from("payments").select("id, reference, competence_month, status, cost_center_code, payment_track")
         .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
         .order("competence_month", { ascending: false }),
       supabase.from("payment_company_financials").select("payment_id, liquido")
@@ -264,6 +303,8 @@ export default function CreditosDebitos() {
       id: p.id,
       status: p.status,
       competence: p.competence_month,
+      cost_center_code: p.cost_center_code ?? null,
+      payment_track: p.payment_track ?? null,
       liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
       label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
     }));
@@ -388,7 +429,7 @@ export default function CreditosDebitos() {
       const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
       if (!ids.length) return [pjId, [] as LoteOption[]] as const;
       const [{ data: pays }, { data: fins }] = await Promise.all([
-        supabase.from("payments").select("id, reference, competence_month, status")
+        supabase.from("payments").select("id, reference, competence_month, status, cost_center_code, payment_track")
           .in("id", ids).in("status", OPEN_PAYMENT_STATUSES)
           .order("competence_month", { ascending: false }),
         supabase.from("payment_company_financials").select("payment_id, liquido")
@@ -400,18 +441,40 @@ export default function CreditosDebitos() {
         id: p.id,
         status: p.status,
         competence: p.competence_month,
+        cost_center_code: p.cost_center_code ?? null,
+        payment_track: p.payment_track ?? null,
         liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
         label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
       }));
       return [pjId, opts] as const;
     }));
 
+    // Origem dominante (CC + track) dos débitos selecionados por PJ — usada para casar "igual com igual"
+    const originByPj = new Map<string, { cc: string | null; track: string | null }>();
+    selectedList.forEach(g => {
+      const arr = (originByPj.get(g.company_id)?.cc ? [originByPj.get(g.company_id)] : []) as any[];
+      arr.push({ cc: g._origem_cc ?? null, track: g._origem_track ?? null });
+    });
+    // Recalcula corretamente por PJ
+    pjIds.forEach(pjId => {
+      const debtsPj = selectedList.filter(d => d.company_id === pjId);
+      originByPj.set(pjId, {
+        cc: dominant(debtsPj.map(d => d._origem_cc ?? null)),
+        track: dominant(debtsPj.map(d => d._origem_track ?? null)),
+      });
+    });
+
     const lotesMap: Record<string, LoteOption[]> = {};
     const pickMap: Record<string, string> = {};
     results.forEach(([pjId, opts]) => {
       lotesMap[pjId] = opts;
-      // Sugere o lote com MAIOR líquido disponível; empate → mais recente
-      const sug = [...opts].sort((a, b) => (Number(b.liquido ?? 0) - Number(a.liquido ?? 0)))[0];
+      const origem = originByPj.get(pjId) ?? { cc: null, track: null };
+      // Sugere: (1) maior compatibilidade CC/trilha, (2) maior líquido, (3) mais recente
+      const sug = [...opts].sort((a, b) => {
+        const ds = scoreLoteMatch(b, origem.cc, origem.track) - scoreLoteMatch(a, origem.cc, origem.track);
+        if (ds !== 0) return ds;
+        return Number(b.liquido ?? 0) - Number(a.liquido ?? 0);
+      })[0];
       if (sug) pickMap[pjId] = sug.id;
     });
     setGlobalLotesByPj(lotesMap);
