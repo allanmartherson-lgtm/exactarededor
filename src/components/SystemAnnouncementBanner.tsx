@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { X, Info, AlertTriangle, AlertOctagon, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Announcement = {
   id: string;
@@ -12,6 +13,7 @@ type Announcement = {
   starts_at: string;
   ends_at: string | null;
   dismissible: boolean;
+  target_roles: string[] | null;
 };
 
 const STORAGE_KEY = "medpay:dismissed-announcements";
