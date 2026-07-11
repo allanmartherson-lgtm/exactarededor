@@ -3988,15 +3988,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
         // Determina o tipo de análise a partir do método de cálculo aplicado.
         // Grupo "valor": regras que usam o valor do convênio como base (TASY e Exacta
-        //   partem da mesma tabela) → comparar valores em R$ faz sentido.
-        // Grupo "quantidade": tabela própria (valor_fixo, pacote, tabela diferenciada,
-        //   bônus) → valor TASY não é comparável; só quantidade e presença.
+        //   partem da mesma tabela) → comparar valores em R$ faz sentido. Inclui
+        //   também `bonus`, que por definição é aditivo sobre uma base faturada —
+        //   se o TASY não faturou a base, o bônus não deveria existir e precisa
+        //   entrar como glosa financeira normal.
+        // Grupo "quantidade": tabela própria (valor_fixo, pacote, tabela diferenciada)
+        //   → valor TASY não é comparável; só quantidade e presença.
         const rawMethod = (p?.sample.pag_applied_calc_method ?? "").trim().toLowerCase();
         const isFixedMethod =
           rawMethod === "valor_fixo" ||
           rawMethod === "tabela_diferenciada" ||
-          rawMethod === "bonus" ||
           rawMethod.startsWith("pacote");
+
         const tipo_analise: "valor" | "quantidade" = isFixedMethod ? "quantidade" : "valor";
 
         // Status deriva do tipo de análise: em "quantidade" nunca consideramos
