@@ -1,77 +1,69 @@
-# Correção da regra de bônus
+
+# Plano — Limpeza de Duplicatas de Regras (evento 12/jun/2026 00:52:12)
+
+## Contexto
+
+Em `2026-06-12 00:52:12` foram criadas **20 regras** em massa (mesmo timestamp exato, ao segundo). Todas colidem em `(hospital_id, name)` com regras já existentes. Das 20:
+
+- **17** ficaram inativas (`active=false`) — ruído, mas sem efeito no motor
+- **3** ficaram ativas e são as perigosas:
+  - `Regra Cirurgia do Aparelho Digestivo (Bariátrica)` — 2 duplicatas ativas
+  - `Regra Geral - Repasse 100% Convênio + Parecer + Visita + Consulta` — ativa
+  - `Acordo Coluna` / `Acordo Flávio Brito` / `Acordo Ortopedia` — 1 ativa cada
+
+Padrão comum: as duplicatas foram gravadas com `has_conditions=false` e `time_mode='qualquer'` — perdendo as restrições da regra original. É esse padrão que causou os bônus de FDS pagos em dias úteis (Otorrino, Cir. Geral).
+
+Não há relação direta com o form de edição (`RuleCalculationsEditor`); trata-se de um evento de gravação em lote (script, seed, importação ou botão de "clonar/replicar"). A causa raiz precisa ser identificada antes de fechar.
 
 ## Objetivo
-Regra `calculation_type=bonus` deve gerar uma **linha nova** de pagamento por atendimento (`tipo_linha='complemento_bonus'`) em vez de sobrescrever `applied_calc_method` de um item TUSS existente. As linhas TUSS ficam intactas com seu cálculo original (percentual_convenio, tabela, etc.).
 
-## Escopo funcional
-- Bônus nunca vira `matched_rule` de um item pré-existente.
-- Para cada atendimento elegível, o motor gera **1 linha sintética** `complemento_bonus` no anchor (cirurgião principal), com `expected_amount = bonus_amount + base * bonus_pct/100`, onde `base` depende de `application_unit`:
-  - `por_item`: `base` = `procedure_amount` do item âncora.
-  - `por_atendimento` / `por_paciente_dia`: `base` = soma de `procedure_amount` dos itens do grupo (mesmo atendimento/paciente/data/empresa) que baterem nos filtros da regra.
-- Se a regra tem só `bonus_amount` (caso atual), `base` é irrelevante — apenas soma o valor fixo.
-- Regras de bônus continuam respeitando todos os filtros já existentes (dia/semana, elective, feriado, PJ, médicos incluídos/excluídos, setor, especialidade, TUSS quando informado, convênio, tipo pagamento).
-- Se nenhum item do atendimento bater na regra, nenhuma linha é criada.
-- Se o atendimento não tem cirurgião principal identificado, gera linha em modo `pendente_revisao` com alerta pedindo inclusão manual.
+1. Neutralizar o efeito atual das duplicatas
+2. Descobrir a origem do evento
+3. Impedir que aconteça de novo
 
-## Mudanças no motor (`supabase/functions/_shared/rulesEngine.ts`)
+## Passos
 
-### 1. Excluir bônus do matching por item
-Na fase de matching (função que produz `AnalysisResult` por item), regras com `calculation_type='bonus'` são **puladas** — nunca aparecem como `matched_rule_id` de um item TUSS.
+### 1. Snapshot e auditoria (leitura)
+- Exportar as 20 regras suspeitas + suas "originais" (mesma `(hospital_id, name)`) para `rule_snapshots` com motivo `"duplicate_cleanup_2026_06_12"`.
+- Rodar diff campo-a-campo (weekdays, time_mode, has_conditions, exception_table_ids, calculations count) e gerar relatório.
+- Consultar `audit_log` entre `2026-06-12 00:50:00` e `00:55:00` filtrando `entity='rules'` para identificar `actor_id` / rota / user-agent.
+- Verificar `git log` das migrations e edge functions com deploy próximo a essa data.
 
-### 2. Nova fase pós-matching: `synthesizeBonusLines(items, rules, ctx)`
-- Enumera regras ativas cujo cálculo (algum `rule_calculations`) é `bonus`.
-- Para cada regra, seleciona itens candidatos aplicando os mesmos filtros usados no matcher (data/hora/elective/setor/convênio/PJ/médicos/TUSS/tipo pagamento).
-- Agrupa por `attendance|patient|date|company` (chave sem médico).
-- Escolhe anchor = item cujo `doctor_role` classifica como `cirurgiao`.
-- Calcula `base` conforme `application_unit`.
-- Retorna lista de linhas sintéticas com forma `{ attendance, patient, date, company_id, doctor_id (anchor), rule_id, calc_id, expected_amount, tipo_linha: 'complemento_bonus', complement_reason: rule.name }`.
-- Se não houver anchor: linha em modo pendente (mesma lógica já existente).
+### 2. Desativação segura das duplicatas
+- Para cada duplicata onde existe uma "irmã" mais antiga com `has_conditions=true` ou config mais rica: `active=false` na duplicata, registrar em `audit_log` com `reason='duplicate_cleanup_2026_06_12'`.
+- Para as 3 ativas problemáticas: revisar 1-a-1 antes de desativar (podem ter tido edições após 12/jun que valem preservar).
+- Não deletar fisicamente (mantém histórico e evita quebra de FKs em `rule_calculations`, `rule_snapshots`, `payment_items.matched_rule_id`).
 
-### 3. Persistência das linhas sintéticas (`supabase/functions/analyze-payment/index.ts`)
-Após rodar o motor, para cada linha sintética:
-- Faz `upsert` em `payment_items` com chave estável (`payment_id + attendance + rule_id + tipo_linha`) — reprocessos não duplicam.
-- Marca `synthetic_bonus=true` (nova coluna booleana) para permitir cleanup/backfill sem afetar itens reais da planilha.
-- Gera `AnalysisResult` correspondente com `calculation_type_used='bonus'`, status normal.
-- Ao reprocessar um pagamento, remove todos os itens `synthetic_bonus=true` antes de sintetizar de novo — evita duplicidade se a regra mudou/desligou.
+### 3. Recomputo dos pagamentos afetados
+- Identificar `payment_items` com `matched_rule_id` apontando para uma das duplicatas desativadas.
+- Estimar impacto financeiro por lote/PJ antes de reprocessar.
+- Reprocessar apenas os lotes onde a mudança altera `expected_amount`; abrir glosa retroativa para os débitos e crédito manual para os créditos, conforme padrão já usado no caso do Jairo.
 
-### 4. Remove passe atual de dedup de bônus (linhas 4103-4179)
-Fica obsoleto — bônus vira linha própria em vez de sobrescrever item existente.
+### 4. Hardening no banco
+- Índice único parcial: `CREATE UNIQUE INDEX ON rules(hospital_id, lower(name)) WHERE active = true;` — impede duas regras ativas com mesmo nome no mesmo hospital.
+- Trigger `BEFORE INSERT/UPDATE ON rules` que bloqueia gravar `time_mode IN ('fim_de_semana','dias_uteis','personalizado')` com `weekdays='{}'` e/ou `has_conditions=false` — inconsistência semântica.
+- Ampliar `audit_log` para gravar `old_row`/`new_row` completos em qualquer operação de INSERT/UPDATE em `rules` (hoje só grava campos "importantes").
 
-## Mudanças de schema
-Migration única:
-- `ALTER TABLE payment_items ADD COLUMN synthetic_bonus boolean NOT NULL DEFAULT false;`
-- Index parcial: `CREATE INDEX ON payment_items (payment_id, matched_rule_id) WHERE synthetic_bonus = true;`
+### 5. Hardening no código
+- `calcToDbPayload` (`RuleCalculationsEditor.tsx`): derivar `weekdays` a partir de `time_mode` mesmo quando não é "personalizado" (defesa em profundidade).
+- Motor (`rulesEngine.ts`): quando `time_mode ∈ {fim_de_semana, dias_uteis}` e `weekdays='{}'`, logar `data_integrity_warning` em `analysis_telemetry` e usar o preset como fonte da verdade (nunca cair em "qualquer dia").
+- Se algum caminho de "clonar regra" existir na UI, garantir que copia `weekdays`, `exception_table_ids` e `has_conditions` — provável suspeito da origem.
 
-## Backfill dos lotes já processados
-Edge function nova `backfill-bonus-rule` (invocada manualmente):
-1. Lista `payment_items` com `applied_calc_method='bonus'` (itens onde o rótulo foi aplicado indevidamente sobre um TUSS real).
-2. Para cada item: reseta `matched_rule_id`, `applied_calc_method`, `expected_amount`, `calculation_explanation` a partir da segunda melhor regra (roda o matcher só naquele item, ignorando bônus).
-3. Recalcula `diff_pct`, `status`.
-4. Coleta os `payment_id` afetados e para cada um chama a fase 2 do motor (`synthesizeBonusLines`) para inserir as linhas de bônus corretas.
-5. Registra no `audit_log` (`action='backfill_bonus'`) com contagem por lote.
-6. Ao final: relatório em `/mnt/documents/backfill_bonus_YYYYMMDD.csv` (payment_id, itens_corrigidos, linhas_bonus_criadas).
-
-Botão temporário em `/admin/manutencao` (ou similar já existente) para disparar o backfill manualmente, restrito a `admin`.
-
-## UI (impacto mínimo)
-- `PaymentConciliationModal.tsx`: já reconhece `tipo_linha='complemento_bonus'` e trata como linha extra. Verificar que:
-  - Não entra no matching contra base hospitalar (não tem TUSS a bater).
-  - Aparece explicitamente rotulada "Bônus — <nome da regra>" no relatório.
-- `RuleFormStepper.tsx`: adicionar aviso visual no cálculo `bonus` explicando que "esta regra gera uma linha adicional no pagamento — não altera valores de itens TUSS existentes".
-
-## Testes
-- `supabase/functions/analyze-payment/bonus_per_attendance_test.ts`: atualizar para verificar linha nova sintética + item TUSS original intacto.
-- Novo teste: bônus com `por_item` gera 1 linha por item elegível.
-- Novo teste: bônus com filtros que não batem em nenhum item do atendimento → 0 linhas.
-- Novo teste: reprocesso não duplica linhas sintéticas.
+### 6. Documentação
+- Fechar `.lovable/mem/features/rule-weekdays-persistence-bug.md` com o diagnóstico real (não era o form, era o evento de duplicação).
+- Abrir `.lovable/mem/features/rule-duplicate-cleanup-2026-06.md` registrando: causa raiz identificada, itens desativados, hardening aplicado.
 
 ## Detalhes técnicos
-- Chave estável do item sintético: `${payment_id}::bonus::${rule_id}::${attendance}::${patient_hash}::${date}` — para o upsert.
-- `synthetic_bonus` NÃO conta em soma bruta da planilha (relatórios de "total base hospitalar"), mas conta em "total repasse".
-- Motor grava `applied_calc_method='bonus'` **apenas** em itens `synthetic_bonus=true`.
-- Ordem de fases no motor: match por item → suplemento (complemento existente) → **novo: synthesizeBonusLines** → dedup residuais → main procedure selection.
 
-## Não-objetivos
-- Não altera a semântica de outras `calculation_type` (valor_fixo, percentual_convenio, tabela_diferenciada, etc.).
-- Não muda a UI de conciliação além do rótulo — a mesma tela já suporta `complemento_bonus`.
-- Não remove a coluna `bonus_amount`/`bonus_pct` de `rule_calculations`.
+- **Ordem de execução:** 1 → 2 → 4 (constraint) → 5 → 3 (recompute com constraint já ativa) → 6.
+- **Motivo:** aplicar a UNIQUE constraint antes do recompute evita que qualquer bug residual crie nova duplicata durante o reprocessamento.
+- **Reversibilidade:** snapshot completo em `rule_snapshots` permite reativar qualquer duplicata desativada por engano.
+- **Impacto no motor:** `active=false` já é filtro nativo do `rulesEngine`, então basta o UPDATE — nenhum código muda para a neutralização em si.
+
+## O que fica de fora deste plano
+- Correção dos 5 débitos do Jairo/Marcelo/Leonardo/Pedro/Rodrigo (já aplicada na etapa anterior).
+- Upload da planilha original para auditoria (tarefa separada, sem urgência).
+
+## Confirmação necessária antes de executar
+- OK em desativar as **3 duplicatas ativas** listadas (Bariátrica x2, Repasse 100% Convênio Geral, Acordo Coluna/Flávio/Ortopedia)?
+- OK em reprocessar automaticamente os lotes afetados no passo 3, ou prefere revisão manual item-a-item?
