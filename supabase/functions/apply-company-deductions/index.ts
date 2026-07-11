@@ -59,14 +59,31 @@ Deno.serve(async (req) => {
       glosas:  { proposed: 0, skipped_existing: 0, ambiguous: 0, sem_pj: 0, items: [] as any[] },
     };
 
-    // ============ DÉBITOS (company_financial_adjustments) ============
-    // Carrega payment_model_id deste lote para filtrar ajustes restritos a modelos específicos.
-    const { data: paymentModelRow } = await supabase
+    // Gate: lote já finalizado/pago não recebe novas propostas automáticas.
+    // Ajustes/glosas em lotes desses status devem rolar para o próximo ciclo.
+    const FINAL_STATUSES = new Set([
+      "aprovado", "aprovado_com_ressalva", "aprovado_parcial",
+      "pedido_nf_enviado", "nf_recebida", "nf_conciliada", "nf_questionada", "nf_divergente",
+      "lancado", "pago", "arquivado", "cancelado", "rejeitado",
+    ]);
+    const { data: paymentStatusRow } = await supabase
       .from("payments")
-      .select("payment_model_id")
+      .select("status, payment_model_id")
       .eq("id", payment_id)
       .maybeSingle();
-    const lotePaymentModelId: string | null = (paymentModelRow?.payment_model_id as string) ?? null;
+    const paymentCurrentStatus: string | null = (paymentStatusRow?.status as string) ?? null;
+    if (paymentCurrentStatus && FINAL_STATUSES.has(paymentCurrentStatus)) {
+      return new Response(JSON.stringify({
+        ok: true,
+        skipped: true,
+        reason: `payment_status=${paymentCurrentStatus} — lote finalizado, deduções não são propostas automaticamente`,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ============ DÉBITOS (company_financial_adjustments) ============
+    // Carrega payment_model_id deste lote para filtrar ajustes restritos a modelos específicos.
+    const lotePaymentModelId: string | null = (paymentStatusRow?.payment_model_id as string) ?? null;
+
 
     const { data: adjustmentsRaw } = await supabase
       .from("company_financial_adjustments")
