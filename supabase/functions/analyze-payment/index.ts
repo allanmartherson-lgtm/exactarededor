@@ -14,6 +14,8 @@ import {
   inferItemSector,
   normName,
   drainLearnedAliases,
+  selectWinningRule,
+  calcItemMatches,
   type ItemInput,
   type RuleInput,
   type PaymentContext,
