@@ -6038,7 +6038,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     parcelasFallback: number,
   ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelasResumo: string }> => {
     if (groups.length === 0) throw new Error("Nenhum grupo selecionado.");
-    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
+    // Multi-PJ: cada grupo carrega sua própria company_id (via doctor_companies).
+    // Só exige recon.company_id como fallback no modo médico único.
+    const groupsSemPj = groups.filter((g) => !(g.company_id ?? recon?.company_id));
+    if (groupsSemPj.length > 0) {
+      const nomes = groupsSemPj.map((g) => g.doctor_name).join(", ");
+      throw new Error(`Médico(s) sem PJ vinculada — não é possível gerar glosa: ${nomes}. Vincule a PJ no cadastro do médico.`);
+    }
     const allItems = groups.flatMap((g) => g.items);
     if (allItems.length === 0) throw new Error("Nenhum item a retirar nos grupos selecionados.");
 
@@ -6072,6 +6078,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const allInsertedIdsByGroup: Array<{ group: GlosaGroup; item_ids: string[] }> = [];
     try {
       for (const g of groups) {
+        const groupCompanyId = g.company_id ?? recon?.company_id ?? null;
         const payload = g.items.map((r) => {
           const motivo =
             r.status === "ausente_tasy"
@@ -6094,7 +6101,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             status: "vinculado",
             matched_payment_item_id: r.matched_payment_item_id ?? null,
             matched_payment_id: r.matched_payment_id ?? null,
-            matched_company_id: recon.company_id,
+            matched_company_id: groupCompanyId,
             match_source: "auditoria_retroativa",
             matched_at: new Date().toISOString(),
             hospital_id: hospitalIdRecon,
@@ -6121,10 +6128,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     try {
       for (const { group: g, item_ids } of allInsertedIdsByGroup) {
         const parcelasGrupo = Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback);
+        const groupCompanyId = g.company_id ?? recon?.company_id ?? null;
         const { error: debtErr } = await supabase.rpc(
           "create_glosa_debt_with_items" as never,
           {
-            p_company_id: recon.company_id,
+            p_company_id: groupCompanyId,
             p_doctor_crm: g.doctor_crm,
             p_doctor_name: g.doctor_name,
             p_parcelas: parcelasGrupo,
