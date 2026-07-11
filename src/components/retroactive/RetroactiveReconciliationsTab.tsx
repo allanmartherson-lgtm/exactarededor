@@ -6038,7 +6038,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     parcelasFallback: number,
   ): Promise<{ batch_id: string; debts: number; items: number; total: number; parcelasResumo: string }> => {
     if (groups.length === 0) throw new Error("Nenhum grupo selecionado.");
-    if (!recon?.company_id) throw new Error("Apuração sem PJ vinculada — não é possível gerar glosa.");
+    // Multi-PJ: cada grupo carrega sua própria company_id (via doctor_companies).
+    // Só exige recon.company_id como fallback no modo médico único.
+    const groupsSemPj = groups.filter((g) => !(g.company_id ?? recon?.company_id));
+    if (groupsSemPj.length > 0) {
+      const nomes = groupsSemPj.map((g) => g.doctor_name).join(", ");
+      throw new Error(`Médico(s) sem PJ vinculada — não é possível gerar glosa: ${nomes}. Vincule a PJ no cadastro do médico.`);
+    }
     const allItems = groups.flatMap((g) => g.items);
     if (allItems.length === 0) throw new Error("Nenhum item a retirar nos grupos selecionados.");
 
