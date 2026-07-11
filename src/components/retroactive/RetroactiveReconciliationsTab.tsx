@@ -6078,6 +6078,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const allInsertedIdsByGroup: Array<{ group: GlosaGroup; item_ids: string[] }> = [];
     try {
       for (const g of groups) {
+        const groupCompanyId = g.company_id ?? recon?.company_id ?? null;
         const payload = g.items.map((r) => {
           const motivo =
             r.status === "ausente_tasy"
