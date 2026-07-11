@@ -41,13 +41,23 @@ const ENTITY_LABELS: Record<string, string> = {
   sector: "Setor",
   cost_center: "Centro de custo",
   user: "Usuário",
+  doctor_companies: "Vínculo médico ↔ PJ",
+  doctor_hospital_overrides: "Override médico ↔ hospital",
+  company_hospital_overrides: "Override PJ ↔ hospital",
+  doctor_aliases: "Alias de médico",
+  convenio_aliases: "Alias de convênio",
+  sector_aliases: "Alias de setor",
 };
 const ACTION_LABELS: Record<string, string> = {
   create: "Criação",
   update: "Alteração",
   status_anomaly: "Anomalia de status",
   validation_assigned: "Envio para validação",
+  soft_closed: "Encerramento (soft)",
+  delete_blocked: "DELETE bloqueado",
+  restore: "Restauração",
 };
+
 
 const fmtDate = (iso: string) => formatDateTimeBR(iso);
 
