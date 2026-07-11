@@ -2663,13 +2663,15 @@ function num(v: string | number | undefined | null): number {
   } else if (hasComma) {
     s = s.replace(",", ".");
   } else if (hasDot) {
-    // "1.234" (milhar BR) vs "1234.56" (decimal US)
+    // Múltiplos pontos = separador de milhar BR ("1.234.567" → 1234567).
+    // Um único ponto: SEMPRE decimal. Não adivinhamos "900.025" como milhar
+    // aqui: valores de planilha já vêm normalizados por parseCellMoney,
+    // e valores de re-hidratação são sempre `String(number)` do JS
+    // (ponto = decimal). O heurístico antigo (3 dígitos após o ponto = milhar)
+    // inflacionava unit_tasy de 1800.05/2 = 900.025 em 1000×, produzindo
+    // R$ 900.025,00 no lugar de R$ 900,03.
     const parts = s.split(".");
-    if (parts.length > 2) {
-      s = s.replace(/\./g, "");
-    } else if (parts[1] && parts[1].length === 3 && parts[0].length <= 3) {
-      s = s.replace(".", "");
-    }
+    if (parts.length > 2) s = s.replace(/\./g, "");
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
