@@ -2259,7 +2259,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
             (bonusCalc?.bonus_pct ?? (rule as any).bonus_pct) ?? 0,
           );
           if (!fixed && !pct) continue; // regra mal configurada — não emite
-          const bonusAmt = Number((fixed + base * (pct / 100)).toFixed(2));
+          const pctAmt = Number((base * (pct / 100)).toFixed(2));
+          const bonusAmt = Number((fixed + pctAmt).toFixed(2));
           if (!(bonusAmt > 0)) continue;
 
           const compKey = (anchor.company_name ?? "Sem empresa").trim() || "Sem empresa";
@@ -2289,6 +2290,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
             applied_calc_method: "bonus",
             applied_rule_label: ruleLabel,
             applied_rule_id: ruleId,
+            // Tarefa 2 — decomposição do bônus (colunas dedicadas).
+            // Torna auditável "base R$ X + bônus fixo R$ Y + bônus % R$ Z = pago".
+            bonus_base_amount: Number(base.toFixed(2)),
+            bonus_fixed_amount: Number(fixed.toFixed(2)),
+            bonus_pct_amount: pctAmt,
             ai_status: "aprovado",
             applied_at: new Date().toISOString(),
             synthetic_bonus: true,
@@ -2299,6 +2305,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               applied_rule_id: ruleId,
               application_unit: applicationUnit,
               base_used: Number(base.toFixed(2)),
+              bonus_fixed: Number(fixed.toFixed(2)),
+              bonus_pct_amount: pctAmt,
               alerts: [],
             },
             validation_findings: [],
@@ -2308,6 +2316,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           });
         }
       }
+
     }
 
 
