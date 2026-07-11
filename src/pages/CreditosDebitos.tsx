@@ -699,6 +699,76 @@ export default function CreditosDebitos() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: confirmação em massa por PJ */}
+      <Dialog open={!!massDialogPjId} onOpenChange={(o) => !o && setMassDialogPjId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar {massTargets.length} débitos em massa</DialogTitle>
+          </DialogHeader>
+          {massDialogPjId && (
+            <div className="space-y-3 text-sm">
+              <div className="rounded border border-border bg-muted/30 px-3 py-2">
+                <div className="font-medium">
+                  {glosaDebts.find(g => g.company_id === massDialogPjId)?._company_name ?? "PJ"}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {massTargets.length} médicos selecionados
+                </div>
+                <div className="mt-1 font-mono text-destructive">Total: {brl(massTotal)}</div>
+              </div>
+
+              <div>
+                <Label>Parcelas (1–24) — aplicado a todos</Label>
+                <Input
+                  type="number" min={1} max={24}
+                  value={massParc}
+                  onChange={e => setMassParc(Math.min(24, Math.max(1, parseInt(e.target.value) || 1)))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Soma das parcelas por ciclo: <span className="font-mono">{brl(massParcelaSoma)}</span>
+                </p>
+              </div>
+
+              <div>
+                <Label>Lote-alvo (aplicado a todos)</Label>
+                <Select value={massLotePick} onValueChange={setMassLotePick} disabled={loadingLotes}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingLotes ? "Carregando lotes…" : "Selecione um lote em aberto"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {openLotes.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        Nenhum lote em aberto encontrado para esta PJ.
+                      </div>
+                    ) : (
+                      openLotes.map(l => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.label}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {massCabe != null && (
+                  <p className={`text-xs mt-1 ${massCabe >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                    {massCabe >= 0
+                      ? `Cabe no lote (sobra ${brl(massCabe)} de líquido).`
+                      : `⚠ Não cabe: parcela excede o líquido em ${brl(-massCabe)}. O motor vai aplicar o que couber e postergar o resto para o próximo ciclo.`}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMassDialogPjId(null)} disabled={busyMass}>Cancelar</Button>
+            <Button onClick={confirmMass} disabled={busyMass || !massLotePick}>
+              {busyMass ? "Confirmando…" : `Confirmar ${massTargets.length} débitos`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
