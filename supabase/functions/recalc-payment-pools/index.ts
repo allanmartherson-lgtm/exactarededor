@@ -471,14 +471,16 @@ Deno.serve(async (req) => {
           const { data: compRow } = await supabase
             .from("companies").select("name").eq("id", q.company_id).maybeSingle();
           const itemsCount = (elig.filter((it: any) => it.company_id === q.company_id)).length;
-          const { data: inserted } = await supabase.from("payment_company_groups").insert({
+          const { data: inserted, error: insGrpErr } = await supabase.from("payment_company_groups").insert({
             payment_id,
+            hospital_id: payment.hospital_id ?? null,
             company_id: q.company_id,
             company_name: compRow?.name ?? "Participante do pool",
             status: "revisao_analista",
             total_amount: q.quota,
             items_count: itemsCount,
           } as any).select("id, company_id, company_name, total_amount").maybeSingle();
+          if (insGrpErr) console.error("[recalc-payment-pools] payment_company_groups insert error", insGrpErr);
           if (inserted) groupByCompany.set(q.company_id, inserted as any);
         }
       }
