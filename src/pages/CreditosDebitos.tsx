@@ -595,7 +595,7 @@ export default function CreditosDebitos() {
       const byPj = new Map<string, GlosaDebt[]>();
       scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
       const pjIds = Array.from(byPj.keys());
-      const { data: openPays, error: payErr } = await supabase
+      const { data: openPays, error: payErr } = await (supabase as any)
         .from("payments")
         .select("id, company_id, reference, competence_month, status")
         .in("company_id", pjIds)
