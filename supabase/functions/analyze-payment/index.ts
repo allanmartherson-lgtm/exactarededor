@@ -3105,6 +3105,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         await supabase.from("analysis_telemetry").insert({
           job_id: __job_id ?? null,
           payment_id: __payment_id,
+          hospital_id: __paymentHospitalIdHoisted,
           company_name: __company_label ?? __company_name ?? null,
           total_ms: Date.now() - startTime,
           ai_ms: __telemetry.ai_ms,
