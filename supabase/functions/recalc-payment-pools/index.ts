@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
             total_items: elig.length,
             message: "O pool usa valor esperado; rode a análise de regras antes do rateio.",
           },
-          hospital_id: payment.hospital_id ?? null,
+          hospital_id: paymentHospitalId,
           snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
           created_by: userId,
         } as any);
@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
             invalidated_at: new Date().toISOString(),
             invalidated_reason: "item_duplicado_em_outro_pool",
             error_detail: { conflicts },
-            hospital_id: payment.hospital_id ?? null,
+            hospital_id: paymentHospitalId,
             snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
             created_by: userId,
           } as any);
@@ -408,7 +408,7 @@ Deno.serve(async (req) => {
           invalidated_at: new Date().toISOString(),
           invalidated_reason: blockedReason,
           error_detail: { items: blockedDetail },
-          hospital_id: payment.hospital_id ?? null,
+          hospital_id: paymentHospitalId,
           snapshot: { pool_nome: pool.nome, executed_at: new Date().toISOString() },
           created_by: userId,
         } as any);
@@ -482,7 +482,7 @@ Deno.serve(async (req) => {
           const itemsCount = (elig.filter((it: any) => it.company_id === q.company_id)).length;
           const { data: inserted, error: insGrpErr } = await supabase.from("payment_company_groups").insert({
             payment_id,
-            hospital_id: payment.hospital_id ?? null,
+            hospital_id: paymentHospitalId,
             company_id: q.company_id,
             company_name: compRow?.name ?? "Participante do pool",
             status: "revisao_analista",
@@ -582,7 +582,7 @@ Deno.serve(async (req) => {
             .update({ total_amount: 0, items_count: 0 }).eq("id", existing.id);
         } else {
           const { error: insBackErr } = await supabase.from("payment_company_groups").insert({
-            payment_id, hospital_id: payment.hospital_id ?? null,
+            payment_id, hospital_id: paymentHospitalId,
             company_id: null, company_name: labelName,
             status: "aprovado", total_amount: 0, items_count: 0,
           } as any);
@@ -671,7 +671,7 @@ Deno.serve(async (req) => {
         quotas,
         competence_month: competenceDate,
         captured_item_ids: isFiltered ? elig.map(it => it.id) : null,
-        hospital_id: payment.hospital_id ?? null,
+        hospital_id: paymentHospitalId,
         snapshot: {
           pool_nome: pool.nome,
           base_calculo: pool.base_calculo,
@@ -698,7 +698,7 @@ Deno.serve(async (req) => {
             pool_id: pool.id,
             run_id: runRow?.id ?? null,
             competence_month: competenceDate,
-            hospital_id: payment.hospital_id ?? null,
+            hospital_id: paymentHospitalId,
           })) as any,
         );
         // Marca itens como absorvidos pelo pool (médico não recebe direto)
@@ -713,7 +713,7 @@ Deno.serve(async (req) => {
           adjustment_id: app.adjustment_id,
           payment_id,
           company_id: app.company_id,
-          hospital_id: payment.hospital_id ?? null,
+          hospital_id: paymentHospitalId,
           parcela_numero: app.parcela_numero,
           valor_aplicado: app.valor,
           applied_by: userId,
