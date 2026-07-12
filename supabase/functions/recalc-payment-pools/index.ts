@@ -83,6 +83,15 @@ Deno.serve(async (req) => {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Multi-tenant gate: sem hospital vinculado, aborta antes de qualquer insert
+    // (pool_calculation_runs / pool_item_claims / company_adjustment_applications são NOT NULL)
+    if (!payment.hospital_id) {
+      return new Response(
+        JSON.stringify({ error: "Pagamento sem hospital_id — impossível recalcular pools." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const paymentHospitalId: string = payment.hospital_id as string;
 
     // Normaliza competence_month para o dia 01 (date) para casar com pool_deduction_values
     const competenceDate: string | null = payment.competence_month
