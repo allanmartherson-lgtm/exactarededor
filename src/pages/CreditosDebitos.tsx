@@ -1999,6 +1999,70 @@ export default function CreditosDebitos() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Resultado detalhado da aplicação (vermelho quando há erro/postpone/partial) */}
+      <Dialog
+        open={resultDialog.open}
+        onOpenChange={(o) => setResultDialog(s => ({ ...s, open: o }))}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {(() => {
+            const hasFail = resultDialog.outcomes.some(o => !o.ok);
+            const hasPend = resultDialog.outcomes.some(o => o.postponed > 0 || o.partial > 0);
+            const isRed = hasFail;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className={isRed ? "text-destructive" : "text-amber-700 dark:text-amber-500"}>
+                    {isRed ? "Erro ao aplicar débito no lote" : "Aplicação concluída com pendências"}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className={`rounded-md border p-3 text-sm ${isRed ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"}`}>
+                  {isRed
+                    ? "Uma ou mais aplicações falharam. Nenhum débito é aplicado à revelia — revise os detalhes abaixo e a ação recomendada por PJ antes de tentar novamente."
+                    : "Todas as aplicações foram processadas, mas há PJs sem líquido suficiente no lote escolhido. Os saldos rolam automaticamente para o próximo ciclo."}
+                </div>
+                <div className="mt-3 divide-y border rounded-md max-h-[55vh] overflow-y-auto">
+                  {resultDialog.outcomes.map((o) => (
+                    <div key={`${o.pj_id}-${o.payment_label}`} className="px-3 py-2 text-sm space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{o.pj_name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">Lote: {o.payment_label}</div>
+                        </div>
+                        <Badge variant={o.ok ? (o.postponed > 0 || o.partial > 0 ? "secondary" : "default") : "destructive"}>
+                          {o.ok ? (o.postponed > 0 && o.applied === 0 && o.partial === 0 ? "Adiado" : o.partial > 0 ? "Parcial" : "Aplicado") : "Erro"}
+                        </Badge>
+                      </div>
+                      <div className="text-xs flex flex-wrap gap-x-3 gap-y-0.5">
+                        {o.applied > 0 && <span>✓ {o.applied} aplicado(s)</span>}
+                        {o.partial > 0 && <span className="text-amber-600">◐ {o.partial} parcial</span>}
+                        {o.postponed > 0 && <span className="text-amber-600">↷ {o.postponed} adiado(s)</span>}
+                        {o.already > 0 && <span className="text-muted-foreground">↻ {o.already} já aplicado(s)</span>}
+                        {o.capacidade != null && <span className="text-muted-foreground">líquido disp.: {brl(o.capacidade)}</span>}
+                      </div>
+                      {o.error && (
+                        <div className="text-xs text-destructive font-mono bg-destructive/5 border border-destructive/20 rounded px-2 py-1">
+                          {o.error}
+                        </div>
+                      )}
+                      {o.hint && (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">O que fazer:</span> {o.hint}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setResultDialog({ open: false, outcomes: [] })}>Fechar</Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+
 
 
       {/* Dialog: novo/editar ajuste manual */}
