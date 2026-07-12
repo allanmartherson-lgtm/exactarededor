@@ -519,8 +519,15 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                   </td>
                 </tr>
               )}
+              {!loading && rows.length > 0 && visibleRows.length === 0 && (
+                <tr>
+                  <td colSpan={14} className="p-6 text-center text-muted-foreground">
+                    Nenhuma PJ corresponde ao filtro "{filter}".
+                  </td>
+                </tr>
+              )}
               {!loading &&
-                rows.map((r) => {
+                visibleRows.map((r) => {
                   const flags = flagRow(r);
                   return (
                     <tr
