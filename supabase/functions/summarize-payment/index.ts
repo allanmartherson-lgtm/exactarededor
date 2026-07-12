@@ -64,12 +64,24 @@ serve(async (req) => {
       });
     }
 
-    // 2. Itens — agrega ai_status e por empresa
-    const { data: items } = await supabase
-      .from("payment_items")
-      .select("ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
-      .eq("payment_id", payment_id)
-      .limit(20000);
+    // 2. Itens — agrega ai_status e por empresa.
+    // Paginação obrigatória: PostgREST tem cap padrão (~1000) que fazia o resumo
+    // reportar "1.000 itens" mesmo em lotes maiores. Buscamos em páginas de 1000.
+    const PAGE_SIZE = 1000;
+    const items: Array<any> = [];
+    for (let from = 0; from < 100000; from += PAGE_SIZE) {
+      const { data: page, error: itErr } = await supabase
+        .from("payment_items")
+        .select("ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
+        .eq("payment_id", payment_id)
+        .order("id", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (itErr) { console.error("summarize-payment items page error", itErr); break; }
+      if (!page || page.length === 0) break;
+      items.push(...page);
+      if (page.length < PAGE_SIZE) break;
+    }
+
 
     // Rótulos humanos para os códigos técnicos do enum item_ai_status — a IA
     // NÃO deve nunca exibir códigos brutos do banco no resumo final.
