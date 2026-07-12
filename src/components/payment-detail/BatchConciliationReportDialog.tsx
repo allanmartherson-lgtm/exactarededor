@@ -221,11 +221,11 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
 
   const flagRow = (r: Row) => {
     const flags: string[] = [];
-    if (Math.abs(r.grp_bruto - r.snap_bruto) > 0.01) flags.push("bruto grupo ≠ snapshot");
-    if (Math.abs(r.grp_liquido - r.snap_liquido) > 0.01) flags.push("líquido grupo ≠ snapshot");
-    if (Math.abs(r.snap_glosas - r.app_confirmado) > 0.01) flags.push("glosa snapshot ≠ confirmado");
+    if (Math.abs(r.grp_bruto - r.snap_bruto) > 0.01) flags.push("bruto grupo ≠ apurado");
+    if (Math.abs(r.grp_liquido - r.snap_liquido) > 0.01) flags.push("líquido grupo ≠ apurado");
+    if (Math.abs(r.snap_glosas - r.app_confirmado) > 0.01) flags.push("glosa apurada ≠ confirmada");
     if (r.nf_expected > 0 && Math.abs(r.nf_expected - r.snap_liquido) > 0.01)
-      flags.push("NF esperada ≠ líquido");
+      flags.push("NF esperada ≠ líquido apurado");
     if (r.app_pending > 0) flags.push("pendências sem resolução");
     return flags;
   };
