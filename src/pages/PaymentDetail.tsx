@@ -4751,9 +4751,8 @@ const PaymentDetail = () => {
                     onSelect={async (e) => {
                       e.preventDefault();
                       if (!id) return;
-                      toast.info("Reprocessando deduções do lote…");
+                      toast({ title: "Reprocessando deduções do lote…" });
                       try {
-                        // Débitos vinculados a este lote (target ou último aplicado)
                         const { data: debts } = await (supabase as any)
                           .from("glosa_debts")
                           .select("company_id")
@@ -4761,7 +4760,6 @@ const PaymentDetail = () => {
                           .eq("status", "ativo")
                           .not("confirmed_at", "is", null)
                           .is("ignored_at", null);
-                        // Aplicações já criadas para este lote (por company_id)
                         const { data: apps } = await (supabase as any)
                           .from("glosa_payment_applications")
                           .select("company_id")
@@ -4772,7 +4770,7 @@ const PaymentDetail = () => {
                           .map((r) => r.company_id).filter((c): c is string => !!c)));
                         const pendentes = companies.filter((c) => !appliedSet.has(c));
                         if (pendentes.length === 0) {
-                          toast.success("Nada a reprocessar: todas as PJs com débito já têm aplicação.");
+                          toast({ title: "Nada a reprocessar", description: "Todas as PJs com débito já têm aplicação." });
                           return;
                         }
                         const results = await Promise.allSettled(pendentes.map((company_id) =>
@@ -4780,10 +4778,11 @@ const PaymentDetail = () => {
                         ));
                         const ok = results.filter((r) => r.status === "fulfilled").length;
                         const fail = results.length - ok;
-                        toast.success(`${ok} PJ(s) reprocessada(s)${fail ? ` · ${fail} falha(s)` : ""}.`);
+                        toast({ title: `${ok} PJ(s) reprocessada(s)${fail ? ` · ${fail} falha(s)` : ""}` });
                       } catch (err: any) {
-                        toast.error("Falha ao reprocessar deduções", { description: err?.message });
+                        toast({ title: "Falha ao reprocessar deduções", description: err?.message, variant: "destructive" });
                       }
+
                     }}
                   >
                     Reprocessar deduções pendentes
