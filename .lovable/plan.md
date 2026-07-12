@@ -1,79 +1,64 @@
-# Refatoração — Créditos e Débitos
+## Contexto
 
-Hoje a tela renderiza todos os ajustes e glosas em listas planas, sem filtros ou paginação. Com o crescimento dos dados vira uma tela ingerenciável. O plano abaixo mantém a mesma lógica de negócio (motor, RPCs, edge functions) e foca 100% em UX/estrutura de apresentação.
+A tela `/financeiro/creditos-debitos` (`src/pages/CreditosDebitos.tsx`) já está grande e vem ganhando ajustes pontuais. Vamos consolidar 3 frentes em um único ciclo, testar tudo junto e reduzir o vai-e-vem.
 
-## Objetivos
+## Escopo desta rodada
 
-- Achar qualquer PJ/médico/lote em segundos.
-- Trabalhar por recorte (período, status, hospital, PJ, trilha, centro de custo).
-- Reduzir o custo cognitivo com agrupamentos, contadores e resumos.
-- Escalar para milhares de linhas sem travar o navegador.
+### 1) Legibilidade da aba ativa (claro + escuro)
+- Aba selecionada hoje usa cor cheia que contrasta mal no chip de contagem.
+- Ajuste em `CreditosDebitos.tsx`: aplicar `data-[state=active]:bg-primary data-[state=active]:text-primary-foreground` e, no badge interno, `bg-primary-foreground/20 text-primary-foreground` para o estado ativo. Estado inativo mantém `text-muted-foreground` com badge `bg-muted`.
+- QA visual nos dois temas (Playwright screenshot em `?theme=light` e `?theme=dark`).
 
-## Estrutura nova da tela
+### 2) Aplicar em massa no lote vigente ("Em andamento")
+Nova ação na aba **Em andamento** (débitos já confirmados, aguardando lote):
 
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ Cabeçalho: título + KPIs (Total pendente | Em andamento |     │
-│            Postergado | Aplicado no mês)                      │
-├───────────────────────────────────────────────────────────────┤
-│ Barra de filtros persistente (sticky):                        │
-│   [Busca ▸ PJ/médico/lote] [Período ▾] [Status ▾]             │
-│   [Trilha ▾] [Centro de custo ▾] [PJ ▾] [Limpar]              │
-├───────────────────────────────────────────────────────────────┤
-│ Abas: Glosas · Ajustes manuais · Histórico aplicado           │
-├───────────────────────────────────────────────────────────────┤
-│ Conteúdo agrupado por PJ (accordion), com:                    │
-│   - resumo por PJ (qtd, valor pendente, líquido próximo lote) │
-│   - ações em massa por PJ                                     │
-│   - lista virtualizada dos itens                              │
-└───────────────────────────────────────────────────────────────┘
-```
+- Barra de ações do grupo (PJ) ganha botão **"Aplicar no lote vigente"** — usa o lote em `revisao_pj`/`revisao_analista` mais recente da PJ (mesma lógica já usada em `ensureLoteLiquido`).
+- Barra global no cabeçalho: **"Aplicar todos no lote vigente"** com preview (quantas PJs, quantos débitos, quanto cabe no líquido de cada PJ).
+- Fluxo: seta `target_payment_id` no `glosa_debts` + invoca `apply-company-deductions` por `(payment_id, company_id)` em paralelo. Reaproveita `confirmGlobalMass` já existente — só precisamos do seletor automático de lote vigente por PJ.
+- Respeita gate: se o lote estiver em status final (`pago`/`arquivado`), pula com aviso.
 
-## Filtros (o núcleo da refatoração)
+### 3) Relatórios (PDF + Excel)
+Botão **"Exportar"** no header da tela, com dropdown: **PDF** e **Excel**.
 
-- **Busca global** (debounced): nome da PJ, nome do médico, referência do lote, número do atendimento.
-- **Período**: presets (Este mês, Mês passado, Últimos 90 dias, Ano) + range custom via DateRangePicker. Aplica em `competence_month` das glosas e `created_at` dos ajustes.
-- **Status**: Pendente, Proposto, Parcial, Postergado, Aplicado, Revertido.
-- **Trilha**: HDF Ambulatório / CC+Hemo / etc. (derivado de `payment_types` + `cost_centers`).
-- **Centro de custo**: multi-select vindo de `cost_centers` do hospital ativo.
-- **PJ (empresa)**: multi-select com busca.
-- **Hospital ativo** continua vindo do contexto global (já isolado).
-- Estado dos filtros salvo em **URL query params** (`?period=90d&status=pendente&pj=...`) para permitir compartilhar link e voltar sem perder recorte.
+Escopo do relatório (respeitando filtros ativos: período, PJ, CC, trilha):
 
-## Agrupamento e visualização
+**Aba "Aplicado no mês" / "Histórico aplicado"**
+- Uma linha por aplicação (`glosa_payment_applications`): PJ, CNPJ, Médico, Lote (nº + competência), Status do lote, Data aplicação, Aplicado por, Valor aplicado, Origem (glosa/ajuste manual), Motivo, Parcela X/Y.
 
-- **Aba Glosas** (foco atual do usuário):
-  - Agrupada por PJ (accordion `<Collapsible>` do shadcn), fechada por padrão quando > 5 PJs.
-  - Header do grupo: nome da PJ · qtd itens · soma pendente · botão "Confirmar em massa (n)".
-  - Dentro do grupo: tabela enxuta com colunas Médico · Competência · Origem (lote) · Valor · Parcela sugerida · Cabe? · Ações.
-  - Sub-agrupamento opcional por médico (toggle no header do grupo).
-- **Aba Ajustes manuais**: mesma estrutura, agrupado por PJ, com badge de tipo (crédito/débito).
-- **Aba Histórico aplicado**: read-only, ordenado por `applied_at desc`, com filtro de período e PJ; serve para auditoria rápida sem poluir as abas ativas.
+**Aba "Em andamento" (débitos confirmados aguardando lote)**
+- PJ, CNPJ, Médico, Total do débito, Já aplicado, Saldo em aberto, Parcelas planejadas, Lote-alvo (se houver) + status, Data de confirmação, Confirmado por.
 
-## Performance
+**Aba "A confirmar"**
+- PJ, Médico, Valor proposto, Origem (lote/conciliação retro), Data de proposta.
 
-- Virtualização com `@tanstack/react-virtual` nas listas quando o grupo tem > 50 linhas.
-- Queries no Supabase paginadas por PJ + filtro server-side (`.in('company_id', ...)`, `.gte('competence_month', ...)`, `.eq('confirmed_at', null)`), em vez de trazer tudo e filtrar em memória.
-- Contadores e KPIs por queries `count` separadas (não dependem do fetch completo).
-- Debounce de 250 ms na busca; memoização dos agrupamentos derivados.
+**KPIs no topo do relatório**: A confirmar, Em andamento, Aplicado no período, Sem lote-alvo.
 
-## Ações em massa (mantidas, reorganizadas)
+**Formato**
+- **Excel** (`xlsx` via biblioteca já em uso `xlsx` ou nova `exceljs`): 1 aba por seção + aba "Resumo" com KPIs. Colunas com formato BR (moeda, data). Cabeçalho colorido.
+- **PDF** (via `jspdf` + `jspdf-autotable` — já usados no projeto): capa com hospital, período, filtros aplicados, KPIs; tabelas paginadas por seção; rodapé com data de emissão + usuário.
 
-- Botão global "Confirmar em massa" continua, mas só age **sobre o recorte visível** dos filtros — deixa claro no dialog "aplicando 42 glosas filtradas em 6 PJs".
-- Sugestão de lote-alvo por PJ continua (centro de custo → trilha), agora exibida em coluna dedicada com badge quando o lote está finalizado (bloqueado) — reforça a blindagem recente do motor.
+**Arquitetura**
+- Novo arquivo `src/lib/creditosDebitosReport.ts`: função pura `buildReportData(filters)` → estrutura tipada.
+- `src/lib/exports/creditosDebitosExcel.ts` e `creditosDebitosPdf.ts`: consomem a estrutura e geram o arquivo.
+- Botão em `CreditosDebitos.tsx` chama `buildReportData` (usando os hooks/dados já carregados; sem refazer as queries).
 
-## Detalhes técnicos
+## Fora de escopo (evita novo ciclo curto)
 
-- Novo hook `useCreditosDebitosFilters()` centraliza estado + sync com URL.
-- Extrair para componentes: `FiltersBar`, `PjGroupCard`, `GlosaRow`, `AdjustmentRow`, `MassConfirmDialog`, `KpiHeader`, `HistoryTab`.
-- Manter as RPCs/edge functions atuais (`apply-company-deductions`, reversões, ensureLoteLiquido) sem mudança de assinatura.
-- `ensureLoteLiquido` passa a ter cache por `(pj, lote)` com invalidação ao aplicar/reverter.
-- Ordenação padrão: PJ A→Z; dentro do grupo, competência desc, valor desc.
-- Skeleton loaders por seção, sem bloquear a tela inteira.
-- Zero mudança em schema ou lógica de negócio.
+- Nada de novos filtros aqui — se surgir demanda, entra em ciclo próprio.
+- Não vamos mexer no motor `apply-company-deductions` (só invocar).
+- Não vamos criar novas tabelas.
 
-## Escopo fora deste plano
+## Ordem de execução
 
-- Não altera cálculo do motor, não mexe em `glosa_debts`/`company_financial_adjustments`.
-- Não muda regras de gate de lote finalizado (já implementadas).
-- Exportação CSV pode entrar em iteração seguinte.
+1. Fix visual das abas (5 min, baixo risco).
+2. Botão "Aplicar no lote vigente" (individual + massa).
+3. Módulo de relatórios (Excel primeiro, depois PDF).
+4. QA integrado com Playwright: screenshot claro+escuro, download dos 2 arquivos, checagem de conteúdo.
+
+## Riscos / decisões pendentes
+
+- **"Lote vigente"**: definimos como o lote mais recente da PJ com status ∈ {`revisao_pj`, `revisao_analista`, `em_confeccao`}. Se você preferir outra regra (ex.: só o lote atualmente selecionado no seletor global de competência), me diga antes.
+- **Excel**: usar `xlsx` (SheetJS) — mais leve — ou `exceljs` — mais formatação nativa? Vou de **exceljs** por permitir cores/formato de moeda direto, salvo objeção sua.
+- **PDF**: `jspdf + autotable` para consistência com relatórios existentes.
+
+Confirma que posso seguir com tudo assim?
