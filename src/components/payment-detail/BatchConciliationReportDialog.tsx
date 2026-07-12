@@ -253,8 +253,8 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "Apurado líquido",
       "App confirmado",
       "App proposto",
-      "App pending",
-      "App postponed",
+      "App pendente",
+      "App adiado",
       "App partial",
       "Divergências",
     ];
@@ -343,8 +343,8 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "Apurado líq.",
       "Confirm.",
       "Proposto",
-      "Pending",
-      "Postp.",
+      "Pendente",
+      "Adiado",
       "Divergências",
     ]];
 
@@ -499,8 +499,8 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                 <th className="p-2 border-b text-right" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)">Apurado líquido</th>
                 <th className="p-2 border-b text-right">Confirmado</th>
                 <th className="p-2 border-b text-right">Proposto</th>
-                <th className="p-2 border-b text-right">Pending</th>
-                <th className="p-2 border-b text-right">Postponed</th>
+                <th className="p-2 border-b text-right">Pendente</th>
+                <th className="p-2 border-b text-right">ADIADO</th>
                 <th className="p-2 border-b">Divergências</th>
               </tr>
             </thead>
