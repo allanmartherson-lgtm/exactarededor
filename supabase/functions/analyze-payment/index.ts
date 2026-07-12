@@ -2511,12 +2511,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // Inserts em bulk (uma chamada por tabela; chunked por segurança em lotes grandes).
     if (versionRows.length) {
       for (let i = 0; i < versionRows.length; i += 200) {
-        await supabase.from("ai_analysis_versions").insert(versionRows.slice(i, i + 200));
+        const { error: verErr } = await supabase.from("ai_analysis_versions").insert(versionRows.slice(i, i + 200));
+        if (verErr) console.error(`${__t} ai_analysis_versions_insert_error`, verErr);
       }
     }
     if (obsRows.length) {
       for (let i = 0; i < obsRows.length; i += 200) {
-        await supabase.from("payment_observations").insert(obsRows.slice(i, i + 200));
+        const { error: obsErr } = await supabase.from("payment_observations").insert(obsRows.slice(i, i + 200));
+        if (obsErr) console.error(`${__t} payment_observations_insert_error`, obsErr);
       }
     }
 
