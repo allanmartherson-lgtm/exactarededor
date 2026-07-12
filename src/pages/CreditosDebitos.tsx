@@ -528,6 +528,142 @@ export default function CreditosDebitos() {
       });
   }, [appsByAdj, adjustments, pjFilter, periodFrom, periodTo, q, paymentLabels]);
 
+  // ============ EXPORT (PDF/Excel) ============
+  const [exporting, setExporting] = useState<null | "pdf" | "xlsx">(null);
+  const { hospital } = useHospital();
+
+  const buildFiltersSummary = (): ReportFiltersSummary => {
+    const periodLabels: Record<PeriodPreset, string> = {
+      all: "Todo o período",
+      current_month: "Este mês",
+      last_month: "Mês passado",
+      last_90: "Últimos 90 dias",
+      current_year: "Este ano",
+    };
+    const pjName = pjFilter === "all" ? "Todas as PJs" : (companies.find(c => c.id === pjFilter)?.name ?? pjFilter);
+    return {
+      periodLabel: periodLabels[period],
+      pjLabel: pjName,
+      ccLabel: ccFilter === "all" ? "Todos CCs" : ccFilter,
+      trackLabel: trackFilter === "all" ? "Todas trilhas" : trackFilter,
+      tipoLabel: tipoFilter === "all" ? "Todos os tipos" : tipoFilter,
+      search: search.trim(),
+      hospitalName: hospital?.name,
+    };
+  };
+
+  const handleExport = async (format: "pdf" | "xlsx") => {
+    try {
+      setExporting(format);
+      const data = await buildReportData({
+        filters: buildFiltersSummary(),
+        pendentes: pendentes as any,
+        emAndamento: emAndamento as any,
+        ajustes: ajustesFiltrados as any,
+        appsByAdj: appsByAdj as any,
+        paymentLabels,
+      });
+      const ts = new Date().toISOString().slice(0, 10);
+      const suffix = hospital?.name ? `_${hospital.name.replace(/[^\w]+/g, "-")}` : "";
+      if (format === "xlsx") {
+        const blob = generateCreditosDebitosXlsx(data);
+        downloadBlob(blob, `creditos-debitos${suffix}_${ts}.xlsx`);
+      } else {
+        const doc = await generateCreditosDebitosPdf(data);
+        doc.save(`creditos-debitos${suffix}_${ts}.pdf`);
+      }
+      toast.success(`Relatório ${format.toUpperCase()} gerado.`);
+    } catch (err: any) {
+      console.error("[export creditos-debitos]", err);
+      toast.error(err?.message ?? "Falha ao gerar relatório.");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  // ============ Aplicar em massa no LOTE VIGENTE (Em andamento) ============
+  const [applyingCurrent, setApplyingCurrent] = useState<string | null>(null); // pjId | "__all__"
+
+  const applyToCurrentLote = async (pjId?: string) => {
+    if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
+    const scope = pjId ? emAndamento.filter(g => g.company_id === pjId) : emAndamento;
+    if (!scope.length) { toast.info("Nada para aplicar."); return; }
+    const key = pjId ?? "__all__";
+    setApplyingCurrent(key);
+    try {
+      // 1. Lotes abertos por PJ (mais recente por competência)
+      const byPj = new Map<string, GlosaDebt[]>();
+      scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
+      const pjIds = Array.from(byPj.keys());
+      const { data: openPays, error: payErr } = await supabase
+        .from("payments")
+        .select("id, company_id, reference, competence_month, status")
+        .in("company_id", pjIds)
+        .in("status", OPEN_PAYMENT_STATUSES as unknown as string[])
+        .eq("hospital_id", activeHospitalId)
+        .order("competence_month", { ascending: false });
+      if (payErr) throw payErr;
+      const currentByPj = new Map<string, string>();
+      const labelPatch: Record<string, string> = {};
+      ((openPays as any[]) ?? []).forEach(p => {
+        if (!currentByPj.has(p.company_id)) {
+          currentByPj.set(p.company_id, p.id);
+          const comp = p.competence_month ? (() => { const [y, m] = p.competence_month.split("-"); return `${m}/${y}`; })() : "";
+          labelPatch[p.id] = `${p.reference ?? p.id.slice(0, 8)}${comp ? ` · ${comp}` : ""}`;
+        }
+      });
+
+      // 2. Debts que precisam atualizar target
+      const toUpdate: { id: string; company_id: string; target: string }[] = [];
+      for (const [pj, debts] of byPj.entries()) {
+        const target = currentByPj.get(pj);
+        if (!target) continue;
+        for (const d of debts) {
+          if (d.target_payment_id !== target) toUpdate.push({ id: d.id, company_id: pj, target });
+        }
+      }
+      let updated = 0;
+      for (const u of toUpdate) {
+        const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
+        if (!error) updated += 1;
+      }
+      // 3. Invoca apply-company-deductions por (payment_id, company_id) único
+      const pairs = new Map<string, { payment_id: string; company_id: string }>();
+      for (const [pj, debts] of byPj.entries()) {
+        const target = currentByPj.get(pj);
+        if (!target) continue;
+        pairs.set(`${target}|${pj}`, { payment_id: target, company_id: pj });
+      }
+      const invocations = await Promise.allSettled(
+        Array.from(pairs.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
+      );
+      const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
+      const missing = pjIds.length - currentByPj.size;
+
+      // 4. Otimista: atualiza state local
+      if (toUpdate.length) {
+        const patch = new Map(toUpdate.map(u => [u.id, u.target]));
+        setGlosaDebts(prev => prev.map(g => patch.has(g.id) ? { ...g, target_payment_id: patch.get(g.id)! } : g));
+      }
+      if (Object.keys(labelPatch).length) {
+        setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
+      }
+      const parts = [
+        `${okInvocations} PJ(s) processadas`,
+        updated ? `${updated} lote-alvo atualizado(s)` : null,
+        missing ? `${missing} sem lote em aberto` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(`Aplicação disparada — ${parts || "OK"}`);
+    } catch (err: any) {
+      console.error("[applyToCurrentLote]", err);
+      toast.error(err?.message ?? "Falha ao aplicar no lote vigente.");
+    } finally {
+      setApplyingCurrent(null);
+    }
+  };
+
+
+
   // ============ Mass actions ============
   const massTargets = massDialogPjId
     ? pendentesAll.filter(g => g.company_id === massDialogPjId && selectedPending.has(g.id))
