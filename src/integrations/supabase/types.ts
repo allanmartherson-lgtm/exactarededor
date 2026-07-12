@@ -11339,6 +11339,7 @@ export type Database = {
       }
       vw_group_rule_totals: {
         Row: {
+          absorbido_total: number | null
           bruto_pedido_total: number | null
           bruto_regra_total: number | null
           company_id: string | null
