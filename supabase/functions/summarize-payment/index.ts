@@ -105,7 +105,7 @@ serve(async (req) => {
     let excecoesCount = 0;
     let excecoesImpacto = 0;
     const excecoesAmostra: Array<{ medico: string; empresa: string; valor: number; nota: string }> = [];
-    for (const it of items ?? []) {
+    for (const it of items) {
       totalItems++;
       const st = String(it.ai_status ?? "sem_status");
       statusCounts[st] = (statusCounts[st] ?? 0) + 1;
