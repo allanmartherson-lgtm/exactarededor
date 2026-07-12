@@ -221,11 +221,11 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
 
   const flagRow = (r: Row) => {
     const flags: string[] = [];
-    if (Math.abs(r.grp_bruto - r.snap_bruto) > 0.01) flags.push("bruto grupo ≠ snapshot");
-    if (Math.abs(r.grp_liquido - r.snap_liquido) > 0.01) flags.push("líquido grupo ≠ snapshot");
-    if (Math.abs(r.snap_glosas - r.app_confirmado) > 0.01) flags.push("glosa snapshot ≠ confirmado");
+    if (Math.abs(r.grp_bruto - r.snap_bruto) > 0.01) flags.push("bruto grupo ≠ apurado");
+    if (Math.abs(r.grp_liquido - r.snap_liquido) > 0.01) flags.push("líquido grupo ≠ apurado");
+    if (Math.abs(r.snap_glosas - r.app_confirmado) > 0.01) flags.push("glosa apurada ≠ confirmada");
     if (r.nf_expected > 0 && Math.abs(r.nf_expected - r.snap_liquido) > 0.01)
-      flags.push("NF esperada ≠ líquido");
+      flags.push("NF esperada ≠ líquido apurado");
     if (r.app_pending > 0) flags.push("pendências sem resolução");
     return flags;
   };
@@ -238,11 +238,11 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "Qtd NF",
       "Bruto grupo",
       "Líquido grupo",
-      "Snap bruto",
-      "Snap glosas",
-      "Snap débitos",
-      "Snap créditos",
-      "Snap líquido",
+      "Apurado bruto",
+      "Apurado glosas",
+      "Apurado débitos",
+      "Apurado créditos",
+      "Apurado líquido",
       "App confirmado",
       "App proposto",
       "App pending",
@@ -330,9 +330,9 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "NF receb.",
       "Bruto grupo",
       "Líq. grupo",
-      "Snap bruto",
-      "Snap glosas",
-      "Snap líq.",
+      "Apurado bruto",
+      "Apurado glosas",
+      "Apurado líq.",
       "Confirm.",
       "Proposto",
       "Pending",
@@ -424,7 +424,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         doc.setTextColor(120);
         const pageStr = `Página ${doc.getCurrentPageInfo().pageNumber}`;
         doc.text(pageStr, pageWidth - 8, pageHeight - 5, { align: "right" });
-        doc.text("Fonte: pedido de nota + snapshot financeiro + glosa_payment_applications", 8, pageHeight - 5);
+        doc.text("Fonte: pedido de nota + valor apurado do lote + aplicações de glosa", 8, pageHeight - 5);
       },
     });
 
@@ -438,8 +438,12 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         <DialogHeader>
           <DialogTitle>Panorama do lote — comparativo financeiro por PJ</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Compara <strong>pedido de nota</strong> (NF), <strong>snapshot financeiro</strong> e{" "}
+            Compara <strong>pedido de nota</strong> (NF), <strong>valor apurado</strong> pelo sistema e{" "}
             <strong>glosas efetivamente aplicadas</strong> por status. Não confundir com a conciliação de produção (base hospital × Exacta).
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            <strong>Apurado</strong> = valor consolidado do lote após regras, glosas, débitos e créditos —
+            é o que o sistema calcula que a PJ deve receber. <strong>Grupo</strong> = totais brutos vindos da produção antes de glosas.
           </p>
         </DialogHeader>
 
@@ -453,9 +457,9 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                 <th className="p-2 border-b text-right">NF recebida</th>
                 <th className="p-2 border-b text-right">Bruto (grupo)</th>
                 <th className="p-2 border-b text-right">Líquido (grupo)</th>
-                <th className="p-2 border-b text-right">Snap bruto</th>
-                <th className="p-2 border-b text-right">Snap glosas</th>
-                <th className="p-2 border-b text-right">Snap líquido</th>
+                <th className="p-2 border-b text-right" title="Bruto apurado pelo sistema após regras">Apurado bruto</th>
+                <th className="p-2 border-b text-right" title="Total de glosas apuradas para esta PJ no lote">Apurado glosas</th>
+                <th className="p-2 border-b text-right" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)">Apurado líquido</th>
                 <th className="p-2 border-b text-right">Confirmado</th>
                 <th className="p-2 border-b text-right">Proposto</th>
                 <th className="p-2 border-b text-right">Pending</th>

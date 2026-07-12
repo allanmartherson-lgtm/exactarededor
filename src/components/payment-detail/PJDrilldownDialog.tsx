@@ -192,14 +192,14 @@ export function PJDrilldownDialog({ open, onOpenChange, paymentId, companyId, co
         <DialogHeader>
           <DialogTitle className="truncate">{companyName}</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Detalhamento linha a linha do pedido de nota, snapshot financeiro e aplicações efetivamente lançadas neste lote.
+            Detalhamento linha a linha do pedido de nota, valor apurado do lote e aplicações efetivamente lançadas para esta PJ.
           </p>
         </DialogHeader>
 
         <Tabs defaultValue="snapshot" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="snapshot" className="gap-1.5">
-              <Layers className="h-3.5 w-3.5" /> Snapshot ({snapshot ? formatCurrency(snapshot.liquido) : "—"})
+              <Layers className="h-3.5 w-3.5" /> Apurado do lote ({snapshot ? formatCurrency(snapshot.liquido) : "—"})
             </TabsTrigger>
             <TabsTrigger value="invoices" className="gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Pedido de nota ({invoices.length})
@@ -209,7 +209,7 @@ export function PJDrilldownDialog({ open, onOpenChange, paymentId, companyId, co
             </TabsTrigger>
           </TabsList>
 
-          {/* SNAPSHOT */}
+          {/* APURADO */}
           <TabsContent value="snapshot" className="flex-1 overflow-auto mt-3">
             {loading ? (
               <p className="text-sm text-muted-foreground p-4">Carregando…</p>
@@ -266,13 +266,13 @@ export function PJDrilldownDialog({ open, onOpenChange, paymentId, companyId, co
 
                 {snapshot && (
                   <div className="rounded border p-3 text-xs text-muted-foreground">
-                    Fórmula do snapshot: <strong>Líquido = Bruto − Glosas − Débitos + Créditos</strong> ={" "}
+                    Como o líquido é calculado: <strong>Líquido = Bruto − Glosas − Débitos + Créditos</strong> ={" "}
                     {formatCurrency(snapshot.bruto)} − {formatCurrency(snapshot.glosas)} −{" "}
                     {formatCurrency(snapshot.debitos)} + {formatCurrency(snapshot.creditos)} ={" "}
                     <strong>{formatCurrency(snapshot.liquido)}</strong>
                     {Math.abs(snapshot.glosas - apps.filter((a) => a.status === "confirmado").reduce((s, a) => s + a.valor_aplicado, 0)) > 0.01 && (
                       <div className="text-warning mt-1">
-                        ⚠ Glosas do snapshot ({formatCurrency(snapshot.glosas)}) ≠ soma das aplicações confirmadas (
+                        ⚠ Glosas apuradas ({formatCurrency(snapshot.glosas)}) ≠ soma das aplicações confirmadas (
                         {formatCurrency(
                           apps.filter((a) => a.status === "confirmado").reduce((s, a) => s + a.valor_aplicado, 0),
                         )}
