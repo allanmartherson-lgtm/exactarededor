@@ -4452,6 +4452,21 @@ const PaymentDetail = () => {
                 actorRole={batchActionActorRole}
                 items={items.map((i) => ({ ai_status: i.ai_status, validation_findings: i.validation_findings }))}
                 onDone={load}
+                onReviewPendencias={() => {
+                  // Limpa filtros conflitantes e aplica o filtro que mostra
+                  // itens reprovados/alerta (o mesmo bucket que dispara o gate).
+                  setItemSearch("");
+                  setCompanySearch("");
+                  setOnlyRegIssues(false);
+                  setMarkerFilter("all");
+                  setFinancialFilters({ proposedGlosas: false, appliedDebits: false, appliedCredits: false });
+                  setCriticalFilter("divergent");
+                  // Rola até a seção de itens.
+                  setTimeout(() => {
+                    document.querySelector('[data-items-section="true"]')
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 100);
+                }}
               />
             )}
 
