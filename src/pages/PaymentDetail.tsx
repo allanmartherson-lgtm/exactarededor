@@ -4450,7 +4450,13 @@ const PaymentDetail = () => {
                 currentUserId={user!.id}
                 currentUserName={profiles[user!.id] ?? user!.email ?? "Usuário"}
                 actorRole={batchActionActorRole}
-                items={items.map((i) => ({ ai_status: i.ai_status, validation_findings: i.validation_findings }))}
+                items={items.map((i) => ({
+                  ai_status: i.ai_status,
+                  validation_findings: i.validation_findings,
+                  company_id: i.company_id,
+                  is_cancelled: (i as any).is_cancelled,
+                  package_absorbed: (i as any).package_absorbed,
+                }))}
                 onDone={load}
                 onReviewPendencias={() => {
                   // Limpa filtros conflitantes e aplica o filtro que mostra
