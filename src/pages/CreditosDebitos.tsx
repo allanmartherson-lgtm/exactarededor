@@ -155,6 +155,16 @@ export default function CreditosDebitos() {
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
+  // Histórico de aplicações (auditoria)
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditFilter, setAuditFilter] = useState<{ company_id?: string; debt_id?: string; payment_id?: string }>({});
+  const [auditTitle, setAuditTitle] = useState<string>("Histórico de aplicações");
+  const openAudit = (opts: { company_id?: string; debt_id?: string; payment_id?: string; title?: string }) => {
+    setAuditFilter({ company_id: opts.company_id, debt_id: opts.debt_id, payment_id: opts.payment_id });
+    setAuditTitle(opts.title ?? "Histórico de aplicações");
+    setAuditOpen(true);
+  };
+
   // Confirmação em massa
   const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set());
   const [massDialogPjId, setMassDialogPjId] = useState<string | null>(null);
