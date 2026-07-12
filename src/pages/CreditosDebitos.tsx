@@ -1165,7 +1165,22 @@ export default function CreditosDebitos() {
             ) : emAndamento.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum débito em andamento {hasAnyFilter ? "no recorte filtrado" : ""}.</p>
             ) : (
-              (() => {
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2 border border-emerald-500/30 bg-emerald-500/5 rounded-md px-3 py-2">
+                  <div className="text-xs text-muted-foreground">
+                    Aplica no lote em aberto mais recente de cada PJ. Débitos sem lote em aberto ficam para o próximo ciclo.
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => applyToCurrentLote()}
+                    disabled={applyingCurrent !== null}
+                  >
+                    <Rocket className="w-3.5 h-3.5 mr-1" />
+                    {applyingCurrent === "__all__" ? "Aplicando…" : `Aplicar no lote vigente (${emAndamento.length})`}
+                  </Button>
+                </div>
+                {(() => {
                 const groups = groupByPj(emAndamento);
                 return groups.map(([pjId, list]) => {
                   const pjName = list[0]?._company_name ?? "PJ";
@@ -1173,14 +1188,24 @@ export default function CreditosDebitos() {
                   const isOpen = isGroupOpen(pjId, groups.length);
                   return (
                     <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className="border border-border rounded-md">
-                      <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b hover:bg-muted/50">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
+                        <CollapsibleTrigger className="flex-1 flex items-center gap-2 min-w-0 hover:opacity-80">
                           {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                           <span className="font-medium text-sm truncate">{pjName}</span>
                           <Badge variant="outline">{list.length}</Badge>
                           <span className="text-xs text-muted-foreground font-mono">{brl(total)}</span>
-                        </div>
-                      </CollapsibleTrigger>
+                        </CollapsibleTrigger>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); applyToCurrentLote(pjId); }}
+                          disabled={applyingCurrent !== null}
+                        >
+                          <Rocket className="w-3.5 h-3.5 mr-1" />
+                          {applyingCurrent === pjId ? "Aplicando…" : "Aplicar no lote vigente"}
+                        </Button>
+                      </div>
+
                       <CollapsibleContent>
                         <div className="divide-y">
                           {list.map(g => {
