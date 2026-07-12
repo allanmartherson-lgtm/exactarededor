@@ -147,6 +147,9 @@ export default function CreditosDebitos() {
   const [lotePick, setLotePick] = useState<string>("");
   const [paymentLabels, setPaymentLabels] = useState<Record<string, string>>({});
   const [appsByAdj, setAppsByAdj] = useState<Record<string, AdjApplication[]>>({});
+  // Aplicações de glosa por debt_id → usado para sinalizar "já aplicado neste lote"
+  // e evitar reinvocar apply-company-deductions em (payment_id, company_id) já processados.
+  const [glosaAppsByDebt, setGlosaAppsByDebt] = useState<Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]>>({});
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -234,6 +237,27 @@ export default function CreditosDebitos() {
       });
     }
     setAppsByAdj(appsMap);
+
+    // Aplicações de glosas por debt_id (ativas — ignora revertido/postponed sem valor)
+    const debtIds = debts.map(d => d.id);
+    const gpaMap: Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]> = {};
+    if (debtIds.length) {
+      const { data: gpaRows } = await (supabase as any)
+        .from("glosa_payment_applications")
+        .select("glosa_debt_id, payment_id, status, valor_aplicado, applied_at")
+        .in("glosa_debt_id", debtIds)
+        .in("status", ["proposto", "confirmado", "partial", "pending_manual_resolution"]);
+      ((gpaRows as any[]) ?? []).forEach(r => {
+        (gpaMap[r.glosa_debt_id] ??= []).push({
+          payment_id: r.payment_id,
+          status: r.status,
+          valor_aplicado: Number(r.valor_aplicado ?? 0),
+          applied_at: r.applied_at ?? null,
+        });
+        if (r.payment_id) allPaymentIds.add(r.payment_id);
+      });
+    }
+    setGlosaAppsByDebt(gpaMap);
 
     const tgtIds = Array.from(new Set([
       ...debts.map(d => d.target_payment_id).filter(Boolean) as string[],
@@ -584,6 +608,13 @@ export default function CreditosDebitos() {
   // ============ Aplicar em massa no LOTE VIGENTE (Em andamento) ============
   const [applyingCurrent, setApplyingCurrent] = useState<string | null>(null); // pjId | "__all__"
 
+  // Retorna a aplicação ativa desta dívida em um payment específico (se houver)
+  const debtAppliedAt = (debtId: string, paymentId: string | null | undefined) => {
+    if (!paymentId) return null;
+    const apps = glosaAppsByDebt[debtId] ?? [];
+    return apps.find(a => a.payment_id === paymentId) ?? null;
+  };
+
   const applyToCurrentLote = async (pjId?: string) => {
     if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
     const scope = pjId ? emAndamento.filter(g => g.company_id === pjId) : emAndamento;
@@ -615,27 +646,45 @@ export default function CreditosDebitos() {
 
       // 2. Debts que precisam atualizar target
       const toUpdate: { id: string; company_id: string; target: string }[] = [];
+      // 2b. Dedup: pares (payment, company) onde AO MENOS UM débito ainda não foi aplicado.
+      const pairsToInvoke = new Map<string, { payment_id: string; company_id: string }>();
+      let alreadyApplied = 0;
       for (const [pj, debts] of byPj.entries()) {
         const target = currentByPj.get(pj);
         if (!target) continue;
+        let anyPending = false;
         for (const d of debts) {
           if (d.target_payment_id !== target) toUpdate.push({ id: d.id, company_id: pj, target });
+          if (debtAppliedAt(d.id, target)) {
+            alreadyApplied += 1;
+          } else {
+            anyPending = true;
+          }
         }
+        if (anyPending) pairsToInvoke.set(`${target}|${pj}`, { payment_id: target, company_id: pj });
       }
       let updated = 0;
       for (const u of toUpdate) {
         const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
         if (!error) updated += 1;
       }
-      // 3. Invoca apply-company-deductions por (payment_id, company_id) único
-      const pairs = new Map<string, { payment_id: string; company_id: string }>();
-      for (const [pj, debts] of byPj.entries()) {
-        const target = currentByPj.get(pj);
-        if (!target) continue;
-        pairs.set(`${target}|${pj}`, { payment_id: target, company_id: pj });
+
+      // Se nada resta para invocar, evita gasto de créditos e sinaliza claramente.
+      if (pairsToInvoke.size === 0) {
+        if (toUpdate.length) {
+          const patch = new Map(toUpdate.map(u => [u.id, u.target]));
+          setGlosaDebts(prev => prev.map(g => patch.has(g.id) ? { ...g, target_payment_id: patch.get(g.id)! } : g));
+        }
+        if (Object.keys(labelPatch).length) setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
+        toast.info(alreadyApplied > 0
+          ? `Todos os débitos já foram aplicados nos lotes vigentes (${alreadyApplied}).`
+          : "Nenhum lote em aberto disponível para aplicar.");
+        return;
       }
+
+      // 3. Invoca apply-company-deductions apenas para pares com pendência
       const invocations = await Promise.allSettled(
-        Array.from(pairs.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
+        Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
       const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
       const missing = pjIds.length - currentByPj.size;
@@ -651,9 +700,12 @@ export default function CreditosDebitos() {
       const parts = [
         `${okInvocations} PJ(s) processadas`,
         updated ? `${updated} lote-alvo atualizado(s)` : null,
+        alreadyApplied ? `${alreadyApplied} já aplicados (ignorados)` : null,
         missing ? `${missing} sem lote em aberto` : null,
       ].filter(Boolean).join(" · ");
       toast.success(`Aplicação disparada — ${parts || "OK"}`);
+      // Recarrega aplicações para refletir novo estado
+      void loadAll();
     } catch (err: any) {
       console.error("[applyToCurrentLote]", err);
       toast.error(err?.message ?? "Falha ao aplicar no lote vigente.");
@@ -1166,26 +1218,43 @@ export default function CreditosDebitos() {
               <p className="text-sm text-muted-foreground">Nenhum débito em andamento {hasAnyFilter ? "no recorte filtrado" : ""}.</p>
             ) : (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-2 border border-emerald-500/30 bg-emerald-500/5 rounded-md px-3 py-2">
-                  <div className="text-xs text-muted-foreground">
-                    Aplica no lote em aberto mais recente de cada PJ. Débitos sem lote em aberto ficam para o próximo ciclo.
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => applyToCurrentLote()}
-                    disabled={applyingCurrent !== null}
-                  >
-                    <Rocket className="w-3.5 h-3.5 mr-1" />
-                    {applyingCurrent === "__all__" ? "Aplicando…" : `Aplicar no lote vigente (${emAndamento.length})`}
-                  </Button>
-                </div>
+                {(() => {
+                  const pendingCount = emAndamento.filter(g => !g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id)).length;
+                  const appliedCount = emAndamento.length - pendingCount;
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-2 border border-emerald-500/30 bg-emerald-500/5 rounded-md px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Aplica no lote em aberto mais recente de cada PJ. Débitos já aplicados são ignorados automaticamente (idempotente).
+                        {appliedCount > 0 && (
+                          <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
+                            ✓ {appliedCount} já aplicado{appliedCount > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => applyToCurrentLote()}
+                        disabled={applyingCurrent !== null || pendingCount === 0}
+                      >
+                        <Rocket className="w-3.5 h-3.5 mr-1" />
+                        {applyingCurrent === "__all__"
+                          ? "Aplicando…"
+                          : pendingCount === 0
+                            ? "Tudo aplicado"
+                            : `Aplicar no lote vigente (${pendingCount})`}
+                      </Button>
+                    </div>
+                  );
+                })()}
                 {(() => {
                 const groups = groupByPj(emAndamento);
                 return groups.map(([pjId, list]) => {
                   const pjName = list[0]?._company_name ?? "PJ";
                   const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
                   const isOpen = isGroupOpen(pjId, groups.length);
+                  const pjPending = list.filter(g => !g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id)).length;
+                  const pjApplied = list.length - pjPending;
                   return (
                     <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className="border border-border rounded-md">
                       <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
@@ -1193,16 +1262,25 @@ export default function CreditosDebitos() {
                           {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                           <span className="font-medium text-sm truncate">{pjName}</span>
                           <Badge variant="outline">{list.length}</Badge>
+                          {pjApplied > 0 && (
+                            <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30">
+                              ✓ {pjApplied} aplicado{pjApplied > 1 ? "s" : ""}
+                            </Badge>
+                          )}
                           <span className="text-xs text-muted-foreground font-mono">{brl(total)}</span>
                         </CollapsibleTrigger>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={(e) => { e.stopPropagation(); applyToCurrentLote(pjId); }}
-                          disabled={applyingCurrent !== null}
+                          disabled={applyingCurrent !== null || pjPending === 0}
                         >
                           <Rocket className="w-3.5 h-3.5 mr-1" />
-                          {applyingCurrent === pjId ? "Aplicando…" : "Aplicar no lote vigente"}
+                          {applyingCurrent === pjId
+                            ? "Aplicando…"
+                            : pjPending === 0
+                              ? "Tudo aplicado"
+                              : `Aplicar (${pjPending})`}
                         </Button>
                       </div>
 
@@ -1210,12 +1288,18 @@ export default function CreditosDebitos() {
                         <div className="divide-y">
                           {list.map(g => {
                             const parc = g.parcelas_default ?? 1;
+                            const applied = debtAppliedAt(g.id, g.target_payment_id);
                             return (
                               <div key={g.id} className="flex items-center justify-between gap-3 px-3 py-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-medium text-sm">{g.doctor_name}</span>
                                     {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
+                                    {applied && (
+                                      <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
+                                        ✓ Aplicado ({applied.status})
+                                      </Badge>
+                                    )}
                                   </div>
                                   <div className="text-xs mt-0.5">
                                     <span className="font-mono text-destructive">{brl(g.total_debt)}</span>{" · "}
@@ -1228,7 +1312,14 @@ export default function CreditosDebitos() {
                                   </div>
                                   <div className="text-[11px] mt-0.5">
                                     {g.target_payment_id ? (
-                                      <span className="text-emerald-600">→ lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}</span>
+                                      applied ? (
+                                        <span className="text-emerald-600">
+                                          ✓ aplicado em: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
+                                          {applied.valor_aplicado > 0 && ` — ${brl(applied.valor_aplicado)}`}
+                                        </span>
+                                      ) : (
+                                        <span className="text-emerald-600">→ lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}</span>
+                                      )
                                     ) : (
                                       <span className="text-amber-600">⚠ sem lote-alvo definido — não será aplicado</span>
                                     )}
