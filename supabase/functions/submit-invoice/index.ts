@@ -190,9 +190,11 @@ serve(async (req) => {
         if (invoice.status !== "aguardando") {
           return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+        const __hid1 = await getHospitalId(invoice.payment_id);
         const { data: q, error: insErr } = await supabase.from("invoice_questions").insert({
           invoice_id: invoice.id,
           payment_id: invoice.payment_id,
+          hospital_id: __hid1,
           author_type: "recebedor",
           author_name: authorName,
           message,
@@ -209,12 +211,14 @@ serve(async (req) => {
           .eq("author_type", "analista")
           .is("answered_at", null);
         await supabase.from("payments").update({ status: "nf_questionada" }).eq("id", invoice.payment_id);
-        await supabase.from("payment_observations").insert({
+        const { error: obsErr1 } = await supabase.from("payment_observations").insert({
           payment_id: invoice.payment_id,
+          hospital_id: __hid1,
           author_type: "sistema",
           message: `Recebedor da NF enviou um questionamento${authorName ? ` (${authorName})` : ""}${files.length ? ` com ${files.length} anexo(s)` : ""}: "${message.slice(0, 200)}${message.length > 200 ? "..." : ""}"`,
           status_to: "nf_questionada",
         });
+        if (obsErr1) console.error("[submit-invoice] payment_observations insert error", obsErr1);
         return new Response(JSON.stringify({ ok: true, attachments: files.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       // Se action != "question" cai para o fluxo de upload de NF abaixo (mantém compatibilidade).
