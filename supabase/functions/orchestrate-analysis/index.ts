@@ -177,10 +177,13 @@ Deno.serve(async (req) => {
             })
             .eq("id", existing.id);
         } else {
-          await supabase
+          // [Multi-tenant] hospital_id é NOT NULL em analysis_dead_letter
+          // e não há trigger que herde do payment — precisa ir explicitamente.
+          const { error: dlInsErr } = await supabase
             .from("analysis_dead_letter")
             .insert({
               payment_id,
+              hospital_id: job.hospital_id,
               company_name: companyName,
               attempts: 1,
               last_error: errorMsg.slice(0, 500),
@@ -188,6 +191,7 @@ Deno.serve(async (req) => {
               errors: [errorEntry],
               status: "resolved", // só vira 'active' ao atingir threshold
             });
+          if (dlInsErr) console.error("[orchestrate] insert dead-letter falhou", dlInsErr);
         }
       } catch (e) {
         console.error("[orchestrate] falha ao registrar dead-letter", e);

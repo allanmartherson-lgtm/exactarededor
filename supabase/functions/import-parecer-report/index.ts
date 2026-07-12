@@ -92,12 +92,16 @@ Deno.serve(async (req) => {
         .select("hospital_id")
         .eq("id", payment_id)
         .maybeSingle();
+      const hospitalId = (payRow as any)?.hospital_id;
+      if (!hospitalId) {
+        return json({ error: "Pagamento sem hospital vinculado — não é possível importar relatório de parecer." }, 400);
+      }
 
       const { data: header, error: headerErr } = await supabase
         .from("payment_parecer_reports")
         .insert({
           payment_id,
-          hospital_id: (payRow as any)?.hospital_id ?? null,
+          hospital_id: hospitalId,
           period_start,
           period_end,
           source_filename: filename ?? null,
