@@ -466,14 +466,14 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={13} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={14} className="p-6 text-center text-muted-foreground">
                     Carregando…
                   </td>
                 </tr>
               )}
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={13} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={14} className="p-6 text-center text-muted-foreground">
                     Nenhuma PJ neste lote.
                   </td>
                 </tr>
@@ -482,8 +482,17 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                 rows.map((r) => {
                   const flags = flagRow(r);
                   return (
-                    <tr key={r.company_id} className={cn("border-b hover:bg-muted/30", flags.length && "bg-warning-soft/30")}>
-                      <td className="p-2 font-medium">{r.company_name}</td>
+                    <tr
+                      key={r.company_id}
+                      onClick={() => setDrill({ id: r.company_id, name: r.company_name })}
+                      className={cn(
+                        "border-b hover:bg-muted/50 cursor-pointer",
+                        flags.length && "bg-warning-soft/30",
+                      )}
+                      title="Ver detalhamento linha a linha"
+                    >
+                      <td className="p-2 text-muted-foreground"><ChevronRight className="h-3.5 w-3.5" /></td>
+                      <td className="p-2 font-medium underline-offset-2 hover:underline">{r.company_name}</td>
                       <td className="p-2 text-right">{formatCurrency(r.nf_expected)}</td>
                       <td className="p-2 text-right">{r.nf_received === null ? "—" : formatCurrency(r.nf_received)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.grp_bruto)}</td>
@@ -517,6 +526,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
             {!loading && rows.length > 0 && (
               <tfoot className="sticky bottom-0 bg-muted/90 font-semibold">
                 <tr>
+                  <td className="p-2" />
                   <td className="p-2">TOTAL ({rows.length})</td>
                   <td className="p-2 text-right">{formatCurrency(totals.nf_expected)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.nf_received)}</td>
