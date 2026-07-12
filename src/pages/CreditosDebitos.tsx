@@ -185,6 +185,23 @@ export default function CreditosDebitos() {
   const [applyPickByPj, setApplyPickByPj] = useState<Record<string, string>>({});
   const [applyLoading, setApplyLoading] = useState(false);
 
+  // Resultado detalhado da aplicação (substitui toast genérico por tela vermelha
+  // com motivo específico e ação recomendada, PJ a PJ).
+  type ApplyOutcome = {
+    pj_id: string;
+    pj_name: string;
+    payment_label: string;
+    ok: boolean;
+    applied: number;      // glosas efetivamente aplicadas agora
+    already: number;      // já aplicadas antes (idempotência)
+    postponed: number;    // sem líquido — rolam para próximo ciclo
+    partial: number;      // aplicado parcial
+    capacidade: number | null;
+    error?: string | null;
+    hint?: string | null; // ação recomendada
+  };
+  const [resultDialog, setResultDialog] = useState<{ open: boolean; outcomes: ApplyOutcome[] }>({ open: false, outcomes: [] });
+
   // ============ FILTROS (sincronizados via URL) ============
   const tab = searchParams.get("tab") || "pendentes";
   const search = searchParams.get("q") || "";
@@ -693,9 +710,8 @@ export default function CreditosDebitos() {
       const pickMap: Record<string, string> = {};
       results.forEach(([pj, opts]) => {
         lotesMap[pj] = opts;
-        // Pré-seleciona SOMENTE quando há exatamente 1 opção; caso contrário,
-        // exige que o analista escolha (evita erro em cenário multi-lote).
-        if (opts.length === 1) pickMap[pj] = opts[0].id;
+        // Escolha 100% manual (multi-usuário): analista SEMPRE confirma qual lote
+        // recebe o débito, mesmo quando só há uma opção. Evita aplicação silenciosa.
       });
       setApplyLotesByPj(lotesMap);
       setApplyPickByPj(pickMap);
@@ -816,13 +832,47 @@ export default function CreditosDebitos() {
         Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
       const pairsArr = Array.from(pairsToInvoke.values());
+      const outcomes: ApplyOutcome[] = [];
       invocations.forEach((res, idx) => {
         const p = pairsArr[idx];
         const debtsForPair = (byPj.get(p.company_id) ?? []).filter(d => !debtAppliedAt(d.id, p.payment_id));
-        const baseReason = res.status === "fulfilled" ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${(res as any).reason?.message ?? "erro"}`;
-        const action = res.status === "fulfilled" ? "applied" : "error";
+        const pjName = (byPj.get(p.company_id)?.[0] as any)?._company_name ?? "PJ";
+        const loteLabel = applyLotesByPj[p.company_id]?.find(o => o.id === p.payment_id)?.label
+          ?? paymentLabels[p.payment_id] ?? p.payment_id.slice(0, 8);
+
+        // Ler a resposta da edge (data.summary.glosas contém postponed/partial/capacidade_inicial)
+        const data: any = res.status === "fulfilled" ? (res.value as any)?.data : null;
+        const invokeError: any = res.status === "fulfilled" ? (res.value as any)?.error : (res as any).reason;
+        const glosasSummary = data?.summary?.glosas ?? null;
+        const applied = Number(glosasSummary?.proposed ?? 0);
+        const postponed = Number(glosasSummary?.postponed ?? 0);
+        const partial = Number(glosasSummary?.partial ?? 0);
+        const already = Number(glosasSummary?.skipped_existing ?? 0);
+        const capacidade = glosasSummary?.capacidade_inicial != null ? Number(glosasSummary.capacidade_inicial) : null;
+
+        const ok = res.status === "fulfilled" && !invokeError && !data?.error;
+        const errMsg = !ok
+          ? (invokeError?.message ?? data?.error ?? "Falha desconhecida ao aplicar")
+          : null;
+
+        let hint: string | null = null;
+        if (!ok) {
+          hint = "Verifique se o lote-alvo permanece aberto e tente novamente. Se persistir, revise o vínculo médico→PJ e o cadastro do débito.";
+        } else if (postponed > 0 && applied === 0 && partial === 0) {
+          hint = `PJ sem líquido disponível no lote (capacidade R$ ${capacidade?.toFixed(2) ?? "0,00"}). O débito rola automaticamente para o próximo ciclo — nenhuma ação necessária agora.`;
+        } else if (partial > 0) {
+          hint = "Parte do débito foi aplicada até esgotar o líquido da PJ. O saldo remanescente segue como débito ativo e volta ao próximo lote.";
+        }
+
+        outcomes.push({
+          pj_id: p.company_id, pj_name: pjName, payment_label: loteLabel,
+          ok, applied, already, postponed, partial, capacidade, error: errMsg, hint,
+        });
+
+        const baseReason = ok ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${errMsg}`;
+        const action = ok ? "applied" : "error";
         if (debtsForPair.length === 0) {
-          auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote" } });
+          auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote", summary: glosasSummary } });
         } else {
           for (const d of debtsForPair) {
             auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, debt_id: d.id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote", total_debt: d.total_debt } });
@@ -830,8 +880,9 @@ export default function CreditosDebitos() {
         }
       });
       void logDeductionEvents(auditEvents);
-      const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
-      const failedInvocations = invocations.length - okInvocations;
+      const okInvocations = outcomes.filter(o => o.ok).length;
+      const failedInvocations = outcomes.length - okInvocations;
+      const anyPostponedOrPartial = outcomes.some(o => o.postponed > 0 || o.partial > 0);
       const missing = pjIds.length - currentByPj.size;
 
       if (toUpdate.length) {
@@ -841,23 +892,40 @@ export default function CreditosDebitos() {
       if (Object.keys(labelPatch).length) {
         setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
       }
-      const scopeLabel = scopePjId
-        ? (byPj.get(scopePjId)?.[0] as any)?._company_name ?? "PJ"
-        : `${okInvocations} PJ(s)`;
-      const parts = [
-        `✓ ${appliedNow} aplicado(s) agora`,
-        alreadyApplied ? `↻ ${alreadyApplied} já aplicado(s)` : null,
-        updated ? `${updated} lote-alvo atualizado(s)` : null,
-        missing ? `${missing} sem escolha de lote` : null,
-        failedInvocations ? `⚠ ${failedInvocations} falha(s)` : null,
-      ].filter(Boolean).join(" · ");
-      const msg = `${scopeLabel} — ${parts}`;
-      if (failedInvocations) toast.warning(msg); else toast.success(msg);
+
+      // Se houver falha, postpone ou parcial → abre painel vermelho detalhado.
+      // Caso 100% ok e sem postpone/partial → toast de sucesso simples.
+      if (failedInvocations > 0 || anyPostponedOrPartial) {
+        setResultDialog({ open: true, outcomes });
+      } else {
+        const scopeLabel = scopePjId
+          ? (byPj.get(scopePjId)?.[0] as any)?._company_name ?? "PJ"
+          : `${okInvocations} PJ(s)`;
+        const parts = [
+          `✓ ${appliedNow} aplicado(s) agora`,
+          alreadyApplied ? `↻ ${alreadyApplied} já aplicado(s)` : null,
+          updated ? `${updated} lote-alvo atualizado(s)` : null,
+          missing ? `${missing} sem escolha de lote` : null,
+        ].filter(Boolean).join(" · ");
+        toast.success(`${scopeLabel} — ${parts}`);
+      }
       setApplyDialogOpen(false);
       void loadAll();
     } catch (err: any) {
       console.error("[executeApplyCurrentLote]", err);
-      toast.error(err?.message ?? "Falha ao aplicar no lote escolhido.");
+      setResultDialog({
+        open: true,
+        outcomes: [{
+          pj_id: scopePjId ?? "__scope__",
+          pj_name: scopePjId
+            ? (emAndamento.find(g => g.company_id === scopePjId)?._company_name ?? "PJ")
+            : "Aplicação em massa",
+          payment_label: "—",
+          ok: false, applied: 0, already: 0, postponed: 0, partial: 0, capacidade: null,
+          error: err?.message ?? "Falha ao aplicar no lote escolhido.",
+          hint: "Verifique sua conexão e permissões no hospital ativo. Se persistir, recarregue a página e tente novamente.",
+        }],
+      });
     } finally {
       setApplyingCurrent(null);
     }
@@ -1930,6 +1998,70 @@ export default function CreditosDebitos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Resultado detalhado da aplicação (vermelho quando há erro/postpone/partial) */}
+      <Dialog
+        open={resultDialog.open}
+        onOpenChange={(o) => setResultDialog(s => ({ ...s, open: o }))}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {(() => {
+            const hasFail = resultDialog.outcomes.some(o => !o.ok);
+            const hasPend = resultDialog.outcomes.some(o => o.postponed > 0 || o.partial > 0);
+            const isRed = hasFail;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className={isRed ? "text-destructive" : "text-amber-700 dark:text-amber-500"}>
+                    {isRed ? "Erro ao aplicar débito no lote" : "Aplicação concluída com pendências"}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className={`rounded-md border p-3 text-sm ${isRed ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"}`}>
+                  {isRed
+                    ? "Uma ou mais aplicações falharam. Nenhum débito é aplicado à revelia — revise os detalhes abaixo e a ação recomendada por PJ antes de tentar novamente."
+                    : "Todas as aplicações foram processadas, mas há PJs sem líquido suficiente no lote escolhido. Os saldos rolam automaticamente para o próximo ciclo."}
+                </div>
+                <div className="mt-3 divide-y border rounded-md max-h-[55vh] overflow-y-auto">
+                  {resultDialog.outcomes.map((o) => (
+                    <div key={`${o.pj_id}-${o.payment_label}`} className="px-3 py-2 text-sm space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{o.pj_name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">Lote: {o.payment_label}</div>
+                        </div>
+                        <Badge variant={o.ok ? (o.postponed > 0 || o.partial > 0 ? "secondary" : "default") : "destructive"}>
+                          {o.ok ? (o.postponed > 0 && o.applied === 0 && o.partial === 0 ? "Adiado" : o.partial > 0 ? "Parcial" : "Aplicado") : "Erro"}
+                        </Badge>
+                      </div>
+                      <div className="text-xs flex flex-wrap gap-x-3 gap-y-0.5">
+                        {o.applied > 0 && <span>✓ {o.applied} aplicado(s)</span>}
+                        {o.partial > 0 && <span className="text-amber-600">◐ {o.partial} parcial</span>}
+                        {o.postponed > 0 && <span className="text-amber-600">↷ {o.postponed} adiado(s)</span>}
+                        {o.already > 0 && <span className="text-muted-foreground">↻ {o.already} já aplicado(s)</span>}
+                        {o.capacidade != null && <span className="text-muted-foreground">líquido disp.: {brl(o.capacidade)}</span>}
+                      </div>
+                      {o.error && (
+                        <div className="text-xs text-destructive font-mono bg-destructive/5 border border-destructive/20 rounded px-2 py-1">
+                          {o.error}
+                        </div>
+                      )}
+                      {o.hint && (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">O que fazer:</span> {o.hint}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setResultDialog({ open: false, outcomes: [] })}>Fechar</Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
 
 
 
