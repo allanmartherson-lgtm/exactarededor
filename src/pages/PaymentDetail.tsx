@@ -458,7 +458,7 @@ const PaymentDetail = () => {
         .is("reverted_at", null);
       const { data: glosaDebts } = await (supabase as any)
         .from("glosa_debts")
-        .select("company_id,status,resolution_status,ignored_at")
+        .select("company_id,status,resolution_status,ignored_at,origem_payment_id,target_payment_id,last_payment_id")
         .or(`origem_payment_id.eq.${id},target_payment_id.eq.${id},last_payment_id.eq.${id}`)
         .is("ignored_at", null);
       const { data: glosaApplications } = await (supabase as any)
@@ -501,6 +501,9 @@ const PaymentDetail = () => {
         company_id: string | null;
         status: string | null;
         resolution_status: string | null;
+        origem_payment_id: string | null;
+        target_payment_id: string | null;
+        last_payment_id: string | null;
       }>).forEach((row) => {
         if (!row.company_id) return;
         const status = String(row.status ?? "");
@@ -509,8 +512,14 @@ const PaymentDetail = () => {
         if (["quitada", "cancelada", "ignorada"].includes(resolution)) return;
         const flags = next[row.company_id] ?? emptyFinancialFlags();
         flags.proposedGlosas = true;
+        // Débito vinculado a este lote como destino conta como "aplicado"
+        const linkedHere = row.target_payment_id === id || row.last_payment_id === id;
+        if (linkedHere && resolution === "vinculada") {
+          flags.appliedDebits = true;
+        }
         next[row.company_id] = flags;
       });
+
       setFinancialFlagsByCompany(next);
     };
     loadFinancialFlags();
