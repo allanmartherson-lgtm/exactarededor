@@ -229,21 +229,25 @@ Deno.serve(async (req) => {
       .eq("company_id", company_id)
       .not("doctor_id", "is", null);
 
-    const doctorIds = Array.from(new Set((items ?? []).map((i: any) => i.doctor_id).filter(Boolean)));
+    const doctorIdsComProducao = new Set(
+      (items ?? []).map((i: any) => i.doctor_id).filter(Boolean),
+    );
 
-    if (doctorIds.length > 0) {
+    // Buscamos TODAS as dívidas ativas apontadas para este lote (ou residuais),
+    // independentemente de o médico ter produção aqui. Se não tiver produção,
+    // registramos "postponed" (sem_producao) para dar rastro na UI — assim o
+    // botão "Aplicar" não fica preso em pendente indefinidamente.
+    {
       let debtsQ = supabase
         .from("glosa_debts")
         .select("*")
         .eq("status", "ativo")
         .not("confirmed_at", "is", null)
-        .in("doctor_id", doctorIds)
-        // Glosa clássica: precisa apontar para este lote via target_payment_id.
-        // Débito residual de conciliação: escopado por hospital, sem target — cobra em qualquer lote da médica.
         .or(`target_payment_id.eq.${payment_id},origem.eq.conciliacao_residual`)
         .or("resolution_status.is.null,resolution_status.neq.ignorado");
       if (paymentHospitalId) debtsQ = debtsQ.eq("hospital_id", paymentHospitalId);
       const { data: debts } = await debtsQ;
+
 
 
       const { data: existingGpa } = await supabase
