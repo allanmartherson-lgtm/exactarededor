@@ -547,11 +547,24 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                 <SortHeader k="snap_bruto" label="Apurado bruto" title="Bruto apurado pelo sistema após regras" />
                 <SortHeader k="snap_glosas" label="Apurado glosas" title="Total de glosas apuradas para esta PJ no lote" />
                 <SortHeader k="snap_liquido" label="Apurado líquido" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)" />
-                <SortHeader k="app_confirmado" label="Confirmado" />
-                <SortHeader k="app_proposto" label="Proposto" />
-                <SortHeader k="app_pending" label="Pendente" />
-                <SortHeader k="app_postponed" label="Adiado" />
-                <th className="p-2 border-b">Divergências</th>
+        <div className="flex-1 overflow-auto border rounded-md">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
+              <tr className="text-left">
+                <th className="p-2 border-b w-8"></th>
+                <SortHeader k="company_name" label="PJ" align="left" />
+                <SortHeader k="grp_bruto" label="Bruto (grupo)" title="Total bruto vindo da produção, antes de qualquer dedução" />
+                <SortHeader k="snap_bruto" label="Apurado bruto" title="Bruto apurado pelo sistema após regras" />
+                <SortHeader k="snap_glosas" label="(−) Glosas" title="Total de glosas apuradas para esta PJ no lote" />
+                <SortHeader k="app_confirmado" label="Confirmado" title="Glosas efetivamente lançadas no pagamento" />
+                <SortHeader k="app_proposto" label="Proposto" title="Sugestões pendentes de confirmação em Créditos & Débitos" />
+                <SortHeader k="app_pending" label="Pendente" title="Pendências manuais aguardando resolução" />
+                <SortHeader k="app_postponed" label="Adiado" title="Aplicações adiadas para o próximo ciclo" />
+                <SortHeader k="snap_liquido" label="Apurado líquido" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)" />
+                <SortHeader k="grp_liquido" label="Líquido (grupo)" title="Líquido derivado dos totais brutos do grupo" />
+                <SortHeader k="nf_expected" label="NF esperada" title="Valor esperado no pedido de nota" />
+                <SortHeader k="nf_received" label="NF recebida" title="Valor efetivamente recebido nas notas" />
+                <th className="p-2 border-b font-medium text-muted-foreground normal-case">Observações</th>
               </tr>
             </thead>
             <tbody>
@@ -579,41 +592,51 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
               {!loading &&
                 visibleRows.map((r) => {
                   const flags = flagRow(r);
+                  const warn = flags.some((f) => f.tone === "warn");
                   return (
                     <tr
                       key={r.company_id}
                       onClick={() => setDrill({ id: r.company_id, name: r.company_name })}
                       className={cn(
                         "border-b hover:bg-muted/50 cursor-pointer",
-                        flags.length && "bg-warning-soft/30",
+                        warn && "bg-warning-soft/30",
                       )}
                       title="Ver detalhamento linha a linha"
                     >
                       <td className="p-2 text-muted-foreground"><ChevronRight className="h-3.5 w-3.5" /></td>
                       <td className="p-2 font-medium underline-offset-2 hover:underline">{r.company_name}</td>
-                      <td className="p-2 text-right">{formatCurrency(r.nf_expected)}</td>
-                      <td className="p-2 text-right">{r.nf_received === null ? "—" : formatCurrency(r.nf_received)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.grp_bruto)}</td>
-                      <td className="p-2 text-right">{formatCurrency(r.grp_liquido)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.snap_bruto)}</td>
                       <td className="p-2 text-right text-destructive">{formatCurrency(r.snap_glosas)}</td>
-                      <td className="p-2 text-right">{formatCurrency(r.snap_liquido)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_confirmado)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_proposto)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_pending)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_postponed)}</td>
+                      <td className="p-2 text-right font-medium">{formatCurrency(r.snap_liquido)}</td>
+                      <td className="p-2 text-right">{formatCurrency(r.grp_liquido)}</td>
+                      <td className="p-2 text-right">{formatCurrency(r.nf_expected)}</td>
+                      <td className="p-2 text-right">{r.nf_received === null ? "—" : formatCurrency(r.nf_received)}</td>
                       <td className="p-2">
                         {flags.length ? (
                           <div className="flex flex-wrap gap-1">
                             {flags.map((f) => (
-                              <Badge key={f} variant="outline" className="border-warning/60 text-warning gap-1">
-                                <AlertTriangle className="h-3 w-3" /> {f}
+                              <Badge
+                                key={f.label}
+                                variant="outline"
+                                className={cn(
+                                  "gap-1",
+                                  f.tone === "warn"
+                                    ? "border-warning/60 text-warning"
+                                    : "border-muted-foreground/30 text-muted-foreground",
+                                )}
+                              >
+                                {f.tone === "warn" && <AlertTriangle className="h-3 w-3" />} {f.label}
                               </Badge>
                             ))}
                           </div>
                         ) : (
                           <Badge variant="outline" className="border-success/60 text-success">
-                            ok
+                            conforme
                           </Badge>
                         )}
                       </td>
@@ -626,17 +649,17 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                 <tr>
                   <td className="p-2" />
                   <td className="p-2">TOTAL ({visibleRows.length}{filter.trim() ? ` de ${rows.length}` : ""})</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.nf_expected)}</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.nf_received)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.grp_bruto)}</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.grp_liquido)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.snap_bruto)}</td>
                   <td className="p-2 text-right text-destructive">{formatCurrency(totals.snap_glosas)}</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.snap_liquido)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_confirmado)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_proposto)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_pending)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_postponed)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.snap_liquido)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.grp_liquido)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.nf_expected)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.nf_received)}</td>
                   <td className="p-2" />
                 </tr>
               </tfoot>
