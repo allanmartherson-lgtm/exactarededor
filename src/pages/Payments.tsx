@@ -1424,6 +1424,31 @@ const Payments = () => {
                   Apenas lotes vazios (sem itens)
                 </label>
               </div>
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Financeiro do lote</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasProposedGlosas} onChange={(e) => setHasProposedGlosas(e.target.checked)} />
+                    Com glosas propostas
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasAppliedDebits} onChange={(e) => setHasAppliedDebits(e.target.checked)} />
+                    Com débitos aplicados
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasAppliedCredits} onChange={(e) => setHasAppliedCredits(e.target.checked)} />
+                    Com créditos aplicados
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasAlerts} onChange={(e) => setHasAlerts(e.target.checked)} />
+                    Com alertas (divergência/erro)
+                  </label>
+                </div>
+              </div>
             </div>
           );
 
