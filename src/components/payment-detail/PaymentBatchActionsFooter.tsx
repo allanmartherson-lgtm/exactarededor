@@ -31,7 +31,13 @@ interface Props {
   /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
    *  diretor (validador) ou conclui a aprovação final (diretor). */
   actorRole: "validador" | "diretor";
-  items?: Array<{ ai_status: string; validation_findings?: unknown }>;
+  items?: Array<{
+    ai_status: string;
+    validation_findings?: unknown;
+    company_id?: string | null;
+    is_cancelled?: boolean | null;
+    package_absorbed?: boolean | null;
+  }>;
   onDone: () => void | Promise<void>;
   /** Chamado quando o usuário clica em "Revisar antes de enviar" no gate de
    *  pendências. O container ajusta filtros para exibir os itens sinalizados. */
@@ -67,12 +73,25 @@ export function PaymentBatchActionsFooter({
   const [pendingRetry, setPendingRetry] = useState<{ groupIds: string[]; note: string | null } | null>(null);
 
   const pendencias = useMemo(() => {
-    const list = items ?? [];
+    // Só contam pendências que realmente bloqueariam o envio atual: itens
+    // pertencentes a empresas que este ator vai enviar agora, ignorando
+    // cancelados, absorvidos por pacote e itens já acatados.
+    const approvableCompanies = new Set(
+      groups
+        .filter((g) => ROLE_APPROVABLE_STATUSES[actorRole].has(String(g.status)))
+        .map((g) => String(g.company_id ?? "")),
+    );
+    const list = (items ?? []).filter((i) => {
+      if (i.is_cancelled) return false;
+      if (i.package_absorbed) return false;
+      if (approvableCompanies.size === 0) return true;
+      return approvableCompanies.has(String(i.company_id ?? ""));
+    });
     const reprovados = list.filter((i) => i.ai_status === "reprovado").length;
     const alertas = list.filter((i) => i.ai_status === "alerta").length;
     const pendentes = list.filter((i) => i.ai_status === "pendente").length;
     return { reprovados, alertas, pendentes, temPendencias: reprovados + alertas + pendentes > 0 };
-  }, [items]);
+  }, [items, groups, actorRole]);
 
   // ===== Question dialog state =====
   const [qSelected, setQSelected] = useState<Set<string>>(new Set());
