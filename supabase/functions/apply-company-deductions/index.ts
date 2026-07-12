@@ -222,17 +222,11 @@ Deno.serve(async (req) => {
 
 
     // ============ GLOSAS ============
-    // Competência + hospital do lote (hospital_id é crítico: edge function usa service_role
-    // e bypassa RLS, então precisamos filtrar hospital explicitamente para não vazar dívidas
-    // de outras unidades quando a médica atende em múltiplos hospitais).
-    const { data: paymentRow } = await supabase
-      .from("payments")
-      .select("competence_month, hospital_id")
-      .eq("id", payment_id)
-      .maybeSingle();
-    const competenceDate: string = (paymentRow?.competence_month as string)
+    // hospital_id foi obtido no topo (paymentHospitalId). É crítico porque a edge function
+    // usa service_role e bypassa RLS — precisamos filtrar hospital explicitamente para não
+    // vazar dívidas de outras unidades quando a médica atende em múltiplos hospitais.
+    const competenceDate: string = (paymentStatusRow?.competence_month as string)
       || new Date().toISOString().slice(0, 10);
-    const paymentHospitalId: string | null = (paymentRow?.hospital_id as string) ?? null;
 
     // Doctors with production in this lote/company
     const { data: items } = await supabase
