@@ -73,12 +73,25 @@ export function PaymentBatchActionsFooter({
   const [pendingRetry, setPendingRetry] = useState<{ groupIds: string[]; note: string | null } | null>(null);
 
   const pendencias = useMemo(() => {
-    const list = items ?? [];
+    // Só contam pendências que realmente bloqueariam o envio atual: itens
+    // pertencentes a empresas que este ator vai enviar agora, ignorando
+    // cancelados, absorvidos por pacote e itens já acatados.
+    const approvableCompanies = new Set(
+      groups
+        .filter((g) => ROLE_APPROVABLE_STATUSES[actorRole].has(String(g.status)))
+        .map((g) => String(g.company_id ?? "")),
+    );
+    const list = (items ?? []).filter((i) => {
+      if (i.is_cancelled) return false;
+      if (i.package_absorbed) return false;
+      if (approvableCompanies.size === 0) return true;
+      return approvableCompanies.has(String(i.company_id ?? ""));
+    });
     const reprovados = list.filter((i) => i.ai_status === "reprovado").length;
     const alertas = list.filter((i) => i.ai_status === "alerta").length;
     const pendentes = list.filter((i) => i.ai_status === "pendente").length;
     return { reprovados, alertas, pendentes, temPendencias: reprovados + alertas + pendentes > 0 };
-  }, [items]);
+  }, [items, groups, actorRole]);
 
   // ===== Question dialog state =====
   const [qSelected, setQSelected] = useState<Set<string>>(new Set());
