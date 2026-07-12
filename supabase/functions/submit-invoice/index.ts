@@ -87,6 +87,20 @@ serve(async (req) => {
     //   - 'question' (application/json) — recebedor envia uma dúvida
     const contentType = req.headers.get("content-type") ?? "";
 
+    // Helper com cache para preencher hospital_id em inserts (multi-tenant isolation).
+    // Tabelas invoice_questions / invoice_question_attachments / payment_observations
+    // têm hospital_id NOT NULL — sem isso o insert é rejeitado silenciosamente.
+    const __hospIdCache = new Map<string, string | null>();
+    const getHospitalId = async (paymentId: string | null | undefined): Promise<string | null> => {
+      if (!paymentId) return null;
+      if (__hospIdCache.has(paymentId)) return __hospIdCache.get(paymentId) ?? null;
+      const { data } = await supabase.from("payments").select("hospital_id").eq("id", paymentId).maybeSingle();
+      const hid = (data?.hospital_id as string | null) ?? null;
+      __hospIdCache.set(paymentId, hid);
+      return hid;
+    };
+
+
     // Helpers de anexo (mantidos inline pra não precisar bundler na edge).
     const ALLOWED_MIMES = new Set([
       "application/pdf",
@@ -129,10 +143,12 @@ serve(async (req) => {
           .from("invoice-question-attachments")
           .upload(path, buf, { contentType: f.type || "application/octet-stream", upsert: false });
         if (upErr) throw upErr;
+        const __hidAtt = await getHospitalId(paymentId);
         const { error: insErr } = await supabase.from("invoice_question_attachments").insert({
           question_id: questionId,
           invoice_id: invoiceId,
           payment_id: paymentId,
+          hospital_id: __hidAtt,
           author_type: authorType,
           author_id: authorId,
           file_name: safeName,
@@ -174,9 +190,11 @@ serve(async (req) => {
         if (invoice.status !== "aguardando") {
           return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+        const __hid1 = await getHospitalId(invoice.payment_id);
         const { data: q, error: insErr } = await supabase.from("invoice_questions").insert({
           invoice_id: invoice.id,
           payment_id: invoice.payment_id,
+          hospital_id: __hid1,
           author_type: "recebedor",
           author_name: authorName,
           message,
@@ -193,12 +211,14 @@ serve(async (req) => {
           .eq("author_type", "analista")
           .is("answered_at", null);
         await supabase.from("payments").update({ status: "nf_questionada" }).eq("id", invoice.payment_id);
-        await supabase.from("payment_observations").insert({
+        const { error: obsErr1 } = await supabase.from("payment_observations").insert({
           payment_id: invoice.payment_id,
+          hospital_id: __hid1,
           author_type: "sistema",
           message: `Recebedor da NF enviou um questionamento${authorName ? ` (${authorName})` : ""}${files.length ? ` com ${files.length} anexo(s)` : ""}: "${message.slice(0, 200)}${message.length > 200 ? "..." : ""}"`,
           status_to: "nf_questionada",
         });
+        if (obsErr1) console.error("[submit-invoice] payment_observations insert error", obsErr1);
         return new Response(JSON.stringify({ ok: true, attachments: files.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       // Se action != "question" cai para o fluxo de upload de NF abaixo (mantém compatibilidade).
@@ -291,21 +311,26 @@ serve(async (req) => {
           previousSnapshot,
           justification ? `Justificativa: ${justification}` : "Justificativa não informada.",
         ].join(" ");
-        await supabase.from("payment_observations").insert({
+        const __hid2 = await getHospitalId(invoice.payment_id);
+        const { error: obsErr2 } = await supabase.from("payment_observations").insert({
           payment_id: invoice.payment_id,
+          hospital_id: __hid2,
           author_type: "sistema",
           message: obsMessage,
         });
+        if (obsErr2) console.error("[submit-invoice] payment_observations insert error", obsErr2);
         // Também registra na thread do portal pra ficar visível na próxima conversa
         // entre recebedor e analista (e aparecer na aba "Tenho uma dúvida").
         if (justification) {
-          await supabase.from("invoice_questions").insert({
+          const { error: qErr } = await supabase.from("invoice_questions").insert({
             invoice_id: invoice.id,
             payment_id: invoice.payment_id,
+            hospital_id: __hid2,
             author_type: "recebedor",
             author_name: authorName,
             message: `[Reenvio de NF] ${justification}`,
           });
+          if (qErr) console.error("[submit-invoice] invoice_questions insert error", qErr);
         }
         return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -324,9 +349,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
+      const __hid3 = await getHospitalId(invoice.payment_id);
       const { error: insErr } = await supabase.from("invoice_questions").insert({
         invoice_id: invoice.id,
         payment_id: invoice.payment_id,
+        hospital_id: __hid3,
         author_type: "recebedor",
         author_name: authorName,
         message,
@@ -344,12 +371,14 @@ serve(async (req) => {
       // Move o pagamento para `nf_questionada` para o analista ser notificado.
       // Mantém histórico em payment_observations.
       await supabase.from("payments").update({ status: "nf_questionada" }).eq("id", invoice.payment_id);
-      await supabase.from("payment_observations").insert({
+      const { error: obsErr3 } = await supabase.from("payment_observations").insert({
         payment_id: invoice.payment_id,
+        hospital_id: __hid3,
         author_type: "sistema",
         message: `Recebedor da NF enviou um questionamento${authorName ? ` (${authorName})` : ""}: "${message.slice(0, 200)}${message.length > 200 ? "..." : ""}"`,
         status_to: "nf_questionada",
       });
+      if (obsErr3) console.error("[submit-invoice] payment_observations insert error", obsErr3);
 
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -465,12 +494,15 @@ serve(async (req) => {
     const anyDiverg = allInv?.some((i) => i.status === "divergente");
     if (allDone) {
       await supabase.from("payments").update({ status: anyDiverg ? "nf_divergente" : "nf_conciliada" }).eq("id", invoice.payment_id);
-      await supabase.from("payment_observations").insert({
+      const __hid4 = await getHospitalId(invoice.payment_id);
+      const { error: obsErr4 } = await supabase.from("payment_observations").insert({
         payment_id: invoice.payment_id,
+        hospital_id: __hid4,
         author_type: "sistema",
         message: anyDiverg ? "Todas as NF recebidas, mas há divergência de valor." : "Todas as NF recebidas e conciliadas com sucesso.",
         status_to: anyDiverg ? "nf_divergente" : "nf_conciliada",
       });
+      if (obsErr4) console.error("[submit-invoice] payment_observations insert error", obsErr4);
     } else {
       await supabase.from("payments").update({ status: "nf_recebida" }).eq("id", invoice.payment_id);
       

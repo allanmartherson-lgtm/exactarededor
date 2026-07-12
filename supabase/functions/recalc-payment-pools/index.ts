@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
         ordem: number; tipo: string; descricao: string; valor: number;
         adjustment_id?: string; parcela?: number;
       }> = [];
-      const adjustmentApplications: Array<{ adjustment_id: string; parcela_numero: number; valor: number }> = [];
+      const adjustmentApplications: Array<{ adjustment_id: string; parcela_numero: number; valor: number; company_id: string }> = [];
       const variableValuesUsed: Array<{ deduction_id: string; descricao: string; valor: number; observacao: string | null; competence_month: string }> = [];
       let bolo = base;
       let blockedReason: string | null = null;
@@ -373,7 +373,7 @@ Deno.serve(async (req) => {
             });
             if (!existingApp) {
               adjustmentApplications.push({
-                adjustment_id: adj.id, parcela_numero: parcelaNum, valor: parcelaValor,
+                adjustment_id: adj.id, parcela_numero: parcelaNum, valor: parcelaValor, company_id: d.company_id,
               });
             }
           }
@@ -471,14 +471,16 @@ Deno.serve(async (req) => {
           const { data: compRow } = await supabase
             .from("companies").select("name").eq("id", q.company_id).maybeSingle();
           const itemsCount = (elig.filter((it: any) => it.company_id === q.company_id)).length;
-          const { data: inserted } = await supabase.from("payment_company_groups").insert({
+          const { data: inserted, error: insGrpErr } = await supabase.from("payment_company_groups").insert({
             payment_id,
+            hospital_id: payment.hospital_id ?? null,
             company_id: q.company_id,
             company_name: compRow?.name ?? "Participante do pool",
             status: "revisao_analista",
             total_amount: q.quota,
             items_count: itemsCount,
           } as any).select("id, company_id, company_name, total_amount").maybeSingle();
+          if (insGrpErr) console.error("[recalc-payment-pools] payment_company_groups insert error", insGrpErr);
           if (inserted) groupByCompany.set(q.company_id, inserted as any);
         }
       }
@@ -570,10 +572,12 @@ Deno.serve(async (req) => {
           await supabase.from("payment_company_groups")
             .update({ total_amount: 0, items_count: 0 }).eq("id", existing.id);
         } else {
-          await supabase.from("payment_company_groups").insert({
-            payment_id, company_id: null, company_name: labelName,
+          const { error: insBackErr } = await supabase.from("payment_company_groups").insert({
+            payment_id, hospital_id: payment.hospital_id ?? null,
+            company_id: null, company_name: labelName,
             status: "aprovado", total_amount: 0, items_count: 0,
           } as any);
+          if (insBackErr) console.error("[recalc-payment-pools] payment_company_groups back-insert error", insBackErr);
         }
       }
 
@@ -696,13 +700,16 @@ Deno.serve(async (req) => {
 
       // Persiste aplicações novas e incrementa parcelas_pagas (idempotente: skip se já existir)
       for (const app of adjustmentApplications) {
-        await supabase.from("company_adjustment_applications").insert({
+        const { error: adjInsErr } = await supabase.from("company_adjustment_applications").insert({
           adjustment_id: app.adjustment_id,
           payment_id,
+          company_id: app.company_id,
+          hospital_id: payment.hospital_id ?? null,
           parcela_numero: app.parcela_numero,
           valor_aplicado: app.valor,
           applied_by: userId,
         } as any);
+        if (adjInsErr) console.error("[recalc-payment-pools] company_adjustment_applications insert error", adjInsErr);
         // incrementa parcelas_pagas com base no número real de aplicações
         const { count } = await supabase
           .from("company_adjustment_applications")

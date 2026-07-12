@@ -116,6 +116,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
   let __job_id: string | undefined;
   let __company_label: string | undefined;
   let __company_name: string | undefined;
+  let __paymentHospitalIdHoisted: string | null = null;
   // [Sprint 1 - Tier 3.H] Sentinela: garante que increment_processing_progress
   // seja chamado EXATAMENTE uma vez (sucesso OU falha OU exceção exótica).
   // Sem isso, exceções fora do try/catch principal travam o job em "99%".
@@ -209,6 +210,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // Globais (hospital_id IS NULL) + do hospital do pagamento. Convênios ou
     // setores exclusivos de outros hospitais NUNCA entram no motor deste lote.
     const __paymentHospitalId = ((payment as any)?.hospital_id as string | null) ?? null;
+    __paymentHospitalIdHoisted = __paymentHospitalId;
     try {
       let secQ = supabase.from("sectors").select("slug,name,aliases,hospital_id").eq("active", true);
       if (__paymentHospitalId) secQ = secQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
@@ -2026,6 +2028,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         const nextVersion = (prev?.version ?? 0) + 1;
         versionRows.push({
           payment_id,
+          hospital_id: __paymentHospitalId,
           item_id: r.item_id,
           version: nextVersion,
           ai_status: "acatado",
@@ -2102,6 +2105,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const nextVersion = (prev?.version ?? 0) + 1;
       versionRows.push({
         payment_id,
+        hospital_id: __paymentHospitalId,
         item_id: r.item_id,
         version: nextVersion,
         ai_status: r.status,
@@ -2135,6 +2139,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           itemDiffSummaries.push({ item_id: r.item_id, doctor: it?.doctor_name ?? "item", diff: diffParts.join(" · ") });
           obsRows.push({
             payment_id,
+            hospital_id: __paymentHospitalId,
             item_id: r.item_id,
             author_type: "ia",
             message: `Reanálise v${nextVersion}: ${diffParts.join(" · ")}`,
@@ -2146,6 +2151,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         if (finalAlerts.length) parts.push(`${finalAlerts.length} alerta(s)`);
         obsRows.push({
           payment_id,
+          hospital_id: __paymentHospitalId,
           item_id: r.item_id,
           author_type: "ia",
           message: parts.join(" · ") + ` — ${r.calculation_explanation}` + (aiJ?.ai_note ? ` | IA: ${aiJ.ai_note}` : ""),
@@ -2272,6 +2278,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
           bonusLinesToInsert.push({
             payment_id,
+            hospital_id: __paymentHospitalId,
             doctor_name: anchor.doctor_name ?? null,
             doctor_id: (anchor as any).doctor_id ?? null,
             company_name: anchor.company_name ?? null,
@@ -2506,12 +2513,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // Inserts em bulk (uma chamada por tabela; chunked por segurança em lotes grandes).
     if (versionRows.length) {
       for (let i = 0; i < versionRows.length; i += 200) {
-        await supabase.from("ai_analysis_versions").insert(versionRows.slice(i, i + 200));
+        const { error: verErr } = await supabase.from("ai_analysis_versions").insert(versionRows.slice(i, i + 200));
+        if (verErr) console.error(`${__t} ai_analysis_versions_insert_error`, verErr);
       }
     }
     if (obsRows.length) {
       for (let i = 0; i < obsRows.length; i += 200) {
-        await supabase.from("payment_observations").insert(obsRows.slice(i, i + 200));
+        const { error: obsErr } = await supabase.from("payment_observations").insert(obsRows.slice(i, i + 200));
+        if (obsErr) console.error(`${__t} payment_observations_insert_error`, obsErr);
       }
     }
 
@@ -2590,6 +2599,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const obsStatusTo = isConfeccao ? "rascunho" : "revisao_analista";
     await supabase.from("payment_observations").insert({
       payment_id,
+      hospital_id: __paymentHospitalId,
       author_type: "ia",
       message: `${summary} (${alerts} alertas, ${blocks} reprovações)${consolidatedDiff}`,
       status_from: obsTransition ? "em_analise_ia" : null,
@@ -2605,6 +2615,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     }).length;
     await supabase.from("payment_observations").insert({
       payment_id,
+      hospital_id: __paymentHospitalId,
       author_type: "sistema",
       message:
         `Auditoria do motor: especialidade médica IGNORADA na seleção de regras ` +
@@ -2664,8 +2675,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
       } else {
-        const { data: newG } = await supabase.from("payment_company_groups").insert({
+        const { data: newG, error: grpErr } = await supabase.from("payment_company_groups").insert({
           payment_id,
+          hospital_id: __paymentHospitalId,
           company_id: g.company_id,
           company_name: g.company_name,
           status: isConfeccao ? "rascunho" : "revisao_analista",
@@ -2673,6 +2685,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           items_count: g.items.length,
           total_amount: total,
         }).select("id").single();
+        if (grpErr) console.error(`${__t} payment_company_groups_insert_error`, grpErr);
         if (newG) processedGroupIds.add(newG.id);
       }
 
@@ -2786,6 +2799,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           console.error(`${__t} bonus_split_invariant_failed`, msg);
           await supabase.from("payment_observations").insert({
             payment_id,
+            hospital_id: __paymentHospitalId,
             author_type: "sistema",
             message: msg,
           });
@@ -2914,6 +2928,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       await supabase.from("analysis_telemetry").insert({
         job_id: __job_id ?? null,
         payment_id,
+        hospital_id: __paymentHospitalId,
         company_name: __company_label ?? __company_name ?? null,
         total_ms: Date.now() - startTime,
         ai_ms: __telemetry.ai_ms,
@@ -3090,6 +3105,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         await supabase.from("analysis_telemetry").insert({
           job_id: __job_id ?? null,
           payment_id: __payment_id,
+          hospital_id: __paymentHospitalIdHoisted,
           company_name: __company_label ?? __company_name ?? null,
           total_ms: Date.now() - startTime,
           ai_ms: __telemetry.ai_ms,
