@@ -414,7 +414,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       alternateRowStyles: { fillColor: [248, 250, 252] },
       didParseCell: (data) => {
         if (data.section === "body") {
-          const r = rows[data.row.index];
+          const r = visibleRows[data.row.index];
           if (r && flagRow(r).length > 0) {
             data.cell.styles.fillColor = [255, 249, 219];
           }
