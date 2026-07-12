@@ -246,7 +246,8 @@ serve(async (req) => {
             glosa: Math.round(Number(r.glosas) * 100) / 100,
           }))
           .sort((a, b) => b.glosa - a.glosa)
-          .slice(0, 10);
+          .slice(0, 50);
+
       })(),
       conciliacao_divergente_por_empresa: (() => {
         const companyNameById = new Map<string, string>();
