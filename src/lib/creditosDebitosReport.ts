@@ -208,7 +208,7 @@ export async function buildReportData(input: BuildReportInput): Promise<ReportDa
   });
   const authorMap = new Map<string, string>();
   if (authorIds.size) {
-    const { data } = await supabase.from("profiles").select("user_id, full_name, email").in("user_id", Array.from(authorIds));
+    const { data } = await (supabase as any).from("profiles").select("user_id, full_name, email").in("user_id", Array.from(authorIds));
     ((data as any[]) ?? []).forEach((p) => {
       authorMap.set(p.user_id, p.full_name || p.email || p.user_id.slice(0, 8));
     });
