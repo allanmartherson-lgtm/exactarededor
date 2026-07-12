@@ -33,6 +33,9 @@ interface Props {
   actorRole: "validador" | "diretor";
   items?: Array<{ ai_status: string; validation_findings?: unknown }>;
   onDone: () => void | Promise<void>;
+  /** Chamado quando o usuário clica em "Revisar antes de enviar" no gate de
+   *  pendências. O container ajusta filtros para exibir os itens sinalizados. */
+  onReviewPendencias?: () => void;
 }
 
 const PENDING_GROUP_STATUSES = new Set<string>(["em_questionamento", "devolvido_analista"]);
