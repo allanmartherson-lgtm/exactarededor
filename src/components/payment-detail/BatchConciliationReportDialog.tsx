@@ -225,7 +225,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         grp_liquido: 0,
       },
     );
-  }, [rows]);
+  }, [visibleRows]);
 
   const flagRow = (r: Row) => {
     const flags: string[] = [];
