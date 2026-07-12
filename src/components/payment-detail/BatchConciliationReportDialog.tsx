@@ -447,6 +447,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
               <tr className="text-left">
+                <th className="p-2 border-b w-8"></th>
                 <th className="p-2 border-b">PJ</th>
                 <th className="p-2 border-b text-right">NF esperada</th>
                 <th className="p-2 border-b text-right">NF recebida</th>
