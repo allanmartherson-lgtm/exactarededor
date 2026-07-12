@@ -323,7 +323,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const startY = await drawReportHeader(doc, {
       title: "Panorama do lote — conciliação financeira por PJ",
-      subtitle: `Lote ${paymentReference ?? paymentId.slice(0, 8)} · ${rows.length} PJs · gerado em ${new Date().toLocaleString("pt-BR")}`,
+      subtitle: `Lote ${paymentReference ?? paymentId.slice(0, 8)} · ${visibleRows.length} PJs${filter.trim() ? ` (filtro: "${filter.trim()}")` : ""} · gerado em ${new Date().toLocaleString("pt-BR")}`,
       filledBar: true,
     });
 
