@@ -1130,7 +1130,11 @@ export default function CreditosDebitos() {
 
       <div className="p-4 md:p-6 space-y-4">
         {/* Ações do relatório */}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => openAudit({ title: "Histórico de aplicações" })}>
+            <History className="w-3.5 h-3.5 mr-1.5" />
+            Histórico
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" disabled={exporting !== null}>
