@@ -1722,6 +1722,102 @@ export default function CreditosDebitos() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Aplicar no lote vigente — seleção obrigatória (multi-usuário) */}
+      <Dialog open={applyDialogOpen} onOpenChange={(o) => { if (!applyingCurrent) setApplyDialogOpen(o); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Selecionar lote-alvo</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const scope = applyDialogScopePj
+              ? emAndamento.filter(g => g.company_id === applyDialogScopePj)
+              : emAndamento;
+            const byPj = new Map<string, GlosaDebt[]>();
+            scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
+            const pjEntries = Array.from(byPj.entries());
+            const anyMissingPick = pjEntries.some(([pj, list]) => {
+              const opts = applyLotesByPj[pj] ?? [];
+              return opts.length > 0 && !applyPickByPj[pj];
+            });
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="text-xs text-muted-foreground">
+                  {applyLoading
+                    ? "Carregando lotes abertos por PJ…"
+                    : `Escolha o lote de destino para ${pjEntries.length} PJ(s). Nada é aplicado até você confirmar.`}
+                </div>
+                <div className="border border-border rounded-md">
+                  <div className="grid grid-cols-[1.2fr_auto_2fr] gap-2 px-3 py-2 bg-muted/40 text-xs font-medium border-b">
+                    <div>PJ</div><div className="text-right">Total dívida</div><div>Lote-alvo</div>
+                  </div>
+                  <div className="divide-y max-h-[50vh] overflow-y-auto">
+                    {pjEntries.map(([pjId, list]) => {
+                      const pjName = list[0]?._company_name ?? "PJ";
+                      const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
+                      const opts = applyLotesByPj[pjId] ?? [];
+                      const pick = applyPickByPj[pjId] ?? "";
+                      return (
+                        <div key={pjId} className="grid grid-cols-[1.2fr_auto_2fr] gap-2 px-3 py-2 items-center">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{pjName}</div>
+                            <div className="text-[11px] text-muted-foreground">{list.length} débito(s)</div>
+                          </div>
+                          <div className="text-right font-mono text-destructive text-xs">{brl(total)}</div>
+                          <div>
+                            {applyLoading ? (
+                              <span className="text-xs text-muted-foreground">Carregando…</span>
+                            ) : opts.length === 0 ? (
+                              <span className="text-xs text-amber-600">Sem lote em aberto</span>
+                            ) : (
+                              <Select
+                                value={pick}
+                                onValueChange={(v) => setApplyPickByPj(prev => ({ ...prev, [pjId]: v }))}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Selecionar lote…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {opts.map(l => <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {anyMissingPick && (
+                  <p className="text-xs text-amber-600">
+                    ⚠ Selecione o lote-alvo para todas as PJs elegíveis antes de confirmar.
+                  </p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Débitos já aplicados no lote escolhido são ignorados automaticamente (idempotente).
+                </p>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApplyDialogOpen(false)} disabled={!!applyingCurrent}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => executeApplyCurrentLote(applyPickByPj, applyDialogScopePj)}
+              disabled={
+                applyLoading ||
+                !!applyingCurrent ||
+                Object.keys(applyPickByPj).length === 0
+              }
+            >
+              {applyingCurrent ? "Aplicando…" : "Confirmar e aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
