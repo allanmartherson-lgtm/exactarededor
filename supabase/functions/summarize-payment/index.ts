@@ -538,7 +538,7 @@ REGRAS:
     const pickSummary = (data: any): ExecutiveSummary | null => {
       const blocks = Array.isArray(data?.content) ? data.content : [];
       const toolBlock = blocks.find((b: any) => b?.type === "tool_use" && b?.input?.headline);
-      if (toolBlock?.input) return toolBlock.input as ExecutiveSummary;
+      if (toolBlock?.input) return normalizeSummary(toolBlock.input);
       const textBlock = blocks.find((b: any) => b?.type === "text" && typeof b?.text === "string");
       if (textBlock?.text) return extractJsonObject(String(textBlock.text));
       if (typeof data?.completion === "string") return extractJsonObject(data.completion);
@@ -568,30 +568,7 @@ REGRAS:
       // Fallback determinístico: nunca deixa a UI quebrar. Monta um resumo
       // mínimo a partir do próprio `contexto` já agregado. Não é tão rico
       // quanto o da IA, mas descreve o lote de forma correta.
-      const c: any = contexto;
-      const glosaTotal = (c.glosas_por_empresa ?? []).reduce(
-        (s: number, g: any) => s + (Number(g.total) || 0), 0,
-      );
-      const divergCount = (c.conciliacao_divergente ?? []).length;
-      const pctAlertas = c.itens?.pct_alertas ?? 0;
-      const risk: "baixo" | "medio" | "alto" | "critico" =
-        divergCount > 5 || pctAlertas > 30 ? "alto"
-          : divergCount > 0 || pctAlertas > 10 ? "medio"
-          : "baixo";
-      summary = {
-        headline: `Lote ${c.lote?.referencia ?? ""} com ${c.itens?.total ?? 0} itens e valor líquido de R$ ${(c.lote?.valor_liquido ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`,
-        bullets: [
-          `${c.itens?.alertas ?? 0} itens em alerta (${pctAlertas}% do total).`,
-          `${(c.glosas_por_empresa ?? []).length} empresas com glosas somando R$ ${glosaTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`,
-          divergCount > 0
-            ? `${divergCount} empresas com divergência de conciliação registrada.`
-            : `Sem divergências de conciliação registradas.`,
-        ],
-        risk_level: risk,
-        recommended_action: risk === "baixo"
-          ? "Prosseguir com a validação do lote."
-          : "Revisar as empresas com alertas/divergências antes de aprovar.",
-      };
+      summary = buildDeterministicSummary();
     }
 
 
