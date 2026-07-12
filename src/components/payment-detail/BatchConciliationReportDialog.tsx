@@ -528,18 +528,18 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
             <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
               <tr className="text-left">
                 <th className="p-2 border-b w-8"></th>
-                <th className="p-2 border-b">PJ</th>
-                <th className="p-2 border-b text-right">NF esperada</th>
-                <th className="p-2 border-b text-right">NF recebida</th>
-                <th className="p-2 border-b text-right">Bruto (grupo)</th>
-                <th className="p-2 border-b text-right">Líquido (grupo)</th>
-                <th className="p-2 border-b text-right" title="Bruto apurado pelo sistema após regras">Apurado bruto</th>
-                <th className="p-2 border-b text-right" title="Total de glosas apuradas para esta PJ no lote">Apurado glosas</th>
-                <th className="p-2 border-b text-right" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)">Apurado líquido</th>
-                <th className="p-2 border-b text-right">Confirmado</th>
-                <th className="p-2 border-b text-right">Proposto</th>
-                <th className="p-2 border-b text-right">Pendente</th>
-                <th className="p-2 border-b text-right">ADIADO</th>
+                <SortHeader k="company_name" label="PJ" align="left" />
+                <SortHeader k="nf_expected" label="NF esperada" />
+                <SortHeader k="nf_received" label="NF recebida" />
+                <SortHeader k="grp_bruto" label="Bruto (grupo)" />
+                <SortHeader k="grp_liquido" label="Líquido (grupo)" />
+                <SortHeader k="snap_bruto" label="Apurado bruto" title="Bruto apurado pelo sistema após regras" />
+                <SortHeader k="snap_glosas" label="Apurado glosas" title="Total de glosas apuradas para esta PJ no lote" />
+                <SortHeader k="snap_liquido" label="Apurado líquido" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)" />
+                <SortHeader k="app_confirmado" label="Confirmado" />
+                <SortHeader k="app_proposto" label="Proposto" />
+                <SortHeader k="app_pending" label="Pendente" />
+                <SortHeader k="app_postponed" label="ADIADO" />
                 <th className="p-2 border-b">Divergências</th>
               </tr>
             </thead>
