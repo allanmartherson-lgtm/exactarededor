@@ -2137,6 +2137,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           itemDiffSummaries.push({ item_id: r.item_id, doctor: it?.doctor_name ?? "item", diff: diffParts.join(" · ") });
           obsRows.push({
             payment_id,
+            hospital_id: __paymentHospitalId,
             item_id: r.item_id,
             author_type: "ia",
             message: `Reanálise v${nextVersion}: ${diffParts.join(" · ")}`,
@@ -2148,6 +2149,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         if (finalAlerts.length) parts.push(`${finalAlerts.length} alerta(s)`);
         obsRows.push({
           payment_id,
+          hospital_id: __paymentHospitalId,
           item_id: r.item_id,
           author_type: "ia",
           message: parts.join(" · ") + ` — ${r.calculation_explanation}` + (aiJ?.ai_note ? ` | IA: ${aiJ.ai_note}` : ""),
