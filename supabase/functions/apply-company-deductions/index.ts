@@ -203,14 +203,16 @@ Deno.serve(async (req) => {
       const { error: insErr } = await supabase
         .from("company_adjustment_applications")
         .insert({
-          payment_id, company_id, adjustment_id: adj.id,
+          payment_id, company_id, hospital_id: paymentHospitalId, adjustment_id: adj.id,
           valor_aplicado: parcelaValor, parcela_numero: parcelaNumero,
           applied_by: user_id, status: "proposto", source: "auto",
         });
-      if (!insErr) {
-        summary.debitos.proposed++;
-        summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel });
+      if (insErr) {
+        console.error(`[apply-company-deductions] insert adj ${adj.id} falhou`, insErr);
+        throw insErr;
       }
+      summary.debitos.proposed++;
+      summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel });
      } catch (err) {
       console.error(`[apply-company-deductions] adj ${adj?.id} falhou`, err);
       throw err;
