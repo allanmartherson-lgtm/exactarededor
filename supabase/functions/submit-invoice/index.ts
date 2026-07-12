@@ -494,12 +494,15 @@ serve(async (req) => {
     const anyDiverg = allInv?.some((i) => i.status === "divergente");
     if (allDone) {
       await supabase.from("payments").update({ status: anyDiverg ? "nf_divergente" : "nf_conciliada" }).eq("id", invoice.payment_id);
-      await supabase.from("payment_observations").insert({
+      const __hid4 = await getHospitalId(invoice.payment_id);
+      const { error: obsErr4 } = await supabase.from("payment_observations").insert({
         payment_id: invoice.payment_id,
+        hospital_id: __hid4,
         author_type: "sistema",
         message: anyDiverg ? "Todas as NF recebidas, mas há divergência de valor." : "Todas as NF recebidas e conciliadas com sucesso.",
         status_to: anyDiverg ? "nf_divergente" : "nf_conciliada",
       });
+      if (obsErr4) console.error("[submit-invoice] payment_observations insert error", obsErr4);
     } else {
       await supabase.from("payments").update({ status: "nf_recebida" }).eq("id", invoice.payment_id);
       
