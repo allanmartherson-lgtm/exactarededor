@@ -64,12 +64,24 @@ serve(async (req) => {
       });
     }
 
-    // 2. Itens — agrega ai_status e por empresa
-    const { data: items } = await supabase
-      .from("payment_items")
-      .select("ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
-      .eq("payment_id", payment_id)
-      .limit(20000);
+    // 2. Itens — agrega ai_status e por empresa.
+    // Paginação obrigatória: PostgREST tem cap padrão (~1000) que fazia o resumo
+    // reportar "1.000 itens" mesmo em lotes maiores. Buscamos em páginas de 1000.
+    const PAGE_SIZE = 1000;
+    const items: Array<any> = [];
+    for (let from = 0; from < 100000; from += PAGE_SIZE) {
+      const { data: page, error: itErr } = await supabase
+        .from("payment_items")
+        .select("ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
+        .eq("payment_id", payment_id)
+        .order("id", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (itErr) { console.error("summarize-payment items page error", itErr); break; }
+      if (!page || page.length === 0) break;
+      items.push(...page);
+      if (page.length < PAGE_SIZE) break;
+    }
+
 
     // Rótulos humanos para os códigos técnicos do enum item_ai_status — a IA
     // NÃO deve nunca exibir códigos brutos do banco no resumo final.
@@ -93,7 +105,7 @@ serve(async (req) => {
     let excecoesCount = 0;
     let excecoesImpacto = 0;
     const excecoesAmostra: Array<{ medico: string; empresa: string; valor: number; nota: string }> = [];
-    for (const it of items ?? []) {
+    for (const it of items) {
       totalItems++;
       const st = String(it.ai_status ?? "sem_status");
       statusCounts[st] = (statusCounts[st] ?? 0) + 1;
@@ -234,7 +246,8 @@ serve(async (req) => {
             glosa: Math.round(Number(r.glosas) * 100) / 100,
           }))
           .sort((a, b) => b.glosa - a.glosa)
-          .slice(0, 10);
+          .slice(0, 50);
+
       })(),
       conciliacao_divergente_por_empresa: (() => {
         const companyNameById = new Map<string, string>();
@@ -248,7 +261,8 @@ serve(async (req) => {
             conciliacao: Math.round(Number(r.conciliacao) * 100) / 100,
           }))
           .sort((a, b) => Math.abs(b.conciliacao) - Math.abs(a.conciliacao))
-          .slice(0, 10);
+          .slice(0, 50);
+
       })(),
       composicao_financeira: composicaoCompleta
         ? {
