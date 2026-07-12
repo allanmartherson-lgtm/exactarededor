@@ -1478,7 +1478,7 @@ export default function CreditosDebitos() {
                                     {applied && (
                                       applied.status === "postponed" ? (
                                         <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
-                                          ⏳ Adiada (saldo insuficiente)
+                                          ⏳ Adiada ({applied.postpone_reason === "sem_producao" ? "sem produção" : applied.postpone_reason === "partial_capacity" ? "parcial" : "saldo insuficiente"})
                                         </Badge>
                                       ) : (
                                         <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
