@@ -257,7 +257,10 @@ export default function CreditosDebitos() {
     }
     setAppsByAdj(appsMap);
 
-    // Aplicações de glosas por debt_id (ativas — ignora revertido/postponed sem valor)
+    // Aplicações de glosas por debt_id — inclui "postponed" para marcar dívidas
+    // que já foram processadas neste lote (mesmo que sem saldo suficiente para
+    // aplicar agora), evitando que o botão "Aplicar" fique habilitado
+    // eternamente e a edge seja reinvocada sem produzir efeito.
     const debtIds = debts.map(d => d.id);
     const gpaMap: Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]> = {};
     if (debtIds.length) {
@@ -265,7 +268,7 @@ export default function CreditosDebitos() {
         .from("glosa_payment_applications")
         .select("glosa_debt_id, payment_id, status, valor_aplicado, applied_at")
         .in("glosa_debt_id", debtIds)
-        .in("status", ["proposto", "confirmado", "partial", "pending_manual_resolution"]);
+        .in("status", ["proposto", "confirmado", "partial", "pending_manual_resolution", "postponed"]);
       ((gpaRows as any[]) ?? []).forEach(r => {
         (gpaMap[r.glosa_debt_id] ??= []).push({
           payment_id: r.payment_id,
