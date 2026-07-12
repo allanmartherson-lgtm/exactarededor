@@ -4748,28 +4748,40 @@ const PaymentDetail = () => {
             )}
           </div>
           
-          {(criticalFilter !== "all" || Object.values(financialFilters).some(Boolean) || payment.analysis_mode === "empresa_prioritaria") && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-dashed">
-              <Info className="h-3.5 w-3.5" />
-              <span>
-                {criticalFilter === "no_rule" && "Mostrando apenas empresas com itens sem regra cadastrada."}
-                {criticalFilter === "divergent" && "Mostrando apenas empresas com divergência de valores."}
-                {criticalFilter === "validation" && "Mostrando apenas empresas com alertas de validação assistencial (sobreposição, duplicidade, etc.)."}
-                {criticalFilter === "approved" && "Mostrando apenas empresas aprovadas (considera justificativas/blacklists)."}
-                {criticalFilter === "approved_strict" && "Mostrando apenas empresas 100% limpas (sem alertas ou notas da IA)."}
-                {criticalFilter === "all" && Object.values(financialFilters).some(Boolean) && "Mostrando apenas empresas com os filtros financeiros selecionados."}
-                {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
+          {(criticalFilter !== "all" || Object.values(financialFilters).some(Boolean) || onlyRegIssues || markerFilter !== "all" || itemSearch.trim() || companySearch.trim() || payment.analysis_mode === "empresa_prioritaria") && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-dashed flex-wrap">
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1 min-w-0">
+                {(() => {
+                  const parts: string[] = [];
+                  if (criticalFilter === "no_rule") parts.push("Sem regra");
+                  if (criticalFilter === "divergent") parts.push("Divergente");
+                  if (criticalFilter === "validation") parts.push("Alerta assistencial");
+                  if (criticalFilter === "approved") parts.push("Aprovados (flexível)");
+                  if (criticalFilter === "approved_strict") parts.push("Aprovados (sem pendências)");
+                  if (financialFilters.proposedGlosas) parts.push("Com glosas em aberto");
+                  if (financialFilters.appliedDebits) parts.push("Com débitos aplicados");
+                  if (financialFilters.appliedCredits) parts.push("Com créditos aplicados");
+                  if (onlyRegIssues) parts.push("Pend. cadastro");
+                  if (markerFilter !== "all") parts.push(`Marcador: ${markerFilter}`);
+                  if (itemSearch.trim()) parts.push(`Busca: "${itemSearch.trim()}"`);
+                  if (companySearch.trim()) parts.push(`Empresa: "${companySearch.trim()}"`);
+                  if (parts.length === 0 && payment.analysis_mode === "empresa_prioritaria") return "Modo empresa prioritária: apenas divergências visíveis.";
+                  return `Filtros ativos: ${parts.join(" + ")}.`;
+                })()}
               </span>
-              <Button 
-                variant="link" 
-                size="sm" 
-                className="h-auto p-0 text-xs ml-auto" 
-                 onClick={() => {
-                   setCriticalFilter("all");
-                    setFinancialFilters({ proposedGlosas: false, appliedDebits: false, appliedCredits: false });
-                   setItemSearch("");
-                   setCompanySearch("");
-                 }}
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs shrink-0"
+                onClick={() => {
+                  setCriticalFilter("all");
+                  setFinancialFilters({ proposedGlosas: false, appliedDebits: false, appliedCredits: false });
+                  setOnlyRegIssues(false);
+                  setMarkerFilter("all");
+                  setItemSearch("");
+                  setCompanySearch("");
+                }}
               >
                 Limpar filtros
               </Button>
@@ -4883,11 +4895,25 @@ const PaymentDetail = () => {
                 return nameMatchesItemSearch || specMatchesItemSearch || groupItems.some((it) => itemMatches(it));
               });
               
-              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "") || (hasFinancialFilter ? "financeiro" : "");
+              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "") || (hasFinancialFilter ? "financeiro" : "") || (onlyRegIssues ? "regissues" : "") || (markerFilter !== "all" ? "marker" : "");
               if (finalSearchTerm && visibleGroups.length === 0) {
                 return (
-                  <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    Nenhum grupo ou item casa com os filtros selecionados.
+                  <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground space-y-3">
+                    <p>Nenhum grupo ou item casa com os filtros selecionados.</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCriticalFilter("all");
+                        setFinancialFilters({ proposedGlosas: false, appliedDebits: false, appliedCredits: false });
+                        setOnlyRegIssues(false);
+                        setMarkerFilter("all");
+                        setItemSearch("");
+                        setCompanySearch("");
+                      }}
+                    >
+                      Limpar todos os filtros
+                    </Button>
                   </CardContent></Card>
                 );
               }
