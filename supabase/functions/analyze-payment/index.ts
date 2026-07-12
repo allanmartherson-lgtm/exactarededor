@@ -2026,6 +2026,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         const nextVersion = (prev?.version ?? 0) + 1;
         versionRows.push({
           payment_id,
+          hospital_id: __paymentHospitalId,
           item_id: r.item_id,
           version: nextVersion,
           ai_status: "acatado",
