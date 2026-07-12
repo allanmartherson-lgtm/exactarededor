@@ -31,7 +31,13 @@ interface Props {
   /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
    *  diretor (validador) ou conclui a aprovação final (diretor). */
   actorRole: "validador" | "diretor";
-  items?: Array<{ ai_status: string; validation_findings?: unknown }>;
+  items?: Array<{
+    ai_status: string;
+    validation_findings?: unknown;
+    company_id?: string | null;
+    is_cancelled?: boolean | null;
+    package_absorbed?: boolean | null;
+  }>;
   onDone: () => void | Promise<void>;
   /** Chamado quando o usuário clica em "Revisar antes de enviar" no gate de
    *  pendências. O container ajusta filtros para exibir os itens sinalizados. */
