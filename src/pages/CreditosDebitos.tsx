@@ -12,13 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter } from "lucide-react";
+import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter, Download, FileSpreadsheet, FileText, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
-import { useActiveHospitalId } from "@/contexts/HospitalContext";
+import { useActiveHospitalId, useHospital } from "@/contexts/HospitalContext";
+import { buildReportData, generateCreditosDebitosPdf, generateCreditosDebitosXlsx, downloadBlob, type ReportFiltersSummary } from "@/lib/creditosDebitosReport";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -526,6 +528,142 @@ export default function CreditosDebitos() {
       });
   }, [appsByAdj, adjustments, pjFilter, periodFrom, periodTo, q, paymentLabels]);
 
+  // ============ EXPORT (PDF/Excel) ============
+  const [exporting, setExporting] = useState<null | "pdf" | "xlsx">(null);
+  const { hospital } = useHospital();
+
+  const buildFiltersSummary = (): ReportFiltersSummary => {
+    const periodLabels: Record<PeriodPreset, string> = {
+      all: "Todo o período",
+      current_month: "Este mês",
+      last_month: "Mês passado",
+      last_90: "Últimos 90 dias",
+      current_year: "Este ano",
+    };
+    const pjName = pjFilter === "all" ? "Todas as PJs" : (companies.find(c => c.id === pjFilter)?.name ?? pjFilter);
+    return {
+      periodLabel: periodLabels[period],
+      pjLabel: pjName,
+      ccLabel: ccFilter === "all" ? "Todos CCs" : ccFilter,
+      trackLabel: trackFilter === "all" ? "Todas trilhas" : trackFilter,
+      tipoLabel: tipoFilter === "all" ? "Todos os tipos" : tipoFilter,
+      search: search.trim(),
+      hospitalName: hospital?.name,
+    };
+  };
+
+  const handleExport = async (format: "pdf" | "xlsx") => {
+    try {
+      setExporting(format);
+      const data = await buildReportData({
+        filters: buildFiltersSummary(),
+        pendentes: pendentes as any,
+        emAndamento: emAndamento as any,
+        ajustes: ajustesFiltrados as any,
+        appsByAdj: appsByAdj as any,
+        paymentLabels,
+      });
+      const ts = new Date().toISOString().slice(0, 10);
+      const suffix = hospital?.name ? `_${hospital.name.replace(/[^\w]+/g, "-")}` : "";
+      if (format === "xlsx") {
+        const blob = generateCreditosDebitosXlsx(data);
+        downloadBlob(blob, `creditos-debitos${suffix}_${ts}.xlsx`);
+      } else {
+        const doc = await generateCreditosDebitosPdf(data);
+        doc.save(`creditos-debitos${suffix}_${ts}.pdf`);
+      }
+      toast.success(`Relatório ${format.toUpperCase()} gerado.`);
+    } catch (err: any) {
+      console.error("[export creditos-debitos]", err);
+      toast.error(err?.message ?? "Falha ao gerar relatório.");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  // ============ Aplicar em massa no LOTE VIGENTE (Em andamento) ============
+  const [applyingCurrent, setApplyingCurrent] = useState<string | null>(null); // pjId | "__all__"
+
+  const applyToCurrentLote = async (pjId?: string) => {
+    if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
+    const scope = pjId ? emAndamento.filter(g => g.company_id === pjId) : emAndamento;
+    if (!scope.length) { toast.info("Nada para aplicar."); return; }
+    const key = pjId ?? "__all__";
+    setApplyingCurrent(key);
+    try {
+      // 1. Lotes abertos por PJ (mais recente por competência)
+      const byPj = new Map<string, GlosaDebt[]>();
+      scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
+      const pjIds = Array.from(byPj.keys());
+      const { data: openPays, error: payErr } = await (supabase as any)
+        .from("payments")
+        .select("id, company_id, reference, competence_month, status")
+        .in("company_id", pjIds)
+        .in("status", OPEN_PAYMENT_STATUSES as unknown as string[])
+        .eq("hospital_id", activeHospitalId)
+        .order("competence_month", { ascending: false });
+      if (payErr) throw payErr;
+      const currentByPj = new Map<string, string>();
+      const labelPatch: Record<string, string> = {};
+      ((openPays as any[]) ?? []).forEach(p => {
+        if (!currentByPj.has(p.company_id)) {
+          currentByPj.set(p.company_id, p.id);
+          const comp = p.competence_month ? (() => { const [y, m] = p.competence_month.split("-"); return `${m}/${y}`; })() : "";
+          labelPatch[p.id] = `${p.reference ?? p.id.slice(0, 8)}${comp ? ` · ${comp}` : ""}`;
+        }
+      });
+
+      // 2. Debts que precisam atualizar target
+      const toUpdate: { id: string; company_id: string; target: string }[] = [];
+      for (const [pj, debts] of byPj.entries()) {
+        const target = currentByPj.get(pj);
+        if (!target) continue;
+        for (const d of debts) {
+          if (d.target_payment_id !== target) toUpdate.push({ id: d.id, company_id: pj, target });
+        }
+      }
+      let updated = 0;
+      for (const u of toUpdate) {
+        const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
+        if (!error) updated += 1;
+      }
+      // 3. Invoca apply-company-deductions por (payment_id, company_id) único
+      const pairs = new Map<string, { payment_id: string; company_id: string }>();
+      for (const [pj, debts] of byPj.entries()) {
+        const target = currentByPj.get(pj);
+        if (!target) continue;
+        pairs.set(`${target}|${pj}`, { payment_id: target, company_id: pj });
+      }
+      const invocations = await Promise.allSettled(
+        Array.from(pairs.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
+      );
+      const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
+      const missing = pjIds.length - currentByPj.size;
+
+      // 4. Otimista: atualiza state local
+      if (toUpdate.length) {
+        const patch = new Map(toUpdate.map(u => [u.id, u.target]));
+        setGlosaDebts(prev => prev.map(g => patch.has(g.id) ? { ...g, target_payment_id: patch.get(g.id)! } : g));
+      }
+      if (Object.keys(labelPatch).length) {
+        setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
+      }
+      const parts = [
+        `${okInvocations} PJ(s) processadas`,
+        updated ? `${updated} lote-alvo atualizado(s)` : null,
+        missing ? `${missing} sem lote em aberto` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(`Aplicação disparada — ${parts || "OK"}`);
+    } catch (err: any) {
+      console.error("[applyToCurrentLote]", err);
+      toast.error(err?.message ?? "Falha ao aplicar no lote vigente.");
+    } finally {
+      setApplyingCurrent(null);
+    }
+  };
+
+
+
   // ============ Mass actions ============
   const massTargets = massDialogPjId
     ? pendentesAll.filter(g => g.company_id === massDialogPjId && selectedPending.has(g.id))
@@ -769,6 +907,35 @@ export default function CreditosDebitos() {
       />
 
       <div className="p-4 md:p-6 space-y-4">
+        {/* Ações do relatório */}
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={exporting !== null}>
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                {exporting === "pdf" ? "Gerando PDF…" : exporting === "xlsx" ? "Gerando Excel…" : "Exportar relatório"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onClick={() => handleExport("xlsx")} disabled={exporting !== null}>
+                <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Excel (.xlsx)</div>
+                  <div className="text-[11px] text-muted-foreground">Planilhas por seção</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExport("pdf")} disabled={exporting !== null}>
+                <FileText className="w-4 h-4 mr-2 text-red-600" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">PDF executivo</div>
+                  <div className="text-[11px] text-muted-foreground">KPIs + tabelas paginadas</div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {kpiCard("A confirmar", brl(kpi.totalPendente), "text-destructive", `${pendentes.length} glosa(s)`)}
@@ -776,6 +943,7 @@ export default function CreditosDebitos() {
           {kpiCard("Aplicado no mês", brl(kpi.aplicadoMes), "text-emerald-600")}
           {kpiCard("Sem lote-alvo", String(kpi.semLote), kpi.semLote > 0 ? "text-amber-600" : "", "risco de não aplicar")}
         </div>
+
 
         {/* Filtros */}
         <Card>
@@ -853,12 +1021,33 @@ export default function CreditosDebitos() {
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={(v) => updateParam("tab", v)}>
-          <TabsList>
-            <TabsTrigger value="pendentes">A confirmar <Badge variant="outline" className="ml-1">{pendentes.length}</Badge></TabsTrigger>
-            <TabsTrigger value="andamento">Em andamento <Badge variant="outline" className="ml-1">{emAndamento.length}</Badge></TabsTrigger>
-            <TabsTrigger value="ajustes">Ajustes manuais <Badge variant="outline" className="ml-1">{ajustesFiltrados.length}</Badge></TabsTrigger>
-            <TabsTrigger value="historico">Histórico aplicado <Badge variant="outline" className="ml-1">{historicoRows.length}</Badge></TabsTrigger>
+          <TabsList className="flex flex-wrap h-auto gap-1 justify-start">
+            <TabsTrigger value="pendentes" className="group">
+              A confirmar
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {pendentes.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="andamento" className="group">
+              Em andamento
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {emAndamento.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="ajustes" className="group">
+              Ajustes manuais
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {ajustesFiltrados.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="group">
+              Histórico aplicado
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {historicoRows.length}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
+
 
           {/* === PENDENTES === */}
           <TabsContent value="pendentes" className="space-y-3 mt-3">
@@ -976,7 +1165,22 @@ export default function CreditosDebitos() {
             ) : emAndamento.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum débito em andamento {hasAnyFilter ? "no recorte filtrado" : ""}.</p>
             ) : (
-              (() => {
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2 border border-emerald-500/30 bg-emerald-500/5 rounded-md px-3 py-2">
+                  <div className="text-xs text-muted-foreground">
+                    Aplica no lote em aberto mais recente de cada PJ. Débitos sem lote em aberto ficam para o próximo ciclo.
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => applyToCurrentLote()}
+                    disabled={applyingCurrent !== null}
+                  >
+                    <Rocket className="w-3.5 h-3.5 mr-1" />
+                    {applyingCurrent === "__all__" ? "Aplicando…" : `Aplicar no lote vigente (${emAndamento.length})`}
+                  </Button>
+                </div>
+                {(() => {
                 const groups = groupByPj(emAndamento);
                 return groups.map(([pjId, list]) => {
                   const pjName = list[0]?._company_name ?? "PJ";
@@ -984,14 +1188,24 @@ export default function CreditosDebitos() {
                   const isOpen = isGroupOpen(pjId, groups.length);
                   return (
                     <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className="border border-border rounded-md">
-                      <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b hover:bg-muted/50">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
+                        <CollapsibleTrigger className="flex-1 flex items-center gap-2 min-w-0 hover:opacity-80">
                           {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                           <span className="font-medium text-sm truncate">{pjName}</span>
                           <Badge variant="outline">{list.length}</Badge>
                           <span className="text-xs text-muted-foreground font-mono">{brl(total)}</span>
-                        </div>
-                      </CollapsibleTrigger>
+                        </CollapsibleTrigger>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); applyToCurrentLote(pjId); }}
+                          disabled={applyingCurrent !== null}
+                        >
+                          <Rocket className="w-3.5 h-3.5 mr-1" />
+                          {applyingCurrent === pjId ? "Aplicando…" : "Aplicar no lote vigente"}
+                        </Button>
+                      </div>
+
                       <CollapsibleContent>
                         <div className="divide-y">
                           {list.map(g => {
@@ -1034,9 +1248,11 @@ export default function CreditosDebitos() {
                     </Collapsible>
                   );
                 });
-              })()
+              })()}
+              </>
             )}
           </TabsContent>
+
 
           {/* === AJUSTES MANUAIS === */}
           <TabsContent value="ajustes" className="space-y-2 mt-3">
