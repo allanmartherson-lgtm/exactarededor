@@ -700,13 +700,16 @@ Deno.serve(async (req) => {
 
       // Persiste aplicações novas e incrementa parcelas_pagas (idempotente: skip se já existir)
       for (const app of adjustmentApplications) {
-        await supabase.from("company_adjustment_applications").insert({
+        const { error: adjInsErr } = await supabase.from("company_adjustment_applications").insert({
           adjustment_id: app.adjustment_id,
           payment_id,
+          company_id: app.company_id,
+          hospital_id: payment.hospital_id ?? null,
           parcela_numero: app.parcela_numero,
           valor_aplicado: app.valor,
           applied_by: userId,
         } as any);
+        if (adjInsErr) console.error("[recalc-payment-pools] company_adjustment_applications insert error", adjInsErr);
         // incrementa parcelas_pagas com base no número real de aplicações
         const { count } = await supabase
           .from("company_adjustment_applications")
