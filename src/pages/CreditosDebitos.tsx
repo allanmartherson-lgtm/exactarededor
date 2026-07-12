@@ -151,7 +151,7 @@ export default function CreditosDebitos() {
   const [appsByAdj, setAppsByAdj] = useState<Record<string, AdjApplication[]>>({});
   // Aplicações de glosa por debt_id → usado para sinalizar "já aplicado neste lote"
   // e evitar reinvocar apply-company-deductions em (payment_id, company_id) já processados.
-  const [glosaAppsByDebt, setGlosaAppsByDebt] = useState<Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]>>({});
+  const [glosaAppsByDebt, setGlosaAppsByDebt] = useState<Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null; postpone_reason?: string | null }[]>>({});
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -262,11 +262,11 @@ export default function CreditosDebitos() {
     // aplicar agora), evitando que o botão "Aplicar" fique habilitado
     // eternamente e a edge seja reinvocada sem produzir efeito.
     const debtIds = debts.map(d => d.id);
-    const gpaMap: Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]> = {};
+    const gpaMap: Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null; postpone_reason: string | null }[]> = {};
     if (debtIds.length) {
       const { data: gpaRows } = await (supabase as any)
         .from("glosa_payment_applications")
-        .select("glosa_debt_id, payment_id, status, valor_aplicado, applied_at")
+        .select("glosa_debt_id, payment_id, status, valor_aplicado, applied_at, postpone_reason")
         .in("glosa_debt_id", debtIds)
         .in("status", ["proposto", "confirmado", "partial", "pending_manual_resolution", "postponed"]);
       ((gpaRows as any[]) ?? []).forEach(r => {
@@ -275,6 +275,7 @@ export default function CreditosDebitos() {
           status: r.status,
           valor_aplicado: Number(r.valor_aplicado ?? 0),
           applied_at: r.applied_at ?? null,
+          postpone_reason: r.postpone_reason ?? null,
         });
         if (r.payment_id) allPaymentIds.add(r.payment_id);
       });
@@ -1477,7 +1478,7 @@ export default function CreditosDebitos() {
                                     {applied && (
                                       applied.status === "postponed" ? (
                                         <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
-                                          ⏳ Adiada (saldo insuficiente)
+                                          ⏳ Adiada ({applied.postpone_reason === "sem_producao" ? "sem produção" : applied.postpone_reason === "partial_capacity" ? "parcial" : "saldo insuficiente"})
                                         </Badge>
                                       ) : (
                                         <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
