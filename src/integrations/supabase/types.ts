@@ -1830,6 +1830,48 @@ export type Database = {
           },
         ]
       }
+      deduction_application_events: {
+        Row: {
+          action: string
+          company_id: string | null
+          created_at: string
+          debt_id: string | null
+          hospital_id: string | null
+          id: string
+          metadata: Json
+          payment_id: string | null
+          reason: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          company_id?: string | null
+          created_at?: string
+          debt_id?: string | null
+          hospital_id?: string | null
+          id?: string
+          metadata?: Json
+          payment_id?: string | null
+          reason?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string | null
+          created_at?: string
+          debt_id?: string | null
+          hospital_id?: string | null
+          id?: string
+          metadata?: Json
+          payment_id?: string | null
+          reason?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       doctor_aliases: {
         Row: {
           alias_normalized: string | null

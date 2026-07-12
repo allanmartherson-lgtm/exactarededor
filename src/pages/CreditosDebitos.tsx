@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter, Download, FileSpreadsheet, FileText, Rocket } from "lucide-react";
+import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter, Download, FileSpreadsheet, FileText, Rocket, History } from "lucide-react";
 import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -21,6 +21,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { useActiveHospitalId, useHospital } from "@/contexts/HospitalContext";
 import { buildReportData, generateCreditosDebitosPdf, generateCreditosDebitosXlsx, downloadBlob, type ReportFiltersSummary } from "@/lib/creditosDebitosReport";
+import { logDeductionEvent, logDeductionEvents } from "@/lib/deductionAudit";
+import { DeductionAuditDialog } from "@/components/DeductionAuditDialog";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -152,6 +154,16 @@ export default function CreditosDebitos() {
   const [glosaAppsByDebt, setGlosaAppsByDebt] = useState<Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]>>({});
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Histórico de aplicações (auditoria)
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditFilter, setAuditFilter] = useState<{ company_id?: string; debt_id?: string; payment_id?: string }>({});
+  const [auditTitle, setAuditTitle] = useState<string>("Histórico de aplicações");
+  const openAudit = (opts: { company_id?: string; debt_id?: string; payment_id?: string; title?: string }) => {
+    setAuditFilter({ company_id: opts.company_id, debt_id: opts.debt_id, payment_id: opts.payment_id });
+    setAuditTitle(opts.title ?? "Histórico de aplicações");
+    setAuditOpen(true);
+  };
 
   // Confirmação em massa
   const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set());
@@ -452,6 +464,15 @@ export default function CreditosDebitos() {
       supabase.functions.invoke("apply-company-deductions", {
         body: { payment_id: lotePick, company_id: editingGlosa.company_id },
       }).catch((err) => console.warn("[saveGlosa] apply-company-deductions falhou:", err?.message));
+      void logDeductionEvent({
+        hospital_id: activeHospitalId,
+        payment_id: lotePick,
+        company_id: editingGlosa.company_id,
+        debt_id: editingGlosa.id,
+        action: "applied",
+        reason: editingGlosa.confirmed_at ? "Reparcelamento — dispara aplicação no lote-alvo" : "Confirmação de débito — dispara aplicação no lote-alvo",
+        metadata: { parcelas: glosaParc, total: editingGlosa.total_debt, source: "saveGlosa" },
+      });
     }
     toast.success(editingGlosa.confirmed_at
       ? `Reparcelado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
@@ -731,9 +752,40 @@ export default function CreditosDebitos() {
       }
 
       let updated = 0;
+      const auditEvents: Parameters<typeof logDeductionEvents>[0] = [];
       for (const u of toUpdate) {
         const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
-        if (!error) updated += 1;
+        if (!error) {
+          updated += 1;
+          auditEvents.push({
+            hospital_id: activeHospitalId,
+            payment_id: u.target,
+            company_id: u.company_id,
+            debt_id: u.id,
+            action: "target_updated",
+            reason: "Lote-alvo alterado ao aplicar no lote vigente",
+            metadata: { source: "executeApplyCurrentLote" },
+          });
+        }
+      }
+
+      // Logar débitos deduplicados (já aplicados no lote alvo escolhido)
+      for (const [pj, debts] of byPj.entries()) {
+        const target = currentByPj.get(pj);
+        if (!target) continue;
+        for (const d of debts) {
+          if (debtAppliedAt(d.id, target)) {
+            auditEvents.push({
+              hospital_id: activeHospitalId,
+              payment_id: target,
+              company_id: pj,
+              debt_id: d.id,
+              action: "skipped_duplicate",
+              reason: "Débito já aplicado neste lote — reexecução evitada",
+              metadata: { source: "executeApplyCurrentLote" },
+            });
+          }
+        }
       }
 
       if (pairsToInvoke.size === 0) {
@@ -745,6 +797,13 @@ export default function CreditosDebitos() {
         toast.info(alreadyApplied > 0
           ? `Nada novo para aplicar — ${alreadyApplied} débito(s) já aplicado(s) no lote escolhido.`
           : "Nenhum débito pendente para o lote escolhido.");
+        void logDeductionEvents(auditEvents.length ? auditEvents : [{
+          hospital_id: activeHospitalId,
+          company_id: scopePjId ?? null,
+          action: alreadyApplied > 0 ? "skipped_duplicate" : "no_pending",
+          reason: alreadyApplied > 0 ? `${alreadyApplied} débito(s) já aplicado(s)` : "Sem pendências no lote escolhido",
+          metadata: { source: "executeApplyCurrentLote" },
+        }]);
         setApplyDialogOpen(false);
         return;
       }
@@ -752,6 +811,21 @@ export default function CreditosDebitos() {
       const invocations = await Promise.allSettled(
         Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
+      const pairsArr = Array.from(pairsToInvoke.values());
+      invocations.forEach((res, idx) => {
+        const p = pairsArr[idx];
+        const debtsForPair = (byPj.get(p.company_id) ?? []).filter(d => !debtAppliedAt(d.id, p.payment_id));
+        const baseReason = res.status === "fulfilled" ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${(res as any).reason?.message ?? "erro"}`;
+        const action = res.status === "fulfilled" ? "applied" : "error";
+        if (debtsForPair.length === 0) {
+          auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote" } });
+        } else {
+          for (const d of debtsForPair) {
+            auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, debt_id: d.id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote", total_debt: d.total_debt } });
+          }
+        }
+      });
+      void logDeductionEvents(auditEvents);
       const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
       const failedInvocations = invocations.length - okInvocations;
       const missing = pjIds.length - currentByPj.size;
@@ -841,6 +915,15 @@ export default function CreditosDebitos() {
       supabase.functions.invoke("apply-company-deductions", {
         body: { payment_id: massLotePick, company_id: massDialogPjId },
       }).catch((err) => console.warn("[confirmMass] apply-company-deductions falhou:", err?.message));
+      void logDeductionEvents(successIds.map(debtId => ({
+        hospital_id: activeHospitalId,
+        payment_id: massLotePick,
+        company_id: massDialogPjId,
+        debt_id: debtId,
+        action: "applied" as const,
+        reason: `Confirmação em massa (${massParc}×) — aplicação disparada`,
+        metadata: { source: "confirmMass", parcelas: massParc },
+      })));
     }
 
   };
@@ -993,6 +1076,22 @@ export default function CreditosDebitos() {
         supabase.functions.invoke("apply-company-deductions", { body: p })
           .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message));
       }
+      void logDeductionEvents(successIds
+        .map(id => {
+          const g = targets.find(t => t.id === id);
+          const payId = g ? globalLoteByPj[g.company_id] : null;
+          if (!g || !payId) return null;
+          return {
+            hospital_id: activeHospitalId,
+            payment_id: payId,
+            company_id: g.company_id,
+            debt_id: g.id,
+            action: "applied" as const,
+            reason: `Confirmação global em massa (${globalParc}×)`,
+            metadata: { source: "confirmGlobalMass", parcelas: globalParc },
+          };
+        })
+        .filter(Boolean) as any);
     }
 
   };
@@ -1031,7 +1130,11 @@ export default function CreditosDebitos() {
 
       <div className="p-4 md:p-6 space-y-4">
         {/* Ações do relatório */}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => openAudit({ title: "Histórico de aplicações" })}>
+            <History className="w-3.5 h-3.5 mr-1.5" />
+            Histórico
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" disabled={exporting !== null}>
@@ -1942,6 +2045,15 @@ export default function CreditosDebitos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeductionAuditDialog
+        open={auditOpen}
+        onOpenChange={setAuditOpen}
+        filter={{ hospital_id: activeHospitalId, ...auditFilter }}
+        title={auditTitle}
+        companyNameById={Object.fromEntries(companies.map(c => [c.id, c.name]))}
+        paymentLabelById={paymentLabels}
+      />
     </div>
   );
 }
