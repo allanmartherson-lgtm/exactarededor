@@ -368,7 +368,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     });
 
     const foot = [[
-      `TOTAL (${rows.length})`,
+      `TOTAL (${visibleRows.length})`,
       fmt(totals.nf_expected),
       fmt(totals.nf_received),
       fmt(totals.grp_bruto),
