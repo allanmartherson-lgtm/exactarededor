@@ -540,10 +540,15 @@ const Payments = () => {
     if (poolFilter !== "all") f.pool_ids = [poolFilter];
     if (importModeFilter !== "all") f.import_modes = [importModeFilter];
     if (emptyOnly) f.only_empty = true;
+    if (hasProposedGlosas) f.has_proposed_glosas = true;
+    if (hasAppliedDebits) f.has_applied_debits = true;
+    if (hasAppliedCredits) f.has_applied_credits = true;
+    if (hasAlerts) f.has_alerts = true;
     return f;
   }, [serverStatuses, typeFilter, itemTypeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
-      divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
+      divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly,
+      hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts]);
 
   const load = useCallback(async () => {
     // Enquanto o header ainda está sincronizando a troca de hospital, evita
