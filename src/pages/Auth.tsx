@@ -32,6 +32,29 @@ const OAUTH_MESSAGE_ORIGINS = new Set([
   PROJECT_PREVIEW_ORIGIN,
   "https://exactarededor.lovable.app",
 ]);
+const OAUTH_DIAG_STORAGE_KEY = "exacta-oauth-diag";
+
+type DiagEntry = { t: number; label: string; data?: unknown };
+// Sink usado tanto dentro do componente quanto por helpers de módulo.
+let diagPush: (label: string, data?: unknown) => void = () => {};
+const isOAuthDiagEnabled = () => {
+  try {
+    if (new URLSearchParams(window.location.search).get("diag") === "1") {
+      try { localStorage.setItem(OAUTH_DIAG_STORAGE_KEY, "1"); } catch { /* noop */ }
+      return true;
+    }
+    return localStorage.getItem(OAUTH_DIAG_STORAGE_KEY) === "1";
+  } catch { return false; }
+};
+const safeSerialize = (value: unknown) => {
+  try {
+    return JSON.parse(JSON.stringify(value, (_k, v) => {
+      if (v instanceof Error) return { name: v.name, message: v.message };
+      if (typeof v === "string" && v.length > 400) return v.slice(0, 400) + "…";
+      return v;
+    }));
+  } catch { return String(value); }
+};
 
 const getPasswordRecoveryOrigin = () => {
   if (window.location.hostname.endsWith(".lovableproject.com")) return PROJECT_PREVIEW_ORIGIN;
@@ -54,13 +77,14 @@ const safeNext = (raw: string | null): string => {
 };
 
 const waitForSessionAfterGoogle = async (deadline: number) => {
-
+  let attempts = 0;
   while (Date.now() < deadline) {
-    const { data } = await supabase.auth.getSession();
+    attempts++;
+    const { data, error } = await supabase.auth.getSession();
+    diagPush("poll.getSession", { attempts, hasSession: !!data.session, userId: data.session?.user?.id, error: error?.message });
     if (data.session?.user) return data.session;
     await new Promise((resolve) => window.setTimeout(resolve, GOOGLE_SESSION_POLL_MS));
   }
-
   return null;
 };
 
@@ -77,23 +101,34 @@ const startOAuthWebMessageBridge = () => {
     done = true;
     window.removeEventListener("message", onMessage);
     if (timeoutId) window.clearTimeout(timeoutId);
+    diagPush("bridge.finish", { value });
     resolveBridge(value);
   };
 
   const onMessage = (event: MessageEvent) => {
-    if (!isTrustedOAuthMessageOrigin(event.origin)) return;
+    const trusted = isTrustedOAuthMessageOrigin(event.origin);
     const payload = event.data as { type?: unknown; response?: { access_token?: unknown; refresh_token?: unknown } } | null;
+    diagPush("bridge.message", {
+      origin: event.origin,
+      trusted,
+      type: payload?.type,
+      hasAccess: typeof payload?.response?.access_token === "string",
+      hasRefresh: typeof payload?.response?.refresh_token === "string",
+    });
+    if (!trusted) return;
     if (!payload || payload.type !== "authorization_response") return;
     const accessToken = payload.response?.access_token;
     const refreshToken = payload.response?.refresh_token;
     if (typeof accessToken !== "string" || typeof refreshToken !== "string") return;
     void supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+      diagPush("bridge.setSession", { ok: !error, error: error?.message });
       if (!error) finish("session");
     });
   };
 
   window.addEventListener("message", onMessage);
   timeoutId = window.setTimeout(() => finish("timeout"), GOOGLE_SIGN_IN_TIMEOUT_MS);
+  diagPush("bridge.start", { timeoutMs: GOOGLE_SIGN_IN_TIMEOUT_MS });
   return { promise, cleanup: () => finish("timeout") };
 };
 
@@ -108,6 +143,38 @@ const Auth = () => {
     full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
   });
 
+  // Diagnóstico do login Google (mobile). Ativa via ?diag=1 ou localStorage.
+  const [diagEnabled, setDiagEnabled] = useState<boolean>(() => isOAuthDiagEnabled());
+  const [diagLogs, setDiagLogs] = useState<DiagEntry[]>([]);
+  useEffect(() => {
+    diagPush = (label: string, data?: unknown) => {
+      const entry: DiagEntry = { t: Date.now(), label, data: data !== undefined ? safeSerialize(data) : undefined };
+      // eslint-disable-next-line no-console
+      console.log("[oauth-diag]", label, entry.data ?? "");
+      setDiagLogs((prev) => [...prev, entry].slice(-200));
+    };
+    return () => { diagPush = () => {}; };
+  }, []);
+  useEffect(() => {
+    if (!diagEnabled) return;
+    diagPush("boot", {
+      ua: navigator.userAgent,
+      href: window.location.href,
+      origin: window.location.origin,
+      inIframe: window !== window.parent,
+      standalone: (window.matchMedia?.("(display-mode: standalone)").matches) ?? false,
+      cookieEnabled: navigator.cookieEnabled,
+      lang: navigator.language,
+      hasLocalStorage: (() => { try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); return true; } catch { return false; } })(),
+    });
+    const onAuth = supabase.auth.onAuthStateChange((event, session) => {
+      diagPush("auth.onAuthStateChange", { event, hasSession: !!session, userId: session?.user?.id });
+    });
+    const onVis = () => diagPush("visibility", { state: document.visibilityState });
+    document.addEventListener("visibilitychange", onVis);
+    return () => { onAuth.data.subscription.unsubscribe(); document.removeEventListener("visibilitychange", onVis); };
+  }, [diagEnabled]);
+
   // Preserva o destino pretendido (ex.: /.lovable/oauth/consent?authorization_id=...)
   // para que o fluxo de conexão MCP não caia em "/" após o login.
   const nextTarget = safeNext(new URLSearchParams(window.location.search).get("next"));
@@ -119,11 +186,14 @@ const Auth = () => {
     // origin puro para não quebrar a validação do broker OAuth no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
+    diagPush("google.click", { nextTarget, redirect_uri: window.location.origin });
     const bridge = startOAuthWebMessageBridge();
     const signInPromise = lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
-    });
+    }).then((r) => { diagPush("google.signInWithOAuth.resolved", { redirected: (r as { redirected?: boolean })?.redirected, hasError: !!(r as { error?: unknown })?.error }); return r; })
+      .catch((e) => { diagPush("google.signInWithOAuth.threw", { error: e instanceof Error ? e.message : String(e) }); throw e; });
     const result = await Promise.race([signInPromise, bridge.promise]);
+    diagPush("google.race.result", { kind: typeof result === "string" ? result : "object" });
     const sessionDeadline = result === "timeout" ? deadline : Date.now() + 5_000;
     const session = await waitForSessionAfterGoogle(sessionDeadline);
     bridge.cleanup();
@@ -391,6 +461,69 @@ const Auth = () => {
               </Tabs>
             </CardContent>
           </Card>
+
+          {/* Painel de diagnóstico do login Google — habilite com ?diag=1 */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              className="text-[11px] text-muted-foreground/70 hover:text-foreground underline"
+              onClick={() => {
+                const next = !diagEnabled;
+                setDiagEnabled(next);
+                try {
+                  if (next) localStorage.setItem(OAUTH_DIAG_STORAGE_KEY, "1");
+                  else localStorage.removeItem(OAUTH_DIAG_STORAGE_KEY);
+                } catch { /* noop */ }
+              }}
+            >
+              {diagEnabled ? "Ocultar diagnóstico OAuth" : "Ativar diagnóstico OAuth"}
+            </button>
+          </div>
+          {diagEnabled && (
+            <Card className="mt-3 border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20">
+              <CardHeader className="py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm">Diagnóstico OAuth Google</CardTitle>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 rounded border border-border bg-background hover:bg-muted"
+                      onClick={() => setDiagLogs([])}
+                    >Limpar</button>
+                    <button
+                      type="button"
+                      className="text-[11px] px-2 py-1 rounded border border-border bg-background hover:bg-muted"
+                      onClick={() => {
+                        const text = diagLogs.map((e) => `${new Date(e.t).toISOString()} ${e.label} ${e.data ? JSON.stringify(e.data) : ""}`).join("\n");
+                        void navigator.clipboard?.writeText(text).then(
+                          () => toast({ title: "Log copiado", description: `${diagLogs.length} eventos` }),
+                          () => toast({ title: "Falha ao copiar", variant: "destructive" }),
+                        );
+                      }}
+                    >Copiar</button>
+                  </div>
+                </div>
+                <CardDescription className="text-[11px]">
+                  {diagLogs.length} eventos · UA: {navigator.userAgent.slice(0, 60)}…
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="max-h-72 overflow-auto rounded border border-border bg-background p-2 font-mono text-[10px] leading-relaxed">
+                  {diagLogs.length === 0 ? (
+                    <p className="text-muted-foreground">Nenhum evento ainda. Toque em “Entrar com Google” para começar a instrumentação.</p>
+                  ) : diagLogs.map((e, i) => (
+                    <div key={i} className="border-b border-border/40 py-1 break-words">
+                      <span className="text-muted-foreground">+{((e.t - (diagLogs[0]?.t ?? e.t)) / 1000).toFixed(2)}s</span>{" "}
+                      <span className="font-semibold">{e.label}</span>
+                      {e.data !== undefined && (
+                        <pre className="whitespace-pre-wrap text-muted-foreground">{JSON.stringify(e.data, null, 0)}</pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
