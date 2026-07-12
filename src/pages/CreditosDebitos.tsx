@@ -679,6 +679,17 @@ export default function CreditosDebitos() {
         currentByPj,
         glosaAppsByDebt,
       });
+
+      // Débitos que serão efetivamente enviados (aplicados agora) = pendentes nos pares invocados.
+      let appliedNow = 0;
+      for (const [pj, debts] of byPj.entries()) {
+        const target = currentByPj.get(pj);
+        if (!target || !pairsToInvoke.has(`${target}|${pj}`)) continue;
+        for (const d of debts) {
+          if (!debtAppliedAt(d.id, target)) appliedNow += 1;
+        }
+      }
+
       let updated = 0;
       for (const u of toUpdate) {
         const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
@@ -693,7 +704,7 @@ export default function CreditosDebitos() {
         }
         if (Object.keys(labelPatch).length) setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
         toast.info(alreadyApplied > 0
-          ? `Todos os débitos já foram aplicados nos lotes vigentes (${alreadyApplied}).`
+          ? `Nada novo para aplicar — ${alreadyApplied} débito(s) já aplicado(s) no lote vigente.`
           : "Nenhum lote em aberto disponível para aplicar.");
         return;
       }
@@ -703,6 +714,7 @@ export default function CreditosDebitos() {
         Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
       const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
+      const failedInvocations = invocations.length - okInvocations;
       const missing = pjIds.length - currentByPj.size;
 
       // 4. Otimista: atualiza state local
@@ -713,13 +725,19 @@ export default function CreditosDebitos() {
       if (Object.keys(labelPatch).length) {
         setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
       }
+      const scopeLabel = pjId
+        ? (byPj.get(pjId)?.[0] as any)?._company_name
+          ?? (pjIds.length === 1 ? "PJ" : `${okInvocations} PJ(s)`)
+        : `${okInvocations} PJ(s)`;
       const parts = [
-        `${okInvocations} PJ(s) processadas`,
+        `✓ ${appliedNow} aplicado(s) agora`,
+        alreadyApplied ? `↻ ${alreadyApplied} já aplicado(s)` : null,
         updated ? `${updated} lote-alvo atualizado(s)` : null,
-        alreadyApplied ? `${alreadyApplied} já aplicados (ignorados)` : null,
         missing ? `${missing} sem lote em aberto` : null,
+        failedInvocations ? `⚠ ${failedInvocations} falha(s)` : null,
       ].filter(Boolean).join(" · ");
-      toast.success(`Aplicação disparada — ${parts || "OK"}`);
+      const msg = `${scopeLabel} — ${parts}`;
+      if (failedInvocations) toast.warning(msg); else toast.success(msg);
       // Recarrega aplicações para refletir novo estado
       void loadAll();
     } catch (err: any) {
