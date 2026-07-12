@@ -12,13 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter } from "lucide-react";
+import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter, Download, FileSpreadsheet, FileText, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
-import { useActiveHospitalId } from "@/contexts/HospitalContext";
+import { useActiveHospitalId, useHospital } from "@/contexts/HospitalContext";
+import { buildReportData, generateCreditosDebitosPdf, generateCreditosDebitosXlsx, downloadBlob, type ReportFiltersSummary } from "@/lib/creditosDebitosReport";
 
 type Company = { id: string; name: string };
 type Adjustment = {
