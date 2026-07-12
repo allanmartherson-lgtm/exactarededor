@@ -413,6 +413,13 @@ export default function CreditosDebitos() {
     const { error } = await (supabase as any).from("glosa_debts").update(patch).eq("id", editingGlosa.id);
     setBusyGlosa(false);
     if (error) { toast.error("Erro: " + error.message); return; }
+    // Dispara aplicação imediata no lote-alvo (silencioso — se falhar, o botão "Reaplicar" cobre).
+    // Sem await para não travar UI; o toast de sucesso reflete a confirmação, não a aplicação.
+    if (lotePick && editingGlosa.company_id) {
+      supabase.functions.invoke("apply-company-deductions", {
+        body: { payment_id: lotePick, company_id: editingGlosa.company_id },
+      }).catch((err) => console.warn("[saveGlosa] apply-company-deductions falhou:", err?.message));
+    }
     toast.success(editingGlosa.confirmed_at
       ? `Reparcelado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
       : `Débito confirmado em ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`);
@@ -426,6 +433,7 @@ export default function CreditosDebitos() {
       : g
     ));
     setEditingGlosa(null);
+
   };
 
   const reopenGlosa = async (g: GlosaDebt) => {
@@ -568,7 +576,12 @@ export default function CreditosDebitos() {
         ? { ...g, parcelas_default: massParc, target_payment_id: massLotePick, confirmed_at: g.confirmed_at ?? nowIso }
         : g
       ));
+      // Dispara aplicação no lote-alvo (massDialogPjId = 1 PJ, massLotePick = 1 lote).
+      supabase.functions.invoke("apply-company-deductions", {
+        body: { payment_id: massLotePick, company_id: massDialogPjId },
+      }).catch((err) => console.warn("[confirmMass] apply-company-deductions falhou:", err?.message));
     }
+
   };
 
   const openGlobalMass = async () => {
@@ -707,7 +720,20 @@ export default function CreditosDebitos() {
         ? { ...g, parcelas_default: globalParc, target_payment_id: globalLoteByPj[g.company_id], confirmed_at: g.confirmed_at ?? nowIso }
         : g
       ));
+      // Dispara apply-company-deductions em paralelo, deduplicado por (payment_id, company_id).
+      const pairs = new Map<string, { payment_id: string; company_id: string }>();
+      for (const g of targets) {
+        if (!successIds.includes(g.id)) continue;
+        const payId = globalLoteByPj[g.company_id];
+        if (!payId) continue;
+        pairs.set(`${payId}|${g.company_id}`, { payment_id: payId, company_id: g.company_id });
+      }
+      for (const p of pairs.values()) {
+        supabase.functions.invoke("apply-company-deductions", { body: p })
+          .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message));
+      }
     }
+
   };
 
   // ============ Agrupamento por PJ ============
