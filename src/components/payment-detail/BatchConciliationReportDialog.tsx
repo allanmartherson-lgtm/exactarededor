@@ -539,7 +539,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                 <SortHeader k="app_confirmado" label="Confirmado" />
                 <SortHeader k="app_proposto" label="Proposto" />
                 <SortHeader k="app_pending" label="Pendente" />
-                <SortHeader k="app_postponed" label="ADIADO" />
+                <SortHeader k="app_postponed" label="Adiado" />
                 <th className="p-2 border-b">Divergências</th>
               </tr>
             </thead>
