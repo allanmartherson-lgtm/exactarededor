@@ -52,6 +52,7 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, paymentReference }: Props) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
+  const [drill, setDrill] = useState<{ id: string; name: string } | null>(null);
 
   const load = async () => {
     setLoading(true);
