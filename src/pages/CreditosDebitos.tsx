@@ -907,6 +907,35 @@ export default function CreditosDebitos() {
       />
 
       <div className="p-4 md:p-6 space-y-4">
+        {/* Ações do relatório */}
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={exporting !== null}>
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                {exporting === "pdf" ? "Gerando PDF…" : exporting === "xlsx" ? "Gerando Excel…" : "Exportar relatório"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onClick={() => handleExport("xlsx")} disabled={exporting !== null}>
+                <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Excel (.xlsx)</div>
+                  <div className="text-[11px] text-muted-foreground">Planilhas por seção</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExport("pdf")} disabled={exporting !== null}>
+                <FileText className="w-4 h-4 mr-2 text-red-600" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">PDF executivo</div>
+                  <div className="text-[11px] text-muted-foreground">KPIs + tabelas paginadas</div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {kpiCard("A confirmar", brl(kpi.totalPendente), "text-destructive", `${pendentes.length} glosa(s)`)}
@@ -914,6 +943,7 @@ export default function CreditosDebitos() {
           {kpiCard("Aplicado no mês", brl(kpi.aplicadoMes), "text-emerald-600")}
           {kpiCard("Sem lote-alvo", String(kpi.semLote), kpi.semLote > 0 ? "text-amber-600" : "", "risco de não aplicar")}
         </div>
+
 
         {/* Filtros */}
         <Card>
