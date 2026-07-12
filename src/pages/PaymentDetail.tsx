@@ -408,6 +408,7 @@ const PaymentDetail = () => {
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
+  const [isBatchReconReportOpen, setIsBatchReconReportOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
