@@ -853,12 +853,33 @@ export default function CreditosDebitos() {
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={(v) => updateParam("tab", v)}>
-          <TabsList>
-            <TabsTrigger value="pendentes">A confirmar <Badge variant="outline" className="ml-1">{pendentes.length}</Badge></TabsTrigger>
-            <TabsTrigger value="andamento">Em andamento <Badge variant="outline" className="ml-1">{emAndamento.length}</Badge></TabsTrigger>
-            <TabsTrigger value="ajustes">Ajustes manuais <Badge variant="outline" className="ml-1">{ajustesFiltrados.length}</Badge></TabsTrigger>
-            <TabsTrigger value="historico">Histórico aplicado <Badge variant="outline" className="ml-1">{historicoRows.length}</Badge></TabsTrigger>
+          <TabsList className="flex flex-wrap h-auto gap-1 justify-start">
+            <TabsTrigger value="pendentes" className="group">
+              A confirmar
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {pendentes.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="andamento" className="group">
+              Em andamento
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {emAndamento.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="ajustes" className="group">
+              Ajustes manuais
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {ajustesFiltrados.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="group">
+              Histórico aplicado
+              <Badge variant="outline" className="ml-1.5 bg-background/60 text-foreground border-border group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground group-data-[state=active]:border-primary-foreground/40">
+                {historicoRows.length}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
+
 
           {/* === PENDENTES === */}
           <TabsContent value="pendentes" className="space-y-3 mt-3">
