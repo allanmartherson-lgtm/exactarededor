@@ -202,7 +202,9 @@ serve(async (req) => {
           (Number((payment as any).bruto_total ?? payment.total_amount) || 0)
         ) > 0.01,
         competencia: payment.competence_month,
-        qtd_itens: payment.items_count ?? totalItems,
+        // totalItems vem da varredura completa paginada; payment.items_count pode
+        // estar legado/truncado em 1.000 e não deve orientar o resumo.
+        qtd_itens: totalItems || payment.items_count || 0,
       },
       itens: {
         total: totalItems,
@@ -289,6 +291,82 @@ serve(async (req) => {
           },
     };
 
+
+    const formatBRL = (value: number) =>
+      (Number(value) || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+    const normalizeSummary = (candidate: unknown): ExecutiveSummary | null => {
+      if (!candidate || typeof candidate !== "object") return null;
+      const obj = candidate as Record<string, unknown>;
+      const risk = String(obj.risk_level ?? "baixo") as RiskLevel;
+      const validRisk: RiskLevel = ["baixo", "medio", "alto", "critico"].includes(risk) ? risk : "baixo";
+      const headline = typeof obj.headline === "string" ? obj.headline.trim() : "";
+      const recommended = typeof obj.recommended_action === "string" ? obj.recommended_action.trim() : "";
+      const bullets = Array.isArray(obj.bullets)
+        ? obj.bullets.map((b) => String(b ?? "").trim()).filter(Boolean).slice(0, 6)
+        : [];
+      if (!headline || !recommended || bullets.length === 0) return null;
+      return {
+        headline,
+        bullets,
+        risk_level: validRisk,
+        recommended_action: recommended,
+      };
+    };
+
+    const buildDeterministicSummary = (): ExecutiveSummary => {
+      const c: any = contexto;
+      const glosas = Array.isArray(c.glosas_por_empresa) ? c.glosas_por_empresa : [];
+      const conciliacoes = Array.isArray(c.conciliacao_divergente_por_empresa)
+        ? c.conciliacao_divergente_por_empresa
+        : [];
+      const glosaTotal = glosas.reduce(
+        (sum: number, g: any) => sum + Math.abs(Number(g.glosa ?? g.total ?? 0) || 0),
+        0,
+      );
+      const conciliacaoTotal = conciliacoes.reduce(
+        (sum: number, g: any) => sum + Math.abs(Number(g.conciliacao ?? g.total ?? 0) || 0),
+        0,
+      );
+      const total = Number(c.itens?.total ?? c.lote?.qtd_itens ?? 0) || 0;
+      const alertas = Number(c.itens?.alertas ?? 0) || 0;
+      const pctAlertas = total > 0 ? Math.round((alertas / total) * 100) : 0;
+      const empresas = Array.isArray(c.grupos_status) ? c.grupos_status.length : 0;
+      const risk: RiskLevel =
+        pctAlertas > 60 || (glosaTotal > 0 && conciliacaoTotal > 0) ? "critico"
+          : pctAlertas > 30 || glosaTotal > 0 || conciliacaoTotal > 0 ? "alto"
+          : pctAlertas >= 10 ? "medio"
+          : "baixo";
+      const sinalFinanceiro = glosaTotal > 0
+        ? `com glosas registradas de ${formatBRL(glosaTotal)}`
+        : conciliacaoTotal > 0
+          ? `com divergências de conciliação somando ${formatBRL(conciliacaoTotal)}`
+          : "sem glosas ou divergências de conciliação registradas";
+      return {
+        headline: `Lote ${c.lote?.referencia ?? ""} com ${total} itens em ${empresas} empresas, valor líquido de ${formatBRL(c.lote?.valor_liquido ?? 0)} e ${sinalFinanceiro}.`,
+        bullets: [
+          `${alertas} itens em alerta (${pctAlertas}% do total processado).`,
+          glosaTotal > 0
+            ? `${glosas.length} empresas com glosas registradas, totalizando ${formatBRL(glosaTotal)}.`
+            : "Sem glosas registradas no lote.",
+          conciliacaoTotal > 0
+            ? `${conciliacoes.length} empresas com divergência de conciliação, impacto absoluto de ${formatBRL(conciliacaoTotal)}.`
+            : "Sem divergências de conciliação registradas.",
+          c.composicao_financeira?.indisponivel
+            ? "Composição financeira agregada ainda em recomputação; usar glosas e conciliação por empresa como referência."
+            : `Composição financeira disponível: bruto de ${formatBRL(c.composicao_financeira?.bruto ?? 0)} e líquido de ${formatBRL(c.composicao_financeira?.liquido ?? 0)}.`,
+        ],
+        risk_level: risk,
+        recommended_action: risk === "baixo"
+          ? "Prosseguir com a validação do lote."
+          : "Revisar as empresas com glosas, conciliação ou alertas antes de aprovar.",
+      };
+    };
 
     const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
 
@@ -390,7 +468,8 @@ REGRAS:
       for (const attempt of attempts) {
         try {
           const parsed = JSON.parse(attempt);
-          if (parsed && typeof parsed === "object" && parsed.headline) return parsed as ExecutiveSummary;
+          const normalized = normalizeSummary(parsed);
+          if (normalized) return normalized;
         } catch { /* try next */ }
       }
       return null;
@@ -455,25 +534,34 @@ REGRAS:
       });
     }
 
-    let aiData = await aiResp.json();
     const pickSummary = (data: any): ExecutiveSummary | null => {
       const blocks = Array.isArray(data?.content) ? data.content : [];
       const toolBlock = blocks.find((b: any) => b?.type === "tool_use" && b?.input?.headline);
-      if (toolBlock?.input) return toolBlock.input as ExecutiveSummary;
+      if (toolBlock?.input) return normalizeSummary(toolBlock.input);
       const textBlock = blocks.find((b: any) => b?.type === "text" && typeof b?.text === "string");
       if (textBlock?.text) return extractJsonObject(String(textBlock.text));
       if (typeof data?.completion === "string") return extractJsonObject(data.completion);
       return null;
     };
-    let summary = pickSummary(aiData);
+    const readAiJson = async (response: Response, label: string): Promise<any | null> => {
+      try {
+        return await response.json();
+      } catch (err) {
+        console.error(`summarize-payment ${label} invalid JSON response`, err instanceof Error ? err.message : err);
+        return null;
+      }
+    };
+
+    let aiData = await readAiJson(aiResp, "initial");
+    let summary = aiData ? pickSummary(aiData) : null;
 
     // Retry único em modo texto/JSON puro se tool_use falhou (fallback do gateway p/ OpenAI, truncamento, etc.)
     if (!summary) {
       console.warn("summarize-payment: tentativa 1 sem estrutura — retry em modo JSON puro. Stop reason:", aiData?.stop_reason);
       const retryResp = await callAi({ forceJsonText: true });
       if (retryResp.ok) {
-        aiData = await retryResp.json();
-        summary = pickSummary(aiData);
+        aiData = await readAiJson(retryResp, "retry");
+        summary = aiData ? pickSummary(aiData) : null;
       } else {
         console.error("summarize-payment retry AI error", retryResp.status, await retryResp.text());
       }
@@ -489,30 +577,7 @@ REGRAS:
       // Fallback determinístico: nunca deixa a UI quebrar. Monta um resumo
       // mínimo a partir do próprio `contexto` já agregado. Não é tão rico
       // quanto o da IA, mas descreve o lote de forma correta.
-      const c: any = contexto;
-      const glosaTotal = (c.glosas_por_empresa ?? []).reduce(
-        (s: number, g: any) => s + (Number(g.total) || 0), 0,
-      );
-      const divergCount = (c.conciliacao_divergente ?? []).length;
-      const pctAlertas = c.itens?.pct_alertas ?? 0;
-      const risk: "baixo" | "medio" | "alto" | "critico" =
-        divergCount > 5 || pctAlertas > 30 ? "alto"
-          : divergCount > 0 || pctAlertas > 10 ? "medio"
-          : "baixo";
-      summary = {
-        headline: `Lote ${c.lote?.referencia ?? ""} com ${c.itens?.total ?? 0} itens e valor líquido de R$ ${(c.lote?.valor_liquido ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`,
-        bullets: [
-          `${c.itens?.alertas ?? 0} itens em alerta (${pctAlertas}% do total).`,
-          `${(c.glosas_por_empresa ?? []).length} empresas com glosas somando R$ ${glosaTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`,
-          divergCount > 0
-            ? `${divergCount} empresas com divergência de conciliação registrada.`
-            : `Sem divergências de conciliação registradas.`,
-        ],
-        risk_level: risk,
-        recommended_action: risk === "baixo"
-          ? "Prosseguir com a validação do lote."
-          : "Revisar as empresas com alertas/divergências antes de aprovar.",
-      };
+      summary = buildDeterministicSummary();
     }
 
 
