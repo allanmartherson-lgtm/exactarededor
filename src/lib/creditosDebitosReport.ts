@@ -191,7 +191,7 @@ export async function buildReportData(input: BuildReportInput): Promise<ReportDa
   // 3. Busca metadados de lotes + perfis (author names)
   const loteInfoMap = new Map<string, LoteInfo>();
   if (loteIds.size) {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("payments")
       .select("id, reference, competence_month, status")
       .in("id", Array.from(loteIds));
