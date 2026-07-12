@@ -42,22 +42,29 @@ async def restore_session(context, page):
 
 
 async def click_financeiro_glosas(page):
-    """Abre o dropdown 'Financeiro' e ativa 'Com glosas em aberto'."""
+    """Abre o dropdown 'Financeiro' na barra de filtros e ativa 'Com glosas em aberto'.
+
+    Existem múltiplos elementos com o texto 'Financeiro' na página (nav superior +
+    filtro do lote). Tentamos cada um visível até o menu correto aparecer.
+    """
     btns = page.locator("button:has-text('Financeiro')")
     count = await btns.count()
-    # Prioriza o botão visível dentro da barra de filtros do lote (último match visível).
-    target = None
-    for i in range(count):
-        btn = btns.nth(i)
-        if await btn.is_visible():
-            target = btn
-    assert target is not None, "Botão 'Financeiro' não encontrado na barra de filtros."
-    await target.scroll_into_view_if_needed()
-    await target.click(force=True)
     item = page.get_by_role("menuitemcheckbox", name="Com glosas em aberto")
-    await expect(item).to_be_visible(timeout=5000)
-    await item.click()
-    await page.keyboard.press("Escape")
+    for i in range(count - 1, -1, -1):
+        btn = btns.nth(i)
+        if not await btn.is_visible():
+            continue
+        await btn.scroll_into_view_if_needed()
+        await btn.click(force=True)
+        try:
+            await expect(item).to_be_visible(timeout=1500)
+            await item.click()
+            await page.keyboard.press("Escape")
+            return
+        except Exception:
+            await page.keyboard.press("Escape")
+            continue
+    raise AssertionError("Não foi possível abrir o dropdown 'Financeiro' do lote.")
 
 
 async def click_pend_cadastro(page):
