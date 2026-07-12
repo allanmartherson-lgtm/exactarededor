@@ -89,6 +89,12 @@ Deno.serve(async (req) => {
     // Carrega payment para hospital_id
     const { data: payment } = await admin
       .from("payments").select("hospital_id").eq("id", body.payment_id).maybeSingle();
+    if (!payment?.hospital_id) {
+      return new Response(
+        JSON.stringify({ error: "Pagamento sem hospital vinculado — não é possível marcar caso especial." }),
+        { status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Conceito atualizado (jun/2026): analista tem autonomia total.
     // Marca já entra como `approved` — motor aplica regra de caso especial
