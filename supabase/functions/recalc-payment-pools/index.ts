@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
         ordem: number; tipo: string; descricao: string; valor: number;
         adjustment_id?: string; parcela?: number;
       }> = [];
-      const adjustmentApplications: Array<{ adjustment_id: string; parcela_numero: number; valor: number }> = [];
+      const adjustmentApplications: Array<{ adjustment_id: string; parcela_numero: number; valor: number; company_id: string }> = [];
       const variableValuesUsed: Array<{ deduction_id: string; descricao: string; valor: number; observacao: string | null; competence_month: string }> = [];
       let bolo = base;
       let blockedReason: string | null = null;
