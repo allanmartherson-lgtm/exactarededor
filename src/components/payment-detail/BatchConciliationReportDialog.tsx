@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Download, FileDown, RefreshCw, AlertTriangle, ChevronRight } from "lucide-react";
+import { Download, FileDown, RefreshCw, AlertTriangle, ChevronRight, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import { PJDrilldownDialog } from "./PJDrilldownDialog";
@@ -53,6 +54,13 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [drill, setDrill] = useState<{ id: string; name: string } | null>(null);
+  const [filter, setFilter] = useState("");
+
+  const visibleRows = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.company_name.toLowerCase().includes(q));
+  }, [rows, filter]);
 
   const load = async () => {
     setLoading(true);
@@ -182,7 +190,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   }, [open, paymentId]);
 
   const totals = useMemo(() => {
-    return rows.reduce(
+    return visibleRows.reduce(
       (acc, r) => {
         acc.nf_expected += r.nf_expected;
         acc.nf_received += r.nf_received || 0;
@@ -217,7 +225,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         grp_liquido: 0,
       },
     );
-  }, [rows]);
+  }, [visibleRows]);
 
   const flagRow = (r: Row) => {
     const flags: string[] = [];
@@ -250,7 +258,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "App partial",
       "Divergências",
     ];
-    const body = rows.map((r) => [
+    const body = visibleRows.map((r) => [
       r.company_name,
       r.nf_expected,
       r.nf_received,
@@ -273,7 +281,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "TOTAL",
       totals.nf_expected,
       totals.nf_received,
-      rows.reduce((a, r) => a + r.nf_count, 0),
+      visibleRows.reduce((a, r) => a + r.nf_count, 0),
       totals.grp_bruto,
       totals.grp_liquido,
       totals.snap_bruto,
@@ -315,7 +323,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const startY = await drawReportHeader(doc, {
       title: "Panorama do lote — conciliação financeira por PJ",
-      subtitle: `Lote ${paymentReference ?? paymentId.slice(0, 8)} · ${rows.length} PJs · gerado em ${new Date().toLocaleString("pt-BR")}`,
+      subtitle: `Lote ${paymentReference ?? paymentId.slice(0, 8)} · ${visibleRows.length} PJs${filter.trim() ? ` (filtro: "${filter.trim()}")` : ""} · gerado em ${new Date().toLocaleString("pt-BR")}`,
       filledBar: true,
     });
 
@@ -340,7 +348,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "Divergências",
     ]];
 
-    const body = rows.map((r) => {
+    const body = visibleRows.map((r) => {
       const flags = flagRow(r);
       return [
         r.company_name,
@@ -360,7 +368,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     });
 
     const foot = [[
-      `TOTAL (${rows.length})`,
+      `TOTAL (${visibleRows.length})`,
       fmt(totals.nf_expected),
       fmt(totals.nf_received),
       fmt(totals.grp_bruto),
@@ -406,7 +414,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       alternateRowStyles: { fillColor: [248, 250, 252] },
       didParseCell: (data) => {
         if (data.section === "body") {
-          const r = rows[data.row.index];
+          const r = visibleRows[data.row.index];
           if (r && flagRow(r).length > 0) {
             data.cell.styles.fillColor = [255, 249, 219];
           }
@@ -447,6 +455,35 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
           </p>
         </DialogHeader>
 
+        <div className="flex items-center gap-2 px-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Buscar PJ pelo nome…"
+              className="h-8 pl-7 pr-7 text-xs"
+            />
+            {filter && (
+              <button
+                type="button"
+                onClick={() => setFilter("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Limpar filtro"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {filter.trim() && (
+            <span className="text-xs text-muted-foreground">
+              {visibleRows.length} de {rows.length} PJs
+            </span>
+          )}
+        </div>
+
+
+
         <div className="flex-1 overflow-auto border rounded-md">
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
@@ -482,8 +519,15 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                   </td>
                 </tr>
               )}
+              {!loading && rows.length > 0 && visibleRows.length === 0 && (
+                <tr>
+                  <td colSpan={14} className="p-6 text-center text-muted-foreground">
+                    Nenhuma PJ corresponde ao filtro "{filter}".
+                  </td>
+                </tr>
+              )}
               {!loading &&
-                rows.map((r) => {
+                visibleRows.map((r) => {
                   const flags = flagRow(r);
                   return (
                     <tr
@@ -527,11 +571,11 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                   );
                 })}
             </tbody>
-            {!loading && rows.length > 0 && (
+            {!loading && visibleRows.length > 0 && (
               <tfoot className="sticky bottom-0 bg-muted/90 font-semibold">
                 <tr>
                   <td className="p-2" />
-                  <td className="p-2">TOTAL ({rows.length})</td>
+                  <td className="p-2">TOTAL ({visibleRows.length}{filter.trim() ? ` de ${rows.length}` : ""})</td>
                   <td className="p-2 text-right">{formatCurrency(totals.nf_expected)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.nf_received)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.grp_bruto)}</td>
