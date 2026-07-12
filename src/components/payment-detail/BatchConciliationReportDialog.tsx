@@ -537,6 +537,9 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
           <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} /> Recarregar
           </Button>
+          <Button variant="outline" onClick={exportPdf} disabled={loading || rows.length === 0}>
+            <FileDown className="h-4 w-4 mr-1.5" /> Exportar PDF
+          </Button>
           <Button onClick={exportXlsx} disabled={loading || rows.length === 0}>
             <Download className="h-4 w-4 mr-1.5" /> Exportar XLSX
           </Button>
