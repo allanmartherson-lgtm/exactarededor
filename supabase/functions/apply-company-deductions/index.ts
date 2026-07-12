@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     ]);
     const { data: paymentStatusRow } = await supabase
       .from("payments")
-      .select("status, payment_model_id")
+      .select("status, payment_model_id, hospital_id, competence_month")
       .eq("id", payment_id)
       .maybeSingle();
     const paymentCurrentStatus: string | null = (paymentStatusRow?.status as string) ?? null;
@@ -78,6 +78,17 @@ Deno.serve(async (req) => {
         skipped: true,
         reason: `payment_status=${paymentCurrentStatus} — lote finalizado, deduções não são propostas automaticamente`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // hospital_id é NOT NULL em company_adjustment_applications e glosa_payment_applications
+    // (isolamento multi-tenant). Sem ele, todos os inserts abaixo falhariam silenciosamente.
+    const paymentHospitalId: string | null = (paymentStatusRow?.hospital_id as string) ?? null;
+    if (!paymentHospitalId) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "payment_hospital_missing",
+        message: "Lote sem hospital_id — impossível gravar deduções (viola isolamento multi-tenant).",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ============ DÉBITOS (company_financial_adjustments) ============
@@ -192,14 +203,16 @@ Deno.serve(async (req) => {
       const { error: insErr } = await supabase
         .from("company_adjustment_applications")
         .insert({
-          payment_id, company_id, adjustment_id: adj.id,
+          payment_id, company_id, hospital_id: paymentHospitalId, adjustment_id: adj.id,
           valor_aplicado: parcelaValor, parcela_numero: parcelaNumero,
           applied_by: user_id, status: "proposto", source: "auto",
         });
-      if (!insErr) {
-        summary.debitos.proposed++;
-        summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel });
+      if (insErr) {
+        console.error(`[apply-company-deductions] insert adj ${adj.id} falhou`, insErr);
+        throw insErr;
       }
+      summary.debitos.proposed++;
+      summary.debitos.items.push({ adjustment_id: adj.id, descricao: adj.descricao, tipo: adj.tipo, valor: parcelaValor, parcela: parcelaLabel });
      } catch (err) {
       console.error(`[apply-company-deductions] adj ${adj?.id} falhou`, err);
       throw err;
@@ -209,17 +222,11 @@ Deno.serve(async (req) => {
 
 
     // ============ GLOSAS ============
-    // Competência + hospital do lote (hospital_id é crítico: edge function usa service_role
-    // e bypassa RLS, então precisamos filtrar hospital explicitamente para não vazar dívidas
-    // de outras unidades quando a médica atende em múltiplos hospitais).
-    const { data: paymentRow } = await supabase
-      .from("payments")
-      .select("competence_month, hospital_id")
-      .eq("id", payment_id)
-      .maybeSingle();
-    const competenceDate: string = (paymentRow?.competence_month as string)
+    // hospital_id foi obtido no topo (paymentHospitalId). É crítico porque a edge function
+    // usa service_role e bypassa RLS — precisamos filtrar hospital explicitamente para não
+    // vazar dívidas de outras unidades quando a médica atende em múltiplos hospitais.
+    const competenceDate: string = (paymentStatusRow?.competence_month as string)
       || new Date().toISOString().slice(0, 10);
-    const paymentHospitalId: string | null = (paymentRow?.hospital_id as string) ?? null;
 
     // Doctors with production in this lote/company
     const { data: items } = await supabase
@@ -301,13 +308,15 @@ Deno.serve(async (req) => {
         const matchEmpresa = vinculadas.includes(company_id);
 
         if (vinculadas.length === 0) {
-          await supabase.from("glosa_payment_applications").insert({
-            payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+          const { error: e1 } = await supabase.from("glosa_payment_applications").insert({
+            payment_id, company_id, hospital_id: paymentHospitalId,
+            glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
             parcela_numero: 0, valor_aplicado: 0,
             status: "pending_manual_resolution", source: "auto",
             resolution_note: "Médico sem PJ vinculada",
             applied_by: user_id,
           });
+          if (e1) { console.error(`[glosa sem_pj] ${debt.id}`, e1); throw e1; }
           summary.glosas.sem_pj++;
           continue;
         }
@@ -320,13 +329,15 @@ Deno.serve(async (req) => {
             .in("company_id", vinculadas);
           const empresasComProd = Array.from(new Set((outrasProd ?? []).map((i: any) => i.company_id)));
           if (empresasComProd.length > 1) {
-            await supabase.from("glosa_payment_applications").insert({
-              payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+            const { error: e2 } = await supabase.from("glosa_payment_applications").insert({
+              payment_id, company_id, hospital_id: paymentHospitalId,
+              glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
               parcela_numero: 0, valor_aplicado: 0,
               status: "pending_manual_resolution", source: "auto",
               resolution_note: `Médico tem produção em ${empresasComProd.length} PJs vinculadas no mesmo lote — resolver manualmente`,
               applied_by: user_id,
             });
+            if (e2) { console.error(`[glosa ambiguous] ${debt.id}`, e2); throw e2; }
             summary.glosas.ambiguous++;
             continue;
           }
@@ -342,14 +353,16 @@ Deno.serve(async (req) => {
 
         // === REGRA DE CAPACIDADE ===
         if (capacidadeRestante <= 0.01) {
-          await supabase.from("glosa_payment_applications").insert({
-            payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+          const { error: e3 } = await supabase.from("glosa_payment_applications").insert({
+            payment_id, company_id, hospital_id: paymentHospitalId,
+            glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
             parcela_numero: parcelaNumero, valor_aplicado: 0,
             status: "postponed", source: "auto",
             postpone_reason: "insufficient_net",
             resolution_note: `Lote sem líquido disponível para a PJ (capacidade R$ ${capacidadeRestante.toFixed(2)}). Débito rola para o próximo ciclo.`,
             applied_by: user_id,
           });
+          if (e3) { console.error(`[glosa postponed] ${debt.id}`, e3); throw e3; }
           summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
           summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
           continue;
@@ -357,30 +370,37 @@ Deno.serve(async (req) => {
 
         if (parcelaPrevista > capacidadeRestante) {
           const parcial = round2(capacidadeRestante);
-          await supabase.from("glosa_payment_applications").insert({
-            payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+          const { error: e4 } = await supabase.from("glosa_payment_applications").insert({
+            payment_id, company_id, hospital_id: paymentHospitalId,
+            glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
             parcela_numero: parcelaNumero, valor_aplicado: parcial,
             status: "partial", source: "auto",
             postpone_reason: "partial_capacity",
             resolution_note: `Aplicado parcialmente: R$ ${parcial.toFixed(2)} de R$ ${parcelaPrevista.toFixed(2)} previstos. Saldo continua no débito.`,
             applied_by: user_id,
           });
+          if (e4) { console.error(`[glosa partial] ${debt.id}`, e4); throw e4; }
           capacidadeRestante = 0;
           summary.glosas.partial = (summary.glosas.partial ?? 0) + 1;
           summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcial, parcela: `${parcelaNumero}/${parcelas}`, action: "partial" });
           continue;
         }
 
-        await supabase.from("glosa_payment_applications").insert({
-          payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+        const { error: e5 } = await supabase.from("glosa_payment_applications").insert({
+          payment_id, company_id, hospital_id: paymentHospitalId,
+          glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
           parcela_numero: parcelaNumero, valor_aplicado: parcelaPrevista,
           status: "proposto", source: "auto", applied_by: user_id,
         });
+        if (e5) { console.error(`[glosa proposto] ${debt.id}`, e5); throw e5; }
         capacidadeRestante = round2(capacidadeRestante - parcelaPrevista);
         summary.glosas.proposed++;
         summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaPrevista, parcela: `${parcelaNumero}/${parcelas}` });
-       } catch (err) {
+       } catch (err: any) {
         console.error(`[apply-company-deductions] glosa ${debt?.id} falhou`, err);
+        summary.glosas.errors = (summary.glosas.errors ?? 0) + 1;
+        summary.glosas.error_details = summary.glosas.error_details ?? [];
+        summary.glosas.error_details.push({ debt_id: debt?.id, message: err?.message ?? String(err) });
        }
       }
       summary.glosas.capacidade_restante = capacidadeRestante;
