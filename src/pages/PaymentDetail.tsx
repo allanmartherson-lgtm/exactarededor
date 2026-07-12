@@ -4535,7 +4535,12 @@ const PaymentDetail = () => {
                   · O sistema verifica os valores que você já calculou.
                 </span>
               </div>
-              {isAnalista && payment.analysis_mode === "padrao" && (
+              {isAnalista
+                && payment.analysis_mode === "padrao"
+                && (payment.status === "em_analise_ia"
+                    || payment.status === "revisao_analista"
+                    || payment.status === "devolvido_analista"
+                    || payment.status === "rascunho") && (
                 <Button
                   size="sm"
                   variant="outline"
