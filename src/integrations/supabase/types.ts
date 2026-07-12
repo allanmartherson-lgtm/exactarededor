@@ -11779,6 +11779,10 @@ export type Database = {
       enrich_doctor_documents:
         | { Args: never; Returns: number }
         | { Args: { p_payment_id: string }; Returns: undefined }
+      ensure_payment_company_financials_row: {
+        Args: { p_company_id: string; p_payment_id: string }
+        Returns: undefined
+      }
       extract_rule_targets: {
         Args: {
           _group_company_links: Json

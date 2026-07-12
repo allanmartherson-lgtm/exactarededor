@@ -91,6 +91,15 @@ Deno.serve(async (req) => {
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Garante que a linha de snapshot financeiro (PCF) exista para esta PJ neste lote.
+    // Sem ela, o trigger de recompute rodava um UPDATE que não atingia nenhuma linha e
+    // o Panorama do lote mostrava "Apurado glosas = R$ 0,00" mesmo com aplicações válidas.
+    await supabase.rpc("ensure_payment_company_financials_row", {
+      p_payment_id: payment_id,
+      p_company_id: company_id,
+    });
+
+
     // ============ DÉBITOS (company_financial_adjustments) ============
     // Carrega payment_model_id deste lote para filtrar ajustes restritos a modelos específicos.
     const lotePaymentModelId: string | null = (paymentStatusRow?.payment_model_id as string) ?? null;
@@ -414,13 +423,18 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Débito já está confirmado na origem (glosa_debts.confirmed_at IS NOT NULL,
+        // filtrado na query). Gravamos direto como 'confirmado' — antes ficava
+        // 'proposto' e nunca era promovido, criando descompasso entre C&D e Panorama.
         const { error: e5 } = await supabase.from("glosa_payment_applications").insert({
           payment_id, company_id, hospital_id: paymentHospitalId,
           glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
           parcela_numero: parcelaNumero, valor_aplicado: parcelaPrevista,
-          status: "proposto", source: "auto", applied_by: user_id,
+          status: "confirmado", source: "auto", applied_by: user_id,
+          confirmed_at: new Date().toISOString(), confirmed_by: user_id,
         });
-        if (e5) { console.error(`[glosa proposto] ${debt.id}`, e5); throw e5; }
+        if (e5) { console.error(`[glosa confirmado] ${debt.id}`, e5); throw e5; }
+
         capacidadeRestante = round2(capacidadeRestante - parcelaPrevista);
         summary.glosas.proposed++;
         summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaPrevista, parcela: `${parcelaNumero}/${parcelas}` });
