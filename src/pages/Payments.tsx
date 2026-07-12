@@ -1675,8 +1675,6 @@ const Payments = () => {
                   <X className="h-4 w-4 mr-1" /> Limpar
                 </Button>
               )}
-                </Button>
-              )}
               <div className="md:ml-auto flex items-center gap-2 flex-wrap">
                 <Button
                   variant={archivedView ? "default" : "outline"}
