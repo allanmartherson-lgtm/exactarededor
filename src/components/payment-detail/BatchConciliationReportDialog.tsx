@@ -190,7 +190,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   }, [open, paymentId]);
 
   const totals = useMemo(() => {
-    return rows.reduce(
+    return visibleRows.reduce(
       (acc, r) => {
         acc.nf_expected += r.nf_expected;
         acc.nf_received += r.nf_received || 0;
