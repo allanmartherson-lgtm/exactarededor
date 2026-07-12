@@ -115,6 +115,14 @@ const waitForOAuthCompletion = async (deadline: number, bridgePromise: Promise<O
 
 const isTrustedOAuthMessageOrigin = (origin: string) => origin === window.location.origin || OAUTH_MESSAGE_ORIGINS.has(origin);
 
+const isEmbeddedPreviewFrame = () => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+};
+
 const extractOAuthTokensFromMessage = (data: unknown): OAuthTokenPair | null => {
   if (!data || typeof data !== "object") return null;
   const root = data as Record<string, unknown>;
@@ -229,10 +237,15 @@ const Auth = () => {
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
     const redirectUri = `${window.location.origin}/auth/callback`;
-    diagPush("google.click", { nextTarget, redirect_uri: redirectUri });
+    const forceWebMessage = isEmbeddedPreviewFrame();
+    diagPush("google.click", { nextTarget, redirect_uri: redirectUri, forceWebMessage });
     const bridge = startOAuthWebMessageBridge();
     const signInPromise = lovable.auth.signInWithOAuth("google", {
       redirect_uri: redirectUri,
+      // No app mobile da Lovable o helper identifica iframe + LovableApp e troca
+      // o callback por deep link nativo. No preview isso não volta para o iframe,
+      // então forçamos o mesmo modo web_message usado pelo preview desktop.
+      ...(forceWebMessage ? { extraParams: { response_mode: "web_message" } } : {}),
     }).then((r) => { diagPush("google.signInWithOAuth.resolved", { redirected: (r as { redirected?: boolean })?.redirected, hasError: !!(r as { error?: unknown })?.error }); return r; })
       .catch((e) => { diagPush("google.signInWithOAuth.threw", { error: e instanceof Error ? e.message : String(e) }); throw e; });
     const result = await Promise.race([signInPromise, bridge.promise]);
