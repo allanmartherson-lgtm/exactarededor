@@ -576,7 +576,12 @@ export default function CreditosDebitos() {
         ? { ...g, parcelas_default: massParc, target_payment_id: massLotePick, confirmed_at: g.confirmed_at ?? nowIso }
         : g
       ));
+      // Dispara aplicação no lote-alvo (massDialogPjId = 1 PJ, massLotePick = 1 lote).
+      supabase.functions.invoke("apply-company-deductions", {
+        body: { payment_id: massLotePick, company_id: massDialogPjId },
+      }).catch((err) => console.warn("[confirmMass] apply-company-deductions falhou:", err?.message));
     }
+
   };
 
   const openGlobalMass = async () => {
