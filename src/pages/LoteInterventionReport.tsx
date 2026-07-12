@@ -283,7 +283,7 @@ export default function LoteInterventionReport() {
               <div className="text-sm text-muted-foreground py-8 text-center">
                 Nenhuma intervenção registrada para este lote.
                 <div className="text-xs mt-1">
-                  O ledger só é materializado quando o diretor aprova o lote.
+                  Ainda não há glosas, ajustes manuais, aceites ou cancelamentos aplicados aos itens.
                 </div>
               </div>
             ) : (
