@@ -2797,6 +2797,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           console.error(`${__t} bonus_split_invariant_failed`, msg);
           await supabase.from("payment_observations").insert({
             payment_id,
+            hospital_id: __paymentHospitalId,
             author_type: "sistema",
             message: msg,
           });
