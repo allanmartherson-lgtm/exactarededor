@@ -237,11 +237,22 @@ export default function LoteInterventionReport() {
         }
       />
       <div className="p-4 md:p-6 space-y-4">
+        {isPreview && rows.length > 0 && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-text flex items-start gap-2">
+            <Badge variant="outline" className="border-warning/50 text-warning-text bg-warning/10 shrink-0">
+              Prévia
+            </Badge>
+            <div>
+              Lote ainda não aprovado — estes números refletem o estado atual das intervenções e podem mudar até o parecer do diretor.
+              Só serão consolidados no ledger (e nos relatórios oficiais) após a aprovação.
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard
             label="Saldo do lote"
             value={loading ? <Skeleton className="h-8 w-32" /> : formatCurrency(totals.saldo)}
-            hint={`${totals.qtd} eventos`}
+            hint={`${totals.qtd} eventos${isPreview ? " · prévia" : ""}`}
             tone={totals.saldo > 0 ? "success" : totals.saldo < 0 ? "danger" : "default"}
           />
           <KpiCard
