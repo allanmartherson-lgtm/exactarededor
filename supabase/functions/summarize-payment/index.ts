@@ -534,7 +534,6 @@ REGRAS:
       });
     }
 
-    let aiData = await aiResp.json();
     const pickSummary = (data: any): ExecutiveSummary | null => {
       const blocks = Array.isArray(data?.content) ? data.content : [];
       const toolBlock = blocks.find((b: any) => b?.type === "tool_use" && b?.input?.headline);
