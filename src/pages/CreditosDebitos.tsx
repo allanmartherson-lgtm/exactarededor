@@ -1313,8 +1313,8 @@ export default function CreditosDebitos() {
                           {applyingCurrent === pjId
                             ? "Aplicando…"
                             : pjPending === 0
-                              ? "Tudo aplicado"
-                              : `Aplicar (${pjPending})`}
+                              ? `Tudo aplicado (${pjApplied})`
+                              : `Aplicar (${pjPending}${pjApplied ? ` · ${pjApplied} já aplic.` : ""})`}
                         </Button>
                       </div>
 
