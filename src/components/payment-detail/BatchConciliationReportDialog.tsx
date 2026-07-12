@@ -54,6 +54,13 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [drill, setDrill] = useState<{ id: string; name: string } | null>(null);
+  const [filter, setFilter] = useState("");
+
+  const visibleRows = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.company_name.toLowerCase().includes(q));
+  }, [rows, filter]);
 
   const load = async () => {
     setLoading(true);
