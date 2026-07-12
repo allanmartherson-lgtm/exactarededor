@@ -60,3 +60,4 @@ Escopo por hospital é INVARIANTE. Toda escrita operacional grava hospital_id do
 - [Centros de custo por hospital com clone](mem://features/cost-centers-per-hospital-clone) — P12 padrão Rede D'Or replicado por hospital; UNIQUE(hospital_id, code_p12); novo hospital = seed do DF Star
 - [Planilha original para auditoria](mem://features/planilha-original-auditoria) — Tarefa aberta: arquivo bruto do TASY salvo em Storage por lote; RLS por hospital; imutável após pago
 - [Bug weekdays/includes_holidays não persistem](mem://features/rule-weekdays-persistence-bug) — Form salva regra com weekdays={} + motor trata vazio como curinga; corrigir UI e motor
+- [Financeiro por hospital](mem://constraints/financeiro-por-hospital) — Glosas, créditos, débitos, ajustes de PJ e deduções sempre gravam e filtram por hospital_id ativo; cada unidade tem autonomia total
