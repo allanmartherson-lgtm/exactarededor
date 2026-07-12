@@ -540,19 +540,6 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
               <tr className="text-left">
                 <th className="p-2 border-b w-8"></th>
                 <SortHeader k="company_name" label="PJ" align="left" />
-                <SortHeader k="nf_expected" label="NF esperada" />
-                <SortHeader k="nf_received" label="NF recebida" />
-                <SortHeader k="grp_bruto" label="Bruto (grupo)" />
-                <SortHeader k="grp_liquido" label="Líquido (grupo)" />
-                <SortHeader k="snap_bruto" label="Apurado bruto" title="Bruto apurado pelo sistema após regras" />
-                <SortHeader k="snap_glosas" label="Apurado glosas" title="Total de glosas apuradas para esta PJ no lote" />
-                <SortHeader k="snap_liquido" label="Apurado líquido" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)" />
-        <div className="flex-1 overflow-auto border rounded-md">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
-              <tr className="text-left">
-                <th className="p-2 border-b w-8"></th>
-                <SortHeader k="company_name" label="PJ" align="left" />
                 <SortHeader k="grp_bruto" label="Bruto (grupo)" title="Total bruto vindo da produção, antes de qualquer dedução" />
                 <SortHeader k="snap_bruto" label="Apurado bruto" title="Bruto apurado pelo sistema após regras" />
                 <SortHeader k="snap_glosas" label="(−) Glosas" title="Total de glosas apuradas para esta PJ no lote" />
