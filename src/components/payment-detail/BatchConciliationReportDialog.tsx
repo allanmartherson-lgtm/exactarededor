@@ -381,52 +381,52 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
 
     const head = [[
       "PJ",
-      "NF esp.",
-      "NF receb.",
       "Bruto grupo",
-      "Líq. grupo",
       "Apurado bruto",
-      "Apurado glosas",
-      "Apurado líq.",
+      "(−) Glosas",
       "Confirm.",
       "Proposto",
       "Pendente",
       "Adiado",
-      "Divergências",
+      "Apurado líq.",
+      "Líq. grupo",
+      "NF esp.",
+      "NF receb.",
+      "Observações",
     ]];
 
     const body = visibleRows.map((r) => {
       const flags = flagRow(r);
       return [
         r.company_name,
-        fmt(r.nf_expected),
-        fmt(r.nf_received),
         fmt(r.grp_bruto),
-        fmt(r.grp_liquido),
         fmt(r.snap_bruto),
         fmt(r.snap_glosas),
-        fmt(r.snap_liquido),
         fmt(r.app_confirmado),
         fmt(r.app_proposto),
         fmt(r.app_pending),
         fmt(r.app_postponed),
-        flags.length ? flags.join(" · ") : "ok",
+        fmt(r.snap_liquido),
+        fmt(r.grp_liquido),
+        fmt(r.nf_expected),
+        fmt(r.nf_received),
+        flags.length ? flags.map((f) => f.label).join(" · ") : "conforme",
       ];
     });
 
     const foot = [[
       `TOTAL (${visibleRows.length})`,
-      fmt(totals.nf_expected),
-      fmt(totals.nf_received),
       fmt(totals.grp_bruto),
-      fmt(totals.grp_liquido),
       fmt(totals.snap_bruto),
       fmt(totals.snap_glosas),
-      fmt(totals.snap_liquido),
       fmt(totals.app_confirmado),
       fmt(totals.app_proposto),
       fmt(totals.app_pending),
       fmt(totals.app_postponed),
+      fmt(totals.snap_liquido),
+      fmt(totals.grp_liquido),
+      fmt(totals.nf_expected),
+      fmt(totals.nf_received),
       "",
     ]];
 
@@ -447,12 +447,12 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         0: { cellWidth: 52, halign: "left", fontStyle: "bold" },
         1: { halign: "right" },
         2: { halign: "right" },
-        3: { halign: "right" },
+        3: { halign: "right", textColor: [178, 34, 34] },
         4: { halign: "right" },
         5: { halign: "right" },
-        6: { halign: "right", textColor: [178, 34, 34] },
+        6: { halign: "right" },
         7: { halign: "right" },
-        8: { halign: "right" },
+        8: { halign: "right", fontStyle: "bold" },
         9: { halign: "right" },
         10: { halign: "right" },
         11: { halign: "right" },
@@ -462,12 +462,13 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       didParseCell: (data) => {
         if (data.section === "body") {
           const r = visibleRows[data.row.index];
-          if (r && flagRow(r).length > 0) {
+          const hasWarnFlag = r ? flagRow(r).some((f) => f.tone === "warn") : false;
+          if (hasWarnFlag) {
             data.cell.styles.fillColor = [255, 249, 219];
           }
-          if (data.column.index === 12 && data.cell.raw && data.cell.raw !== "ok") {
-            data.cell.styles.textColor = [161, 98, 7];
-            data.cell.styles.fontStyle = "bold";
+          if (data.column.index === 12 && data.cell.raw && data.cell.raw !== "conforme") {
+            data.cell.styles.textColor = hasWarnFlag ? [161, 98, 7] : [100, 116, 139];
+            data.cell.styles.fontStyle = hasWarnFlag ? "bold" : "normal";
           }
         }
       },
