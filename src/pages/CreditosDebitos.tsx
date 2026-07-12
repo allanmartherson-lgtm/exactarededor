@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter, Download, FileSpreadsheet, FileText, Rocket } from "lucide-react";
+import { Trash2, Plus, Pencil, Scale, Receipt, ChevronDown, ChevronRight, Search, X, Filter, Download, FileSpreadsheet, FileText, Rocket, History } from "lucide-react";
 import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -21,6 +21,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { useActiveHospitalId, useHospital } from "@/contexts/HospitalContext";
 import { buildReportData, generateCreditosDebitosPdf, generateCreditosDebitosXlsx, downloadBlob, type ReportFiltersSummary } from "@/lib/creditosDebitosReport";
+import { logDeductionEvent, logDeductionEvents } from "@/lib/deductionAudit";
+import { DeductionAuditDialog } from "@/components/DeductionAuditDialog";
 
 type Company = { id: string; name: string };
 type Adjustment = {
