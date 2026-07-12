@@ -913,7 +913,19 @@ export default function CreditosDebitos() {
       void loadAll();
     } catch (err: any) {
       console.error("[executeApplyCurrentLote]", err);
-      toast.error(err?.message ?? "Falha ao aplicar no lote escolhido.");
+      setResultDialog({
+        open: true,
+        outcomes: [{
+          pj_id: scopePjId ?? "__scope__",
+          pj_name: scopePjId
+            ? (emAndamento.find(g => g.company_id === scopePjId)?._company_name ?? "PJ")
+            : "Aplicação em massa",
+          payment_label: "—",
+          ok: false, applied: 0, already: 0, postponed: 0, partial: 0, capacidade: null,
+          error: err?.message ?? "Falha ao aplicar no lote escolhido.",
+          hint: "Verifique sua conexão e permissões no hospital ativo. Se persistir, recarregue a página e tente novamente.",
+        }],
+      });
     } finally {
       setApplyingCurrent(null);
     }
