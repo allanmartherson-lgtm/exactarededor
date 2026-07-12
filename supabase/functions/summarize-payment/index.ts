@@ -352,38 +352,60 @@ REGRAS:
 
     const systemPrompt = mode === "director" ? directorPrompt : generalPrompt;
 
-    const aiResp = await anthropicFetch({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1500,
-      system: systemPrompt,
-      messages: [
-        { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
-      ],
-      tools: [{
-        name: "executive_summary",
-        description: "Resumo executivo do lote de pagamento",
-        input_schema: {
-          type: "object",
-          properties: {
-            headline: { type: "string", description: "Frase-resumo do lote" },
-            bullets: {
-              type: "array",
-              items: { type: "string" },
-              description: "3 a 5 bullets com os achados-chave",
-            },
-            risk_level: {
-              type: "string",
-              enum: ["baixo", "medio", "alto", "critico"],
-            },
-            recommended_action: { type: "string" },
-          },
-          required: ["headline", "bullets", "risk_level", "recommended_action"],
-          additionalProperties: false,
-        },
-      }],
-      tool_choice: { type: "tool", name: "executive_summary" },
-    });
+    // Extrator tolerante — remove markdown, vírgulas finais, control chars,
+    // e tenta múltiplas fatias caso o modelo devolva texto antes/depois do JSON.
+    const extractJsonObject = (raw: string): ExecutiveSummary | null => {
+      if (!raw) return null;
+      let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+      const start = cleaned.search(/[\{\[]/);
+      const end = cleaned.lastIndexOf("}");
+      if (start === -1 || end <= start) return null;
+      cleaned = cleaned.slice(start, end + 1);
+      const attempts = [
+        cleaned,
+        cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]"),
+        cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, " "),
+      ];
+      for (const attempt of attempts) {
+        try {
+          const parsed = JSON.parse(attempt);
+          if (parsed && typeof parsed === "object" && parsed.headline) return parsed as ExecutiveSummary;
+        } catch { /* try next */ }
+      }
+      return null;
+    };
 
+    const callAi = (opts: { forceJsonText?: boolean } = {}) =>
+      anthropicFetch({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2500,
+        system: opts.forceJsonText
+          ? `${systemPrompt}\n\nRESPONDA APENAS com um objeto JSON válido (sem markdown, sem texto extra) com as chaves: headline (string), bullets (array de strings), risk_level ("baixo"|"medio"|"alto"|"critico"), recommended_action (string).`
+          : systemPrompt,
+        messages: [
+          { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
+        ],
+        ...(opts.forceJsonText ? {} : {
+          tools: [{
+            name: "executive_summary",
+            description: "Resumo executivo do lote de pagamento",
+            input_schema: {
+              type: "object",
+              properties: {
+                headline: { type: "string", description: "Frase-resumo do lote" },
+                bullets: { type: "array", items: { type: "string" }, description: "3 a 5 bullets" },
+                risk_level: { type: "string", enum: ["baixo", "medio", "alto", "critico"] },
+                recommended_action: { type: "string" },
+              },
+              required: ["headline", "bullets", "risk_level", "recommended_action"],
+              additionalProperties: false,
+            },
+          }],
+          tool_choice: { type: "tool", name: "executive_summary" },
+        }),
+      });
+
+    let aiResp = await callAi();
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) {
@@ -400,45 +422,49 @@ REGRAS:
       }
       const t = await aiResp.text();
       console.error("summarize-payment AI error", aiResp.status, t);
-      // Anthropic devolve 400 "credit balance too low" quando a conta zera —
-      // trata como créditos esgotados para o cliente lidar como fallback.
       if (/credit balance is too low/i.test(t)) {
         return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace.", fallback: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Qualquer outra falha upstream: devolve 200 + fallback para NÃO derrubar a UI.
       return new Response(JSON.stringify({ error: "Falha ao gerar resumo", fallback: true, upstream_status: aiResp.status }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiData = await aiResp.json();
-    const tc = aiData.content?.find((b: { type: string }) => b.type === "tool_use");
-    let summary = (tc?.input ?? null) as ExecutiveSummary | null;
-    // Fallback: se o modelo (ex.: gateway OpenAI de fallback) não emitiu tool_use
-    // mas devolveu texto, tenta extrair JSON do bloco de texto.
+    let aiData = await aiResp.json();
+    const pickSummary = (data: any): ExecutiveSummary | null => {
+      const blocks = Array.isArray(data?.content) ? data.content : [];
+      const toolBlock = blocks.find((b: any) => b?.type === "tool_use" && b?.input?.headline);
+      if (toolBlock?.input) return toolBlock.input as ExecutiveSummary;
+      const textBlock = blocks.find((b: any) => b?.type === "text" && typeof b?.text === "string");
+      if (textBlock?.text) return extractJsonObject(String(textBlock.text));
+      if (typeof data?.completion === "string") return extractJsonObject(data.completion);
+      return null;
+    };
+    let summary = pickSummary(aiData);
+
+    // Retry único em modo texto/JSON puro se tool_use falhou (fallback do gateway p/ OpenAI, truncamento, etc.)
     if (!summary) {
-      const textBlock = aiData.content?.find((b: { type: string; text?: string }) => b.type === "text");
-      const raw = String(textBlock?.text ?? "").trim();
-      if (raw) {
-        const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "");
-        const start = cleaned.search(/[\{\[]/);
-        const end = cleaned.lastIndexOf("}");
-        if (start !== -1 && end > start) {
-          try {
-            const parsed = JSON.parse(cleaned.slice(start, end + 1));
-            if (parsed && typeof parsed === "object" && parsed.headline) {
-              summary = parsed as ExecutiveSummary;
-            }
-          } catch { /* segue para fallback */ }
-        }
+      console.warn("summarize-payment: tentativa 1 sem estrutura — retry em modo JSON puro. Stop reason:", aiData?.stop_reason);
+      const retryResp = await callAi({ forceJsonText: true });
+      if (retryResp.ok) {
+        aiData = await retryResp.json();
+        summary = pickSummary(aiData);
+      } else {
+        console.error("summarize-payment retry AI error", retryResp.status, await retryResp.text());
       }
     }
+
     if (!summary) {
-      console.error("summarize-payment: sem tool_use e sem JSON parseável", JSON.stringify(aiData).slice(0, 500));
+      console.error(
+        "summarize-payment: sem estrutura após retry.",
+        "stop_reason=", aiData?.stop_reason,
+        "content_types=", (aiData?.content ?? []).map((b: any) => b?.type),
+        "raw=", JSON.stringify(aiData).slice(0, 1000),
+      );
       // Não derruba a UI — devolve 200 + fallback para o cliente esconder o card.
       return new Response(
         JSON.stringify({ error: "IA não retornou estrutura esperada", fallback: true }),
