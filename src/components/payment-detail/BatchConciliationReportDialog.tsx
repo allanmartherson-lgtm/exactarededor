@@ -310,10 +310,10 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[min(1200px,96vw)] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Conciliação do lote — comparativo por PJ</DialogTitle>
+          <DialogTitle>Panorama do lote — comparativo financeiro por PJ</DialogTitle>
           <p className="text-sm text-muted-foreground">
             Compara <strong>pedido de nota</strong> (NF), <strong>snapshot financeiro</strong> e{" "}
-            <strong>aplicações efetivas</strong> (glosas lançadas por status).
+            <strong>glosas efetivamente aplicadas</strong> por status. Não confundir com a conciliação de produção (base hospital × Exacta).
           </p>
         </DialogHeader>
 
