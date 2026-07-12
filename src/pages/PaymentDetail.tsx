@@ -433,6 +433,11 @@ const PaymentDetail = () => {
     appliedDebits: false,
     appliedCredits: false,
   });
+  type FinancialFlags = {
+    proposedGlosas: boolean;
+    appliedDebits: boolean;
+    appliedCredits: boolean;
+  };
   const [financialFlagsByCompany, setFinancialFlagsByCompany] = useState<Record<string, {
     proposedGlosas: boolean;
     appliedDebits: boolean;
@@ -444,28 +449,48 @@ const PaymentDetail = () => {
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
+    const emptyFinancialFlags = (): FinancialFlags => ({ proposedGlosas: false, appliedDebits: false, appliedCredits: false });
     const loadFinancialFlags = async () => {
-      const { data } = await (supabase as any)
+      const { data: applications } = await (supabase as any)
         .from("company_adjustment_applications")
         .select("company_id,status,reverted_at,company_financial_adjustments(company_id,tipo)")
         .eq("payment_id", id)
         .is("reverted_at", null);
+      const { data: glosaDebts } = await (supabase as any)
+        .from("glosa_debts")
+        .select("company_id,status,resolution_status,ignored_at")
+        .or(`origem_payment_id.eq.${id},target_payment_id.eq.${id},last_payment_id.eq.${id}`)
+        .is("ignored_at", null);
       if (cancelled) return;
-      const next: Record<string, { proposedGlosas: boolean; appliedDebits: boolean; appliedCredits: boolean }> = {};
-      ((data ?? []) as Array<{
+      const next: Record<string, FinancialFlags> = {};
+      ((applications ?? []) as Array<{
         company_id: string | null;
         status: string | null;
         company_financial_adjustments?: { company_id?: string | null; tipo?: string | null } | null;
       }>).forEach((row) => {
         const companyId = row.company_id ?? row.company_financial_adjustments?.company_id ?? null;
         if (!companyId) return;
-        const flags = next[companyId] ?? { proposedGlosas: false, appliedDebits: false, appliedCredits: false };
+        const flags = next[companyId] ?? emptyFinancialFlags();
         const status = String(row.status ?? "");
         const tipo = String(row.company_financial_adjustments?.tipo ?? "");
         if (status === "proposto") flags.proposedGlosas = true;
         if (status === "confirmado" && ["debito", "glosa_parcelada", "complemento_retroativo", "acordo"].includes(tipo)) flags.appliedDebits = true;
         if (status === "confirmado" && tipo === "credito") flags.appliedCredits = true;
         next[companyId] = flags;
+      });
+      ((glosaDebts ?? []) as Array<{
+        company_id: string | null;
+        status: string | null;
+        resolution_status: string | null;
+      }>).forEach((row) => {
+        if (!row.company_id) return;
+        const status = String(row.status ?? "");
+        const resolution = String(row.resolution_status ?? "");
+        if (status !== "ativo" && status !== "proposto") return;
+        if (["quitada", "cancelada", "ignorada"].includes(resolution)) return;
+        const flags = next[row.company_id] ?? emptyFinancialFlags();
+        flags.proposedGlosas = true;
+        next[row.company_id] = flags;
       });
       setFinancialFlagsByCompany(next);
     };
@@ -4656,7 +4681,7 @@ const PaymentDetail = () => {
                     onCheckedChange={(checked) => setFinancialFilters((prev) => ({ ...prev, proposedGlosas: checked === true }))}
                     className="text-xs"
                   >
-                    Com glosas propostas
+                    Com glosas em aberto
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={financialFilters.appliedDebits}
