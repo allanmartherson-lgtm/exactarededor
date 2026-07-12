@@ -11425,10 +11425,19 @@ export type Database = {
         Args: { _item_id: string; _justification: string }
         Returns: Json
       }
-      admin_clear_company_items: {
-        Args: { _company_name: string; _payment_id: string }
-        Returns: number
-      }
+      admin_clear_company_items:
+        | {
+            Args: { _company_name: string; _payment_id: string }
+            Returns: number
+          }
+        | {
+            Args: {
+              _actor_id?: string
+              _company_name: string
+              _payment_id: string
+            }
+            Returns: number
+          }
       admin_delete_payment: {
         Args: { _payment_id: string }
         Returns: undefined

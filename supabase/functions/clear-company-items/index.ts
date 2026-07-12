@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
   const { data: deleted, error: rpcErr } = await admin.rpc("admin_clear_company_items", {
     _payment_id: paymentId,
     _company_name: companyName,
+    _actor_id: userId,
   });
   if (rpcErr) {
     console.error("[clear-company-items] rpc falhou:", rpcErr.message);
