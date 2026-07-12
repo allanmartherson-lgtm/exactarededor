@@ -44,6 +44,10 @@ const ACTIVE_STATUSES = new Set([
   "confirmado",
   "partial",
   "pending_manual_resolution",
+  // "postponed": a edge já processou o débito neste lote e adiou por saldo
+  // insuficiente. Reinvocar produziria o mesmo resultado — tratamos como
+  // "já aplicado" para dedup (economia de créditos + botão coerente).
+  "postponed",
 ]);
 
 export function debtAppliedAt(
