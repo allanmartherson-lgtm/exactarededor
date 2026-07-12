@@ -1076,6 +1076,22 @@ export default function CreditosDebitos() {
         supabase.functions.invoke("apply-company-deductions", { body: p })
           .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message));
       }
+      void logDeductionEvents(successIds
+        .map(id => {
+          const g = targets.find(t => t.id === id);
+          const payId = g ? globalLoteByPj[g.company_id] : null;
+          if (!g || !payId) return null;
+          return {
+            hospital_id: activeHospitalId,
+            payment_id: payId,
+            company_id: g.company_id,
+            debt_id: g.id,
+            action: "applied" as const,
+            reason: `Confirmação global em massa (${globalParc}×)`,
+            metadata: { source: "confirmGlobalMass", parcelas: globalParc },
+          };
+        })
+        .filter(Boolean) as any);
     }
 
   };
