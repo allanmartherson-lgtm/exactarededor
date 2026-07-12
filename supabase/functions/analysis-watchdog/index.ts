@@ -108,12 +108,13 @@ Deno.serve(async (req) => {
         // `ai-retry-worker` retome sozinho — sem reenfileirar, elas ficam
         // presas em `em_analise_ia` até intervenção manual.
         let enqueued = 0;
-        if (missing.length > 0) {
+        const jobHospitalId = (job as any).hospital_id as string | null;
+        if (missing.length > 0 && jobHospitalId) {
           const nowIso = new Date().toISOString();
           const rows = missing.map((name) => ({
             payment_id: job.payment_id,
             company_name: name,
-            hospital_id: (job as any).hospital_id ?? null,
+            hospital_id: jobHospitalId,
             status: "pending",
             attempts: 0,
             last_error: "watchdog: worker nunca reportou — reenfileirado",
@@ -129,6 +130,8 @@ Deno.serve(async (req) => {
             .upsert(rows, { onConflict: "payment_id,company_name" });
           if (enqErr) console.error("[analysis-watchdog] enqueue ai_retry_queue falhou", enqErr);
           else enqueued = rows.length;
+        } else if (missing.length > 0 && !jobHospitalId) {
+          console.error(`[analysis-watchdog] job ${job.id} sem hospital_id — não reenfileirado`);
         }
 
         try {
