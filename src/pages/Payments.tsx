@@ -378,6 +378,7 @@ const Payments = () => {
     view, sortBy, colSort,
     divergenceFilter, questionedFilter,
     poolFilter, importModeFilter, emptyOnly,
+    hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts,
     archivedView,
     showConcluded,
   ]);
