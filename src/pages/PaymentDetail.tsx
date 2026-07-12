@@ -502,6 +502,21 @@ const PaymentDetail = () => {
         { event: "*", schema: "public", table: "company_adjustment_applications", filter: `payment_id=eq.${id}` },
         () => loadFinancialFlags(),
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "glosa_debts", filter: `origem_payment_id=eq.${id}` },
+        () => loadFinancialFlags(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "glosa_debts", filter: `target_payment_id=eq.${id}` },
+        () => loadFinancialFlags(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "glosa_debts", filter: `last_payment_id=eq.${id}` },
+        () => loadFinancialFlags(),
+      )
       .subscribe();
     return () => {
       cancelled = true;
