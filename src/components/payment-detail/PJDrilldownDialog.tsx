@@ -266,13 +266,13 @@ export function PJDrilldownDialog({ open, onOpenChange, paymentId, companyId, co
 
                 {snapshot && (
                   <div className="rounded border p-3 text-xs text-muted-foreground">
-                    Fórmula do snapshot: <strong>Líquido = Bruto − Glosas − Débitos + Créditos</strong> ={" "}
+                    Como o líquido é calculado: <strong>Líquido = Bruto − Glosas − Débitos + Créditos</strong> ={" "}
                     {formatCurrency(snapshot.bruto)} − {formatCurrency(snapshot.glosas)} −{" "}
                     {formatCurrency(snapshot.debitos)} + {formatCurrency(snapshot.creditos)} ={" "}
                     <strong>{formatCurrency(snapshot.liquido)}</strong>
                     {Math.abs(snapshot.glosas - apps.filter((a) => a.status === "confirmado").reduce((s, a) => s + a.valor_aplicado, 0)) > 0.01 && (
                       <div className="text-warning mt-1">
-                        ⚠ Glosas do snapshot ({formatCurrency(snapshot.glosas)}) ≠ soma das aplicações confirmadas (
+                        ⚠ Glosas apuradas ({formatCurrency(snapshot.glosas)}) ≠ soma das aplicações confirmadas (
                         {formatCurrency(
                           apps.filter((a) => a.status === "confirmado").reduce((s, a) => s + a.valor_aplicado, 0),
                         )}
