@@ -91,6 +91,15 @@ Deno.serve(async (req) => {
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Garante que a linha de snapshot financeiro (PCF) exista para esta PJ neste lote.
+    // Sem ela, o trigger de recompute rodava um UPDATE que não atingia nenhuma linha e
+    // o Panorama do lote mostrava "Apurado glosas = R$ 0,00" mesmo com aplicações válidas.
+    await supabase.rpc("ensure_payment_company_financials_row", {
+      p_payment_id: payment_id,
+      p_company_id: company_id,
+    });
+
+
     // ============ DÉBITOS (company_financial_adjustments) ============
     // Carrega payment_model_id deste lote para filtrar ajustes restritos a modelos específicos.
     const lotePaymentModelId: string | null = (paymentStatusRow?.payment_model_id as string) ?? null;
