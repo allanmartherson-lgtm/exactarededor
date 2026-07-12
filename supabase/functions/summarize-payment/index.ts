@@ -399,7 +399,7 @@ REGRAS:
     const callAi = (opts: { forceJsonText?: boolean } = {}) =>
       anthropicFetch({
         model: "claude-sonnet-4-5",
-        max_tokens: 2500,
+        max_tokens: 4000,
         system: opts.forceJsonText
           ? `${systemPrompt}\n\nRESPONDA APENAS com um objeto JSON válido (sem markdown, sem texto extra) com as chaves: headline (string), bullets (array de strings), risk_level ("baixo"|"medio"|"alto"|"critico"), recommended_action (string).`
           : systemPrompt,
