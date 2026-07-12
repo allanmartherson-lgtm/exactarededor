@@ -509,18 +509,28 @@ export function PaymentBatchActionsFooter({
               <li>⏳ {pendencias.pendentes} item(ns) ainda aguardando análise da IA</li>
             )}
           </ul>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGateOpen(false)}>
-              Revisar antes de enviar
-            </Button>
+          <p className="text-xs text-muted-foreground">
+            Clique em <strong>Revisar itens sinalizados</strong> para filtrar o lote e ver exatamente quais itens precisam de atenção antes de enviar.
+          </p>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button
               variant="destructive"
               onClick={async () => {
                 setGateOpen(false);
                 await proceedApprove();
               }}
+              className="w-full sm:w-auto"
             >
               Enviar mesmo assim
+            </Button>
+            <Button
+              onClick={() => {
+                setGateOpen(false);
+                onReviewPendencias?.();
+              }}
+              className="w-full sm:w-auto"
+            >
+              Revisar itens sinalizados
             </Button>
           </DialogFooter>
         </DialogContent>
