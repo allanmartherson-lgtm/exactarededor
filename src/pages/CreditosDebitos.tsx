@@ -464,6 +464,15 @@ export default function CreditosDebitos() {
       supabase.functions.invoke("apply-company-deductions", {
         body: { payment_id: lotePick, company_id: editingGlosa.company_id },
       }).catch((err) => console.warn("[saveGlosa] apply-company-deductions falhou:", err?.message));
+      void logDeductionEvent({
+        hospital_id: activeHospitalId,
+        payment_id: lotePick,
+        company_id: editingGlosa.company_id,
+        debt_id: editingGlosa.id,
+        action: "applied",
+        reason: editingGlosa.confirmed_at ? "Reparcelamento — dispara aplicação no lote-alvo" : "Confirmação de débito — dispara aplicação no lote-alvo",
+        metadata: { parcelas: glosaParc, total: editingGlosa.total_debt, source: "saveGlosa" },
+      });
     }
     toast.success(editingGlosa.confirmed_at
       ? `Reparcelado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
