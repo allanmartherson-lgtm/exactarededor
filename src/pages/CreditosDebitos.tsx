@@ -626,21 +626,39 @@ export default function CreditosDebitos() {
       const byPj = new Map<string, GlosaDebt[]>();
       scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
       const pjIds = Array.from(byPj.keys());
-      const { data: openPays, error: payErr } = await (supabase as any)
+      // payments não tem company_id — usamos payment_company_groups como ponte.
+      const { data: pcgRows, error: pcgErr } = await (supabase as any)
+        .from("payment_company_groups")
+        .select("payment_id, company_id")
+        .in("company_id", pjIds);
+      if (pcgErr) throw pcgErr;
+      const payIds = Array.from(new Set(((pcgRows as any[]) ?? []).map(r => r.payment_id)));
+      const { data: openPays, error: payErr } = payIds.length ? await (supabase as any)
         .from("payments")
-        .select("id, company_id, reference, competence_month, status")
-        .in("company_id", pjIds)
+        .select("id, reference, competence_month, status")
+        .in("id", payIds)
         .in("status", OPEN_PAYMENT_STATUSES as unknown as string[])
         .eq("hospital_id", activeHospitalId)
-        .order("competence_month", { ascending: false });
+        .order("competence_month", { ascending: false }) : { data: [], error: null };
       if (payErr) throw payErr;
+      const payById = new Map<string, any>();
+      ((openPays as any[]) ?? []).forEach(p => payById.set(p.id, p));
+      // Ordena pares PCG pela ordem dos lotes abertos (mais recente primeiro).
+      const orderedPairs = ((pcgRows as any[]) ?? [])
+        .filter(r => payById.has(r.payment_id))
+        .sort((a, b) => {
+          const ca = payById.get(a.payment_id)?.competence_month ?? "";
+          const cb = payById.get(b.payment_id)?.competence_month ?? "";
+          return cb.localeCompare(ca);
+        });
       const currentByPj = new Map<string, string>();
       const labelPatch: Record<string, string> = {};
-      ((openPays as any[]) ?? []).forEach(p => {
-        if (!currentByPj.has(p.company_id)) {
-          currentByPj.set(p.company_id, p.id);
-          const comp = p.competence_month ? (() => { const [y, m] = p.competence_month.split("-"); return `${m}/${y}`; })() : "";
-          labelPatch[p.id] = `${p.reference ?? p.id.slice(0, 8)}${comp ? ` · ${comp}` : ""}`;
+      orderedPairs.forEach(r => {
+        if (!currentByPj.has(r.company_id)) {
+          currentByPj.set(r.company_id, r.payment_id);
+          const p = payById.get(r.payment_id);
+          const comp = p?.competence_month ? (() => { const [y, m] = p.competence_month.split("-"); return `${m}/${y}`; })() : "";
+          labelPatch[r.payment_id] = `${p?.reference ?? r.payment_id.slice(0, 8)}${comp ? ` · ${comp}` : ""}`;
         }
       });
 
