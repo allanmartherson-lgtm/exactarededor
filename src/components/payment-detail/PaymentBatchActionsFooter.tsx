@@ -33,6 +33,9 @@ interface Props {
   actorRole: "validador" | "diretor";
   items?: Array<{ ai_status: string; validation_findings?: unknown }>;
   onDone: () => void | Promise<void>;
+  /** Chamado quando o usuário clica em "Revisar antes de enviar" no gate de
+   *  pendências. O container ajusta filtros para exibir os itens sinalizados. */
+  onReviewPendencias?: () => void;
 }
 
 const PENDING_GROUP_STATUSES = new Set<string>(["em_questionamento", "devolvido_analista"]);
@@ -50,6 +53,7 @@ export function PaymentBatchActionsFooter({
   actorRole,
   items,
   onDone,
+  onReviewPendencias,
 }: Props) {
   const navigate = useNavigate();
   const [questionOpen, setQuestionOpen] = useState(false);
@@ -273,15 +277,15 @@ export function PaymentBatchActionsFooter({
               ? "Carregando empresas do lote…"
               : `Ações do lote — ${approvable.length} aprovável(is), ${pending.length} pendente(s).`}
           </span>
-          <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full md:w-auto">
-            <Button variant="outline" onClick={openQuestion} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0 col-span-2 md:col-span-1">
-              <MessageCircle className="h-4 w-4 mr-2" /> Questionar
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            <Button variant="outline" onClick={openQuestion} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0 justify-center whitespace-normal text-center leading-tight">
+              <MessageCircle className="h-4 w-4 mr-2 shrink-0" /> Questionar
             </Button>
-            <Button variant="outline" onClick={openReturn} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0">
-              <Undo2 className="h-4 w-4 mr-2" /> Devolver
+            <Button variant="outline" onClick={openReturn} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0 justify-center whitespace-normal text-center leading-tight">
+              <Undo2 className="h-4 w-4 mr-2 shrink-0" /> Devolver
             </Button>
-            <Button onClick={handleApproveClick} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0">
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+            <Button onClick={handleApproveClick} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0 justify-center whitespace-normal text-center leading-tight px-3">
+              <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
               {actorRole === "diretor" ? "Aprovar" : "Enviar p/ aprovação do diretor"}
             </Button>
             <Button
@@ -289,10 +293,10 @@ export function PaymentBatchActionsFooter({
               size="sm"
               onClick={() => setExternalOpen(true)}
               disabled={busy}
-              className="w-full md:w-auto min-h-[44px] md:min-h-0 text-xs text-muted-foreground hover:text-foreground col-span-2 md:col-span-1"
+              className="w-full md:w-auto min-h-[44px] md:min-h-0 text-xs text-muted-foreground hover:text-foreground justify-center whitespace-normal text-center leading-tight"
               title={`Use quando a ${actorRole === "diretor" ? "aprovação" : "validação"} aconteceu fora do sistema (e-mail, WhatsApp).`}
             >
-              <MailCheck className="h-4 w-4 mr-2" />
+              <MailCheck className="h-4 w-4 mr-2 shrink-0" />
               Registrar {actorRole === "diretor" ? "aprovação" : "validação"} externa
             </Button>
           </div>
@@ -505,18 +509,28 @@ export function PaymentBatchActionsFooter({
               <li>⏳ {pendencias.pendentes} item(ns) ainda aguardando análise da IA</li>
             )}
           </ul>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGateOpen(false)}>
-              Revisar antes de enviar
-            </Button>
+          <p className="text-xs text-muted-foreground">
+            Clique em <strong>Revisar itens sinalizados</strong> para filtrar o lote e ver exatamente quais itens precisam de atenção antes de enviar.
+          </p>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button
               variant="destructive"
               onClick={async () => {
                 setGateOpen(false);
                 await proceedApprove();
               }}
+              className="w-full sm:w-auto"
             >
               Enviar mesmo assim
+            </Button>
+            <Button
+              onClick={() => {
+                setGateOpen(false);
+                onReviewPendencias?.();
+              }}
+              className="w-full sm:w-auto"
+            >
+              Revisar itens sinalizados
             </Button>
           </DialogFooter>
         </DialogContent>
