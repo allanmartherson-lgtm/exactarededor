@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       origin,
       justification: body.justification ?? null,
       marked_by: user.id,
-      hospital_id: payment?.hospital_id ?? null,
+      hospital_id: payment.hospital_id,
       approved_by: user.id,
       approved_at: new Date().toISOString(),
     };
