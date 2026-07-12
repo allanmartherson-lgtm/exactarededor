@@ -2597,6 +2597,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const obsStatusTo = isConfeccao ? "rascunho" : "revisao_analista";
     await supabase.from("payment_observations").insert({
       payment_id,
+      hospital_id: __paymentHospitalId,
       author_type: "ia",
       message: `${summary} (${alerts} alertas, ${blocks} reprovações)${consolidatedDiff}`,
       status_from: obsTransition ? "em_analise_ia" : null,
