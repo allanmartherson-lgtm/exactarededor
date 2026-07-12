@@ -201,6 +201,10 @@ type PersistedPaymentsState = Partial<{
   poolFilter: string;
   importModeFilter: "all" | "normal" | "historico";
   emptyOnly: boolean;
+  hasProposedGlosas: boolean;
+  hasAppliedDebits: boolean;
+  hasAppliedCredits: boolean;
+  hasAlerts: boolean;
   archivedView: boolean;
   showConcluded: boolean;
 }>;
@@ -327,6 +331,10 @@ const Payments = () => {
   const [poolFilter, setPoolFilter] = useState<string>(persisted.poolFilter ?? "all");
   const [importModeFilter, setImportModeFilter] = useState<"all" | "normal" | "historico">(persisted.importModeFilter ?? "all");
   const [emptyOnly, setEmptyOnly] = useState<boolean>(persisted.emptyOnly ?? false);
+  const [hasProposedGlosas, setHasProposedGlosas] = useState<boolean>(persisted.hasProposedGlosas ?? false);
+  const [hasAppliedDebits, setHasAppliedDebits] = useState<boolean>(persisted.hasAppliedDebits ?? false);
+  const [hasAppliedCredits, setHasAppliedCredits] = useState<boolean>(persisted.hasAppliedCredits ?? false);
+  const [hasAlerts, setHasAlerts] = useState<boolean>(persisted.hasAlerts ?? false);
   const [poolOptions, setPoolOptions] = useState<Array<{ id: string; nome: string }>>([]);
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
@@ -354,6 +362,7 @@ const Payments = () => {
       view, sortBy, colSort,
       divergenceFilter, questionedFilter,
       poolFilter, importModeFilter, emptyOnly,
+      hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts,
       archivedView,
       showConcluded,
     };
@@ -369,6 +378,7 @@ const Payments = () => {
     view, sortBy, colSort,
     divergenceFilter, questionedFilter,
     poolFilter, importModeFilter, emptyOnly,
+    hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts,
     archivedView,
     showConcluded,
   ]);
@@ -530,10 +540,15 @@ const Payments = () => {
     if (poolFilter !== "all") f.pool_ids = [poolFilter];
     if (importModeFilter !== "all") f.import_modes = [importModeFilter];
     if (emptyOnly) f.only_empty = true;
+    if (hasProposedGlosas) f.has_proposed_glosas = true;
+    if (hasAppliedDebits) f.has_applied_debits = true;
+    if (hasAppliedCredits) f.has_applied_credits = true;
+    if (hasAlerts) f.has_alerts = true;
     return f;
   }, [serverStatuses, typeFilter, itemTypeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
-      divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly]);
+      divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly,
+      hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts]);
 
   const load = useCallback(async () => {
     // Enquanto o header ainda está sincronizando a troca de hospital, evita
@@ -1278,6 +1293,10 @@ const Payments = () => {
             poolFilter !== "all",
             importModeFilter !== "all",
             emptyOnly,
+            hasProposedGlosas,
+            hasAppliedDebits,
+            hasAppliedCredits,
+            hasAlerts,
           ].filter(Boolean).length;
 
           const advancedFilters = (
@@ -1405,6 +1424,31 @@ const Payments = () => {
                   Apenas lotes vazios (sem itens)
                 </label>
               </div>
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Financeiro do lote</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasProposedGlosas} onChange={(e) => setHasProposedGlosas(e.target.checked)} />
+                    Com glosas propostas
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasAppliedDebits} onChange={(e) => setHasAppliedDebits(e.target.checked)} />
+                    Com débitos aplicados
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasAppliedCredits} onChange={(e) => setHasAppliedCredits(e.target.checked)} />
+                    Com créditos aplicados
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-2 py-1.5 rounded hover:bg-accent">
+                    <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary"
+                      checked={hasAlerts} onChange={(e) => setHasAlerts(e.target.checked)} />
+                    Com alertas (divergência/erro)
+                  </label>
+                </div>
+              </div>
             </div>
           );
 
@@ -1522,6 +1566,7 @@ const Payments = () => {
                           setPoolFilter("all");
                           setImportModeFilter("all");
                           setEmptyOnly(false);
+                          setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                           const next = new URLSearchParams(searchParams);
                           next.delete("status");
                           setSearchParams(next, { replace: true });
@@ -1567,6 +1612,7 @@ const Payments = () => {
                       setPoolFilter("all");
                       setImportModeFilter("all");
                       setEmptyOnly(false);
+                      setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                       const next = new URLSearchParams(searchParams);
                       next.delete("status");
                       next.delete("delayed");
@@ -1616,13 +1662,14 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || itemTypeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly) && (
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || itemTypeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
                   setAnalystFilter("all"); setTypeFilter("all"); setItemTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
+                  setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                   setSearchParams(new URLSearchParams(), { replace: true });
                 }}>
                   <X className="h-4 w-4 mr-1" /> Limpar
