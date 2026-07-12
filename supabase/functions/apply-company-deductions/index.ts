@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     ]);
     const { data: paymentStatusRow } = await supabase
       .from("payments")
-      .select("status, payment_model_id")
+      .select("status, payment_model_id, hospital_id, competence_month")
       .eq("id", payment_id)
       .maybeSingle();
     const paymentCurrentStatus: string | null = (paymentStatusRow?.status as string) ?? null;
@@ -78,6 +78,17 @@ Deno.serve(async (req) => {
         skipped: true,
         reason: `payment_status=${paymentCurrentStatus} — lote finalizado, deduções não são propostas automaticamente`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // hospital_id é NOT NULL em company_adjustment_applications e glosa_payment_applications
+    // (isolamento multi-tenant). Sem ele, todos os inserts abaixo falhariam silenciosamente.
+    const paymentHospitalId: string | null = (paymentStatusRow?.hospital_id as string) ?? null;
+    if (!paymentHospitalId) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "payment_hospital_missing",
+        message: "Lote sem hospital_id — impossível gravar deduções (viola isolamento multi-tenant).",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ============ DÉBITOS (company_financial_adjustments) ============
