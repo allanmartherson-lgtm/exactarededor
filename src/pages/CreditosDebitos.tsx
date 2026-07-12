@@ -151,7 +151,7 @@ export default function CreditosDebitos() {
   const [appsByAdj, setAppsByAdj] = useState<Record<string, AdjApplication[]>>({});
   // Aplicações de glosa por debt_id → usado para sinalizar "já aplicado neste lote"
   // e evitar reinvocar apply-company-deductions em (payment_id, company_id) já processados.
-  const [glosaAppsByDebt, setGlosaAppsByDebt] = useState<Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]>>({});
+  const [glosaAppsByDebt, setGlosaAppsByDebt] = useState<Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null; postpone_reason?: string | null }[]>>({});
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
