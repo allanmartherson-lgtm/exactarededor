@@ -35,6 +35,8 @@ const OAUTH_MESSAGE_ORIGINS = new Set([
 const OAUTH_DIAG_STORAGE_KEY = "exacta-oauth-diag";
 
 type DiagEntry = { t: number; label: string; data?: unknown };
+type OAuthBridgeResult = "session" | "timeout";
+type OAuthTokenPair = { access_token: string; refresh_token: string };
 // Sink usado tanto dentro do componente quanto por helpers de módulo.
 let diagPush: (label: string, data?: unknown) => void = () => {};
 const isOAuthDiagEnabled = () => {
@@ -88,15 +90,51 @@ const waitForSessionAfterGoogle = async (deadline: number) => {
   return null;
 };
 
+const waitForOAuthCompletion = async (deadline: number, bridgePromise: Promise<OAuthBridgeResult>) => {
+  let ticks = 0;
+  while (Date.now() < deadline) {
+    ticks++;
+    const { data, error } = await supabase.auth.getSession();
+    diagPush("oauth.wait.getSession", { ticks, hasSession: !!data.session, userId: data.session?.user?.id, error: error?.message });
+    if (data.session?.user) return data.session;
+
+    const bridgeResult = await Promise.race<OAuthBridgeResult | "tick">([
+      bridgePromise,
+      new Promise<"tick">((resolve) => window.setTimeout(() => resolve("tick"), GOOGLE_SESSION_POLL_MS)),
+    ]);
+    diagPush("oauth.wait.tick", { ticks, bridgeResult });
+    if (bridgeResult === "session") {
+      const { data: afterBridge, error: afterBridgeError } = await supabase.auth.getSession();
+      diagPush("oauth.wait.afterBridge", { hasSession: !!afterBridge.session, userId: afterBridge.session?.user?.id, error: afterBridgeError?.message });
+      if (afterBridge.session?.user) return afterBridge.session;
+    }
+    if (bridgeResult === "timeout") return null;
+  }
+  return null;
+};
+
 const isTrustedOAuthMessageOrigin = (origin: string) => origin === window.location.origin || OAUTH_MESSAGE_ORIGINS.has(origin);
+
+const extractOAuthTokensFromMessage = (data: unknown): OAuthTokenPair | null => {
+  if (!data || typeof data !== "object") return null;
+  const root = data as Record<string, unknown>;
+  const response = root.response && typeof root.response === "object" ? root.response as Record<string, unknown> : null;
+  const responseTokens = response?.tokens && typeof response.tokens === "object" ? response.tokens as Record<string, unknown> : null;
+  const rootTokens = root.tokens && typeof root.tokens === "object" ? root.tokens as Record<string, unknown> : null;
+
+  const accessToken = response?.access_token ?? responseTokens?.access_token ?? root.access_token ?? rootTokens?.access_token;
+  const refreshToken = response?.refresh_token ?? responseTokens?.refresh_token ?? root.refresh_token ?? rootTokens?.refresh_token;
+  if (typeof accessToken !== "string" || typeof refreshToken !== "string") return null;
+  return { access_token: accessToken, refresh_token: refreshToken };
+};
 
 const startOAuthWebMessageBridge = () => {
   let done = false;
   let timeoutId: number | undefined;
-  let resolveBridge!: (value: "session" | "timeout") => void;
-  const promise = new Promise<"session" | "timeout">((resolve) => { resolveBridge = resolve; });
+  let resolveBridge!: (value: OAuthBridgeResult) => void;
+  const promise = new Promise<OAuthBridgeResult>((resolve) => { resolveBridge = resolve; });
 
-  const finish = (value: "session" | "timeout") => {
+  const finish = (value: OAuthBridgeResult) => {
     if (done) return;
     done = true;
     window.removeEventListener("message", onMessage);
@@ -107,20 +145,24 @@ const startOAuthWebMessageBridge = () => {
 
   const onMessage = (event: MessageEvent) => {
     const trusted = isTrustedOAuthMessageOrigin(event.origin);
-    const payload = event.data as { type?: unknown; response?: { access_token?: unknown; refresh_token?: unknown } } | null;
+    const payload = event.data as { type?: unknown; response?: unknown; tokens?: unknown } | null;
+    const response = payload?.response && typeof payload.response === "object" ? payload.response as Record<string, unknown> : null;
+    const responseTokens = response?.tokens && typeof response.tokens === "object" ? response.tokens as Record<string, unknown> : null;
+    const rootTokens = payload?.tokens && typeof payload.tokens === "object" ? payload.tokens as Record<string, unknown> : null;
     diagPush("bridge.message", {
       origin: event.origin,
       trusted,
       type: payload?.type,
-      hasAccess: typeof payload?.response?.access_token === "string",
-      hasRefresh: typeof payload?.response?.refresh_token === "string",
+      keys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 8) : [],
+      responseKeys: response ? Object.keys(response).slice(0, 8) : [],
+      hasAccess: typeof response?.access_token === "string" || typeof responseTokens?.access_token === "string" || typeof rootTokens?.access_token === "string",
+      hasRefresh: typeof response?.refresh_token === "string" || typeof responseTokens?.refresh_token === "string" || typeof rootTokens?.refresh_token === "string",
     });
     if (!trusted) return;
     if (!payload || payload.type !== "authorization_response") return;
-    const accessToken = payload.response?.access_token;
-    const refreshToken = payload.response?.refresh_token;
-    if (typeof accessToken !== "string" || typeof refreshToken !== "string") return;
-    void supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+    const tokens = extractOAuthTokensFromMessage(payload);
+    if (!tokens) return;
+    void supabase.auth.setSession(tokens).then(({ error }) => {
       diagPush("bridge.setSession", { ok: !error, error: error?.message });
       if (!error) finish("session");
     });
@@ -186,16 +228,28 @@ const Auth = () => {
     // origin puro para não quebrar a validação do broker OAuth no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
-    diagPush("google.click", { nextTarget, redirect_uri: window.location.origin });
+    const redirectUri = `${window.location.origin}/auth/callback`;
+    diagPush("google.click", { nextTarget, redirect_uri: redirectUri });
     const bridge = startOAuthWebMessageBridge();
     const signInPromise = lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     }).then((r) => { diagPush("google.signInWithOAuth.resolved", { redirected: (r as { redirected?: boolean })?.redirected, hasError: !!(r as { error?: unknown })?.error }); return r; })
       .catch((e) => { diagPush("google.signInWithOAuth.threw", { error: e instanceof Error ? e.message : String(e) }); throw e; });
     const result = await Promise.race([signInPromise, bridge.promise]);
     diagPush("google.race.result", { kind: typeof result === "string" ? result : "object" });
-    const sessionDeadline = result === "timeout" ? deadline : Date.now() + 5_000;
-    const session = await waitForSessionAfterGoogle(sessionDeadline);
+    const sessionDeadline = result === "timeout"
+      ? deadline
+      : result === "session"
+        ? Date.now() + 5_000
+        : (result as { redirected?: boolean })?.redirected
+          ? deadline
+          : Date.now() + 5_000;
+    if (typeof result === "object" && (result as { redirected?: boolean })?.redirected) {
+      diagPush("google.redirected.waitingForReturn", { remainingMs: Math.max(0, deadline - Date.now()) });
+    }
+    const session = (typeof result === "object" && (result as { redirected?: boolean })?.redirected)
+      ? await waitForOAuthCompletion(sessionDeadline, bridge.promise)
+      : await waitForSessionAfterGoogle(sessionDeadline);
     bridge.cleanup();
     if (session) {
       setGoogleLoading(false);
