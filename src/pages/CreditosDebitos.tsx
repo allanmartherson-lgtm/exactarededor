@@ -752,9 +752,40 @@ export default function CreditosDebitos() {
       }
 
       let updated = 0;
+      const auditEvents: Parameters<typeof logDeductionEvents>[0] = [];
       for (const u of toUpdate) {
         const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
-        if (!error) updated += 1;
+        if (!error) {
+          updated += 1;
+          auditEvents.push({
+            hospital_id: activeHospitalId,
+            payment_id: u.target,
+            company_id: u.company_id,
+            debt_id: u.id,
+            action: "target_updated",
+            reason: "Lote-alvo alterado ao aplicar no lote vigente",
+            metadata: { source: "executeApplyCurrentLote" },
+          });
+        }
+      }
+
+      // Logar débitos deduplicados (já aplicados no lote alvo escolhido)
+      for (const [pj, debts] of byPj.entries()) {
+        const target = currentByPj.get(pj);
+        if (!target) continue;
+        for (const d of debts) {
+          if (debtAppliedAt(d.id, target)) {
+            auditEvents.push({
+              hospital_id: activeHospitalId,
+              payment_id: target,
+              company_id: pj,
+              debt_id: d.id,
+              action: "skipped_duplicate",
+              reason: "Débito já aplicado neste lote — reexecução evitada",
+              metadata: { source: "executeApplyCurrentLote" },
+            });
+          }
+        }
       }
 
       if (pairsToInvoke.size === 0) {
@@ -766,6 +797,13 @@ export default function CreditosDebitos() {
         toast.info(alreadyApplied > 0
           ? `Nada novo para aplicar — ${alreadyApplied} débito(s) já aplicado(s) no lote escolhido.`
           : "Nenhum débito pendente para o lote escolhido.");
+        void logDeductionEvents(auditEvents.length ? auditEvents : [{
+          hospital_id: activeHospitalId,
+          company_id: scopePjId ?? null,
+          action: alreadyApplied > 0 ? "skipped_duplicate" : "no_pending",
+          reason: alreadyApplied > 0 ? `${alreadyApplied} débito(s) já aplicado(s)` : "Sem pendências no lote escolhido",
+          metadata: { source: "executeApplyCurrentLote" },
+        }]);
         setApplyDialogOpen(false);
         return;
       }
@@ -773,6 +811,21 @@ export default function CreditosDebitos() {
       const invocations = await Promise.allSettled(
         Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
+      const pairsArr = Array.from(pairsToInvoke.values());
+      invocations.forEach((res, idx) => {
+        const p = pairsArr[idx];
+        const debtsForPair = (byPj.get(p.company_id) ?? []).filter(d => !debtAppliedAt(d.id, p.payment_id));
+        const baseReason = res.status === "fulfilled" ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${(res as any).reason?.message ?? "erro"}`;
+        const action = res.status === "fulfilled" ? "applied" : "error";
+        if (debtsForPair.length === 0) {
+          auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote" } });
+        } else {
+          for (const d of debtsForPair) {
+            auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, debt_id: d.id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote", total_debt: d.total_debt } });
+          }
+        }
+      });
+      void logDeductionEvents(auditEvents);
       const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
       const failedInvocations = invocations.length - okInvocations;
       const missing = pjIds.length - currentByPj.size;
