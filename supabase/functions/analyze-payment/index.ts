@@ -2613,6 +2613,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     }).length;
     await supabase.from("payment_observations").insert({
       payment_id,
+      hospital_id: __paymentHospitalId,
       author_type: "sistema",
       message:
         `Auditoria do motor: especialidade médica IGNORADA na seleção de regras ` +
