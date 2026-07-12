@@ -261,7 +261,8 @@ serve(async (req) => {
             conciliacao: Math.round(Number(r.conciliacao) * 100) / 100,
           }))
           .sort((a, b) => Math.abs(b.conciliacao) - Math.abs(a.conciliacao))
-          .slice(0, 10);
+          .slice(0, 50);
+
       })(),
       composicao_financeira: composicaoCompleta
         ? {
