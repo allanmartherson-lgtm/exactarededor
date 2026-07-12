@@ -3009,11 +3009,12 @@ const PaymentDetail = () => {
               variant="outline"
               size="sm"
               onClick={() => setIsBatchReconReportOpen(true)}
-              title="Compara pedido de nota, snapshot financeiro e glosas efetivamente aplicadas por PJ"
+              title="Panorama financeiro do lote — compara NF, snapshot e glosas efetivamente aplicadas por PJ"
             >
-              <GitCompare className="h-4 w-4 mr-1.5" />
-              Conciliação do lote
+              <BarChart3 className="h-4 w-4 mr-1.5" />
+              Panorama do lote
             </Button>
+
 
 
             {obs.some((o: any) => o.is_question) && (
