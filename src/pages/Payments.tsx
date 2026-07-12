@@ -1612,6 +1612,7 @@ const Payments = () => {
                       setPoolFilter("all");
                       setImportModeFilter("all");
                       setEmptyOnly(false);
+                      setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                       const next = new URLSearchParams(searchParams);
                       next.delete("status");
                       next.delete("delayed");
