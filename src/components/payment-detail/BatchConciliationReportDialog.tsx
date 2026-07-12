@@ -266,16 +266,27 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     );
   }, [visibleRows]);
 
-  const flagRow = (r: Row) => {
-    const flags: string[] = [];
-    if (Math.abs(r.grp_bruto - r.snap_bruto) > 0.01) flags.push("bruto grupo ≠ apurado");
-    if (Math.abs(r.grp_liquido - r.snap_liquido) > 0.01) flags.push("líquido grupo ≠ apurado");
-    if (Math.abs(r.snap_glosas - r.app_confirmado) > 0.01) flags.push("glosa apurada ≠ confirmada");
+  type Flag = { label: string; tone: "info" | "warn" };
+  const flagRow = (r: Row): Flag[] => {
+    const flags: Flag[] = [];
+    // Deduções aplicadas — intencionais, apenas informativas
+    if (r.snap_glosas > 0.01) flags.push({ label: "glosa aplicada", tone: "info" });
+    if (r.snap_debitos > 0.01) flags.push({ label: "débito aplicado", tone: "info" });
+    if (r.snap_creditos > 0.01) flags.push({ label: "crédito aplicado", tone: "info" });
+
+    // Inconsistências reais — merecem atenção
+    const glosaPendenteConfirmar = r.snap_glosas - r.app_confirmado;
+    if (glosaPendenteConfirmar > 0.01) flags.push({ label: "glosa a confirmar", tone: "warn" });
+    if (r.app_pending > 0.01) flags.push({ label: "pendências manuais", tone: "warn" });
     if (r.nf_expected > 0 && Math.abs(r.nf_expected - r.snap_liquido) > 0.01)
-      flags.push("NF esperada ≠ líquido apurado");
-    if (r.app_pending > 0) flags.push("pendências sem resolução");
+      flags.push({ label: "NF ≠ líquido", tone: "warn" });
+
+    // Bruto divergente sem explicação (não é glosa/débito/crédito)
+    const brutoDiff = r.grp_bruto - r.snap_bruto;
+    if (Math.abs(brutoDiff) > 0.01) flags.push({ label: "bruto recalculado", tone: "warn" });
     return flags;
   };
+  const hasWarn = (r: Row) => flagRow(r).some((f) => f.tone === "warn");
 
   const exportXlsx = () => {
     const header = [
