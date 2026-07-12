@@ -1293,6 +1293,10 @@ const Payments = () => {
             poolFilter !== "all",
             importModeFilter !== "all",
             emptyOnly,
+            hasProposedGlosas,
+            hasAppliedDebits,
+            hasAppliedCredits,
+            hasAlerts,
           ].filter(Boolean).length;
 
           const advancedFilters = (
