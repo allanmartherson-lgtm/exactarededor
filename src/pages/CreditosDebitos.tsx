@@ -1434,25 +1434,26 @@ export default function CreditosDebitos() {
                   const pjApplied = list.length - pjPending;
                   return (
                     <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className="border border-border rounded-md">
-                      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
-                        <CollapsibleTrigger className="flex-1 flex items-center gap-2 min-w-0 hover:opacity-80">
-                          {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                          <span className="font-medium text-sm truncate">{pjName}</span>
-                          <Badge variant="outline">{list.length}</Badge>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
+                        <CollapsibleTrigger className="flex-1 flex items-center gap-2 min-w-0 hover:opacity-80 text-left">
+                          {isOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+                          <span className="font-medium text-sm truncate flex-1 min-w-0">{pjName}</span>
+                          <Badge variant="outline" className="shrink-0">{list.length}</Badge>
                           {pjApplied > 0 && (
-                            <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30">
+                            <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 shrink-0 whitespace-nowrap">
                               ✓ {pjApplied} aplicado{pjApplied > 1 ? "s" : ""}
                             </Badge>
                           )}
-                          <span className="text-xs text-muted-foreground font-mono">{brl(total)}</span>
+                          <span className="text-xs text-muted-foreground font-mono shrink-0 whitespace-nowrap">{brl(total)}</span>
                         </CollapsibleTrigger>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={(e) => { e.stopPropagation(); openApplyCurrentDialog(pjId); }}
                           disabled={applyingCurrent !== null || pjPending === 0}
+                          className="w-full sm:w-auto shrink-0 whitespace-nowrap"
                         >
-                          <Rocket className="w-3.5 h-3.5 mr-1" />
+                          <Rocket className="w-3.5 h-3.5 mr-1 shrink-0" />
                           {applyingCurrent === pjId
                             ? "Aplicando…"
                             : pjPending === 0
@@ -1460,6 +1461,7 @@ export default function CreditosDebitos() {
                               : `Aplicar (${pjPending}${pjApplied ? ` · ${pjApplied} já aplic.` : ""})`}
                         </Button>
                       </div>
+
 
                       <CollapsibleContent>
                         <div className="divide-y">
