@@ -311,21 +311,26 @@ serve(async (req) => {
           previousSnapshot,
           justification ? `Justificativa: ${justification}` : "Justificativa não informada.",
         ].join(" ");
-        await supabase.from("payment_observations").insert({
+        const __hid2 = await getHospitalId(invoice.payment_id);
+        const { error: obsErr2 } = await supabase.from("payment_observations").insert({
           payment_id: invoice.payment_id,
+          hospital_id: __hid2,
           author_type: "sistema",
           message: obsMessage,
         });
+        if (obsErr2) console.error("[submit-invoice] payment_observations insert error", obsErr2);
         // Também registra na thread do portal pra ficar visível na próxima conversa
         // entre recebedor e analista (e aparecer na aba "Tenho uma dúvida").
         if (justification) {
-          await supabase.from("invoice_questions").insert({
+          const { error: qErr } = await supabase.from("invoice_questions").insert({
             invoice_id: invoice.id,
             payment_id: invoice.payment_id,
+            hospital_id: __hid2,
             author_type: "recebedor",
             author_name: authorName,
             message: `[Reenvio de NF] ${justification}`,
           });
+          if (qErr) console.error("[submit-invoice] invoice_questions insert error", qErr);
         }
         return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
