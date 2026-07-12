@@ -5522,6 +5522,15 @@ const PaymentDetail = () => {
         onSaved={() => load()}
       />
 
+      {payment && (
+        <BatchConciliationReportDialog
+          open={isBatchReconReportOpen}
+          onOpenChange={setIsBatchReconReportOpen}
+          paymentId={payment.id}
+          paymentReference={payment.reference}
+        />
+      )}
+
       {/* Gate de motivo de intervenção — bloqueia envio para validação/aprovação
           quando há itens com valor zerado/ausente pagos sem justificativa.
           Reaproveita o fluxo Zeev de tratativa em lote. */}
