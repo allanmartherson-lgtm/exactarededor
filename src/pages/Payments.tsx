@@ -201,6 +201,10 @@ type PersistedPaymentsState = Partial<{
   poolFilter: string;
   importModeFilter: "all" | "normal" | "historico";
   emptyOnly: boolean;
+  hasProposedGlosas: boolean;
+  hasAppliedDebits: boolean;
+  hasAppliedCredits: boolean;
+  hasAlerts: boolean;
   archivedView: boolean;
   showConcluded: boolean;
 }>;
