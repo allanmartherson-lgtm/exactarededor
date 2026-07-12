@@ -828,9 +828,29 @@ export default function CreditosDebitos() {
         return;
       }
 
-      const invocations = await Promise.allSettled(
-        Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
-      );
+      // Cap concurrency: browsers (mobilesafari em especial) abortam fetches quando
+      // dezenas de invokes disparam ao mesmo tempo, surfando "Failed to send a request
+      // to the Edge Function" mesmo quando o backend rodou com sucesso.
+      const invokeWithRetry = async (p: { payment_id: string; company_id: string }) => {
+        let lastErr: any = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            return await supabase.functions.invoke("apply-company-deductions", { body: p });
+          } catch (err: any) {
+            lastErr = err;
+            await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+          }
+        }
+        throw lastErr;
+      };
+      const pairsList = Array.from(pairsToInvoke.values());
+      const invocations: PromiseSettledResult<any>[] = [];
+      const CONCURRENCY = 4;
+      for (let i = 0; i < pairsList.length; i += CONCURRENCY) {
+        const chunk = pairsList.slice(i, i + CONCURRENCY);
+        const res = await Promise.allSettled(chunk.map(p => invokeWithRetry(p)));
+        invocations.push(...res);
+      }
       const pairsArr = Array.from(pairsToInvoke.values());
       const outcomes: ApplyOutcome[] = [];
       invocations.forEach((res, idx) => {
@@ -1144,10 +1164,18 @@ export default function CreditosDebitos() {
         if (!payId) continue;
         pairs.set(`${payId}|${g.company_id}`, { payment_id: payId, company_id: g.company_id });
       }
-      for (const p of pairs.values()) {
-        supabase.functions.invoke("apply-company-deductions", { body: p })
-          .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message));
-      }
+      // Cap concurrency (mesmo motivo do executeApplyCurrentLote).
+      void (async () => {
+        const list = Array.from(pairs.values());
+        const CONC = 4;
+        for (let i = 0; i < list.length; i += CONC) {
+          const chunk = list.slice(i, i + CONC);
+          await Promise.allSettled(chunk.map(p =>
+            supabase.functions.invoke("apply-company-deductions", { body: p })
+              .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message))
+          ));
+        }
+      })();
       void logDeductionEvents(successIds
         .map(id => {
           const g = targets.find(t => t.id === id);
