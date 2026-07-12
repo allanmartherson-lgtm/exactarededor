@@ -349,9 +349,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
+      const __hid3 = await getHospitalId(invoice.payment_id);
       const { error: insErr } = await supabase.from("invoice_questions").insert({
         invoice_id: invoice.id,
         payment_id: invoice.payment_id,
+        hospital_id: __hid3,
         author_type: "recebedor",
         author_name: authorName,
         message,
@@ -369,12 +371,14 @@ serve(async (req) => {
       // Move o pagamento para `nf_questionada` para o analista ser notificado.
       // Mantém histórico em payment_observations.
       await supabase.from("payments").update({ status: "nf_questionada" }).eq("id", invoice.payment_id);
-      await supabase.from("payment_observations").insert({
+      const { error: obsErr3 } = await supabase.from("payment_observations").insert({
         payment_id: invoice.payment_id,
+        hospital_id: __hid3,
         author_type: "sistema",
         message: `Recebedor da NF enviou um questionamento${authorName ? ` (${authorName})` : ""}: "${message.slice(0, 200)}${message.length > 200 ? "..." : ""}"`,
         status_to: "nf_questionada",
       });
+      if (obsErr3) console.error("[submit-invoice] payment_observations insert error", obsErr3);
 
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
