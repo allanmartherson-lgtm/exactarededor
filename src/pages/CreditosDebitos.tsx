@@ -238,6 +238,27 @@ export default function CreditosDebitos() {
     }
     setAppsByAdj(appsMap);
 
+    // Aplicações de glosas por debt_id (ativas — ignora revertido/postponed sem valor)
+    const debtIds = debts.map(d => d.id);
+    const gpaMap: Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]> = {};
+    if (debtIds.length) {
+      const { data: gpaRows } = await (supabase as any)
+        .from("glosa_payment_applications")
+        .select("glosa_debt_id, payment_id, status, valor_aplicado, applied_at")
+        .in("glosa_debt_id", debtIds)
+        .in("status", ["proposto", "confirmado", "partial", "pending_manual_resolution"]);
+      ((gpaRows as any[]) ?? []).forEach(r => {
+        (gpaMap[r.glosa_debt_id] ??= []).push({
+          payment_id: r.payment_id,
+          status: r.status,
+          valor_aplicado: Number(r.valor_aplicado ?? 0),
+          applied_at: r.applied_at ?? null,
+        });
+        if (r.payment_id) allPaymentIds.add(r.payment_id);
+      });
+    }
+    setGlosaAppsByDebt(gpaMap);
+
     const tgtIds = Array.from(new Set([
       ...debts.map(d => d.target_payment_id).filter(Boolean) as string[],
       ...Array.from(allPaymentIds),
