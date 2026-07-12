@@ -88,8 +88,10 @@ async def main():
         try:
             await expect(empty).to_be_visible(timeout=5000)
         except Exception:
-            search = page.get_by_placeholder("Buscar médico, paciente, atendimento, CC…")
+            search = page.get_by_placeholder("Buscar médico, paciente, atendimento, CC...")
             await search.fill("__ZZZ_INEXISTENTE_ZZZ__")
+            await page.wait_for_timeout(1500)
+            await expect(empty).to_be_visible(timeout=5000)
             await page.wait_for_timeout(1500)
             await expect(empty).to_be_visible(timeout=5000)
         await page.screenshot(path=str(SCREENSHOTS / "3_empty_state.png"))
