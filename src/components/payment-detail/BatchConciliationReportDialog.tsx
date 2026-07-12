@@ -571,11 +571,11 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                   );
                 })}
             </tbody>
-            {!loading && rows.length > 0 && (
+            {!loading && visibleRows.length > 0 && (
               <tfoot className="sticky bottom-0 bg-muted/90 font-semibold">
                 <tr>
                   <td className="p-2" />
-                  <td className="p-2">TOTAL ({rows.length})</td>
+                  <td className="p-2">TOTAL ({visibleRows.length}{filter.trim() ? ` de ${rows.length}` : ""})</td>
                   <td className="p-2 text-right">{formatCurrency(totals.nf_expected)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.nf_received)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.grp_bruto)}</td>
