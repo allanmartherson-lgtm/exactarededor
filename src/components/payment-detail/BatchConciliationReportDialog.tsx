@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Download, FileDown, RefreshCw, AlertTriangle, ChevronRight, Search, X } from "lucide-react";
+import { Download, FileDown, RefreshCw, AlertTriangle, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
@@ -55,12 +55,51 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   const [rows, setRows] = useState<Row[]>([]);
   const [drill, setDrill] = useState<{ id: string; name: string } | null>(null);
   const [filter, setFilter] = useState("");
+  type SortKey = "company_name" | "nf_expected" | "nf_received" | "grp_bruto" | "grp_liquido" | "snap_bruto" | "snap_glosas" | "snap_liquido" | "app_confirmado" | "app_proposto" | "app_pending" | "app_postponed";
+  const [sortKey, setSortKey] = useState<SortKey>("company_name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(k);
+      setSortDir(k === "company_name" ? "asc" : "desc");
+    }
+  };
+
+  const SortHeader = ({ k, label, align = "right", title, className }: { k: SortKey; label: string; align?: "left" | "right"; title?: string; className?: string }) => {
+    const active = sortKey === k;
+    const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <th className={cn("p-2 border-b select-none", align === "right" ? "text-right" : "text-left", className)} title={title}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className={cn(
+            "inline-flex items-center gap-1 hover:text-foreground transition-colors",
+            align === "right" && "flex-row-reverse",
+            active ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          <Icon className="h-3 w-3" />
+          <span>{label}</span>
+        </button>
+      </th>
+    );
+  };
 
   const visibleRows = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.company_name.toLowerCase().includes(q));
-  }, [rows, filter]);
+    const filtered = q ? rows.filter((r) => r.company_name.toLowerCase().includes(q)) : rows.slice();
+    const dir = sortDir === "asc" ? 1 : -1;
+    filtered.sort((a, b) => {
+      if (sortKey === "company_name") return a.company_name.localeCompare(b.company_name, "pt-BR") * dir;
+      const av = (a[sortKey] as number | null) ?? 0;
+      const bv = (b[sortKey] as number | null) ?? 0;
+      return (av - bv) * dir;
+    });
+    return filtered;
+  }, [rows, filter, sortKey, sortDir]);
 
   const load = async () => {
     setLoading(true);
@@ -489,18 +528,18 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
             <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
               <tr className="text-left">
                 <th className="p-2 border-b w-8"></th>
-                <th className="p-2 border-b">PJ</th>
-                <th className="p-2 border-b text-right">NF esperada</th>
-                <th className="p-2 border-b text-right">NF recebida</th>
-                <th className="p-2 border-b text-right">Bruto (grupo)</th>
-                <th className="p-2 border-b text-right">Líquido (grupo)</th>
-                <th className="p-2 border-b text-right" title="Bruto apurado pelo sistema após regras">Apurado bruto</th>
-                <th className="p-2 border-b text-right" title="Total de glosas apuradas para esta PJ no lote">Apurado glosas</th>
-                <th className="p-2 border-b text-right" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)">Apurado líquido</th>
-                <th className="p-2 border-b text-right">Confirmado</th>
-                <th className="p-2 border-b text-right">Proposto</th>
-                <th className="p-2 border-b text-right">Pendente</th>
-                <th className="p-2 border-b text-right">ADIADO</th>
+                <SortHeader k="company_name" label="PJ" align="left" />
+                <SortHeader k="nf_expected" label="NF esperada" />
+                <SortHeader k="nf_received" label="NF recebida" />
+                <SortHeader k="grp_bruto" label="Bruto (grupo)" />
+                <SortHeader k="grp_liquido" label="Líquido (grupo)" />
+                <SortHeader k="snap_bruto" label="Apurado bruto" title="Bruto apurado pelo sistema após regras" />
+                <SortHeader k="snap_glosas" label="Apurado glosas" title="Total de glosas apuradas para esta PJ no lote" />
+                <SortHeader k="snap_liquido" label="Apurado líquido" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)" />
+                <SortHeader k="app_confirmado" label="Confirmado" />
+                <SortHeader k="app_proposto" label="Proposto" />
+                <SortHeader k="app_pending" label="Pendente" />
+                <SortHeader k="app_postponed" label="ADIADO" />
                 <th className="p-2 border-b">Divergências</th>
               </tr>
             </thead>
