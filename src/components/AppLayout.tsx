@@ -1018,7 +1018,7 @@ export const AppLayout = () => {
           `}</style>
 
 
-          <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
+          <div className="h-full max-w-[1600px] mx-auto px-2 md:px-5 flex items-center gap-1.5 md:gap-5 overflow-hidden">
             {MobileNavDrawer}
             <Logo onDark preserveIconColors />
 
@@ -1028,7 +1028,7 @@ export const AppLayout = () => {
             </div>
             <div className="flex-1 md:hidden" />
 
-            <div className="flex items-center gap-1 md:gap-1.5 flex-shrink-0">
+            <div className="flex items-center gap-0.5 md:gap-1.5 flex-shrink-0">
               {canCreate && (
                 <Button
                   onClick={() => setModeModalOpen(true)}
@@ -1045,14 +1045,15 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
-              <HospitalSwitcher className="hidden md:inline-flex" />
+              <HospitalSwitcher className="hidden lg:inline-flex" />
               <PortalUnreadBadge />
               <InboxBadge />
               <NotificationBell />
-              <div className="hidden md:flex items-center gap-1">
+              <div className="hidden lg:flex items-center gap-1">
                 <AccessibilityMenu />
                 <LayoutToggle />
               </div>
+
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
