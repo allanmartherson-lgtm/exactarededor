@@ -4895,11 +4895,25 @@ const PaymentDetail = () => {
                 return nameMatchesItemSearch || specMatchesItemSearch || groupItems.some((it) => itemMatches(it));
               });
               
-              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "") || (hasFinancialFilter ? "financeiro" : "");
+              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "") || (hasFinancialFilter ? "financeiro" : "") || (onlyRegIssues ? "regissues" : "") || (markerFilter !== "all" ? "marker" : "");
               if (finalSearchTerm && visibleGroups.length === 0) {
                 return (
-                  <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    Nenhum grupo ou item casa com os filtros selecionados.
+                  <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground space-y-3">
+                    <p>Nenhum grupo ou item casa com os filtros selecionados.</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCriticalFilter("all");
+                        setFinancialFilters({ proposedGlosas: false, appliedDebits: false, appliedCredits: false });
+                        setOnlyRegIssues(false);
+                        setMarkerFilter("all");
+                        setItemSearch("");
+                        setCompanySearch("");
+                      }}
+                    >
+                      Limpar todos os filtros
+                    </Button>
                   </CardContent></Card>
                 );
               }
