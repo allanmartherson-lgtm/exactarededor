@@ -65,22 +65,29 @@ serve(async (req) => {
     }
 
     // 2. Itens — agrega ai_status e por empresa.
-    // Paginação obrigatória: PostgREST tem cap padrão (~1000) que fazia o resumo
-    // reportar "1.000 itens" mesmo em lotes maiores. Buscamos em páginas de 1000.
+    // Paginação por CURSOR de id (uuid ordenável). .range() estava travando em
+    // 1.000 itens em alguns lotes (a 2a página retornava vazio em vez de
+    // continuar do offset 1000), fazendo o resumo reportar sempre "1.000 itens"
+    // mesmo em lotes maiores. Cursor evita depender do offset do PostgREST.
     const PAGE_SIZE = 1000;
     const items: Array<any> = [];
-    for (let from = 0; from < 100000; from += PAGE_SIZE) {
-      const { data: page, error: itErr } = await supabase
+    let lastId: string | null = null;
+    for (let i = 0; i < 200; i++) {
+      let q = supabase
         .from("payment_items")
-        .select("ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
+        .select("id, ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
         .eq("payment_id", payment_id)
         .order("id", { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+        .limit(PAGE_SIZE);
+      if (lastId) q = q.gt("id", lastId);
+      const { data: page, error: itErr } = await q;
       if (itErr) { console.error("summarize-payment items page error", itErr); break; }
       if (!page || page.length === 0) break;
       items.push(...page);
+      lastId = (page[page.length - 1] as any).id as string;
       if (page.length < PAGE_SIZE) break;
     }
+    console.log(`summarize-payment: fetched ${items.length} items for payment ${payment_id}`);
 
 
     // Rótulos humanos para os códigos técnicos do enum item_ai_status — a IA
