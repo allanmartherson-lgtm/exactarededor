@@ -166,6 +166,13 @@ export default function CreditosDebitos() {
   const [globalLotesByPj, setGlobalLotesByPj] = useState<Record<string, LoteOption[]>>({});
   const [busyGlobal, setBusyGlobal] = useState(false);
 
+  // ============ Dialog "Aplicar no lote vigente" (seletor obrigatório) ============
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyDialogScopePj, setApplyDialogScopePj] = useState<string | null>(null); // null = todas
+  const [applyLotesByPj, setApplyLotesByPj] = useState<Record<string, LoteOption[]>>({});
+  const [applyPickByPj, setApplyPickByPj] = useState<Record<string, string>>({});
+  const [applyLoading, setApplyLoading] = useState(false);
+
   // ============ FILTROS (sincronizados via URL) ============
   const tab = searchParams.get("tab") || "pendentes";
   const search = searchParams.get("q") || "";
@@ -615,54 +622,89 @@ export default function CreditosDebitos() {
     return apps.find(a => a.payment_id === paymentId) ?? null;
   };
 
-  const applyToCurrentLote = async (pjId?: string) => {
+  // Abre o dialog obrigatório de seleção de lote para "Aplicar no lote vigente".
+  // Sistema multi-usuário: nunca auto-seleciona lote — analista escolhe explicitamente.
+  const openApplyCurrentDialog = async (pjId?: string) => {
     if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
     const scope = pjId ? emAndamento.filter(g => g.company_id === pjId) : emAndamento;
     if (!scope.length) { toast.info("Nada para aplicar."); return; }
-    const key = pjId ?? "__all__";
-    setApplyingCurrent(key);
+    setApplyDialogScopePj(pjId ?? null);
+    setApplyDialogOpen(true);
+    setApplyLoading(true);
+    setApplyLotesByPj({});
+    setApplyPickByPj({});
     try {
-      // 1. Lotes abertos por PJ (mais recente por competência)
       const byPj = new Map<string, GlosaDebt[]>();
       scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
       const pjIds = Array.from(byPj.keys());
-      // payments não tem company_id — usamos payment_company_groups como ponte.
-      const { data: pcgRows, error: pcgErr } = await (supabase as any)
-        .from("payment_company_groups")
-        .select("payment_id, company_id")
-        .in("company_id", pjIds);
-      if (pcgErr) throw pcgErr;
-      const payIds = Array.from(new Set(((pcgRows as any[]) ?? []).map(r => r.payment_id)));
-      const { data: openPays, error: payErr } = payIds.length ? await (supabase as any)
-        .from("payments")
-        .select("id, reference, competence_month, status")
-        .in("id", payIds)
-        .in("status", OPEN_PAYMENT_STATUSES as unknown as string[])
-        .eq("hospital_id", activeHospitalId)
-        .order("competence_month", { ascending: false }) : { data: [], error: null };
-      if (payErr) throw payErr;
-      const payById = new Map<string, any>();
-      ((openPays as any[]) ?? []).forEach(p => payById.set(p.id, p));
-      // Ordena pares PCG pela ordem dos lotes abertos (mais recente primeiro).
-      const orderedPairs = ((pcgRows as any[]) ?? [])
-        .filter(r => payById.has(r.payment_id))
-        .sort((a, b) => {
-          const ca = payById.get(a.payment_id)?.competence_month ?? "";
-          const cb = payById.get(b.payment_id)?.competence_month ?? "";
-          return cb.localeCompare(ca);
-        });
+      const results = await Promise.all(pjIds.map(async (pj) => {
+        const { data: pcg } = await (supabase as any)
+          .from("payment_company_groups").select("payment_id").eq("company_id", pj);
+        const ids = Array.from(new Set(((pcg as any[]) ?? []).map(r => r.payment_id))).filter(Boolean);
+        if (!ids.length) return [pj, [] as LoteOption[]] as const;
+        const [{ data: pays }, { data: fins }] = await Promise.all([
+          (supabase as any).from("payments").select("id, reference, competence_month, status, cost_center_code, payment_track")
+            .in("id", ids).in("status", OPEN_PAYMENT_STATUSES as unknown as string[])
+            .eq("hospital_id", activeHospitalId)
+            .order("competence_month", { ascending: false }),
+          (supabase as any).from("payment_company_financials").select("payment_id, liquido")
+            .in("payment_id", ids).eq("company_id", pj),
+        ]);
+        const liqMap = new Map<string, number>();
+        ((fins as any[]) ?? []).forEach((f: any) => liqMap.set(f.payment_id, Number(f.liquido ?? 0)));
+        const opts: LoteOption[] = ((pays as any[]) ?? []).map((p: any) => ({
+          id: p.id,
+          status: p.status,
+          competence: p.competence_month,
+          cost_center_code: p.cost_center_code ?? null,
+          payment_track: p.payment_track ?? null,
+          reference: p.reference ?? null,
+          liquido: liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null,
+          label: buildLoteLabel(p, liqMap.has(p.id) ? (liqMap.get(p.id) as number) : null),
+        }));
+        return [pj, opts] as const;
+      }));
+      const lotesMap: Record<string, LoteOption[]> = {};
+      const pickMap: Record<string, string> = {};
+      results.forEach(([pj, opts]) => {
+        lotesMap[pj] = opts;
+        // Pré-seleciona SOMENTE quando há exatamente 1 opção; caso contrário,
+        // exige que o analista escolha (evita erro em cenário multi-lote).
+        if (opts.length === 1) pickMap[pj] = opts[0].id;
+      });
+      setApplyLotesByPj(lotesMap);
+      setApplyPickByPj(pickMap);
+    } catch (err: any) {
+      console.error("[openApplyCurrentDialog]", err);
+      toast.error(err?.message ?? "Falha ao carregar lotes abertos.");
+      setApplyDialogOpen(false);
+    } finally {
+      setApplyLoading(false);
+    }
+  };
+
+  // Executa a aplicação com as escolhas explícitas do analista.
+  const executeApplyCurrentLote = async (picksByPj: Record<string, string>, scopePjId: string | null) => {
+    if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
+    const scope = scopePjId ? emAndamento.filter(g => g.company_id === scopePjId) : emAndamento;
+    const key = scopePjId ?? "__all__";
+    setApplyingCurrent(key);
+    try {
+      const byPj = new Map<string, GlosaDebt[]>();
+      scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
+      const pjIds = Array.from(byPj.keys());
+
       const currentByPj = new Map<string, string>();
       const labelPatch: Record<string, string> = {};
-      orderedPairs.forEach(r => {
-        if (!currentByPj.has(r.company_id)) {
-          currentByPj.set(r.company_id, r.payment_id);
-          const p = payById.get(r.payment_id);
-          const comp = p?.competence_month ? (() => { const [y, m] = p.competence_month.split("-"); return `${m}/${y}`; })() : "";
-          labelPatch[r.payment_id] = `${p?.reference ?? r.payment_id.slice(0, 8)}${comp ? ` · ${comp}` : ""}`;
-        }
-      });
+      for (const pj of pjIds) {
+        const pick = picksByPj[pj];
+        if (!pick) continue;
+        currentByPj.set(pj, pick);
+        const lote = applyLotesByPj[pj]?.find(o => o.id === pick);
+        if (lote) labelPatch[pick] = lote.label;
+      }
 
-      // 2. Debts que precisam atualizar target
+      // Débitos que precisam atualizar target
       const toUpdate: { id: string; company_id: string; target: string }[] = [];
       for (const [pj, debts] of byPj.entries()) {
         const target = currentByPj.get(pj);
@@ -671,8 +713,7 @@ export default function CreditosDebitos() {
           if (d.target_payment_id !== target) toUpdate.push({ id: d.id, company_id: pj, target });
         }
       }
-      // 2b. Dedup canônico (ver src/lib/deductionDedup.ts + testes) — evita
-      // reinvocar apply-company-deductions em pares (payment, company) já processados.
+
       const { computePairsToInvoke } = await import("@/lib/deductionDedup");
       const { pairsToInvoke, alreadyApplied } = computePairsToInvoke({
         debtsByPj: byPj,
@@ -680,7 +721,6 @@ export default function CreditosDebitos() {
         glosaAppsByDebt,
       });
 
-      // Débitos que serão efetivamente enviados (aplicados agora) = pendentes nos pares invocados.
       let appliedNow = 0;
       for (const [pj, debts] of byPj.entries()) {
         const target = currentByPj.get(pj);
@@ -696,7 +736,6 @@ export default function CreditosDebitos() {
         if (!error) updated += 1;
       }
 
-      // Se nada resta para invocar, evita gasto de créditos e sinaliza claramente.
       if (pairsToInvoke.size === 0) {
         if (toUpdate.length) {
           const patch = new Map(toUpdate.map(u => [u.id, u.target]));
@@ -704,12 +743,12 @@ export default function CreditosDebitos() {
         }
         if (Object.keys(labelPatch).length) setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
         toast.info(alreadyApplied > 0
-          ? `Nada novo para aplicar — ${alreadyApplied} débito(s) já aplicado(s) no lote vigente.`
-          : "Nenhum lote em aberto disponível para aplicar.");
+          ? `Nada novo para aplicar — ${alreadyApplied} débito(s) já aplicado(s) no lote escolhido.`
+          : "Nenhum débito pendente para o lote escolhido.");
+        setApplyDialogOpen(false);
         return;
       }
 
-      // 3. Invoca apply-company-deductions apenas para pares com pendência
       const invocations = await Promise.allSettled(
         Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
@@ -717,7 +756,6 @@ export default function CreditosDebitos() {
       const failedInvocations = invocations.length - okInvocations;
       const missing = pjIds.length - currentByPj.size;
 
-      // 4. Otimista: atualiza state local
       if (toUpdate.length) {
         const patch = new Map(toUpdate.map(u => [u.id, u.target]));
         setGlosaDebts(prev => prev.map(g => patch.has(g.id) ? { ...g, target_payment_id: patch.get(g.id)! } : g));
@@ -725,24 +763,23 @@ export default function CreditosDebitos() {
       if (Object.keys(labelPatch).length) {
         setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
       }
-      const scopeLabel = pjId
-        ? (byPj.get(pjId)?.[0] as any)?._company_name
-          ?? (pjIds.length === 1 ? "PJ" : `${okInvocations} PJ(s)`)
+      const scopeLabel = scopePjId
+        ? (byPj.get(scopePjId)?.[0] as any)?._company_name ?? "PJ"
         : `${okInvocations} PJ(s)`;
       const parts = [
         `✓ ${appliedNow} aplicado(s) agora`,
         alreadyApplied ? `↻ ${alreadyApplied} já aplicado(s)` : null,
         updated ? `${updated} lote-alvo atualizado(s)` : null,
-        missing ? `${missing} sem lote em aberto` : null,
+        missing ? `${missing} sem escolha de lote` : null,
         failedInvocations ? `⚠ ${failedInvocations} falha(s)` : null,
       ].filter(Boolean).join(" · ");
       const msg = `${scopeLabel} — ${parts}`;
       if (failedInvocations) toast.warning(msg); else toast.success(msg);
-      // Recarrega aplicações para refletir novo estado
+      setApplyDialogOpen(false);
       void loadAll();
     } catch (err: any) {
-      console.error("[applyToCurrentLote]", err);
-      toast.error(err?.message ?? "Falha ao aplicar no lote vigente.");
+      console.error("[executeApplyCurrentLote]", err);
+      toast.error(err?.message ?? "Falha ao aplicar no lote escolhido.");
     } finally {
       setApplyingCurrent(null);
     }
@@ -1268,7 +1305,7 @@ export default function CreditosDebitos() {
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={() => applyToCurrentLote()}
+                        onClick={() => openApplyCurrentDialog()}
                         disabled={applyingCurrent !== null || pendingCount === 0}
                       >
                         <Rocket className="w-3.5 h-3.5 mr-1" />
@@ -1306,7 +1343,7 @@ export default function CreditosDebitos() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => { e.stopPropagation(); applyToCurrentLote(pjId); }}
+                          onClick={(e) => { e.stopPropagation(); openApplyCurrentDialog(pjId); }}
                           disabled={applyingCurrent !== null || pjPending === 0}
                         >
                           <Rocket className="w-3.5 h-3.5 mr-1" />
@@ -1684,6 +1721,102 @@ export default function CreditosDebitos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Aplicar no lote vigente — seleção obrigatória (multi-usuário) */}
+      <Dialog open={applyDialogOpen} onOpenChange={(o) => { if (!applyingCurrent) setApplyDialogOpen(o); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Selecionar lote-alvo</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const scope = applyDialogScopePj
+              ? emAndamento.filter(g => g.company_id === applyDialogScopePj)
+              : emAndamento;
+            const byPj = new Map<string, GlosaDebt[]>();
+            scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
+            const pjEntries = Array.from(byPj.entries());
+            const anyMissingPick = pjEntries.some(([pj, list]) => {
+              const opts = applyLotesByPj[pj] ?? [];
+              return opts.length > 0 && !applyPickByPj[pj];
+            });
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="text-xs text-muted-foreground">
+                  {applyLoading
+                    ? "Carregando lotes abertos por PJ…"
+                    : `Escolha o lote de destino para ${pjEntries.length} PJ(s). Nada é aplicado até você confirmar.`}
+                </div>
+                <div className="border border-border rounded-md">
+                  <div className="grid grid-cols-[1.2fr_auto_2fr] gap-2 px-3 py-2 bg-muted/40 text-xs font-medium border-b">
+                    <div>PJ</div><div className="text-right">Total dívida</div><div>Lote-alvo</div>
+                  </div>
+                  <div className="divide-y max-h-[50vh] overflow-y-auto">
+                    {pjEntries.map(([pjId, list]) => {
+                      const pjName = list[0]?._company_name ?? "PJ";
+                      const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
+                      const opts = applyLotesByPj[pjId] ?? [];
+                      const pick = applyPickByPj[pjId] ?? "";
+                      return (
+                        <div key={pjId} className="grid grid-cols-[1.2fr_auto_2fr] gap-2 px-3 py-2 items-center">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{pjName}</div>
+                            <div className="text-[11px] text-muted-foreground">{list.length} débito(s)</div>
+                          </div>
+                          <div className="text-right font-mono text-destructive text-xs">{brl(total)}</div>
+                          <div>
+                            {applyLoading ? (
+                              <span className="text-xs text-muted-foreground">Carregando…</span>
+                            ) : opts.length === 0 ? (
+                              <span className="text-xs text-amber-600">Sem lote em aberto</span>
+                            ) : (
+                              <Select
+                                value={pick}
+                                onValueChange={(v) => setApplyPickByPj(prev => ({ ...prev, [pjId]: v }))}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Selecionar lote…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {opts.map(l => <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {anyMissingPick && (
+                  <p className="text-xs text-amber-600">
+                    ⚠ Selecione o lote-alvo para todas as PJs elegíveis antes de confirmar.
+                  </p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Débitos já aplicados no lote escolhido são ignorados automaticamente (idempotente).
+                </p>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApplyDialogOpen(false)} disabled={!!applyingCurrent}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => executeApplyCurrentLote(applyPickByPj, applyDialogScopePj)}
+              disabled={
+                applyLoading ||
+                !!applyingCurrent ||
+                Object.keys(applyPickByPj).length === 0
+              }
+            >
+              {applyingCurrent ? "Aplicando…" : "Confirmar e aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       {/* Dialog: novo/editar ajuste manual */}
       <Dialog open={adjDialogOpen} onOpenChange={setAdjDialogOpen}>
