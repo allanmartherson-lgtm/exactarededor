@@ -121,6 +121,7 @@ export default function LoteInterventionReport() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [paymentRef, setPaymentRef] = useState<string>("");
+  const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
     if (!paymentId) return;
@@ -138,9 +139,27 @@ export default function LoteInterventionReport() {
             .order("approved_at", { ascending: false }),
         ]);
         if (error) throw error;
+        let ledger = (l ?? []) as LedgerRow[];
+        let preview = false;
+        // Se o lote ainda não foi aprovado, o ledger fica vazio. Buscamos a
+        // prévia calculada em tempo real a partir de payment_items (mesma
+        // lógica do materialize_intervention_ledger, sem persistir).
+        if (ledger.length === 0) {
+          const { data: prev, error: prevErr } = await (supabase.rpc as unknown as (
+            fn: string, args: Record<string, unknown>
+          ) => Promise<{ data: unknown; error: unknown }>)(
+            "get_lote_intervention_preview",
+            { p_payment_id: paymentId },
+          );
+          if (!prevErr && Array.isArray(prev)) {
+            ledger = (prev as LedgerRow[]).filter((r) => r.fonte !== "sem_intervencao");
+            preview = true;
+          }
+        }
         if (!cancelled) {
-          setRows((l ?? []) as LedgerRow[]);
+          setRows(ledger);
           setPaymentRef(p?.reference ?? "");
+          setIsPreview(preview);
         }
       } catch (e) {
         console.error(e);
