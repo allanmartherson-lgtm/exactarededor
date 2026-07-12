@@ -192,14 +192,14 @@ export function PJDrilldownDialog({ open, onOpenChange, paymentId, companyId, co
         <DialogHeader>
           <DialogTitle className="truncate">{companyName}</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Detalhamento linha a linha do pedido de nota, snapshot financeiro e aplicações efetivamente lançadas neste lote.
+            Detalhamento linha a linha do pedido de nota, valor apurado do lote e aplicações efetivamente lançadas para esta PJ.
           </p>
         </DialogHeader>
 
         <Tabs defaultValue="snapshot" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="snapshot" className="gap-1.5">
-              <Layers className="h-3.5 w-3.5" /> Snapshot ({snapshot ? formatCurrency(snapshot.liquido) : "—"})
+              <Layers className="h-3.5 w-3.5" /> Apurado do lote ({snapshot ? formatCurrency(snapshot.liquido) : "—"})
             </TabsTrigger>
             <TabsTrigger value="invoices" className="gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Pedido de nota ({invoices.length})
@@ -209,7 +209,7 @@ export function PJDrilldownDialog({ open, onOpenChange, paymentId, companyId, co
             </TabsTrigger>
           </TabsList>
 
-          {/* SNAPSHOT */}
+          {/* APURADO */}
           <TabsContent value="snapshot" className="flex-1 overflow-auto mt-3">
             {loading ? (
               <p className="text-sm text-muted-foreground p-4">Carregando…</p>
