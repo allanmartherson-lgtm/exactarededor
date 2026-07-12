@@ -281,7 +281,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "TOTAL",
       totals.nf_expected,
       totals.nf_received,
-      rows.reduce((a, r) => a + r.nf_count, 0),
+      visibleRows.reduce((a, r) => a + r.nf_count, 0),
       totals.grp_bruto,
       totals.grp_liquido,
       totals.snap_bruto,
