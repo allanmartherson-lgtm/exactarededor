@@ -832,13 +832,47 @@ export default function CreditosDebitos() {
         Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
       const pairsArr = Array.from(pairsToInvoke.values());
+      const outcomes: ApplyOutcome[] = [];
       invocations.forEach((res, idx) => {
         const p = pairsArr[idx];
         const debtsForPair = (byPj.get(p.company_id) ?? []).filter(d => !debtAppliedAt(d.id, p.payment_id));
-        const baseReason = res.status === "fulfilled" ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${(res as any).reason?.message ?? "erro"}`;
-        const action = res.status === "fulfilled" ? "applied" : "error";
+        const pjName = (byPj.get(p.company_id)?.[0] as any)?._company_name ?? "PJ";
+        const loteLabel = applyLotesByPj[p.company_id]?.find(o => o.id === p.payment_id)?.label
+          ?? paymentLabels[p.payment_id] ?? p.payment_id.slice(0, 8);
+
+        // Ler a resposta da edge (data.summary.glosas contém postponed/partial/capacidade_inicial)
+        const data: any = res.status === "fulfilled" ? (res.value as any)?.data : null;
+        const invokeError: any = res.status === "fulfilled" ? (res.value as any)?.error : (res as any).reason;
+        const glosasSummary = data?.summary?.glosas ?? null;
+        const applied = Number(glosasSummary?.proposed ?? 0);
+        const postponed = Number(glosasSummary?.postponed ?? 0);
+        const partial = Number(glosasSummary?.partial ?? 0);
+        const already = Number(glosasSummary?.skipped_existing ?? 0);
+        const capacidade = glosasSummary?.capacidade_inicial != null ? Number(glosasSummary.capacidade_inicial) : null;
+
+        const ok = res.status === "fulfilled" && !invokeError && !data?.error;
+        const errMsg = !ok
+          ? (invokeError?.message ?? data?.error ?? "Falha desconhecida ao aplicar")
+          : null;
+
+        let hint: string | null = null;
+        if (!ok) {
+          hint = "Verifique se o lote-alvo permanece aberto e tente novamente. Se persistir, revise o vínculo médico→PJ e o cadastro do débito.";
+        } else if (postponed > 0 && applied === 0 && partial === 0) {
+          hint = `PJ sem líquido disponível no lote (capacidade R$ ${capacidade?.toFixed(2) ?? "0,00"}). O débito rola automaticamente para o próximo ciclo — nenhuma ação necessária agora.`;
+        } else if (partial > 0) {
+          hint = "Parte do débito foi aplicada até esgotar o líquido da PJ. O saldo remanescente segue como débito ativo e volta ao próximo lote.";
+        }
+
+        outcomes.push({
+          pj_id: p.company_id, pj_name: pjName, payment_label: loteLabel,
+          ok, applied, already, postponed, partial, capacidade, error: errMsg, hint,
+        });
+
+        const baseReason = ok ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${errMsg}`;
+        const action = ok ? "applied" : "error";
         if (debtsForPair.length === 0) {
-          auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote" } });
+          auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote", summary: glosasSummary } });
         } else {
           for (const d of debtsForPair) {
             auditEvents.push({ hospital_id: activeHospitalId, payment_id: p.payment_id, company_id: p.company_id, debt_id: d.id, action, reason: baseReason, metadata: { source: "executeApplyCurrentLote", total_debt: d.total_debt } });
@@ -846,8 +880,9 @@ export default function CreditosDebitos() {
         }
       });
       void logDeductionEvents(auditEvents);
-      const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
-      const failedInvocations = invocations.length - okInvocations;
+      const okInvocations = outcomes.filter(o => o.ok).length;
+      const failedInvocations = outcomes.length - okInvocations;
+      const anyPostponedOrPartial = outcomes.some(o => o.postponed > 0 || o.partial > 0);
       const missing = pjIds.length - currentByPj.size;
 
       if (toUpdate.length) {
@@ -857,18 +892,23 @@ export default function CreditosDebitos() {
       if (Object.keys(labelPatch).length) {
         setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
       }
-      const scopeLabel = scopePjId
-        ? (byPj.get(scopePjId)?.[0] as any)?._company_name ?? "PJ"
-        : `${okInvocations} PJ(s)`;
-      const parts = [
-        `✓ ${appliedNow} aplicado(s) agora`,
-        alreadyApplied ? `↻ ${alreadyApplied} já aplicado(s)` : null,
-        updated ? `${updated} lote-alvo atualizado(s)` : null,
-        missing ? `${missing} sem escolha de lote` : null,
-        failedInvocations ? `⚠ ${failedInvocations} falha(s)` : null,
-      ].filter(Boolean).join(" · ");
-      const msg = `${scopeLabel} — ${parts}`;
-      if (failedInvocations) toast.warning(msg); else toast.success(msg);
+
+      // Se houver falha, postpone ou parcial → abre painel vermelho detalhado.
+      // Caso 100% ok e sem postpone/partial → toast de sucesso simples.
+      if (failedInvocations > 0 || anyPostponedOrPartial) {
+        setResultDialog({ open: true, outcomes });
+      } else {
+        const scopeLabel = scopePjId
+          ? (byPj.get(scopePjId)?.[0] as any)?._company_name ?? "PJ"
+          : `${okInvocations} PJ(s)`;
+        const parts = [
+          `✓ ${appliedNow} aplicado(s) agora`,
+          alreadyApplied ? `↻ ${alreadyApplied} já aplicado(s)` : null,
+          updated ? `${updated} lote-alvo atualizado(s)` : null,
+          missing ? `${missing} sem escolha de lote` : null,
+        ].filter(Boolean).join(" · ");
+        toast.success(`${scopeLabel} — ${parts}`);
+      }
       setApplyDialogOpen(false);
       void loadAll();
     } catch (err: any) {
