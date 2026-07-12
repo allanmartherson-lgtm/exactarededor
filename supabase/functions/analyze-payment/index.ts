@@ -210,6 +210,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // Globais (hospital_id IS NULL) + do hospital do pagamento. Convênios ou
     // setores exclusivos de outros hospitais NUNCA entram no motor deste lote.
     const __paymentHospitalId = ((payment as any)?.hospital_id as string | null) ?? null;
+    __paymentHospitalIdHoisted = __paymentHospitalId;
     try {
       let secQ = supabase.from("sectors").select("slug,name,aliases,hospital_id").eq("active", true);
       if (__paymentHospitalId) secQ = secQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
