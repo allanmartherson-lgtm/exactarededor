@@ -424,7 +424,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         doc.setTextColor(120);
         const pageStr = `Página ${doc.getCurrentPageInfo().pageNumber}`;
         doc.text(pageStr, pageWidth - 8, pageHeight - 5, { align: "right" });
-        doc.text("Fonte: pedido de nota + snapshot financeiro + glosa_payment_applications", 8, pageHeight - 5);
+        doc.text("Fonte: pedido de nota + valor apurado do lote + aplicações de glosa", 8, pageHeight - 5);
       },
     });
 
