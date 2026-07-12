@@ -1275,8 +1275,8 @@ export default function CreditosDebitos() {
                         {applyingCurrent === "__all__"
                           ? "Aplicando…"
                           : pendingCount === 0
-                            ? "Tudo aplicado"
-                            : `Aplicar no lote vigente (${pendingCount})`}
+                            ? `Tudo aplicado (${appliedCount})`
+                            : `Aplicar no lote vigente (${pendingCount}${appliedCount ? ` · ${appliedCount} já aplic.` : ""})`}
                       </Button>
                     </div>
                   );
