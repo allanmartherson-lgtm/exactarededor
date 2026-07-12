@@ -2673,8 +2673,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
       } else {
-        const { data: newG } = await supabase.from("payment_company_groups").insert({
+        const { data: newG, error: grpErr } = await supabase.from("payment_company_groups").insert({
           payment_id,
+          hospital_id: __paymentHospitalId,
           company_id: g.company_id,
           company_name: g.company_name,
           status: isConfeccao ? "rascunho" : "revisao_analista",
@@ -2682,6 +2683,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           items_count: g.items.length,
           total_amount: total,
         }).select("id").single();
+        if (grpErr) console.error(`${__t} payment_company_groups_insert_error`, grpErr);
         if (newG) processedGroupIds.add(newG.id);
       }
 
