@@ -720,7 +720,20 @@ export default function CreditosDebitos() {
         ? { ...g, parcelas_default: globalParc, target_payment_id: globalLoteByPj[g.company_id], confirmed_at: g.confirmed_at ?? nowIso }
         : g
       ));
+      // Dispara apply-company-deductions em paralelo, deduplicado por (payment_id, company_id).
+      const pairs = new Map<string, { payment_id: string; company_id: string }>();
+      for (const g of targets) {
+        if (!successIds.includes(g.id)) continue;
+        const payId = globalLoteByPj[g.company_id];
+        if (!payId) continue;
+        pairs.set(`${payId}|${g.company_id}`, { payment_id: payId, company_id: g.company_id });
+      }
+      for (const p of pairs.values()) {
+        supabase.functions.invoke("apply-company-deductions", { body: p })
+          .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message));
+      }
     }
+
   };
 
   // ============ Agrupamento por PJ ============
