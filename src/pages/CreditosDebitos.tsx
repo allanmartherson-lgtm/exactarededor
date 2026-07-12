@@ -664,23 +664,21 @@ export default function CreditosDebitos() {
 
       // 2. Debts que precisam atualizar target
       const toUpdate: { id: string; company_id: string; target: string }[] = [];
-      // 2b. Dedup: pares (payment, company) onde AO MENOS UM débito ainda não foi aplicado.
-      const pairsToInvoke = new Map<string, { payment_id: string; company_id: string }>();
-      let alreadyApplied = 0;
       for (const [pj, debts] of byPj.entries()) {
         const target = currentByPj.get(pj);
         if (!target) continue;
-        let anyPending = false;
         for (const d of debts) {
           if (d.target_payment_id !== target) toUpdate.push({ id: d.id, company_id: pj, target });
-          if (debtAppliedAt(d.id, target)) {
-            alreadyApplied += 1;
-          } else {
-            anyPending = true;
-          }
         }
-        if (anyPending) pairsToInvoke.set(`${target}|${pj}`, { payment_id: target, company_id: pj });
       }
+      // 2b. Dedup canônico (ver src/lib/deductionDedup.ts + testes) — evita
+      // reinvocar apply-company-deductions em pares (payment, company) já processados.
+      const { computePairsToInvoke } = await import("@/lib/deductionDedup");
+      const { pairsToInvoke, alreadyApplied } = computePairsToInvoke({
+        debtsByPj: byPj,
+        currentByPj,
+        glosaAppsByDebt,
+      });
       let updated = 0;
       for (const u of toUpdate) {
         const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
