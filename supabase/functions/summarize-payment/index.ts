@@ -544,15 +544,25 @@ REGRAS:
       if (typeof data?.completion === "string") return extractJsonObject(data.completion);
       return null;
     };
-    let summary = pickSummary(aiData);
+    const readAiJson = async (response: Response, label: string): Promise<any | null> => {
+      try {
+        return await response.json();
+      } catch (err) {
+        console.error(`summarize-payment ${label} invalid JSON response`, err instanceof Error ? err.message : err);
+        return null;
+      }
+    };
+
+    let aiData = await readAiJson(aiResp, "initial");
+    let summary = aiData ? pickSummary(aiData) : null;
 
     // Retry único em modo texto/JSON puro se tool_use falhou (fallback do gateway p/ OpenAI, truncamento, etc.)
     if (!summary) {
       console.warn("summarize-payment: tentativa 1 sem estrutura — retry em modo JSON puro. Stop reason:", aiData?.stop_reason);
       const retryResp = await callAi({ forceJsonText: true });
       if (retryResp.ok) {
-        aiData = await retryResp.json();
-        summary = pickSummary(aiData);
+        aiData = await readAiJson(retryResp, "retry");
+        summary = aiData ? pickSummary(aiData) : null;
       } else {
         console.error("summarize-payment retry AI error", retryResp.status, await retryResp.text());
       }
