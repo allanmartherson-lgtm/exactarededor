@@ -608,6 +608,13 @@ export default function CreditosDebitos() {
   // ============ Aplicar em massa no LOTE VIGENTE (Em andamento) ============
   const [applyingCurrent, setApplyingCurrent] = useState<string | null>(null); // pjId | "__all__"
 
+  // Retorna a aplicação ativa desta dívida em um payment específico (se houver)
+  const debtAppliedAt = (debtId: string, paymentId: string | null | undefined) => {
+    if (!paymentId) return null;
+    const apps = glosaAppsByDebt[debtId] ?? [];
+    return apps.find(a => a.payment_id === paymentId) ?? null;
+  };
+
   const applyToCurrentLote = async (pjId?: string) => {
     if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
     const scope = pjId ? emAndamento.filter(g => g.company_id === pjId) : emAndamento;
@@ -639,27 +646,45 @@ export default function CreditosDebitos() {
 
       // 2. Debts que precisam atualizar target
       const toUpdate: { id: string; company_id: string; target: string }[] = [];
+      // 2b. Dedup: pares (payment, company) onde AO MENOS UM débito ainda não foi aplicado.
+      const pairsToInvoke = new Map<string, { payment_id: string; company_id: string }>();
+      let alreadyApplied = 0;
       for (const [pj, debts] of byPj.entries()) {
         const target = currentByPj.get(pj);
         if (!target) continue;
+        let anyPending = false;
         for (const d of debts) {
           if (d.target_payment_id !== target) toUpdate.push({ id: d.id, company_id: pj, target });
+          if (debtAppliedAt(d.id, target)) {
+            alreadyApplied += 1;
+          } else {
+            anyPending = true;
+          }
         }
+        if (anyPending) pairsToInvoke.set(`${target}|${pj}`, { payment_id: target, company_id: pj });
       }
       let updated = 0;
       for (const u of toUpdate) {
         const { error } = await (supabase as any).from("glosa_debts").update({ target_payment_id: u.target }).eq("id", u.id);
         if (!error) updated += 1;
       }
-      // 3. Invoca apply-company-deductions por (payment_id, company_id) único
-      const pairs = new Map<string, { payment_id: string; company_id: string }>();
-      for (const [pj, debts] of byPj.entries()) {
-        const target = currentByPj.get(pj);
-        if (!target) continue;
-        pairs.set(`${target}|${pj}`, { payment_id: target, company_id: pj });
+
+      // Se nada resta para invocar, evita gasto de créditos e sinaliza claramente.
+      if (pairsToInvoke.size === 0) {
+        if (toUpdate.length) {
+          const patch = new Map(toUpdate.map(u => [u.id, u.target]));
+          setGlosaDebts(prev => prev.map(g => patch.has(g.id) ? { ...g, target_payment_id: patch.get(g.id)! } : g));
+        }
+        if (Object.keys(labelPatch).length) setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
+        toast.info(alreadyApplied > 0
+          ? `Todos os débitos já foram aplicados nos lotes vigentes (${alreadyApplied}).`
+          : "Nenhum lote em aberto disponível para aplicar.");
+        return;
       }
+
+      // 3. Invoca apply-company-deductions apenas para pares com pendência
       const invocations = await Promise.allSettled(
-        Array.from(pairs.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
+        Array.from(pairsToInvoke.values()).map(p => supabase.functions.invoke("apply-company-deductions", { body: p }))
       );
       const okInvocations = invocations.filter(r => r.status === "fulfilled").length;
       const missing = pjIds.length - currentByPj.size;
@@ -675,9 +700,12 @@ export default function CreditosDebitos() {
       const parts = [
         `${okInvocations} PJ(s) processadas`,
         updated ? `${updated} lote-alvo atualizado(s)` : null,
+        alreadyApplied ? `${alreadyApplied} já aplicados (ignorados)` : null,
         missing ? `${missing} sem lote em aberto` : null,
       ].filter(Boolean).join(" · ");
       toast.success(`Aplicação disparada — ${parts || "OK"}`);
+      // Recarrega aplicações para refletir novo estado
+      void loadAll();
     } catch (err: any) {
       console.error("[applyToCurrentLote]", err);
       toast.error(err?.message ?? "Falha ao aplicar no lote vigente.");
