@@ -915,6 +915,15 @@ export default function CreditosDebitos() {
       supabase.functions.invoke("apply-company-deductions", {
         body: { payment_id: massLotePick, company_id: massDialogPjId },
       }).catch((err) => console.warn("[confirmMass] apply-company-deductions falhou:", err?.message));
+      void logDeductionEvents(successIds.map(debtId => ({
+        hospital_id: activeHospitalId,
+        payment_id: massLotePick,
+        company_id: massDialogPjId,
+        debt_id: debtId,
+        action: "applied" as const,
+        reason: `Confirmação em massa (${massParc}×) — aplicação disparada`,
+        metadata: { source: "confirmMass", parcelas: massParc },
+      })));
     }
 
   };
