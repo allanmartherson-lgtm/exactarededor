@@ -31,6 +31,7 @@ import { PaymentConciliationModal } from "@/components/payment-detail/PaymentCon
 import { AssistanceAlertsDetailModal } from "@/components/payment-detail/AssistanceAlertsDetailModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
 import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
+import { BatchConciliationReportDialog } from "@/components/payment-detail/BatchConciliationReportDialog";
 
 import { ExportColumnPickerDialog } from "@/components/payment-detail/ExportColumnPickerDialog";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
