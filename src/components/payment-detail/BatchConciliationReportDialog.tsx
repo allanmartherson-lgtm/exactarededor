@@ -266,73 +266,81 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     );
   }, [visibleRows]);
 
-  const flagRow = (r: Row) => {
-    const flags: string[] = [];
-    if (Math.abs(r.grp_bruto - r.snap_bruto) > 0.01) flags.push("bruto grupo ≠ apurado");
-    if (Math.abs(r.grp_liquido - r.snap_liquido) > 0.01) flags.push("líquido grupo ≠ apurado");
-    if (Math.abs(r.snap_glosas - r.app_confirmado) > 0.01) flags.push("glosa apurada ≠ confirmada");
+  type Flag = { label: string; tone: "info" | "warn" };
+  const flagRow = (r: Row): Flag[] => {
+    const flags: Flag[] = [];
+    // Deduções aplicadas — intencionais, apenas informativas
+    if (r.snap_glosas > 0.01) flags.push({ label: "glosa aplicada", tone: "info" });
+    if (r.snap_debitos > 0.01) flags.push({ label: "débito aplicado", tone: "info" });
+    if (r.snap_creditos > 0.01) flags.push({ label: "crédito aplicado", tone: "info" });
+
+    // Inconsistências reais — merecem atenção
+    const glosaPendenteConfirmar = r.snap_glosas - r.app_confirmado;
+    if (glosaPendenteConfirmar > 0.01) flags.push({ label: "glosa a confirmar", tone: "warn" });
+    if (r.app_pending > 0.01) flags.push({ label: "pendências manuais", tone: "warn" });
     if (r.nf_expected > 0 && Math.abs(r.nf_expected - r.snap_liquido) > 0.01)
-      flags.push("NF esperada ≠ líquido apurado");
-    if (r.app_pending > 0) flags.push("pendências sem resolução");
+      flags.push({ label: "NF ≠ líquido", tone: "warn" });
+
+    // Bruto divergente sem explicação (não é glosa/débito/crédito)
+    const brutoDiff = r.grp_bruto - r.snap_bruto;
+    if (Math.abs(brutoDiff) > 0.01) flags.push({ label: "bruto recalculado", tone: "warn" });
     return flags;
   };
+  const hasWarn = (r: Row) => flagRow(r).some((f) => f.tone === "warn");
 
   const exportXlsx = () => {
     const header = [
       "PJ",
+      "Bruto (grupo)",
+      "Apurado bruto",
+      "(−) Glosas",
+      "Confirmado",
+      "Proposto",
+      "Pendente",
+      "Adiado",
+      "Apurado líquido",
+      "Líquido (grupo)",
       "NF esperada",
       "NF recebida",
       "Qtd NF",
-      "Bruto grupo",
-      "Líquido grupo",
-      "Apurado bruto",
-      "Apurado glosas",
       "Apurado débitos",
       "Apurado créditos",
-      "Apurado líquido",
-      "App confirmado",
-      "App proposto",
-      "App pendente",
-      "App adiado",
-      "App partial",
-      "Divergências",
+      "Observações",
     ];
     const body = visibleRows.map((r) => [
       r.company_name,
-      r.nf_expected,
-      r.nf_received,
-      r.nf_count,
       r.grp_bruto,
-      r.grp_liquido,
       r.snap_bruto,
       r.snap_glosas,
-      r.snap_debitos,
-      r.snap_creditos,
-      r.snap_liquido,
       r.app_confirmado,
       r.app_proposto,
       r.app_pending,
       r.app_postponed,
-      r.app_partial,
-      flagRow(r).join(" · "),
+      r.snap_liquido,
+      r.grp_liquido,
+      r.nf_expected,
+      r.nf_received,
+      r.nf_count,
+      r.snap_debitos,
+      r.snap_creditos,
+      flagRow(r).map((f) => f.label).join(" · "),
     ]);
     const totalRow = [
       "TOTAL",
-      totals.nf_expected,
-      totals.nf_received,
-      visibleRows.reduce((a, r) => a + r.nf_count, 0),
       totals.grp_bruto,
-      totals.grp_liquido,
       totals.snap_bruto,
       totals.snap_glosas,
-      totals.snap_debitos,
-      totals.snap_creditos,
-      totals.snap_liquido,
       totals.app_confirmado,
       totals.app_proposto,
       totals.app_pending,
       totals.app_postponed,
-      totals.app_partial,
+      totals.snap_liquido,
+      totals.grp_liquido,
+      totals.nf_expected,
+      totals.nf_received,
+      visibleRows.reduce((a, r) => a + r.nf_count, 0),
+      totals.snap_debitos,
+      totals.snap_creditos,
       "",
     ];
     const ws = XLSX.utils.aoa_to_sheet([header, ...body, totalRow]);
@@ -345,14 +353,14 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       const addr = XLSX.utils.encode_cell({ r: 0, c });
       (ws[addr] as any).s = headStyle;
     }
-    const numCols = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    const numCols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14];
     for (let r = 1; r <= body.length + 1; r++) {
       for (const c of numCols) {
         const addr = XLSX.utils.encode_cell({ r, c });
         if (ws[addr]) (ws[addr] as any).z = '"R$" #,##0.00;[Red]"R$" -#,##0.00';
       }
     }
-    ws["!cols"] = header.map((h, i) => ({ wch: i === 0 ? 42 : i === 16 ? 40 : 14 }));
+    ws["!cols"] = header.map((h, i) => ({ wch: i === 0 ? 42 : i === header.length - 1 ? 40 : 14 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conciliação PJ");
     XLSX.writeFile(wb, `conciliacao-lote-${paymentReference ?? paymentId.slice(0, 8)}.xlsx`);
@@ -373,52 +381,52 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
 
     const head = [[
       "PJ",
-      "NF esp.",
-      "NF receb.",
       "Bruto grupo",
-      "Líq. grupo",
       "Apurado bruto",
-      "Apurado glosas",
-      "Apurado líq.",
+      "(−) Glosas",
       "Confirm.",
       "Proposto",
       "Pendente",
       "Adiado",
-      "Divergências",
+      "Apurado líq.",
+      "Líq. grupo",
+      "NF esp.",
+      "NF receb.",
+      "Observações",
     ]];
 
     const body = visibleRows.map((r) => {
       const flags = flagRow(r);
       return [
         r.company_name,
-        fmt(r.nf_expected),
-        fmt(r.nf_received),
         fmt(r.grp_bruto),
-        fmt(r.grp_liquido),
         fmt(r.snap_bruto),
         fmt(r.snap_glosas),
-        fmt(r.snap_liquido),
         fmt(r.app_confirmado),
         fmt(r.app_proposto),
         fmt(r.app_pending),
         fmt(r.app_postponed),
-        flags.length ? flags.join(" · ") : "ok",
+        fmt(r.snap_liquido),
+        fmt(r.grp_liquido),
+        fmt(r.nf_expected),
+        fmt(r.nf_received),
+        flags.length ? flags.map((f) => f.label).join(" · ") : "conforme",
       ];
     });
 
     const foot = [[
       `TOTAL (${visibleRows.length})`,
-      fmt(totals.nf_expected),
-      fmt(totals.nf_received),
       fmt(totals.grp_bruto),
-      fmt(totals.grp_liquido),
       fmt(totals.snap_bruto),
       fmt(totals.snap_glosas),
-      fmt(totals.snap_liquido),
       fmt(totals.app_confirmado),
       fmt(totals.app_proposto),
       fmt(totals.app_pending),
       fmt(totals.app_postponed),
+      fmt(totals.snap_liquido),
+      fmt(totals.grp_liquido),
+      fmt(totals.nf_expected),
+      fmt(totals.nf_received),
       "",
     ]];
 
@@ -439,12 +447,12 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         0: { cellWidth: 52, halign: "left", fontStyle: "bold" },
         1: { halign: "right" },
         2: { halign: "right" },
-        3: { halign: "right" },
+        3: { halign: "right", textColor: [178, 34, 34] },
         4: { halign: "right" },
         5: { halign: "right" },
-        6: { halign: "right", textColor: [178, 34, 34] },
+        6: { halign: "right" },
         7: { halign: "right" },
-        8: { halign: "right" },
+        8: { halign: "right", fontStyle: "bold" },
         9: { halign: "right" },
         10: { halign: "right" },
         11: { halign: "right" },
@@ -454,12 +462,13 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       didParseCell: (data) => {
         if (data.section === "body") {
           const r = visibleRows[data.row.index];
-          if (r && flagRow(r).length > 0) {
+          const hasWarnFlag = r ? flagRow(r).some((f) => f.tone === "warn") : false;
+          if (hasWarnFlag) {
             data.cell.styles.fillColor = [255, 249, 219];
           }
-          if (data.column.index === 12 && data.cell.raw && data.cell.raw !== "ok") {
-            data.cell.styles.textColor = [161, 98, 7];
-            data.cell.styles.fontStyle = "bold";
+          if (data.column.index === 12 && data.cell.raw && data.cell.raw !== "conforme") {
+            data.cell.styles.textColor = hasWarnFlag ? [161, 98, 7] : [100, 116, 139];
+            data.cell.styles.fontStyle = hasWarnFlag ? "bold" : "normal";
           }
         }
       },
@@ -529,18 +538,18 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
               <tr className="text-left">
                 <th className="p-2 border-b w-8"></th>
                 <SortHeader k="company_name" label="PJ" align="left" />
-                <SortHeader k="nf_expected" label="NF esperada" />
-                <SortHeader k="nf_received" label="NF recebida" />
-                <SortHeader k="grp_bruto" label="Bruto (grupo)" />
-                <SortHeader k="grp_liquido" label="Líquido (grupo)" />
+                <SortHeader k="grp_bruto" label="Bruto (grupo)" title="Total bruto vindo da produção, antes de qualquer dedução" />
                 <SortHeader k="snap_bruto" label="Apurado bruto" title="Bruto apurado pelo sistema após regras" />
-                <SortHeader k="snap_glosas" label="Apurado glosas" title="Total de glosas apuradas para esta PJ no lote" />
+                <SortHeader k="snap_glosas" label="(−) Glosas" title="Total de glosas apuradas para esta PJ no lote" />
+                <SortHeader k="app_confirmado" label="Confirmado" title="Glosas efetivamente lançadas no pagamento" />
+                <SortHeader k="app_proposto" label="Proposto" title="Sugestões pendentes de confirmação em Créditos & Débitos" />
+                <SortHeader k="app_pending" label="Pendente" title="Pendências manuais aguardando resolução" />
+                <SortHeader k="app_postponed" label="Adiado" title="Aplicações adiadas para o próximo ciclo" />
                 <SortHeader k="snap_liquido" label="Apurado líquido" title="Valor líquido apurado (Bruto − Glosas − Débitos + Créditos)" />
-                <SortHeader k="app_confirmado" label="Confirmado" />
-                <SortHeader k="app_proposto" label="Proposto" />
-                <SortHeader k="app_pending" label="Pendente" />
-                <SortHeader k="app_postponed" label="Adiado" />
-                <th className="p-2 border-b">Divergências</th>
+                <SortHeader k="grp_liquido" label="Líquido (grupo)" title="Líquido derivado dos totais brutos do grupo" />
+                <SortHeader k="nf_expected" label="NF esperada" title="Valor esperado no pedido de nota" />
+                <SortHeader k="nf_received" label="NF recebida" title="Valor efetivamente recebido nas notas" />
+                <th className="p-2 border-b font-medium text-muted-foreground normal-case">Observações</th>
               </tr>
             </thead>
             <tbody>
@@ -568,41 +577,51 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
               {!loading &&
                 visibleRows.map((r) => {
                   const flags = flagRow(r);
+                  const warn = flags.some((f) => f.tone === "warn");
                   return (
                     <tr
                       key={r.company_id}
                       onClick={() => setDrill({ id: r.company_id, name: r.company_name })}
                       className={cn(
                         "border-b hover:bg-muted/50 cursor-pointer",
-                        flags.length && "bg-warning-soft/30",
+                        warn && "bg-warning-soft/30",
                       )}
                       title="Ver detalhamento linha a linha"
                     >
                       <td className="p-2 text-muted-foreground"><ChevronRight className="h-3.5 w-3.5" /></td>
                       <td className="p-2 font-medium underline-offset-2 hover:underline">{r.company_name}</td>
-                      <td className="p-2 text-right">{formatCurrency(r.nf_expected)}</td>
-                      <td className="p-2 text-right">{r.nf_received === null ? "—" : formatCurrency(r.nf_received)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.grp_bruto)}</td>
-                      <td className="p-2 text-right">{formatCurrency(r.grp_liquido)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.snap_bruto)}</td>
                       <td className="p-2 text-right text-destructive">{formatCurrency(r.snap_glosas)}</td>
-                      <td className="p-2 text-right">{formatCurrency(r.snap_liquido)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_confirmado)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_proposto)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_pending)}</td>
                       <td className="p-2 text-right">{formatCurrency(r.app_postponed)}</td>
+                      <td className="p-2 text-right font-medium">{formatCurrency(r.snap_liquido)}</td>
+                      <td className="p-2 text-right">{formatCurrency(r.grp_liquido)}</td>
+                      <td className="p-2 text-right">{formatCurrency(r.nf_expected)}</td>
+                      <td className="p-2 text-right">{r.nf_received === null ? "—" : formatCurrency(r.nf_received)}</td>
                       <td className="p-2">
                         {flags.length ? (
                           <div className="flex flex-wrap gap-1">
                             {flags.map((f) => (
-                              <Badge key={f} variant="outline" className="border-warning/60 text-warning gap-1">
-                                <AlertTriangle className="h-3 w-3" /> {f}
+                              <Badge
+                                key={f.label}
+                                variant="outline"
+                                className={cn(
+                                  "gap-1",
+                                  f.tone === "warn"
+                                    ? "border-warning/60 text-warning"
+                                    : "border-muted-foreground/30 text-muted-foreground",
+                                )}
+                              >
+                                {f.tone === "warn" && <AlertTriangle className="h-3 w-3" />} {f.label}
                               </Badge>
                             ))}
                           </div>
                         ) : (
                           <Badge variant="outline" className="border-success/60 text-success">
-                            ok
+                            conforme
                           </Badge>
                         )}
                       </td>
@@ -615,17 +634,17 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
                 <tr>
                   <td className="p-2" />
                   <td className="p-2">TOTAL ({visibleRows.length}{filter.trim() ? ` de ${rows.length}` : ""})</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.nf_expected)}</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.nf_received)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.grp_bruto)}</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.grp_liquido)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.snap_bruto)}</td>
                   <td className="p-2 text-right text-destructive">{formatCurrency(totals.snap_glosas)}</td>
-                  <td className="p-2 text-right">{formatCurrency(totals.snap_liquido)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_confirmado)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_proposto)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_pending)}</td>
                   <td className="p-2 text-right">{formatCurrency(totals.app_postponed)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.snap_liquido)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.grp_liquido)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.nf_expected)}</td>
+                  <td className="p-2 text-right">{formatCurrency(totals.nf_received)}</td>
                   <td className="p-2" />
                 </tr>
               </tfoot>
