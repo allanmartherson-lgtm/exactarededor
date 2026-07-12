@@ -166,6 +166,13 @@ export default function CreditosDebitos() {
   const [globalLotesByPj, setGlobalLotesByPj] = useState<Record<string, LoteOption[]>>({});
   const [busyGlobal, setBusyGlobal] = useState(false);
 
+  // ============ Dialog "Aplicar no lote vigente" (seletor obrigatório) ============
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyDialogScopePj, setApplyDialogScopePj] = useState<string | null>(null); // null = todas
+  const [applyLotesByPj, setApplyLotesByPj] = useState<Record<string, LoteOption[]>>({});
+  const [applyPickByPj, setApplyPickByPj] = useState<Record<string, string>>({});
+  const [applyLoading, setApplyLoading] = useState(false);
+
   // ============ FILTROS (sincronizados via URL) ============
   const tab = searchParams.get("tab") || "pendentes";
   const search = searchParams.get("q") || "";
