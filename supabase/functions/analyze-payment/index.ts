@@ -2276,6 +2276,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
           bonusLinesToInsert.push({
             payment_id,
+            hospital_id: __paymentHospitalId,
             doctor_name: anchor.doctor_name ?? null,
             doctor_id: (anchor as any).doctor_id ?? null,
             company_name: anchor.company_name ?? null,
