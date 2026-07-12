@@ -461,6 +461,11 @@ const PaymentDetail = () => {
         .select("company_id,status,resolution_status,ignored_at")
         .or(`origem_payment_id.eq.${id},target_payment_id.eq.${id},last_payment_id.eq.${id}`)
         .is("ignored_at", null);
+      const { data: glosaApplications } = await (supabase as any)
+        .from("glosa_payment_applications")
+        .select("company_id,status,valor_aplicado,reverted_at")
+        .eq("payment_id", id)
+        .is("reverted_at", null);
       if (cancelled) return;
       const next: Record<string, FinancialFlags> = {};
       ((applications ?? []) as Array<{
@@ -473,10 +478,24 @@ const PaymentDetail = () => {
         const flags = next[companyId] ?? emptyFinancialFlags();
         const status = String(row.status ?? "");
         const tipo = String(row.company_financial_adjustments?.tipo ?? "");
-        if (status === "proposto") flags.proposedGlosas = true;
-        if (status === "confirmado" && ["debito", "glosa_parcelada", "complemento_retroativo", "acordo"].includes(tipo)) flags.appliedDebits = true;
-        if (status === "confirmado" && tipo === "credito") flags.appliedCredits = true;
+        if (status === "proposto" && ["debito", "glosa_parcelada", "complemento_retroativo", "acordo"].includes(tipo)) flags.proposedGlosas = true;
+        if (["proposto", "confirmado", "partial"].includes(status) && ["debito", "glosa_parcelada", "complemento_retroativo", "acordo"].includes(tipo)) flags.appliedDebits = true;
+        if (["proposto", "confirmado", "partial"].includes(status) && tipo === "credito") flags.appliedCredits = true;
         next[companyId] = flags;
+      });
+      ((glosaApplications ?? []) as Array<{
+        company_id: string | null;
+        status: string | null;
+        valor_aplicado: number | string | null;
+      }>).forEach((row) => {
+        if (!row.company_id) return;
+        const status = String(row.status ?? "");
+        const valor = Number(row.valor_aplicado ?? 0);
+        if (!["proposto", "confirmado", "partial"].includes(status) || valor <= 0) return;
+        const flags = next[row.company_id] ?? emptyFinancialFlags();
+        flags.appliedDebits = true;
+        flags.proposedGlosas = true;
+        next[row.company_id] = flags;
       });
       ((glosaDebts ?? []) as Array<{
         company_id: string | null;
@@ -515,6 +534,11 @@ const PaymentDetail = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "glosa_debts", filter: `last_payment_id=eq.${id}` },
+        () => loadFinancialFlags(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "glosa_payment_applications", filter: `payment_id=eq.${id}` },
         () => loadFinancialFlags(),
       )
       .subscribe();
