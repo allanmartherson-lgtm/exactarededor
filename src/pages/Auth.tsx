@@ -228,10 +228,11 @@ const Auth = () => {
     // origin puro para não quebrar a validação do broker OAuth no mobile.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
-    diagPush("google.click", { nextTarget, redirect_uri: window.location.origin });
+    const redirectUri = `${window.location.origin}/auth/callback`;
+    diagPush("google.click", { nextTarget, redirect_uri: redirectUri });
     const bridge = startOAuthWebMessageBridge();
     const signInPromise = lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     }).then((r) => { diagPush("google.signInWithOAuth.resolved", { redirected: (r as { redirected?: boolean })?.redirected, hasError: !!(r as { error?: unknown })?.error }); return r; })
       .catch((e) => { diagPush("google.signInWithOAuth.threw", { error: e instanceof Error ? e.message : String(e) }); throw e; });
     const result = await Promise.race([signInPromise, bridge.promise]);
