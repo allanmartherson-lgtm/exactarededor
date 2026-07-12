@@ -1475,9 +1475,15 @@ export default function CreditosDebitos() {
                                     <span className="font-medium text-sm">{g.doctor_name}</span>
                                     {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
                                     {applied && (
-                                      <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
-                                        ✓ Aplicado ({applied.status})
-                                      </Badge>
+                                      applied.status === "postponed" ? (
+                                        <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
+                                          ⏳ Adiada (saldo insuficiente)
+                                        </Badge>
+                                      ) : (
+                                        <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
+                                          ✓ Aplicado ({applied.status})
+                                        </Badge>
+                                      )
                                     )}
                                   </div>
                                   <div className="text-xs mt-0.5">
