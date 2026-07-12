@@ -12054,6 +12054,26 @@ export type Database = {
         }
         Returns: number
       }
+      get_lote_intervention_preview: {
+        Args: { p_payment_id: string }
+        Returns: {
+          approved_at: string
+          autor_id: string
+          cancellation_reason: string
+          company_id: string
+          company_name: string
+          delta: number
+          doctor_name: string
+          fonte: string
+          id: string
+          item_id: string
+          payment_id: string
+          procedure_code: string
+          procedure_name: string
+          valor_pago_final: number
+          valor_regra: number
+        }[]
+      }
       get_money_anomalies: {
         Args: { p_days?: number }
         Returns: {
