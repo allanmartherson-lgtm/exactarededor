@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Download, FileDown, RefreshCw, AlertTriangle } from "lucide-react";
+import { Download, FileDown, RefreshCw, AlertTriangle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
+import { PJDrilldownDialog } from "./PJDrilldownDialog";
 
 type Props = {
   open: boolean;
