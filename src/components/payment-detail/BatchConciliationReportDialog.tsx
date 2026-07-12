@@ -55,12 +55,51 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   const [rows, setRows] = useState<Row[]>([]);
   const [drill, setDrill] = useState<{ id: string; name: string } | null>(null);
   const [filter, setFilter] = useState("");
+  type SortKey = "company_name" | "nf_expected" | "nf_received" | "grp_bruto" | "grp_liquido" | "snap_bruto" | "snap_glosas" | "snap_liquido" | "app_confirmado" | "app_proposto" | "app_pending" | "app_postponed";
+  const [sortKey, setSortKey] = useState<SortKey>("company_name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(k);
+      setSortDir(k === "company_name" ? "asc" : "desc");
+    }
+  };
+
+  const SortHeader = ({ k, label, align = "right", title, className }: { k: SortKey; label: string; align?: "left" | "right"; title?: string; className?: string }) => {
+    const active = sortKey === k;
+    const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <th className={cn("p-2 border-b select-none", align === "right" ? "text-right" : "text-left", className)} title={title}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className={cn(
+            "inline-flex items-center gap-1 hover:text-foreground transition-colors",
+            align === "right" && "flex-row-reverse",
+            active ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          <Icon className="h-3 w-3" />
+          <span>{label}</span>
+        </button>
+      </th>
+    );
+  };
 
   const visibleRows = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.company_name.toLowerCase().includes(q));
-  }, [rows, filter]);
+    const filtered = q ? rows.filter((r) => r.company_name.toLowerCase().includes(q)) : rows.slice();
+    const dir = sortDir === "asc" ? 1 : -1;
+    filtered.sort((a, b) => {
+      if (sortKey === "company_name") return a.company_name.localeCompare(b.company_name, "pt-BR") * dir;
+      const av = (a[sortKey] as number | null) ?? 0;
+      const bv = (b[sortKey] as number | null) ?? 0;
+      return (av - bv) * dir;
+    });
+    return filtered;
+  }, [rows, filter, sortKey, sortDir]);
 
   const load = async () => {
     setLoading(true);
