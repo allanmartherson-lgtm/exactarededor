@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx-js-style";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Download, RefreshCw, AlertTriangle } from "lucide-react";
+import { Download, FileDown, RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 
 type Props = {
   open: boolean;
@@ -306,6 +309,127 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
     XLSX.writeFile(wb, `conciliacao-lote-${paymentReference ?? paymentId.slice(0, 8)}.xlsx`);
   };
 
+  const exportPdf = async () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const startY = await drawReportHeader(doc, {
+      title: "Panorama do lote — conciliação financeira por PJ",
+      subtitle: `Lote ${paymentReference ?? paymentId.slice(0, 8)} · ${rows.length} PJs · gerado em ${new Date().toLocaleString("pt-BR")}`,
+      filledBar: true,
+    });
+
+    const fmt = (n: number | null) =>
+      n === null || n === undefined
+        ? "—"
+        : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+    const head = [[
+      "PJ",
+      "NF esp.",
+      "NF receb.",
+      "Bruto grupo",
+      "Líq. grupo",
+      "Snap bruto",
+      "Snap glosas",
+      "Snap líq.",
+      "Confirm.",
+      "Proposto",
+      "Pending",
+      "Postp.",
+      "Divergências",
+    ]];
+
+    const body = rows.map((r) => {
+      const flags = flagRow(r);
+      return [
+        r.company_name,
+        fmt(r.nf_expected),
+        fmt(r.nf_received),
+        fmt(r.grp_bruto),
+        fmt(r.grp_liquido),
+        fmt(r.snap_bruto),
+        fmt(r.snap_glosas),
+        fmt(r.snap_liquido),
+        fmt(r.app_confirmado),
+        fmt(r.app_proposto),
+        fmt(r.app_pending),
+        fmt(r.app_postponed),
+        flags.length ? flags.join(" · ") : "ok",
+      ];
+    });
+
+    const foot = [[
+      `TOTAL (${rows.length})`,
+      fmt(totals.nf_expected),
+      fmt(totals.nf_received),
+      fmt(totals.grp_bruto),
+      fmt(totals.grp_liquido),
+      fmt(totals.snap_bruto),
+      fmt(totals.snap_glosas),
+      fmt(totals.snap_liquido),
+      fmt(totals.app_confirmado),
+      fmt(totals.app_proposto),
+      fmt(totals.app_pending),
+      fmt(totals.app_postponed),
+      "",
+    ]];
+
+    autoTable(doc, {
+      startY: startY + 4,
+      head,
+      body,
+      foot,
+      styles: { fontSize: 7.2, cellPadding: 1.6, overflow: "linebreak", valign: "middle" },
+      headStyles: {
+        fillColor: REDE_DOR_BRAND_BLUE_RGB as any,
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "center",
+      },
+      footStyles: { fillColor: [230, 235, 245], textColor: 20, fontStyle: "bold" },
+      columnStyles: {
+        0: { cellWidth: 52, halign: "left", fontStyle: "bold" },
+        1: { halign: "right" },
+        2: { halign: "right" },
+        3: { halign: "right" },
+        4: { halign: "right" },
+        5: { halign: "right" },
+        6: { halign: "right", textColor: [178, 34, 34] },
+        7: { halign: "right" },
+        8: { halign: "right" },
+        9: { halign: "right" },
+        10: { halign: "right" },
+        11: { halign: "right" },
+        12: { cellWidth: 45, fontSize: 6.6 },
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data) => {
+        if (data.section === "body") {
+          const r = rows[data.row.index];
+          if (r && flagRow(r).length > 0) {
+            data.cell.styles.fillColor = [255, 249, 219];
+          }
+          if (data.column.index === 12 && data.cell.raw && data.cell.raw !== "ok") {
+            data.cell.styles.textColor = [161, 98, 7];
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+      },
+      margin: { left: 8, right: 8 },
+      didDrawPage: () => {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        doc.setFontSize(7.5);
+        doc.setTextColor(120);
+        const pageStr = `Página ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(pageStr, pageWidth - 8, pageHeight - 5, { align: "right" });
+        doc.text("Fonte: pedido de nota + snapshot financeiro + glosa_payment_applications", 8, pageHeight - 5);
+      },
+    });
+
+    doc.save(`panorama-lote-${paymentReference ?? paymentId.slice(0, 8)}.pdf`);
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[min(1200px,96vw)] max-h-[90vh] overflow-hidden flex flex-col">
@@ -412,6 +536,9 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} /> Recarregar
+          </Button>
+          <Button variant="outline" onClick={exportPdf} disabled={loading || rows.length === 0}>
+            <FileDown className="h-4 w-4 mr-1.5" /> Exportar PDF
           </Button>
           <Button onClick={exportXlsx} disabled={loading || rows.length === 0}>
             <Download className="h-4 w-4 mr-1.5" /> Exportar XLSX
