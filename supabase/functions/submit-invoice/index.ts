@@ -87,6 +87,20 @@ serve(async (req) => {
     //   - 'question' (application/json) — recebedor envia uma dúvida
     const contentType = req.headers.get("content-type") ?? "";
 
+    // Helper com cache para preencher hospital_id em inserts (multi-tenant isolation).
+    // Tabelas invoice_questions / invoice_question_attachments / payment_observations
+    // têm hospital_id NOT NULL — sem isso o insert é rejeitado silenciosamente.
+    const __hospIdCache = new Map<string, string | null>();
+    const getHospitalId = async (paymentId: string | null | undefined): Promise<string | null> => {
+      if (!paymentId) return null;
+      if (__hospIdCache.has(paymentId)) return __hospIdCache.get(paymentId) ?? null;
+      const { data } = await supabase.from("payments").select("hospital_id").eq("id", paymentId).maybeSingle();
+      const hid = (data?.hospital_id as string | null) ?? null;
+      __hospIdCache.set(paymentId, hid);
+      return hid;
+    };
+
+
     // Helpers de anexo (mantidos inline pra não precisar bundler na edge).
     const ALLOWED_MIMES = new Set([
       "application/pdf",
