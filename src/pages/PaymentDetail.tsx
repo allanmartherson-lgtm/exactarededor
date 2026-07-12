@@ -108,8 +108,8 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, ClipboardList, Download, FileDown, GitCompare, History, Layers, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, ClipboardList, Download, FileDown, Filter, GitCompare, History, Layers, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx-js-style";
 import { confirmDialog } from "@/lib/confirm";
 import { DateInput } from "@/components/ui/date-input";
@@ -428,9 +428,61 @@ const PaymentDetail = () => {
   const [itemSearch, setItemSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "validation" | "approved" | "approved_strict">("all");
+  const [financialFilters, setFinancialFilters] = useState({
+    proposedGlosas: false,
+    appliedDebits: false,
+    appliedCredits: false,
+  });
+  const [financialFlagsByCompany, setFinancialFlagsByCompany] = useState<Record<string, {
+    proposedGlosas: boolean;
+    appliedDebits: boolean;
+    appliedCredits: boolean;
+  }>>({});
   const [onlyRegIssues, setOnlyRegIssues] = useState(false);
   const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
   const tussAuditOpenCount = useTussAuditOpenCount(id);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const loadFinancialFlags = async () => {
+      const { data } = await (supabase as any)
+        .from("company_adjustment_applications")
+        .select("company_id,status,reverted_at,company_financial_adjustments(company_id,tipo)")
+        .eq("payment_id", id)
+        .is("reverted_at", null);
+      if (cancelled) return;
+      const next: Record<string, { proposedGlosas: boolean; appliedDebits: boolean; appliedCredits: boolean }> = {};
+      ((data ?? []) as Array<{
+        company_id: string | null;
+        status: string | null;
+        company_financial_adjustments?: { company_id?: string | null; tipo?: string | null } | null;
+      }>).forEach((row) => {
+        const companyId = row.company_id ?? row.company_financial_adjustments?.company_id ?? null;
+        if (!companyId) return;
+        const flags = next[companyId] ?? { proposedGlosas: false, appliedDebits: false, appliedCredits: false };
+        const status = String(row.status ?? "");
+        const tipo = String(row.company_financial_adjustments?.tipo ?? "");
+        if (status === "proposto") flags.proposedGlosas = true;
+        if (status === "confirmado" && ["debito", "glosa_parcelada", "complemento_retroativo", "acordo"].includes(tipo)) flags.appliedDebits = true;
+        if (status === "confirmado" && tipo === "credito") flags.appliedCredits = true;
+        next[companyId] = flags;
+      });
+      setFinancialFlagsByCompany(next);
+    };
+    loadFinancialFlags();
+    const ch = supabase
+      .channel(`payment-financial-flags-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "company_adjustment_applications", filter: `payment_id=eq.${id}` },
+        () => loadFinancialFlags(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [id]);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -4583,6 +4635,57 @@ const PaymentDetail = () => {
                 Pend. cadastro {regIssueItemIds.size > 0 && `(${regIssueItemIds.size})`}
               </Button>
 
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={Object.values(financialFilters).some(Boolean) ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                    title="Filtrar empresas deste lote por glosas, débitos e créditos lançados"
+                  >
+                    <Filter className="h-4 w-4" />
+                    Financeiro
+                    {Object.values(financialFilters).filter(Boolean).length > 0 && ` (${Object.values(financialFilters).filter(Boolean).length})`}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Financeiro do lote</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={financialFilters.proposedGlosas}
+                    onCheckedChange={(checked) => setFinancialFilters((prev) => ({ ...prev, proposedGlosas: checked === true }))}
+                    className="text-xs"
+                  >
+                    Com glosas propostas
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={financialFilters.appliedDebits}
+                    onCheckedChange={(checked) => setFinancialFilters((prev) => ({ ...prev, appliedDebits: checked === true }))}
+                    className="text-xs"
+                  >
+                    Com débitos aplicados
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={financialFilters.appliedCredits}
+                    onCheckedChange={(checked) => setFinancialFilters((prev) => ({ ...prev, appliedCredits: checked === true }))}
+                    className="text-xs"
+                  >
+                    Com créditos aplicados
+                  </DropdownMenuCheckboxItem>
+                  {Object.values(financialFilters).some(Boolean) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-xs"
+                        onSelect={() => setFinancialFilters({ proposedGlosas: false, appliedDebits: false, appliedCredits: false })}
+                      >
+                        Limpar financeiro
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {/* Filtro pessoal — só você vê seus marcadores */}
               <Select value={markerFilter} onValueChange={(v) => setMarkerFilter(v as any)}>
                 <SelectTrigger
@@ -4605,7 +4708,7 @@ const PaymentDetail = () => {
             )}
           </div>
           
-          {(criticalFilter !== "all" || payment.analysis_mode === "empresa_prioritaria") && (
+          {(criticalFilter !== "all" || Object.values(financialFilters).some(Boolean) || payment.analysis_mode === "empresa_prioritaria") && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-dashed">
               <Info className="h-3.5 w-3.5" />
               <span>
@@ -4614,6 +4717,7 @@ const PaymentDetail = () => {
                 {criticalFilter === "validation" && "Mostrando apenas empresas com alertas de validação assistencial (sobreposição, duplicidade, etc.)."}
                 {criticalFilter === "approved" && "Mostrando apenas empresas aprovadas (considera justificativas/blacklists)."}
                 {criticalFilter === "approved_strict" && "Mostrando apenas empresas 100% limpas (sem alertas ou notas da IA)."}
+                {criticalFilter === "all" && Object.values(financialFilters).some(Boolean) && "Mostrando apenas empresas com os filtros financeiros selecionados."}
                 {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
               </span>
               <Button 
@@ -4622,6 +4726,7 @@ const PaymentDetail = () => {
                 className="h-auto p-0 text-xs ml-auto" 
                  onClick={() => {
                    setCriticalFilter("all");
+                    setFinancialFilters({ proposedGlosas: false, appliedDebits: false, appliedCredits: false });
                    setItemSearch("");
                    setCompanySearch("");
                  }}
@@ -4692,7 +4797,17 @@ const PaymentDetail = () => {
               };
 
               const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
+              const hasFinancialFilter = Object.values(financialFilters).some(Boolean);
+              const groupMatchesFinancialFilter = (g: typeof groups[number]) => {
+                if (!hasFinancialFilter) return true;
+                const flags = g.company_id ? financialFlagsByCompany[g.company_id] : null;
+                if (financialFilters.proposedGlosas && !flags?.proposedGlosas) return false;
+                if (financialFilters.appliedDebits && !flags?.appliedDebits) return false;
+                if (financialFilters.appliedCredits && !flags?.appliedCredits) return false;
+                return true;
+              };
               const visibleGroups = groups.filter((g) => {
+                if (!groupMatchesFinancialFilter(g)) return false;
                 // Filtro pessoal de marcador (Fixado / Aguardando info / Já revisei).
                 if (markerFilter !== "all") {
                   const m = privateNotes[g.id]?.marker ?? null;
@@ -4728,7 +4843,7 @@ const PaymentDetail = () => {
                 return nameMatchesItemSearch || specMatchesItemSearch || groupItems.some((it) => itemMatches(it));
               });
               
-              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
+              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "") || (hasFinancialFilter ? "financeiro" : "");
               if (finalSearchTerm && visibleGroups.length === 0) {
                 return (
                   <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
