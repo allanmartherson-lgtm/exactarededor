@@ -53,6 +53,7 @@ export function PaymentBatchActionsFooter({
   actorRole,
   items,
   onDone,
+  onReviewPendencias,
 }: Props) {
   const navigate = useNavigate();
   const [questionOpen, setQuestionOpen] = useState(false);
