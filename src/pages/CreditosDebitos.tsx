@@ -1164,10 +1164,18 @@ export default function CreditosDebitos() {
         if (!payId) continue;
         pairs.set(`${payId}|${g.company_id}`, { payment_id: payId, company_id: g.company_id });
       }
-      for (const p of pairs.values()) {
-        supabase.functions.invoke("apply-company-deductions", { body: p })
-          .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message));
-      }
+      // Cap concurrency (mesmo motivo do executeApplyCurrentLote).
+      void (async () => {
+        const list = Array.from(pairs.values());
+        const CONC = 4;
+        for (let i = 0; i < list.length; i += CONC) {
+          const chunk = list.slice(i, i + CONC);
+          await Promise.allSettled(chunk.map(p =>
+            supabase.functions.invoke("apply-company-deductions", { body: p })
+              .catch((err) => console.warn("[confirmGlobalMass] apply-company-deductions falhou:", err?.message))
+          ));
+        }
+      })();
       void logDeductionEvents(successIds
         .map(id => {
           const g = targets.find(t => t.id === id);
