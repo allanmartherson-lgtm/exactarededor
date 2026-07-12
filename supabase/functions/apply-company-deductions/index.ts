@@ -286,21 +286,10 @@ Deno.serve(async (req) => {
        try {
          if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; continue; }
 
-         // Médico sem produção neste lote → registra postponed(sem_producao)
-         // para o UI mostrar "Adiada" em vez de manter "pendente" indefinidamente.
-         if (debt.doctor_id && !doctorIdsComProducao.has(debt.doctor_id)) {
-           await supabase.from("glosa_payment_applications").insert({
-             payment_id, company_id, glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-             parcela_numero: 0, valor_aplicado: 0,
-             status: "postponed", source: "auto",
-             postpone_reason: "sem_producao",
-             resolution_note: "Médico sem produção neste lote — débito aguarda próximo ciclo com produção.",
-             applied_by: user_id,
-           });
-           summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
-           summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: "0/0", action: "postponed_sem_producao" });
-           continue;
-         }
+         // NOTA: NÃO bloqueamos por "médico sem produção no lote". A glosa é dívida
+         // da PJ (para fins de pagamento, PJ e médico são inseparáveis) e desconta
+         // do líquido da PJ neste lote — independente de o médico específico ter
+         // ou não itens de produção aqui. Só a capacidade da PJ importa abaixo.
 
         const { data: vinculos } = await supabase
           .rpc("companies_for_doctor_at", {
