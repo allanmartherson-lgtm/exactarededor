@@ -710,9 +710,8 @@ export default function CreditosDebitos() {
       const pickMap: Record<string, string> = {};
       results.forEach(([pj, opts]) => {
         lotesMap[pj] = opts;
-        // Pré-seleciona SOMENTE quando há exatamente 1 opção; caso contrário,
-        // exige que o analista escolha (evita erro em cenário multi-lote).
-        if (opts.length === 1) pickMap[pj] = opts[0].id;
+        // Escolha 100% manual (multi-usuário): analista SEMPRE confirma qual lote
+        // recebe o débito, mesmo quando só há uma opção. Evita aplicação silenciosa.
       });
       setApplyLotesByPj(lotesMap);
       setApplyPickByPj(pickMap);
