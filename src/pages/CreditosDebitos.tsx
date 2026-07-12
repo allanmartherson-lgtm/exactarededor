@@ -413,6 +413,13 @@ export default function CreditosDebitos() {
     const { error } = await (supabase as any).from("glosa_debts").update(patch).eq("id", editingGlosa.id);
     setBusyGlosa(false);
     if (error) { toast.error("Erro: " + error.message); return; }
+    // Dispara aplicação imediata no lote-alvo (silencioso — se falhar, o botão "Reaplicar" cobre).
+    // Sem await para não travar UI; o toast de sucesso reflete a confirmação, não a aplicação.
+    if (lotePick && editingGlosa.company_id) {
+      supabase.functions.invoke("apply-company-deductions", {
+        body: { payment_id: lotePick, company_id: editingGlosa.company_id },
+      }).catch((err) => console.warn("[saveGlosa] apply-company-deductions falhou:", err?.message));
+    }
     toast.success(editingGlosa.confirmed_at
       ? `Reparcelado para ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`
       : `Débito confirmado em ${glosaParc}× de ${brl(editingGlosa.total_debt / glosaParc)}.`);
@@ -426,6 +433,7 @@ export default function CreditosDebitos() {
       : g
     ));
     setEditingGlosa(null);
+
   };
 
   const reopenGlosa = async (g: GlosaDebt) => {
