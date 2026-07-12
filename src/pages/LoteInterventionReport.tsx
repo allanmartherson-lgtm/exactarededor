@@ -121,6 +121,7 @@ export default function LoteInterventionReport() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [paymentRef, setPaymentRef] = useState<string>("");
+  const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
     if (!paymentId) return;
@@ -138,9 +139,27 @@ export default function LoteInterventionReport() {
             .order("approved_at", { ascending: false }),
         ]);
         if (error) throw error;
+        let ledger = (l ?? []) as LedgerRow[];
+        let preview = false;
+        // Se o lote ainda não foi aprovado, o ledger fica vazio. Buscamos a
+        // prévia calculada em tempo real a partir de payment_items (mesma
+        // lógica do materialize_intervention_ledger, sem persistir).
+        if (ledger.length === 0) {
+          const { data: prev, error: prevErr } = await (supabase.rpc as unknown as (
+            fn: string, args: Record<string, unknown>
+          ) => Promise<{ data: unknown; error: unknown }>)(
+            "get_lote_intervention_preview",
+            { p_payment_id: paymentId },
+          );
+          if (!prevErr && Array.isArray(prev)) {
+            ledger = (prev as LedgerRow[]).filter((r) => r.fonte !== "sem_intervencao");
+            preview = true;
+          }
+        }
         if (!cancelled) {
-          setRows((l ?? []) as LedgerRow[]);
+          setRows(ledger);
           setPaymentRef(p?.reference ?? "");
+          setIsPreview(preview);
         }
       } catch (e) {
         console.error(e);
@@ -218,11 +237,22 @@ export default function LoteInterventionReport() {
         }
       />
       <div className="p-4 md:p-6 space-y-4">
+        {isPreview && rows.length > 0 && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-text flex items-start gap-2">
+            <Badge variant="outline" className="border-warning/50 text-warning-text bg-warning/10 shrink-0">
+              Prévia
+            </Badge>
+            <div>
+              Lote ainda não aprovado — estes números refletem o estado atual das intervenções e podem mudar até o parecer do diretor.
+              Só serão consolidados no ledger (e nos relatórios oficiais) após a aprovação.
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard
             label="Saldo do lote"
             value={loading ? <Skeleton className="h-8 w-32" /> : formatCurrency(totals.saldo)}
-            hint={`${totals.qtd} eventos`}
+            hint={`${totals.qtd} eventos${isPreview ? " · prévia" : ""}`}
             tone={totals.saldo > 0 ? "success" : totals.saldo < 0 ? "danger" : "default"}
           />
           <KpiCard
@@ -253,7 +283,7 @@ export default function LoteInterventionReport() {
               <div className="text-sm text-muted-foreground py-8 text-center">
                 Nenhuma intervenção registrada para este lote.
                 <div className="text-xs mt-1">
-                  O ledger só é materializado quando o diretor aprova o lote.
+                  Ainda não há glosas, ajustes manuais, aceites ou cancelamentos aplicados aos itens.
                 </div>
               </div>
             ) : (
