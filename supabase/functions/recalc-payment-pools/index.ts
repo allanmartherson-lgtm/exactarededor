@@ -373,7 +373,7 @@ Deno.serve(async (req) => {
             });
             if (!existingApp) {
               adjustmentApplications.push({
-                adjustment_id: adj.id, parcela_numero: parcelaNum, valor: parcelaValor,
+                adjustment_id: adj.id, parcela_numero: parcelaNum, valor: parcelaValor, company_id: d.company_id,
               });
             }
           }
