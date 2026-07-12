@@ -572,10 +572,12 @@ Deno.serve(async (req) => {
           await supabase.from("payment_company_groups")
             .update({ total_amount: 0, items_count: 0 }).eq("id", existing.id);
         } else {
-          await supabase.from("payment_company_groups").insert({
-            payment_id, company_id: null, company_name: labelName,
+          const { error: insBackErr } = await supabase.from("payment_company_groups").insert({
+            payment_id, hospital_id: payment.hospital_id ?? null,
+            company_id: null, company_name: labelName,
             status: "aprovado", total_amount: 0, items_count: 0,
           } as any);
+          if (insBackErr) console.error("[recalc-payment-pools] payment_company_groups back-insert error", insBackErr);
         }
       }
 
