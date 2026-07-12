@@ -259,12 +259,16 @@ Deno.serve(async (req) => {
 
       const { data: existingGpa } = await supabase
         .from("glosa_payment_applications")
-        .select("glosa_debt_id, status, valor_aplicado")
+        .select("id, glosa_debt_id, status, valor_aplicado")
         .eq("payment_id", payment_id)
         .eq("company_id", company_id)
         .in("status", ["proposto", "confirmado", "pending_manual_resolution", "partial"]);
 
-      const existingDebtIds = new Set((existingGpa ?? []).map((r: any) => r.glosa_debt_id));
+      const existingDebtIds = new Set(
+        (existingGpa ?? [])
+          .filter((r: any) => ["proposto", "confirmado", "partial"].includes(r.status))
+          .map((r: any) => r.glosa_debt_id),
+      );
 
       // Capacidade da PJ neste lote: líquido previsto (snapshot em payment_company_financials)
       // menos o que já foi consumido por outras deduções deste ciclo.
@@ -298,16 +302,39 @@ Deno.serve(async (req) => {
          // do líquido da PJ neste lote — independente de o médico específico ter
          // ou não itens de produção aqui. Só a capacidade da PJ importa abaixo.
 
-        const { data: vinculos } = await supabase
-          .rpc("companies_for_doctor_at", {
-            _doctor_id: debt.doctor_id,
-            _on_date: competenceDate,
-          });
+        const debtCompanyId = debt.company_id ? String(debt.company_id) : null;
+        const debtIsLinked = debtCompanyId && debt.resolution_status === "vinculada";
 
-        const vinculadas = (vinculos ?? []).map((v: any) => v.company_id);
-        const matchEmpresa = vinculadas.includes(company_id);
+        // Quando a glosa já foi confirmada/vinculada, a PJ gravada em glosa_debts é
+        // a fonte canônica. Não revalide contra doctor_companies pela competência do
+        // lote: o vínculo pode ter sido criado depois para resolver uma glosa antiga.
+        if (debtIsLinked) {
+          if (debtCompanyId !== company_id) continue;
 
-        if (vinculadas.length === 0) {
+          const stalePendingRows = (existingGpa ?? []).filter((r: any) =>
+            r.glosa_debt_id === debt.id && r.status === "pending_manual_resolution"
+          );
+          for (const stale of stalePendingRows) {
+            const { error: deletePendingErr } = await supabase
+              .from("glosa_payment_applications")
+              .delete()
+              .eq("id", stale.id);
+            if (deletePendingErr) {
+              console.error(`[glosa cleanup pending] ${debt.id}`, deletePendingErr);
+              throw deletePendingErr;
+            }
+          }
+        } else {
+          const { data: vinculos } = await supabase
+            .rpc("companies_for_doctor_at", {
+              _doctor_id: debt.doctor_id,
+              _on_date: competenceDate,
+            });
+
+          const vinculadas = (vinculos ?? []).map((v: any) => v.company_id);
+          const matchEmpresa = vinculadas.includes(company_id);
+
+          if (vinculadas.length === 0) {
           const { error: e1 } = await supabase.from("glosa_payment_applications").insert({
             payment_id, company_id, hospital_id: paymentHospitalId,
             glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
@@ -319,10 +346,10 @@ Deno.serve(async (req) => {
           if (e1) { console.error(`[glosa sem_pj] ${debt.id}`, e1); throw e1; }
           summary.glosas.sem_pj++;
           continue;
-        }
-        if (!matchEmpresa) continue;
+          }
+          if (!matchEmpresa) continue;
 
-        if (vinculadas.length > 1) {
+          if (vinculadas.length > 1) {
           const { data: outrasProd } = await supabase
             .from("payment_items").select("company_id")
             .eq("payment_id", payment_id).eq("doctor_id", debt.doctor_id)
@@ -340,6 +367,7 @@ Deno.serve(async (req) => {
             if (e2) { console.error(`[glosa ambiguous] ${debt.id}`, e2); throw e2; }
             summary.glosas.ambiguous++;
             continue;
+          }
           }
         }
 
