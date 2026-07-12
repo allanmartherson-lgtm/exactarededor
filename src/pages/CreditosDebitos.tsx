@@ -1248,9 +1248,11 @@ export default function CreditosDebitos() {
                     </Collapsible>
                   );
                 });
-              })()
+              })()}
+              </>
             )}
           </TabsContent>
+
 
           {/* === AJUSTES MANUAIS === */}
           <TabsContent value="ajustes" className="space-y-2 mt-3">
