@@ -49,17 +49,19 @@ describe("deductionDedup — idempotência de apply-company-deductions", () => {
     expect(res.pairsToInvoke.size).toBe(1); // 50 débitos → 1 invocação
   });
 
-  it("aplicações em status revertido/postponed NÃO contam como aplicadas — deve reinvocar", () => {
-    const debts = [debt("d1", "pj1")];
+  it("aplicações em status revertido NÃO contam — deve reinvocar; postponed conta (edge já processou)", () => {
+    const debts = [debt("d1", "pj1"), debt("d2", "pj1")];
     const res = computePairsToInvoke({
       debtsByPj: new Map([["pj1", debts]]),
       currentByPj: new Map([["pj1", "pay1"]]),
       glosaAppsByDebt: {
-        d1: [app("pay1", "revertido"), app("pay1", "postponed")],
+        d1: [app("pay1", "revertido")],
+        d2: [app("pay1", "postponed")], // adiada por saldo — edge não vai mudar reinvocando
       },
     });
+    // d1 continua pendente (revertido), d2 já foi processada (postponed)
     expect(res.pairsToInvoke.size).toBe(1);
-    expect(res.alreadyApplied).toBe(0);
+    expect(res.alreadyApplied).toBe(1);
   });
 
   it("aplicação em OUTRO lote não bloqueia invocação no lote atual", () => {
