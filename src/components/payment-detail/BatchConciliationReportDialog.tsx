@@ -258,7 +258,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       "App partial",
       "Divergências",
     ];
-    const body = rows.map((r) => [
+    const body = visibleRows.map((r) => [
       r.company_name,
       r.nf_expected,
       r.nf_received,
