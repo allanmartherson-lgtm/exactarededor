@@ -31,6 +31,7 @@ import { PaymentConciliationModal } from "@/components/payment-detail/PaymentCon
 import { AssistanceAlertsDetailModal } from "@/components/payment-detail/AssistanceAlertsDetailModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
 import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
+import { BatchConciliationReportDialog } from "@/components/payment-detail/BatchConciliationReportDialog";
 
 import { ExportColumnPickerDialog } from "@/components/payment-detail/ExportColumnPickerDialog";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
@@ -407,6 +408,7 @@ const PaymentDetail = () => {
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
+  const [isBatchReconReportOpen, setIsBatchReconReportOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
@@ -3003,6 +3005,17 @@ const PaymentDetail = () => {
               </Link>
             </Button>
 
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsBatchReconReportOpen(true)}
+              title="Compara pedido de nota, snapshot financeiro e glosas efetivamente aplicadas por PJ"
+            >
+              <GitCompare className="h-4 w-4 mr-1.5" />
+              Conciliação do lote
+            </Button>
+
+
             {obs.some((o: any) => o.is_question) && (
               <Button 
                 variant="outline" 
@@ -5508,6 +5521,15 @@ const PaymentDetail = () => {
         lockedPayment={payment ? { id: payment.id, reference: payment.reference } : null}
         onSaved={() => load()}
       />
+
+      {payment && (
+        <BatchConciliationReportDialog
+          open={isBatchReconReportOpen}
+          onOpenChange={setIsBatchReconReportOpen}
+          paymentId={payment.id}
+          paymentReference={payment.reference}
+        />
+      )}
 
       {/* Gate de motivo de intervenção — bloqueia envio para validação/aprovação
           quando há itens com valor zerado/ausente pagos sem justificativa.
