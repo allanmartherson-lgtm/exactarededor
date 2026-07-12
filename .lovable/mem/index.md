@@ -29,6 +29,7 @@ Escopo por hospital é INVARIANTE. Toda escrita operacional grava hospital_id do
 - [Governança de cálculos de regras](mem://features/rule-calculation-governance) — Redução de cálculos exige confirmação, snapshot e auditoria; delete direto proibido
 - [Infraestrutura Lovable Cloud](mem://preferences/infra-lovable-cloud) — Backend permanece no Lovable Cloud até revisão futura em produção estável
 - [Glosa médico→PJ](mem://features/glosa-medico-pj) — Resolução automática doctor→doctor_companies→company; fallback manual em casos ambíguos
+- [Glosa desconta da PJ](mem://constraints/glosa-desconta-pj-nao-medico) — Aplicação de glosa/débito NUNCA depende de produção do médico no lote; sai do líquido da PJ
 - [Normalização de convênio](mem://features/convenio-normalization) — Pipeline 3 camadas + auto-aprendizado de aliases
 - [Auto-aprendizado de aliases](mem://features/alias-auto-learning) — Todo vínculo aceito (manual/auto) abastece doctor/convenio/sector_aliases
 - [Multi-tenant híbrido](mem://features/multi-tenant-hibrido) — Cadastros estaduais + operacional por hospital_id; DF Star é piloto; trigger herda hospital_id de pai
