@@ -1305,7 +1305,7 @@ export default function CreditosDebitos() {
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={() => applyToCurrentLote()}
+                        onClick={() => openApplyCurrentDialog()}
                         disabled={applyingCurrent !== null || pendingCount === 0}
                       >
                         <Rocket className="w-3.5 h-3.5 mr-1" />
@@ -1343,7 +1343,7 @@ export default function CreditosDebitos() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => { e.stopPropagation(); applyToCurrentLote(pjId); }}
+                          onClick={(e) => { e.stopPropagation(); openApplyCurrentDialog(pjId); }}
                           disabled={applyingCurrent !== null || pjPending === 0}
                         >
                           <Rocket className="w-3.5 h-3.5 mr-1" />
