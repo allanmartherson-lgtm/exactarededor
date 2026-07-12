@@ -143,10 +143,12 @@ serve(async (req) => {
           .from("invoice-question-attachments")
           .upload(path, buf, { contentType: f.type || "application/octet-stream", upsert: false });
         if (upErr) throw upErr;
+        const __hidAtt = await getHospitalId(paymentId);
         const { error: insErr } = await supabase.from("invoice_question_attachments").insert({
           question_id: questionId,
           invoice_id: invoiceId,
           payment_id: paymentId,
+          hospital_id: __hidAtt,
           author_type: authorType,
           author_id: authorId,
           file_name: safeName,
