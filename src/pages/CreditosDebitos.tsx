@@ -2045,6 +2045,15 @@ export default function CreditosDebitos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeductionAuditDialog
+        open={auditOpen}
+        onOpenChange={setAuditOpen}
+        filter={{ hospital_id: activeHospitalId, ...auditFilter }}
+        title={auditTitle}
+        companyNameById={Object.fromEntries(companies.map(c => [c.id, c.name]))}
+        paymentLabelById={paymentLabels}
+      />
     </div>
   );
 }
