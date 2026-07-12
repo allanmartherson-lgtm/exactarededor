@@ -185,6 +185,23 @@ export default function CreditosDebitos() {
   const [applyPickByPj, setApplyPickByPj] = useState<Record<string, string>>({});
   const [applyLoading, setApplyLoading] = useState(false);
 
+  // Resultado detalhado da aplicação (substitui toast genérico por tela vermelha
+  // com motivo específico e ação recomendada, PJ a PJ).
+  type ApplyOutcome = {
+    pj_id: string;
+    pj_name: string;
+    payment_label: string;
+    ok: boolean;
+    applied: number;      // glosas efetivamente aplicadas agora
+    already: number;      // já aplicadas antes (idempotência)
+    postponed: number;    // sem líquido — rolam para próximo ciclo
+    partial: number;      // aplicado parcial
+    capacidade: number | null;
+    error?: string | null;
+    hint?: string | null; // ação recomendada
+  };
+  const [resultDialog, setResultDialog] = useState<{ open: boolean; outcomes: ApplyOutcome[] }>({ open: false, outcomes: [] });
+
   // ============ FILTROS (sincronizados via URL) ============
   const tab = searchParams.get("tab") || "pendentes";
   const search = searchParams.get("q") || "";
