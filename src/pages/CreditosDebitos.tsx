@@ -262,11 +262,11 @@ export default function CreditosDebitos() {
     // aplicar agora), evitando que o botão "Aplicar" fique habilitado
     // eternamente e a edge seja reinvocada sem produzir efeito.
     const debtIds = debts.map(d => d.id);
-    const gpaMap: Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null }[]> = {};
+    const gpaMap: Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null; postpone_reason: string | null }[]> = {};
     if (debtIds.length) {
       const { data: gpaRows } = await (supabase as any)
         .from("glosa_payment_applications")
-        .select("glosa_debt_id, payment_id, status, valor_aplicado, applied_at")
+        .select("glosa_debt_id, payment_id, status, valor_aplicado, applied_at, postpone_reason")
         .in("glosa_debt_id", debtIds)
         .in("status", ["proposto", "confirmado", "partial", "pending_manual_resolution", "postponed"]);
       ((gpaRows as any[]) ?? []).forEach(r => {
@@ -275,6 +275,7 @@ export default function CreditosDebitos() {
           status: r.status,
           valor_aplicado: Number(r.valor_aplicado ?? 0),
           applied_at: r.applied_at ?? null,
+          postpone_reason: r.postpone_reason ?? null,
         });
         if (r.payment_id) allPaymentIds.add(r.payment_id);
       });
