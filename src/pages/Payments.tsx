@@ -331,6 +331,10 @@ const Payments = () => {
   const [poolFilter, setPoolFilter] = useState<string>(persisted.poolFilter ?? "all");
   const [importModeFilter, setImportModeFilter] = useState<"all" | "normal" | "historico">(persisted.importModeFilter ?? "all");
   const [emptyOnly, setEmptyOnly] = useState<boolean>(persisted.emptyOnly ?? false);
+  const [hasProposedGlosas, setHasProposedGlosas] = useState<boolean>(persisted.hasProposedGlosas ?? false);
+  const [hasAppliedDebits, setHasAppliedDebits] = useState<boolean>(persisted.hasAppliedDebits ?? false);
+  const [hasAppliedCredits, setHasAppliedCredits] = useState<boolean>(persisted.hasAppliedCredits ?? false);
+  const [hasAlerts, setHasAlerts] = useState<boolean>(persisted.hasAlerts ?? false);
   const [poolOptions, setPoolOptions] = useState<Array<{ id: string; nome: string }>>([]);
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
