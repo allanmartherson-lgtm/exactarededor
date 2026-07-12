@@ -291,59 +291,56 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   const exportXlsx = () => {
     const header = [
       "PJ",
+      "Bruto (grupo)",
+      "Apurado bruto",
+      "(−) Glosas",
+      "Confirmado",
+      "Proposto",
+      "Pendente",
+      "Adiado",
+      "Apurado líquido",
+      "Líquido (grupo)",
       "NF esperada",
       "NF recebida",
       "Qtd NF",
-      "Bruto grupo",
-      "Líquido grupo",
-      "Apurado bruto",
-      "Apurado glosas",
       "Apurado débitos",
       "Apurado créditos",
-      "Apurado líquido",
-      "App confirmado",
-      "App proposto",
-      "App pendente",
-      "App adiado",
-      "App partial",
-      "Divergências",
+      "Observações",
     ];
     const body = visibleRows.map((r) => [
       r.company_name,
-      r.nf_expected,
-      r.nf_received,
-      r.nf_count,
       r.grp_bruto,
-      r.grp_liquido,
       r.snap_bruto,
       r.snap_glosas,
-      r.snap_debitos,
-      r.snap_creditos,
-      r.snap_liquido,
       r.app_confirmado,
       r.app_proposto,
       r.app_pending,
       r.app_postponed,
-      r.app_partial,
-      flagRow(r).join(" · "),
+      r.snap_liquido,
+      r.grp_liquido,
+      r.nf_expected,
+      r.nf_received,
+      r.nf_count,
+      r.snap_debitos,
+      r.snap_creditos,
+      flagRow(r).map((f) => f.label).join(" · "),
     ]);
     const totalRow = [
       "TOTAL",
-      totals.nf_expected,
-      totals.nf_received,
-      visibleRows.reduce((a, r) => a + r.nf_count, 0),
       totals.grp_bruto,
-      totals.grp_liquido,
       totals.snap_bruto,
       totals.snap_glosas,
-      totals.snap_debitos,
-      totals.snap_creditos,
-      totals.snap_liquido,
       totals.app_confirmado,
       totals.app_proposto,
       totals.app_pending,
       totals.app_postponed,
-      totals.app_partial,
+      totals.snap_liquido,
+      totals.grp_liquido,
+      totals.nf_expected,
+      totals.nf_received,
+      visibleRows.reduce((a, r) => a + r.nf_count, 0),
+      totals.snap_debitos,
+      totals.snap_creditos,
       "",
     ];
     const ws = XLSX.utils.aoa_to_sheet([header, ...body, totalRow]);
@@ -356,14 +353,14 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       const addr = XLSX.utils.encode_cell({ r: 0, c });
       (ws[addr] as any).s = headStyle;
     }
-    const numCols = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    const numCols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14];
     for (let r = 1; r <= body.length + 1; r++) {
       for (const c of numCols) {
         const addr = XLSX.utils.encode_cell({ r, c });
         if (ws[addr]) (ws[addr] as any).z = '"R$" #,##0.00;[Red]"R$" -#,##0.00';
       }
     }
-    ws["!cols"] = header.map((h, i) => ({ wch: i === 0 ? 42 : i === 16 ? 40 : 14 }));
+    ws["!cols"] = header.map((h, i) => ({ wch: i === 0 ? 42 : i === header.length - 1 ? 40 : 14 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conciliação PJ");
     XLSX.writeFile(wb, `conciliacao-lote-${paymentReference ?? paymentId.slice(0, 8)}.xlsx`);
