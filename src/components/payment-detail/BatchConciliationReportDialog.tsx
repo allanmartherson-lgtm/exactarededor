@@ -558,6 +558,15 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
           </Button>
         </DialogFooter>
       </DialogContent>
+      {drill && (
+        <PJDrilldownDialog
+          open={!!drill}
+          onOpenChange={(v) => !v && setDrill(null)}
+          paymentId={paymentId}
+          companyId={drill.id}
+          companyName={drill.name}
+        />
+      )}
     </Dialog>
   );
 }
