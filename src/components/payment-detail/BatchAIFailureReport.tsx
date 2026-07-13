@@ -289,6 +289,59 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const reprocessFailed = async () => {
+    if (!hospitalId) {
+      toast({ title: "Hospital não identificado no lote", variant: "destructive" });
+      return;
+    }
+    const names = Array.from(
+      new Set(entries.map((e) => (e.companyName || "").trim()).filter(Boolean)),
+    );
+    if (names.length === 0) return;
+    setReprocessing(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const rows = names.map((name) => ({
+        payment_id: paymentId,
+        company_name: name,
+        hospital_id: hospitalId,
+        status: "pending",
+        attempts: 0,
+        last_error: "reprocesso manual pelo relatório de falhas",
+        source_job_id: job?.id ?? null,
+        last_job_id: job?.id ?? null,
+        next_attempt_at: nowIso,
+        locked_at: null,
+        finished_at: null,
+        updated_at: nowIso,
+      }));
+      const { error: upErr } = await supabase
+        .from("ai_retry_queue")
+        .upsert(rows, { onConflict: "payment_id,company_name" });
+      if (upErr) {
+        toast({ title: "Falha ao enfileirar", description: upErr.message, variant: "destructive" });
+        return;
+      }
+      const { error: invErr } = await supabase.functions.invoke("ai-retry-worker", {
+        body: { batch_size: Math.min(20, names.length) },
+      });
+      if (invErr) {
+        toast({
+          title: "Enfileirado, mas worker falhou ao iniciar",
+          description: `${names.length} empresa(s) na fila. O worker roda automaticamente em seguida. (${invErr.message})`,
+        });
+      } else {
+        toast({
+          title: "Reprocessamento disparado",
+          description: `${names.length} empresa(s) enfileirada(s). Acompanhe pelo status do lote.`,
+        });
+      }
+      await load();
+    } finally {
+      setReprocessing(false);
+    }
+  };
+
   return (
     <Card className="border-amber-200 bg-amber-50/30 dark:bg-amber-950/10">
       <CardHeader className="pb-3">
@@ -302,7 +355,20 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
             </Badge>
             <Badge variant="outline">{partialCount} parciais</Badge>
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => void reprocessFailed()}
+              disabled={reprocessing || entries.length === 0}
+            >
+              {reprocessing ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              Reprocessar falhas da IA
+            </Button>
             <Button size="sm" variant="outline" onClick={exportCsv}>
               <Download className="h-3 w-3 mr-1" />
               Exportar CSV
