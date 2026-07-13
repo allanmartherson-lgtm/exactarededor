@@ -1,0 +1,1 @@
+ALTER VIEW public.vw_group_rule_totals SET (security_invoker = true);
