@@ -1239,9 +1239,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     });
     if (!ok) return;
 
-    const paymentIds = Array.from(new Set(groups.map((g) => g.payment_id))).filter(Boolean) as string[];
-    const companyNames = Array.from(new Set(groups.map((g) => g.company_name))).filter(Boolean) as string[];
     let dispatched = 0;
+
     let failed = 0;
     await Promise.all(paymentIds.map(async (pid) => {
       try {
