@@ -584,7 +584,7 @@ const NewPayment = () => {
   const [paymentModelId, setPaymentModelId] = useState<string | null>(initialPaymentModelId);
   // Metadados do tipo escolhido — usados pelo parser para injetar TUSS padrão,
   // função padrão e marcar quando a planilha não precisa trazer TUSS.
-  type SubtypePattern = { match: string; target_payment_type_id: string };
+  type SubtypePattern = { match: string; target_item_type_id: string };
   type SubtypeSplitHint = { column: string; patterns: SubtypePattern[] } | null;
   type PaymentTypeMeta = {
     id: string;
@@ -602,6 +602,8 @@ const NewPayment = () => {
     /** item_types.id de "Procedimento" — destino quando lote é Consulta e o
      * TUSS da planilha não bate com consulta. */
     dynamic_fallback_item_type_id: string | null;
+    /** ID canônico em item_types. `id` acima continua sendo o ID legado em payment_types para o lote. */
+    item_type_id: string | null;
   };
 
   const [paymentModelMeta, setPaymentModelMeta] = useState<PaymentTypeMeta | null>(null);
@@ -647,18 +649,56 @@ const NewPayment = () => {
 
       const hint = (data as any).subtype_split_hint ?? null;
 
-      // Carrega catálogo de item_types para reclassificação Consulta → Procedimento
-      // quando o TUSS da planilha não casar com consulta.tuss_default/extras.
+      // Carrega catálogo de item_types para:
+      //  - resolver o tipo canônico dos itens (payment_items.item_type_id);
+      //  - reclassificar Consulta → Procedimento quando o TUSS da planilha não casar;
+      //  - normalizar subtype_split_hint antigo, que pode vir com target_code ou ID legado.
       let dynamicFallbackItemTypeId: string | null = null;
       let consultaTussExtras: string[] = [];
+      let selectedItemTypeId: string | null = null;
+      let normalizedHint: SubtypeSplitHint = null;
+      let labelBySubtypeId: Record<string, string> = {};
       try {
         const { data: itemTypes } = await supabase
           .from("item_types" as any)
-          .select("id,code,tuss_codes_extra");
+          .select("id,code,label,tuss_codes_extra");
         const it = (itemTypes ?? []) as any[];
-        dynamicFallbackItemTypeId = it.find((t) => t.code === "procedimento")?.id ?? null;
+        const itemByCode = new Map<string, any>(it.map((t) => [t.code, t]));
+        const itemById = new Map<string, any>(it.map((t) => [t.id, t]));
+        dynamicFallbackItemTypeId = itemByCode.get("procedimento")?.id ?? null;
+        selectedItemTypeId = itemByCode.get(data.code)?.id ?? null;
         const consulta = it.find((t) => t.code === "consulta");
         consultaTussExtras = Array.isArray(consulta?.tuss_codes_extra) ? consulta.tuss_codes_extra : [];
+
+        const { data: legacyTypes } = await supabase
+          .from("payment_types")
+          .select("id,code,label");
+        const legacyById = new Map<string, any>(((legacyTypes ?? []) as any[]).map((t) => [t.id, t]));
+        const rawHint = hint && hint.column && Array.isArray(hint.patterns) ? hint as any : null;
+        if (rawHint) {
+          const patterns = rawHint.patterns
+            .map((p: any) => {
+              if (!p?.match) return null;
+              const rawTarget = p.target_item_type_id ?? p.target_payment_type_id ?? null;
+              const targetCode = p.target_code
+                ?? (rawTarget ? itemById.get(rawTarget)?.code : null)
+                ?? (rawTarget ? legacyById.get(rawTarget)?.code : null)
+                ?? null;
+              const targetItemTypeId = targetCode
+                ? itemByCode.get(targetCode)?.id ?? null
+                : (rawTarget && itemById.has(rawTarget) ? rawTarget : null);
+              if (!targetItemTypeId) return null;
+              labelBySubtypeId[targetItemTypeId] = itemById.get(targetItemTypeId)?.label
+                ?? (targetCode ? legacyById.get(rawTarget)?.label : null)
+                ?? targetItemTypeId.slice(0, 6);
+              return { match: p.match, target_item_type_id: targetItemTypeId } as SubtypePattern;
+            })
+            .filter(Boolean) as SubtypePattern[];
+          normalizedHint = patterns.length > 0 ? { column: rawHint.column, patterns } : null;
+        }
+        if (selectedItemTypeId) {
+          labelBySubtypeId[selectedItemTypeId] = itemById.get(selectedItemTypeId)?.label ?? data.label;
+        }
       } catch { /* noop */ }
 
       const meta: PaymentTypeMeta = {
@@ -671,24 +711,14 @@ const NewPayment = () => {
         default_value_column_hint: (data as any).default_value_column_hint ?? null,
         expected_headers: Array.isArray((data as any).expected_headers) ? (data as any).expected_headers : [],
         allow_mixed_subtypes: !!(data as any).allow_mixed_subtypes,
-        subtype_split_hint: hint && hint.column && Array.isArray(hint.patterns) ? hint as SubtypeSplitHint : null,
+        subtype_split_hint: normalizedHint,
         consulta_tuss_extras: consultaTussExtras,
         dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
+        item_type_id: selectedItemTypeId,
       };
       setPaymentModelMeta(meta);
 
-      // Carrega labels dos tipos referenciados + o próprio
-      const ids = new Set<string>([meta.id]);
-      meta.subtype_split_hint?.patterns.forEach((p) => p.target_payment_type_id && ids.add(p.target_payment_type_id));
-      if (ids.size > 0) {
-        const { data: types } = await supabase
-          .from("payment_types")
-          .select("id,label")
-          .in("id", Array.from(ids));
-        if (!cancelled && types) {
-          setSubtypeLabels(Object.fromEntries(types.map((t: any) => [t.id, t.label])));
-        }
-      }
+      if (!cancelled) setSubtypeLabels(labelBySubtypeId);
     })();
     return () => { cancelled = true; };
   }, [paymentModelId]);
