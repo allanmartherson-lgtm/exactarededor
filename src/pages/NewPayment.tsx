@@ -1343,7 +1343,7 @@ const NewPayment = () => {
         const cell = (cellRaw == null ? "" : String(cellRaw)).toLowerCase();
         if (cell) {
           for (const p of hint.patterns) {
-            if (!p.match || !p.target_payment_type_id) continue;
+            if (!p.match || !p.target_item_type_id) continue;
             const m = p.match.trim();
             let hit = false;
             if (m.startsWith("/") && m.lastIndexOf("/") > 0) {
@@ -1356,7 +1356,7 @@ const NewPayment = () => {
               hit = cell.includes(m.toLowerCase());
             }
             if (hit) {
-              payment_type_id_override = p.target_payment_type_id;
+              payment_type_id_override = p.target_item_type_id;
               (base.raw_data as any).__subtype_split_matched = m;
               break;
             }
@@ -3112,7 +3112,7 @@ const NewPayment = () => {
             ? currentBucket?.matchedCompany?.id
             : r.company_id) ?? currentBucket?.matchedCompany?.id ?? null;
           const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
-          const loteId = (payment as any).payment_model_id ?? null;
+          const loteId = paymentModelMeta?.item_type_id ?? null;
           if (r.payment_type_id_override) {
             return { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" };
           }
@@ -3726,12 +3726,13 @@ const NewPayment = () => {
                 const counts: Record<string, number> = {};
                 let mixed = 0;
                 for (const r of allRows) {
-                  const tid = r.payment_type_id_override ?? paymentModelMeta.id;
+                  const defaultItemTypeId = paymentModelMeta.item_type_id ?? paymentModelMeta.id;
+                  const tid = r.payment_type_id_override ?? defaultItemTypeId;
                   counts[tid] = (counts[tid] ?? 0) + 1;
-                  if (r.payment_type_id_override && r.payment_type_id_override !== paymentModelMeta.id) mixed++;
+                  if (r.payment_type_id_override && r.payment_type_id_override !== defaultItemTypeId) mixed++;
                 }
                 const parts = Object.entries(counts).map(([id, n]) =>
-                  `${n} ${subtypeLabels[id] ?? (id === paymentModelMeta.id ? paymentModelMeta.label : id.slice(0, 6))}`
+                  `${n} ${subtypeLabels[id] ?? (id === (paymentModelMeta.item_type_id ?? paymentModelMeta.id) ? paymentModelMeta.label : id.slice(0, 6))}`
                 );
                 return (
                   <div>
