@@ -392,8 +392,45 @@ const Payments = () => {
     });
   };
 
-  const runReanalysis = async () => {
+  const [reanalysisConfirm, setReanalysisConfirm] = useState<{
+    ids: string[];
+    aiCount: number | null;
+    totalCount: number | null;
+    loading: boolean;
+  } | null>(null);
+
+  const openReanalysisConfirm = async () => {
     const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    setReanalysisConfirm({ ids, aiCount: null, totalCount: null, loading: true });
+    try {
+      // Estima o custo: quantos itens IRÃO para IA (needs_ai_review) vs total analisado.
+      const [{ count: aiCount }, { count: totalCount }] = await Promise.all([
+        supabase
+          .from("payment_items")
+          .select("id", { count: "exact", head: true })
+          .in("payment_id", ids)
+          .eq("ai_status", "needs_ai_review" as any),
+        supabase
+          .from("payment_items")
+          .select("id", { count: "exact", head: true })
+          .in("payment_id", ids),
+      ]);
+      setReanalysisConfirm({
+        ids,
+        aiCount: aiCount ?? 0,
+        totalCount: totalCount ?? 0,
+        loading: false,
+      });
+    } catch (e) {
+      console.warn("[Payments] falha ao estimar custo de reanálise", e);
+      setReanalysisConfirm({ ids, aiCount: null, totalCount: null, loading: false });
+    }
+  };
+
+  const runReanalysis = async () => {
+    const ids = reanalysisConfirm?.ids ?? Array.from(selected);
+    setReanalysisConfirm(null);
     if (ids.length === 0) return;
     setReprocessing(true);
     setReprocessProgress({ done: 0, total: ids.length });
@@ -414,6 +451,7 @@ const Payments = () => {
     setSelected(new Set());
     toast.success(`Reanálise concluída: ${ok} ok${fail ? `, ${fail} com falha` : ""}`);
   };
+
 
   const deletePayment = async (id: string) => {
     try {
