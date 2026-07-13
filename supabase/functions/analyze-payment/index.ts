@@ -3287,6 +3287,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           writes_ms: 0,
           items_count: __telemetry.items_count,
           ai_items_count: __telemetry.ai_items_count,
+          ai_items_skipped_cache: __telemetry.ai_items_skipped_cache,
           cache_hit: __telemetry.cache_hit,
           error: msg.slice(0, 500),
         });
