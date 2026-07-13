@@ -286,6 +286,9 @@ const PaymentDetail = () => {
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [reimporting, setReimporting] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
+  // Progresso do reimport/addCompany por fase — evita a percepção de "nada
+  // aconteceu" quando o loop está lendo/enviando dezenas de arquivos.
+  const [importProgress, setImportProgress] = useState<{ stage: "parse" | "persist"; current: number; total: number } | null>(null);
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
@@ -1775,11 +1778,18 @@ const PaymentDetail = () => {
         return;
       }
 
-      for (const insp of inspections) {
+      // Parsing + upload em paralelo (com limite de concorrência) para não
+      // gastar minutos serializando dezenas de planilhas — era isso que dava
+      // a percepção de "nada aconteceu" no reimport de lotes grandes.
+      const sanitizeStorageName = (name: string) =>
+        name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_");
+      const CONCURRENCY = 5;
+      setImportProgress({ stage: "parse", current: 0, total: inspections.length });
+      let doneParse = 0;
+      const parseAndUpload = async (insp: typeof inspections[number]) => {
         const { file, tpl, manualMapping } = insp;
-        let bucket;
         try {
-          bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
+          const bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
             manualMapping,
             paymentTypeMeta: paymentTypeMeta ? {
               code: paymentTypeMeta.code,
@@ -1791,27 +1801,48 @@ const PaymentDetail = () => {
               dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
             } : null,
           });
+          if (bucket.rows.length > 0) {
+            const path = `${user.id}/${Date.now()}-${sanitizeStorageName(file.name)}`;
+            // upload em background — falha aqui não deve bloquear a reimportação
+            void supabase.storage.from("payment-files").upload(path, file).then(({ error }) => {
+              if (error) console.warn("[reimport] upload falhou", file.name, error.message);
+            });
+            if (tpl) {
+              void supabase
+                .from("sheet_column_templates" as never)
+                .update({ last_used_at: new Date().toISOString() } as never)
+                .eq("id", tpl.id);
+            }
+            return { file, rows: bucket.rows, ok: true as const };
+          }
+          return { file, rows: [] as any[], ok: true as const };
         } catch (parseErr) {
           const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-          toast({
-            title: `Falha ao ler "${file.name}"`,
-            description: `${msg}. Ajuste o mapeamento das colunas ou verifique o arquivo antes de tentar novamente.`,
-            variant: "destructive",
-          });
-          return;
+          return { file, rows: [] as any[], ok: false as const, msg };
+        } finally {
+          doneParse += 1;
+          setImportProgress({ stage: "parse", current: doneParse, total: inspections.length });
         }
-
-        if (bucket.rows.length > 0) {
-          allRows = [...allRows, ...bucket.rows];
-          fileNames.push(file.name);
-          const path = `${user.id}/${Date.now()}-${file.name}`;
-          await supabase.storage.from("payment-files").upload(path, file);
-          if (tpl) {
-            await supabase
-              .from("sheet_column_templates" as never)
-              .update({ last_used_at: new Date().toISOString() } as never)
-              .eq("id", tpl.id);
-          }
+      };
+      const results: Array<Awaited<ReturnType<typeof parseAndUpload>>> = [];
+      for (let i = 0; i < inspections.length; i += CONCURRENCY) {
+        const batch = inspections.slice(i, i + CONCURRENCY);
+        const r = await Promise.all(batch.map(parseAndUpload));
+        results.push(...r);
+      }
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        toast({
+          title: `Falha ao ler ${failed.length} arquivo(s)`,
+          description: `${failed.map((f) => `"${f.file.name}": ${(f as any).msg}`).join(" • ")}. Ajuste o mapeamento das colunas ou verifique os arquivos.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      for (const r of results) {
+        if (r.rows.length > 0) {
+          allRows = [...allRows, ...r.rows];
+          fileNames.push(r.file.name);
         }
       }
 
@@ -1995,6 +2026,7 @@ const PaymentDetail = () => {
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
+      setImportProgress(null);
       if (reimportInputRef.current) reimportInputRef.current.value = "";
     }
   };
@@ -2087,11 +2119,16 @@ const PaymentDetail = () => {
         return;
       }
 
-      for (const insp of inspections) {
+      // Parsing + upload paralelos com progresso (mesma motivação do doReimport).
+      const sanitizeStorageName = (name: string) =>
+        name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_");
+      const CONCURRENCY = 5;
+      setImportProgress({ stage: "parse", current: 0, total: inspections.length });
+      let doneParse = 0;
+      const parseAndUpload = async (insp: typeof inspections[number]) => {
         const { file, tpl, manualMapping } = insp;
-        let bucket;
         try {
-          bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
+          const bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
             manualMapping,
             paymentTypeMeta: paymentTypeMeta ? {
               label: paymentTypeMeta.label,
@@ -2102,24 +2139,44 @@ const PaymentDetail = () => {
               dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
             } : null,
           });
+          if (bucket.rows.length > 0) {
+            const path = `${user.id}/${Date.now()}-${sanitizeStorageName(file.name)}`;
+            void supabase.storage.from("payment-files").upload(path, file).then(({ error }) => {
+              if (error) console.warn("[addCompany] upload falhou", file.name, error.message);
+            });
+            if (tpl) {
+              void supabase.from("sheet_column_templates" as never).update({ last_used_at: new Date().toISOString() } as never).eq("id", tpl.id);
+            }
+            return { file, rows: bucket.rows, ok: true as const };
+          }
+          return { file, rows: [] as any[], ok: true as const };
         } catch (parseErr) {
           const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-          toast({
-            title: `Falha ao ler "${file.name}"`,
-            description: `${msg}. Ajuste o mapeamento das colunas ou verifique o arquivo antes de tentar novamente.`,
-            variant: "destructive",
-          });
-          return;
+          return { file, rows: [] as any[], ok: false as const, msg };
+        } finally {
+          doneParse += 1;
+          setImportProgress({ stage: "parse", current: doneParse, total: inspections.length });
         }
-
-        if (bucket.rows.length > 0) {
-          allRows = [...allRows, ...bucket.rows];
-          fileNames.push(file.name);
-          const path = `${user.id}/${Date.now()}-${file.name}`;
-          await supabase.storage.from("payment-files").upload(path, file);
-          if (tpl) {
-            await supabase.from("sheet_column_templates" as never).update({ last_used_at: new Date().toISOString() } as never).eq("id", tpl.id);
-          }
+      };
+      const results: Array<Awaited<ReturnType<typeof parseAndUpload>>> = [];
+      for (let i = 0; i < inspections.length; i += CONCURRENCY) {
+        const batch = inspections.slice(i, i + CONCURRENCY);
+        const r = await Promise.all(batch.map(parseAndUpload));
+        results.push(...r);
+      }
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        toast({
+          title: `Falha ao ler ${failed.length} arquivo(s)`,
+          description: `${failed.map((f) => `"${f.file.name}": ${(f as any).msg}`).join(" • ")}. Ajuste o mapeamento das colunas ou verifique os arquivos.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      for (const r of results) {
+        if (r.rows.length > 0) {
+          allRows = [...allRows, ...r.rows];
+          fileNames.push(r.file.name);
         }
       }
 
@@ -2256,6 +2313,7 @@ const PaymentDetail = () => {
     } finally {
       setAddingCompany(false);
       setAddCompanyConfirm(null);
+      setImportProgress(null);
       if (addCompanyInputRef.current) addCompanyInputRef.current.value = "";
     }
   };
@@ -3837,7 +3895,11 @@ const PaymentDetail = () => {
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction disabled={reimporting} onClick={() => reimportConfirm && doReimport(reimportConfirm)}>
-                  {reimporting ? "Reimportando…" : "Confirmar"}
+                  {reimporting
+                    ? (importProgress
+                        ? `Lendo ${importProgress.current}/${importProgress.total}…`
+                        : "Reimportando…")
+                    : "Confirmar"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -3889,7 +3951,11 @@ const PaymentDetail = () => {
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={addingCompany}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction disabled={addingCompany} onClick={() => addCompanyConfirm && doAddCompany(addCompanyConfirm)}>
-                  {addingCompany ? "Adicionando…" : "Confirmar"}
+                  {addingCompany
+                    ? (importProgress
+                        ? `Lendo ${importProgress.current}/${importProgress.total}…`
+                        : "Adicionando…")
+                    : "Confirmar"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
