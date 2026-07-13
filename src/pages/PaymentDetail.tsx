@@ -3913,10 +3913,16 @@ const PaymentDetail = () => {
               requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
               default_function: paymentTypeMeta.default_function,
             } : null}
-            onApply={(mapping) => {
+            compatibleCount={columnMappingDialog.compatibleFileNames.length}
+            onApply={(mapping, applyToCompatible) => {
               const dlg = columnMappingDialog;
               if (!dlg) return;
               const nextOverrides = { ...dlg.overrides, [dlg.file.name]: mapping as Record<string, string> };
+              if (applyToCompatible) {
+                for (const name of dlg.compatibleFileNames) {
+                  nextOverrides[name] = mapping as Record<string, string>;
+                }
+              }
               setColumnMappingDialog(null);
               if (dlg.source === "reimport") {
                 void doReimport(dlg.pendingFiles, nextOverrides);
