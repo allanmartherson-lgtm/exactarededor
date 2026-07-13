@@ -6080,6 +6080,7 @@ export type Database = {
       payment_parecer_reports: {
         Row: {
           created_at: string
+          cross_summary: Json | null
           hospital_id: string
           id: string
           imported_at: string
@@ -6095,6 +6096,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          cross_summary?: Json | null
           hospital_id: string
           id?: string
           imported_at?: string
@@ -6110,6 +6112,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          cross_summary?: Json | null
           hospital_id?: string
           id?: string
           imported_at?: string
