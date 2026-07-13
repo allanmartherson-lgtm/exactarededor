@@ -2682,7 +2682,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("paciente")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded text-[10px] leading-tight uppercase tracking-wide font-medium"
                     aria-label={`Ordenar por Paciente${sortKey === "paciente" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Paciente
@@ -2702,7 +2702,7 @@ export function ItemsDataGrid({
                     <button
                       type="button"
                       onClick={() => toggleSort("convenio")}
-                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded text-[10px] leading-tight uppercase tracking-wide font-medium"
                       aria-label={`Ordenar por Convênio${sortKey === "convenio" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                     >
                       Convênio
@@ -2723,7 +2723,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("tuss")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded text-[10px] leading-tight uppercase tracking-wide font-medium"
                     aria-label={`Ordenar por TUSS${sortKey === "tuss" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     TUSS
@@ -2742,7 +2742,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("qtd")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto text-[10px] leading-tight uppercase tracking-wide font-medium"
                     aria-label={`Ordenar por Quantidade${sortKey === "qtd" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Qtd
@@ -2766,7 +2766,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("medico")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded text-[10px] leading-tight uppercase tracking-wide font-medium"
                     aria-label={`Ordenar por Médico${sortKey === "medico" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Médico
@@ -2788,7 +2788,7 @@ export function ItemsDataGrid({
                     <button
                       type="button"
                       onClick={() => toggleSort("gross")}
-                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto text-[10px] leading-tight uppercase tracking-wide font-medium"
                       aria-label={`Ordenar por Valor Repasse${sortKey === "gross" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                     >
                       Valor Repasse
@@ -2816,7 +2816,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("esperado")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto text-[10px] leading-tight uppercase tracking-wide font-medium"
                     aria-label={`Ordenar por ${expectedLabel}${sortKey === "esperado" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     {expectedLabel}
@@ -2836,7 +2836,7 @@ export function ItemsDataGrid({
                     <button
                       type="button"
                       onClick={() => toggleSort("diferenca")}
-                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto"
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto text-[10px] leading-tight uppercase tracking-wide font-medium"
                       aria-label={`Ordenar por Diferença${sortKey === "diferenca" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                     >
                       Diferença
@@ -2856,7 +2856,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("status")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded text-[10px] leading-tight uppercase tracking-wide font-medium"
                     aria-label={`Ordenar por Status${sortKey === "status" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Status
