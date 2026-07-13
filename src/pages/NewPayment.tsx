@@ -2733,11 +2733,19 @@ const NewPayment = () => {
       bucket_role: ReturnType<typeof inferBucketRole>;
     };
     const uploadedFiles: UploadedFile[] = [];
-    const sanitizeStorageName = (name: string) =>
-      name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_");
+    const safeStorageExtension = (name: string) => {
+      const match = name.match(/\.([A-Za-z0-9]{1,12})$/);
+      return match ? `.${match[1].toLowerCase()}` : "";
+    };
     try {
       for (const b of buckets) {
-        const path = `${user!.id}/${Date.now()}-${sanitizeStorageName(b.file.name)}`;
+        // Storage rejeita chaves com espaços/acentos e alguns caracteres Unicode.
+        // O nome original fica preservado em `original_filename`; a chave de auditoria
+        // deve ser opaca e ASCII para nunca bloquear a criação do lote.
+        const uniqueId = typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const path = `${user!.id}/${Date.now()}-${uniqueId}${safeStorageExtension(b.file.name)}`;
         const hash = await sha256Hex(b.file);
         const { error: upErr } = await supabase.storage
           .from("payment-files")
