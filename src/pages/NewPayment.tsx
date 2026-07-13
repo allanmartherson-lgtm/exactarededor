@@ -2494,7 +2494,13 @@ const NewPayment = () => {
 
 
   const registriesReady = allRows.length === 0 || (!!doctorReg && !!convenioReg && !!sectorReg);
-  const hasUnresolved = unresolvedGroups.length > 0;
+  // Setor NÃO bloqueia envio: não é chave de cálculo (glosa/repasse/pool não usam
+  // setor). Planilhas que historicamente não têm setor (ex.: Cardiologia Rateio,
+  // Neurologia) não podem ser travadas por isso. Médico e convênio continuam
+  // bloqueando porque o motor precisa deles para calcular.
+  const blockingUnresolved = unresolvedGroups.filter((u) => u.kind !== "sector");
+  const sectorOnlyUnresolvedCount = unresolvedGroups.length - blockingUnresolved.length;
+  const hasUnresolved = blockingUnresolved.length > 0;
 
 
   const uniqueCompanyNames = useMemo(() => {
@@ -5059,12 +5065,14 @@ const NewPayment = () => {
               : !registriesReady
                 ? "Carregando cadastros oficiais"
               : hasUnresolved
-                ? `Resolva ${unresolvedGroups.length} cadastro${unresolvedGroups.length === 1 ? "" : "s"} para continuar`
+              ? `Resolva ${blockingUnresolved.length} cadastro${blockingUnresolved.length === 1 ? "" : "s"} para continuar`
                 : !costCenterCode
                   ? "Selecione o centro de custos"
                   : requiresParecerReport && !parecerPayload
                     ? "Anexe o relatório de pareceres"
-                    : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
+                    : sectorOnlyUnresolvedCount > 0
+                      ? (modoConfeccao ? "Criar e calcular (setores serão ignorados)" : "Criar e analisar (setores serão ignorados)")
+                      : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
           </Button>
         </div>
 
