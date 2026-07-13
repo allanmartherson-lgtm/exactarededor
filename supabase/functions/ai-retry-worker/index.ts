@@ -1,7 +1,8 @@
 // ai-retry-worker
-// Drena a fila ai_retry_queue: pega lote, invoca analyze-payment por empresa
-// e marca cada item como done/pending(backoff)/failed via finalize_ai_retry.
-// Pode ser chamada por pg_cron ou manualmente pelo painel.
+// Drena a fila ai_retry_queue e redispara a análise via dispatch-payment-analysis.
+// Importante: não chama analyze-payment de forma síncrona. Empresas grandes
+// ultrapassavam o tempo de vida da Edge Function; a fila ficava presa em
+// `processing` e o relatório continuava exibindo falhas antigas.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
@@ -10,7 +11,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const WORKER_FETCH_TIMEOUT_MS = 180_000;
+const WORKER_FETCH_TIMEOUT_MS = 30_000;
 
 type QueueRow = {
   id: string;
@@ -19,6 +20,16 @@ type QueueRow = {
   attempts: number;
   max_attempts: number;
   last_job_id: string | null;
+};
+
+const groupByPayment = (items: QueueRow[]) => {
+  const map = new Map<string, QueueRow[]>();
+  for (const item of items) {
+    const list = map.get(item.payment_id) ?? [];
+    list.push(item);
+    map.set(item.payment_id, list);
+  }
+  return map;
 };
 
 Deno.serve(async (req) => {
@@ -63,25 +74,25 @@ Deno.serve(async (req) => {
 
   console.log(`[ai-retry-worker] picked ${items.length} item(s)`);
 
-  const workerUrl = `${SUPABASE_URL}/functions/v1/analyze-payment`;
+  const dispatchUrl = `${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`;
 
-  const runOne = async (item: QueueRow): Promise<{ id: string; ok: boolean; error?: string }> => {
+  const runGroup = async (paymentId: string, paymentItems: QueueRow[]): Promise<Array<{ id: string; ok: boolean; error?: string }>> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), WORKER_FETCH_TIMEOUT_MS);
     try {
-      const resp = await fetch(workerUrl, {
+      const companyNames = Array.from(new Set(paymentItems.map((item) => item.company_name)));
+      const resp = await fetch(dispatchUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${SERVICE_KEY}`,
         },
         body: JSON.stringify({
-          payment_id: item.payment_id,
-          company_name: item.company_name === "Sem empresa" ? null : item.company_name,
+          payment_id: paymentId,
+          only_companies: companyNames,
           ai_statuses: aiStatuses,
           tolerance_pct: tolerancePct,
-          _job_id: item.last_job_id,
-          _company_label: item.company_name,
+          force_fresh_rules: true,
         }),
         signal: controller.signal,
       });
@@ -89,26 +100,49 @@ Deno.serve(async (req) => {
       if (!resp.ok) {
         const txt = await resp.text();
         const errMsg = `HTTP ${resp.status}: ${txt.slice(0, 300)}`;
-        await supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: false, p_error: errMsg });
-        return { id: item.id, ok: false, error: errMsg };
+        await Promise.all(paymentItems.map((item) =>
+          supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: false, p_error: errMsg })
+        ));
+        return paymentItems.map((item) => ({ id: item.id, ok: false, error: errMsg }));
       }
 
-      await resp.text();
-      await supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: true, p_error: null });
-      return { id: item.id, ok: true };
+      const data = await resp.json().catch(() => ({}));
+      if (data?.already_running === true) {
+        const msg = data?.message ?? "análise já em andamento — retry reagendado";
+        await Promise.all(paymentItems.map((item) =>
+          supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: false, p_error: msg })
+        ));
+        return paymentItems.map((item) => ({ id: item.id, ok: false, error: msg }));
+      }
+
+      if (data?.ok === false || data?.blocked === true || data?.total_companies === 0) {
+        const msg = data?.message ?? data?.error ?? "nenhuma empresa disponível para reprocessamento";
+        await Promise.all(paymentItems.map((item) =>
+          supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: false, p_error: msg })
+        ));
+        return paymentItems.map((item) => ({ id: item.id, ok: false, error: msg }));
+      }
+
+      await Promise.all(paymentItems.map((item) =>
+        supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: true, p_error: null })
+      ));
+      return paymentItems.map((item) => ({ id: item.id, ok: true }));
     } catch (e) {
       const err = e as { name?: string; message?: string };
       const msg = err?.name === "AbortError"
         ? `worker timeout após ${WORKER_FETCH_TIMEOUT_MS}ms`
         : String(err?.message ?? e);
-      await supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: false, p_error: msg });
-      return { id: item.id, ok: false, error: msg };
+      await Promise.all(paymentItems.map((item) =>
+        supabase.rpc("finalize_ai_retry", { p_id: item.id, p_success: false, p_error: msg })
+      ));
+      return paymentItems.map((item) => ({ id: item.id, ok: false, error: msg }));
     } finally {
       clearTimeout(timer);
     }
   };
 
-  const results = await Promise.all(items.map(runOne));
+  const grouped = Array.from(groupByPayment(items).entries());
+  const results = (await Promise.all(grouped.map(([paymentId, paymentItems]) => runGroup(paymentId, paymentItems)))).flat();
   const okCount = results.filter((r) => r.ok).length;
 
   return new Response(JSON.stringify({
