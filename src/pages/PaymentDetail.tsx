@@ -2313,6 +2313,7 @@ const PaymentDetail = () => {
     } finally {
       setAddingCompany(false);
       setAddCompanyConfirm(null);
+      setImportProgress(null);
       if (addCompanyInputRef.current) addCompanyInputRef.current.value = "";
     }
   };
