@@ -142,18 +142,17 @@ async function callFallback(body: AnthropicBody, init?: FetchInit): Promise<Resp
 }
 
 /**
- * Chama Anthropic direto; se detectar crédito esgotado (402 ou 400/403 com
- * mensagem sobre "credit balance"/"insufficient"), faz fallback para
- * openai/gpt-5.5 via Lovable AI Gateway e devolve a resposta no MESMO shape
- * que o Anthropic devolveria. Erros que não são de crédito (429, 5xx, 400
- * genéricos) são repassados como veio para preservar a lógica de retry
- * existente do chamador.
+ * Chama a IA para justificar itens. Por padrão vai direto pelo Lovable AI
+ * Gateway (openai/gpt-5.5 via LOVABLE_API_KEY) — sem depender de créditos
+ * externos da Anthropic. Só usa a rota direta do Claude se
+ * `ANTHROPIC_PRIMARY=1` estiver setado E `ANTHROPIC_API_KEY` existir; nesse
+ * modo, em 402/400/403 por saldo, cai automaticamente para o gateway.
+ * A resposta devolvida é SEMPRE no shape Anthropic para não quebrar o parser.
  */
 export async function anthropicFetch(body: AnthropicBody, init?: FetchInit): Promise<Response> {
+  const PREFER_ANTHROPIC = Deno.env.get("ANTHROPIC_PRIMARY") === "1";
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!ANTHROPIC_API_KEY) {
-    // Sem chave direta: usa gateway direto.
-    console.warn("[anthropicWithFallback] ANTHROPIC_API_KEY ausente — usando fallback direto.");
+  if (!PREFER_ANTHROPIC || !ANTHROPIC_API_KEY) {
     return callFallback(body, init);
   }
   let resp: Response;
@@ -169,18 +168,16 @@ export async function anthropicFetch(body: AnthropicBody, init?: FetchInit): Pro
       body: JSON.stringify(body),
     });
   } catch (err) {
-    // Erro de rede/abort: propaga para o chamador tratar (retry).
-    throw err;
+    console.warn("[anthropicWithFallback] erro de rede na Anthropic — tentando gateway", (err as any)?.message ?? err);
+    return callFallback(body, init);
   }
   if (resp.ok) return resp;
 
-  // Ler corpo para inspecionar. Precisamos reconstruir Response porque body só lê 1x.
   const text = await resp.text().catch(() => "");
   if (isCreditExhausted(resp.status, text)) {
     console.warn(`[anthropicWithFallback] Claude sem crédito (status ${resp.status}) — usando fallback ${FALLBACK_MODEL}.`);
     return callFallback(body, init);
   }
-  // Repassa erro original preservando status e corpo.
   return new Response(text, {
     status: resp.status,
     headers: { "Content-Type": resp.headers.get("Content-Type") ?? "application/json" },
