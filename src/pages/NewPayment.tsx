@@ -2494,7 +2494,13 @@ const NewPayment = () => {
 
 
   const registriesReady = allRows.length === 0 || (!!doctorReg && !!convenioReg && !!sectorReg);
-  const hasUnresolved = unresolvedGroups.length > 0;
+  // Setor NÃO bloqueia envio: não é chave de cálculo (glosa/repasse/pool não usam
+  // setor). Planilhas que historicamente não têm setor (ex.: Cardiologia Rateio,
+  // Neurologia) não podem ser travadas por isso. Médico e convênio continuam
+  // bloqueando porque o motor precisa deles para calcular.
+  const blockingUnresolved = unresolvedGroups.filter((u) => u.kind !== "sector");
+  const sectorOnlyUnresolvedCount = unresolvedGroups.length - blockingUnresolved.length;
+  const hasUnresolved = blockingUnresolved.length > 0;
 
 
   const uniqueCompanyNames = useMemo(() => {
