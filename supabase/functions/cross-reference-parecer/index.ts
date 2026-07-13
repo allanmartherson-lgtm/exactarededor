@@ -1,14 +1,20 @@
 // cross-reference-parecer
-// Cruza payment_items de um lote 'parecer' contra payment_parecer_report_rows
-// importados. Marca parecer_evidence e ajusta item_type_id para classificar
-// cada item como Parecer ou Visita.
+// Motor de classificação Parecer × Visita (Bloco 1 — reforma 2026-07-13).
 //
-// Após o cruzamento, dispara reanalise via dispatch-payment-analysis para
-// que o motor recompute o valor pelas regras do tipo classificado. O relatório
-// de parecer nunca define expected_amount/ai_status nem aceite financeiro.
+// Regra determinística:
+//   Por (hospital_id + attendance_number + empresa + especialidade) — com
+//   fallback company_id → norm(company_name) — o primeiro contato AMBÍGUO
+//   (histórico global de outros lotes + lote atual) é o único candidato a
+//   parecer. Todo o resto do grupo é visita. O relatório do Tasy só
+//   VALIDA o candidato — nunca classifica.
+//
+// Após o cruzamento, dispara reanálise via dispatch-payment-analysis com
+// skip_parecer_cross_ref=true para o motor recomputar as regras com o
+// tipo já correto.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -33,7 +39,6 @@ function crmDigits(crm: string | null) {
 }
 
 // Compara apenas a porção YYYY-MM-DD em UTC, ignorando hora/timezone.
-// Chave do parecer = atendimento + médico + DATA (sem hora).
 export function sameDayUtc(a: string | null, b: string | null) {
   if (!a || !b) return false;
   const da = new Date(a);
@@ -42,22 +47,30 @@ export function sameDayUtc(a: string | null, b: string | null) {
   return da.toISOString().slice(0, 10) === db.toISOString().slice(0, 10);
 }
 
-// A data de referência do parecer é SEMPRE a data da RESPOSTA — é quando o
-// médico efetivamente executou o atendimento e gerou o repasse. Se a resposta
-// estiver vazia, não pode cair para solicitação: isso confirmaria parecer ainda
-// não respondido usando a data errada, mesmo com o mapping correto.
+// Data de referência do parecer = data da RESPOSTA. Se vazia, não cai para
+// a solicitação (senão confirmaria parecer ainda não respondido).
 export function matchesParecerDate(row: any, procedureDate: string | null) {
   return sameDayUtc(row.dt_resposta_parecer, procedureDate);
 }
 
+function dayKey(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(+d)) return null;
+  return d.toISOString().slice(0, 10);
+}
 
+const PROTECTED_SOURCES = new Set(["manual", "company_override", "base_tipo"]);
+type EvidenceValue = "confirmed" | "not_found" | "no_report" | "unverified" | "not_applicable";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   const _auth = await requireInternalOrRole(req);
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
-    return new Response(null, { headers: corsHeaders });
+
   try {
     const { payment_id, trigger_reanalysis = true, _background } = await req.json();
     if (!payment_id) {
@@ -71,8 +84,7 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Se não foi chamada em modo background, dispara worker em segundo plano
-    // e retorna imediatamente para evitar IDLE_TIMEOUT (150s) no caller.
+    // Executa em background para evitar IDLE_TIMEOUT (150s) do caller.
     if (!_background) {
       const bgPromise = fetch(`${SUPABASE_URL}/functions/v1/cross-reference-parecer`, {
         method: "POST",
@@ -90,10 +102,7 @@ Deno.serve(async (req) => {
       );
     }
 
-
-    // Tipo do lote (parecer_adulto, normalmente) e tipo Visita (alvo da reclassificação).
-    // D3.e.4: coluna canônica `mixed_parecer_item_type_id` (item_types.id) é única;
-    // a legada `mixed_parecer_payment_type_id` foi removida.
+    // Tipo do lote (parecer_adulto por padrão) e tipo Visita alvo.
     const { data: paymentRow } = await supabase
       .from("payments")
       .select("has_mixed_parecer, mixed_parecer_item_type_id")
@@ -102,8 +111,6 @@ Deno.serve(async (req) => {
     const isMixed = !!(paymentRow as any)?.has_mixed_parecer;
     const mixedParecerTypeId = (paymentRow as any)?.mixed_parecer_item_type_id ?? null;
 
-    // Default do lote = parecer_adulto (único item_type de parecer cadastrado).
-    // Em lote misto, o analista escolheu explicitamente o subtipo via wizard.
     const { data: defaultParecerType } = await supabase
       .from("item_types")
       .select("id")
@@ -119,32 +126,31 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const visitaPaymentTypeId = (visitaType as any)?.id ?? null;
 
-    // Em lote misto, monta o conjunto de TUSS "ambíguos" (Parecer/Visita/Consulta)
-    // a partir dos item_types cadastrados. Itens fora desse conjunto NÃO
-    // entram no cruzamento — permanecem com o tipo de produção do lote.
-    let ambiguousTussSet: Set<string> | null = null;
-    if (isMixed) {
-      const { data: ambTypes } = await supabase
-        .from("item_types")
-        .select("tuss_default, tuss_codes_extra, code");
-      const set = new Set<string>();
-      for (const t of (ambTypes ?? []) as any[]) {
-        const code = String(t.code ?? "").toLowerCase();
-        const isAmb =
-          code.startsWith("parecer") || code === "visita" || code === "consulta";
-        if (!isAmb) continue;
-        if (t.tuss_default) set.add(String(t.tuss_default).trim());
-        for (const c of (t.tuss_codes_extra ?? []) as string[]) {
-          if (c) set.add(String(c).trim());
-        }
+    // Conjunto de TUSS ambíguos (parecer/visita/consulta) e ids de tipos
+    // ambíguos para o filtro do lookback histórico.
+    const { data: ambTypes } = await supabase
+      .from("item_types")
+      .select("id, code, tuss_default, tuss_codes_extra");
+    const ambiguousTussSet = new Set<string>();
+    const ambiguousTypeIds = new Set<string>();
+    for (const t of (ambTypes ?? []) as any[]) {
+      const code = String(t.code ?? "").toLowerCase();
+      const isAmb = code.startsWith("parecer") || code === "visita" || code === "consulta";
+      if (!isAmb) continue;
+      if (t.id) ambiguousTypeIds.add(String(t.id));
+      if (t.tuss_default) ambiguousTussSet.add(String(t.tuss_default).trim());
+      for (const c of (t.tuss_codes_extra ?? []) as string[]) {
+        if (c) ambiguousTussSet.add(String(c).trim());
       }
-      ambiguousTussSet = set;
+    }
+
+    if (isMixed) {
       console.log(
-        `[cross-reference-parecer] mixed_mode=on parecerType=${mixedParecerTypeId} ambiguousTuss=${[...set].join(",")}`,
+        `[cross-reference-parecer] mixed_mode=on parecerType=${mixedParecerTypeId} ambiguousTuss=${[...ambiguousTussSet].join(",")}`,
       );
     }
 
-    // Reports do lote
+    // Relatórios do lote (gate — sem relatório, 400).
     const { data: reports, error: repErr } = await supabase
       .from("payment_parecer_reports")
       .select("id, period_start, period_end")
@@ -162,8 +168,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    let allRows: any[] = [];
-    if (hasReport) {
+    // Linhas do relatório (paginadas).
+    const allRows: any[] = [];
+    {
       const ids = reports!.map((r) => r.id);
       const pageSize = 1000;
       for (let from = 0; ; from += pageSize) {
@@ -174,7 +181,6 @@ Deno.serve(async (req) => {
           )
           .in("report_id", ids)
           .range(from, from + pageSize - 1);
-
         if (error) throw error;
         allRows.push(...(page ?? []));
         if (!page || page.length < pageSize) break;
@@ -193,8 +199,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Indexa por (atendimento + médico). A confirmação final também exige
-    // mesma data de resposta/procedimento; sem data, o item permanece not_found.
+    // Índices para validação do candidato (atendimento + médico → linhas).
     const byAttendCrm = new Map<string, any[]>();
     const byAttendName = new Map<string, any[]>();
     for (const r of allRows) {
@@ -212,27 +217,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Carrega itens do lote
+    // Itens do lote (paginados).
     const items: any[] = [];
-    const pageSize = 1000;
-    for (let from = 0; ; from += pageSize) {
-      const { data: page, error } = await supabase
-        .from("payment_items")
-        .select(
-          "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_amount, procedure_code, manual_intervention_reason_id, manual_intervention_source, item_type_id, item_type_source, patient_name, specialty, convenio_slug, hospital_id",
-        )
-        .eq("payment_id", payment_id)
-        .range(from, from + pageSize - 1);
-      if (error) throw error;
-      items.push(...(page ?? []));
-      if (!page || page.length < pageSize) break;
+    {
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data: page, error } = await supabase
+          .from("payment_items")
+          .select(
+            "id, attendance_number, doctor_name, doctor_id, procedure_date, procedure_code, item_type_id, item_type_source, specialty, convenio_slug, hospital_id, company_id, company_name, is_cancelled, created_at",
+          )
+          .eq("payment_id", payment_id)
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        items.push(...(page ?? []));
+        if (!page || page.length < pageSize) break;
+      }
     }
 
-
-    // Carrega CRMs dos médicos referenciados
-    const doctorIds = Array.from(
-      new Set(items.map((i) => i.doctor_id).filter(Boolean)),
-    );
+    // CRMs dos médicos referenciados (para validação por médico+atend).
+    const doctorIds = Array.from(new Set(items.map((i) => i.doctor_id).filter(Boolean)));
     const crmByDoctor = new Map<string, string>();
     if (doctorIds.length) {
       const { data: docs } = await supabase
@@ -244,340 +248,325 @@ Deno.serve(async (req) => {
       }
     }
 
-    const updates: Array<{
-      id: string;
-      evidence: "confirmed" | "not_found" | "no_report" | "reclassified";
-      row_id: string | null;
-      weak: boolean;
-    }> = [];
-
+    // ==== Filtro de candidatos ====
+    // Em lote misto: só TUSS ambíguos. Fora de lote misto: todos os itens
+    // são candidatos (payment_type do lote inteiro é parecer).
+    // Itens cancelados sempre ignorados.
+    // Itens protegidos entram no fluxo APENAS para receber parecer_evidence
+    // informativo — nunca trocam item_type_id.
+    type CandidateItem = typeof items[number];
+    const candidates: CandidateItem[] = [];
+    let skippedCancelled = 0;
+    let skippedNonAmbiguousTuss = 0;
+    let protectedItems: CandidateItem[] = [];
     for (const it of items) {
-      if (!hasReport) {
-        updates.push({
-          id: it.id,
-          evidence: "no_report",
-          row_id: null,
-          weak: false,
-        });
+      if (it.is_cancelled) { skippedCancelled++; continue; }
+      if (isMixed) {
+        const code = String(it.procedure_code ?? "").trim();
+        if (!code || !ambiguousTussSet.has(code)) { skippedNonAmbiguousTuss++; continue; }
+      }
+      if (PROTECTED_SOURCES.has(it.item_type_source ?? "")) {
+        protectedItems.push(it);
+        // Protegido também entra para receber evidência, mas em grupo
+        // separado — ele não define candidato para os outros.
+      }
+      candidates.push(it);
+    }
+
+    // ==== Chave de agrupamento (com fallback) ====
+    type GroupKey = string; // hosp|att|empresa|spec
+    const groupOf = new Map<string, GroupKey>(); // item.id → key
+    const groupsMap = new Map<GroupKey, CandidateItem[]>();
+    const skippedNoKey: string[] = [];
+
+    for (const it of candidates) {
+      const hospKey = it.hospital_id;
+      const attKey = onlyDigits(it.attendance_number);
+      const specKey = norm(it.specialty);
+      const empresaKey = it.company_id ?? (norm(it.company_name) || null);
+      if (!hospKey || !attKey || !specKey || !empresaKey) {
+        skippedNoKey.push(it.id);
         continue;
       }
-      // Em lote misto, só processa itens cujo TUSS é "ambíguo" (parecer/visita/consulta).
-      // Procedimentos puros (cirurgia/exame) ficam intocados — sem patch.
-      if (isMixed && ambiguousTussSet) {
-        const code = String(it.procedure_code ?? "").trim();
-        if (!code || !ambiguousTussSet.has(code)) {
+      const key = `${hospKey}|${attKey}|${empresaKey}|${specKey}`;
+      groupOf.set(it.id, key);
+      const list = groupsMap.get(key) ?? [];
+      list.push(it);
+      groupsMap.set(key, list);
+    }
+
+    // Alerta: >10% dos candidatos sem chave.
+    if (candidates.length > 0 && skippedNoKey.length / candidates.length > 0.1) {
+      console.warn(
+        `[cross-reference-parecer] skipped_no_key > 10% (${skippedNoKey.length}/${candidates.length}). sample=${skippedNoKey.slice(0, 20).join(",")}`,
+      );
+    }
+
+    // ==== Lookback histórico EM BATCH ====
+    // Coleta attendances únicos por hospital, quebra em chunks de 200,
+    // e traz TODAS as linhas históricas de outros lotes com TUSS/tipo
+    // ambíguo. Match final por grupo é feito em memória.
+    type HistRow = {
+      id: string;
+      payment_id: string;
+      hospital_id: string;
+      company_id: string | null;
+      company_name: string | null;
+      specialty: string | null;
+      attendance_number: string | null;
+      procedure_code: string | null;
+      procedure_date: string | null;
+      created_at: string | null;
+      item_type_id: string | null;
+    };
+    const CHUNK = 200;
+    const historyByGroup = new Map<GroupKey, HistRow[]>();
+
+    // Agrupa attendances por hospital.
+    const attsByHospital = new Map<string, Set<string>>();
+    for (const it of candidates) {
+      const att = onlyDigits(it.attendance_number);
+      if (!att || !it.hospital_id) continue;
+      const set = attsByHospital.get(it.hospital_id) ?? new Set<string>();
+      set.add(it.attendance_number); // valor bruto — coluna não tem versão só-dígitos
+      attsByHospital.set(it.hospital_id, set);
+    }
+
+    const ambTypeIdsArr = [...ambiguousTypeIds];
+    const ambTussArr = [...ambiguousTussSet];
+
+    for (const [hospId, attSet] of attsByHospital.entries()) {
+      const attArr = [...attSet];
+      for (let i = 0; i < attArr.length; i += CHUNK) {
+        const chunk = attArr.slice(i, i + CHUNK);
+        let q = supabase
+          .from("payment_items")
+          .select(
+            "id, payment_id, hospital_id, company_id, company_name, specialty, attendance_number, procedure_code, procedure_date, created_at, item_type_id",
+          )
+          .eq("hospital_id", hospId)
+          .in("attendance_number", chunk)
+          .neq("payment_id", payment_id)
+          .eq("is_cancelled", false);
+        // Filtro tipo/TUSS ambíguo. Ambos podem estar vazios em ambientes
+        // sem cadastro de item_types — nesse caso não filtra (comportamento
+        // conservador, mais itens seguem para o match em memória).
+        if (ambTypeIdsArr.length > 0 && ambTussArr.length > 0) {
+          const inList = ambTypeIdsArr.map((id) => `"${id}"`).join(",");
+          const tussList = ambTussArr.map((c) => `"${c}"`).join(",");
+          q = q.or(`item_type_id.in.(${inList}),procedure_code.in.(${tussList})`);
+        } else if (ambTypeIdsArr.length > 0) {
+          q = q.in("item_type_id", ambTypeIdsArr);
+        } else if (ambTussArr.length > 0) {
+          q = q.in("procedure_code", ambTussArr);
+        }
+        const { data: page, error } = await q;
+        if (error) {
+          console.warn(`[cross-reference-parecer] lookback chunk fail hosp=${hospId}`, error.message);
           continue;
         }
+        for (const row of (page ?? []) as HistRow[]) {
+          const attKey = onlyDigits(row.attendance_number);
+          const specKey = norm(row.specialty);
+          const empresaKey = row.company_id ?? (norm(row.company_name) || null);
+          if (!attKey || !specKey || !empresaKey) continue;
+          const key = `${row.hospital_id}|${attKey}|${empresaKey}|${specKey}`;
+          if (!groupsMap.has(key)) continue; // só nos interessa se casa com um grupo do lote atual
+          const list = historyByGroup.get(key) ?? [];
+          list.push(row);
+          historyByGroup.set(key, list);
+        }
       }
-      const att = onlyDigits(it.attendance_number);
-      const cd = crmByDoctor.get(it.doctor_id ?? "") ?? "";
-      const nm = norm(it.doctor_name);
-      let hit: any = null;
-      let weak = false;
+    }
 
+    console.log(
+      `[cross-reference-parecer] groups=${groupsMap.size} candidates=${candidates.length} skippedNoKey=${skippedNoKey.length} skippedCancelled=${skippedCancelled} skippedNonAmbiguousTuss=${skippedNonAmbiguousTuss} lookback_hospitals=${attsByHospital.size} lookback_matched_groups=${historyByGroup.size}`,
+    );
+
+    // ==== Decisão por grupo ====
+    // Para cada item: define role ('candidate_parecer' | 'visita' | 'protected')
+    // e evidence + weak.
+    type Decision = {
+      evidence: EvidenceValue;
+      weak: boolean;
+      roleParecer: boolean; // candidato virou parecer (tipo)
+      roleVisita: boolean;  // item vira visita
+    };
+    const decisionById = new Map<string, Decision>();
+
+    // Protegidos (não trocam tipo). Evidência: se candidato eleito, marcaremos
+    // depois; por default entram como 'not_applicable' (informativo).
+    // Vamos preencher junto do loop principal do grupo abaixo.
+
+    for (const [key, groupItems] of groupsMap.entries()) {
+      // Ordena candidatos do lote por procedure_date asc, tie-break created_at asc.
+      const ordered = [...groupItems].sort((a, b) => {
+        const da = a.procedure_date ? Date.parse(a.procedure_date) : Infinity;
+        const db = b.procedure_date ? Date.parse(b.procedure_date) : Infinity;
+        if (da !== db) return da - db;
+        const ca = a.created_at ? Date.parse(a.created_at) : 0;
+        const cb = b.created_at ? Date.parse(b.created_at) : 0;
+        return ca - cb;
+      });
+      const first = ordered[0];
+      const firstDay = dayKey(first?.procedure_date ?? null);
+
+      // Histórico do grupo (só itens de OUTROS lotes, já filtrado).
+      const hist = historyByGroup.get(key) ?? [];
+      let priorStrict = false; // histórico com data ESTRITAMENTE anterior
+      let priorSameDay = false; // histórico no mesmo dia do candidato atual
+      for (const h of hist) {
+        const hDay = dayKey(h.procedure_date);
+        if (!hDay || !firstDay) continue;
+        if (hDay < firstDay) { priorStrict = true; break; }
+        if (hDay === firstDay) priorSameDay = true;
+      }
+
+      if (priorStrict) {
+        // Todo o grupo vira visita.
+        for (const it of ordered) {
+          decisionById.set(it.id, {
+            evidence: "not_applicable",
+            weak: false,
+            roleParecer: false,
+            roleVisita: true,
+          });
+        }
+        continue;
+      }
+
+      // Sem histórico estritamente anterior: o candidato é o primeiro do lote.
+      // Empate interno (mesma data que o 2º) → weak=true.
+      let internalTie = false;
+      if (ordered.length >= 2) {
+        const d0 = dayKey(ordered[0].procedure_date);
+        const d1 = dayKey(ordered[1].procedure_date);
+        if (d0 && d1 && d0 === d1) internalTie = true;
+      }
+
+      // Validação do candidato contra o relatório do Tasy.
+      const att = onlyDigits(first.attendance_number);
+      const cd = crmByDoctor.get(first.doctor_id ?? "") ?? "";
+      const nm = norm(first.doctor_name);
+      let hit: any = null;
+      let weakFromValidation = false;
       if (att && cd) {
         const list = byAttendCrm.get(`${att}|${cd}`) ?? [];
-        hit =
-          list.find((r) =>
-            matchesParecerDate(r, it.procedure_date) &&
-            String(r.situacao ?? "").toLowerCase().includes("com parecer"),
-          ) ?? list.find((r) =>
-            matchesParecerDate(r, it.procedure_date),
-          ) ?? null;
+        hit = list.find((r) =>
+          matchesParecerDate(r, first.procedure_date) &&
+          String(r.situacao ?? "").toLowerCase().includes("com parecer"),
+        ) ?? list.find((r) => matchesParecerDate(r, first.procedure_date)) ?? null;
       }
       if (!hit && att && nm) {
         const list = byAttendName.get(`${att}|${nm}`) ?? [];
-        // fallback por nome também exige a data da resposta do parecer.
-        hit =
-          list.find((r) => matchesParecerDate(r, it.procedure_date)) ?? null;
-        if (hit) weak = true;
+        hit = list.find((r) => matchesParecerDate(r, first.procedure_date)) ?? null;
+        if (hit) weakFromValidation = true;
       }
 
-
-      if (hit) {
-        updates.push({
-          id: it.id,
-          evidence: "confirmed",
-          row_id: hit.id,
-          weak,
-        });
+      // Regra do empate entre lotes: mesmo que o Tasy confirme, se há
+      // histórico no MESMO dia, marcamos como 'unverified' + weak — não
+      // dá para saber a ordem.
+      let candidateEvidence: EvidenceValue;
+      let candidateWeak: boolean;
+      if (priorSameDay) {
+        candidateEvidence = "unverified";
+        candidateWeak = true;
+      } else if (hit) {
+        candidateEvidence = "confirmed";
+        candidateWeak = weakFromValidation || internalTie;
       } else {
-        updates.push({
-          id: it.id,
-          evidence: "not_found",
-          row_id: null,
+        candidateEvidence = "unverified";
+        candidateWeak = internalTie || true;
+      }
+
+      decisionById.set(first.id, {
+        evidence: candidateEvidence,
+        weak: candidateWeak,
+        roleParecer: true,
+        roleVisita: false,
+      });
+      for (let i = 1; i < ordered.length; i++) {
+        decisionById.set(ordered[i].id, {
+          evidence: "not_applicable",
           weak: false,
+          roleParecer: false,
+          roleVisita: true,
         });
       }
     }
 
-    // === Dedup com regra parametrizada (system_parameter_defs/overrides) ===
-    // Parâmetro `parecer.classification` define por escopo:
-    //   - enabled: se a reclassificação automática roda
-    //   - consecutive_days_to_visita: gap máx (em dias) para virar Visita
-    //   - dedup_key: 'specialty' | 'doctor' | 'doctor_or_specialty'
-    // Resolução: hospital+convênio+especialidade -> ... -> padrão global.
-    type ParecerParams = {
-      enabled: boolean;
-      consecutive_days_to_visita: number;
-      dedup_key: "specialty" | "doctor" | "doctor_or_specialty";
-    };
-    const PARECER_DEFAULT: ParecerParams = {
-      enabled: true,
-      consecutive_days_to_visita: 1,
-      dedup_key: "specialty",
-    };
-    const paramCache = new Map<string, ParecerParams>();
-    async function resolveParecerParams(it: any): Promise<ParecerParams> {
-      const ck = `${it.hospital_id ?? ""}|${it.convenio_slug ?? ""}|${(it.specialty ?? "").toLowerCase().trim()}`;
-      const cached = paramCache.get(ck);
-      if (cached) return cached;
-      const { data, error } = await supabase.rpc("resolve_system_parameter", {
-        p_key: "parecer.classification",
-        p_hospital_id: it.hospital_id ?? null,
-        p_convenio_slug: it.convenio_slug ?? null,
-        p_specialty: it.specialty ?? null,
-      });
-      if (error) {
-        console.warn("[cross-reference-parecer] resolve_system_parameter fail", error.message);
-        paramCache.set(ck, PARECER_DEFAULT);
-        return PARECER_DEFAULT;
-      }
-      const merged: ParecerParams = { ...PARECER_DEFAULT, ...((data as any) ?? {}) };
-      paramCache.set(ck, merged);
-      return merged;
-    }
-
-    const updateById = new Map(updates.map((u) => [u.id, u]));
-    const reclassifiedIds = new Set<string>();
-    const reclassifyReason = new Map<string, string>();
-    const itemParams = new Map<string, ParecerParams>();
-
-    for (const it of items) {
-      const u = updateById.get(it.id);
-      if (!u || u.evidence !== "confirmed") continue;
-      itemParams.set(it.id, await resolveParecerParams(it));
-    }
-
-    function bucketField(it: any, dedupKey: ParecerParams["dedup_key"]) {
-      if (dedupKey === "doctor") return norm(it.doctor_name) || it.doctor_id || "";
-      if (dedupKey === "doctor_or_specialty") {
-        return (norm(it.specialty) || "") + "::" + (norm(it.doctor_name) || it.doctor_id || "");
-      }
-      return norm(it.specialty);
-    }
-
-    // 1) Dedup intra-lote
-    const buckets = new Map<string, Array<{ id: string; date: string | null }>>();
-    for (const it of items) {
-      const params = itemParams.get(it.id);
-      if (!params || !params.enabled) continue;
-      const att = onlyDigits(it.attendance_number);
-      const conv = norm(it.convenio_slug);
-      const field = bucketField(it, params.dedup_key);
-      if (!att || !field) continue;
-      const key = `${params.dedup_key}|${att}|${field}|${conv}`;
-      const list = buckets.get(key) ?? [];
-      list.push({ id: it.id, date: it.procedure_date });
-      buckets.set(key, list);
-    }
-    for (const list of buckets.values()) {
-      if (list.length < 2) continue;
-      list.sort((a, b) => {
-        const da = a.date ? Date.parse(a.date) : 0;
-        const db = b.date ? Date.parse(b.date) : 0;
-        return da - db;
-      });
-      for (let i = 1; i < list.length; i++) {
-        const cur = list[i];
-        if (!cur.date) continue;
-        const params = itemParams.get(cur.id)!;
-        const maxDays = params.consecutive_days_to_visita;
-        const dCur = new Date(cur.date).toISOString().slice(0, 10);
-        for (let j = i - 1; j >= 0; j--) {
-          const prev = list[j];
-          if (!prev.date) continue;
-          const dPrev = new Date(prev.date).toISOString().slice(0, 10);
-          const diffDays = Math.round(
-            (Date.parse(dCur) - Date.parse(dPrev)) / (24 * 3600 * 1000),
-          );
-          if (diffDays <= 0) continue;
-          if (diffDays > maxDays) break;
-          reclassifiedIds.add(cur.id);
-          reclassifyReason.set(
-            cur.id,
-            `Parecer ${diffDays}d antes (${dPrev}) — janela=${maxDays}d, chave=${params.dedup_key}; vira Visita`,
-          );
-          break;
-        }
-      }
-    }
-
-    // 2) Lookback cross-lote — janela = consecutive_days_to_visita.
-    const { data: parecerTypes } = await supabase
-      .from("item_types")
-      .select("id, code")
-      .ilike("code", "parecer%");
-    const parecerTypeIds = (parecerTypes ?? []).map((t: any) => t.id).filter(Boolean);
-
-    const candidatesLookback = items.filter((it) => {
-      const u = updateById.get(it.id);
-      const p = itemParams.get(it.id);
-      return (
-        u && u.evidence === "confirmed" && p && p.enabled &&
-        !reclassifiedIds.has(it.id) &&
-        it.attendance_number && it.procedure_date && it.hospital_id
-      );
-    });
-    for (const it of candidatesLookback) {
-      const params = itemParams.get(it.id)!;
-      const curDay = new Date(it.procedure_date).toISOString().slice(0, 10);
-      const fromDay = new Date(Date.parse(curDay) - params.consecutive_days_to_visita * 24 * 3600 * 1000)
-        .toISOString().slice(0, 10);
-      let query = supabase
-        .from("payment_items")
-        .select("id, payment_id, procedure_date, parecer_evidence, item_type_id, specialty, doctor_id, doctor_name")
-        .eq("hospital_id", it.hospital_id)
-        .eq("attendance_number", it.attendance_number)
-        .eq("reclassified_from_parecer", false)
-        .neq("payment_id", payment_id)
-        .gte("procedure_date", fromDay)
-        .lt("procedure_date", curDay);
-      if (params.dedup_key === "specialty" || params.dedup_key === "doctor_or_specialty") {
-        if (it.specialty) query = query.eq("specialty", it.specialty);
-      }
-      if (params.dedup_key === "doctor") {
-        if (it.doctor_id) query = query.eq("doctor_id", it.doctor_id);
-      }
-      if (parecerTypeIds.length > 0) {
-        query = query.or(
-          `parecer_evidence.eq.confirmed,item_type_id.in.(${parecerTypeIds.join(",")})`,
-        );
-      } else {
-        query = query.eq("parecer_evidence", "confirmed");
-      }
-      const { data: prior } = await query
-        .order("procedure_date", { ascending: false })
-        .limit(1);
-      if (prior && prior.length > 0) {
-        reclassifiedIds.add(it.id);
-        const viaType = prior[0].item_type_id && parecerTypeIds.includes(prior[0].item_type_id)
-          ? " (tipo Parecer em lote anterior)"
-          : " (relatório do Tasy)";
-        reclassifyReason.set(
-          it.id,
-          `Parecer em lote anterior dentro de ${params.consecutive_days_to_visita}d (chave=${params.dedup_key})${viaType}; vira Visita`,
-        );
-      }
-    }
-
-
-
-
-    // Aplica reclassificação: troca evidence para "reclassified" para o
-    // bloco de patch abaixo mandar para Visita.
-    for (const u of updates) {
-      if (reclassifiedIds.has(u.id) && u.evidence === "confirmed") {
-        (u as any).evidence = "reclassified";
-      }
-    }
-    console.log(
-      JSON.stringify({
-        tag: "cross-reference-parecer.dedup",
-        payment_id,
-        dedup_key: "attendance_number + specialty + convenio_slug",
-        fallback_to_patient: false,
-        reclassified_total: reclassifiedIds.size,
-        reasons_sample: [...reclassifyReason.values()].slice(0, 3),
-      }),
-    );
-
-
-    // Aplica em batches agrupados por patch (reduz deadlocks e overhead de triggers)
+    // ==== Aplica patches em batches agrupados ====
     const now = new Date().toISOString();
-    let confirmed = 0;
-    let notFound = 0;
-    let reclassified = 0;
-    let autoApplied = 0;
-    const PROTECTED_SOURCES = new Set(["manual", "company_override", "base_tipo"]);
     const itemById = new Map(items.map((i: any) => [i.id, i]));
-    let subtypeParecer = 0;
-    let subtypeVisita = 0;
+    let parecerConfirmed = 0;
+    let parecerUnverified = 0;
+    let visitas = 0;
+    let protectedKept = 0;
+    let notFoundLegacy = 0; // manteremos 0 para compatibilidade; UI antiga lê essa chave
 
-
-    console.log(
-      `[cross-reference-parecer] reclass_ready loteType=${lotePaymentTypeId} visitaType=${visitaPaymentTypeId} updates=${updates.length}`,
-    );
-
-    // Agrupa updates por chave-de-patch (mesmo conjunto de colunas/valores)
-    // para fazer 1 update batch por grupo via .in("id", [...]).
-    type Group = { patch: Record<string, any>; ids: string[]; evidence: string };
+    type Group = { patch: Record<string, any>; ids: string[] };
     const groups = new Map<string, Group>();
-    for (const u of updates) {
-      const evidenceForDb = u.evidence === "reclassified" ? "confirmed" : u.evidence;
-      const isReclassified = u.evidence === "reclassified";
-      const patch: Record<string, any> = {
-        parecer_evidence: evidenceForDb,
-        parecer_report_row_id: u.row_id,
-        parecer_evidence_weak: u.weak,
-        parecer_checked_at: now,
-      };
-      const current = itemById.get(u.id) as any;
-      const currentSource = current?.item_type_source ?? null;
-      const protectedType = PROTECTED_SOURCES.has(currentSource);
-      if (!protectedType && lotePaymentTypeId && visitaPaymentTypeId) {
-        patch.reclassified_from_parecer = isReclassified;
-        if (isReclassified) {
-          // Era candidato a Parecer mas dedup/lookback rebaixou para Visita
-          patch.item_type_id = visitaPaymentTypeId;
-          patch.item_type_source = "report_cross_dedup";
-          patch.manual_intervention_notes =
-            reclassifyReason.get(u.id) ?? "Reclassificado por dedup parecer/visita.";
-          subtypeVisita++;
-        } else if (u.evidence === "confirmed") {
-          patch.item_type_id = lotePaymentTypeId;
-          patch.item_type_source = "report_cross";
-          subtypeParecer++;
-        } else if (u.evidence === "not_found") {
-          patch.item_type_id = visitaPaymentTypeId;
-          patch.item_type_source = "report_cross";
-          subtypeVisita++;
-        }
-      } else if (!protectedType) {
-        // Sem tipos resolvidos, ainda assim mantém o flag automático coerente
-        // com a classificação do relatório.
-        patch.reclassified_from_parecer = isReclassified;
-      } else if (lotePaymentTypeId && visitaPaymentTypeId) {
-        // Se o analista/base protegeu o subtipo, o relatório não troca o tipo,
-        // mas o flag auxiliar não pode ficar contraditório (ex.: badge Parecer
-        // com `reclassified_from_parecer=true`).
-        const currentType = current?.item_type_id ?? null;
-        if (currentType === visitaPaymentTypeId) {
-          patch.reclassified_from_parecer = true;
-        } else if (currentType === lotePaymentTypeId) {
-          patch.reclassified_from_parecer = false;
-        }
-      }
-      // Não aplica motivo manual automático, não grava expected_amount e não
-      // aprova o item aqui. O relatório só classifica Parecer/Visita; a
-      // reanálise abaixo calcula e decide status pela regra vencedora.
+
+    function enqueue(id: string, patch: Record<string, any>) {
       const key = JSON.stringify(patch);
       let g = groups.get(key);
-      if (!g) {
-        g = { patch, ids: [], evidence: u.evidence };
-        groups.set(key, g);
-      }
-      g.ids.push(u.id);
+      if (!g) { g = { patch, ids: [] }; groups.set(key, g); }
+      g.ids.push(id);
     }
 
-    console.log(
-      `[cross-reference-parecer] grouped into ${groups.size} batch(es); subtypeParecer=${subtypeParecer} subtypeVisita=${subtypeVisita} reclassified=${reclassifiedIds.size}`,
-    );
+    for (const it of items) {
+      if (it.is_cancelled) continue;
+      const isProtected = PROTECTED_SOURCES.has(it.item_type_source ?? "");
+      const decision = decisionById.get(it.id);
 
-    const CHUNK = 200;
+      if (!decision) {
+        // Sem decisão: item pulado (skippedNoKey ou fora de ambíguo em lote misto).
+        // Ainda assim gravamos evidência informativa 'not_applicable' quando
+        // ele foi de fato descartado como candidato ambíguo.
+        // Mas para não sobrescrever itens não relacionados, só marcamos se
+        // ele estava no conjunto `candidates` (participou do filtro).
+        continue;
+      }
+
+      const patch: Record<string, any> = {
+        parecer_evidence: decision.evidence,
+        parecer_evidence_weak: decision.weak,
+        parecer_checked_at: now,
+        parecer_report_row_id: null,
+      };
+
+      if (isProtected) {
+        // Nunca troca item_type_id. Só evidência informativa.
+        protectedKept++;
+        enqueue(it.id, patch);
+        continue;
+      }
+
+      if (!lotePaymentTypeId || !visitaPaymentTypeId) {
+        // Sem tipos resolvidos, ainda assim grava evidência coerente.
+        enqueue(it.id, patch);
+        continue;
+      }
+
+      if (decision.roleParecer) {
+        patch.item_type_id = lotePaymentTypeId;
+        patch.item_type_source = "report_cross";
+        patch.reclassified_from_parecer = false;
+        if (decision.evidence === "confirmed") parecerConfirmed++;
+        else parecerUnverified++;
+      } else if (decision.roleVisita) {
+        patch.item_type_id = visitaPaymentTypeId;
+        patch.item_type_source = "report_cross";
+        patch.reclassified_from_parecer = true;
+        visitas++;
+      }
+      enqueue(it.id, patch);
+    }
+
+    const APPLY_CHUNK = 200;
     for (const g of groups.values()) {
-      for (let i = 0; i < g.ids.length; i += CHUNK) {
-        const slice = g.ids.slice(i, i + CHUNK);
+      for (let i = 0; i < g.ids.length; i += APPLY_CHUNK) {
+        const slice = g.ids.slice(i, i + APPLY_CHUNK);
         const { error } = await supabase
           .from("payment_items")
           .update(g.patch as any)
@@ -587,19 +576,38 @@ Deno.serve(async (req) => {
             `[cross-reference-parecer] batch update fail (${slice.length} ids)`,
             error.message,
           );
-          continue;
         }
-        if (g.evidence === "confirmed") confirmed += slice.length;
-        else if (g.evidence === "not_found") notFound += slice.length;
-        else if (g.evidence === "reclassified") reclassified += slice.length;
       }
     }
 
+    // ==== Persiste cross_summary em cada relatório do lote ====
+    const summary = {
+      finished_at: now,
+      items_total: items.length,
+      candidates_considered: candidates.length,
+      parecer_confirmed: parecerConfirmed,
+      parecer_unverified: parecerUnverified,
+      visitas,
+      skipped_no_key: skippedNoKey.length,
+      skipped_no_key_sample_ids: skippedNoKey.slice(0, 20),
+      protected_kept: protectedKept,
+    };
+    try {
+      const { error: sumErr } = await supabase
+        .from("payment_parecer_reports")
+        .update({ cross_summary: summary })
+        .eq("payment_id", payment_id);
+      if (sumErr) console.warn("[cross-reference-parecer] cross_summary persist fail", sumErr.message);
+    } catch (e) {
+      console.warn("[cross-reference-parecer] cross_summary persist exception", e);
+    }
 
+    console.log(
+      `[cross-reference-parecer] done payment_id=${payment_id} ${JSON.stringify(summary)}`,
+    );
 
-    // Sempre dispara reanálise após cruzamento bem-sucedido — mesmo com 0
-    // auto-aplicados, o lote pode estar bloqueado pelo gate de parecer.
-    if (trigger_reanalysis && hasReport) {
+    // Dispara reanálise (mesma UX do fluxo anterior).
+    if (trigger_reanalysis) {
       try {
         const resp = await fetch(`${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`, {
           method: "POST",
@@ -622,23 +630,26 @@ Deno.serve(async (req) => {
       }
     }
 
-
+    // Compat: mantém chaves antigas (confirmed, not_found, reclassified) e
+    // adiciona as novas (parecer_confirmed, parecer_unverified, visitas...).
     return new Response(
       JSON.stringify({
         ok: true,
         items_total: items.length,
         report_rows: allRows.length,
-        has_report: hasReport,
-        confirmed,
-        not_found: notFound,
-        reclassified,
-        auto_applied: autoApplied,
-        subtype_parecer: subtypeParecer,
-        subtype_visita: subtypeVisita,
+        has_report: true,
+        // legado
+        confirmed: parecerConfirmed,
+        not_found: notFoundLegacy,
+        reclassified: 0,
+        auto_applied: parecerConfirmed + parecerUnverified + visitas,
+        subtype_parecer: parecerConfirmed + parecerUnverified,
+        subtype_visita: visitas,
+        // novo
+        cross_summary: summary,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (e: any) {
     console.error("[cross-reference-parecer]", e);
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
