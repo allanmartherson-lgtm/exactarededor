@@ -2026,6 +2026,7 @@ const PaymentDetail = () => {
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
+      setImportProgress(null);
       if (reimportInputRef.current) reimportInputRef.current.value = "";
     }
   };
