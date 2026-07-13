@@ -598,6 +598,9 @@ Deno.serve(async (req) => {
         if (g.company_id && payingParticipantIds.has(g.company_id)) continue;
         // hospital_nao_paga sintético (company_id null + label contendo nome do pool) é OK
         if (!g.company_id && (g.company_name ?? "").startsWith(`${pool.nome} — hospital`)) continue;
+        // Em rateio explícito, os itens são coletivos (company_id NULL) e o
+        // grupo original da planilha é apenas transitório; não é divergência.
+        if (isExplicitPaymentPool && !g.company_id) continue;
         // Há itens deste grupo absorvidos por este pool?
         let aq = supabase.from("payment_items")
           .select("id", { count: "exact", head: true })
