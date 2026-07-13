@@ -27,9 +27,11 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
 import { EngineSourcesCard } from "@/components/payment-detail/EngineSourcesCard";
+import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
 
 import { confirmDialog } from "@/lib/confirm";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { usePaymentTypeMeta } from "@/hooks/usePaymentTypeMeta";
 import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
 
 
@@ -56,6 +58,7 @@ export default function PoolAnalysis() {
   const navigate = useNavigate();
   const { payment, items, obs, rulesIndex, rulesByName, profiles, load } =
     usePaymentDetailData(id);
+  const paymentTypeMeta = usePaymentTypeMeta((payment as any)?.payment_model_id ?? null);
 
   const [pool, setPool] = useState<PoolInfo | null>(null);
   const [financials, setFinancials] = useState<Financial[]>([]);
@@ -215,6 +218,17 @@ export default function PoolAnalysis() {
       </div>
 
       <EngineSourcesCard paymentId={id!} />
+
+      <MixedParecerRetroAction
+        paymentId={id!}
+        paymentTypeId={(payment as any)?.payment_model_id ?? null}
+        paymentTypeCode={paymentTypeMeta?.code ?? null}
+        paymentTypeCategory={paymentTypeMeta?.category ?? null}
+        competenceMonths={((payment as any)?.competence_months ?? []).map((d: string) => d.slice(0, 7))}
+        hasMixedParecer={!!(payment as any)?.has_mixed_parecer}
+        allowPureType
+        onApplied={async () => { await load(); await reloadFinancials(); }}
+      />
 
       <PoolCalculationCard paymentId={id!} onRecalculated={async () => { await load(); await reloadFinancials(); }} />
 

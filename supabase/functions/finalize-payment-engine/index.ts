@@ -160,7 +160,10 @@ async function runPipeline(
   }
 
   if (want("pool_deductions")) {
-    await callFn("recalc-payment-pools", { payment_id, _background: false });
+    // Aqui o pipeline precisa ser determinístico: aguarda o cálculo real do
+    // pool. Chamar com `_background:false` só enfileira e retorna 202, deixando
+    // a fonte marcada antes de ler plantões/valores mensais.
+    await callFn("recalc-payment-pools", { payment_id, _background: true });
     const { data: runs } = await supabase
       .from("pool_calculation_runs")
       .select("id, base_total, valor_deducoes, valor_liquido_pool, status")

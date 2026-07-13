@@ -42,8 +42,42 @@ Deno.serve(async (req) => {
     // O bruto da PJ deixa de ser "soma de itens da PJ" e passa a ser a fatia
     // proporcional do total do pool segundo o pool_participants.percentual.
     const { data: pmtRow } = await supabase
-      .from("payments").select("pool_id").eq("id", payment_id).maybeSingle();
+      .from("payments").select("pool_id, competence_month, competence_months").eq("id", payment_id).maybeSingle();
     const poolId = (pmtRow as any)?.pool_id ?? null;
+    const competenceDate: string | null = (pmtRow as any)?.competence_month
+      ? String((pmtRow as any).competence_month).slice(0, 7) + "-01"
+      : Array.isArray((pmtRow as any)?.competence_months) && (pmtRow as any).competence_months[0]
+        ? String((pmtRow as any).competence_months[0]).slice(0, 7) + "-01"
+        : null;
+
+    const loadPoolDeductions = async (pid: string, pct: number) => {
+      const { data: deds } = await supabase
+        .from("pool_deductions").select("id, tipo, descricao, valor, valor_variavel").eq("pool_id", pid);
+      const out: Array<{ tipo: string; descricao: string; valor: number; valor_total: number }> = [];
+      for (const d of (deds ?? []) as any[]) {
+        let total = Number(d.valor || 0);
+        let descricao = d.descricao;
+        if (d.valor_variavel && competenceDate) {
+          const { data: pdv } = await supabase
+            .from("pool_deduction_values")
+            .select("valor, observacao")
+            .eq("pool_deduction_id", d.id)
+            .eq("competence_month", competenceDate)
+            .maybeSingle();
+          if (pdv) {
+            total = Number((pdv as any).valor || 0);
+            descricao = `${d.descricao}${(pdv as any).observacao ? ` — ${(pdv as any).observacao}` : ""}`;
+          }
+        }
+        out.push({
+          tipo: d.tipo,
+          descricao,
+          valor_total: round2(total),
+          valor: round2(total * pct / 100),
+        });
+      }
+      return out;
+    };
 
     let bruto = 0;
     // Em pool soberano, calcula:
@@ -160,9 +194,6 @@ Deno.serve(async (req) => {
       const minhaPart = (allParts ?? []).find((p: any) => p.company_id === company_id);
       const pct = Number(minhaPart?.percentual ?? 0);
 
-      // Aplica deduções já calculadas pela run (inclui valores variáveis por competência).
-      poolImpactoTotal += poolShareDeducoes;
-
       // Deduções para exibição: prioriza deductions_applied da run (tem valor real
       // da competência); fallback para pool_deductions.valor.
       let dedDisplay: Array<{ tipo: string; descricao: string; valor: number }> = [];
@@ -173,16 +204,15 @@ Deno.serve(async (req) => {
           valor: round2(Number(d.valor || 0) * pct / 100),
         }));
       } else {
-        const { data: deds } = await supabase
-          .from("pool_deductions").select("tipo, descricao, valor").eq("pool_id", poolId);
-        dedDisplay = (deds ?? []).map((d: any) => ({
-          tipo: d.tipo, descricao: d.descricao,
-          valor: round2(Number(d.valor || 0) * pct / 100),
-        }));
+        const fallbackDeds = await loadPoolDeductions(poolId, pct);
+        dedDisplay = fallbackDeds.map(({ valor_total: _total, ...rest }) => rest);
+        poolShareDeducoes = round2(fallbackDeds.reduce((s, d) => s + d.valor, 0));
       }
+      // Aplica deduções já calculadas pela run (ou preview mensal quando ainda não há run).
+      poolImpactoTotal += poolShareDeducoes;
 
       const baseRun = poolRunForBruto ? Number(poolRunForBruto.base_amount || 0) : poolGrossShare / (pct / 100 || 1);
-      const boloRun = poolRunForBruto ? Number(poolRunForBruto.bolo_liquido || 0) : baseRun;
+      const boloRun = poolRunForBruto ? Number(poolRunForBruto.bolo_liquido || 0) : round2(baseRun - (poolShareDeducoes / (pct / 100 || 1)));
       detalhes.push({
         pool_id: poolId,
         pool_nome: (poolMeta as any)?.nome ?? "Pool",
@@ -210,16 +240,13 @@ Deno.serve(async (req) => {
         const impacto = round2(contrib - Number(minha.quota || 0));
         poolImpactoTotal += impacto;
         // Deduções cadastradas no pool (fixo mensal, plantão, etc.) — para exibição na UI.
-        const { data: deds } = await supabase
-          .from("pool_deductions").select("tipo, descricao, valor").eq("pool_id", r.pool_id);
+        const dedDisplay = pool?.id ? await loadPoolDeductions(pool.id, Number(minha.percentual || 0)) : [];
         detalhes.push({
           pool_id: r.pool_id, pool_nome: pool?.nome ?? "Pool",
           base: Number(r.base_amount), bolo: Number(r.bolo_liquido),
           contribuicao_empresa: round2(contrib), quota_empresa: Number(minha.quota || 0),
           impacto, percentual: Number(minha.percentual || 0),
-          deducoes: (deds ?? []).map((d: any) => ({
-            tipo: d.tipo, descricao: d.descricao, valor: Number(d.valor || 0),
-          })),
+          deducoes: dedDisplay.map(({ valor_total: _total, ...rest }) => rest),
         });
       }
     } else {
@@ -249,12 +276,11 @@ Deno.serve(async (req) => {
             .filter((it: any) => it.company_id === company_id)
             .reduce((s: number, it: any) => s + Number(it[baseField] ?? 0), 0);
 
-          const { data: deds } = await supabase
-            .from("pool_deductions").select("*").eq("pool_id", pool.id);
+          const fallbackDeds = await loadPoolDeductions(pool.id, 100);
           const staticTypes = new Set(["fixo_mensal", "plantao", "valor_referencia_externa"]);
-          const totalDed = (deds ?? [])
+          const totalDed = fallbackDeds
             .filter((d: any) => staticTypes.has(d.tipo))
-            .reduce((s: number, d: any) => s + Number(d.valor || 0), 0);
+            .reduce((s: number, d: any) => s + Number(d.valor_total || 0), 0);
           const bolo = round2(base - totalDed);
           const minhaPart = realParts.find((p: any) => p.company_id === company_id);
           const pct = Number(minhaPart?.percentual || 0);
@@ -266,9 +292,7 @@ Deno.serve(async (req) => {
             base: round2(base), bolo,
             contribuicao_empresa: round2(contribEmpresa),
             quota_empresa: quota, impacto, percentual: pct,
-            deducoes: (deds ?? []).map((d: any) => ({
-              tipo: d.tipo, descricao: d.descricao, valor: Number(d.valor || 0),
-            })),
+            deducoes: fallbackDeds.map(({ valor_total: _total, ...rest }) => ({ ...rest, valor: round2(rest.valor * pct / 100) })),
           });
         }
       }

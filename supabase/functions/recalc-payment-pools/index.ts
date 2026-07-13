@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
     // 1. Carrega payment + grupos atuais
     const { data: payment, error: payErr } = await supabase
-      .from("payments").select("id, reference, competence_month, hospital_id").eq("id", payment_id).single();
+      .from("payments").select("id, reference, competence_month, hospital_id, pool_id").eq("id", payment_id).single();
     if (payErr || !payment) {
       return new Response(JSON.stringify({ error: "payment não encontrado" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
       : { data: [] as Array<{ pool_id: string }> };
 
     const candidatePoolIds = new Set<string>((matchedParts ?? []).map(p => p.pool_id));
+    if ((payment as any).pool_id) candidatePoolIds.add((payment as any).pool_id);
 
     // Filtered pools do hospital
     if (payment.hospital_id) {
@@ -148,8 +149,10 @@ Deno.serve(async (req) => {
     });
 
     const results: any[] = [];
+    const participantCompanyIdsToRecompute = new Set<string>();
 
     for (const pool of activePools) {
+      const isExplicitPaymentPool = (payment as any).pool_id === pool.id;
       // Todos os participantes deste pool (inclui hospital_nao_paga)
       const { data: allParts } = await supabase
         .from("pool_participants").select("*").eq("pool_id", pool.id).order("ordem_exibicao");
@@ -157,12 +160,22 @@ Deno.serve(async (req) => {
 
       const realParticipants = participants.filter(p => p.participant_type !== "hospital_nao_paga" && p.company_id);
       const participantCompanyIds = realParticipants.map(p => p.company_id!).filter(Boolean);
+      participantCompanyIds.forEach((cid) => participantCompanyIdsToRecompute.add(cid));
 
       // Itens elegíveis: por escopo do pool
       let elig: any[] = [];
       const isFiltered = pool.escopo_producao === "filtrado";
 
-      if (isFiltered) {
+      if (isExplicitPaymentPool) {
+        let q = supabase
+          .from("payment_items")
+          .select("id, company_id, doctor_id, doctor_name, doctor_role, item_type_id, sector_slug, convenio_slug, gross_amount, expected_amount, gross_override_reason, procedure_date, procedure_name, description, patient_name, agreement_text, attendance_number, ai_status")
+          .eq("payment_id", payment_id)
+          .neq("item_origin", "complemento_minimo")
+          .eq("is_pool_item", true);
+        const { data: pitems } = await q;
+        elig = pitems ?? [];
+      } else if (isFiltered) {
         const filtrosRaw = (pool.filtros_captura ?? {}) as Record<string, any>;
         // Normalização defensiva: trim + dedupe; slugs em lowercase; funções preservam case (case-insensitive abaixo).
         const norm = (arr: any, opts: { lower?: boolean } = {}) => {
@@ -474,7 +487,7 @@ Deno.serve(async (req) => {
             .from("payment_company_groups")
             .update({ total_amount: q.quota })
             .eq("id", grp.id);
-        } else if (isFiltered) {
+        } else if (isFiltered || isExplicitPaymentPool) {
           // Participante não tinha grupo no pagamento (itens vieram em outra razão social na planilha).
           // Cria grupo sintético para que o card apareça no lote com a quota correta.
           const { data: compRow } = await supabase
@@ -491,33 +504,6 @@ Deno.serve(async (req) => {
           } as any).select("id, company_id, company_name, total_amount").maybeSingle();
           if (insGrpErr) console.error("[recalc-payment-pools] payment_company_groups insert error", insGrpErr);
           if (inserted) groupByCompany.set(q.company_id, inserted as any);
-        }
-      }
-
-      // Em pool filtrado: zera/marca grupos cujos itens foram TODOS absorvidos por este pool
-      // (ex.: grupo "fantasma" da razão social que aparecia na planilha mas não é participante).
-      if (isFiltered && elig.length) {
-        const participantIds = new Set(quotas.filter(q => q.paga && q.company_id).map(q => q.company_id as string));
-        const absorbedItemIds = new Set(elig.map((it: any) => it.id));
-        // Lista todos os grupos do pagamento (inclusive sem company_id)
-        const { data: allGroups } = await supabase
-          .from("payment_company_groups")
-          .select("id, company_id, company_name, items_count")
-          .eq("payment_id", payment_id);
-        for (const g of (allGroups ?? [])) {
-          if (g.company_id && participantIds.has(g.company_id)) continue; // participante, mantém
-          // Conta itens deste grupo que NÃO foram absorvidos por este pool
-          let q = supabase.from("payment_items")
-            .select("id", { count: "exact", head: true })
-            .eq("payment_id", payment_id);
-          q = g.company_id ? q.eq("company_id", g.company_id) : q.is("company_id", null);
-          // itens absorvidos ficam com absorbed_by_pool_id setado; consideramos "ativos" os sem absorção por este pool
-          q = q.or(`absorbed_by_pool_id.is.null,absorbed_by_pool_id.neq.${pool.id}`);
-          const { count: liveCount } = await q;
-          if ((liveCount ?? 0) === 0) {
-            // Todos os itens deste grupo foram absorvidos pelo pool → remove card duplicado
-            await supabase.from("payment_company_groups").delete().eq("id", g.id);
-          }
         }
       }
 
@@ -612,6 +598,9 @@ Deno.serve(async (req) => {
         if (g.company_id && payingParticipantIds.has(g.company_id)) continue;
         // hospital_nao_paga sintético (company_id null + label contendo nome do pool) é OK
         if (!g.company_id && (g.company_name ?? "").startsWith(`${pool.nome} — hospital`)) continue;
+        // Em rateio explícito, os itens são coletivos (company_id NULL) e o
+        // grupo original da planilha é apenas transitório; não é divergência.
+        if (isExplicitPaymentPool && !g.company_id) continue;
         // Há itens deste grupo absorvidos por este pool?
         let aq = supabase.from("payment_items")
           .select("id", { count: "exact", head: true })
@@ -670,7 +659,7 @@ Deno.serve(async (req) => {
         deductions_applied: deductionsApplied,
         quotas,
         competence_month: competenceDate,
-        captured_item_ids: isFiltered ? elig.map(it => it.id) : null,
+          captured_item_ids: (isFiltered || isExplicitPaymentPool) ? elig.map(it => it.id) : null,
         hospital_id: paymentHospitalId,
         snapshot: {
           pool_nome: pool.nome,
@@ -689,7 +678,7 @@ Deno.serve(async (req) => {
       } as any).select("id").maybeSingle();
 
       // Reset claims antigos deste pool/competência e regrava (auditoria + bloqueio)
-      if (isFiltered && competenceDate && elig.length) {
+      if ((isFiltered || isExplicitPaymentPool) && competenceDate && elig.length) {
         await supabase.from("pool_item_claims")
           .delete().eq("pool_id", pool.id).eq("competence_month", competenceDate);
         await supabase.from("pool_item_claims").insert(
@@ -705,6 +694,29 @@ Deno.serve(async (req) => {
         await supabase.from("payment_items")
           .update({ absorbed_by_pool_id: pool.id, absorbed_by_run_id: runRow?.id ?? null })
           .in("id", elig.map((it: any) => it.id));
+      }
+
+      // Remove grupos-fantasma cujos itens foram integralmente absorvidos pelo
+      // pool (ex.: razão social da planilha em rateio com itens coletivos).
+      if ((isFiltered || isExplicitPaymentPool) && elig.length) {
+        const participantIds = new Set(quotas.filter(q => q.paga && q.company_id).map(q => q.company_id as string));
+        const { data: allGroups } = await supabase
+          .from("payment_company_groups")
+          .select("id, company_id, company_name, items_count")
+          .eq("payment_id", payment_id);
+        for (const g of (allGroups ?? [])) {
+          if (g.company_id && participantIds.has(g.company_id)) continue;
+          if (!g.company_id && (g.company_name ?? "").startsWith(`${pool.nome} — hospital`)) continue;
+          let q = supabase.from("payment_items")
+            .select("id", { count: "exact", head: true })
+            .eq("payment_id", payment_id);
+          q = g.company_id ? q.eq("company_id", g.company_id) : q.is("company_id", null);
+          q = q.or(`absorbed_by_pool_id.is.null,absorbed_by_pool_id.neq.${pool.id}`);
+          const { count: liveCount } = await q;
+          if ((liveCount ?? 0) === 0) {
+            await supabase.from("payment_company_groups").delete().eq("id", g.id);
+          }
+        }
       }
 
       // Persiste aplicações novas e incrementa parcelas_pagas (idempotente: skip se já existir)
@@ -749,6 +761,7 @@ Deno.serve(async (req) => {
       .select("company_id").eq("payment_id", payment_id);
     const companyIdsToRecompute = new Set<string>([
       ...presentCompanyIds,
+      ...participantCompanyIdsToRecompute,
       ...((finRows ?? []).map((f: any) => f.company_id).filter(Boolean) as string[]),
     ]);
     for (const cid of companyIdsToRecompute) {
