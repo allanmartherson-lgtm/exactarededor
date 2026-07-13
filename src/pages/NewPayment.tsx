@@ -2733,24 +2733,40 @@ const NewPayment = () => {
       bucket_role: ReturnType<typeof inferBucketRole>;
     };
     const uploadedFiles: UploadedFile[] = [];
+    const uploadFailures: { name: string; message: string }[] = [];
     const safeStorageExtension = (name: string) => {
       const match = name.match(/\.([A-Za-z0-9]{1,12})$/);
       return match ? `.${match[1].toLowerCase()}` : "";
     };
-    try {
-      for (const b of buckets) {
-        // Storage rejeita chaves com espaços/acentos e alguns caracteres Unicode.
-        // O nome original fica preservado em `original_filename`; a chave de auditoria
-        // deve ser opaca e ASCII para nunca bloquear a criação do lote.
-        const uniqueId = typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const path = `${user!.id}/${Date.now()}-${uniqueId}${safeStorageExtension(b.file.name)}`;
+    // Sanitização defensiva: Supabase Storage rejeita chaves com espaços, acentos
+    // ou caracteres Unicode ("Invalid key"). Nome original fica em original_filename;
+    // a chave é sempre opaca e ASCII.
+    const asciiOnly = (s: string) => {
+      try {
+        return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]/g, "_");
+      } catch {
+        return s.replace(/[^A-Za-z0-9._-]/g, "_");
+      }
+    };
+    const buildSafePath = (file: File) => {
+      const uniqueId = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const ext = asciiOnly(safeStorageExtension(file.name));
+      let path = `${user!.id}/${Date.now()}-${uniqueId}${ext}`;
+      if (/[^\x20-\x7E]/.test(path) || /\s/.test(path)) {
+        path = asciiOnly(path);
+      }
+      return path;
+    };
+    for (const b of buckets) {
+      try {
+        const path = buildSafePath(b.file);
         const hash = await sha256Hex(b.file);
         const { error: upErr } = await supabase.storage
           .from("payment-files")
           .upload(path, b.file, { upsert: false, contentType: b.file.type || undefined });
-        if (upErr) throw new Error(`Falha ao enviar "${b.file.name}": ${upErr.message}`);
+        if (upErr) throw new Error(upErr.message);
         uploadedFiles.push({
           storage_path: path,
           original_filename: b.file.name,
@@ -2759,16 +2775,18 @@ const NewPayment = () => {
           sha256: hash,
           bucket_role: inferBucketRole(b.file.name),
         });
+      } catch (uploadErr) {
+        // NÃO bloqueia a criação do lote — auditoria de arquivo é secundária.
+        const message = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+        console.warn(`[NewPayment] Falha ao salvar arquivo original "${b.file.name}":`, message);
+        uploadFailures.push({ name: b.file.name, message });
       }
-
-    } catch (uploadErr) {
-      setSubmitting(false);
+    }
+    if (uploadFailures.length > 0) {
       toast({
-        title: "Não foi possível salvar os arquivos originais",
-        description: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
-        variant: "destructive",
+        title: "Alguns arquivos originais não foram salvos para auditoria",
+        description: `O lote será criado normalmente. ${uploadFailures.length} arquivo(s) sem cópia: ${uploadFailures.map((f) => f.name).join(", ")}`,
       });
-      return;
     }
     const uploadedPaths = uploadedFiles.map((f) => f.storage_path);
 
