@@ -102,16 +102,20 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: jobData } = await supabase
-      .from("payment_processing_jobs")
-      .select("id, payment_id, status, failed_companies, created_at, finished_at")
-      .eq("payment_id", paymentId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [{ data: jobData }, { data: pay }] = await Promise.all([
+      supabase
+        .from("payment_processing_jobs")
+        .select("id, payment_id, status, failed_companies, created_at, finished_at")
+        .eq("payment_id", paymentId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase.from("payments").select("hospital_id").eq("id", paymentId).maybeSingle(),
+    ]);
 
     const j = (jobData as Job | null) ?? null;
     setJob(j);
+    setHospitalId(((pay as any)?.hospital_id as string | null) ?? null);
 
     const [{ data: tel }, { data: grp }] = await Promise.all([
       j
