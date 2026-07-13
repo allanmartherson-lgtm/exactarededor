@@ -7607,6 +7607,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pool_calculation_runs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "pool_calculation_runs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_calculation_runs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_payments_flow_scope"
+            referencedColumns: ["payment_id"]
+          },
+          {
             foreignKeyName: "pool_calculation_runs_pool_id_fkey"
             columns: ["pool_id"]
             isOneToOne: false
