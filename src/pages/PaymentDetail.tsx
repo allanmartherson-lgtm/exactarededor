@@ -2316,6 +2316,7 @@ const PaymentDetail = () => {
         sector: r.sector,
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
+        source_file_name: (r as any).source_file_name ?? null,
         tipo_linha: r.tipo_linha,
         ...(r.payment_type_id_override
           ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
