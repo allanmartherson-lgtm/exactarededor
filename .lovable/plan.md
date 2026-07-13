@@ -1,64 +1,79 @@
-## Contexto
+# PLANO FINAL — Bloco 1: Motor de Classificação Parecer × Visita
+Migração já aplicada. Este plano cobre apenas o código.
 
-A tela `/financeiro/creditos-debitos` (`src/pages/CreditosDebitos.tsx`) já está grande e vem ganhando ajustes pontuais. Vamos consolidar 3 frentes em um único ciclo, testar tudo junto e reduzir o vai-e-vem.
+## Regra em 1 frase
+Por `hospital_id + attendance_number + empresa + especialidade` (com normalização e fallbacks), o primeiro contato ambíguo (histórico global + lote atual) é o único candidato a parecer; todo o resto é visita. O relatório Tasy apenas **valida** o candidato — nunca classifica.
 
-## Escopo desta rodada
+## Fluxo
 
-### 1) Legibilidade da aba ativa (claro + escuro)
-- Aba selecionada hoje usa cor cheia que contrasta mal no chip de contagem.
-- Ajuste em `CreditosDebitos.tsx`: aplicar `data-[state=active]:bg-primary data-[state=active]:text-primary-foreground` e, no badge interno, `bg-primary-foreground/20 text-primary-foreground` para o estado ativo. Estado inativo mantém `text-muted-foreground` com badge `bg-muted`.
-- QA visual nos dois temas (Playwright screenshot em `?theme=light` e `?theme=dark`).
+### 1. Carga dos itens do lote
+Buscar itens com colunas atuais + `company_id`, `company_name`, `hospital_id`, `item_type_id`, `item_type_source`, `is_cancelled`, `procedure_code`, `procedure_date`, `created_at`, `attendance_number`, `specialty`.
 
-### 2) Aplicar em massa no lote vigente ("Em andamento")
-Nova ação na aba **Em andamento** (débitos já confirmados, aguardando lote):
+### 2. Filtro de candidatos
+- Lote misto: apenas itens com TUSS ambíguo (conjunto derivado de `item_types` marcados como parecer/visita/consulta).
+- `item_type_source` protegido (`manual`, `company_override`, `base_tipo`) → nunca troca `item_type_id`, só atualiza `parecer_evidence` como informação, e conta em `protected_kept`.
+- `is_cancelled=true` → ignorado.
 
-- Barra de ações do grupo (PJ) ganha botão **"Aplicar no lote vigente"** — usa o lote em `revisao_pj`/`revisao_analista` mais recente da PJ (mesma lógica já usada em `ensureLoteLiquido`).
-- Barra global no cabeçalho: **"Aplicar todos no lote vigente"** com preview (quantas PJs, quantos débitos, quanto cabe no líquido de cada PJ).
-- Fluxo: seta `target_payment_id` no `glosa_debts` + invoca `apply-company-deductions` por `(payment_id, company_id)` em paralelo. Reaproveita `confirmGlobalMass` já existente — só precisamos do seletor automático de lote vigente por PJ.
-- Respeita gate: se o lote estiver em status final (`pago`/`arquivado`), pula com aviso.
+### 3. Chave de agrupamento COM FALLBACK
+```
+empresa_key = company_id ?? norm(company_name) ?? SKIP
+spec_key    = norm(specialty)
+att_key     = onlyDigits(attendance_number)
+hosp_key    = hospital_id   // obrigatório
+```
+- Falta de qualquer chave → item vai para `skipped_no_key[]` (nunca silencioso).
+- Se `skipped_no_key.length / candidatos > 10%` → `console.warn` com amostra de até 20 ids.
+- `skipped_no_key` volta na resposta HTTP **e** persiste em `cross_summary`.
 
-### 3) Relatórios (PDF + Excel)
-Botão **"Exportar"** no header da tela, com dropdown: **PDF** e **Excel**.
+### 4. Lookback histórico EM BATCH (ajuste 1)
+- Coletar todos os `att_key` únicos dos grupos.
+- Agrupar por `hospital_id` (fail-closed: item sem `hospital_id` já caiu em skipped).
+- Para cada hospital, quebrar os attendances em chunks de **200** e rodar UMA query por chunk:
+  ```
+  from payment_items
+  select id, payment_id, hospital_id, company_id, company_name,
+         specialty, attendance_number, procedure_code, procedure_date,
+         created_at, item_type_id
+  where hospital_id = <hosp>
+    and attendance_number in (<chunk até 200>)   // ajuste 2: valor bruto, sem coluna digits
+    and payment_id <> <current>
+    and is_cancelled = false
+    and (item_type_id in <ambiguos> OR procedure_code in <TUSS_ambiguos>)
+  ```
+- Em memória, casar por `norm(company_id/company_name)` + `norm(specialty)` + `onlyDigits(attendance_number)` para atrelar cada linha ao grupo correto. Cirurgias/exames/outros TUSS não entram porque já foram filtrados no `where`.
+- Dado real: maior lote = 387 atendimentos → 2 queries em vez de 387.
 
-Escopo do relatório (respeitando filtros ativos: período, PJ, CC, trilha):
+### 5. Decisão por grupo (empate de data explícito)
+Ordenar candidatos do lote atual por `procedure_date` asc, tie-break `created_at` asc.
+- Histórico com `procedure_date < candidato` → todos do grupo viram `visita` / `parecer_evidence='not_applicable'`.
+- Histórico com `procedure_date == candidato` (mesmo dia) → candidato = `parecer`, `parecer_evidence='unverified'`, `parecer_evidence_weak=true`. Nunca `confirmed` automático nesse cenário.
+- Sem histórico prévio → candidato = item de menor `procedure_date`; empate interno usa `created_at` + `parecer_evidence_weak=true`.
+- Validar candidato contra `payment_parecer_report_rows`:
+  - Match → `parecer_evidence='confirmed'` (a menos que o empate de data acima tenha travado em `unverified`).
+  - Sem match → `parecer_evidence='unverified'`.
+- Demais itens do grupo → `item_type=visita`, `parecer_evidence='not_applicable'`.
 
-**Aba "Aplicado no mês" / "Histórico aplicado"**
-- Uma linha por aplicação (`glosa_payment_applications`): PJ, CNPJ, Médico, Lote (nº + competência), Status do lote, Data aplicação, Aplicado por, Valor aplicado, Origem (glosa/ajuste manual), Motivo, Parcela X/Y.
+### 6. Resumo persistido
+Ao final, gravar em `payment_parecer_reports.cross_summary` (jsonb):
+```
+{ finished_at, items_total, candidates_considered,
+  parecer_confirmed, parecer_unverified, visitas,
+  skipped_no_key, skipped_no_key_sample_ids,
+  protected_kept }
+```
+Resposta HTTP mantém chaves antigas (`confirmed`, `not_found`, `reclassified=0`) **e** adiciona as novas.
 
-**Aba "Em andamento" (débitos confirmados aguardando lote)**
-- PJ, CNPJ, Médico, Total do débito, Já aplicado, Saldo em aberto, Parcelas planejadas, Lote-alvo (se houver) + status, Data de confirmação, Confirmado por.
+### 7. Encadeamento
+Dispara `dispatch-payment-analysis` com `skip_parecer_cross_ref=true` (inalterado).
 
-**Aba "A confirmar"**
-- PJ, Médico, Valor proposto, Origem (lote/conciliação retro), Data de proposta.
+## Arquivos alterados
+| Arquivo | Mudança |
+|---|---|
+| `supabase/functions/cross-reference-parecer/index.ts` | Reescrita da classificação, fallbacks, lookback em batch, gravação de `cross_summary`. |
+| `supabase/functions/cross-reference-parecer/dedup.ts` | Deixar de importar (mantém arquivo, sem deletar). |
 
-**KPIs no topo do relatório**: A confirmar, Em andamento, Aplicado no período, Sem lote-alvo.
+## Intocáveis (garantia)
+`import-parecer-report`, `analyze-payment`, motor de regras, todo `src/**`, coluna `reclassified_from_parecer` (mantida, escrita cessada).
 
-**Formato**
-- **Excel** (`xlsx` via biblioteca já em uso `xlsx` ou nova `exceljs`): 1 aba por seção + aba "Resumo" com KPIs. Colunas com formato BR (moeda, data). Cabeçalho colorido.
-- **PDF** (via `jspdf` + `jspdf-autotable` — já usados no projeto): capa com hospital, período, filtros aplicados, KPIs; tabelas paginadas por seção; rodapé com data de emissão + usuário.
-
-**Arquitetura**
-- Novo arquivo `src/lib/creditosDebitosReport.ts`: função pura `buildReportData(filters)` → estrutura tipada.
-- `src/lib/exports/creditosDebitosExcel.ts` e `creditosDebitosPdf.ts`: consomem a estrutura e geram o arquivo.
-- Botão em `CreditosDebitos.tsx` chama `buildReportData` (usando os hooks/dados já carregados; sem refazer as queries).
-
-## Fora de escopo (evita novo ciclo curto)
-
-- Nada de novos filtros aqui — se surgir demanda, entra em ciclo próprio.
-- Não vamos mexer no motor `apply-company-deductions` (só invocar).
-- Não vamos criar novas tabelas.
-
-## Ordem de execução
-
-1. Fix visual das abas (5 min, baixo risco).
-2. Botão "Aplicar no lote vigente" (individual + massa).
-3. Módulo de relatórios (Excel primeiro, depois PDF).
-4. QA integrado com Playwright: screenshot claro+escuro, download dos 2 arquivos, checagem de conteúdo.
-
-## Riscos / decisões pendentes
-
-- **"Lote vigente"**: definimos como o lote mais recente da PJ com status ∈ {`revisao_pj`, `revisao_analista`, `em_confeccao`}. Se você preferir outra regra (ex.: só o lote atualmente selecionado no seletor global de competência), me diga antes.
-- **Excel**: usar `xlsx` (SheetJS) — mais leve — ou `exceljs` — mais formatação nativa? Vou de **exceljs** por permitir cores/formato de moeda direto, salvo objeção sua.
-- **PDF**: `jspdf + autotable` para consistência com relatórios existentes.
-
-Confirma que posso seguir com tudo assim?
+## Deploy
+`cross-reference-parecer` precisa de **redeploy** após alteração. Informarei explicitamente no relatório final.
