@@ -476,32 +476,46 @@ REGRAS:
     };
 
     const callAi = (opts: { forceJsonText?: boolean } = {}) =>
-      anthropicFetch({
-        model: "claude-sonnet-4-5",
-        max_tokens: 4000,
-        system: opts.forceJsonText
-          ? `${systemPrompt}\n\nRESPONDA APENAS com um objeto JSON válido (sem markdown, sem texto extra) com as chaves: headline (string), bullets (array de strings), risk_level ("baixo"|"medio"|"alto"|"critico"), recommended_action (string).`
-          : systemPrompt,
-        messages: [
-          { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
-        ],
-        ...(opts.forceJsonText ? {} : {
-          tools: [{
-            name: "executive_summary",
-            description: "Resumo executivo do lote de pagamento",
-            input_schema: {
-              type: "object",
-              properties: {
-                headline: { type: "string", description: "Frase-resumo do lote" },
-                bullets: { type: "array", items: { type: "string" }, description: "3 a 5 bullets" },
-                risk_level: { type: "string", enum: ["baixo", "medio", "alto", "critico"] },
-                recommended_action: { type: "string" },
-              },
-              required: ["headline", "bullets", "risk_level", "recommended_action"],
-              additionalProperties: false,
+      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-5.5",
+          messages: [
+            {
+              role: "system",
+              content: opts.forceJsonText
+                ? `${systemPrompt}\n\nRESPONDA APENAS com um objeto JSON válido (sem markdown, sem texto extra) com as chaves: headline (string), bullets (array de strings), risk_level ("baixo"|"medio"|"alto"|"critico"), recommended_action (string).`
+                : systemPrompt,
             },
-          }],
-          tool_choice: { type: "tool", name: "executive_summary" },
+            { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
+          ],
+          ...(opts.forceJsonText
+            ? { response_format: { type: "json_object" } }
+            : {
+                tools: [{
+                  type: "function",
+                  function: {
+                    name: "executive_summary",
+                    description: "Resumo executivo do lote de pagamento",
+                    parameters: {
+                      type: "object",
+                      properties: {
+                        headline: { type: "string", description: "Frase-resumo do lote" },
+                        bullets: { type: "array", items: { type: "string" }, description: "3 a 5 bullets" },
+                        risk_level: { type: "string", enum: ["baixo", "medio", "alto", "critico"] },
+                        recommended_action: { type: "string" },
+                      },
+                      required: ["headline", "bullets", "risk_level", "recommended_action"],
+                      additionalProperties: false,
+                    },
+                  },
+                }],
+                tool_choice: { type: "function", function: { name: "executive_summary" } },
+              }),
         }),
       });
 
@@ -522,12 +536,6 @@ REGRAS:
       }
       const t = await aiResp.text();
       console.error("summarize-payment AI error", aiResp.status, t);
-      if (/credit balance is too low/i.test(t)) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace.", fallback: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       return new Response(JSON.stringify({ error: "Falha ao gerar resumo", fallback: true, upstream_status: aiResp.status }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -535,12 +543,23 @@ REGRAS:
     }
 
     const pickSummary = (data: any): ExecutiveSummary | null => {
-      const blocks = Array.isArray(data?.content) ? data.content : [];
-      const toolBlock = blocks.find((b: any) => b?.type === "tool_use" && b?.input?.headline);
-      if (toolBlock?.input) return normalizeSummary(toolBlock.input);
-      const textBlock = blocks.find((b: any) => b?.type === "text" && typeof b?.text === "string");
-      if (textBlock?.text) return extractJsonObject(String(textBlock.text));
-      if (typeof data?.completion === "string") return extractJsonObject(data.completion);
+      const choice = data?.choices?.[0];
+      const message = choice?.message;
+      if (!message) return null;
+      const toolCall = Array.isArray(message.tool_calls) ? message.tool_calls[0] : null;
+      const argsRaw = toolCall?.function?.arguments;
+      if (argsRaw) {
+        try {
+          const parsed = typeof argsRaw === "string" ? JSON.parse(argsRaw) : argsRaw;
+          const normalized = normalizeSummary(parsed);
+          if (normalized) return normalized;
+        } catch (err) {
+          console.warn("summarize-payment: tool_call arguments parse failed", err);
+        }
+      }
+      if (typeof message.content === "string" && message.content.trim()) {
+        return extractJsonObject(message.content);
+      }
       return null;
     };
     const readAiJson = async (response: Response, label: string): Promise<any | null> => {
