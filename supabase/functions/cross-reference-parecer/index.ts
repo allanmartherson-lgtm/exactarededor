@@ -431,6 +431,7 @@ Deno.serve(async (req) => {
             weak: false,
             roleParecer: false,
             roleVisita: true,
+            reportRowId: null,
           });
         }
         continue;
@@ -469,15 +470,17 @@ Deno.serve(async (req) => {
       // dá para saber a ordem.
       let candidateEvidence: EvidenceValue;
       let candidateWeak: boolean;
+      let candidateReportRowId: string | null = null;
       if (priorSameDay) {
         candidateEvidence = "unverified";
         candidateWeak = true;
       } else if (hit) {
         candidateEvidence = "confirmed";
         candidateWeak = weakFromValidation || internalTie;
+        candidateReportRowId = hit.id ?? null;
       } else {
         candidateEvidence = "unverified";
-        candidateWeak = internalTie || true;
+        candidateWeak = true;
       }
 
       decisionById.set(first.id, {
@@ -485,6 +488,7 @@ Deno.serve(async (req) => {
         weak: candidateWeak,
         roleParecer: true,
         roleVisita: false,
+        reportRowId: candidateReportRowId,
       });
       for (let i = 1; i < ordered.length; i++) {
         decisionById.set(ordered[i].id, {
@@ -492,6 +496,7 @@ Deno.serve(async (req) => {
           weak: false,
           roleParecer: false,
           roleVisita: true,
+          reportRowId: null,
         });
       }
     }
