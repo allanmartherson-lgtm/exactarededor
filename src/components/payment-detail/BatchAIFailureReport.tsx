@@ -90,7 +90,9 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
   const [job, setJob] = useState<Job | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
+  const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reprocessing, setReprocessing] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [rawNameToLink, setRawNameToLink] = useState<string>("");
