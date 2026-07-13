@@ -61,6 +61,10 @@ Deno.serve(async (req) => {
 
     // Gate: lote já finalizado/pago não recebe novas propostas automáticas.
     // Ajustes/glosas em lotes desses status devem rolar para o próximo ciclo.
+    //
+    // ⚠️ MANTER SINCRONIZADO com a lista FINAL_STATUSES replicada na migration
+    // do claim_ai_retry_batch (ai_retry_queue lifecycle hardening). Alterar aqui
+    // exige alterar lá também — as duas listas precisam concordar.
     const FINAL_STATUSES = new Set([
       "aprovado", "aprovado_com_ressalva", "aprovado_parcial",
       "pedido_nf_enviado", "nf_recebida", "nf_conciliada", "nf_questionada", "nf_divergente",

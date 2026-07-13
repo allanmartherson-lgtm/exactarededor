@@ -74,6 +74,28 @@ Deno.serve(async (req) => {
 
   console.log(`[ai-retry-worker] picked ${items.length} item(s)`);
 
+  // Observabilidade do housekeeping executado dentro do claim (TTL, gate de status final,
+  // recovery de zumbis). A RPC não retorna contadores, então inspecionamos amostras
+  // recentes para deixar rastro nos logs sem custo relevante.
+  try {
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const { data: housekeeping } = await supabase
+      .from("ai_retry_queue")
+      .select("id, status, last_error, updated_at")
+      .gte("updated_at", since)
+      .in("status", ["cancelled", "failed"])
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    if (housekeeping && housekeeping.length > 0) {
+      const ttl = housekeeping.filter((r) => (r.last_error ?? "").includes("TTL:")).length;
+      const finalGate = housekeeping.filter((r) => (r.last_error ?? "").includes("payment em status final")).length;
+      const zombieExhausted = housekeeping.filter((r) => (r.last_error ?? "").includes("processing zombie") && r.status === "failed").length;
+      console.log(`[ai-retry-worker] housekeeping (últimos 60s): ttl_cancelled=${ttl} final_status_cancelled=${finalGate} zombie_exhausted=${zombieExhausted} total_amostra=${housekeeping.length}`);
+    }
+  } catch (e) {
+    console.warn("[ai-retry-worker] housekeeping observability falhou (não bloqueante)", (e as Error)?.message);
+  }
+
   const dispatchUrl = `${SUPABASE_URL}/functions/v1/dispatch-payment-analysis`;
 
   const runGroup = async (paymentId: string, paymentItems: QueueRow[]): Promise<Array<{ id: string; ok: boolean; error?: string }>> => {
