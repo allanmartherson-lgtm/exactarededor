@@ -123,6 +123,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
             .from("analysis_telemetry")
             .select("id, job_id, company_name, error, ai_items_count, items_count, created_at")
             .eq("job_id", j.id)
+            .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] as TelemetryRow[] } as { data: TelemetryRow[] }),
       supabase
         .from("payment_company_groups")
@@ -130,7 +131,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
         .eq("payment_id", paymentId),
     ]);
 
-    setTelemetry(((tel as TelemetryRow[]) ?? []).filter((r) => !!r.error));
+    setTelemetry((tel as TelemetryRow[]) ?? []);
     setGroups((grp as GroupRow[]) ?? []);
     setLoading(false);
   }, [paymentId]);
@@ -219,8 +220,21 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
 
   const entries: ReportEntry[] = [];
 
-  // Total failures: companies the job marked as failed (didn't finish)
+  const latestTelemetryByCompany = new Map<string, TelemetryRow>();
+  for (const t of telemetry) {
+    const key = norm(t.company_name ?? "Sem empresa");
+    if (!key || latestTelemetryByCompany.has(key)) continue;
+    latestTelemetryByCompany.set(key, t);
+  }
+
+  // Total failures: companies the job marked as failed (didn't finish). If a
+  // later telemetry row for the same company has no error, the retry succeeded
+  // and the stale failure should no longer remain visible.
   for (const f of job.failed_companies ?? []) {
+    const latest = latestTelemetryByCompany.get(norm(f.company_name ?? "Sem empresa"));
+    if (latest && !latest.error && (!f.at || new Date(latest.created_at).getTime() >= new Date(f.at).getTime())) {
+      continue;
+    }
     const { group, source } = resolveMatch(f.company_name, f.company_id, groupByName, groupById, groupByFuzzy);
     entries.push({
       companyName: f.company_name,
@@ -233,14 +247,12 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     });
   }
 
-  // Partial failures: telemetry rows with ai_partial_failure marker
-  const seenPartial = new Set<string>();
-  for (const t of telemetry) {
+  // Partial failures: use only the latest telemetry per company. Old partial
+  // markers from the previous run must not keep the company stuck in the list
+  // after a successful retry writes a newer row without error.
+  for (const t of latestTelemetryByCompany.values()) {
     const partial = parsePartial(t.error);
     if (!partial) continue;
-    const key = norm(t.company_name) + "|" + t.id;
-    if (seenPartial.has(key)) continue;
-    seenPartial.add(key);
     const { group, source } = resolveMatch(t.company_name, t.company_id, groupByName, groupById, groupByFuzzy);
     const retries = partial.retries != null ? `, ${partial.retries} retries` : "";
     entries.push({
@@ -300,40 +312,26 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
     if (names.length === 0) return;
     setReprocessing(true);
     try {
-      const nowIso = new Date().toISOString();
-      const rows = names.map((name) => ({
-        payment_id: paymentId,
-        company_name: name,
-        hospital_id: hospitalId,
-        status: "pending",
-        attempts: 0,
-        last_error: "reprocesso manual pelo relatório de falhas",
-        source_job_id: job?.id ?? null,
-        last_job_id: job?.id ?? null,
-        next_attempt_at: nowIso,
-        locked_at: null,
-        finished_at: null,
-        updated_at: nowIso,
-      }));
-      const { error: upErr } = await supabase
-        .from("ai_retry_queue")
-        .upsert(rows, { onConflict: "payment_id,company_name" });
-      if (upErr) {
-        toast({ title: "Falha ao enfileirar", description: upErr.message, variant: "destructive" });
-        return;
-      }
-      const { error: invErr } = await supabase.functions.invoke("ai-retry-worker", {
-        body: { batch_size: Math.min(20, names.length) },
+      const { data, error: invErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: {
+          payment_id: paymentId,
+          only_companies: names,
+          force_fresh_rules: true,
+        },
       });
       if (invErr) {
         toast({
-          title: "Enfileirado, mas worker falhou ao iniciar",
-          description: `${names.length} empresa(s) na fila. O worker roda automaticamente em seguida. (${invErr.message})`,
+          title: "Falha ao reprocessar",
+          description: invErr.message,
+          variant: "destructive",
         });
       } else {
+        const alreadyRunning = (data as any)?.already_running === true;
         toast({
-          title: "Reprocessamento disparado",
-          description: `${names.length} empresa(s) enfileirada(s). Acompanhe pelo status do lote.`,
+          title: alreadyRunning ? "Reprocessamento já em andamento" : "Reprocessamento disparado",
+          description: alreadyRunning
+            ? (data as any)?.message ?? "A análise em andamento será reaproveitada."
+            : `${names.length} empresa(s) enviada(s) para nova análise.`,
         });
       }
       await load();
