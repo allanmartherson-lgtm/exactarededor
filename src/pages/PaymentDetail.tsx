@@ -1839,11 +1839,65 @@ const PaymentDetail = () => {
         });
         return;
       }
+      // Memória arquivo→PJ do import anterior: se um arquivo foi previamente
+      // vinculado dominantemente a uma empresa, reaplicamos automaticamente
+      // — evita o usuário ter que re-vincular empresa por empresa quando a
+      // reimportação é só para corrigir mapeamento de colunas.
+      const fileCompanyMemory = new Map<string, { company_id: string; company_name: string }>();
+      try {
+        const prevItems = await fetchAllPaginated<any>((from, to) =>
+          supabase
+            .from("payment_items")
+            .select("source_file_name,company_id,company_name")
+            .eq("payment_id", id)
+            .not("source_file_name", "is", null)
+            .not("company_id", "is", null)
+            .range(from, to),
+        );
+        const byFile = new Map<string, Map<string, { count: number; name: string }>>();
+        for (const it of prevItems) {
+          const fn = it.source_file_name as string | null;
+          const cid = it.company_id as string | null;
+          if (!fn || !cid) continue;
+          if (!byFile.has(fn)) byFile.set(fn, new Map());
+          const m = byFile.get(fn)!;
+          const cur = m.get(cid) ?? { count: 0, name: (it.company_name as string) ?? "" };
+          cur.count += 1;
+          m.set(cid, cur);
+        }
+        for (const [fn, m] of byFile.entries()) {
+          const entries = [...m.entries()].sort((a, b) => b[1].count - a[1].count);
+          const total = entries.reduce((s, [, v]) => s + v.count, 0);
+          const [topId, top] = entries[0];
+          if (total > 0 && top.count / total >= 0.9) {
+            fileCompanyMemory.set(fn, { company_id: topId, company_name: top.name });
+          }
+        }
+      } catch (memErr) {
+        console.warn("[reimport] memória arquivo→PJ indisponível:", memErr);
+      }
+
+      let memoryApplied = 0;
       for (const r of results) {
         if (r.rows.length > 0) {
+          const mem = fileCompanyMemory.get(r.file.name);
+          for (const row of r.rows) {
+            (row as any).source_file_name = r.file.name;
+            if (mem && !row.company_id) {
+              row.company_id = mem.company_id;
+              if (mem.company_name) row.company_name = mem.company_name;
+              memoryApplied += 1;
+            }
+          }
           allRows = [...allRows, ...r.rows];
           fileNames.push(r.file.name);
         }
+      }
+      if (memoryApplied > 0) {
+        toast({
+          title: "Vínculos preservados",
+          description: `${memoryApplied} linha(s) tiveram a PJ recuperada da importação anterior — sem re-vinculação manual.`,
+        });
       }
 
       if (allRows.length === 0) {
@@ -1956,6 +2010,7 @@ const PaymentDetail = () => {
         sector: r.sector,
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
+        source_file_name: (r as any).source_file_name ?? null,
         tipo_linha: r.tipo_linha,
         // Override do parser: lote Consulta com TUSS fora dos códigos da Consulta
         // → reclassifica para "Procedimento" já na importação. Sem override,
@@ -2175,6 +2230,7 @@ const PaymentDetail = () => {
       }
       for (const r of results) {
         if (r.rows.length > 0) {
+          for (const row of r.rows) (row as any).source_file_name = r.file.name;
           allRows = [...allRows, ...r.rows];
           fileNames.push(r.file.name);
         }
@@ -2260,6 +2316,7 @@ const PaymentDetail = () => {
         sector: r.sector,
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
+        source_file_name: (r as any).source_file_name ?? null,
         tipo_linha: r.tipo_linha,
         ...(r.payment_type_id_override
           ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
