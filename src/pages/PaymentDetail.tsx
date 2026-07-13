@@ -1845,37 +1845,45 @@ const PaymentDetail = () => {
       // reimportação é só para corrigir mapeamento de colunas.
       const fileCompanyMemory = new Map<string, { company_id: string; company_name: string }>();
       try {
-        const prevItems = await fetchAllPaginated<any>((from, to) =>
-          supabase
-            .from("payment_items")
-            .select("source_file_name,company_id,company_name")
-            .eq("payment_id", id)
-            .not("source_file_name", "is", null)
-            .not("company_id", "is", null)
-            .range(from, to),
-        );
-        const byFile = new Map<string, Map<string, { count: number; name: string }>>();
-        for (const it of prevItems) {
-          const fn = it.source_file_name as string | null;
-          const cid = it.company_id as string | null;
-          if (!fn || !cid) continue;
-          if (!byFile.has(fn)) byFile.set(fn, new Map());
-          const m = byFile.get(fn)!;
-          const cur = m.get(cid) ?? { count: 0, name: (it.company_name as string) ?? "" };
-          cur.count += 1;
-          m.set(cid, cur);
-        }
-        for (const [fn, m] of byFile.entries()) {
-          const entries = [...m.entries()].sort((a, b) => b[1].count - a[1].count);
-          const total = entries.reduce((s, [, v]) => s + v.count, 0);
-          const [topId, top] = entries[0];
-          if (total > 0 && top.count / total >= 0.9) {
-            fileCompanyMemory.set(fn, { company_id: topId, company_name: top.name });
+        // Só nos interessa a memória dos arquivos que estão sendo reimportados agora.
+        // Sem esse filtro, um lote grande varre milhares de linhas e estoura o
+        // statement_timeout do Postgres (erro "canceling statement due to
+        // statement timeout"). Escopar pelo nome dos arquivos reduz drasticamente.
+        const targetFileNames = Array.from(new Set(results.map((r) => r.file.name)));
+        if (targetFileNames.length > 0) {
+          const prevItems = await fetchAllPaginated<any>((from, to) =>
+            supabase
+              .from("payment_items")
+              .select("source_file_name,company_id,company_name")
+              .eq("payment_id", id)
+              .in("source_file_name", targetFileNames)
+              .not("company_id", "is", null)
+              .range(from, to),
+          );
+          const byFile = new Map<string, Map<string, { count: number; name: string }>>();
+          for (const it of prevItems) {
+            const fn = it.source_file_name as string | null;
+            const cid = it.company_id as string | null;
+            if (!fn || !cid) continue;
+            if (!byFile.has(fn)) byFile.set(fn, new Map());
+            const m = byFile.get(fn)!;
+            const cur = m.get(cid) ?? { count: 0, name: (it.company_name as string) ?? "" };
+            cur.count += 1;
+            m.set(cid, cur);
+          }
+          for (const [fn, m] of byFile.entries()) {
+            const entries = [...m.entries()].sort((a, b) => b[1].count - a[1].count);
+            const total = entries.reduce((s, [, v]) => s + v.count, 0);
+            const [topId, top] = entries[0];
+            if (total > 0 && top.count / total >= 0.9) {
+              fileCompanyMemory.set(fn, { company_id: topId, company_name: top.name });
+            }
           }
         }
       } catch (memErr) {
         console.warn("[reimport] memória arquivo→PJ indisponível:", memErr);
       }
+
 
       let memoryApplied = 0;
       for (const r of results) {
