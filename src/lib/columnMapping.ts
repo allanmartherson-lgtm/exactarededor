@@ -363,11 +363,25 @@ export const isFieldRequiredFor = (
 export const summarizeMissing = (
   hits: FieldMappingHit[],
   meta: PaymentTypeRequirementMeta,
+  mode: "analise" | "confeccao" = "analise",
 ) => {
-  const missingRequired = hits.filter(
-    (h) => isFieldRequiredFor(h.field, meta) && (!h.header || h.score < 30),
+  // Espelha a lógica do ColumnMappingDialog: em confecção, `gross_amount`
+  // deixa de existir e `procedure_amount` vira obrigatório. Sem isso, o
+  // badge/Zeev dizia "1 faltando" (gross_amount) enquanto o modal dizia OK.
+  const isRequired = (field: FieldKey) => {
+    if (mode === "confeccao") {
+      if (field === "gross_amount") return false;
+      if (field === "procedure_amount") return true;
+    }
+    return isFieldRequiredFor(field, meta);
+  };
+  const filtered = mode === "confeccao"
+    ? hits.filter((h) => h.field !== "gross_amount")
+    : hits;
+  const missingRequired = filtered.filter(
+    (h) => isRequired(h.field) && (!h.header || h.score < 30),
   );
-  const lowConfidence = hits.filter(
+  const lowConfidence = filtered.filter(
     (h) => FIELD_BY_KEY[h.field].requirement !== "optional" && h.header && h.score < 60,
   );
   return { missingRequired, lowConfidence };
