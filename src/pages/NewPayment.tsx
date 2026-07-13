@@ -2254,7 +2254,7 @@ const NewPayment = () => {
     const mappingProblems = buckets
       .map((b, idx) => {
         const hits = b.mappingHits ?? [];
-        const summary = hits.length ? summarizeMissing(hits, paymentModelMeta) : { missingRequired: [], lowConfidence: [] };
+        const summary = hits.length ? summarizeMissing(hits, paymentModelMeta, modoConfeccao ? "confeccao" : "analise") : { missingRequired: [], lowConfidence: [] };
         return { idx, name: b.file.name, missing: summary.missingRequired.length, low: summary.lowConfidence.length };
       })
       .filter((m) => m.missing > 0);
@@ -2272,7 +2272,7 @@ const NewPayment = () => {
     }
 
     return out;
-  }, [buckets, pendingSuspiciousCount, paymentModelMeta]);
+  }, [buckets, pendingSuspiciousCount, paymentModelMeta, modoConfeccao]);
 
   const allRows = useMemo(() => {
     return buckets.flatMap((b, bucketIndex) =>
@@ -4631,7 +4631,7 @@ const NewPayment = () => {
                           {/* Botão de revisão do mapeamento de colunas */}
                           {(() => {
                             const hits = b.mappingHits ?? [];
-                            const summary = hits.length ? summarizeMissing(hits, paymentModelMeta) : { missingRequired: [], lowConfidence: [] };
+                            const summary = hits.length ? summarizeMissing(hits, paymentModelMeta, modoConfeccao ? "confeccao" : "analise") : { missingRequired: [], lowConfidence: [] };
                             const hasMissing = summary.missingRequired.length > 0;
                             const hasLow = summary.lowConfidence.length > 0;
                             const variant = hasMissing ? "outline" : "ghost";
