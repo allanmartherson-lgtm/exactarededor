@@ -2039,11 +2039,11 @@ const PaymentDetail = () => {
       let allRows: any[] = [];
       const fileNames: string[] = [];
 
-
-      for (const file of files) {
+      // Pré-inspeção paralela — ver comentário equivalente em doReimport.
+      const hospitalId = (payment as any).hospital_id ?? null;
+      const inspections = await Promise.all(files.map(async (file) => {
         const { headers, sampleRow } = await inspectFileHeaders(file);
         const sig = await computeHeaderSignature(headers);
-        const hospitalId = (payment as any).hospital_id ?? null;
         const tplQuery = supabase
           .from("sheet_column_templates" as never)
           .select("id,mapping,name")
@@ -2061,34 +2061,56 @@ const PaymentDetail = () => {
           return h;
         });
         const { missingRequired } = summarizeMissing(hits, paymentTypeMeta);
-        if (missingRequired.length > 0) {
-          const initial: Record<string, string> = {};
-          hits.forEach((h) => { if (h.header) initial[h.field] = h.header; });
-          setColumnMappingDialog({
-            open: true,
-            source: "addCompany",
-            file,
-            pendingFiles: files,
-            headers,
-            sampleRow,
-            initialMapping: { ...initial, ...(manualMapping ?? {}) },
-            overrides,
+        return { file, headers, sampleRow, sig, tpl, manualMapping, hits, missingRequired };
+      }));
+
+      const needs = inspections.find((i) => i.missingRequired.length > 0);
+      if (needs) {
+        const compatibleFileNames = inspections
+          .filter((i) => i !== needs && i.sig === needs.sig && i.missingRequired.length > 0)
+          .map((i) => i.file.name);
+        const initial: Record<string, string> = {};
+        needs.hits.forEach((h) => { if (h.header) initial[h.field] = h.header; });
+        setColumnMappingDialog({
+          open: true,
+          source: "addCompany",
+          file: needs.file,
+          pendingFiles: files,
+          headers: needs.headers,
+          sampleRow: needs.sampleRow,
+          initialMapping: { ...initial, ...(needs.manualMapping ?? {}) },
+          overrides,
+          sig: needs.sig,
+          compatibleFileNames,
+        });
+        setAddingCompany(false);
+        return;
+      }
+
+      for (const insp of inspections) {
+        const { file, tpl, manualMapping } = insp;
+        let bucket;
+        try {
+          bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
+            manualMapping,
+            paymentTypeMeta: paymentTypeMeta ? {
+              label: paymentTypeMeta.label,
+              tuss_default: paymentTypeMeta.tuss_default,
+              requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
+              default_function: paymentTypeMeta.default_function,
+              tuss_codes_extra: consultaTussExtras,
+              dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
+            } : null,
           });
-          setAddingCompany(false);
+        } catch (parseErr) {
+          const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+          toast({
+            title: `Falha ao ler "${file.name}"`,
+            description: `${msg}. Ajuste o mapeamento das colunas ou verifique o arquivo antes de tentar novamente.`,
+            variant: "destructive",
+          });
           return;
         }
-        const bucket = await parsePaymentFile(file, companies, payment.payment_kind, {
-          manualMapping,
-          paymentTypeMeta: paymentTypeMeta ? {
-            label: paymentTypeMeta.label,
-            tuss_default: paymentTypeMeta.tuss_default,
-            requires_tuss_in_sheet: paymentTypeMeta.requires_tuss_in_sheet,
-            default_function: paymentTypeMeta.default_function,
-            tuss_codes_extra: consultaTussExtras,
-            dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
-          } : null,
-
-        });
 
         if (bucket.rows.length > 0) {
           allRows = [...allRows, ...bucket.rows];
