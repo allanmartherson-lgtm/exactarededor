@@ -527,7 +527,7 @@ function RowMoreActionsMenu({
 // Mesmo set tipográfico usado em AlertBanner, headers, cells e detalhes.
 // Tamanho de referência = AlertBanner (text-xs / 12px).
 export const TEXT_BODY = "text-xs leading-snug tracking-normal";
-export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight [&_button]:uppercase [&_button]:text-[10px] [&_button]:font-medium [&_button]:tracking-wide [&_button]:leading-tight";
+export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight [&_button]:uppercase [&_button]:!text-[10px] [&_button]:!font-medium [&_button]:tracking-wide [&_button]:!leading-tight";
 // Classe explícita para <button> dentro de headers ordenáveis — garante o mesmo tamanho
 // dos headers não-ordenáveis (alguns navegadores ignoram herança de font-size em <button>).
 export const HEAD_BTN = "text-[10px] leading-tight uppercase tracking-wide font-medium";
