@@ -2230,6 +2230,7 @@ const PaymentDetail = () => {
       }
       for (const r of results) {
         if (r.rows.length > 0) {
+          for (const row of r.rows) (row as any).source_file_name = r.file.name;
           allRows = [...allRows, ...r.rows];
           fileNames.push(r.file.name);
         }
