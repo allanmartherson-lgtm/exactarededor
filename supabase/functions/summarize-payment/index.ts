@@ -1,4 +1,4 @@
-// summarize-payment — Gera resumo executivo de um lote via Claude.
+// summarize-payment — Gera resumo executivo de um lote via Lovable AI.
 // Não altera valores, status, regras ou itens. Apenas grava o resumo em
 // payments.processing_diagnostics.executive_summary.
 
@@ -479,7 +479,8 @@ REGRAS:
       fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Lovable-API-Key": LOVABLE_API_KEY,
+          "X-Lovable-AIG-SDK": "edge-function-direct-fetch",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -519,24 +520,58 @@ REGRAS:
         }),
       });
 
+    const buildAiUnavailableSummary = (reason: "credits" | "rate_limit" | "error"): ExecutiveSummary => {
+      const summary = buildDeterministicSummary();
+      const reasonText = reason === "credits"
+        ? "A IA está temporariamente indisponível por limite de créditos; este resumo foi calculado automaticamente com os dados do lote."
+        : reason === "rate_limit"
+          ? "A IA está temporariamente indisponível por limite de requisições; este resumo foi calculado automaticamente com os dados do lote."
+          : "A IA não respondeu corretamente; este resumo foi calculado automaticamente com os dados do lote.";
+      return {
+        ...summary,
+        bullets: [reasonText, ...summary.bullets].slice(0, 6),
+      };
+    };
+
     let aiResp = await callAi();
 
     if (!aiResp.ok) {
-      if (aiResp.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições à IA atingido. Tente novamente em instantes." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResp.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (aiResp.status === 429 || aiResp.status === 402) {
+        console.warn("summarize-payment AI unavailable", aiResp.status, await aiResp.text());
+        const summary = buildAiUnavailableSummary(aiResp.status === 402 ? "credits" : "rate_limit");
+        const generated_at = new Date().toISOString();
+        const existingDiag = (payment.processing_diagnostics ?? {}) as Record<string, unknown>;
+        const diagKey = mode === "director" ? "director_briefing" : "executive_summary";
+        const nextDiag = {
+          ...existingDiag,
+          [diagKey]: { ...summary, generated_at, ai_fallback: true },
+        };
+        const { error: updErr } = await supabase
+          .from("payments")
+          .update({ processing_diagnostics: nextDiag })
+          .eq("id", payment_id);
+        if (updErr) console.error("summarize-payment fallback update error", updErr);
+        return new Response(
+          JSON.stringify({ ok: true, summary: { ...summary, generated_at, ai_fallback: true }, mode, fallback: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
       const t = await aiResp.text();
       console.error("summarize-payment AI error", aiResp.status, t);
-      return new Response(JSON.stringify({ error: "Falha ao gerar resumo", fallback: true, upstream_status: aiResp.status }), {
+      const summary = buildAiUnavailableSummary("error");
+      const generated_at = new Date().toISOString();
+      const existingDiag = (payment.processing_diagnostics ?? {}) as Record<string, unknown>;
+      const diagKey = mode === "director" ? "director_briefing" : "executive_summary";
+      const nextDiag = {
+        ...existingDiag,
+        [diagKey]: { ...summary, generated_at, ai_fallback: true, upstream_status: aiResp.status },
+      };
+      const { error: updErr } = await supabase
+        .from("payments")
+        .update({ processing_diagnostics: nextDiag })
+        .eq("id", payment_id);
+      if (updErr) console.error("summarize-payment fallback update error", updErr);
+      return new Response(JSON.stringify({ ok: true, summary: { ...summary, generated_at, ai_fallback: true }, mode, fallback: true, upstream_status: aiResp.status }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
