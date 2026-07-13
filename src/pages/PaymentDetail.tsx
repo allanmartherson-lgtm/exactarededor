@@ -3951,7 +3951,11 @@ const PaymentDetail = () => {
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={addingCompany}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction disabled={addingCompany} onClick={() => addCompanyConfirm && doAddCompany(addCompanyConfirm)}>
-                  {addingCompany ? "Adicionando…" : "Confirmar"}
+                  {addingCompany
+                    ? (importProgress
+                        ? `Lendo ${importProgress.current}/${importProgress.total}…`
+                        : "Adicionando…")
+                    : "Confirmar"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
