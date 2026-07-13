@@ -278,6 +278,7 @@ export type Database = {
       analysis_telemetry: {
         Row: {
           ai_items_count: number
+          ai_items_skipped_cache: number
           ai_ms: number
           cache_hit: boolean
           company_name: string | null
@@ -294,6 +295,7 @@ export type Database = {
         }
         Insert: {
           ai_items_count?: number
+          ai_items_skipped_cache?: number
           ai_ms?: number
           cache_hit?: boolean
           company_name?: string | null
@@ -310,6 +312,7 @@ export type Database = {
         }
         Update: {
           ai_items_count?: number
+          ai_items_skipped_cache?: number
           ai_ms?: number
           cache_hit?: boolean
           company_name?: string | null
@@ -5286,7 +5289,9 @@ export type Database = {
           acatado_status_original: string | null
           access_route: string | null
           agreement_text: string | null
+          ai_cached_at: string | null
           ai_findings: Json | null
+          ai_input_hash: string | null
           ai_status: Database["public"]["Enums"]["item_ai_status"]
           applied_at: string | null
           applied_calc_id: string | null
@@ -5420,7 +5425,9 @@ export type Database = {
           acatado_status_original?: string | null
           access_route?: string | null
           agreement_text?: string | null
+          ai_cached_at?: string | null
           ai_findings?: Json | null
+          ai_input_hash?: string | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
           applied_at?: string | null
           applied_calc_id?: string | null
@@ -5554,7 +5561,9 @@ export type Database = {
           acatado_status_original?: string | null
           access_route?: string | null
           agreement_text?: string | null
+          ai_cached_at?: string | null
           ai_findings?: Json | null
+          ai_input_hash?: string | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
           applied_at?: string | null
           applied_calc_id?: string | null
