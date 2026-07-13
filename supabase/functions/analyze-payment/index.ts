@@ -1510,6 +1510,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       // Roda UM chunk com retry em AbortError/erro de rede. Erros 4xx/5xx do
       // Anthropic NÃO são tratados como retry — passar pelo retry só ajuda
       // em falha transitória (timeout/rede); erro persistente fica registrado.
+      const applyAiUnavailableFallback = (chunk: typeof itemsForAi[number], reason: string) => {
+        for (const item of chunk) {
+          aiJustifications[item.id] = {
+            extra_alerts: [],
+            ai_note: `Justificativa automática indisponível (${reason}). Decisão mantida pelo motor determinístico.`,
+          };
+        }
+        summaries.push(`IA indisponível em parte da análise (${reason}); valores e status foram mantidos pelo motor determinístico.`);
+      };
+
       const runChunk = async (chunk: typeof itemsForAi[number], ci: number): Promise<boolean> => {
         for (let attempt = 0; attempt <= AI_MAX_RETRIES; attempt++) {
           const aiAbort = new AbortController();
@@ -1568,7 +1578,18 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               return true;
             }
 
-            // 429/529 (overloaded/rate-limited) são transitórios: vale retry.
+            // 402 = créditos indisponíveis. Não deve prender o lote em falha
+            // parcial: usamos justificativa determinística e seguimos.
+            if (aiResp.status === 402) {
+              const txt = await aiResp.text().catch(() => "");
+              console.warn(`${__t} AI indisponível por crédito chunk ${ci + 1}/${aiChunks.length}: ${txt.slice(0, 200)}`);
+              applyAiUnavailableFallback(chunk, "créditos de IA indisponíveis");
+              return true;
+            }
+
+            // 429/529 (rate-limited/overloaded) são transitórios: vale retry.
+            // Se ainda assim falhar, cai para justificativa determinística para
+            // não deixar a empresa eternamente na lista de falhas da IA.
             if (aiResp.status === 429 || aiResp.status === 529) {
               const txt = await aiResp.text().catch(() => "");
               console.warn(`${__t} AI ${aiResp.status} chunk ${ci + 1}/${aiChunks.length} attempt ${attempt + 1}: ${txt.slice(0, 200)}`);
@@ -1577,7 +1598,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
                 await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
                 continue;
               }
-              return false;
+              applyAiUnavailableFallback(chunk, aiResp.status === 429 ? "limite temporário da IA" : "provedor de IA sobrecarregado");
+              return true;
             }
 
             // Outros erros HTTP: não vale retry; loga e desiste deste chunk.
