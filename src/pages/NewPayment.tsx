@@ -2254,7 +2254,7 @@ const NewPayment = () => {
     const mappingProblems = buckets
       .map((b, idx) => {
         const hits = b.mappingHits ?? [];
-        const summary = hits.length ? summarizeMissing(hits, paymentModelMeta) : { missingRequired: [], lowConfidence: [] };
+        const summary = hits.length ? summarizeMissing(hits, paymentModelMeta, modoConfeccao ? "confeccao" : "analise") : { missingRequired: [], lowConfidence: [] };
         return { idx, name: b.file.name, missing: summary.missingRequired.length, low: summary.lowConfidence.length };
       })
       .filter((m) => m.missing > 0);
