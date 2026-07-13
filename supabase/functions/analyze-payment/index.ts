@@ -1965,6 +1965,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       basis_confidence?: number | null;
       piso_aplicado_valor?: number | null;
       piso_metodo_vencedor?: string | null;
+      // Cache determinístico da IA — hash + timestamp de geração.
+      ai_input_hash?: string | null;
+      ai_cached_at?: string | null;
     };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
