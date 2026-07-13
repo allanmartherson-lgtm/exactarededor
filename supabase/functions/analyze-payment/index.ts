@@ -1389,7 +1389,7 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
     console.time(`${__t} chamada_ia`);
-    if (itemsToReview.length > 0 && ANTHROPIC_API_KEY) {
+    if (itemsToReview.length > 0) {
       const itemsForAi = itemsToReview.map((r) => {
         const it = items.find((i) => i.id === r.item_id)!;
         return {
