@@ -1841,7 +1841,7 @@ const Payments = () => {
               <Button
                 size="sm"
                 disabled={selected.size === 0 || reprocessing}
-                onClick={runReanalysis}
+                onClick={openReanalysisConfirm}
               >
                 {reprocessing ? (
                   <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />
@@ -1850,6 +1850,7 @@ const Payments = () => {
                 )}
                 {reprocessing ? "Reprocessando..." : "Reanalisar selecionados"}
               </Button>
+
             </div>
           </div>
         )}
