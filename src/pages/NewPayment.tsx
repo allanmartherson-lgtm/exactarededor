@@ -614,12 +614,37 @@ const NewPayment = () => {
     if (!paymentModelId) { setPaymentModelMeta(null); return; }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      // O `paymentModelId` da URL/state vem da view `payment_types_unified`
+      // (UNION de `item_types` + `payment_models`), então esse UUID pode NÃO
+      // existir em `payment_types` — que é o alvo da FK `payments.payment_model_id`.
+      // Resolvemos primeiro pelo `code` (existe em ambas) e usamos o id legado
+      // de `payment_types` como `meta.id`, garantindo insert válido.
+      let legacyRow: any = null;
+      const direct = await supabase
         .from("payment_types")
         .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function,default_value_column_hint,expected_headers,allow_mixed_subtypes,subtype_split_hint")
         .eq("id", paymentModelId)
         .maybeSingle();
+      if (direct.data) {
+        legacyRow = direct.data;
+      } else {
+        const unified = await (supabase.from as any)("payment_types_unified")
+          .select("code")
+          .eq("id", paymentModelId)
+          .maybeSingle();
+        const code = unified?.data?.code;
+        if (code) {
+          const byCode = await supabase
+            .from("payment_types")
+            .select("id,code,label,tuss_default,requires_tuss_in_sheet,default_function,default_value_column_hint,expected_headers,allow_mixed_subtypes,subtype_split_hint")
+            .eq("code", code)
+            .maybeSingle();
+          legacyRow = byCode.data;
+        }
+      }
+      const data = legacyRow;
       if (cancelled || !data) return;
+
       const hint = (data as any).subtype_split_hint ?? null;
 
       // Carrega catálogo de item_types para reclassificação Consulta → Procedimento
@@ -2836,7 +2861,7 @@ const NewPayment = () => {
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
-        payment_model_id: paymentModelId,
+        payment_model_id: paymentModelMeta?.id ?? paymentModelId,
         has_mixed_parecer: mixedParecer.enabled,
         mixed_parecer_item_type_id: mixedParecer.enabled ? mixedParecer.item_type_id : null,
         import_mode: isHistoricoImport ? "historico" : "normal",
