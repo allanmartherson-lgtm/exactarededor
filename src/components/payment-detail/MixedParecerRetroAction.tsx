@@ -25,6 +25,7 @@ export function MixedParecerRetroAction({
   paymentTypeCategory,
   competenceMonths,
   hasMixedParecer,
+  allowPureType = false,
   onApplied,
 }: {
   paymentId: string;
@@ -33,6 +34,7 @@ export function MixedParecerRetroAction({
   paymentTypeCategory?: string | null;
   competenceMonths: string[];
   hasMixedParecer: boolean;
+  allowPureType?: boolean;
   onApplied?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,10 +60,12 @@ export function MixedParecerRetroAction({
   const code = (paymentTypeCode ?? "").toLowerCase();
   const cat = (paymentTypeCategory ?? "").toLowerCase();
   if (paymentTypeId && !paymentTypeCode && !paymentTypeCategory) return null;
-  if (
-    code.startsWith("parecer") || code === "visita" || code === "consulta" ||
-    cat === "parecer" || cat === "visita" || cat === "consulta"
-  ) return null;
+  if (!allowPureType) {
+    if (
+      code.startsWith("parecer") || code === "visita" || code === "consulta" ||
+      cat === "parecer" || cat === "visita" || cat === "consulta"
+    ) return null;
+  }
 
 
   const submit = async () => {

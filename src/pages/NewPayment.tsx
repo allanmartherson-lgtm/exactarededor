@@ -728,9 +728,13 @@ const NewPayment = () => {
   const isParecerType = !!paymentModelMeta?.code?.startsWith("parecer");
   const isVisitaType = paymentModelMeta?.code === "visita";
   // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
-  // Esconde a opção quando o lote já é puro parecer/visita (esses já cruzam por padrão).
+  // Em confecção + rateio + Parecer, também exibimos a opção: o lote pode ser
+  // uma base única de Parecer/Visita e o relatório do Tasy decide cada item.
   const [mixedParecer, setMixedParecer] = useState<MixedParecerSetup>({ enabled: false, item_type_id: null });
-  const showMixedParecerOption = !!paymentModelMeta && !isParecerType && !isVisitaType;
+  const showMixedParecerOption = !!paymentModelMeta && (
+    (!isParecerType && !isVisitaType) ||
+    (modoConfeccao && isParecerType)
+  );
   const ambiguousTussCount = useAmbiguousTussCount();
   const requiresParecerReport = (modoConfeccao && isParecerType) || (showMixedParecerOption && mixedParecer.enabled);
   // Gate de especialidade só vale em confecção parecer puro (decide Parecer vs Visita por especialidade).
