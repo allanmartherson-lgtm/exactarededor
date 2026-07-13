@@ -142,6 +142,9 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     ai_chunks_total: 0,
     ai_chunks_failed: 0,
     ai_chunks_retried: 0,
+    // Cache determinístico da IA (short-circuit por hash de entrada).
+    // Ver supabase/functions/_shared/aiInputHash.ts.
+    ai_items_skipped_cache: 0,
   };
 
 
