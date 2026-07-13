@@ -301,6 +301,8 @@ const PaymentDetail = () => {
     sampleRow: Record<string, unknown> | null;
     initialMapping: Record<string, string>;
     overrides: Record<string, Record<string, string>>;
+    sig: string;
+    compatibleFileNames: string[];
   } | null>(null);
   const [bonusDialogOpen, setBonusDialogOpen] = useState(false);
   // Gate de motivo de intervenção: itens com valor zerado pagos sem justificativa
