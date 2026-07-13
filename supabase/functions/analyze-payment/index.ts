@@ -28,6 +28,12 @@ import {
 import { buildScopedRulesOr } from "../_shared/scopedRulesFilter.ts";
 import { anthropicFetch } from "../_shared/anthropicWithFallback.ts";
 import { classifyDuplicateMatch, evaluateDuplicate, type DuplicateOverridePayload } from "../_shared/itemHash.ts";
+import {
+  buildAiInputHash,
+  buildSiblingsDigest,
+  type EngineSnapshot,
+  type SiblingItem,
+} from "../_shared/aiInputHash.ts";
 import { buildPrimaryItemByRole, isPrimaryAnchor, normRole } from "../_shared/packagePrimary.ts";
 import {
   normDocKey,
@@ -136,6 +142,9 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     ai_chunks_total: 0,
     ai_chunks_failed: 0,
     ai_chunks_retried: 0,
+    // Cache determinístico da IA (short-circuit por hash de entrada).
+    // Ver supabase/functions/_shared/aiInputHash.ts.
+    ai_items_skipped_cache: 0,
   };
 
 
@@ -1387,10 +1396,14 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     __telemetry.ai_items_count = itemsToReview.length;
     const __aiStart = Date.now();
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
+    // Hash canônico do payload da IA por item (short-circuit de cache).
+    // Populado abaixo mesmo em cache hit para persistir em payment_items depois.
+    const hashByItemId: Record<string, string> = {};
+    const cachedItemIds = new Set<string>();
 
     console.time(`${__t} chamada_ia`);
     if (itemsToReview.length > 0) {
-      const itemsForAi = itemsToReview.map((r) => {
+      let itemsForAi = itemsToReview.map((r) => {
         const it = items.find((i) => i.id === r.item_id)!;
         return {
           id: r.item_id,
@@ -1420,6 +1433,134 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
           },
         };
       });
+
+      // ============ Cache determinístico da IA (short-circuit por hash) ============
+      // Se o payload EXATO já foi analisado antes (mesmo item / mesmo motor /
+      // mesma versão de regras / mesmos irmãos do atendimento / mesma versão
+      // de prompt), reusamos ai_note + extra_alerts em vez de queimar créditos.
+      //
+      // Correção do hash:
+      //  - Derivado do PRÓPRIO objeto itemForAi (canonicalStringify) — se um
+      //    campo novo entrar em itemForAi, entra no hash automaticamente.
+      //  - Snapshot do resultado do motor (status/expected/rule_id/alerts).
+      //  - Digest dos irmãos do mesmo attendance_number (a IA é instruída a
+      //    detectar duplicidade no atendimento — mudar um irmão pode mudar
+      //    a análise deste item).
+      //  - rules.updated_at máximo do hospital.
+      //  - AI_PROMPT_VERSION (bumpar ao mudar prompt/schema/shape do payload).
+      //
+      // _force_fresh=true bypassa o cache mas AINDA grava o hash novo,
+      // mantendo o próximo run elegível a reuso.
+
+      try {
+        const engineSnapshotById: Record<string, EngineSnapshot> = {};
+        for (const r of itemsToReview) {
+          engineSnapshotById[r.item_id] = {
+            status: (r.status as string) ?? null,
+            expected_amount: r.expected_amount ?? null,
+            matched_rule_id: r.matched_rule_id ?? null,
+            alerts: Array.isArray(r.alerts) ? r.alerts : [],
+          };
+        }
+
+        // Irmãos do atendimento — query slim sobre TODOS os itens do payment
+        // (não só desta empresa) que compartilham attendance_number com algum
+        // item que vai à IA. Attendance cruza empresas em cirurgias com
+        // múltiplos participantes; ignorar isso deixaria o hash cego a esses
+        // vínculos e reusaria análise obsoleta.
+        const attendanceNums = Array.from(new Set(
+          itemsForAi.map((i) => i.atendimento).filter((v): v is string => !!v)
+        ));
+        const siblingsByAttendance: Record<string, SiblingItem[]> = {};
+        if (attendanceNums.length > 0) {
+          const { data: sibRows } = await supabase
+            .from("payment_items")
+            .select("id, attendance_number, procedure_code, doctor_role, gross_amount, procedure_amount")
+            .eq("payment_id", payment_id)
+            .in("attendance_number", attendanceNums);
+          for (const s of (sibRows ?? []) as any[]) {
+            const key = (s.attendance_number ?? "") as string;
+            (siblingsByAttendance[key] ||= []).push({
+              id: s.id,
+              procedure_code: s.procedure_code ?? null,
+              doctor_role: s.doctor_role ?? null,
+              gross_amount: s.gross_amount ?? null,
+              procedure_amount: s.procedure_amount ?? null,
+            });
+          }
+        }
+
+        // rules.updated_at máximo aplicável ao hospital do payment.
+        let rulesUpdatedAt: string | null = null;
+        try {
+          let rq = supabase.from("rules").select("updated_at").order("updated_at", { ascending: false }).limit(1);
+          if (__paymentHospitalId) {
+            rq = rq.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
+          }
+          const { data: ruMax } = await rq;
+          rulesUpdatedAt = ((ruMax?.[0] as any)?.updated_at as string) ?? null;
+        } catch (_) { /* null → hash muda mais frequente; nunca corrompe */ }
+
+        // Calcula hash de cada item (persiste em hashByItemId).
+        for (const item of itemsForAi) {
+          const eng = engineSnapshotById[item.id];
+          const rawSiblings = siblingsByAttendance[(item.atendimento ?? "") as string] ?? [];
+          const siblingsExcludingSelf = rawSiblings.filter((s) => s.id !== item.id);
+          const siblingsDigest = await buildSiblingsDigest(siblingsExcludingSelf);
+          hashByItemId[item.id] = await buildAiInputHash({
+            itemForAi: item,
+            engineSnapshot: eng,
+            rulesUpdatedAt,
+            siblingsDigest,
+          });
+        }
+
+        // Lookup do cache: itens prévios com o mesmo hash e ai_findings.ai preenchido.
+        if (!__force_fresh) {
+          const hashList = Array.from(new Set(Object.values(hashByItemId).filter(Boolean)));
+          if (hashList.length > 0) {
+            const { data: cacheRows } = await supabase
+              .from("payment_items")
+              .select("id, ai_input_hash, ai_findings")
+              .in("ai_input_hash", hashList)
+              .not("ai_findings", "is", null)
+              .limit(hashList.length * 3);
+            const cacheByHash: Record<string, { ai_note: string; extra_alerts: string[] }> = {};
+            for (const row of (cacheRows ?? []) as any[]) {
+              const h = row.ai_input_hash as string;
+              if (!h || cacheByHash[h]) continue;
+              const aiBlock = row.ai_findings?.ai;
+              const note = typeof aiBlock?.note === "string" ? aiBlock.note : null;
+              if (!note) continue;
+              const extras = Array.isArray(aiBlock?.extra_alerts) ? aiBlock.extra_alerts : [];
+              cacheByHash[h] = { ai_note: note, extra_alerts: extras };
+            }
+            const missing: typeof itemsForAi = [];
+            for (const item of itemsForAi) {
+              const h = hashByItemId[item.id];
+              const hit = h ? cacheByHash[h] : undefined;
+              if (hit) {
+                aiJustifications[item.id] = { extra_alerts: hit.extra_alerts, ai_note: hit.ai_note };
+                cachedItemIds.add(item.id);
+              } else {
+                missing.push(item);
+              }
+            }
+            __telemetry.ai_items_skipped_cache = cachedItemIds.size;
+            if (cachedItemIds.size > 0) {
+              console.log(`${__t} ai_cache_hit=${cachedItemIds.size}/${itemsForAi.length} (economia de créditos IA)`);
+            }
+            itemsForAi = missing;
+          }
+        } else {
+          console.log(`${__t} ai_cache_bypass (_force_fresh=true)`);
+        }
+      } catch (cacheErr) {
+        // Nunca deixe a falha do cache derrubar a análise: loga e segue com IA normal.
+        console.warn(`${__t} ai_cache_lookup falhou (não bloqueante):`, (cacheErr as any)?.message ?? cacheErr);
+      }
+      // ============ Fim do short-circuit ============
+
 
       const historyText = isEmpresaPrioritaria ? "" : await (async () => {
         const { data: history } = await supabase
@@ -1824,6 +1965,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       basis_confidence?: number | null;
       piso_aplicado_valor?: number | null;
       piso_metodo_vencedor?: string | null;
+      // Cache determinístico da IA — hash + timestamp de geração.
+      ai_input_hash?: string | null;
+      ai_cached_at?: string | null;
     };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
@@ -2113,6 +2257,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               calc_id: (r as any).applied_calc_id ?? null,
             }
           : null,
+        // Persistência do cache determinístico da IA. Vale tanto para cache hit
+        // (reuso do hash prévio) quanto para cache miss (novo hash calculado).
+        ai_input_hash: hashByItemId[r.item_id] ?? null,
+        ai_cached_at: hashByItemId[r.item_id] ? new Date().toISOString() : null,
       });
 
 
@@ -2397,6 +2545,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         // Pacote: marca/desmarca absorção (idempotente em reanálise).
         package_absorbed: u.package_absorbed === true,
         package_absorbed_calc_id: u.package_absorbed_calc_id ?? null,
+        // Cache determinístico da IA
+        ai_input_hash: u.ai_input_hash ?? null,
+        ai_cached_at: u.ai_cached_at ?? null,
       };
       // CONFECÇÃO: motor PRODUZ o gross_amount (valor a pagar) a partir do
       // expected_amount calculado pela regra. Sem regra (sem_regra ou bloqueio
@@ -2958,6 +3109,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         writes_ms: Date.now() - (__writesStart ?? startTime),
         items_count: __telemetry.items_count,
         ai_items_count: __telemetry.ai_items_count,
+        ai_items_skipped_cache: __telemetry.ai_items_skipped_cache,
         cache_hit: __telemetry.cache_hit,
         error: aiPartialNote,
       });
@@ -3135,6 +3287,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           writes_ms: 0,
           items_count: __telemetry.items_count,
           ai_items_count: __telemetry.ai_items_count,
+          ai_items_skipped_cache: __telemetry.ai_items_skipped_cache,
           cache_hit: __telemetry.cache_hit,
           error: msg.slice(0, 500),
         });
