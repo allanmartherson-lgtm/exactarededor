@@ -57,8 +57,13 @@ export function MixedParecerSetupCard({
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Info className="h-4 w-4 text-muted-foreground" />
-          Lote misto — parecer/visita dentro de produção?
+          Lote misto (Parecer + Visita no mesmo arquivo)?
         </CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          Marque aqui se o relatório do Tasy deste mês inclui <strong>Parecer e Visita misturados</strong> —
+          ou se este é um lote de <strong>procedimentos</strong> com pareceres/visitas embutidos nos mesmos códigos TUSS.
+          O sistema classifica cada item automaticamente pelo TUSS + relatório do Tasy.
+        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-start gap-3">
@@ -72,12 +77,13 @@ export function MixedParecerSetupCard({
           />
           <div className="flex-1">
             <Label htmlFor="mixed-parecer" className="cursor-pointer text-sm font-medium">
-              Este lote contém atendimentos de parecer/visita misturados com os demais procedimentos
+              Sim, este lote é misto — anexar relatório do Tasy para classificar automaticamente
             </Label>
             <p className="text-xs text-muted-foreground mt-1">
-              Marque quando o mesmo lote paga procedimentos (cirurgia/exame) e também consultas/visitas/pareceres
-              que compartilham códigos TUSS ambíguos. O sistema vai cruzar com o relatório de pareceres do Tasy
-              só nos itens cujo TUSS está cadastrado como Parecer/Visita/Consulta.
+              Use quando o mesmo lote paga <strong>Parecer + Visita</strong> juntos, ou quando um lote de
+              procedimentos (cirurgia/exame) também traz consultas/visitas/pareceres compartilhando códigos TUSS.
+              O cruzamento só afeta itens cujo TUSS está cadastrado como Parecer/Visita/Consulta —
+              procedimentos puros ficam intocados.
             </p>
           </div>
         </div>
