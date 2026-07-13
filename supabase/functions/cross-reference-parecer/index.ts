@@ -391,6 +391,7 @@ Deno.serve(async (req) => {
       weak: boolean;
       roleParecer: boolean; // candidato virou parecer (tipo)
       roleVisita: boolean;  // item vira visita
+      reportRowId: string | null; // hit.id do relatório Tasy quando confirmed
     };
     const decisionById = new Map<string, Decision>();
 
