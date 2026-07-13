@@ -392,8 +392,45 @@ const Payments = () => {
     });
   };
 
-  const runReanalysis = async () => {
+  const [reanalysisConfirm, setReanalysisConfirm] = useState<{
+    ids: string[];
+    aiCount: number | null;
+    totalCount: number | null;
+    loading: boolean;
+  } | null>(null);
+
+  const openReanalysisConfirm = async () => {
     const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    setReanalysisConfirm({ ids, aiCount: null, totalCount: null, loading: true });
+    try {
+      // Estima o custo: quantos itens IRÃO para IA (needs_ai_review) vs total analisado.
+      const [{ count: aiCount }, { count: totalCount }] = await Promise.all([
+        supabase
+          .from("payment_items")
+          .select("id", { count: "exact", head: true })
+          .in("payment_id", ids)
+          .eq("ai_status", "needs_ai_review" as any),
+        supabase
+          .from("payment_items")
+          .select("id", { count: "exact", head: true })
+          .in("payment_id", ids),
+      ]);
+      setReanalysisConfirm({
+        ids,
+        aiCount: aiCount ?? 0,
+        totalCount: totalCount ?? 0,
+        loading: false,
+      });
+    } catch (e) {
+      console.warn("[Payments] falha ao estimar custo de reanálise", e);
+      setReanalysisConfirm({ ids, aiCount: null, totalCount: null, loading: false });
+    }
+  };
+
+  const runReanalysis = async () => {
+    const ids = reanalysisConfirm?.ids ?? Array.from(selected);
+    setReanalysisConfirm(null);
     if (ids.length === 0) return;
     setReprocessing(true);
     setReprocessProgress({ done: 0, total: ids.length });
@@ -414,6 +451,7 @@ const Payments = () => {
     setSelected(new Set());
     toast.success(`Reanálise concluída: ${ok} ok${fail ? `, ${fail} com falha` : ""}`);
   };
+
 
   const deletePayment = async (id: string) => {
     try {
@@ -1803,7 +1841,7 @@ const Payments = () => {
               <Button
                 size="sm"
                 disabled={selected.size === 0 || reprocessing}
-                onClick={runReanalysis}
+                onClick={openReanalysisConfirm}
               >
                 {reprocessing ? (
                   <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />
@@ -1812,6 +1850,7 @@ const Payments = () => {
                 )}
                 {reprocessing ? "Reprocessando..." : "Reanalisar selecionados"}
               </Button>
+
             </div>
           </div>
         )}
@@ -2202,8 +2241,53 @@ const Payments = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={!!reanalysisConfirm}
+        onOpenChange={(o) => { if (!o) setReanalysisConfirm(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar reanálise</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Você está prestes a reanalisar{" "}
+                  <strong>{reanalysisConfirm?.ids.length ?? 0}</strong> lote(s).
+                </p>
+                {reanalysisConfirm?.loading ? (
+                  <p className="text-muted-foreground">Estimando custo…</p>
+                ) : reanalysisConfirm?.aiCount !== null && reanalysisConfirm ? (
+                  <p>
+                    Esta reanálise processará aproximadamente{" "}
+                    <strong>{reanalysisConfirm.aiCount}</strong> item(ns) por IA
+                    {typeof reanalysisConfirm.totalCount === "number" && (
+                      <> (de {reanalysisConfirm.totalCount} itens no total)</>
+                    )}
+                    . Itens já em cache não consomem créditos.
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground">
+                    Não foi possível estimar o custo — a reanálise será executada normalmente.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={runReanalysis}
+              disabled={reanalysisConfirm?.loading}
+            >
+              Confirmar reanálise
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
+
 };
 
 export default Payments;

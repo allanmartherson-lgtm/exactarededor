@@ -1213,16 +1213,34 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     const groups = ((pcg as any[]) ?? []).filter((g) => g?.payment?.id);
     if (groups.length === 0) return;
 
-    const ok = await confirmDialog({
-      title: "Reanalisar lotes impactados?",
-      description: `${groups.length} lote(s) em aberto contêm a empresa-alvo desta regra (${ruleName ?? "sem nome"}). Disparar reanálise agora para refletir a nova configuração?`,
-      confirmText: `Reanalisar ${groups.length} lote(s)`,
-      cancelText: "Agora não",
-    });
-    if (!ok) return;
     const paymentIds = Array.from(new Set(groups.map((g) => g.payment_id))).filter(Boolean) as string[];
     const companyNames = Array.from(new Set(groups.map((g) => g.company_name))).filter(Boolean) as string[];
+
+    // Estimativa de custo: itens que ainda precisam passar pela IA nos lotes impactados.
+    let aiCountLabel = "";
+    try {
+      let q = supabase
+        .from("payment_items")
+        .select("id", { count: "exact", head: true })
+        .in("payment_id", paymentIds)
+        .eq("ai_status", "needs_ai_review" as any);
+      if (companyNames.length > 0) q = q.in("company_name", companyNames);
+      const { count: aiCount } = await q;
+      aiCountLabel = ` Esta reanálise processará aproximadamente ${aiCount ?? 0} item(ns) por IA (itens já em cache não consomem créditos).`;
+    } catch (e) {
+      console.warn("[Rules] falha ao estimar custo IA", e);
+    }
+
+    const ok = await confirmDialog({
+      title: "Reanalisar lotes impactados?",
+      description: `${groups.length} lote(s) em aberto contêm a empresa-alvo desta regra (${ruleName ?? "sem nome"}). Disparar reanálise agora para refletir a nova configuração?${aiCountLabel}`,
+      confirmText: `Confirmar reanálise (${groups.length} lote(s))`,
+      cancelText: "Cancelar",
+    });
+    if (!ok) return;
+
     let dispatched = 0;
+
     let failed = 0;
     await Promise.all(paymentIds.map(async (pid) => {
       try {

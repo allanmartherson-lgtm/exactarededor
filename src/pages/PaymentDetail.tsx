@@ -3346,10 +3346,25 @@ const PaymentDetail = () => {
                               : `Reanalisando apenas itens: ${reprocessFilter.join(", ")}.`}
                           </p>
                         </div>
-                        
+
+                        {(() => {
+                          const scoped = reprocessFilter.length === 0
+                            ? items
+                            : items.filter((it: any) => reprocessFilter.includes(String(it.ai_status ?? "")));
+                          const aiCount = scoped.filter((it: any) => String(it.ai_status ?? "") === "needs_ai_review").length;
+                          return (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 px-3 py-2 text-xs">
+                              Esta reanálise processará aproximadamente{" "}
+                              <strong>{aiCount}</strong> item(ns) por IA
+                              {" "}(de <strong>{scoped.length}</strong> selecionados). Itens já em cache não consomem créditos.
+                            </div>
+                          );
+                        })()}
+
                         <p className="text-sm pt-2">
                           Responsável: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
                         </p>
+
                       </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
