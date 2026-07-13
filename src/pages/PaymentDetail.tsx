@@ -3895,7 +3895,11 @@ const PaymentDetail = () => {
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction disabled={reimporting} onClick={() => reimportConfirm && doReimport(reimportConfirm)}>
-                  {reimporting ? "Reimportando…" : "Confirmar"}
+                  {reimporting
+                    ? (importProgress
+                        ? `Lendo ${importProgress.current}/${importProgress.total}…`
+                        : "Reimportando…")
+                    : "Confirmar"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
