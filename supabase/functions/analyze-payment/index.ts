@@ -2257,6 +2257,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               calc_id: (r as any).applied_calc_id ?? null,
             }
           : null,
+        // Persistência do cache determinístico da IA. Vale tanto para cache hit
+        // (reuso do hash prévio) quanto para cache miss (novo hash calculado).
+        ai_input_hash: hashByItemId[r.item_id] ?? null,
+        ai_cached_at: hashByItemId[r.item_id] ? new Date().toISOString() : null,
       });
 
 
