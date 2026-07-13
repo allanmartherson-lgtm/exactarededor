@@ -538,7 +538,7 @@ Deno.serve(async (req) => {
         parecer_evidence: decision.evidence,
         parecer_evidence_weak: decision.weak,
         parecer_checked_at: now,
-        parecer_report_row_id: null,
+        parecer_report_row_id: decision.reportRowId,
       };
 
       if (isProtected) {
