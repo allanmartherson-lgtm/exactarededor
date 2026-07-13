@@ -2010,6 +2010,7 @@ const PaymentDetail = () => {
         sector: r.sector,
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
+        source_file_name: (r as any).source_file_name ?? null,
         tipo_linha: r.tipo_linha,
         // Override do parser: lote Consulta com TUSS fora dos códigos da Consulta
         // → reclassifica para "Procedimento" já na importação. Sem override,
