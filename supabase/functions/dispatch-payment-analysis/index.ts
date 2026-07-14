@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
     //     se confeccao_status='em_confeccao'.
     const { data: paymentRow, error: payErr } = await supabase
       .from("payments")
-      .select("analysis_mode, payment_type, competence_month, hospital_id")
+      .select("analysis_mode, payment_type, competence_month, hospital_id, has_mixed_parecer")
       .eq("id", payment_id)
       .single();
     if (payErr) throw payErr;
@@ -131,15 +131,23 @@ Deno.serve(async (req) => {
     // o analista não consegue distinguir visita sequencial vinda de parecer
     // (paga pelo convênio) de visita comum (regra normal). Bloqueia o
     // dispatch e devolve sinal para a UI cobrar o upload.
+    //
+    // Lote MISTO (payment_type='procedimento' + has_mixed_parecer=true) também
+    // precisa passar pelo cross-reference quando há relatório, mas NÃO bloqueia
+    // sem relatório — tem procedimentos que independem do relatório.
     const ptype = String((paymentRow as any)?.payment_type ?? "").toLowerCase();
-    if (!isConfeccao && ptype.includes("parecer")) {
+    const hasMixedParecer = (paymentRow as any)?.has_mixed_parecer === true;
+    const isPurePareceer = ptype.includes("parecer");
+    const needsParecerCross = isPurePareceer || hasMixedParecer;
+    if (!isConfeccao && needsParecerCross) {
       const { data: reports, error: repErr } = await supabase
         .from("payment_parecer_reports")
         .select("id")
         .eq("payment_id", payment_id)
         .limit(1);
       if (repErr) throw repErr;
-      if (!reports || reports.length === 0) {
+      const hasReport = !!(reports && reports.length > 0);
+      if (!hasReport && isPurePareceer) {
         return new Response(
           JSON.stringify({
             ok: false,
@@ -156,6 +164,9 @@ Deno.serve(async (req) => {
           },
         );
       }
+      // Lote misto sem relatório: segue direto para orquestração (não defere).
+      if (hasReport) {
+
 
       // Lote de Parecer + relatório presente: rodar cross-reference ANTES da
       // análise garante que cada item esteja com o tipo (Parecer vs Visita)
