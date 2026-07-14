@@ -632,8 +632,99 @@ function computeDescriptionDivergence(
   return null;
 }
 
-/**
- * Tipo de pagamento por item (mostra/alterna entre Parecer × Visita).
+/** Ações para itens com parecer_evidence='unverified' (Parecer sem registro
+ *  no relatório Tasy). O analista decide: confirmar mantendo Parecer ou
+ *  reclassificar como Visita. Ambos gravam item_type_source='manual' e
+ *  registram auditoria. */
+function ParecerUnverifiedActions({
+  item,
+  visitaPaymentTypeId,
+  parecerPaymentTypeId,
+  onChangeCaseSubtype,
+}: {
+  item: PaymentItemRowData;
+  visitaPaymentTypeId: string | null;
+  parecerPaymentTypeId: string | null;
+  onChangeCaseSubtype?: (itemIds: string[], newTypeId: string, newTypeLabel: string) => void;
+}) {
+  const [saving, setSaving] = useState<null | "confirm" | "visita">(null);
+  const confirmAsParecer = async () => {
+    setSaving("confirm");
+    try {
+      const { error } = await supabase
+        .from("payment_items")
+        .update({
+          parecer_evidence: "confirmed",
+          parecer_evidence_weak: false,
+          item_type_source: "manual",
+          parecer_checked_at: new Date().toISOString(),
+        } as any)
+        .eq("id", item.id);
+      if (error) throw error;
+      try {
+        const { data: userRes } = await supabase.auth.getUser();
+        const actorId = userRes?.user?.id;
+        if (actorId) {
+          await supabase.from("audit_log").insert([{
+            entity_type: "payment_item",
+            entity_id: item.id,
+            action: "confirm_parecer_manual",
+            actor_id: actorId,
+            company_name: (item as any).company_name ?? null,
+            diff: { parecer_evidence: "confirmed", source: "manual" },
+          } as any]);
+        }
+      } catch {}
+      toast.success("Item confirmado como Parecer");
+    } catch (e: any) {
+      toast.error(`Falha ao confirmar: ${e?.message ?? e}`);
+    } finally {
+      setSaving(null);
+    }
+  };
+  const reclassifyAsVisita = async () => {
+    if (!visitaPaymentTypeId || !onChangeCaseSubtype) {
+      toast.error("Tipo Visita não configurado neste hospital.");
+      return;
+    }
+    setSaving("visita");
+    try {
+      await onChangeCaseSubtype([item.id], visitaPaymentTypeId, "Visita");
+    } finally {
+      setSaving(null);
+    }
+  };
+  return (
+    <div className="rounded-md border border-dashed border-amber-300/70 bg-amber-50/40 dark:bg-amber-950/15 dark:border-amber-900/60 px-3 py-2 flex flex-col gap-2 min-w-0">
+      <p className="text-xs text-amber-900 dark:text-amber-200 break-words">
+        <strong>Parecer sem registro no Tasy</strong> — decida a classificação para
+        este item. A decisão manual será registrada e protegida do motor automático.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          disabled={!!saving}
+          onClick={confirmAsParecer}
+        >
+          {saving === "confirm" ? "Confirmando..." : "Confirmar como Parecer"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          disabled={!!saving || !visitaPaymentTypeId}
+          onClick={reclassifyAsVisita}
+        >
+          {saving === "visita" ? "Reclassificando..." : "Reclassificar como Visita"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
  * Reusa `payment_items.item_type_id`: cada item pode pertencer a um
  * item_type diferente do tipo do lote — é assim que a base mista
  * (Parecer Adulto com algumas visitas) é tratada sem criar lotes separados.
