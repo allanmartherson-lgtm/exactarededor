@@ -25,6 +25,7 @@ import ParecerColumnMappingDialog, {
 } from "./ParecerColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
 import { notify } from "@/lib/uiSignals";
+import { cn } from "@/lib/utils";
 import { DateInput } from "@/components/ui/date-input";
 
 // Helpers de parsing (rodam no browser para não estourar memória do worker)
@@ -119,6 +120,12 @@ type ReportRow = {
   source_filename: string | null;
   row_count: number;
   imported_at: string;
+  cross_summary: {
+    parecer_confirmed?: number | null;
+    parecer_unverified?: number | null;
+    visitas?: number | null;
+    finished_at?: string | null;
+  } | null;
 };
 
 /**
@@ -170,7 +177,7 @@ export function ParecerReportCard({
     setLoading(true);
     const { data } = await supabase
       .from("payment_parecer_reports")
-      .select("id,period_start,period_end,source_filename,row_count,imported_at")
+      .select("id,period_start,period_end,source_filename,row_count,imported_at,cross_summary")
       .eq("payment_id", paymentId)
       .order("imported_at", { ascending: false });
     setReports((data ?? []) as ReportRow[]);
@@ -555,6 +562,43 @@ export function ParecerReportCard({
             })}
           </ul>
         )}
+
+        {hasReport && (() => {
+          const latest = reports.find((r) => r.cross_summary);
+          const cs = latest?.cross_summary;
+          if (!cs) return null;
+          const confirmed = Number(cs.parecer_confirmed ?? 0);
+          const unverified = Number(cs.parecer_unverified ?? 0);
+          const visitas = Number(cs.visitas ?? 0);
+          return (
+            <div className="rounded-md border bg-muted/20 p-3 text-xs">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                Resumo do cruzamento
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="border-emerald-400 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30">
+                  {confirmed} confirmado{confirmed === 1 ? "" : "s"}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    unverified > 0
+                      ? "border-amber-500 text-amber-800 bg-amber-50 dark:bg-amber-950/30"
+                      : "border-border text-muted-foreground",
+                  )}
+                >
+                  {unverified} sem registro{unverified > 0 ? " · analista decide" : ""}
+                </Badge>
+                <Badge variant="outline">
+                  {visitas} visita{visitas === 1 ? "" : "s"}
+                </Badge>
+              </div>
+            </div>
+          );
+        })()}
+
+
+
 
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">

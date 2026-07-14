@@ -539,10 +539,6 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
   const wasReclassified = (item as any).reclassified_from_parecer === true;
   if (!evidence) return null;
   if (evidence === "confirmed") {
-    // Caso especial: parecer FOI cruzado no relatório, mas o sistema rebaixou
-    // o item para Visita (ex.: já existe parecer pago anterior no mesmo
-    // atendimento). Mostra selo distinto para não confundir o analista com
-    // "P✓" + "V" lado a lado sem explicação.
     if (wasReclassified) {
       return (
         <span
@@ -576,6 +572,28 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
       </span>
     );
   }
+  if (evidence === "unverified") {
+    return (
+      <span
+        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
+        title="Parecer sem registro no relatório do Tasy — analista precisa confirmar ou reclassificar como Visita"
+      >
+        <AlertTriangle className="h-2.5 w-2.5" />
+        Sem registro Tasy
+      </span>
+    );
+  }
+  if (evidence === "not_applicable") {
+    return (
+      <span
+        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
+        title="Contato subsequente — classificado como visita"
+      >
+        <FileText className="h-2.5 w-2.5" />
+        V
+      </span>
+    );
+  }
   return (
     <span
       className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
@@ -584,6 +602,125 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
       <FileText className="h-2.5 w-2.5" />
       P×
     </span>
+  );
+}
+
+/** Detecta divergência semântica entre a descrição da linha e a classificação
+ *  atual: quando o texto contém "parecer" mas o item foi tratado como Visita
+ *  (ou vice-versa). Sinal INFORMATIVO — não bloqueia. */
+function computeDescriptionDivergence(
+  item: PaymentItemRowData,
+  isParecerPayment: boolean,
+  visitaPaymentTypeId?: string | null,
+  parecerPaymentTypeId?: string | null,
+  lotePaymentTypeId?: string | null,
+): string | null {
+  if (!isParecerPayment || !visitaPaymentTypeId || !parecerPaymentTypeId) return null;
+  const name = String((item as any).procedure_name ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (!name) return null;
+  const mentionsParecer = /\bparecer\b/.test(name);
+  const mentionsVisita = /\bvisita\b/.test(name);
+  if (!mentionsParecer && !mentionsVisita) return null;
+  const tid = ((item as any).item_type_id ?? lotePaymentTypeId) as string | null;
+  const isVisita = tid === visitaPaymentTypeId;
+  const isParecer = tid === parecerPaymentTypeId || tid === lotePaymentTypeId;
+  if (mentionsParecer && isVisita) return "Descrição da linha menciona \"parecer\", mas o item foi classificado como Visita.";
+  if (mentionsVisita && isParecer) return "Descrição da linha menciona \"visita\", mas o item foi classificado como Parecer.";
+  return null;
+}
+
+/** Ações para itens com parecer_evidence='unverified' (Parecer sem registro
+ *  no relatório Tasy). O analista decide: confirmar mantendo Parecer ou
+ *  reclassificar como Visita. Ambos gravam item_type_source='manual' e
+ *  registram auditoria. */
+function ParecerUnverifiedActions({
+  item,
+  visitaPaymentTypeId,
+  parecerPaymentTypeId,
+  onChangeCaseSubtype,
+}: {
+  item: PaymentItemRowData;
+  visitaPaymentTypeId: string | null;
+  parecerPaymentTypeId: string | null;
+  onChangeCaseSubtype?: (itemIds: string[], newTypeId: string, newTypeLabel: string) => void;
+}) {
+  const [saving, setSaving] = useState<null | "confirm" | "visita">(null);
+  const confirmAsParecer = async () => {
+    setSaving("confirm");
+    try {
+      const { error } = await supabase
+        .from("payment_items")
+        .update({
+          parecer_evidence: "confirmed",
+          parecer_evidence_weak: false,
+          item_type_source: "manual",
+          parecer_checked_at: new Date().toISOString(),
+        } as any)
+        .eq("id", item.id);
+      if (error) throw error;
+      try {
+        const { data: userRes } = await supabase.auth.getUser();
+        const actorId = userRes?.user?.id;
+        if (actorId) {
+          await supabase.from("audit_log").insert([{
+            entity_type: "payment_item",
+            entity_id: item.id,
+            action: "confirm_parecer_manual",
+            actor_id: actorId,
+            company_name: (item as any).company_name ?? null,
+            diff: { parecer_evidence: "confirmed", source: "manual" },
+          } as any]);
+        }
+      } catch {}
+      toast.success("Item confirmado como Parecer");
+    } catch (e: any) {
+      toast.error(`Falha ao confirmar: ${e?.message ?? e}`);
+    } finally {
+      setSaving(null);
+    }
+  };
+  const reclassifyAsVisita = async () => {
+    if (!visitaPaymentTypeId || !onChangeCaseSubtype) {
+      toast.error("Tipo Visita não configurado neste hospital.");
+      return;
+    }
+    setSaving("visita");
+    try {
+      await onChangeCaseSubtype([item.id], visitaPaymentTypeId, "Visita");
+    } finally {
+      setSaving(null);
+    }
+  };
+  return (
+    <div className="rounded-md border border-dashed border-amber-300/70 bg-amber-50/40 dark:bg-amber-950/15 dark:border-amber-900/60 px-3 py-2 flex flex-col gap-2 min-w-0">
+      <p className="text-xs text-amber-900 dark:text-amber-200 break-words">
+        <strong>Parecer sem registro no Tasy</strong> — decida a classificação para
+        este item. A decisão manual será registrada e protegida do motor automático.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          disabled={!!saving}
+          onClick={confirmAsParecer}
+        >
+          {saving === "confirm" ? "Confirmando..." : "Confirmar como Parecer"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          disabled={!!saving || !visitaPaymentTypeId}
+          onClick={reclassifyAsVisita}
+        >
+          {saving === "visita" ? "Reclassificando..." : "Reclassificar como Visita"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -4068,6 +4205,19 @@ function RowMain({
                 </span>
               )}
               {isParecerPayment && <ParecerEvidenceBadge item={it} />}
+              {isParecerPayment && (() => {
+                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
+                if (!div) return null;
+                return (
+                  <span
+                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
+                    title={`${div} Verifique se a classificação está correta.`}
+                  >
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Divergência
+                  </span>
+                );
+              })()}
               {isParecerPayment && (
                 <CaseSubtypeBadge
                   item={it}
@@ -4841,6 +4991,15 @@ function ItemDetailsRow({
               )}
 
               <CalcExceptionItemAction paymentId={it.payment_id} item={it as any} />
+
+              {isParecerPayment && ((it as any).parecer_evidence === "unverified") && canEdit && (
+                <ParecerUnverifiedActions
+                  item={it}
+                  visitaPaymentTypeId={visitaPaymentTypeId ?? null}
+                  parecerPaymentTypeId={parecerPaymentTypeId ?? null}
+                  onChangeCaseSubtype={onChangeCaseSubtype}
+                />
+              )}
 
               <PaymentTypeOverrideAction
                 item={it as any}
