@@ -119,6 +119,12 @@ type ReportRow = {
   source_filename: string | null;
   row_count: number;
   imported_at: string;
+  cross_summary: {
+    parecer_confirmed?: number | null;
+    parecer_unverified?: number | null;
+    visitas?: number | null;
+    finished_at?: string | null;
+  } | null;
 };
 
 /**
