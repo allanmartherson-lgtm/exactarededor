@@ -1551,6 +1551,49 @@ export function ItemsDataGrid({
 
   const getConvenio = getAgreement;
 
+  // Comparador multi-nível para a classificação personalizada.
+  const compareByCustomSort = (
+    a: PaymentItemRowData,
+    b: PaymentItemRowData,
+    levels: CustomSortLevel[],
+  ): number => {
+    const statusOrder: Record<string, number> = {
+      reprovado: 0, alerta: 1, pendente: 2, acatado: 3, aprovado: 4, seguido: 4,
+    };
+    const valueFor = (it: PaymentItemRowData, field: CustomSortField): string | number => {
+      switch (field) {
+        case "procedure_date": return ((it as any).procedure_date ?? "") as string;
+        case "paciente": return (getPatient(it) ?? "").toLowerCase();
+        case "convenio": return (getConvenio(it) ?? "").toLowerCase();
+        case "medico": return (it.doctor_name ?? "").toLowerCase();
+        case "funcao": return (getDoctorRole(it) ?? "").toLowerCase();
+        case "tuss": return (it.procedure_code ?? "").toString();
+        case "procedimento": return (getProcedureName(it) ?? "").toLowerCase();
+        case "gross": return Number(it.gross_amount ?? 0);
+        case "esperado": return Number((it as any).expected_amount ?? it.ai_findings?.expected_amount ?? 0);
+        case "diferenca": {
+          const exp = (it as any).expected_amount ?? it.ai_findings?.expected_amount;
+          return exp != null ? Number(exp) - Number(it.gross_amount ?? 0) : 0;
+        }
+        case "status": {
+          const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+          return statusOrder[eff] ?? 5;
+        }
+        case "metodo": return ((it as any).applied_calc_method ?? "").toString().toLowerCase();
+      }
+    };
+    for (const lvl of levels) {
+      const va = valueFor(a, lvl.field);
+      const vb = valueFor(b, lvl.field);
+      let cmp: number;
+      if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), "pt-BR", { numeric: true, sensitivity: "base" });
+      if (cmp !== 0) return lvl.dir === "asc" ? cmp : -cmp;
+    }
+    return 0;
+  };
+
+
   const selectRow = (itId: string) => {
     setActiveId(itId);
     if (selectionMode) {
