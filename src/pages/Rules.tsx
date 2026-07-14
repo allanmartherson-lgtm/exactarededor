@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { recomputeDoctorSpecificExclusions } from "@/lib/recomputeDoctorSpecificExclusions";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { useSpecialties } from "@/hooks/useSpecialties";
 import { useAuth } from "@/contexts/AuthContext";
