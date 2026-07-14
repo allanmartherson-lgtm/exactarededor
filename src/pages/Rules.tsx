@@ -1729,6 +1729,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const remove = async (id: string) => {
     if (!confirm("Excluir esta regra?")) return;
     await supabase.from("rules").delete().eq("id", id);
+    await recomputeDoctorSpecificExclusions();
     setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
     load();
   };
