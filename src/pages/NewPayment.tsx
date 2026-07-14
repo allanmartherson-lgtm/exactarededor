@@ -549,6 +549,7 @@ const NewPayment = () => {
   useEffect(() => { markTemplateUsedRef.current = markTemplateUsed; }, [markTemplateUsed]);
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [includeAiOnSubmit, setIncludeAiOnSubmit] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
