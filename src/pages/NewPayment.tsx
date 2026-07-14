@@ -3630,7 +3630,7 @@ const NewPayment = () => {
     try {
       const { data: dispatchData, error: dispatchErr } = await supabase.functions.invoke(
         "dispatch-payment-analysis",
-        { body: { payment_id: payment.id } }
+        { body: { payment_id: payment.id, run_ai: includeAiOnSubmit === true } }
       );
       if (dispatchErr) {
         // FunctionsHttpError expõe a Response em .context — usamos para detectar
