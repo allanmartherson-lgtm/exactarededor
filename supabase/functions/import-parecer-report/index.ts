@@ -127,6 +127,19 @@ Deno.serve(async (req) => {
       }
       if (rows.length === 0) return json({ ok: true, inserted: 0 });
 
+      // Guard multi-tenant: resolve hospital via report → payment.
+      {
+        const { data: rep } = await supabase
+          .from("payment_parecer_reports")
+          .select("hospital_id")
+          .eq("id", report_id)
+          .maybeSingle();
+        const hId = (rep as any)?.hospital_id ?? null;
+        if (!_auth.is_internal && !assertCallerHospital(_auth, hId)) {
+          return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+        }
+      }
+
       const payload = rows.map((r: any) => ({
         report_id,
         atendimento: r.atendimento ?? null,
