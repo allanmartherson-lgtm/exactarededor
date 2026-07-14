@@ -1720,12 +1720,24 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               if (tc) {
                 const parsed = tc.input;
                 for (const it of parsed.items ?? []) {
+                  // Re-hidrata PACIENTE_N com o nome real antes de gravar/exibir.
+                  const rmap = reverseMapByItemId[it.id] ?? {};
                   aiJustifications[it.id] = {
-                    extra_alerts: Array.isArray(it.extra_alerts) ? it.extra_alerts : [],
-                    ai_note: typeof it.ai_note === "string" ? it.ai_note : "",
+                    extra_alerts: Array.isArray(it.extra_alerts)
+                      ? it.extra_alerts.map((a: unknown) => unmaskText(String(a ?? ""), rmap))
+                      : [],
+                    ai_note: typeof it.ai_note === "string" ? unmaskText(it.ai_note, rmap) : "",
                   };
                 }
-                if (parsed.summary) summaries.push(parsed.summary);
+                if (parsed.summary) {
+                  // summary é agregado do chunk; junta reverseMaps de todos os
+                  // itens do chunk para cobrir qualquer PACIENTE_N mencionado.
+                  const chunkMap: ReverseMap = {};
+                  for (const it of parsed.items ?? []) {
+                    Object.assign(chunkMap, reverseMapByItemId[it.id] ?? {});
+                  }
+                  summaries.push(unmaskText(String(parsed.summary), chunkMap));
+                }
               }
               return true;
             }
