@@ -61,6 +61,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (!auth.is_internal && !assertCallerHospital(auth, (job as any)?.hospital_id ?? null)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // 2. Cancelado/concluído → não faz nada
     if (job.status === "cancelado" || job.status === "concluido" || job.status === "parcial") {
       console.log(`[orchestrate] job ${job_id} já está em estado terminal (${job.status}) — skip`);
