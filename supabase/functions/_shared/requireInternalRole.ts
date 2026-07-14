@@ -25,6 +25,10 @@ export interface AuthCheckResult {
   error?: string;
   user_id?: string | null;
   is_internal?: boolean;
+  /** Lista de hospitais aos quais o usuário chamador tem vínculo (via user_hospitals). */
+  hospital_ids?: string[] | null;
+  /** Hospital ativo do usuário no momento da chamada (via user_active_hospital). */
+  active_hospital_id?: string | null;
 }
 
 /**
