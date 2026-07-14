@@ -1,79 +1,131 @@
-# PLANO FINAL — Bloco 1: Motor de Classificação Parecer × Visita
-Migração já aplicada. Este plano cobre apenas o código.
 
-## Regra em 1 frase
-Por `hospital_id + attendance_number + empresa + especialidade` (com normalização e fallbacks), o primeiro contato ambíguo (histórico global + lote atual) é o único candidato a parecer; todo o resto é visita. O relatório Tasy apenas **valida** o candidato — nunca classifica.
+# Bloco 2 — Resolver ambiguidade Parecer × Visita
 
-## Fluxo
+Contexto: `parecer_adulto` e `visita` compartilham `tuss_default=10102019`. Na cadeia de reanálise, `auto-classify-payment-types` roda DEPOIS do `cross-reference-parecer`, então pode sobrescrever a classificação correta se não estiver blindado.
 
-### 1. Carga dos itens do lote
-Buscar itens com colunas atuais + `company_id`, `company_name`, `hospital_id`, `item_type_id`, `item_type_source`, `is_cancelled`, `procedure_code`, `procedure_date`, `created_at`, `attendance_number`, `specialty`.
+## Verificações concluídas
 
-### 2. Filtro de candidatos
-- Lote misto: apenas itens com TUSS ambíguo (conjunto derivado de `item_types` marcados como parecer/visita/consulta).
-- `item_type_source` protegido (`manual`, `company_override`, `base_tipo`) → nunca troca `item_type_id`, só atualiza `parecer_evidence` como informação, e conta em `protected_kept`.
-- `is_cancelled=true` → ignorado.
-
-### 3. Chave de agrupamento COM FALLBACK
+**Constraint atual** (`payment_items_item_type_source_check`):
 ```
-empresa_key = company_id ?? norm(company_name) ?? SKIP
-spec_key    = norm(specialty)
-att_key     = onlyDigits(attendance_number)
-hosp_key    = hospital_id   // obrigatório
+manual, auto_tuss, auto_default, auto_heuristic, backfill_tuss,
+backfill_default, backfill_from_payment_type, inherit,
+report_cross, report_cross_dedup
 ```
-- Falta de qualquer chave → item vai para `skipped_no_key[]` (nunca silencioso).
-- Se `skipped_no_key.length / candidatos > 10%` → `console.warn` com amostra de até 20 ids.
-- `skipped_no_key` volta na resposta HTTP **e** persiste em `cross_summary`.
+→ NÃO contém `ambiguous_tuss`. Migration OBRIGATÓRIA antes do código.
+→ NÃO contém `company_override` nem `base_tipo` (usados só como constantes de blindagem futura em `cross-reference-parecer` — não vamos gerar UPDATEs com esses valores).
 
-### 4. Lookback histórico EM BATCH (ajuste 1)
-- Coletar todos os `att_key` únicos dos grupos.
-- Agrupar por `hospital_id` (fail-closed: item sem `hospital_id` já caiu em skipped).
-- Para cada hospital, quebrar os attendances em chunks de **200** e rodar UMA query por chunk:
+**Degradação com `item_type_id = NULL` — SEGURA**:
+- `rulesEngine.ts:1804-1837`: cálculo tipado com `item.item_type_id = null` retorna `{ ok: false, reason: 'item_type_nao_corresponde' }`. Sem exceção. Item cai em cálculo universal (sem tipo) ou vira `sem_regra`/alerta.
+- `calcOverlap.ts:232-237`: null tratado explicitamente.
+- `analyze-payment/index.ts:818`: `(it as any).item_type_id ?? null` — já é nullable.
+
+Conclusão: lote misto sem relatório com itens ambíguos ficará com esses itens em `sem_regra` visível ao analista, sem quebra. Ao subir o relatório, cross-ref preenche e reanálise resolve.
+
+## Ordem de execução
+
+1. **Migration** (aprovação separada) — ampliar constraint.
+2. **Edge** `auto-classify-payment-types` + redeploy.
+3. **UI** `src/pages/ItemTypes.tsx`.
+4. **UPDATE de depreciação** (aprovação separada).
+
+---
+
+## Passo 1 — Migration (aguardando aprovação)
+
+```sql
+ALTER TABLE public.payment_items
+  DROP CONSTRAINT payment_items_item_type_source_check;
+
+ALTER TABLE public.payment_items
+  ADD CONSTRAINT payment_items_item_type_source_check
+  CHECK (
+    item_type_source IS NULL OR item_type_source = ANY (ARRAY[
+      'manual','auto_tuss','auto_default','auto_heuristic',
+      'backfill_tuss','backfill_default','backfill_from_payment_type',
+      'inherit','report_cross','report_cross_dedup',
+      'ambiguous_tuss'
+    ])
+  );
+```
+
+Sem backfill de dados, sem outras alterações.
+
+---
+
+## Passo 2 — `supabase/functions/auto-classify-payment-types/index.ts` (edge, redeploy)
+
+**Estado atual** (linhas 28-32): `PROTECTED_SOURCES = {'manual', 'report_cross', 'report_cross_dedup'}`.
+
+**Mudanças:**
+
+- Ampliar `PROTECTED_SOURCES` incluindo `'company_override'` e `'base_tipo'` — blindagem futura, alinha com `cross-reference-parecer:63`. Não gera nenhum código que assuma esses valores como emitidos aqui.
+- Trocar `tussToItemType: Map<string, string>` por `Map<string, Set<string>>` acumulando todos os `item_type_id` ativos que reivindicam cada código (tuss_default + tuss_codes_extra).
+- Nova decisão por item com `procedure_code`:
+  - `set.size === 1` → `auto_tuss` (comportamento atual).
+  - `set.size > 1` → AMBÍGUO: `item_type_id = null`, `item_type_source = 'ambiguous_tuss'`.
+- Bucket dedicado `ambiguous_tuss`. **Chave de bucket** precisa aceitar `item_type_id = null` → usar sentinela na string:
+  ```ts
+  const bucketKey = nextItemTypeId
+    ? `${nextItemTypeId}::${nextSource}`
+    : `__NULL__::${nextSource}`;
   ```
-  from payment_items
-  select id, payment_id, hospital_id, company_id, company_name,
-         specialty, attendance_number, procedure_code, procedure_date,
-         created_at, item_type_id
-  where hospital_id = <hosp>
-    and attendance_number in (<chunk até 200>)   // ajuste 2: valor bruto, sem coluna digits
-    and payment_id <> <current>
-    and is_cancelled = false
-    and (item_type_id in <ambiguos> OR procedure_code in <TUSS_ambiguos>)
-  ```
-- Em memória, casar por `norm(company_id/company_name)` + `norm(specialty)` + `onlyDigits(attendance_number)` para atrelar cada linha ao grupo correto. Cirurgias/exames/outros TUSS não entram porque já foram filtrados no `where`.
-- Dado real: maior lote = 387 atendimentos → 2 queries em vez de 387.
+  No dispatch do UPDATE, se a chave começa com `__NULL__::`, gravar `item_type_id: null`.
+- **Skip unchanged para ambíguo**: se `it.item_type_source === 'ambiguous_tuss' && it.item_type_id === null && nextSource === 'ambiguous_tuss'` → conta `unchanged`, não enfileira.
+- Contador `ambiguousTuss` + campo `ambiguous_tuss: number` na resposta e no log.
+- Trocar warning `TUSS duplicados` por log `TUSS ambíguos: N códigos [amostra]`.
 
-### 5. Decisão por grupo (empate de data explícito)
-Ordenar candidatos do lote atual por `procedure_date` asc, tie-break `created_at` asc.
-- Histórico com `procedure_date < candidato` → todos do grupo viram `visita` / `parecer_evidence='not_applicable'`.
-- Histórico com `procedure_date == candidato` (mesmo dia) → candidato = `parecer`, `parecer_evidence='unverified'`, `parecer_evidence_weak=true`. Nunca `confirmed` automático nesse cenário.
-- Sem histórico prévio → candidato = item de menor `procedure_date`; empate interno usa `created_at` + `parecer_evidence_weak=true`.
-- Validar candidato contra `payment_parecer_report_rows`:
-  - Match → `parecer_evidence='confirmed'` (a menos que o empate de data acima tenha travado em `unverified`).
-  - Sem match → `parecer_evidence='unverified'`.
-- Demais itens do grupo → `item_type=visita`, `parecer_evidence='not_applicable'`.
+Fluxo esperado:
 
-### 6. Resumo persistido
-Ao final, gravar em `payment_parecer_reports.cross_summary` (jsonb):
+```text
+Lote de Parecer, item TUSS 10102019:
+  auto-classify   → item_type_source=ambiguous_tuss, item_type_id=null
+  cross-reference → item_type_source=report_cross, item_type_id=<parecer|visita>
+  rerun auto-cls  → PROTECTED_SOURCES bloqueia sobrescrita ✓
 ```
-{ finished_at, items_total, candidates_considered,
-  parecer_confirmed, parecer_unverified, visitas,
-  skipped_no_key, skipped_no_key_sample_ids,
-  protected_kept }
+
+---
+
+## Passo 3 — `src/pages/ItemTypes.tsx`
+
+- Calcular em memória `tuss → Set<item_type_id>` a partir de `list.filter(p => p.active)` cruzando `tuss_default ∪ tuss_codes_extra`.
+- Marcar cada tipo cujo qualquer TUSS aparece em outro tipo ativo como `hasAmbiguity`.
+- Adicionar badge `Ambíguo` (variant destructive/amber) ao lado dos badges TUSS (linhas 299-308) com tooltip listando os outros tipos que colidem em cada código.
+- `Alert` no topo da lista quando `count > 0`: "N tipo(s) ativos compartilham TUSS. Esses códigos não são classificados automaticamente — o motor de Parecer/Visita ou override manual decide."
+- Cadastrar TUSS colidente continua permitido (é o caso legítimo Parecer × Visita). Sem mudança de schema/validação.
+
+---
+
+## Passo 4 — Depreciação do parâmetro (aguardando aprovação separada, executar via `insert`)
+
+```sql
+UPDATE system_parameter_defs
+SET description = '[DEPRECATED — substituído pelo motor determinístico de primeiro contato em jul/2026] ' || description
+WHERE key = 'parecer.classification'
+  AND description NOT LIKE '[DEPRECATED%';
 ```
-Resposta HTTP mantém chaves antigas (`confirmed`, `not_found`, `reclassified=0`) **e** adiciona as novas.
 
-### 7. Encadeamento
-Dispara `dispatch-payment-analysis` com `skip_parecer_cross_ref=true` (inalterado).
+Não deleta a linha, não toca em `system_parameter_overrides`.
 
-## Arquivos alterados
-| Arquivo | Mudança |
-|---|---|
-| `supabase/functions/cross-reference-parecer/index.ts` | Reescrita da classificação, fallbacks, lookback em batch, gravação de `cross_summary`. |
-| `supabase/functions/cross-reference-parecer/dedup.ts` | Deixar de importar (mantém arquivo, sem deletar). |
+---
 
-## Intocáveis (garantia)
-`import-parecer-report`, `analyze-payment`, motor de regras, todo `src/**`, coluna `reclassified_from_parecer` (mantida, escrita cessada).
+## Arquivos NÃO tocados
 
-## Deploy
-`cross-reference-parecer` precisa de **redeploy** após alteração. Informarei explicitamente no relatório final.
+- `supabase/functions/cross-reference-parecer/index.ts` — recém-alterado.
+- `supabase/functions/dispatch-payment-analysis/index.ts` — recém-alterado.
+- `supabase/functions/analyze-payment/index.ts` — apenas lê `item_type_id`; degradação com null confirmada segura.
+- `supabase/functions/_shared/rulesEngine.ts`, `calcOverlap.ts` — degradação com null já correta.
+- `src/lib/parsePaymentFile.ts`, `columnMapping.ts`, `reclassifyItemType.ts` — não fazem lookup global TUSS→tipo.
+- Hooks e demais telas — apenas consomem.
+
+## Casos de borda
+
+1. TUSS presente em vários tipos, todos menos um inativos → sobra 1 ativo → `auto_tuss` normal.
+2. Item já `ambiguous_tuss` que continua ambíguo → não gera UPDATE (`unchanged`).
+3. Item `ambiguous_tuss` cujo cadastro voltou a ser único → entra no bucket `auto_tuss` e é normalizado.
+4. Item sem TUSS → `auto_default` (ambiguidade só quando há `procedure_code`).
+5. Colisão em `tuss_codes_extra` (ex.: dois tipos listam mesmo extra) → ambíguo, igual `tuss_default`.
+6. Rerun após cross-ref → itens com `report_cross`/`report_cross_dedup` protegidos.
+7. Lote de Consulta pura sem colisão ativa → comportamento idêntico ao atual.
+8. Lote misto sem relatório → itens ambíguos ficam sem `item_type_id`; regras tipadas não casam → item vira `sem_regra`/alerta, visível ao analista. Ao subir relatório e reanalisar, cross-ref resolve.
+
+Aguardo aprovação da migration (Passo 1) para prosseguir.
