@@ -55,6 +55,7 @@ import { PaymentConciliationModal } from "@/components/payment-detail/PaymentCon
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
+import { PendingCostCenterAdjustmentSuggestions } from "@/components/payment-detail/PendingCostCenterAdjustmentSuggestions";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
 import {
   ReapplyRulesProgressDialog,
@@ -2547,6 +2548,19 @@ export default function CompanyAnalysis() {
         <DeductionsBanner
           paymentId={id}
           companyId={group.company_id}
+          canEdit={isAnalista || isAdminOrDiretor || isValidador}
+          onApplied={async () => { await composition.refresh(); stale.markFresh(); }}
+        />
+      )}
+
+      {/* Sugestões de lançamento por centro de custos (créditos/débitos cadastrados) */}
+      {id && group?.company_id && (payment as any)?.cost_center_code && (
+        <PendingCostCenterAdjustmentSuggestions
+          paymentId={id}
+          companyId={group.company_id}
+          hospitalId={(payment as any)?.hospital_id ?? null}
+          costCenterCode={(payment as any)?.cost_center_code ?? null}
+          competenceMonth={(payment as any)?.competence_month ?? null}
           canEdit={isAnalista || isAdminOrDiretor || isValidador}
           onApplied={async () => { await composition.refresh(); stale.markFresh(); }}
         />

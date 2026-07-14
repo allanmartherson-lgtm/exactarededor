@@ -23,6 +23,7 @@ import { useActiveHospitalId, useHospital } from "@/contexts/HospitalContext";
 import { buildReportData, generateCreditosDebitosPdf, generateCreditosDebitosXlsx, downloadBlob, type ReportFiltersSummary } from "@/lib/creditosDebitosReport";
 import { logDeductionEvent, logDeductionEvents } from "@/lib/deductionAudit";
 import { DeductionAuditDialog } from "@/components/DeductionAuditDialog";
+import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -39,6 +40,13 @@ type Adjustment = {
   payment_model_ids: string[] | null;
   recorrente: boolean;
   data_fim: string | null;
+  /** Filtro opcional: quando preenchido, o ajuste só é sugerido em lotes cujo
+   *  cost_center_code resolva para este cost_center. Vazio = qualquer lote. */
+  cost_center_id: string | null;
+  cost_center?: { id: string; code_p12: string; level4: string | null; level5: string | null } | null;
+  /** Estado local: código do CC exibido no combobox. Não persiste no banco —
+   *  é resolvido para id em saveAdj. */
+  _cc_code?: string | null;
   _company_name?: string;
 };
 
@@ -231,7 +239,7 @@ export default function CreditosDebitos() {
       fetchAllPaginated<{ id: string; name: string }>((from, to) =>
         supabase.from("companies").select("id, name").not("name", "ilike", "\\_\\_E2E%").order("name").range(from, to),
       ),
-      supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
+      supabase.from("company_financial_adjustments").select("*, cost_center:cost_centers(id, code_p12, level4, level5)").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
         .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id, origem_payment_id")
@@ -324,10 +332,11 @@ export default function CreditosDebitos() {
   }, [activeHospitalId]);
 
   const openAdj = (a?: Adjustment) => {
-    setEditingAdj(a ? { ...a } : {
+    setEditingAdj(a ? { ...a, _cc_code: a.cost_center?.code_p12 ?? null } : {
       tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
       parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
       payment_model_ids: null, recorrente: false, data_fim: null,
+      cost_center_id: null, _cc_code: null,
     });
     setAdjDialogOpen(true);
   };
@@ -337,6 +346,21 @@ export default function CreditosDebitos() {
       toast.error("Preencha empresa, descrição e valor"); return;
     }
     const recorrente = !!editingAdj.recorrente;
+    // Resolve cost_center_id a partir do código informado no combobox.
+    let costCenterId: string | null = null;
+    const ccCode = editingAdj._cc_code?.trim() || null;
+    if (ccCode) {
+      const { data: ccRow, error: ccErr } = await supabase
+        .from("cost_centers")
+        .select("id")
+        .eq("code_p12", ccCode)
+        .eq("active", true)
+        .maybeSingle();
+      if (ccErr || !ccRow) {
+        toast.error("Centro de custos inválido ou inativo"); return;
+      }
+      costCenterId = (ccRow as any).id;
+    }
     const payload: any = {
       company_id: editingAdj.company_id, tipo: editingAdj.tipo, descricao: editingAdj.descricao,
       valor_total: editingAdj.valor_total,
@@ -347,11 +371,12 @@ export default function CreditosDebitos() {
       payment_model_ids: (editingAdj.payment_model_ids && editingAdj.payment_model_ids.length > 0) ? editingAdj.payment_model_ids : null,
       recorrente,
       data_fim: recorrente ? (editingAdj.data_fim || null) : null,
+      cost_center_id: costCenterId,
     };
     setSavingAdj(true);
     const result = editingAdj.id
-      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*").single()
-      : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
+      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*, cost_center:cost_centers(id, code_p12, level4, level5)").single()
+      : await supabase.from("company_financial_adjustments").insert(payload).select("*, cost_center:cost_centers(id, code_p12, level4, level5)").single();
     setSavingAdj(false);
     if (result.error) { toast.error(result.error.message); return; }
     const row = result.data as Adjustment;
@@ -1649,6 +1674,11 @@ export default function CreditosDebitos() {
                           <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
                           <span className="font-medium text-sm">{a._company_name}</span>
                           {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
+                          {a.cost_center?.code_p12 && (
+                            <Badge variant="outline" className="text-[10px]" title={a.cost_center.level5 || a.cost_center.level4 || ""}>
+                              Só no CC {a.cost_center.code_p12}
+                            </Badge>
+                          )}
                           {!a.ativo && <Badge variant="outline">Inativo</Badge>}
                           {(() => {
                             const ids = a.payment_model_ids ?? [];
@@ -2126,6 +2156,19 @@ export default function CreditosDebitos() {
                 <Label>Descrição</Label>
                 <Input value={editingAdj.descricao || ""} onChange={e => setEditingAdj({ ...editingAdj, descricao: e.target.value })} />
               </div>
+              <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-1.5">
+                <Label className="text-xs">Centro de custos (filtro — opcional)</Label>
+                <CostCenterCombobox
+                  value={editingAdj._cc_code ?? null}
+                  onChange={(code) => setEditingAdj({ ...editingAdj, _cc_code: code })}
+                  placeholder="Qualquer centro (sem filtro)"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Vazio = aplica em qualquer lote da empresa. Preenchido = só será
+                  sugerido em lotes deste centro de custos (uma única vez por competência).
+                </p>
+              </div>
+
               <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Switch checked={!!editingAdj.recorrente} onCheckedChange={v => setEditingAdj({ ...editingAdj, recorrente: v })} />
