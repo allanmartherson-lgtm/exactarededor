@@ -30,10 +30,10 @@ Deno.serve(async (req) => {
     );
 
     let userId: string | null = null;
-    const auth = req.headers.get("Authorization");
-    if (auth) {
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
       const uc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: auth } } });
+        { global: { headers: { Authorization: authHeader } } });
       const { data: { user } } = await uc.auth.getUser();
       userId = user?.id ?? null;
     }
@@ -42,7 +42,14 @@ Deno.serve(async (req) => {
     // O bruto da PJ deixa de ser "soma de itens da PJ" e passa a ser a fatia
     // proporcional do total do pool segundo o pool_participants.percentual.
     const { data: pmtRow } = await supabase
-      .from("payments").select("pool_id, competence_month, competence_months").eq("id", payment_id).maybeSingle();
+      .from("payments").select("pool_id, competence_month, competence_months, hospital_id").eq("id", payment_id).maybeSingle();
+    const paymentHospitalId: string | null = (pmtRow as any)?.hospital_id ?? null;
+    if (paymentHospitalId && !auth.is_internal && !assertCallerHospital(auth, paymentHospitalId)) {
+      return new Response(JSON.stringify({
+        error: "hospital_scope_denied",
+        message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+      }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const poolId = (pmtRow as any)?.pool_id ?? null;
     const competenceDate: string | null = (pmtRow as any)?.competence_month
       ? String((pmtRow as any).competence_month).slice(0, 7) + "-01"
