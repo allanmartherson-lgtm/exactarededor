@@ -4113,6 +4113,19 @@ function RowMain({
                 </span>
               )}
               {isParecerPayment && <ParecerEvidenceBadge item={it} />}
+              {isParecerPayment && (() => {
+                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
+                if (!div) return null;
+                return (
+                  <span
+                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
+                    title={`${div} Verifique se a classificação está correta.`}
+                  >
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Divergência
+                  </span>
+                );
+              })()}
               {isParecerPayment && (
                 <CaseSubtypeBadge
                   item={it}
