@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { ZeevIcon } from "./ZeevIcon";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +21,11 @@ interface CopilotCardProps {
   context: Record<string, unknown>;
   title?: string;
   triggerLabel?: string;
-  /** se true, dispara IA assim que monta. Se false, espera o clique. */
+  /**
+   * @deprecated Removido em jul/2026 para conter custo de IA. O prop é
+   * ignorado — o card sempre espera clique explícito. Mantido apenas para
+   * compatibilidade de tipos com chamadores antigos.
+   */
   autoRun?: boolean;
   /** callback opcional com o resultado estruturado/textual */
   onResult?: (result: unknown) => void;
@@ -37,12 +41,13 @@ export function CopilotCard({
   context,
   title = "Análise IA",
   triggerLabel = "Pedir análise",
-  autoRun = false,
+  autoRun: _autoRunIgnored = false,
   onResult,
 }: CopilotCardProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ text?: string; json?: unknown } | null>(null);
   const [open, setOpen] = useState(true);
+  void _autoRunIgnored;
 
   const run = async () => {
     setLoading(true);
@@ -72,11 +77,8 @@ export function CopilotCard({
     }
   };
 
-  // auto-run on mount
-  useEffect(() => {
-    if (autoRun) run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // auto-run removido em jul/2026 — cada análise precisa de clique explícito.
+
 
   return (
     <Card className="border-purple-200 bg-purple-50/40 dark:border-purple-900 dark:bg-purple-950/20">

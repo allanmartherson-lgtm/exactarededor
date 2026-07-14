@@ -30,9 +30,10 @@ export function PaymentItemExplainButton({ item, candidateRules = [], itemStatus
         <CopilotCard
           task="explain_item_status"
           title="Por que esse item ficou assim?"
-          autoRun
+          triggerLabel="Analisar item com IA"
           context={{ item, candidate_rules: candidateRules, item_status: itemStatus }}
         />
+
       </PopoverContent>
     </Popover>
   );
