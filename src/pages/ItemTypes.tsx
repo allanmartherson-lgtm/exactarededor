@@ -308,7 +308,19 @@ export default function ItemTypes({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {(() => null)()}
+            {ambiguousCodes.size > 0 && !loading && (
+              <Alert className="mb-4 border-amber-500/50 bg-amber-500/5">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle>
+                  {ambiguousCodes.size} código(s) TUSS compartilhado(s) entre tipos ativos
+                </AlertTitle>
+                <AlertDescription>
+                  Códigos reivindicados por mais de um tipo (ex.: Parecer × Visita)
+                  não são classificados automaticamente. O motor de Parecer/Visita
+                  ou o override manual decide caso a caso.
+                </AlertDescription>
+              </Alert>
+            )}
             {loading ? (
               <p className="text-sm text-muted-foreground">Carregando…</p>
             ) : list.length === 0 ? (
@@ -318,7 +330,15 @@ export default function ItemTypes({
             ) : (
 
               <div className="space-y-2">
-                {list.map((p) => (
+                {list.map((p) => {
+                  const ambigMap = p.id ? ambiguityByTypeId.get(p.id) : undefined;
+                  const isAmbiguous = !!ambigMap && ambigMap.size > 0;
+                  const tooltipLines = ambigMap
+                    ? Array.from(ambigMap.entries()).map(
+                        ([code, others]) => `TUSS ${code}: também em ${others.join(", ")}`,
+                      )
+                    : [];
+                  return (
                   <div
                     key={p.id}
                     className="flex items-center justify-between gap-3 rounded-md border p-3"
@@ -350,12 +370,35 @@ export default function ItemTypes({
                             +{p.tuss_codes_extra.length} TUSS
                           </Badge>
                         )}
+                        {isAmbiguous && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs border-amber-500 text-amber-700 bg-amber-500/10 cursor-help"
+                                >
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  TUSS ambíguo
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <div className="text-xs space-y-1">
+                                  {tooltipLines.map((l) => (
+                                    <div key={l}>{l}</div>
+                                  ))}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         {!p.active && (
                           <Badge variant="secondary" className="text-xs">
                             inativo
                           </Badge>
                         )}
                       </div>
+
                       {p.description && (
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {p.description}
