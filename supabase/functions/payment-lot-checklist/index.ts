@@ -360,19 +360,18 @@ serve(async (req) => {
       merged = merged.slice(0, 10);
     }
 
+    if (hospitalId) {
+      await saveChecklistCache(
+        supabase, "payment_lot", hospitalId, scopeKey, inputHash,
+        { items: merged, summary }, LOVABLE_API_KEY ? "google/gemini-3-flash-preview" : null,
+      );
+    }
+
     return new Response(JSON.stringify({
       ok: true,
       items: merged,
-      summary: {
-        empresas: groups.length,
-        total_lote: lotTotal,
-        valor_em_risco: lotValueAtRisk,
-        reprovado: lotReprovado,
-        alerta: lotAlerta,
-        sem_regra: lotSemRegra,
-        bloqueantes: blockingCompanies.length,
-        tuss_pendentes: tussPending,
-      },
+      summary,
+      cached: false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
