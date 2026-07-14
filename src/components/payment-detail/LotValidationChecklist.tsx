@@ -7,13 +7,14 @@
 //  - validator (default): full checklist com checkboxes
 //  - director: resumo executivo read-only (sem checkboxes)
 
-import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, ChevronRight, Sparkles } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { ClipboardList, ChevronRight, Sparkles, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 type Audience = "validator" | "director";
 
@@ -59,35 +60,41 @@ const PRIORITY_LABEL: Record<ChecklistItem["priority"], string> = {
 
 export function LotValidationChecklist({ paymentId, companyToGroupId, audience = "validator" }: Props) {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [errored, setErrored] = useState(false);
   const [skipped, setSkipped] = useState<string | null>(null);
+  const [cached, setCached] = useState<boolean>(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+  const load = useCallback(async (force = false) => {
+    if (force) setRefreshing(true); else setLoading(true);
     setErrored(false);
     setSkipped(null);
-    supabase.functions
-      .invoke("payment-lot-checklist", { body: { payment_id: paymentId, audience } })
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error || !data?.ok) {
-          setErrored(true);
-          setItems([]);
-          setSummary(null);
-        } else {
-          setItems(Array.isArray(data.items) ? data.items : []);
-          setSummary(data.summary ?? null);
-          setSkipped(typeof data.skipped === "string" ? data.skipped : null);
-        }
-      })
-      .catch(() => { if (!cancelled) setErrored(true); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    try {
+      const { data, error } = await supabase.functions.invoke("payment-lot-checklist", {
+        body: { payment_id: paymentId, audience, force_refresh: force },
+      });
+      if (error || !data?.ok) {
+        setErrored(true);
+        setItems([]);
+        setSummary(null);
+      } else {
+        setItems(Array.isArray(data.items) ? data.items : []);
+        setSummary(data.summary ?? null);
+        setSkipped(typeof data.skipped === "string" ? data.skipped : null);
+        setCached(Boolean(data.cached));
+      }
+    } catch {
+      setErrored(true);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [paymentId, audience]);
+
+  useEffect(() => { load(false); }, [load]);
 
   const isDirector = audience === "director";
 
