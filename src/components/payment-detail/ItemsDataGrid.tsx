@@ -539,10 +539,6 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
   const wasReclassified = (item as any).reclassified_from_parecer === true;
   if (!evidence) return null;
   if (evidence === "confirmed") {
-    // Caso especial: parecer FOI cruzado no relatório, mas o sistema rebaixou
-    // o item para Visita (ex.: já existe parecer pago anterior no mesmo
-    // atendimento). Mostra selo distinto para não confundir o analista com
-    // "P✓" + "V" lado a lado sem explicação.
     if (wasReclassified) {
       return (
         <span
@@ -576,6 +572,28 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
       </span>
     );
   }
+  if (evidence === "unverified") {
+    return (
+      <span
+        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
+        title="Parecer sem registro no relatório do Tasy — analista precisa confirmar ou reclassificar como Visita"
+      >
+        <AlertTriangle className="h-2.5 w-2.5" />
+        Sem registro Tasy
+      </span>
+    );
+  }
+  if (evidence === "not_applicable") {
+    return (
+      <span
+        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
+        title="Contato subsequente — classificado como visita"
+      >
+        <FileText className="h-2.5 w-2.5" />
+        V
+      </span>
+    );
+  }
   return (
     <span
       className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
@@ -585,6 +603,33 @@ function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
       P×
     </span>
   );
+}
+
+/** Detecta divergência semântica entre a descrição da linha e a classificação
+ *  atual: quando o texto contém "parecer" mas o item foi tratado como Visita
+ *  (ou vice-versa). Sinal INFORMATIVO — não bloqueia. */
+function computeDescriptionDivergence(
+  item: PaymentItemRowData,
+  isParecerPayment: boolean,
+  visitaPaymentTypeId?: string | null,
+  parecerPaymentTypeId?: string | null,
+  lotePaymentTypeId?: string | null,
+): string | null {
+  if (!isParecerPayment || !visitaPaymentTypeId || !parecerPaymentTypeId) return null;
+  const name = String((item as any).procedure_name ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (!name) return null;
+  const mentionsParecer = /\bparecer\b/.test(name);
+  const mentionsVisita = /\bvisita\b/.test(name);
+  if (!mentionsParecer && !mentionsVisita) return null;
+  const tid = ((item as any).item_type_id ?? lotePaymentTypeId) as string | null;
+  const isVisita = tid === visitaPaymentTypeId;
+  const isParecer = tid === parecerPaymentTypeId || tid === lotePaymentTypeId;
+  if (mentionsParecer && isVisita) return "Descrição da linha menciona \"parecer\", mas o item foi classificado como Visita.";
+  if (mentionsVisita && isParecer) return "Descrição da linha menciona \"visita\", mas o item foi classificado como Parecer.";
+  return null;
 }
 
 /**
