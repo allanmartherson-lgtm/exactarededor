@@ -72,9 +72,12 @@ Deno.serve(async (req) => {
       is_default_when_no_tuss: boolean;
     }>;
 
-    // TUSS → item_type_id (primeiro match vence; colisões viram warning).
-    const tussToItemType = new Map<string, string>();
-    const collisions: string[] = [];
+    // TUSS → Set<item_type_id> — acumula TODOS os tipos ativos que reivindicam
+    // o código (via tuss_default ou tuss_codes_extra). Quando o set tem >1
+    // entrada, o TUSS é ambíguo (ex.: parecer_adulto e visita compartilham
+    // 10102019) e não pode ser classificado automaticamente. A decisão fica
+    // para `cross-reference-parecer` ou override manual.
+    const tussToItemTypes = new Map<string, Set<string>>();
     let defaultItemTypeId: string | null = null;
     let defaultItemTypeCode: string | null = null;
     let dynamicFallbackItemTypeId: string | null = null;
@@ -88,11 +91,9 @@ Deno.serve(async (req) => {
       }
       for (const c of codes) {
         if (!c) continue;
-        if (tussToItemType.has(c) && tussToItemType.get(c) !== it.id) {
-          collisions.push(`${c}: ${tussToItemType.get(c)} vs ${it.id}`);
-        } else {
-          tussToItemType.set(c, it.id);
-        }
+        const bucket = tussToItemTypes.get(c);
+        if (bucket) bucket.add(it.id);
+        else tussToItemTypes.set(c, new Set([it.id]));
       }
       if (it.is_default_when_no_tuss && !defaultItemTypeId) {
         defaultItemTypeId = it.id;
@@ -104,9 +105,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (collisions.length) {
-      console.warn(
-        `[auto-classify] TUSS duplicados em item_types: ${collisions.slice(0, 5).join("; ")}`,
+    const ambiguousTussCodes: string[] = [];
+    for (const [code, set] of tussToItemTypes) {
+      if (set.size > 1) ambiguousTussCodes.push(code);
+    }
+    if (ambiguousTussCodes.length) {
+      console.log(
+        `[auto-classify] TUSS ambíguos: ${ambiguousTussCodes.length} códigos [${ambiguousTussCodes.slice(0, 5).join(", ")}]`,
       );
     }
     if (!defaultItemTypeId) {
@@ -115,6 +120,7 @@ Deno.serve(async (req) => {
     if (!dynamicFallbackItemTypeId) {
       console.warn("[auto-classify] Nenhum item_type code=procedimento — TUSS sem match não será reclassificado dinamicamente.");
     }
+
 
     // 2. Varre itens do lote em páginas e classifica AGRUPANDO por destino.
     //    Antes: 1 UPDATE por item (3k+ round-trips → 504 IDLE_TIMEOUT).
