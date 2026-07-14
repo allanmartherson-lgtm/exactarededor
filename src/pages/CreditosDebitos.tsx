@@ -2156,6 +2156,19 @@ export default function CreditosDebitos() {
                 <Label>Descrição</Label>
                 <Input value={editingAdj.descricao || ""} onChange={e => setEditingAdj({ ...editingAdj, descricao: e.target.value })} />
               </div>
+              <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-1.5">
+                <Label className="text-xs">Centro de custos (filtro — opcional)</Label>
+                <CostCenterCombobox
+                  value={editingAdj._cc_code ?? null}
+                  onChange={(code) => setEditingAdj({ ...editingAdj, _cc_code: code })}
+                  placeholder="Qualquer centro (sem filtro)"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Vazio = aplica em qualquer lote da empresa. Preenchido = só será
+                  sugerido em lotes deste centro de custos (uma única vez por competência).
+                </p>
+              </div>
+
               <div className="col-span-2 rounded-md border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Switch checked={!!editingAdj.recorrente} onCheckedChange={v => setEditingAdj({ ...editingAdj, recorrente: v })} />
