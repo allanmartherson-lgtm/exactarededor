@@ -23,6 +23,7 @@ import { useActiveHospitalId, useHospital } from "@/contexts/HospitalContext";
 import { buildReportData, generateCreditosDebitosPdf, generateCreditosDebitosXlsx, downloadBlob, type ReportFiltersSummary } from "@/lib/creditosDebitosReport";
 import { logDeductionEvent, logDeductionEvents } from "@/lib/deductionAudit";
 import { DeductionAuditDialog } from "@/components/DeductionAuditDialog";
+import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 
 type Company = { id: string; name: string };
 type Adjustment = {
@@ -39,6 +40,13 @@ type Adjustment = {
   payment_model_ids: string[] | null;
   recorrente: boolean;
   data_fim: string | null;
+  /** Filtro opcional: quando preenchido, o ajuste só é sugerido em lotes cujo
+   *  cost_center_code resolva para este cost_center. Vazio = qualquer lote. */
+  cost_center_id: string | null;
+  cost_center?: { id: string; code_p12: string; level4: string | null; level5: string | null } | null;
+  /** Estado local: código do CC exibido no combobox. Não persiste no banco —
+   *  é resolvido para id em saveAdj. */
+  _cc_code?: string | null;
   _company_name?: string;
 };
 
