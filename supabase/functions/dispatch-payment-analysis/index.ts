@@ -388,7 +388,7 @@ Deno.serve(async (req) => {
             ai_statuses,
             tolerance_pct,
             force_fresh_rules: force_fresh_rules === true,
-            skip_ai: skip_ai === true,
+            skip_ai: __skip_ai,
           }),
         });
         if (!resp.ok) console.error("[dispatch] orquestrador retornou erro", resp.status, (await resp.text()).slice(0, 500));
