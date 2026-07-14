@@ -332,10 +332,11 @@ export default function CreditosDebitos() {
   }, [activeHospitalId]);
 
   const openAdj = (a?: Adjustment) => {
-    setEditingAdj(a ? { ...a } : {
+    setEditingAdj(a ? { ...a, _cc_code: a.cost_center?.code_p12 ?? null } : {
       tipo: "credito", descricao: "", valor_total: 0, parcelas_total: 1,
       parcelas_pagas: 0, data_inicio: new Date().toISOString().slice(0, 10), ativo: true, origem: "",
       payment_model_ids: null, recorrente: false, data_fim: null,
+      cost_center_id: null, _cc_code: null,
     });
     setAdjDialogOpen(true);
   };
@@ -345,6 +346,21 @@ export default function CreditosDebitos() {
       toast.error("Preencha empresa, descrição e valor"); return;
     }
     const recorrente = !!editingAdj.recorrente;
+    // Resolve cost_center_id a partir do código informado no combobox.
+    let costCenterId: string | null = null;
+    const ccCode = editingAdj._cc_code?.trim() || null;
+    if (ccCode) {
+      const { data: ccRow, error: ccErr } = await supabase
+        .from("cost_centers")
+        .select("id")
+        .eq("code_p12", ccCode)
+        .eq("active", true)
+        .maybeSingle();
+      if (ccErr || !ccRow) {
+        toast.error("Centro de custos inválido ou inativo"); return;
+      }
+      costCenterId = (ccRow as any).id;
+    }
     const payload: any = {
       company_id: editingAdj.company_id, tipo: editingAdj.tipo, descricao: editingAdj.descricao,
       valor_total: editingAdj.valor_total,
@@ -355,11 +371,12 @@ export default function CreditosDebitos() {
       payment_model_ids: (editingAdj.payment_model_ids && editingAdj.payment_model_ids.length > 0) ? editingAdj.payment_model_ids : null,
       recorrente,
       data_fim: recorrente ? (editingAdj.data_fim || null) : null,
+      cost_center_id: costCenterId,
     };
     setSavingAdj(true);
     const result = editingAdj.id
-      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*").single()
-      : await supabase.from("company_financial_adjustments").insert(payload).select("*").single();
+      ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*, cost_center:cost_centers(id, code_p12, level4, level5)").single()
+      : await supabase.from("company_financial_adjustments").insert(payload).select("*, cost_center:cost_centers(id, code_p12, level4, level5)").single();
     setSavingAdj(false);
     if (result.error) { toast.error(result.error.message); return; }
     const row = result.data as Adjustment;
