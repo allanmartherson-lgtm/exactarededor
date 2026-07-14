@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 // Migrado do Anthropic para o Lovable AI Gateway (openai/gpt-5.5) — usa LOVABLE_API_KEY.
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { maskPatients, unmaskDeep, unmaskText } from "../_shared/aiPrivacy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
