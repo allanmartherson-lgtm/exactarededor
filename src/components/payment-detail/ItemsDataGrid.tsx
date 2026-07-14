@@ -1996,7 +1996,8 @@ export function ItemsDataGrid({
     });
 
     return { packageGroups: groups, displayRows: display, attendanceMeta: meta, attendanceFirstIdxByAtt: firstIdx };
-  }, [filtered]);
+  }, [filtered, customSort, customSortActive]);
+
 
 
 
