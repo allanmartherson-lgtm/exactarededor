@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 // Migrado do Anthropic para o Lovable AI Gateway (openai/gpt-5.5) — usa LOVABLE_API_KEY.
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { maskPatients, unmaskDeep } from "../_shared/aiPrivacy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -475,6 +476,11 @@ REGRAS:
       return null;
     };
 
+    // LGPD: pseudonimiza qualquer nome de paciente presente no contexto
+    // antes de enviar à IA externa. reverseMap fica no escopo da request e
+    // re-hidrata o summary devolvido pela IA.
+    const { masked: maskedContexto, reverseMap: pseudoMap } = maskPatients(contexto);
+
     const callAi = (opts: { forceJsonText?: boolean } = {}) =>
       fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -492,7 +498,7 @@ REGRAS:
                 ? `${systemPrompt}\n\nRESPONDA APENAS com um objeto JSON válido (sem markdown, sem texto extra) com as chaves: headline (string), bullets (array de strings), risk_level ("baixo"|"medio"|"alto"|"critico"), recommended_action (string).`
                 : systemPrompt,
             },
-            { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
+            { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(maskedContexto, null, 2)}` },
           ],
           ...(opts.forceJsonText
             ? { response_format: { type: "json_object" } }
@@ -632,6 +638,11 @@ REGRAS:
       // mínimo a partir do próprio `contexto` já agregado. Não é tão rico
       // quanto o da IA, mas descreve o lote de forma correta.
       summary = buildDeterministicSummary();
+    } else {
+      // Re-hidrata tokens PACIENTE_N que a IA possa ter citado no headline,
+      // bullets ou recommended_action. Fallback determinístico já usa dados
+      // agregados sem paciente, então não precisa.
+      summary = unmaskDeep(summary, pseudoMap);
     }
 
 
