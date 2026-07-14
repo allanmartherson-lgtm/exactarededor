@@ -3723,8 +3723,8 @@ const PaymentDetail = () => {
             aria-expanded={aiCardsOpen}
           >
             <span className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Análise IA
+              <Settings2 className="h-4 w-4 text-primary" />
+              Análise
             </span>
             {aiCardsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>

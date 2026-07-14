@@ -540,7 +540,7 @@ export default function BiDiretoria() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-stretch">
           {[
             { label: "Validação", count: 1, valor: "R$ 431.478", pct: 25, tone: "info" },
-            { label: "Análise IA", count: 2, valor: "R$ 612.040", pct: 50, tone: "info" },
+            { label: "Em análise", count: 2, valor: "R$ 612.040", pct: 50, tone: "info" },
             { label: "Aprovação dir.", count: 3, valor: "R$ 874.314", pct: 70, tone: "info" },
             { label: "Pós-aprov. NF", count: 0, valor: "aguardando", pct: 10, tone: "muted" },
             { label: "Pago", count: "R$ 1,2mi", valor: `${display.encerrados} lotes no mês`, pct: 100, tone: "success" },

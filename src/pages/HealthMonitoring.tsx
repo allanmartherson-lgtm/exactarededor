@@ -464,7 +464,7 @@ export default function HealthMonitoring({ embedded = false }: { embedded?: bool
           <CheckRow
             icon={Clock}
             iconColor={data?.travados.length ? "red" : "green"}
-            label="Lotes travados em análise IA"
+            label="Lotes travados em análise pelo motor"
             sub={
               !data ? "Verificando..."
               : data.travados.length === 0 ? `Nenhum lote parado há mais de ${TRAVADO_HORAS}h`
@@ -542,7 +542,7 @@ export default function HealthMonitoring({ embedded = false }: { embedded?: bool
           <CheckRow
             icon={Clock}
             iconColor={filaStatus === "critico" ? "red" : filaStatus === "aviso" ? "yellow" : "green"}
-            label="Lotes em análise IA agora"
+            label="Lotes em análise pelo motor agora"
             sub={
               !data ? "Verificando..."
               : data.emAnaliseIA === 0 ? "Fila vazia — nenhum lote aguardando processamento"
