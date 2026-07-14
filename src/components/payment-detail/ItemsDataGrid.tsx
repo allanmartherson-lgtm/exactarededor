@@ -724,7 +724,8 @@ function ParecerUnverifiedActions({
   );
 }
 
-
+/**
+ * Tipo de pagamento por item (mostra/alterna entre Parecer × Visita).
  * Reusa `payment_items.item_type_id`: cada item pode pertencer a um
  * item_type diferente do tipo do lote — é assim que a base mista
  * (Parecer Adulto com algumas visitas) é tratada sem criar lotes separados.
