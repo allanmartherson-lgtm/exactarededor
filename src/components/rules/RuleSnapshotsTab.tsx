@@ -88,6 +88,8 @@ export function RuleSnapshotsTab({ ruleId, onRestored }: Props) {
       toast({ title: "Falha ao restaurar", description: error.message, variant: "destructive" });
       return;
     }
+    const { recomputeDoctorSpecificExclusions } = await import("@/lib/recomputeDoctorSpecificExclusions");
+    await recomputeDoctorSpecificExclusions();
     toast({ title: "Snapshot restaurado", description: "A regra foi revertida com sucesso." });
     await load();
     onRestored?.();
