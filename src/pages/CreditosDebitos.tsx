@@ -1674,6 +1674,11 @@ export default function CreditosDebitos() {
                           <Badge variant={a.tipo === "credito" ? "default" : "secondary"}>{a.tipo}</Badge>
                           <span className="font-medium text-sm">{a._company_name}</span>
                           {a.recorrente && <Badge variant="outline" className="text-[10px]">Fixo mensal</Badge>}
+                          {a.cost_center?.code_p12 && (
+                            <Badge variant="outline" className="text-[10px]" title={a.cost_center.level5 || a.cost_center.level4 || ""}>
+                              Só no CC {a.cost_center.code_p12}
+                            </Badge>
+                          )}
                           {!a.ativo && <Badge variant="outline">Inativo</Badge>}
                           {(() => {
                             const ids = a.payment_model_ids ?? [];
