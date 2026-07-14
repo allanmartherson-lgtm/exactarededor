@@ -7,7 +7,7 @@
 //   - mode=finalize → atualiza row_count
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -16,11 +16,12 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   const _auth = await requireInternalOrRole(req);
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
-    return new Response(null, { headers: corsHeaders });
 
   try {
     const body = await req.json();
@@ -96,6 +97,9 @@ Deno.serve(async (req) => {
       if (!hospitalId) {
         return json({ error: "Pagamento sem hospital vinculado — não é possível importar relatório de parecer." }, 400);
       }
+      if (!_auth.is_internal && !assertCallerHospital(_auth, hospitalId)) {
+        return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+      }
 
       const { data: header, error: headerErr } = await supabase
         .from("payment_parecer_reports")
@@ -124,6 +128,19 @@ Deno.serve(async (req) => {
       }
       if (rows.length === 0) return json({ ok: true, inserted: 0 });
 
+      // Guard multi-tenant: resolve hospital via report → payment.
+      {
+        const { data: rep } = await supabase
+          .from("payment_parecer_reports")
+          .select("hospital_id")
+          .eq("id", report_id)
+          .maybeSingle();
+        const hId = (rep as any)?.hospital_id ?? null;
+        if (!_auth.is_internal && !assertCallerHospital(_auth, hId)) {
+          return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+        }
+      }
+
       const payload = rows.map((r: any) => ({
         report_id,
         atendimento: r.atendimento ?? null,
@@ -150,6 +167,17 @@ Deno.serve(async (req) => {
     if (mode === "finalize") {
       const { report_id, row_count } = body ?? {};
       if (!report_id) return json({ error: "report_id obrigatório" }, 400);
+      {
+        const { data: rep0 } = await supabase
+          .from("payment_parecer_reports")
+          .select("hospital_id")
+          .eq("id", report_id)
+          .maybeSingle();
+        const hId0 = (rep0 as any)?.hospital_id ?? null;
+        if (!_auth.is_internal && !assertCallerHospital(_auth, hId0)) {
+          return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+        }
+      }
       await supabase
         .from("payment_parecer_reports")
         .update({ row_count: Number(row_count) || 0 } as any)

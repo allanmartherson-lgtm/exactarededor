@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 const functionCorsHeaders = {
   ...corsHeaders,
   "Access-Control-Allow-Headers": "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer, x-active-hospital",
@@ -93,6 +93,12 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Pagamento sem hospital vinculado — não é possível marcar caso especial." }),
         { status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    if (!_auth.is_internal && !assertCallerHospital(_auth, payment.hospital_id)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" } },
       );
     }
 

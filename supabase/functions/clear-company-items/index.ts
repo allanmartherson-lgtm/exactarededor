@@ -8,7 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-active-hospital",
@@ -66,6 +66,10 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (payErr) return json({ error: "load_failed", detail: payErr.message }, 500);
   if (!payment) return json({ error: "not_found" }, 404);
+
+  if (!_auth.is_internal && !assertCallerHospital(_auth, (payment as any)?.hospital_id ?? null)) {
+    return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+  }
 
   const { data: roleRows } = await admin
     .from("user_roles")
