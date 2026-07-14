@@ -60,7 +60,7 @@ import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculation
 import { EngineSourcesCard } from "@/components/payment-detail/EngineSourcesCard";
 
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
-import { LotValidationChecklist } from "@/components/payment-detail/LotValidationChecklist";
+
 import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
@@ -3755,15 +3755,6 @@ const PaymentDetail = () => {
           </button>
           {aiCardsOpen && (
             <div className="space-y-3 mt-2">
-              {id && !isConfeccao && (() => {
-                const hasVal = groups.some((g) => String(g.status) === "aguardando_validacao");
-                const hasApr = groups.some((g) => String(g.status) === "aguardando_aprovacao");
-                if (!hasVal && !hasApr) return null;
-                const aud: "validator" | "director" = (isDiretor && hasApr) ? "director" : "validator";
-                const map: Record<string, string> = {};
-                groups.forEach((g) => { map[g.company_name] = g.id; });
-                return <LotValidationChecklist paymentId={id} audience={aud} companyToGroupId={map} />;
-              })()}
               {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
               {id && <EngineSourcesCard paymentId={id} />}
               {id && <PoolCalculationCard paymentId={id} />}
@@ -4170,15 +4161,6 @@ const PaymentDetail = () => {
               {/* Coluna principal (2/3): cards de IA + Anomalias. No mobile, IA já aparece no collapsible. */}
               <div className="md:col-span-2 min-w-0 space-y-4">
                 <div className="hidden md:block space-y-4">
-                  {id && !isConfeccao && (() => {
-                    const hasVal = groups.some((g) => String(g.status) === "aguardando_validacao");
-                    const hasApr = groups.some((g) => String(g.status) === "aguardando_aprovacao");
-                    if (!hasVal && !hasApr) return null;
-                    const aud: "validator" | "director" = (isDiretor && hasApr) ? "director" : "validator";
-                    const map: Record<string, string> = {};
-                    groups.forEach((g) => { map[g.company_name] = g.id; });
-                    return <LotValidationChecklist paymentId={id} audience={aud} companyToGroupId={map} />;
-                  })()}
                   {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
                   {id && <DirectorBriefingCard
                     paymentId={id}
