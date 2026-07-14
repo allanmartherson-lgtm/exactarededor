@@ -95,6 +95,12 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" } },
       );
     }
+    if (!_auth.is_internal && !assertCallerHospital(_auth, payment.hospital_id)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Conceito atualizado (jun/2026): analista tem autonomia total.
     // Marca já entra como `approved` — motor aplica regra de caso especial
