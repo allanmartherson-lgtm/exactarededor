@@ -638,6 +638,11 @@ REGRAS:
       // mínimo a partir do próprio `contexto` já agregado. Não é tão rico
       // quanto o da IA, mas descreve o lote de forma correta.
       summary = buildDeterministicSummary();
+    } else {
+      // Re-hidrata tokens PACIENTE_N que a IA possa ter citado no headline,
+      // bullets ou recommended_action. Fallback determinístico já usa dados
+      // agregados sem paciente, então não precisa.
+      summary = unmaskDeep(summary, pseudoMap);
     }
 
 
