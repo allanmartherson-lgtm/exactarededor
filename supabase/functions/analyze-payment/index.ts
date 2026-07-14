@@ -96,17 +96,17 @@ serve(async (req) => {
   if (asyncFlag) {
     // @ts-ignore EdgeRuntime existe no runtime Supabase Edge Functions
     EdgeRuntime.waitUntil(
-      handleAnalyzePayment(buildReq()).catch((e) => console.error("[analyze-payment][bg] erro não-capturado:", e)),
+      handleAnalyzePayment(buildReq(), auth).catch((e) => console.error("[analyze-payment][bg] erro não-capturado:", e)),
     );
     return new Response(JSON.stringify({ status: "accepted", mode: "async" }), {
       status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  return await handleAnalyzePayment(buildReq());
+  return await handleAnalyzePayment(buildReq(), auth);
 });
 
-async function handleAnalyzePayment(req: Request): Promise<Response> {
+async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeof requireInternalOrRole>>): Promise<Response> {
 
   const startTime = Date.now();
   let diagnostics = {
