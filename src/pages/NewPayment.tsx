@@ -5072,7 +5072,7 @@ const NewPayment = () => {
                     ? "Anexe o relatório de pareceres"
                     : sectorOnlyUnresolvedCount > 0
                       ? (modoConfeccao ? "Criar e calcular (setores serão ignorados)" : "Criar e analisar (setores serão ignorados)")
-                      : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
+                      : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar"}
           </Button>
         </div>
 
