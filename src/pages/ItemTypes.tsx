@@ -15,6 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +30,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Tag, Plus, Pencil, Star } from "lucide-react";
+import { Tag, Plus, Pencil, Star, AlertTriangle } from "lucide-react";
+
 
 /**
  * Cadastro de TIPOS DE ITEM (procedimento da linha).
@@ -232,9 +240,43 @@ export default function ItemTypes({
     else load();
   };
 
+  // Ambiguidade de TUSS: acumula, entre os TIPOS ATIVOS, os tipos que
+  // reivindicam cada código (tuss_default ∪ tuss_codes_extra). Códigos com
+  // ≥2 tipos ativos ficam ambíguos — o motor NÃO classifica automaticamente
+  // (fica para o cross-reference-parecer ou override manual).
+  const tussOwners = new Map<string, Array<{ id: string; label: string }>>();
+  for (const p of list) {
+    if (!p.active || !p.id) continue;
+    const codes = new Set<string>();
+    if (p.tuss_default) codes.add(p.tuss_default.trim());
+    for (const c of p.tuss_codes_extra ?? []) {
+      if (c) codes.add(String(c).trim());
+    }
+    for (const c of codes) {
+      if (!c) continue;
+      const arr = tussOwners.get(c) ?? [];
+      arr.push({ id: p.id, label: p.label });
+      tussOwners.set(c, arr);
+    }
+  }
+  const ambiguousCodes = new Map<string, Array<{ id: string; label: string }>>();
+  for (const [code, owners] of tussOwners) {
+    if (owners.length > 1) ambiguousCodes.set(code, owners);
+  }
+  const ambiguityByTypeId = new Map<string, Map<string, string[]>>();
+  for (const [code, owners] of ambiguousCodes) {
+    for (const o of owners) {
+      const others = owners.filter((x) => x.id !== o.id).map((x) => x.label);
+      const bucket = ambiguityByTypeId.get(o.id) ?? new Map<string, string[]>();
+      bucket.set(code, others);
+      ambiguityByTypeId.set(o.id, bucket);
+    }
+  }
+
   return (
     <>
       {!embedded && (
+
         <PageHeader
           title="Tipos de item"
           description="Tipos descrevem o procedimento da linha (Parecer, Visita, Cirurgia, Consulta, Bônus, Exames). O motor usa o TUSS do item para identificar o tipo automaticamente; itens sem TUSS caem no tipo padrão marcado abaixo."
@@ -266,6 +308,19 @@ export default function ItemTypes({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {ambiguousCodes.size > 0 && !loading && (
+              <Alert className="mb-4 border-amber-500/50 bg-amber-500/5">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle>
+                  {ambiguousCodes.size} código(s) TUSS compartilhado(s) entre tipos ativos
+                </AlertTitle>
+                <AlertDescription>
+                  Códigos reivindicados por mais de um tipo (ex.: Parecer × Visita)
+                  não são classificados automaticamente. O motor de Parecer/Visita
+                  ou o override manual decide caso a caso.
+                </AlertDescription>
+              </Alert>
+            )}
             {loading ? (
               <p className="text-sm text-muted-foreground">Carregando…</p>
             ) : list.length === 0 ? (
@@ -273,8 +328,17 @@ export default function ItemTypes({
                 Nenhum tipo cadastrado.
               </p>
             ) : (
+
               <div className="space-y-2">
-                {list.map((p) => (
+                {list.map((p) => {
+                  const ambigMap = p.id ? ambiguityByTypeId.get(p.id) : undefined;
+                  const isAmbiguous = !!ambigMap && ambigMap.size > 0;
+                  const tooltipLines = ambigMap
+                    ? Array.from(ambigMap.entries()).map(
+                        ([code, others]) => `TUSS ${code}: também em ${others.join(", ")}`,
+                      )
+                    : [];
+                  return (
                   <div
                     key={p.id}
                     className="flex items-center justify-between gap-3 rounded-md border p-3"
@@ -306,12 +370,35 @@ export default function ItemTypes({
                             +{p.tuss_codes_extra.length} TUSS
                           </Badge>
                         )}
+                        {isAmbiguous && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs border-amber-500 text-amber-700 bg-amber-500/10 cursor-help"
+                                >
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  TUSS ambíguo
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <div className="text-xs space-y-1">
+                                  {tooltipLines.map((l) => (
+                                    <div key={l}>{l}</div>
+                                  ))}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         {!p.active && (
                           <Badge variant="secondary" className="text-xs">
                             inativo
                           </Badge>
                         )}
                       </div>
+
                       {p.description && (
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {p.description}
@@ -333,7 +420,9 @@ export default function ItemTypes({
                       </Button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
+
               </div>
             )}
           </CardContent>

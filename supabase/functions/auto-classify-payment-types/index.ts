@@ -25,11 +25,18 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Fontes cuja classificação é intocável pelo auto-classify. Espelha
+// `cross-reference-parecer` (que já respeita 'company_override' e 'base_tipo')
+// e cobre overrides manuais + cross-reference. 'company_override' e 'base_tipo'
+// ainda não são emitidos por esta função — estão aqui como blindagem futura.
 const PROTECTED_SOURCES = new Set([
   "manual",
   "report_cross",
   "report_cross_dedup",
+  "company_override",
+  "base_tipo",
 ]);
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -65,9 +72,12 @@ Deno.serve(async (req) => {
       is_default_when_no_tuss: boolean;
     }>;
 
-    // TUSS → item_type_id (primeiro match vence; colisões viram warning).
-    const tussToItemType = new Map<string, string>();
-    const collisions: string[] = [];
+    // TUSS → Set<item_type_id> — acumula TODOS os tipos ativos que reivindicam
+    // o código (via tuss_default ou tuss_codes_extra). Quando o set tem >1
+    // entrada, o TUSS é ambíguo (ex.: parecer_adulto e visita compartilham
+    // 10102019) e não pode ser classificado automaticamente. A decisão fica
+    // para `cross-reference-parecer` ou override manual.
+    const tussToItemTypes = new Map<string, Set<string>>();
     let defaultItemTypeId: string | null = null;
     let defaultItemTypeCode: string | null = null;
     let dynamicFallbackItemTypeId: string | null = null;
@@ -81,11 +91,9 @@ Deno.serve(async (req) => {
       }
       for (const c of codes) {
         if (!c) continue;
-        if (tussToItemType.has(c) && tussToItemType.get(c) !== it.id) {
-          collisions.push(`${c}: ${tussToItemType.get(c)} vs ${it.id}`);
-        } else {
-          tussToItemType.set(c, it.id);
-        }
+        const bucket = tussToItemTypes.get(c);
+        if (bucket) bucket.add(it.id);
+        else tussToItemTypes.set(c, new Set([it.id]));
       }
       if (it.is_default_when_no_tuss && !defaultItemTypeId) {
         defaultItemTypeId = it.id;
@@ -97,9 +105,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (collisions.length) {
-      console.warn(
-        `[auto-classify] TUSS duplicados em item_types: ${collisions.slice(0, 5).join("; ")}`,
+    const ambiguousTussCodes: string[] = [];
+    for (const [code, set] of tussToItemTypes) {
+      if (set.size > 1) ambiguousTussCodes.push(code);
+    }
+    if (ambiguousTussCodes.length) {
+      console.log(
+        `[auto-classify] TUSS ambíguos: ${ambiguousTussCodes.length} códigos [${ambiguousTussCodes.slice(0, 5).join(", ")}]`,
       );
     }
     if (!defaultItemTypeId) {
@@ -109,6 +121,7 @@ Deno.serve(async (req) => {
       console.warn("[auto-classify] Nenhum item_type code=procedimento — TUSS sem match não será reclassificado dinamicamente.");
     }
 
+
     // 2. Varre itens do lote em páginas e classifica AGRUPANDO por destino.
     //    Antes: 1 UPDATE por item (3k+ round-trips → 504 IDLE_TIMEOUT).
     //    Agora: agrupa ids por (item_type_id, source) e faz UPDATE em lote
@@ -117,10 +130,14 @@ Deno.serve(async (req) => {
     let autoTuss = 0;
     let autoHeuristic = 0;
     let autoDefault = 0;
+    let ambiguousTuss = 0;
     let unchanged = 0;
     const pageSize = 1000;
 
-    // key = `${nextItemTypeId}::${nextSource}` → lista de ids a atualizar
+    // Sentinela para representar item_type_id=null na chave do bucket
+    // (Map<string,…> não aceita null como parte da chave composta).
+    const NULL_SENTINEL = "__NULL__";
+    // key = `${nextItemTypeId | NULL_SENTINEL}::${nextSource}` → lista de ids
     const buckets = new Map<string, string[]>();
 
     for (let from = 0; ; from += pageSize) {
@@ -142,11 +159,24 @@ Deno.serve(async (req) => {
 
         const code = String(it.procedure_code ?? "").trim();
         let nextItemTypeId: string | null = null;
-        let nextSource: "auto_tuss" | "auto_heuristic" | "auto_default" | null = null;
+        let nextSource:
+          | "auto_tuss"
+          | "auto_heuristic"
+          | "auto_default"
+          | "ambiguous_tuss"
+          | null = null;
 
-        if (code && tussToItemType.has(code)) {
-          nextItemTypeId = tussToItemType.get(code)!;
-          nextSource = "auto_tuss";
+        if (code && tussToItemTypes.has(code)) {
+          const set = tussToItemTypes.get(code)!;
+          if (set.size === 1) {
+            nextItemTypeId = set.values().next().value as string;
+            nextSource = "auto_tuss";
+          } else {
+            // TUSS reivindicado por 2+ tipos ativos → deixa null e marca
+            // ambíguo. Decisão será do cross-reference-parecer ou manual.
+            nextItemTypeId = null;
+            nextSource = "ambiguous_tuss";
+          }
         } else if (code && dynamicFallbackItemTypeId) {
           nextItemTypeId = dynamicFallbackItemTypeId;
           nextSource = "auto_heuristic";
@@ -155,12 +185,12 @@ Deno.serve(async (req) => {
           nextSource = "auto_default";
         }
 
-        if (!nextItemTypeId || !nextSource) {
+        if (!nextSource) {
           unchanged++;
           continue;
         }
 
-        // Sem mudança? pula (não gera UPDATE).
+        // Sem mudança? pula (não gera UPDATE). Trata ambíguo->ambíguo também.
         if (
           it.item_type_id === nextItemTypeId &&
           it.item_type_source === nextSource
@@ -169,7 +199,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const bucketKey = `${nextItemTypeId}::${nextSource}`;
+        const bucketKey = `${nextItemTypeId ?? NULL_SENTINEL}::${nextSource}`;
         const arr = buckets.get(bucketKey);
         if (arr) arr.push(it.id);
         else buckets.set(bucketKey, [it.id]);
@@ -182,10 +212,11 @@ Deno.serve(async (req) => {
     //    URL do PostgREST dentro do limite seguro.
     const CHUNK = 500;
     for (const [key, ids] of buckets) {
-      const [nextItemTypeId, nextSource] = key.split("::") as [
+      const [rawTypeId, nextSource] = key.split("::") as [
         string,
-        "auto_tuss" | "auto_heuristic" | "auto_default",
+        "auto_tuss" | "auto_heuristic" | "auto_default" | "ambiguous_tuss",
       ];
+      const nextItemTypeId = rawTypeId === NULL_SENTINEL ? null : rawTypeId;
       for (let i = 0; i < ids.length; i += CHUNK) {
         const chunk = ids.slice(i, i + CHUNK);
         const { error: upErr } = await supabase
@@ -204,12 +235,13 @@ Deno.serve(async (req) => {
         }
         if (nextSource === "auto_tuss") autoTuss += chunk.length;
         else if (nextSource === "auto_heuristic") autoHeuristic += chunk.length;
+        else if (nextSource === "ambiguous_tuss") ambiguousTuss += chunk.length;
         else autoDefault += chunk.length;
       }
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -220,11 +252,13 @@ Deno.serve(async (req) => {
         auto_tuss: autoTuss,
         auto_heuristic: autoHeuristic,
         auto_default: autoDefault,
+        ambiguous_tuss: ambiguousTuss,
         unchanged,
         default_item_type: defaultItemTypeCode,
         dynamic_fallback_item_type: dynamicFallbackItemTypeCode,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+
     );
   } catch (e: any) {
     console.error("[auto-classify-payment-types] error", e);
