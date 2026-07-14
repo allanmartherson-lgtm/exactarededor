@@ -34,6 +34,7 @@ import {
   type EngineSnapshot,
   type SiblingItem,
 } from "../_shared/aiInputHash.ts";
+import { maskPatients, unmaskText, type ReverseMap } from "../_shared/aiPrivacy.ts";
 import { buildPrimaryItemByRole, isPrimaryAnchor, normRole } from "../_shared/packagePrimary.ts";
 import {
   normDocKey,
