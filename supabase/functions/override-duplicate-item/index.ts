@@ -36,6 +36,24 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     );
 
+    // Guard multi-tenant: resolve hospital via payment_item → payment.
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: itemRow } = await admin
+      .from("payment_items")
+      .select("payment_id, payments!inner(hospital_id)")
+      .eq("id", item_id)
+      .maybeSingle();
+    const targetHospitalId = (itemRow as any)?.payments?.hospital_id ?? null;
+    if (!_auth.is_internal && !assertCallerHospital(_auth, targetHospitalId)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { data, error } = await supabase.rpc("apply_duplicate_override", {
       _item_id: item_id,
       _justification: justification,
