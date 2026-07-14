@@ -105,18 +105,25 @@ export function ParecerCrossReferencePanel({
     const total = items.length;
     const checked = items.filter((i) => !!i.parecer_evidence).length;
     const confirmed = items.filter((i) => i.parecer_evidence === "confirmed").length;
+    const unverified = items.filter((i) => i.parecer_evidence === "unverified").length;
     const missing = items.filter((i) => i.parecer_evidence === "not_found").length;
+    const visitas = items.filter((i) => i.parecer_evidence === "not_applicable").length;
     const weak = items.filter((i) => i.parecer_evidence === "confirmed" && i.parecer_evidence_weak).length;
     const autoTreated = items.filter((i) => i.manual_intervention_source === "auto_parecer_report").length;
     const reclassified = items.filter((i) => i.reclassified_from_parecer === true).length;
-    return { total, checked, confirmed, missing, weak, autoTreated, reclassified };
+    return { total, checked, confirmed, unverified, missing, visitas, weak, autoTreated, reclassified };
   }, [items]);
 
   const reclassifiedItems = items.filter((i) => i.reclassified_from_parecer === true);
 
 
   const issues = items
-    .filter((i) => i.parecer_evidence === "not_found" || (i.parecer_evidence === "confirmed" && i.parecer_evidence_weak))
+    .filter(
+      (i) =>
+        i.parecer_evidence === "not_found" ||
+        i.parecer_evidence === "unverified" ||
+        (i.parecer_evidence === "confirmed" && i.parecer_evidence_weak),
+    )
     .slice(0, 25);
 
   if (!enabled) return null;
@@ -141,11 +148,12 @@ export function ParecerCrossReferencePanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
           <Metric label="Itens" value={summary.total} />
           <Metric label="Verificados" value={summary.checked} />
-          <Metric label="Cruzados" value={summary.confirmed} tone="success" />
-          <Metric label="Sem parecer" value={summary.missing} tone={summary.missing ? "warning" : "muted"} />
+          <Metric label="Confirmados" value={summary.confirmed} tone="success" />
+          <Metric label="Sem registro" value={summary.unverified} tone={summary.unverified ? "warning" : "muted"} />
+          <Metric label="Visitas" value={summary.visitas} />
           <Metric label="Divergentes" value={summary.weak} tone={summary.weak ? "warning" : "muted"} />
           <Metric label="Auto-tratados" value={summary.autoTreated} tone="success" />
           <Metric label="Reclassificados" value={summary.reclassified} tone={summary.reclassified ? "warning" : "muted"} />
