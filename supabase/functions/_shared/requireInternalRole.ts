@@ -63,7 +63,7 @@ export async function requireInternalOrRole(
     } catch { /* not a JWT */ }
   }
   if (isInternal) {
-    return { ok: true, is_internal: true, user_id: null };
+    return { ok: true, is_internal: true, user_id: null, hospital_ids: null, active_hospital_id: null };
   }
 
   // User JWT — must be authenticated AND have an allowed role
