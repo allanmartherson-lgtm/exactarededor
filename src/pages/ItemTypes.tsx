@@ -274,6 +274,7 @@ export default function ItemTypes({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {(() => null)()}
             {loading ? (
               <p className="text-sm text-muted-foreground">Carregando…</p>
             ) : list.length === 0 ? (
@@ -281,6 +282,7 @@ export default function ItemTypes({
                 Nenhum tipo cadastrado.
               </p>
             ) : (
+
               <div className="space-y-2">
                 {list.map((p) => (
                   <div
