@@ -143,11 +143,25 @@ export function LotValidationChecklist({ paymentId, companyToGroupId, audience =
         <CardTitle className="flex items-center gap-2 text-sm">
           <ClipboardList className="h-4 w-4 text-violet-600" />
           {ariaTitle}
+          {cached && (
+            <Badge variant="muted" className="text-[10px] font-normal">em cache</Badge>
+          )}
           {!isDirector && (
             <span className="text-xs font-normal text-muted-foreground ml-auto">
               {checked.size}/{items.length} conferidos
             </span>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-6 px-2 text-[11px] ${isDirector ? "ml-auto" : ""}`}
+            onClick={() => load(true)}
+            disabled={refreshing}
+            aria-label="Atualizar checklist"
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
