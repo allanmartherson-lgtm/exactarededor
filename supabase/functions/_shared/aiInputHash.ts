@@ -26,7 +26,7 @@
  *  - shape de itemsForAi
  *  - qualquer regra de composição do payload da IA
  */
-export const AI_PROMPT_VERSION = "2026-07-13.v1";
+export const AI_PROMPT_VERSION = "2026-07-14.v2-pii-mask";
 
 /**
  * Serialização canônica: chaves ordenadas recursivamente. Arrays preservam
