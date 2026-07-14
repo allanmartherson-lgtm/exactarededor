@@ -420,7 +420,9 @@ export default function ItemTypes({
                       </Button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
+
               </div>
             )}
           </CardContent>
