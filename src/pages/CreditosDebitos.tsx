@@ -239,7 +239,7 @@ export default function CreditosDebitos() {
       fetchAllPaginated<{ id: string; name: string }>((from, to) =>
         supabase.from("companies").select("id, name").not("name", "ilike", "\\_\\_E2E%").order("name").range(from, to),
       ),
-      supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
+      supabase.from("company_financial_adjustments").select("*, cost_center:cost_centers(id, code_p12, level4, level5)").order("created_at", { ascending: false }),
       (supabase as any)
         .from("glosa_debts")
         .select("id, company_id, doctor_id, doctor_name, doctor_crm, total_debt, parcelas_default, status, created_at, confirmed_at, target_payment_id, origem_payment_id")
