@@ -317,6 +317,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
           payment_id: paymentId,
           only_companies: names,
           force_fresh_rules: true,
+          run_ai: true,
         },
       });
       if (invErr) {
