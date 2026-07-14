@@ -849,6 +849,7 @@ export type Database = {
         Row: {
           ativo: boolean
           company_id: string
+          cost_center_id: string | null
           created_at: string
           created_by: string | null
           data_fim: string | null
@@ -868,6 +869,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           company_id: string
+          cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
           data_fim?: string | null
@@ -887,6 +889,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           company_id?: string
+          cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
           data_fim?: string | null
@@ -909,6 +912,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_financial_adjustments_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
           {
