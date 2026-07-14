@@ -67,6 +67,10 @@ Deno.serve(async (req) => {
   if (payErr) return json({ error: "load_failed", detail: payErr.message }, 500);
   if (!payment) return json({ error: "not_found" }, 404);
 
+  if (!_auth.is_internal && !assertCallerHospital(_auth, (payment as any)?.hospital_id ?? null)) {
+    return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+  }
+
   const { data: roleRows } = await admin
     .from("user_roles")
     .select("role")
