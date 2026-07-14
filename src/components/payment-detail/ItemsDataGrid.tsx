@@ -2661,7 +2661,7 @@ export function ItemsDataGrid({
           <Popover>
 
             <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-8 text-xs ml-auto">
+              <Button size="sm" variant="outline" className="h-8 text-xs">
                 <Columns3 className="h-3.5 w-3.5 mr-1" />
                 Colunas
               </Button>
