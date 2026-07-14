@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { ClipboardList } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { ClipboardList, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 interface ChecklistItem {
   text: string;
@@ -31,35 +32,35 @@ const PRIORITY_LABEL: Record<ChecklistItem["priority"], string> = {
 
 export function ValidationChecklist({ companyName, paymentId }: Props) {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [errored, setErrored] = useState(false);
+  const [cached, setCached] = useState<boolean>(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+  const load = useCallback(async (force = false) => {
+    if (force) setRefreshing(true); else setLoading(true);
     setErrored(false);
-
-    supabase.functions
-      .invoke("company-checklist", { body: { company_name: companyName, payment_id: paymentId } })
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error || !data?.ok) {
-          setErrored(true);
-          setItems([]);
-        } else {
-          setItems(Array.isArray(data.checklist) ? data.checklist : []);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setErrored(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("company-checklist", {
+        body: { company_name: companyName, payment_id: paymentId, force_refresh: force },
       });
-
-    return () => { cancelled = true; };
+      if (error || !data?.ok) {
+        setErrored(true);
+        setItems([]);
+      } else {
+        setItems(Array.isArray(data.checklist) ? data.checklist : []);
+        setCached(Boolean(data.cached));
+      }
+    } catch {
+      setErrored(true);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [companyName, paymentId]);
+
+  useEffect(() => { load(false); }, [load]);
 
   if (loading) {
     return (
@@ -93,9 +94,23 @@ export function ValidationChecklist({ companyName, paymentId }: Props) {
         <CardTitle className="flex items-center gap-2 text-sm">
           <ClipboardList className="h-4 w-4 text-violet-600" />
           Checklist de Validação
+          {cached && (
+            <Badge variant="muted" className="text-[10px] font-normal">em cache</Badge>
+          )}
           <span className="text-xs font-normal text-muted-foreground ml-auto">
             {checked.size}/{items.length} conferidos
           </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px]"
+            onClick={() => load(true)}
+            disabled={refreshing}
+            aria-label="Atualizar checklist"
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">

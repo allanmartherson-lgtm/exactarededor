@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { anthropicFetch } from "../_shared/anthropicWithFallback.ts";
+import { sha256Hex, getChecklistCache, saveChecklistCache } from "../_shared/checklistCache.ts";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
@@ -24,7 +25,7 @@ serve(async (req) => {
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
-    const { company_name, payment_id } = await req.json();
+    const { company_name, payment_id, force_refresh = false } = await req.json();
     if (!company_name || !payment_id) {
       return new Response(JSON.stringify({ error: "company_name and payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -42,6 +43,20 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Resolve hospital_id a partir do PAYMENT (nunca do body).
+    const pmtRes = await supabase
+      .from("payments")
+      .select("hospital_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const hospitalId = pmtRes.data?.hospital_id as string | undefined;
+    if (!hospitalId) {
+      return new Response(JSON.stringify({ error: "payment not found or no hospital" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const scopeKey = `${payment_id}::${company_name}`;
 
     const [itemsRes, obsRes, historyRes] = await Promise.all([
       supabase
@@ -114,6 +129,22 @@ serve(async (req) => {
       historico: historyStats,
     };
 
+    // Cache lookup por hash do contexto (input real da IA).
+    const inputHash = await sha256Hex(JSON.stringify(contexto));
+    if (!force_refresh) {
+      const cached = await getChecklistCache<{ checklist: ChecklistItem[] }>(
+        supabase, "company", hospitalId, scopeKey,
+      );
+      if (cached && cached.input_hash === inputHash) {
+        return new Response(JSON.stringify({
+          ok: true,
+          checklist: cached.result?.checklist ?? [],
+          cached: true,
+          updated_at: cached.updated_at,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     const systemPrompt = `Você é um auditor de pagamentos médicos. Gere um CHECKLIST de validação para o validador verificar antes de aprovar esta empresa. Baseie-se EXCLUSIVAMENTE nos dados reais do contexto. Retorne exatamente 3 a 6 itens acionáveis e específicos.
 
 Regras:
@@ -184,7 +215,12 @@ Regras:
     const parsed = tc?.input as { items?: ChecklistItem[] } | undefined;
     const checklist = parsed?.items ?? [];
 
-    return new Response(JSON.stringify({ ok: true, checklist }), {
+    await saveChecklistCache(
+      supabase, "company", hospitalId, scopeKey, inputHash,
+      { checklist }, "claude-sonnet-4-5",
+    );
+
+    return new Response(JSON.stringify({ ok: true, checklist, cached: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
