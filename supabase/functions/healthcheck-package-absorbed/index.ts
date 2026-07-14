@@ -48,6 +48,16 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Guard multi-tenant
+    const { data: payRow } = await supabase
+      .from("payments").select("hospital_id").eq("id", payment_id).maybeSingle();
+    if (!_auth.is_internal && !assertCallerHospital(_auth, (payRow as any)?.hospital_id ?? null)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const checks: Check[] = [];
 
     // --- Snapshot PRÉ ---
