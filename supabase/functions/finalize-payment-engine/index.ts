@@ -219,6 +219,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (!auth.is_internal) {
+      const svc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: pmtGuard } = await svc
+        .from("payments").select("hospital_id").eq("id", payment_id).maybeSingle();
+      const hospId = (pmtGuard as any)?.hospital_id as string | null;
+      if (hospId && !assertCallerHospital(auth, hospId)) {
+        return new Response(JSON.stringify({
+          error: "hospital_scope_denied",
+          message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     const task = runPipeline(payment_id, requestedSources, force).catch((e) => {
       console.error("[finalize-payment-engine] pipeline erro", e);
     });
