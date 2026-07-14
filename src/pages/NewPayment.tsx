@@ -3623,7 +3623,7 @@ const NewPayment = () => {
       }
     }
 
-    toast({ title: "Lote criado", description: "Iniciando análise por IA..." });
+    toast({ title: "Lote criado", description: "Iniciando análise..." });
     // Aguarda confirmação do dispatcher. Se falhar (timeout, boot error), reverte
     // status para 'rascunho' para não deixar o lote travado em 'em_analise_ia'.
     try {
