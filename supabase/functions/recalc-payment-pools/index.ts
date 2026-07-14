@@ -8,7 +8,7 @@
 // - Cria/atualiza grupo sintético para participantes "hospital_nao_paga" (total=0, auditoria)
 // - Persiste snapshot em pool_calculation_runs (1 por payment+pool)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
