@@ -94,6 +94,12 @@ Deno.serve(async (req) => {
         message: "Lote sem hospital_id — impossível gravar deduções (viola isolamento multi-tenant).",
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    if (!auth.is_internal && !assertCallerHospital(auth, paymentHospitalId)) {
+      return new Response(JSON.stringify({
+        error: "hospital_scope_denied",
+        message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+      }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Garante que a linha de snapshot financeiro (PCF) exista para esta PJ neste lote.
     // Sem ela, o trigger de recompute rodava um UPDATE que não atingia nenhuma linha e
