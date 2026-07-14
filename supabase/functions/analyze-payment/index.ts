@@ -5,7 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 import {
   analyzePaymentItems,
@@ -223,6 +223,12 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // setores exclusivos de outros hospitais NUNCA entram no motor deste lote.
     const __paymentHospitalId = ((payment as any)?.hospital_id as string | null) ?? null;
     __paymentHospitalIdHoisted = __paymentHospitalId;
+    if (!auth.is_internal && !assertCallerHospital(auth, __paymentHospitalId)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     try {
       let secQ = supabase.from("sectors").select("slug,name,aliases,hospital_id").eq("active", true);
       if (__paymentHospitalId) secQ = secQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);

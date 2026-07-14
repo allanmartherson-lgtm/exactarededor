@@ -4,7 +4,7 @@
 // página numa execução independente com seu próprio timeout de 60s).
 // Esta função retorna em <2s: não orquestra workers diretamente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -128,6 +128,12 @@ Deno.serve(async (req) => {
     if (payErr) throw payErr;
     const isConfeccao = (paymentRow as any)?.analysis_mode === "confeccao";
     const paymentHospitalId = (paymentRow as any)?.hospital_id ?? null;
+    if (!auth.is_internal && !assertCallerHospital(auth, paymentHospitalId)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Gate de Parecer: lotes do tipo 'parecer' exigem ao menos um relatório
     // de parecer importado para o período (payment_parecer_reports). Sem isso,

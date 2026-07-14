@@ -13,7 +13,7 @@
 // tipo já correto.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,6 +83,20 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // Guard multi-tenant: caller precisa ter vínculo com hospital do pagamento.
+    const { data: __xrefPayRow } = await supabase
+      .from("payments")
+      .select("hospital_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const __xrefHospitalId = (__xrefPayRow as any)?.hospital_id ?? null;
+    if (!_auth.is_internal && !assertCallerHospital(_auth, __xrefHospitalId)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Executa em background para evitar IDLE_TIMEOUT (150s) do caller.
     if (!_background) {
