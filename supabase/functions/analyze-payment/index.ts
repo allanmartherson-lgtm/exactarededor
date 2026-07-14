@@ -2710,9 +2710,15 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
     // Inserts em bulk (uma chamada por tabela; chunked por segurança em lotes grandes).
     if (versionRows.length) {
+      // UPSERT em (item_id, version) para evitar perda silenciosa por unique
+      // violation quando workers paralelos calculam a mesma "next version"
+      // a partir do mesmo prevByItem. Em colisão, sobrescreve com o resultado
+      // mais recente (mesmo item + mesma versão = mesma tentativa de análise).
       for (let i = 0; i < versionRows.length; i += 200) {
-        const { error: verErr } = await supabase.from("ai_analysis_versions").insert(versionRows.slice(i, i + 200));
-        if (verErr) console.error(`${__t} ai_analysis_versions_insert_error`, verErr);
+        const { error: verErr } = await supabase
+          .from("ai_analysis_versions")
+          .upsert(versionRows.slice(i, i + 200), { onConflict: "item_id,version" });
+        if (verErr) console.error(`${__t} ai_analysis_versions_upsert_error`, verErr);
       }
     }
     if (obsRows.length) {
