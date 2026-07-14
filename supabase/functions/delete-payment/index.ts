@@ -80,11 +80,15 @@ Deno.serve(async (req) => {
   // 1. Carrega o payment para checar created_by/status.
   const { data: payment, error: payErr } = await admin
     .from("payments")
-    .select("id, status, created_by")
+    .select("id, status, created_by, hospital_id")
     .eq("id", paymentId)
     .maybeSingle();
   if (payErr) return json({ error: "load_failed", detail: payErr.message }, 500);
   if (!payment) return json({ error: "not_found" }, 404);
+
+  if (!_auth.is_internal && !assertCallerHospital(_auth, (payment as any)?.hospital_id ?? null)) {
+    return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+  }
 
   // 2. Checa papéis do usuário.
   const { data: roleRows } = await admin
