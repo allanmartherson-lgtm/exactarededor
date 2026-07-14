@@ -176,7 +176,7 @@ export function ParecerReportCard({
     setLoading(true);
     const { data } = await supabase
       .from("payment_parecer_reports")
-      .select("id,period_start,period_end,source_filename,row_count,imported_at")
+      .select("id,period_start,period_end,source_filename,row_count,imported_at,cross_summary")
       .eq("payment_id", paymentId)
       .order("imported_at", { ascending: false });
     setReports((data ?? []) as ReportRow[]);
