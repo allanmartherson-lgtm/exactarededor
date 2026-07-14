@@ -1,0 +1,1 @@
+ALTER TABLE public.rules DISABLE TRIGGER trg_sync_doctor_specific_exclusions;
