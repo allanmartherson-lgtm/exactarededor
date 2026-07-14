@@ -96,7 +96,48 @@ export async function requireInternalOrRole(
   if (!has) {
     return { ok: false, status: 403, error: "forbidden" };
   }
-  return { ok: true, is_internal: false, user_id: userId };
+
+  // Extrai escopo de hospital do chamador (best-effort — nunca bloqueia auth).
+  // hospital_ids: todos os vínculos em user_hospitals.
+  // active_hospital_id: hospital atualmente ativo (user_active_hospital).
+  let hospitalIds: string[] = [];
+  let activeHospitalId: string | null = null;
+  try {
+    const [{ data: uh }, { data: uah }] = await Promise.all([
+      admin.from("user_hospitals").select("hospital_id").eq("user_id", userId),
+      admin.from("user_active_hospital").select("hospital_id").eq("user_id", userId).maybeSingle(),
+    ]);
+    hospitalIds = (uh ?? [])
+      .map((r: { hospital_id: string | null }) => r.hospital_id)
+      .filter((v: string | null): v is string => typeof v === "string" && v.length > 0);
+    activeHospitalId = (uah as { hospital_id?: string | null } | null)?.hospital_id ?? null;
+  } catch { /* best-effort */ }
+
+  return {
+    ok: true,
+    is_internal: false,
+    user_id: userId,
+    hospital_ids: hospitalIds,
+    active_hospital_id: activeHospitalId,
+  };
+}
+
+/**
+ * Verifica se o chamador pode operar sobre `targetHospitalId`.
+ * - Chamadas internas (service_role, cron) são trusted → sempre true.
+ * - Usuários autenticados: true se o hospital estiver na lista de vínculos.
+ *
+ * NÃO substitui a checagem de role — usar em conjunto com requireInternalOrRole.
+ */
+export function assertCallerHospital(
+  auth: AuthCheckResult,
+  targetHospitalId: string,
+): boolean {
+  if (!auth.ok) return false;
+  if (auth.is_internal) return true;
+  if (!targetHospitalId) return false;
+  const ids = auth.hospital_ids ?? [];
+  return ids.includes(targetHospitalId);
 }
 
 export function unauthorizedResponse(
