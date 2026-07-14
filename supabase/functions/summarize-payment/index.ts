@@ -476,6 +476,11 @@ REGRAS:
       return null;
     };
 
+    // LGPD: pseudonimiza qualquer nome de paciente presente no contexto
+    // antes de enviar à IA externa. reverseMap fica no escopo da request e
+    // re-hidrata o summary devolvido pela IA.
+    const { masked: maskedContexto, reverseMap: pseudoMap } = maskPatients(contexto);
+
     const callAi = (opts: { forceJsonText?: boolean } = {}) =>
       fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -493,7 +498,7 @@ REGRAS:
                 ? `${systemPrompt}\n\nRESPONDA APENAS com um objeto JSON válido (sem markdown, sem texto extra) com as chaves: headline (string), bullets (array de strings), risk_level ("baixo"|"medio"|"alto"|"critico"), recommended_action (string).`
                 : systemPrompt,
             },
-            { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(contexto, null, 2)}` },
+            { role: "user", content: `Contexto do lote (JSON):\n${JSON.stringify(maskedContexto, null, 2)}` },
           ],
           ...(opts.forceJsonText
             ? { response_format: { type: "json_object" } }
