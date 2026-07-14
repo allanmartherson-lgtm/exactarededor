@@ -19,7 +19,7 @@ interface NotificationSetting {
 
 const EVENT_LABELS: Record<string, string> = {
   returned: "Lote devolvido/rejeitado",
-  ia_concluded: "Análise IA concluída",
+  ia_concluded: "Análise concluída",
   nf_received: "Nota Fiscal recebida",
 };
 

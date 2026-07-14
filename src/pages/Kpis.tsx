@@ -31,7 +31,7 @@ const fmtHours = (h: number | null) => {
 const pctStr = (p: number | null) => (p == null ? "—" : `${Math.round(p)}%`);
 
 const stageBuckets: { label: string; statuses: PaymentStatus[]; tone: string }[] = [
-  { label: "Análise IA", statuses: ["em_analise_ia", "revisao_analista"], tone: "bg-info" },
+  { label: "Em análise", statuses: ["em_analise_ia", "revisao_analista"], tone: "bg-info" },
   { label: "Validação", statuses: ["aguardando_validacao"], tone: "bg-warning" },
   { label: "Aprovação", statuses: ["aguardando_aprovacao"], tone: "bg-warning" },
   { label: "NF solicitada", statuses: ["aprovado", "pedido_nf_enviado", "aprovado_em_revisao"], tone: "bg-info" },

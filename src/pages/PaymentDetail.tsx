@@ -109,7 +109,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, ClipboardList, Download, FileDown, Filter, GitCompare, History, Layers, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, ClipboardList, Download, FileDown, Filter, GitCompare, History, Layers, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Settings2, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx-js-style";
 import { confirmDialog } from "@/lib/confirm";
@@ -3723,8 +3723,8 @@ const PaymentDetail = () => {
             aria-expanded={aiCardsOpen}
           >
             <span className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Análise IA
+              <Settings2 className="h-4 w-4 text-primary" />
+              Análise
             </span>
             {aiCardsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>

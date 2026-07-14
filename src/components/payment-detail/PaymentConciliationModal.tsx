@@ -5313,7 +5313,7 @@ export function PaymentConciliationModal({
                                               <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
                                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                                                  Análise IA
+                                                  Observação da análise
                                                 </p>
                                                 <p className="text-[12px]">{it.ia_obs ?? <span className="text-muted-foreground italic">Sem observação automática.</span>}</p>
                                                 {it.match_diagnostics && (

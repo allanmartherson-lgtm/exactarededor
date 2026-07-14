@@ -50,8 +50,8 @@ export function PreAnalysisScoreCard({ payment }: Props) {
   return (
     <SurfaceCard>
       <SurfaceCardHeader
-        title="Score Preditivo (pré-análise IA)"
-        subtitle={`Calculado antes da análise IA, baseado em histórico de ${months} meses`}
+        title="Score Preditivo (pré-análise)"
+        subtitle={`Calculado antes da análise, baseado em histórico de ${months} meses`}
         icon={Gauge}
         iconColor={color}
       />

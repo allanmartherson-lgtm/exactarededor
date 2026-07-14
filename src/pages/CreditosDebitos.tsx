@@ -425,7 +425,7 @@ export default function CreditosDebitos() {
     return m && y ? `${m}/${y}` : s;
   };
   const statusShort = (s: string) =>
-    ({ rascunho: "rascunho", em_analise_ia: "análise IA", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
+    ({ rascunho: "rascunho", em_analise_ia: "em análise", revisao_analista: "revisão", aguardando_aprovacao: "aprovação", pedido_nf_enviado: "NF enviada", revisao_pos_aprovacao: "revisão pós-ap." } as Record<string, string>)[s] ?? s;
 
   const buildLoteLabel = (p: { id: string; reference?: string | null; competence_month: string | null; status: string }, liquido: number | null) => {
     const ref = p.reference ? `${p.reference} · ` : "";

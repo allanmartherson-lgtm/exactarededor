@@ -347,7 +347,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle className="text-sm flex items-center gap-2">
             <FileWarning className="h-4 w-4 text-amber-600" />
-            Relatório de falhas da IA — lote{" "}
+            Relatório de falhas da análise — lote{" "}
             <span className="font-mono text-xs text-muted-foreground">{job.id.slice(0, 8)}</span>
             <Badge variant="outline" className="ml-1">
               {totalCount} totais
@@ -366,7 +366,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
               ) : (
                 <RefreshCw className="h-3 w-3 mr-1" />
               )}
-              Reprocessar falhas da IA
+              Reprocessar falhas
             </Button>
             <Button size="sm" variant="outline" onClick={exportCsv}>
               <Download className="h-3 w-3 mr-1" />

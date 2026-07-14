@@ -134,7 +134,7 @@ const formatShortDuration = (ms: number) => {
 };
 
 const PAYMENT_STATUS_SHORT: Partial<Record<PaymentStatus, string>> = {
-  em_analise_ia: "Análise IA",
+  em_analise_ia: "Em análise",
   revisao_analista: "Revisão analista",
   aguardando_validacao: "Validação",
   devolvido_analista: "Devolvido p/ analista",
@@ -1616,7 +1616,7 @@ const Dashboard = () => {
             />
             {(() => {
               const cols = [
-                { icon: FileText, color: "purple" as BubbleColor, label: "Análise IA", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
+                { icon: FileText, color: "purple" as BubbleColor, label: "Em análise", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
                 { icon: ListChecks, color: "yellow" as BubbleColor, label: "Validação", value: counts.pipeValidacao, to: "/pagamentos?status=aguardando_validacao" },
                 { icon: ShieldCheck, color: "blue" as BubbleColor, label: "Aprovação", value: counts.pipeAprovacao, to: "/pagamentos?status=aguardando_aprovacao" },
                 { icon: Send, color: "teal" as BubbleColor, label: "Aguard. NF", value: counts.pipeAguardandoEnvio, to: "/pagamentos?status=aprovado" },
@@ -1632,7 +1632,7 @@ const Dashboard = () => {
                       density="comfortable"
                       separated={i > 0}
                       delayed={
-                        col.label === "Análise IA"
+                        col.label === "Em análise"
                           ? (slaTotals.perStatusVencido["em_analise_ia"] ?? 0) + (slaTotals.perStatusVencido["revisao_analista"] ?? 0)
                           : col.label === "Validação"
                           ? slaTotals.perStatusVencido["aguardando_validacao"] ?? 0

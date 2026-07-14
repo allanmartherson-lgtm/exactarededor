@@ -214,7 +214,7 @@ export default function BiLoteDetalhe() {
     return [
       { key: "recebido", label: "Recebido", sub: fmtDateTime(payment?.created_at), reached: reached >= 0 },
       { key: "validacao", label: "Validação", sub: fmtDateTime(payment?.validated_at), reached: reached >= 1 },
-      { key: "ia", label: "Análise IA", sub: payment?.ai_summary ? "Concluída" : "—", reached: reached >= 2 },
+      { key: "ia", label: "Em análise", sub: payment?.ai_summary ? "Concluída" : "—", reached: reached >= 2 },
       { key: "diretoria", label: "Aprovação dir.", sub: fmtDateTime(payment?.approved_at), reached: reached >= 3 },
       { key: "nf", label: "Pós-aprov. NF", sub: payment?.status === "nf_recebida" || payment?.status === "pago" ? "OK" : "—", reached: reached >= 4 },
       { key: "pago", label: "Pago", sub: payment?.status === "pago" ? "OK" : "—", reached: reached >= 5 },
