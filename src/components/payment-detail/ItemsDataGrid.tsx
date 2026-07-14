@@ -1444,6 +1444,63 @@ export function ItemsDataGrid({
     }
   };
 
+  // ============= Classificação personalizada (estilo Excel) =============
+  // Aplicada DENTRO de cada grupo de atendimento, respeitando: cluster de
+  // pacote antes de outros métodos, ajustes de conciliação no fim absoluto,
+  // e bônus grudado no pai. Persistida em localStorage.
+  type CustomSortField =
+    | "procedure_date"
+    | "paciente"
+    | "convenio"
+    | "medico"
+    | "funcao"
+    | "tuss"
+    | "procedimento"
+    | "gross"
+    | "esperado"
+    | "diferenca"
+    | "status"
+    | "metodo";
+  type CustomSortLevel = { field: CustomSortField; dir: "asc" | "desc" };
+  const CUSTOM_SORT_KEY = "medpay:items-grid:custom-sort:v1";
+  const CUSTOM_SORT_FIELDS: { value: CustomSortField; label: string; numeric?: boolean }[] = [
+    { value: "procedure_date", label: "Data do procedimento" },
+    { value: "paciente", label: "Paciente" },
+    { value: "convenio", label: "Convênio" },
+    { value: "medico", label: "Médico" },
+    { value: "funcao", label: "Função" },
+    { value: "tuss", label: "Código TUSS" },
+    { value: "procedimento", label: "Procedimento" },
+    { value: "gross", label: "Valor bruto", numeric: true },
+    { value: "esperado", label: "Valor esperado", numeric: true },
+    { value: "diferenca", label: "Diferença", numeric: true },
+    { value: "status", label: "Status" },
+    { value: "metodo", label: "Método de cálculo" },
+  ];
+  const [customSort, setCustomSort] = useState<CustomSortLevel[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(CUSTOM_SORT_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (l: any) => l && typeof l === "object" && typeof l.field === "string" && (l.dir === "asc" || l.dir === "desc"),
+      ) as CustomSortLevel[];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CUSTOM_SORT_KEY, JSON.stringify(customSort));
+    } catch { /* noop */ }
+  }, [customSort]);
+  const [customSortOpen, setCustomSortOpen] = useState(false);
+  const customSortActive = customSort.length > 0 && !sortKey;
+
+
+
   const [colVis, setColVis] = useState<Record<OptionalColKey, boolean>>(() => {
     if (typeof window === "undefined") return DEFAULT_COL_VISIBILITY;
     try {
