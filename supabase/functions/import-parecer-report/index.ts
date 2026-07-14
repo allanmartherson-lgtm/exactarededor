@@ -166,6 +166,17 @@ Deno.serve(async (req) => {
     if (mode === "finalize") {
       const { report_id, row_count } = body ?? {};
       if (!report_id) return json({ error: "report_id obrigatório" }, 400);
+      {
+        const { data: rep0 } = await supabase
+          .from("payment_parecer_reports")
+          .select("hospital_id")
+          .eq("id", report_id)
+          .maybeSingle();
+        const hId0 = (rep0 as any)?.hospital_id ?? null;
+        if (!_auth.is_internal && !assertCallerHospital(_auth, hId0)) {
+          return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+        }
+      }
       await supabase
         .from("payment_parecer_reports")
         .update({ row_count: Number(row_count) || 0 } as any)
