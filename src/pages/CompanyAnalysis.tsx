@@ -55,6 +55,7 @@ import { PaymentConciliationModal } from "@/components/payment-detail/PaymentCon
 import { QuestionsFab } from "@/components/payment-detail/QuestionsFab";
 import { ConversationsSheet } from "@/components/payment-detail/conversations/ConversationsSheet";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
+import { PendingCostCenterAdjustmentSuggestions } from "@/components/payment-detail/PendingCostCenterAdjustmentSuggestions";
 import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
 import {
   ReapplyRulesProgressDialog,
