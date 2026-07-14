@@ -1184,6 +1184,9 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     }
     setOpen(false);
     resetForm();
+    // Recompute doctor-specific exclusions FORA da transação (trigger síncrono
+    // foi desabilitado para evitar timeout — ver recomputeDoctorSpecificExclusions).
+    await recomputeDoctorSpecificExclusions();
     load();
     setConflictOpen(false);
     setConflictProblems([]);
