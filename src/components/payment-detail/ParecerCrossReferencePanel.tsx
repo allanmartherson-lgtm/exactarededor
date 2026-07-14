@@ -209,12 +209,14 @@ export function ParecerCrossReferencePanel({
                         variant="outline"
                         className={cn(
                           "text-[10px]",
-                          it.parecer_evidence === "not_found"
-                            ? "border-amber-300 text-amber-800 bg-amber-50"
-                            : "border-amber-300 text-amber-800 bg-amber-50",
+                          "border-amber-300 text-amber-800 bg-amber-50",
                         )}
                       >
-                        {it.parecer_evidence === "not_found" ? "Sem parecer cruzado" : "Parecer divergente"}
+                        {it.parecer_evidence === "not_found"
+                          ? "Sem parecer cruzado"
+                          : it.parecer_evidence === "unverified"
+                          ? "Parecer sem registro Tasy"
+                          : "Parecer divergente"}
                       </Badge>
                     </TableCell>
                   </TableRow>
