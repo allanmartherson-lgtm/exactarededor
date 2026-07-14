@@ -1401,12 +1401,18 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     // Populado abaixo mesmo em cache hit para persistir em payment_items depois.
     const hashByItemId: Record<string, string> = {};
     const cachedItemIds = new Set<string>();
+    // LGPD: reverseMap por item para re-hidratar tokens PACIENTE_N devolvidos
+    // pela IA. Nunca persistido — vive só nesta request.
+    const reverseMapByItemId: Record<string, ReverseMap> = {};
 
     console.time(`${__t} chamada_ia`);
     if (itemsToReview.length > 0) {
       let itemsForAi = itemsToReview.map((r) => {
         const it = items.find((i) => i.id === r.item_id)!;
-        return {
+        // Pseudonimiza paciente ANTES de qualquer hash/envio. Mascaramento
+        // é PER-ITEM (não por batch) para que o mesmo item gere o mesmo
+        // token independente dos vizinhos e o cache de hash continue estável.
+        const raw = {
           id: r.item_id,
           empresa: it.company_name,
           atendimento: it.attendance_number,
@@ -1433,7 +1439,11 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
             principal_ambiguo: r.main_ambiguous,
           },
         };
+        const { masked, reverseMap } = maskPatients(raw);
+        reverseMapByItemId[r.item_id] = reverseMap;
+        return masked;
       });
+
 
       // ============ Cache determinístico da IA (short-circuit por hash) ============
       // Se o payload EXATO já foi analisado antes (mesmo item / mesmo motor /
