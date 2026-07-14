@@ -44,7 +44,7 @@ export async function requireInternalOrRole(
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
   const providedCron = req.headers.get("x-cron-secret") ?? "";
   if (cronSecret && providedCron && providedCron === cronSecret) {
-    return { ok: true, is_internal: true, user_id: null };
+    return { ok: true, is_internal: true, user_id: null, hospital_ids: null, active_hospital_id: null };
   }
 
   const authHeader = req.headers.get("Authorization");
