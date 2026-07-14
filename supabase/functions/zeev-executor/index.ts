@@ -1113,6 +1113,11 @@ async function buildRouteContext(sb: SB, path: string | null, hospitalId: string
 async function callLLM(prompt: string, paymentContext: Record<string, unknown>) {
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
+  // LGPD: mascara paciente antes de enviar; re-hidrata na resposta.
+  // O prompt do analista é tratado como texto opaco (não sanitizamos —
+  // se ele digitar o nome do paciente, é decisão dele).
+  const { masked: maskedContext, reverseMap } = maskPatients(paymentContext);
+
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -1125,7 +1130,7 @@ async function callLLM(prompt: string, paymentContext: Record<string, unknown>) 
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Contexto do pagamento atual:\n${JSON.stringify(paymentContext, null, 2)}\n\nPedido do analista:\n"${prompt}"\n\nDevolva a proposta via tool 'respond'.`,
+          content: `Contexto do pagamento atual:\n${JSON.stringify(maskedContext, null, 2)}\n\nPedido do analista:\n"${prompt}"\n\nDevolva a proposta via tool 'respond'.`,
         },
       ],
       tools: [{
@@ -1148,7 +1153,8 @@ async function callLLM(prompt: string, paymentContext: Record<string, unknown>) 
   const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall) throw new Error("LLM não retornou tool call");
   try {
-    return JSON.parse(toolCall.function.arguments ?? "{}");
+    const parsed = JSON.parse(toolCall.function.arguments ?? "{}");
+    return unmaskDeep(parsed, reverseMap);
   } catch {
     throw new Error("falha ao parsear tool call");
   }
