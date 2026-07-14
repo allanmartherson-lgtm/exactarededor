@@ -8,7 +8,7 @@
 // - Cria/atualiza grupo sintético para participantes "hospital_nao_paga" (total=0, auditoria)
 // - Persiste snapshot em pool_calculation_runs (1 por payment+pool)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +30,23 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "payment_id obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Guard de hospital: usuários não-internos só podem recalcular pools do próprio hospital.
+    if (!auth.is_internal) {
+      const svc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: pmtGuard } = await svc
+        .from("payments").select("hospital_id").eq("id", payment_id).maybeSingle();
+      const hospId = (pmtGuard as any)?.hospital_id as string | null;
+      if (hospId && !assertCallerHospital(auth, hospId)) {
+        return new Response(JSON.stringify({
+          error: "hospital_scope_denied",
+          message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     // Lotes grandes de pool podem demorar por causa do snapshot financeiro das

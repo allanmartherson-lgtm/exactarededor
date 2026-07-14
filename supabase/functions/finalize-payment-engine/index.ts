@@ -18,7 +18,7 @@
 // =============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { callFn as callFnBase, type CallFnResult } from "./callFn.ts";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 
 const corsHeaders = {
@@ -217,6 +217,22 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (!auth.is_internal) {
+      const svc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: pmtGuard } = await svc
+        .from("payments").select("hospital_id").eq("id", payment_id).maybeSingle();
+      const hospId = (pmtGuard as any)?.hospital_id as string | null;
+      if (hospId && !assertCallerHospital(auth, hospId)) {
+        return new Response(JSON.stringify({
+          error: "hospital_scope_denied",
+          message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     const task = runPipeline(payment_id, requestedSources, force).catch((e) => {

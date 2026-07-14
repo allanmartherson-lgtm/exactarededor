@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,6 +93,12 @@ Deno.serve(async (req) => {
         error: "payment_hospital_missing",
         message: "Lote sem hospital_id — impossível gravar deduções (viola isolamento multi-tenant).",
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!auth.is_internal && !assertCallerHospital(auth, paymentHospitalId)) {
+      return new Response(JSON.stringify({
+        error: "hospital_scope_denied",
+        message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+      }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Garante que a linha de snapshot financeiro (PCF) exista para esta PJ neste lote.

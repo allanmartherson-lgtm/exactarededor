@@ -16,7 +16,7 @@
 // Idempotente: rodar 2x dá o mesmo estado final.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +70,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "payment não encontrado" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (payment.hospital_id && !auth.is_internal && !assertCallerHospital(auth, payment.hospital_id as string)) {
+      return new Response(JSON.stringify({
+        error: "hospital_scope_denied",
+        message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+      }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const competence: string | null = payment.competence_month ?? null;
