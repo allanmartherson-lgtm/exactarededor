@@ -1712,6 +1712,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       savedCount += 1;
     }
 
+    if (savedCount > 0) await recomputeDoctorSpecificExclusions();
     setReviewOpen(false); setDrafts([]); load();
     if (skipped.length === 0) {
       toast({ title: `${savedCount} regra(s) salva(s)` });
