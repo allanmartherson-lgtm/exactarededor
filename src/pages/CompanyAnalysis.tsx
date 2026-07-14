@@ -2552,6 +2552,19 @@ export default function CompanyAnalysis() {
         />
       )}
 
+      {/* Sugestões de lançamento por centro de custos (créditos/débitos cadastrados) */}
+      {id && group?.company_id && (payment as any)?.cost_center_code && (
+        <PendingCostCenterAdjustmentSuggestions
+          paymentId={id}
+          companyId={group.company_id}
+          hospitalId={(payment as any)?.hospital_id ?? null}
+          costCenterCode={(payment as any)?.cost_center_code ?? null}
+          competenceMonth={(payment as any)?.competence_month ?? null}
+          canEdit={isAnalista || isAdminOrDiretor || isValidador}
+          onApplied={async () => { await composition.refresh(); stale.markFresh(); }}
+        />
+      )}
+
       {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
       {id && group?.company_id && <FinancialCompositionStrip comp={composition} mode={compMode} />}
 
