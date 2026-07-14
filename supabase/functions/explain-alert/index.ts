@@ -55,6 +55,16 @@ serve(async (req) => {
       });
     }
 
+    // Guard multi-tenant: hospital do payment do item precisa bater com hospital do chamador.
+    const { data: payRow } = await supabase
+      .from("payments").select("hospital_id").eq("id", item.payment_id).maybeSingle();
+    if (!auth.is_internal && !assertCallerHospital(auth, (payRow as any)?.hospital_id ?? null)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const findings = (item.ai_findings ?? {}) as any;
     const alerts: string[] = Array.isArray(findings.alerts) ? findings.alerts : [];
     const matchedRules: string[] = Array.isArray(findings.matched_rules) ? findings.matched_rules : [];
