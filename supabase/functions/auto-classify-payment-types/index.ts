@@ -57,6 +57,20 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+    // Guard multi-tenant: só chama quem tem vínculo com o hospital do pagamento.
+    const { data: __payRow } = await supabase
+      .from("payments")
+      .select("hospital_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const __payHospitalId = (__payRow as any)?.hospital_id ?? null;
+    if (!auth.is_internal && !assertCallerHospital(auth, __payHospitalId)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // 1. Carrega item_types ativos (com TUSS).
     const { data: itemTypesData, error: itemTypesErr } = await supabase
       .from("item_types")
