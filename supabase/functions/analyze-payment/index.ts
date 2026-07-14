@@ -156,7 +156,9 @@ async function handleAnalyzePayment(req: Request): Promise<Response> {
     __job_id = _job_id;
     __company_label = _company_label;
     const __force_fresh = _force_fresh === true;
-    const __skip_ai = skip_ai === true || _skip_ai === true;
+    // [2026-07-14] IA opt-in: se nenhum dos flags vier no body, motor puro (skip_ai=true).
+    // IA só roda quando o chamador explicitamente passar skip_ai=false ou _skip_ai=false.
+    const __skip_ai = (skip_ai === false || _skip_ai === false) ? false : true;
     __company_name = company_name;
     // [TIMING] prefixo curto p/ diferenciar workers concorrentes nos logs
     const __t = `[T:${(_company_label ?? company_name ?? "all").toString().slice(0, 24)}]`;
