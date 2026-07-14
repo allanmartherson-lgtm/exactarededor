@@ -96,6 +96,9 @@ Deno.serve(async (req) => {
       if (!hospitalId) {
         return json({ error: "Pagamento sem hospital vinculado — não é possível importar relatório de parecer." }, 400);
       }
+      if (!_auth.is_internal && !assertCallerHospital(_auth, hospitalId)) {
+        return json({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }, 403);
+      }
 
       const { data: header, error: headerErr } = await supabase
         .from("payment_parecer_reports")
