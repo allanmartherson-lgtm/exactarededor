@@ -166,15 +166,17 @@ async function runPipeline(
     await callFn("recalc-payment-pools", { payment_id, _background: true });
     const { data: runs } = await supabase
       .from("pool_calculation_runs")
-      .select("id, base_total, valor_deducoes, valor_liquido_pool, status")
+      .select("id, base_amount, deductions_applied, bolo_liquido, status")
       .eq("payment_id", payment_id)
       .order("created_at", { ascending: false })
       .limit(1);
     const run = runs?.[0] as any;
+    const dedArr = Array.isArray(run?.deductions_applied) ? run.deductions_applied : [];
+    const totalDeducoes = dedArr.reduce((s: number, d: any) => s + Number(d?.valor ?? 0), 0);
     await markSource(payment_id, "pool_deductions",
       run ? 1 : 0,
-      Number(run?.valor_deducoes ?? 0),
-      run ? { run_id: run.id, base: run.base_total, liquido: run.valor_liquido_pool, status: run.status } : {});
+      totalDeducoes,
+      run ? { run_id: run.id, base: run.base_amount, liquido: run.bolo_liquido, status: run.status } : {});
   }
 
   if (want("retroactive_reconciliation")) {
