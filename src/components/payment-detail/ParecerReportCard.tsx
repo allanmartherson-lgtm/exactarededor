@@ -25,6 +25,7 @@ import ParecerColumnMappingDialog, {
 } from "./ParecerColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
 import { notify } from "@/lib/uiSignals";
+import { cn } from "@/lib/utils";
 import { DateInput } from "@/components/ui/date-input";
 
 // Helpers de parsing (rodam no browser para não estourar memória do worker)
