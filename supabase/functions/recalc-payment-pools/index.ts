@@ -32,6 +32,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Guard de hospital: usuários não-internos só podem recalcular pools do próprio hospital.
+    if (!auth.is_internal) {
+      const svc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: pmtGuard } = await svc
+        .from("payments").select("hospital_id").eq("id", payment_id).maybeSingle();
+      const hospId = (pmtGuard as any)?.hospital_id as string | null;
+      if (hospId && !assertCallerHospital(auth, hospId)) {
+        return new Response(JSON.stringify({
+          error: "hospital_scope_denied",
+          message: "Seu hospital ativo não corresponde ao hospital deste registro.",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // Lotes grandes de pool podem demorar por causa do snapshot financeiro das
     // PJs. A chamada pública apenas agenda o trabalho e retorna rápido; o worker
     // real roda com `_background=true` para não estourar o timeout do cliente.
