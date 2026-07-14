@@ -159,6 +159,18 @@ Deno.serve(async (req) => {
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
+
+    // Guard multi-tenant: quando o profile carimba hospital_id no fixedContext
+    // (entidades escopadas por hospital, ex.: sectors/convenios), o chamador
+    // precisa ter vínculo com esse hospital. Entidades globais (sem hospital_id
+    // no fixedContext) seguem só sob checagem de role acima.
+    const targetHospitalId = (fixed as any)?.hospital_id ?? null;
+    if (targetHospitalId && !_auth.is_internal && !assertCallerHospital(_auth, targetHospitalId)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     // Para doctors, separamos a coluna 'companies_raw' (não é coluna real)
     const records = valid.map((r) => {
       const rec: Record<string, any> = { ...r, ...fixed };
