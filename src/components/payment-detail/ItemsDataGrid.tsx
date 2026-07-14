@@ -1864,12 +1864,20 @@ export function ItemsDataGrid({
           (m) => (m.attendance_number ?? "").toString().trim() === att,
         );
         // Estável: preserva ordem original dentro de cada cluster.
+        // Se houver classificação personalizada ativa (customSort) e nenhum
+        // header estiver ordenando globalmente, aplica os níveis dentro do
+        // cluster respeitando pacote-antes-de-outros-métodos.
         const indexed = ofAtt.map((m, i) => ({ m, i, k: clusterKey(m) }));
         indexed.sort((a, b) => {
           if (a.k !== b.k) return a.k < b.k ? -1 : 1;
+          if (customSortActive) {
+            const cmp = compareByCustomSort(a.m, b.m, customSort);
+            if (cmp !== 0) return cmp;
+          }
           return a.i - b.i;
         });
         for (const { m } of indexed) display.push(m);
+
       } else {
         display.push(it);
       }
