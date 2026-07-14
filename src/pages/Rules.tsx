@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { recomputeDoctorSpecificExclusions } from "@/lib/recomputeDoctorSpecificExclusions";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { useSpecialties } from "@/hooks/useSpecialties";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1183,6 +1184,9 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     }
     setOpen(false);
     resetForm();
+    // Recompute doctor-specific exclusions FORA da transação (trigger síncrono
+    // foi desabilitado para evitar timeout — ver recomputeDoctorSpecificExclusions).
+    await recomputeDoctorSpecificExclusions();
     load();
     setConflictOpen(false);
     setConflictProblems([]);
@@ -1708,6 +1712,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       savedCount += 1;
     }
 
+    if (savedCount > 0) await recomputeDoctorSpecificExclusions();
     setReviewOpen(false); setDrafts([]); load();
     if (skipped.length === 0) {
       toast({ title: `${savedCount} regra(s) salva(s)` });
@@ -1724,6 +1729,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const remove = async (id: string) => {
     if (!confirm("Excluir esta regra?")) return;
     await supabase.from("rules").delete().eq("id", id);
+    await recomputeDoctorSpecificExclusions();
     setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
     load();
   };

@@ -45,6 +45,8 @@ export function CloneRuleToHospitalDialog({
         _new_name: newName.trim() || null,
       });
       if (error) throw error;
+      const { recomputeDoctorSpecificExclusions } = await import("@/lib/recomputeDoctorSpecificExclusions");
+      await recomputeDoctorSpecificExclusions();
       const targetHosp = candidates.find((h) => h.id === target);
       toast({ title: "Regra clonada", description: `Clonada para ${targetHosp?.name ?? "hospital destino"}.` });
       onCloned?.(String(data), target);
