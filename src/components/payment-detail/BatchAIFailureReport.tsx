@@ -183,7 +183,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
       }
 
       const { error: dispatchErr } = await supabase.functions.invoke("dispatch-payment-analysis", {
-        body: { payment_id: paymentId, only_companies: [company.name] },
+        body: { payment_id: paymentId, only_companies: [company.name], run_ai: true },
       });
       setLinkingId(null);
       setSearchOpen(false);
