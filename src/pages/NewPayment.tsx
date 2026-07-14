@@ -5056,7 +5056,18 @@ const NewPayment = () => {
         />
 
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {!modoConfeccao && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeAiOnSubmit}
+                onChange={(e) => setIncludeAiOnSubmit(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              Incluir justificativas IA
+            </label>
+          )}
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button onClick={submit} disabled={submitting || allRows.length === 0 || !registriesReady || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
