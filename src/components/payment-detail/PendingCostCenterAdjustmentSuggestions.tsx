@@ -131,7 +131,7 @@ export function PendingCostCenterAdjustmentSuggestions({
         parcela_numero: (adj.parcelas_pagas ?? 0) + 1,
         applied_by: user?.id ?? null,
         status: "proposto",
-        source: "cost_center_suggestion",
+        source: "manual",
       });
       if (error) throw error;
       // Recalcula deduções do lote para refletir na composição.
