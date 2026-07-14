@@ -25,11 +25,18 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Fontes cuja classificação é intocável pelo auto-classify. Espelha
+// `cross-reference-parecer` (que já respeita 'company_override' e 'base_tipo')
+// e cobre overrides manuais + cross-reference. 'company_override' e 'base_tipo'
+// ainda não são emitidos por esta função — estão aqui como blindagem futura.
 const PROTECTED_SOURCES = new Set([
   "manual",
   "report_cross",
   "report_cross_dedup",
+  "company_override",
+  "base_tipo",
 ]);
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
