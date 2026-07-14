@@ -89,23 +89,28 @@ export function PendingCostCenterAdjustmentSuggestions({
       if (candidates.length === 0) return;
 
       // 3) Suprime candidatos que já têm aplicação (não revertida) para a
-      //    mesma competência + mesmo CC (em qualquer payment).
+      //    mesma competência + mesmo CC (em qualquer payment do hospital).
       const ids = candidates.map((c) => c.id);
-      const { data: apps } = await supabase
-        .from("company_adjustment_applications")
-        .select("adjustment_id, payment:payments!inner(competence_month, cost_center_code)")
-        .in("adjustment_id", ids)
+      const { data: sameCompPayments } = await supabase
+        .from("payments")
+        .select("id")
         .eq("hospital_id", hospitalId)
-        .eq("company_id", companyId)
-        .neq("status", "revertido");
+        .eq("competence_month", compEnd)
+        .eq("cost_center_code", costCenterCode);
+      const paymentIds = ((sameCompPayments as any[]) ?? []).map((p) => p.id);
       const suppressed = new Set<string>();
-      ((apps as any[]) ?? []).forEach((row) => {
-        const pm = row.payment?.competence_month ?? null;
-        const cc = row.payment?.cost_center_code ?? null;
-        if (pm && cc && String(pm).slice(0, 10) === compEnd && cc === costCenterCode) {
-          suppressed.add(row.adjustment_id);
-        }
-      });
+      if (paymentIds.length > 0) {
+        const { data: apps } = await supabase
+          .from("company_adjustment_applications")
+          .select("adjustment_id")
+          .in("adjustment_id", ids)
+          .in("payment_id", paymentIds)
+          .eq("hospital_id", hospitalId)
+          .eq("company_id", companyId)
+          .neq("status", "revertido");
+        ((apps as any[]) ?? []).forEach((row) => suppressed.add(row.adjustment_id));
+      }
+
       setPending(candidates.filter((c) => !suppressed.has(c.id)) as Candidate[]);
     } finally {
       setLoading(false);
