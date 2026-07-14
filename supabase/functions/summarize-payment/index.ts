@@ -5,7 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 // Migrado do Anthropic para o Lovable AI Gateway (openai/gpt-5.5) — usa LOVABLE_API_KEY.
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 import { maskPatients, unmaskDeep } from "../_shared/aiPrivacy.ts";
 
 const corsHeaders = {
@@ -54,7 +54,7 @@ serve(async (req) => {
     // 1. Pagamento
     const { data: payment, error: pErr } = await supabase
       .from("payments")
-      .select("id, reference, status, total_amount, bruto_total, liquido_total, competence_month, items_count, processing_diagnostics")
+      .select("id, reference, status, total_amount, bruto_total, liquido_total, competence_month, items_count, processing_diagnostics, hospital_id")
       .eq("id", payment_id)
       .maybeSingle();
 
@@ -63,6 +63,13 @@ serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (!auth.is_internal && !assertCallerHospital(auth, (payment as any).hospital_id)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // 2. Itens — agrega ai_status e por empresa.

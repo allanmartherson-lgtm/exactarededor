@@ -4,7 +4,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { anthropicFetch } from "../_shared/anthropicWithFallback.ts";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +53,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "item not found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Guard multi-tenant: hospital do payment do item precisa bater com hospital do chamador.
+    const { data: payRow } = await supabase
+      .from("payments").select("hospital_id").eq("id", item.payment_id).maybeSingle();
+    if (!auth.is_internal && !assertCallerHospital(auth, (payRow as any)?.hospital_id ?? null)) {
+      return new Response(
+        JSON.stringify({ error: "hospital_scope_denied", message: "Seu hospital ativo não corresponde ao hospital deste registro." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const findings = (item.ai_findings ?? {}) as any;
