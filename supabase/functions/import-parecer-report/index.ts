@@ -16,11 +16,12 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   const _auth = await requireInternalOrRole(req);
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
-    return new Response(null, { headers: corsHeaders });
 
   try {
     const body = await req.json();
