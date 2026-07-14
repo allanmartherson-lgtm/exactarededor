@@ -130,10 +130,14 @@ Deno.serve(async (req) => {
     let autoTuss = 0;
     let autoHeuristic = 0;
     let autoDefault = 0;
+    let ambiguousTuss = 0;
     let unchanged = 0;
     const pageSize = 1000;
 
-    // key = `${nextItemTypeId}::${nextSource}` → lista de ids a atualizar
+    // Sentinela para representar item_type_id=null na chave do bucket
+    // (Map<string,…> não aceita null como parte da chave composta).
+    const NULL_SENTINEL = "__NULL__";
+    // key = `${nextItemTypeId | NULL_SENTINEL}::${nextSource}` → lista de ids
     const buckets = new Map<string, string[]>();
 
     for (let from = 0; ; from += pageSize) {
@@ -155,11 +159,24 @@ Deno.serve(async (req) => {
 
         const code = String(it.procedure_code ?? "").trim();
         let nextItemTypeId: string | null = null;
-        let nextSource: "auto_tuss" | "auto_heuristic" | "auto_default" | null = null;
+        let nextSource:
+          | "auto_tuss"
+          | "auto_heuristic"
+          | "auto_default"
+          | "ambiguous_tuss"
+          | null = null;
 
-        if (code && tussToItemType.has(code)) {
-          nextItemTypeId = tussToItemType.get(code)!;
-          nextSource = "auto_tuss";
+        if (code && tussToItemTypes.has(code)) {
+          const set = tussToItemTypes.get(code)!;
+          if (set.size === 1) {
+            nextItemTypeId = set.values().next().value as string;
+            nextSource = "auto_tuss";
+          } else {
+            // TUSS reivindicado por 2+ tipos ativos → deixa null e marca
+            // ambíguo. Decisão será do cross-reference-parecer ou manual.
+            nextItemTypeId = null;
+            nextSource = "ambiguous_tuss";
+          }
         } else if (code && dynamicFallbackItemTypeId) {
           nextItemTypeId = dynamicFallbackItemTypeId;
           nextSource = "auto_heuristic";
@@ -168,12 +185,12 @@ Deno.serve(async (req) => {
           nextSource = "auto_default";
         }
 
-        if (!nextItemTypeId || !nextSource) {
+        if (!nextSource) {
           unchanged++;
           continue;
         }
 
-        // Sem mudança? pula (não gera UPDATE).
+        // Sem mudança? pula (não gera UPDATE). Trata ambíguo->ambíguo também.
         if (
           it.item_type_id === nextItemTypeId &&
           it.item_type_source === nextSource
@@ -182,7 +199,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const bucketKey = `${nextItemTypeId}::${nextSource}`;
+        const bucketKey = `${nextItemTypeId ?? NULL_SENTINEL}::${nextSource}`;
         const arr = buckets.get(bucketKey);
         if (arr) arr.push(it.id);
         else buckets.set(bucketKey, [it.id]);
@@ -195,10 +212,11 @@ Deno.serve(async (req) => {
     //    URL do PostgREST dentro do limite seguro.
     const CHUNK = 500;
     for (const [key, ids] of buckets) {
-      const [nextItemTypeId, nextSource] = key.split("::") as [
+      const [rawTypeId, nextSource] = key.split("::") as [
         string,
-        "auto_tuss" | "auto_heuristic" | "auto_default",
+        "auto_tuss" | "auto_heuristic" | "auto_default" | "ambiguous_tuss",
       ];
+      const nextItemTypeId = rawTypeId === NULL_SENTINEL ? null : rawTypeId;
       for (let i = 0; i < ids.length; i += CHUNK) {
         const chunk = ids.slice(i, i + CHUNK);
         const { error: upErr } = await supabase
@@ -217,12 +235,13 @@ Deno.serve(async (req) => {
         }
         if (nextSource === "auto_tuss") autoTuss += chunk.length;
         else if (nextSource === "auto_heuristic") autoHeuristic += chunk.length;
+        else if (nextSource === "ambiguous_tuss") ambiguousTuss += chunk.length;
         else autoDefault += chunk.length;
       }
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -233,11 +252,13 @@ Deno.serve(async (req) => {
         auto_tuss: autoTuss,
         auto_heuristic: autoHeuristic,
         auto_default: autoDefault,
+        ambiguous_tuss: ambiguousTuss,
         unchanged,
         default_item_type: defaultItemTypeCode,
         dynamic_fallback_item_type: dynamicFallbackItemTypeCode,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+
     );
   } catch (e: any) {
     console.error("[auto-classify-payment-types] error", e);
