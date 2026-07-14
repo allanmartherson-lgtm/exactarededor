@@ -22,6 +22,7 @@ import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } 
 import { buildReclassifyPatch } from "@/lib/reclassifyItemType";
 import {
   AlertTriangle,
+  ArrowUpDown,
   Columns3,
   ChevronRight,
   ChevronUp,
@@ -35,6 +36,7 @@ import {
   HelpCircle,
   MoreHorizontal,
   Pencil,
+  Plus,
   RotateCcw,
   Search,
   Settings2,
@@ -45,6 +47,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { invokeDispatchAnalysis } from "@/lib/dispatchAnalysis";
 import { useAuth } from "@/contexts/AuthContext";
