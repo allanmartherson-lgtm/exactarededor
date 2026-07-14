@@ -240,9 +240,43 @@ export default function ItemTypes({
     else load();
   };
 
+  // Ambiguidade de TUSS: acumula, entre os TIPOS ATIVOS, os tipos que
+  // reivindicam cada código (tuss_default ∪ tuss_codes_extra). Códigos com
+  // ≥2 tipos ativos ficam ambíguos — o motor NÃO classifica automaticamente
+  // (fica para o cross-reference-parecer ou override manual).
+  const tussOwners = new Map<string, Array<{ id: string; label: string }>>();
+  for (const p of list) {
+    if (!p.active || !p.id) continue;
+    const codes = new Set<string>();
+    if (p.tuss_default) codes.add(p.tuss_default.trim());
+    for (const c of p.tuss_codes_extra ?? []) {
+      if (c) codes.add(String(c).trim());
+    }
+    for (const c of codes) {
+      if (!c) continue;
+      const arr = tussOwners.get(c) ?? [];
+      arr.push({ id: p.id, label: p.label });
+      tussOwners.set(c, arr);
+    }
+  }
+  const ambiguousCodes = new Map<string, Array<{ id: string; label: string }>>();
+  for (const [code, owners] of tussOwners) {
+    if (owners.length > 1) ambiguousCodes.set(code, owners);
+  }
+  const ambiguityByTypeId = new Map<string, Map<string, string[]>>();
+  for (const [code, owners] of ambiguousCodes) {
+    for (const o of owners) {
+      const others = owners.filter((x) => x.id !== o.id).map((x) => x.label);
+      const bucket = ambiguityByTypeId.get(o.id) ?? new Map<string, string[]>();
+      bucket.set(code, others);
+      ambiguityByTypeId.set(o.id, bucket);
+    }
+  }
+
   return (
     <>
       {!embedded && (
+
         <PageHeader
           title="Tipos de item"
           description="Tipos descrevem o procedimento da linha (Parecer, Visita, Cirurgia, Consulta, Bônus, Exames). O motor usa o TUSS do item para identificar o tipo automaticamente; itens sem TUSS caem no tipo padrão marcado abaixo."
