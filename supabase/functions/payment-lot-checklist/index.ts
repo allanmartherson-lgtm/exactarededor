@@ -238,22 +238,56 @@ serve(async (req) => {
       });
     }
 
+    // ---- 5.5) Contexto (usado no cache-hash e no prompt IA) ----
+    const contexto = {
+      lote: { reference: payment.reference, total: lotTotal, empresas: groups.length },
+      sinais_por_empresa: Array.from(aggByCompany.values()).map((a) => ({
+        empresa: a.company_name,
+        total_bruto: a.total_bruto, itens: a.total_items,
+        reprovado: a.reprovado, alerta: a.alerta, sem_regra: a.sem_regra,
+        diff_abs: a.diff_abs, diff_pct: a.diff_pct, bloqueante: a.diff_bloqueante,
+        devolucoes_anteriores: returnsByCompany.get(a.company_name) ?? 0,
+      })),
+      tuss_pendentes: tussPending,
+      audience,
+      det_snapshot: det.map((d) => ({ t: d.text, p: d.priority, c: d.category })),
+    };
+
+    const summary = {
+      empresas: groups.length,
+      total_lote: lotTotal,
+      valor_em_risco: lotValueAtRisk,
+      reprovado: lotReprovado,
+      alerta: lotAlerta,
+      sem_regra: lotSemRegra,
+      bloqueantes: blockingCompanies.length,
+      tuss_pendentes: tussPending,
+    };
+
+    // hospital_id vem do payment consultado — nunca do body.
+    const hospitalId = payment.hospital_id as string | null;
+    const scopeKey = `${payment_id}::${audience}`;
+    const inputHash = await sha256Hex(JSON.stringify(contexto));
+
+    if (hospitalId && !force_refresh) {
+      const cached = await getChecklistCache<{ items: ChecklistItem[]; summary: typeof summary }>(
+        supabase, "payment_lot", hospitalId, scopeKey,
+      );
+      if (cached && cached.input_hash === inputHash) {
+        return new Response(JSON.stringify({
+          ok: true,
+          items: cached.result?.items ?? [],
+          summary: cached.result?.summary ?? summary,
+          cached: true,
+          updated_at: cached.updated_at,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // ---- 6) Resumo IA (1 chamada, opcional — pula se não houver chave) ----
     const aiItems: ChecklistItem[] = [];
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (LOVABLE_API_KEY) {
-      const contexto = {
-        lote: { reference: payment.reference, total: lotTotal, empresas: groups.length },
-        sinais_por_empresa: Array.from(aggByCompany.values()).map((a) => ({
-          empresa: a.company_name,
-          total_bruto: a.total_bruto, itens: a.total_items,
-          reprovado: a.reprovado, alerta: a.alerta, sem_regra: a.sem_regra,
-          diff_abs: a.diff_abs, diff_pct: a.diff_pct, bloqueante: a.diff_bloqueante,
-          devolucoes_anteriores: returnsByCompany.get(a.company_name) ?? 0,
-        })),
-        tuss_pendentes: tussPending,
-        audience,
-      };
       const sysPrompt = audience === "director"
         ? `Você é um diretor financeiro revisando um lote de pagamento médico. Produza um RESUMO EXECUTIVO em 2-4 itens — apenas o que importa para decidir aprovar ou devolver. Foco em valor em risco, divergências bloqueantes e histórico ruim. Sem instruções operacionais. Priorize 'alta' para risco material; nada de 'baixa'. category curta.`
         : `Você é auditor sênior de pagamento médico. Produza 2-4 alertas adicionais para o validador, complementando os sinais determinísticos já identificados (não repita o óbvio). Use APENAS dados do contexto. Quando o alerta for sobre uma empresa específica, preencha company_name. category curta (ex.: Concentração, Outlier, Padrão atípico).`;
