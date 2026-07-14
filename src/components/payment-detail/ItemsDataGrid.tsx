@@ -2534,7 +2534,132 @@ export function ItemsDataGrid({
               )}
             </Button>
           )}
+          <Popover open={customSortOpen} onOpenChange={setCustomSortOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant={customSortActive ? "default" : "outline"}
+                className="h-8 text-xs ml-auto"
+                title="Classificação personalizada (aplicada dentro de cada atendimento)"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1" />
+                Classificar
+                {customSort.length > 0 && (
+                  <span className={cn(
+                    "ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded text-[10px] font-semibold",
+                    customSortActive
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}>
+                    {customSort.length}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[380px] p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold">Classificação personalizada</p>
+                <span className="text-[10px] text-muted-foreground">dentro de cada atendimento</span>
+              </div>
+              {sortKey && (
+                <div className="mb-2 rounded-md border border-amber-300/70 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800/70 px-2 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
+                  Um cabeçalho de coluna está sendo usado para ordenar. Limpe-o (clique de novo) para aplicar a classificação personalizada.
+                </div>
+              )}
+              {customSort.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground py-2">
+                  Nenhum nível definido. Clique em <span className="font-medium">"+ Adicionar nível"</span> para começar.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {customSort.map((lvl, idx) => {
+                    const fieldDef = CUSTOM_SORT_FIELDS.find((f) => f.value === lvl.field);
+                    const isNumeric = !!fieldDef?.numeric;
+                    return (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        <span className="w-4 text-[10px] text-muted-foreground tabular-nums">{idx + 1}.</span>
+                        <Select
+                          value={lvl.field}
+                          onValueChange={(v) =>
+                            setCustomSort((prev) => prev.map((l, i) => i === idx ? { ...l, field: v as CustomSortField } : l))
+                          }
+                        >
+                          <SelectTrigger className="h-7 text-[11px] flex-1 min-w-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CUSTOM_SORT_FIELDS.map((f) => (
+                              <SelectItem key={f.value} value={f.value} className="text-xs">
+                                {f.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={lvl.dir}
+                          onValueChange={(v) =>
+                            setCustomSort((prev) => prev.map((l, i) => i === idx ? { ...l, dir: v as "asc" | "desc" } : l))
+                          }
+                        >
+                          <SelectTrigger className="h-7 text-[11px] w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="asc" className="text-xs">
+                              {isNumeric ? "Menor → Maior" : "A → Z (crescente)"}
+                            </SelectItem>
+                            <SelectItem value="desc" className="text-xs">
+                              {isNumeric ? "Maior → Menor" : "Z → A (decrescente)"}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => setCustomSort((prev) => prev.filter((_, i) => i !== idx))}
+                          title="Remover nível"
+                        >
+                          <XIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px]"
+                  disabled={customSort.length >= 4}
+                  onClick={() => {
+                    const used = new Set(customSort.map((l) => l.field));
+                    const next = CUSTOM_SORT_FIELDS.find((f) => !used.has(f.value)) ?? CUSTOM_SORT_FIELDS[0];
+                    setCustomSort((prev) => [...prev, { field: next.value, dir: "asc" }]);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Adicionar nível
+                </Button>
+                {customSort.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] text-muted-foreground"
+                    onClick={() => setCustomSort([])}
+                  >
+                    Limpar tudo
+                  </Button>
+                )}
+              </div>
+              <p className="mt-2 text-[10px] text-muted-foreground border-t pt-2">
+                A ordem dos atendimentos entre si não muda. Ajustes de conciliação continuam no fim e bônus grudado no item pai.
+              </p>
+            </PopoverContent>
+          </Popover>
           <Popover>
+
             <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className="h-8 text-xs ml-auto">
                 <Columns3 className="h-3.5 w-3.5 mr-1" />
