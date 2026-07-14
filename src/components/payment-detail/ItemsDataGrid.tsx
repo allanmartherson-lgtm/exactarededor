@@ -4900,6 +4900,15 @@ function ItemDetailsRow({
 
               <CalcExceptionItemAction paymentId={it.payment_id} item={it as any} />
 
+              {isParecerPayment && ((it as any).parecer_evidence === "unverified") && canEdit && (
+                <ParecerUnverifiedActions
+                  item={it}
+                  visitaPaymentTypeId={visitaPaymentTypeId ?? null}
+                  parecerPaymentTypeId={parecerPaymentTypeId ?? null}
+                  onChangeCaseSubtype={onChangeCaseSubtype}
+                />
+              )}
+
               <PaymentTypeOverrideAction
                 item={it as any}
                 allItems={allItems as any}
