@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
