@@ -26,7 +26,10 @@ Deno.serve(async (req) => {
   if (!auth.ok) return unauthorizedResponse(auth, corsHeaders);
   try {
 
-    const { payment_id, ai_statuses, tolerance_pct, only_companies, force_fresh_rules, skip_ai, skip_parecer_cross_ref } = await req.json();
+    const { payment_id, ai_statuses, tolerance_pct, only_companies, force_fresh_rules, skip_ai, run_ai, skip_parecer_cross_ref } = await req.json();
+    // [2026-07-14] IA opt-in: default = motor puro. IA só quando run_ai===true
+    // ou skip_ai===false explicitamente.
+    const __skip_ai = run_ai === true ? false : (skip_ai === false ? false : true);
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -385,7 +388,7 @@ Deno.serve(async (req) => {
             ai_statuses,
             tolerance_pct,
             force_fresh_rules: force_fresh_rules === true,
-            skip_ai: skip_ai === true,
+            skip_ai: __skip_ai,
           }),
         });
         if (!resp.ok) console.error("[dispatch] orquestrador retornou erro", resp.status, (await resp.text()).slice(0, 500));

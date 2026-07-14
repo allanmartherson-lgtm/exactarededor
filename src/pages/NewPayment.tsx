@@ -549,6 +549,7 @@ const NewPayment = () => {
   useEffect(() => { markTemplateUsedRef.current = markTemplateUsed; }, [markTemplateUsed]);
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [includeAiOnSubmit, setIncludeAiOnSubmit] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
@@ -3623,13 +3624,13 @@ const NewPayment = () => {
       }
     }
 
-    toast({ title: "Lote criado", description: "Iniciando análise por IA..." });
+    toast({ title: "Lote criado", description: "Iniciando análise..." });
     // Aguarda confirmação do dispatcher. Se falhar (timeout, boot error), reverte
     // status para 'rascunho' para não deixar o lote travado em 'em_analise_ia'.
     try {
       const { data: dispatchData, error: dispatchErr } = await supabase.functions.invoke(
         "dispatch-payment-analysis",
-        { body: { payment_id: payment.id } }
+        { body: { payment_id: payment.id, run_ai: includeAiOnSubmit === true } }
       );
       if (dispatchErr) {
         // FunctionsHttpError expõe a Response em .context — usamos para detectar
@@ -5055,7 +5056,18 @@ const NewPayment = () => {
         />
 
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {!modoConfeccao && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeAiOnSubmit}
+                onChange={(e) => setIncludeAiOnSubmit(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              Incluir justificativas IA
+            </label>
+          )}
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button onClick={submit} disabled={submitting || allRows.length === 0 || !registriesReady || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
@@ -5072,7 +5084,7 @@ const NewPayment = () => {
                     ? "Anexe o relatório de pareceres"
                     : sectorOnlyUnresolvedCount > 0
                       ? (modoConfeccao ? "Criar e calcular (setores serão ignorados)" : "Criar e analisar (setores serão ignorados)")
-                      : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar com IA"}
+                      : modoConfeccao ? "Criar e calcular repasse" : "Criar e analisar"}
           </Button>
         </div>
 
