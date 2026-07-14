@@ -22,6 +22,7 @@ import { deriveConfeccaoStatus, CONFECCAO_STATUS_LABEL, CONFECCAO_STATUS_TONE } 
 import { buildReclassifyPatch } from "@/lib/reclassifyItemType";
 import {
   AlertTriangle,
+  ArrowUpDown,
   Columns3,
   ChevronRight,
   ChevronUp,
@@ -35,6 +36,7 @@ import {
   HelpCircle,
   MoreHorizontal,
   Pencil,
+  Plus,
   RotateCcw,
   Search,
   Settings2,
@@ -45,6 +47,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { invokeDispatchAnalysis } from "@/lib/dispatchAnalysis";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1441,6 +1444,63 @@ export function ItemsDataGrid({
     }
   };
 
+  // ============= Classificação personalizada (estilo Excel) =============
+  // Aplicada DENTRO de cada grupo de atendimento, respeitando: cluster de
+  // pacote antes de outros métodos, ajustes de conciliação no fim absoluto,
+  // e bônus grudado no pai. Persistida em localStorage.
+  type CustomSortField =
+    | "procedure_date"
+    | "paciente"
+    | "convenio"
+    | "medico"
+    | "funcao"
+    | "tuss"
+    | "procedimento"
+    | "gross"
+    | "esperado"
+    | "diferenca"
+    | "status"
+    | "metodo";
+  type CustomSortLevel = { field: CustomSortField; dir: "asc" | "desc" };
+  const CUSTOM_SORT_KEY = "medpay:items-grid:custom-sort:v1";
+  const CUSTOM_SORT_FIELDS: { value: CustomSortField; label: string; numeric?: boolean }[] = [
+    { value: "procedure_date", label: "Data do procedimento" },
+    { value: "paciente", label: "Paciente" },
+    { value: "convenio", label: "Convênio" },
+    { value: "medico", label: "Médico" },
+    { value: "funcao", label: "Função" },
+    { value: "tuss", label: "Código TUSS" },
+    { value: "procedimento", label: "Procedimento" },
+    { value: "gross", label: "Valor bruto", numeric: true },
+    { value: "esperado", label: "Valor esperado", numeric: true },
+    { value: "diferenca", label: "Diferença", numeric: true },
+    { value: "status", label: "Status" },
+    { value: "metodo", label: "Método de cálculo" },
+  ];
+  const [customSort, setCustomSort] = useState<CustomSortLevel[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(CUSTOM_SORT_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (l: any) => l && typeof l === "object" && typeof l.field === "string" && (l.dir === "asc" || l.dir === "desc"),
+      ) as CustomSortLevel[];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CUSTOM_SORT_KEY, JSON.stringify(customSort));
+    } catch { /* noop */ }
+  }, [customSort]);
+  const [customSortOpen, setCustomSortOpen] = useState(false);
+  const customSortActive = customSort.length > 0 && !sortKey;
+
+
+
   const [colVis, setColVis] = useState<Record<OptionalColKey, boolean>>(() => {
     if (typeof window === "undefined") return DEFAULT_COL_VISIBILITY;
     try {
@@ -1490,6 +1550,49 @@ export function ItemsDataGrid({
     : "text-[13px] leading-snug tracking-normal";
 
   const getConvenio = getAgreement;
+
+  // Comparador multi-nível para a classificação personalizada.
+  const compareByCustomSort = (
+    a: PaymentItemRowData,
+    b: PaymentItemRowData,
+    levels: CustomSortLevel[],
+  ): number => {
+    const statusOrder: Record<string, number> = {
+      reprovado: 0, alerta: 1, pendente: 2, acatado: 3, aprovado: 4, seguido: 4,
+    };
+    const valueFor = (it: PaymentItemRowData, field: CustomSortField): string | number => {
+      switch (field) {
+        case "procedure_date": return ((it as any).procedure_date ?? "") as string;
+        case "paciente": return (getPatient(it) ?? "").toLowerCase();
+        case "convenio": return (getConvenio(it) ?? "").toLowerCase();
+        case "medico": return (it.doctor_name ?? "").toLowerCase();
+        case "funcao": return (getDoctorRole(it) ?? "").toLowerCase();
+        case "tuss": return (it.procedure_code ?? "").toString();
+        case "procedimento": return (getProcedureName(it) ?? "").toLowerCase();
+        case "gross": return Number(it.gross_amount ?? 0);
+        case "esperado": return Number((it as any).expected_amount ?? it.ai_findings?.expected_amount ?? 0);
+        case "diferenca": {
+          const exp = (it as any).expected_amount ?? it.ai_findings?.expected_amount;
+          return exp != null ? Number(exp) - Number(it.gross_amount ?? 0) : 0;
+        }
+        case "status": {
+          const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+          return statusOrder[eff] ?? 5;
+        }
+        case "metodo": return ((it as any).applied_calc_method ?? "").toString().toLowerCase();
+      }
+    };
+    for (const lvl of levels) {
+      const va = valueFor(a, lvl.field);
+      const vb = valueFor(b, lvl.field);
+      let cmp: number;
+      if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), "pt-BR", { numeric: true, sensitivity: "base" });
+      if (cmp !== 0) return lvl.dir === "asc" ? cmp : -cmp;
+    }
+    return 0;
+  };
+
 
   const selectRow = (itId: string) => {
     setActiveId(itId);
@@ -1804,12 +1907,20 @@ export function ItemsDataGrid({
           (m) => (m.attendance_number ?? "").toString().trim() === att,
         );
         // Estável: preserva ordem original dentro de cada cluster.
+        // Se houver classificação personalizada ativa (customSort) e nenhum
+        // header estiver ordenando globalmente, aplica os níveis dentro do
+        // cluster respeitando pacote-antes-de-outros-métodos.
         const indexed = ofAtt.map((m, i) => ({ m, i, k: clusterKey(m) }));
         indexed.sort((a, b) => {
           if (a.k !== b.k) return a.k < b.k ? -1 : 1;
+          if (customSortActive) {
+            const cmp = compareByCustomSort(a.m, b.m, customSort);
+            if (cmp !== 0) return cmp;
+          }
           return a.i - b.i;
         });
         for (const { m } of indexed) display.push(m);
+
       } else {
         display.push(it);
       }
@@ -1885,7 +1996,8 @@ export function ItemsDataGrid({
     });
 
     return { packageGroups: groups, displayRows: display, attendanceMeta: meta, attendanceFirstIdxByAtt: firstIdx };
-  }, [filtered]);
+  }, [filtered, customSort, customSortActive]);
+
 
 
 
@@ -2422,9 +2534,134 @@ export function ItemsDataGrid({
               )}
             </Button>
           )}
-          <Popover>
+          <Popover open={customSortOpen} onOpenChange={setCustomSortOpen}>
             <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-8 text-xs ml-auto">
+              <Button
+                size="sm"
+                variant={customSortActive ? "default" : "outline"}
+                className="h-8 text-xs ml-auto"
+                title="Classificação personalizada (aplicada dentro de cada atendimento)"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1" />
+                Classificar
+                {customSort.length > 0 && (
+                  <span className={cn(
+                    "ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded text-[10px] font-semibold",
+                    customSortActive
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}>
+                    {customSort.length}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[380px] p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold">Classificação personalizada</p>
+                <span className="text-[10px] text-muted-foreground">dentro de cada atendimento</span>
+              </div>
+              {sortKey && (
+                <div className="mb-2 rounded-md border border-amber-300/70 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800/70 px-2 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
+                  Um cabeçalho de coluna está sendo usado para ordenar. Limpe-o (clique de novo) para aplicar a classificação personalizada.
+                </div>
+              )}
+              {customSort.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground py-2">
+                  Nenhum nível definido. Clique em <span className="font-medium">"+ Adicionar nível"</span> para começar.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {customSort.map((lvl, idx) => {
+                    const fieldDef = CUSTOM_SORT_FIELDS.find((f) => f.value === lvl.field);
+                    const isNumeric = !!fieldDef?.numeric;
+                    return (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        <span className="w-4 text-[10px] text-muted-foreground tabular-nums">{idx + 1}.</span>
+                        <Select
+                          value={lvl.field}
+                          onValueChange={(v) =>
+                            setCustomSort((prev) => prev.map((l, i) => i === idx ? { ...l, field: v as CustomSortField } : l))
+                          }
+                        >
+                          <SelectTrigger className="h-7 text-[11px] flex-1 min-w-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CUSTOM_SORT_FIELDS.map((f) => (
+                              <SelectItem key={f.value} value={f.value} className="text-xs">
+                                {f.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={lvl.dir}
+                          onValueChange={(v) =>
+                            setCustomSort((prev) => prev.map((l, i) => i === idx ? { ...l, dir: v as "asc" | "desc" } : l))
+                          }
+                        >
+                          <SelectTrigger className="h-7 text-[11px] w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="asc" className="text-xs">
+                              {isNumeric ? "Menor → Maior" : "A → Z (crescente)"}
+                            </SelectItem>
+                            <SelectItem value="desc" className="text-xs">
+                              {isNumeric ? "Maior → Menor" : "Z → A (decrescente)"}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => setCustomSort((prev) => prev.filter((_, i) => i !== idx))}
+                          title="Remover nível"
+                        >
+                          <XIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px]"
+                  disabled={customSort.length >= 4}
+                  onClick={() => {
+                    const used = new Set(customSort.map((l) => l.field));
+                    const next = CUSTOM_SORT_FIELDS.find((f) => !used.has(f.value)) ?? CUSTOM_SORT_FIELDS[0];
+                    setCustomSort((prev) => [...prev, { field: next.value, dir: "asc" }]);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Adicionar nível
+                </Button>
+                {customSort.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] text-muted-foreground"
+                    onClick={() => setCustomSort([])}
+                  >
+                    Limpar tudo
+                  </Button>
+                )}
+              </div>
+              <p className="mt-2 text-[10px] text-muted-foreground border-t pt-2">
+                A ordem dos atendimentos entre si não muda. Ajustes de conciliação continuam no fim e bônus grudado no item pai.
+              </p>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-8 text-xs">
                 <Columns3 className="h-3.5 w-3.5 mr-1" />
                 Colunas
               </Button>
