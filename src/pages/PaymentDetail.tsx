@@ -2386,12 +2386,13 @@ const PaymentDetail = () => {
   };
 
 
-  const reprocessAi = async (statuses?: string[]) => {
+  const reprocessAi = async (statuses?: string[], opts?: { runAi?: boolean }) => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
       const isConfeccaoMode = payment?.analysis_mode === "confeccao";
       const isBatch = !statuses || statuses.length === 0;
+      const runAi = !!opts?.runAi;
 
       const result = await invokeDispatchAnalysis({
         payment_id: id,
@@ -2399,6 +2400,7 @@ const PaymentDetail = () => {
         tolerance_pct: toleranceValue,
         _job_id: null,
         _company_label: !isBatch ? "Processamento por filtro" : undefined,
+        ...(runAi ? { run_ai: true } : {}),
       });
       if (!result.ok) {
         if (result.blocked) return; // toast já exibido pelo wrapper (ex.: missing_parecer_report)
