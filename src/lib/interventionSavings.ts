@@ -21,6 +21,7 @@ export type IntervenorRole =
   | "aceite_pago"
   | "ajuste_manual"
   | "glosa"
+  | "glosa_pj"
   | "cancelamento";
 
 export const ROLE_LABELS: Record<IntervenorRole, string> = {
@@ -35,6 +36,7 @@ export const ROLE_LABELS: Record<IntervenorRole, string> = {
   aceite_pago: "Aceite mantendo pago",
   ajuste_manual: "Ajuste manual",
   glosa: "Glosa aplicada",
+  glosa_pj: "Glosa aplicada (PJ)",
   cancelamento: "Cancelamento",
 };
 
