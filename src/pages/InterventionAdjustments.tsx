@@ -164,6 +164,7 @@ async function fetchPaymentRefs(
 
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
+  const { hospital: currentHospital } = useHospital();
   const { hasRole } = useAuth();
   const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [params] = useSearchParams();
