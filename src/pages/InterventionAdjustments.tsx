@@ -406,8 +406,8 @@ export default function InterventionAdjustments() {
                   }))
                 }
                 options={[
-                  { value: "economia", label: "Economia" },
-                  { value: "aumento", label: "Aumento (perda)" },
+                  { value: "economia", label: "Valor recuperado" },
+                  { value: "aumento", label: "Valor extra a pagar" },
                   { value: "neutro", label: "Neutro" },
                 ]}
               />
