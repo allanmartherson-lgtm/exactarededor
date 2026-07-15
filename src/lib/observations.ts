@@ -20,7 +20,7 @@ export function authorRoleLabel(t: string | null | undefined): string {
     case "diretor": return "Diretor";
     case "admin": return "Administrador";
     case "sistema": return "Sistema";
-    case "ia": return "IA";
+    case "ia": return "Automático";
     default: return t ? t.charAt(0).toUpperCase() + t.slice(1) : "—";
   }
 }
@@ -43,7 +43,7 @@ export type RoleVisual = {
 
 const ROLE_VISUALS: Record<string, RoleVisual> = {
   ia: {
-    label: "IA", Icon: Bot,
+    label: "Automático", Icon: Bot,
     badgeClass: "bg-info-soft text-info border-info/30",
     borderClass: "border-l-info", dotClass: "bg-info",
   },

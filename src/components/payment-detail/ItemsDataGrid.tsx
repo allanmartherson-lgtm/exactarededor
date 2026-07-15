@@ -5359,14 +5359,26 @@ function ItemDetailsRow({
                 <SafeCard className="text-muted-foreground italic">Nenhuma regra específica casou.</SafeCard>
               )}
 
-              {aiNote && (
-                <SafeCard className="border-info/30 bg-info-soft/40 shadow-none mt-4">
-                  <Label icon={Sparkles}>Explicação sugerida (IA)</Label>
-                  <p className="text-muted-foreground italic mt-2 leading-relaxed break-words whitespace-normal [overflow-wrap:anywhere]">
-                    {aiNote}
-                  </p>
-                </SafeCard>
-              )}
+              {aiNote && (() => {
+                // Rótulo dinâmico: se veio de LLM (claude/gpt), mostra "IA"; senão, "MOTOR".
+                // Fallback determinístico do motor grava aiNote começando com "Justificativa
+                // automática indisponível" — usamos isso como sinal de que não houve IA.
+                const engineModel = (engine as { model?: string } | null)?.model ?? "";
+                const looksLikeLlm = /claude|gpt/i.test(engineModel);
+                const isEngineFallback = aiNote.startsWith("Justificativa automática indisponível");
+                const isAi = looksLikeLlm || (!isEngineFallback && !engineModel);
+                const Icon = isAi ? Sparkles : Settings2;
+                const label = isAi ? "Explicação da IA" : "Explicação do motor";
+                return (
+                  <SafeCard className="border-info/30 bg-info-soft/40 shadow-none mt-4">
+                    <Label icon={Icon}>{label}</Label>
+                    <p className="text-muted-foreground italic mt-2 leading-relaxed break-words whitespace-normal [overflow-wrap:anywhere]">
+                      {aiNote}
+                    </p>
+                  </SafeCard>
+                );
+              })()}
+
 
               {showTechnical && (it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
                 <SafeCard>

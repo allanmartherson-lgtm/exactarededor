@@ -118,7 +118,7 @@ import {
   type PaymentItemRow,
   type ObservationRow,
   type AiVersionRow,
-  type AiFindings,
+  
 } from "@/hooks/usePaymentDetailData";
 import { calculateFinancialRisk } from "@/lib/riskScore";
 import { cn, normalizeString } from "@/lib/utils";
@@ -397,7 +397,7 @@ export default function CompanyAnalysis() {
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
+  
   const [groupDraft, setGroupDraft] = useState("");
   const [reanalyzing, setReanalyzing] = useState(false);
   // Cooldown pós-reanálise: mantém o botão travado por alguns segundos após o
@@ -442,7 +442,7 @@ export default function CompanyAnalysis() {
   const [changeCompanyReason, setChangeCompanyReason] = useState("");
   const [isQuestion, setIsQuestion] = useState(false);
   const [groupCommentType, setGroupCommentType] = useState<ObservationType>("informativo");
-  const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
+  
 
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string; procedure_amount: string; procedure_code: string; doctor_role: string; sector: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "", procedure_amount: "", procedure_code: "", doctor_role: "", sector: "" });
@@ -451,9 +451,6 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
-  // Paginação leve da aba "Divergências" para evitar overflow vertical no mobile
-  const DIVERGENCE_PAGE_SIZE = 10;
-  const [divergencesVisible, setDivergencesVisible] = useState(DIVERGENCE_PAGE_SIZE);
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
@@ -606,20 +603,12 @@ export default function CompanyAnalysis() {
     return c;
   }, [items, gStatus]);
 
-  const divergentes = useMemo(
-    () =>
-      items.filter((it) => {
-        const alerts = (it.ai_findings?.alerts ?? []) as string[];
-        return alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado";
-      }),
-    [items],
-  );
 
   const groupComments = useMemo(
     () => obs.filter((o) => !o.item_id),
     [obs],
   );
-  const itemComments = (itemId: string) => obs.filter((o) => o.item_id === itemId);
+  
 
   // Estado colapsado/expandido do histórico de comentários da empresa.
   // Persistido em localStorage por (paymentId, companyId) para sobreviver a reload.
@@ -661,24 +650,6 @@ export default function CompanyAnalysis() {
     return true;
   };
 
-  const addItemComment = async (itemId: string) => {
-    const text = (itemDraft[itemId] ?? "").trim();
-    if (!text || !id) return;
-    if (!guardEditable()) return;
-    setBusy(true);
-    const r = await recordObservation({
-      payment_id: id,
-      item_id: itemId,
-      author_type: myAuthorType,
-      author_id: user!.id,
-      message: text,
-      observation_type: itemCommentType[itemId] ?? "informativo",
-    });
-    setBusy(false);
-    if (!r.ok) return toast.error("Erro ao salvar", { description: r.error });
-    setItemDraft((m) => ({ ...m, [itemId]: "" }));
-    load();
-  };
 
   const addGroupComment = async () => {
     const text = groupDraft.trim();
@@ -2636,14 +2607,6 @@ export default function CompanyAnalysis() {
               Auditoria de cálculo
             </TabsTrigger>
           )}
-          {!isConfeccao && !isManual && (
-            <TabsTrigger value="divergencias">
-              Divergências
-              {divergentes.length > 0 && (
-                <Badge variant="secondary" className="ml-2">{divergentes.length}</Badge>
-              )}
-            </TabsTrigger>
-          )}
           {!isConfeccao && !isManual && showParecerTab && (
             <TabsTrigger value="parecer">
               <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
@@ -2652,7 +2615,7 @@ export default function CompanyAnalysis() {
           <TabsTrigger value="historico">
             <History className="h-3.5 w-3.5 mr-1" /> Histórico
           </TabsTrigger>
-          {!isConfeccao && !isManual && <TabsTrigger value="ia">Detalhe IA</TabsTrigger>}
+          
         </TabsList>
 
         {/* ABA 1 — Análise */}
@@ -2958,51 +2921,6 @@ export default function CompanyAnalysis() {
         )}
 
 
-        {/* ABA 2 — Divergências (não existe em confecção) */}
-        {!isConfeccao && (
-          <TabsContent value="divergencias" className="space-y-3">
-            {divergentes.length === 0 ? (
-              <Card className="shadow-card">
-                <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                  Nenhuma divergência identificada para esta empresa.
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {divergentes.slice(0, divergencesVisible).map((it) => (
-                  <DivergenceCard
-                    key={it.id}
-                    it={it}
-                    comments={itemComments(it.id)}
-                    profiles={profiles}
-                    draft={itemDraft[it.id] ?? ""}
-                    onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
-                    type={itemCommentType[it.id] ?? "informativo"}
-                    onTypeChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
-                    onAdd={() => addItemComment(it.id)}
-                    busy={busy}
-                  />
-                ))}
-                {divergencesVisible < divergentes.length && (
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
-                    <span className="text-xs text-muted-foreground">
-                      Mostrando {divergencesVisible} de {divergentes.length}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setDivergencesVisible((n) => Math.min(divergentes.length, n + DIVERGENCE_PAGE_SIZE))
-                      }
-                    >
-                      Carregar mais
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        )}
 
 
 
@@ -3017,12 +2935,6 @@ export default function CompanyAnalysis() {
           />
         </TabsContent>
 
-        {/* ABA 3 — Detalhe IA (oculta em confecção: motor de regras não roda IA) */}
-        {!isConfeccao && (
-          <TabsContent value="ia" className="space-y-3">
-            <AiDetail items={items} versions={aiVersions} />
-          </TabsContent>
-        )}
 
 
         {/* ABA Confecção — auditoria de cálculo (só no modo confecção) */}
@@ -3431,211 +3343,3 @@ function Stat({
 }
 
 // ItemsTable foi substituída por <ItemsDataGrid /> compartilhado.
-
-function DivergenceCard({
-  it,
-  comments,
-  profiles,
-  draft,
-  onDraftChange,
-  type,
-  onTypeChange,
-  onAdd,
-  busy,
-}: {
-  it: PaymentItemRow;
-  comments: ObservationRow[];
-  profiles: Record<string, string>;
-  draft: string;
-  onDraftChange: (v: string) => void;
-  type: ObservationType;
-  onTypeChange: (v: ObservationType) => void;
-  onAdd: () => void;
-  busy: boolean;
-}) {
-  const alerts = (it.ai_findings?.alerts ?? []) as string[];
-  const isCritico = it.ai_status === "reprovado";
-  const expected = it.ai_findings?.expected_amount;
-  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-  const paciente =
-    (it.patient_name as string | null) ??
-    ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-    "—";
-  return (
-    <Card className="shadow-card border-border/50 rounded-2xl">
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              {isCritico ? (
-                <ShieldAlert className="h-4 w-4 text-destructive shrink-0" />
-              ) : (
-                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-              )}
-              <span className="text-sm font-medium truncate">{paciente}</span>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs text-muted-foreground truncate">{it.doctor_name}</span>
-            </div>
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-              {it.procedure_code && (
-                <span>
-                  TUSS: <span className="font-mono text-foreground">{it.procedure_code}</span>
-                </span>
-              )}
-              {it.attendance_number && (
-                <span>
-                  Atend.: <span className="font-mono text-foreground">{it.attendance_number}</span>
-                </span>
-              )}
-              <span>
-                Valor: <span className="tabular-nums text-foreground">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
-              </span>
-              {expected != null && (
-                <span>
-                  Esperado: <span className="tabular-nums text-foreground">{formatCurrency(Number(expected))}</span>
-                </span>
-              )}
-              {(() => {
-                const basis = (it as any).convenio_basis_detected as string | null | undefined;
-                const qty = Number((it as any).quantity ?? 1);
-                if (!basis || basis === "na" || qty <= 1) return null;
-                const label =
-                  basis === "unit" ? `Base: unitário × ${qty}` :
-                  basis === "total" ? "Base: já totalizado" :
-                  "Base: ambígua";
-                const cls =
-                  basis === "ambiguous"
-                    ? "border-warning/40 bg-warning/10 text-warning"
-                    : "border-border bg-muted text-foreground";
-                return (
-                  <span
-                    title="Detecção automática (stateless) da base do valor convênio com base no que casa com o pago."
-                    className={cn(
-                      "inline-flex items-center rounded border px-1.5 py-[1px] text-[10px] font-medium",
-                      cls,
-                    )}
-                  >
-                    {label}
-                  </span>
-                );
-              })()}
-
-            </div>
-          </div>
-          <span
-            className={cn(
-              "inline-flex rounded-full border px-2 py-0.5 text-[10px] shrink-0",
-              isCritico ? TONE_CLASSES.destructive : TONE_CLASSES.warning,
-            )}
-          >
-            {isCritico ? "Crítico" : "Alerta"}
-          </span>
-        </div>
-
-        {alerts.length > 0 && (
-          <ul className="space-y-1 text-xs">
-            {alerts.map((a, i) => (
-              <li key={i} className="flex gap-1.5">
-                <span className="text-muted-foreground">•</span>
-                <span className="whitespace-pre-wrap">{a}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* Comentários por item */}
-        {comments.length > 0 && (
-          <ul className="space-y-1.5">
-            {comments.slice(0, 3).map((o) => (
-              <li key={o.id} className="rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
-                <div className="text-muted-foreground text-[10px] mb-0.5">
-                  {o.author_type}
-                  {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
-                  {" · "}{formatDateTimeBR(o.created_at)}
-                </div>
-                <div className="whitespace-pre-wrap">{o.message}</div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Textarea
-              placeholder="Comentar este item…"
-              value={draft}
-              onChange={(e) => onDraftChange(e.target.value)}
-              rows={2}
-              className="flex-1"
-            />
-            <Button size="sm" onClick={onAdd} disabled={busy || !draft.trim()} className="self-end">
-              Comentar
-            </Button>
-          </div>
-          <ObservationTypeSelector
-            value={type}
-            onChange={onTypeChange}
-            disabled={busy}
-          />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AiDetail({ items, versions }: { items: PaymentItemRow[]; versions: AiVersionRow[] }) {
-  const withExplanation = items.filter((it) => {
-    const f = it.ai_findings as AiFindings | null;
-    return (
-      (f?.calculation_explanation && f.calculation_explanation.trim().length > 0) ||
-      (f?.matched_rules && f.matched_rules.length > 0)
-    );
-  });
-  if (withExplanation.length === 0) {
-    return (
-      <Card className="shadow-card">
-        <CardContent className="p-6 text-center text-sm text-muted-foreground">
-          Nenhuma explicação de regra disponível para esta empresa.
-        </CardContent>
-      </Card>
-    );
-  }
-  return (
-    <div className="space-y-3">
-      {withExplanation.map((it) => {
-        const f = it.ai_findings as AiFindings;
-        const lastVersion = versions.find((v) => v.item_id === it.id);
-        const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-        const paciente =
-          (it.patient_name as string | null) ??
-          ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-          "—";
-        return (
-          <Card key={it.id} className="shadow-card">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-info" />
-                <span className="text-sm font-medium truncate">{paciente}</span>
-                <span className="text-xs text-muted-foreground">· {it.doctor_name}</span>
-                {lastVersion && (
-                  <span className="text-[10px] text-muted-foreground ml-auto">v{lastVersion.version}</span>
-                )}
-              </div>
-              {f.matched_rules && f.matched_rules.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  Regras aplicadas:{" "}
-                  <span className="text-foreground">{f.matched_rules.join(", ")}</span>
-                </div>
-              )}
-              {f.calculation_explanation && (
-                <p className="text-xs italic text-muted-foreground whitespace-pre-wrap">
-                  {f.calculation_explanation}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
