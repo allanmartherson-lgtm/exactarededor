@@ -51,6 +51,18 @@ const ROLE_CHIPS: { role: IntervenorRole; hint: string }[] = [
     hint: "Correção do analista: alteração de valor durante a análise inicial. Δ = valor antigo − valor novo. Reduzir o pagamento gera economia; aumentar gera perda.",
   },
   {
+    role: "glosa_pj",
+    hint: "Glosa aplicada por PJ: soma das aplicações confirmadas da glosa naquela empresa dentro do lote. Entra 100% como economia — reflete o valor efetivamente descontado da PJ.",
+  },
+  {
+    role: "ajuste_manual",
+    hint: "Ajuste manual de valor no item feito pelo analista fora dos fluxos de aceite. Δ = valor regra − valor pago final.",
+  },
+  {
+    role: "aceite_esperado",
+    hint: "Analista/validador acatou o valor esperado do motor. Δ = valor pago original − valor esperado (positivo = economia).",
+  },
+  {
     role: "cancelamento_empresa",
     hint: "Empresa cancelada manualmente: todos os itens da PJ deixaram de ser pagos por decisão do analista (médico fatura externamente, contrato encerrado, etc). Entra 100% como economia.",
   },
