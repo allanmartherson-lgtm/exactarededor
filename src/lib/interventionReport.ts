@@ -11,12 +11,72 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import { formatCurrency } from "@/lib/status";
+import { supabase } from "@/integrations/supabase/client";
 import {
   classifyItem,
   roleLabel,
   type InterventionItem,
   type InterventionSummary,
 } from "@/lib/interventionSavings";
+
+/**
+ * Busca rótulo do lote (payments.reference + competence_month) e attendance_number
+ * dos itens para enriquecer o export — evita "duplicatas visuais" no arquivo quando
+ * o mesmo procedimento aparece em atendimentos/lotes distintos.
+ *
+ * Escopo: SOMENTE leitura auxiliar do exportador. Não altera RPC nem KPIs.
+ */
+type Enrichment = {
+  loteByPayment: Map<string, string>;
+  attendanceByItem: Map<string, string>;
+};
+
+const monthLabelPt = (iso: string | null | undefined): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
+};
+
+async function fetchEnrichment(items: InterventionItem[]): Promise<Enrichment> {
+  const loteByPayment = new Map<string, string>();
+  const attendanceByItem = new Map<string, string>();
+  const paymentIds = Array.from(new Set(items.map((i) => i.payment_id).filter(Boolean)));
+  const itemIds = Array.from(new Set(items.map((i) => i.item_id).filter(Boolean)));
+
+  try {
+    if (paymentIds.length > 0) {
+      const { data } = await supabase
+        .from("payments")
+        .select("id, reference, competence_month")
+        .in("id", paymentIds);
+      (data ?? []).forEach((p: any) => {
+        const ref = p.reference ?? "";
+        const comp = monthLabelPt(p.competence_month);
+        loteByPayment.set(p.id, [ref, comp].filter(Boolean).join(" · "));
+      });
+    }
+  } catch { /* enrichment é best-effort */ }
+
+  try {
+    if (itemIds.length > 0) {
+      // chunk para evitar URL gigante
+      const chunkSize = 500;
+      for (let i = 0; i < itemIds.length; i += chunkSize) {
+        const slice = itemIds.slice(i, i + chunkSize);
+        const { data } = await supabase
+          .from("payment_items")
+          .select("id, attendance_number")
+          .in("id", slice);
+        (data ?? []).forEach((r: any) => {
+          if (r.attendance_number) attendanceByItem.set(r.id, String(r.attendance_number));
+        });
+      }
+    }
+  } catch { /* itens de glosa_pj não existem em payment_items — ok */ }
+
+  return { loteByPayment, attendanceByItem };
+}
 
 const BRAND_HEX = "01498E";
 const ECON_HEX = "E7F5EC";
