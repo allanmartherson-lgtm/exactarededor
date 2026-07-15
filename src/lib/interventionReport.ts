@@ -92,8 +92,8 @@ const fmtDatePt = (iso: string | null | undefined) => {
 };
 
 const classificationLabel: Record<string, string> = {
-  economia: "Economia",
-  aumento: "Perda",
+  economia: "Valor recuperado",
+  aumento: "Valor extra a pagar",
   neutro: "Neutro",
 };
 
