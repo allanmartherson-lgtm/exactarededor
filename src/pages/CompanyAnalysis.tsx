@@ -838,14 +838,20 @@ export default function CompanyAnalysis() {
 
     const startedAt = Date.now();
     try {
+      const runAi = !!opts?.runAi;
       const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
         // force_fresh_rules: este botão é manual e geralmente vem logo após o
         // analista editar/cadastrar uma regra. Pulamos o ctx_cache para garantir
         // que o motor leia o estado atual do banco — caso contrário, workers
         // de uma reanalise nova podem reusar snapshot de regras antigo.
-        // skip_ai: "Reaplicar regras" precisa recalcular regra/valor; a IA só
-        // justifica alertas e pode estourar timeout em empresas grandes.
-        body: { payment_id: id, only_companies: [group.company_name], force_fresh_rules: true, skip_ai: true },
+        // IA é opt-in: quando runAi=true o analista aceita consumir créditos
+        // para gerar justificativas; caso contrário, roda só o motor de regras.
+        body: {
+          payment_id: id,
+          only_companies: [group.company_name],
+          force_fresh_rules: true,
+          ...(runAi ? { run_ai: true } : { skip_ai: true }),
+        },
       });
       if (error) throw error;
 
