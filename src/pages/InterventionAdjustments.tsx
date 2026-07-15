@@ -682,7 +682,7 @@ export default function InterventionAdjustments() {
             icon={Scale}
             label="Saldo líquido"
             value={formatCurrency(filteredSummary.saldo)}
-            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s). Convenção: "−" verde = hospital pagou menos (economia); "+" vermelho = pagou mais (perda).`}
+            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s). Convenção: "−" verde = hospital pagou menos (valor recuperado); "+" vermelho = pagou mais (valor extra a pagar).`}
             tone={saldoTone === "positive" ? "success" : saldoTone === "negative" ? "destructive" : "muted"}
             loading={loading}
           />
