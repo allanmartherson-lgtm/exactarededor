@@ -188,9 +188,9 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     "Empresa",
     "Médico",
     "Procedimento",
-    "Valor regra (R$)",
-    "Pago final (R$)",
-    "Δ (R$)",
+    "Valor regra",
+    "Pago final",
+    "Δ",
     "Classificação",
   ];
   rows.push(headers.map((h) => ({ v: h, s: headerCell })));
