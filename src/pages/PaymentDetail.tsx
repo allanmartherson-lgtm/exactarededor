@@ -411,6 +411,8 @@ const PaymentDetail = () => {
   const [bulkConcludeSelected, setBulkConcludeSelected] = useState<Set<string>>(new Set());
   const [bulkConcluding, setBulkConcluding] = useState(false);
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
+  // IA opt-in: analista precisa marcar explicitamente para consumir créditos.
+  const [reprocessRunAi, setReprocessRunAi] = useState(false);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isBatchReconReportOpen, setIsBatchReconReportOpen] = useState(false);
