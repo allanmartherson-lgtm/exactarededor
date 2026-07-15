@@ -175,7 +175,14 @@ export interface InterventionFilters {
   /** Faixa de valor absoluto do Δ (em R$). */
   minValue?: number | null;
   maxValue?: number | null;
+  /** Filtra por lote de origem (payment_id). */
+  paymentId?: string | "all";
+  /** Filtra por empresa exata (company_name). */
+  companyName?: string | "all";
+  /** Filtra por médico exato (doctor_name). */
+  doctorName?: string | "all";
 }
+
 
 export const filterItems = (
   items: InterventionItem[],
