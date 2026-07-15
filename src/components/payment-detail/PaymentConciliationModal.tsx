@@ -3932,6 +3932,69 @@ export function PaymentConciliationModal({
     }
   };
 
+  /**
+   * Incorpora como CRÉDITO todos os itens "só no hospital" do mesmo
+   * (attendance_number + company_name) que ainda não têm ação tomada.
+   * Executa em série reusando `handleAction(..., { silent: true })` e
+   * emite um único toast + uma linha de auditoria agregada ao final.
+   */
+  const handleIncorporarAttendanceCredito = async (anchor: ReconciliationItem) => {
+    if (!user) return;
+    if (!anchor.attendance_number || !anchor.company_name) {
+      toast({ title: 'Atendimento incompleto', description: 'Item sem atendimento ou empresa.', variant: 'destructive' });
+      return;
+    }
+    const siblings = items.filter(it =>
+      it.status === 'so_hospital' &&
+      !it.action_taken &&
+      it.attendance_number === anchor.attendance_number &&
+      it.company_name === anchor.company_name,
+    );
+    if (siblings.length === 0) {
+      toast({ title: 'Nada a incorporar', description: 'Nenhum item pendente neste atendimento.' });
+      return;
+    }
+    setActionLoading(anchor.id);
+    let ok = 0;
+    let totalValor = 0;
+    try {
+      for (const s of siblings) {
+        try {
+          await handleAction(s, 'incorporar_credito', undefined, { silent: true });
+          ok += 1;
+          totalValor += Number(s.valor_regra ?? s.valor_hospital ?? 0);
+        } catch (e) {
+          console.warn('[incorporar atendimento] falha em item', s.id, e);
+        }
+      }
+      toast({
+        title: `${ok} ${ok === 1 ? 'item creditado' : 'itens creditados'} — atendimento ${anchor.attendance_number}`,
+        description: `${formatCurrency(totalValor)} incorporados como ajuste de conciliação (${anchor.company_name}).`,
+      });
+      // Auditoria agregada — 1 linha por ação em lote.
+      await supabase.from('audit_log').insert({
+        entity_type: 'reconciliation_item',
+        entity_id: anchor.id,
+        action: 'incorporar_credito_atendimento',
+        actor_id: user.id,
+        company_name: anchor.company_name,
+        diff: {
+          scope: 'attendance',
+          attendance_number: anchor.attendance_number,
+          items_affected: ok,
+          items_total: siblings.length,
+          total_valor: totalValor,
+          source_payment_id: paymentId,
+          reconciliation_item_ids: siblings.map(s => s.id),
+        },
+      } as never);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
