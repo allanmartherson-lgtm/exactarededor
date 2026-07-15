@@ -3694,7 +3694,9 @@ export function PaymentConciliationModal({
     item: ReconciliationItem,
     action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar' | 'rolar_debito_residual',
     note?: string,
+    opts?: { silent?: boolean },
   ) => {
+    const silent = !!opts?.silent;
     if (!user) return;
     setActionLoading(item.id);
     try {
@@ -3756,10 +3758,12 @@ export function PaymentConciliationModal({
         appliedPaymentId = targetPaymentId;
         appliedPaymentItemId = newItem.id;
 
-        toast({
-          title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote "${targetRef}"`,
-          description: `${formatCurrency(valorAjuste)} adicionado como ajuste de conciliação`,
-        });
+        if (!silent) {
+          toast({
+            title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote "${targetRef}"`,
+            description: `${formatCurrency(valorAjuste)} adicionado como ajuste de conciliação`,
+          });
+        }
       }
 
       // ============ Rolar saldo residual para próxima produção da médica ============
@@ -3916,15 +3920,80 @@ export function PaymentConciliationModal({
         ),
       );
 
-      if (action === 'ignorar') toast({ title: 'Item marcado como ignorado' });
-      if (action === 'revisar_manual') toast({ title: 'Item marcado para revisão manual' });
-      if (action === 'marcar_glosa') toast({ title: 'Item marcado como glosa', description: 'Será processado no fluxo de glosas.' });
+      if (!silent) {
+        if (action === 'ignorar') toast({ title: 'Item marcado como ignorado' });
+        if (action === 'revisar_manual') toast({ title: 'Item marcado para revisão manual' });
+        if (action === 'marcar_glosa') toast({ title: 'Item marcado como glosa', description: 'Será processado no fluxo de glosas.' });
+      }
     } catch (e: any) {
       toast({ title: 'Erro ao processar ação', description: e.message, variant: 'destructive' });
     } finally {
       setActionLoading(null);
     }
   };
+
+  /**
+   * Incorpora como CRÉDITO todos os itens "só no hospital" do mesmo
+   * (attendance_number + company_name) que ainda não têm ação tomada.
+   * Executa em série reusando `handleAction(..., { silent: true })` e
+   * emite um único toast + uma linha de auditoria agregada ao final.
+   */
+  const handleIncorporarAttendanceCredito = async (anchor: ReconciliationItem) => {
+    if (!user) return;
+    if (!anchor.attendance_number || !anchor.company_name) {
+      toast({ title: 'Atendimento incompleto', description: 'Item sem atendimento ou empresa.', variant: 'destructive' });
+      return;
+    }
+    const siblings = items.filter(it =>
+      it.status === 'so_hospital' &&
+      !it.action_taken &&
+      it.attendance_number === anchor.attendance_number &&
+      it.company_name === anchor.company_name,
+    );
+    if (siblings.length === 0) {
+      toast({ title: 'Nada a incorporar', description: 'Nenhum item pendente neste atendimento.' });
+      return;
+    }
+    setActionLoading(anchor.id);
+    let ok = 0;
+    let totalValor = 0;
+    try {
+      for (const s of siblings) {
+        try {
+          await handleAction(s, 'incorporar_credito', undefined, { silent: true });
+          ok += 1;
+          totalValor += Number(s.valor_regra ?? s.valor_hospital ?? 0);
+        } catch (e) {
+          console.warn('[incorporar atendimento] falha em item', s.id, e);
+        }
+      }
+      toast({
+        title: `${ok} ${ok === 1 ? 'item creditado' : 'itens creditados'} — atendimento ${anchor.attendance_number}`,
+        description: `${formatCurrency(totalValor)} incorporados como ajuste de conciliação (${anchor.company_name}).`,
+      });
+      // Auditoria agregada — 1 linha por ação em lote.
+      await supabase.from('audit_log').insert({
+        entity_type: 'reconciliation_item',
+        entity_id: anchor.id,
+        action: 'incorporar_credito_atendimento',
+        actor_id: user.id,
+        company_name: anchor.company_name,
+        diff: {
+          scope: 'attendance',
+          attendance_number: anchor.attendance_number,
+          items_affected: ok,
+          items_total: siblings.length,
+          total_valor: totalValor,
+          source_payment_id: paymentId,
+          reconciliation_item_ids: siblings.map(s => s.id),
+        },
+      } as never);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -5405,25 +5474,47 @@ export function PaymentConciliationModal({
                                                 )}
                                                 {!it.action_taken ? (
                                                   <div className="flex gap-2 mt-2 flex-wrap">
-                                                    {/* Crédito: hospital pagou A MENOS do que o esperado pela regra
-                                                        (so_exacta = nada foi pago; valor_divergente com exacta > hospital).
-                                                        Médico/PJ tem a receber → vira crédito no próximo lote. */}
+                                                    {/* Crédito: produção que a médica/PJ tem a RECEBER.
+                                                        - so_exacta: Exacta esperava e hospital não pagou → creditar diferença.
+                                                        - so_hospital: hospital registrou produção que não estava na base Exacta
+                                                          (possível inclusão) → creditar valor_regra/valor_hospital.
+                                                        - valor_divergente com exacta > hospital: hospital pagou a menos. */}
                                                     {(it.status === 'so_exacta' ||
+                                                      it.status === 'so_hospital' ||
                                                       (it.status === 'valor_divergente' && Number(it.valor_exacta) > Number(it.valor_hospital))) && (
                                                       <Button
                                                         size="sm"
-                                                        variant="outline"
                                                         disabled={actionLoading === it.id}
                                                         onClick={(e) => { e.stopPropagation(); handleAction(it, 'incorporar_credito'); }}
-                                                        className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+                                                        className={cn(
+                                                          it.status === 'so_hospital'
+                                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
+                                                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300',
+                                                        )}
+                                                        variant={it.status === 'so_hospital' ? 'default' : 'outline'}
                                                       >
                                                         {actionLoading === it.id ? '…' : '+ Incorporar como crédito'}
                                                       </Button>
                                                     )}
-                                                    {/* Débito: hospital pagou A MAIS do que o esperado (ou pagou algo que
-                                                        nem deveria existir — so_hospital). Médico/PJ deve devolver → débito. */}
-                                                    {(it.status === 'so_hospital' ||
-                                                      (it.status === 'valor_divergente' && Number(it.valor_hospital) > Number(it.valor_exacta))) && (
+                                                    {/* Escopo por atendimento — espelha o "Cancelar atendimento inteiro"
+                                                        do so_exacta. Aplica incorporar_credito a todos os so_hospital
+                                                        do mesmo attendance_number + company_name em uma única ação. */}
+                                                    {it.status === 'so_hospital' && it.attendance_number && it.company_name && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleIncorporarAttendanceCredito(it); }}
+                                                        className="text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300"
+                                                        title="Incorpora como crédito todos os itens só-no-hospital deste atendimento nesta empresa"
+                                                      >
+                                                        + Incorporar atendimento inteiro
+                                                      </Button>
+                                                    )}
+                                                    {/* Débito: hospital pagou A MAIS do que o esperado — médica/PJ deve devolver.
+                                                        Restrito a valor_divergente (hospital > exacta). so_hospital NÃO gera
+                                                        débito: é produção adicional a favor da PJ, não cobrança contra ela. */}
+                                                    {it.status === 'valor_divergente' && Number(it.valor_hospital) > Number(it.valor_exacta) && (
                                                       <Button
                                                         size="sm"
                                                         variant="outline"
