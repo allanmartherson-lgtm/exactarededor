@@ -369,55 +369,57 @@ export default function InterventionAdjustments() {
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Papel</label>
-              <Select
-                value={filters.role ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, role: v as IntervenorRole | "all" }))}
-              >
-                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="diretor">Diretor</SelectItem>
-                  <SelectItem value="validador">Supervisor</SelectItem>
-                  <SelectItem value="analista">Analista</SelectItem>
-                  <SelectItem value="glosa_pj">Glosa aplicada (PJ)</SelectItem>
-                  <SelectItem value="ajuste_manual">Ajuste manual</SelectItem>
-                  <SelectItem value="aceite_esperado">Aceite do esperado</SelectItem>
-                  <SelectItem value="aceite_pago">Aceite mantendo pago</SelectItem>
-                  <SelectItem value="cancelamento_empresa">Cancelamento empresa</SelectItem>
-                  <SelectItem value="cancelamento_item">Cancelamento item</SelectItem>
-                  <SelectItem value="cancelamento_conciliacao">Cancelamento via conciliação</SelectItem>
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[200px]"
+                allLabel="Todos os papéis"
+                placeholder="Buscar papel…"
+                values={filters.roles ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, roles: v, role: "all" }))}
+                options={[
+                  { value: "diretor", label: "Diretor" },
+                  { value: "validador", label: "Supervisor" },
+                  { value: "analista", label: "Analista" },
+                  { value: "glosa_pj", label: "Glosa aplicada (PJ)" },
+                  { value: "ajuste_manual", label: "Ajuste manual" },
+                  { value: "aceite_esperado", label: "Aceite do esperado" },
+                  { value: "aceite_pago", label: "Aceite mantendo pago" },
+                  { value: "cancelamento_empresa", label: "Cancelamento empresa" },
+                  { value: "cancelamento_item", label: "Cancelamento item" },
+                  { value: "cancelamento_conciliacao", label: "Cancelamento via conciliação" },
+                ]}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Classificação</label>
-              <Select
-                value={filters.classification ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, classification: v as "all" | "economia" | "aumento" | "neutro" }))}
-              >
-                <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="economia">Economia</SelectItem>
-                  <SelectItem value="aumento">Aumento (perda)</SelectItem>
-                  <SelectItem value="neutro">Neutro</SelectItem>
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[170px]"
+                allLabel="Todas"
+                searchable={false}
+                values={filters.classifications ?? []}
+                onChange={(v) =>
+                  setFilters((f) => ({
+                    ...f,
+                    classifications: v as Array<"economia" | "aumento" | "neutro">,
+                    classification: "all",
+                  }))
+                }
+                options={[
+                  { value: "economia", label: "Economia" },
+                  { value: "aumento", label: "Aumento (perda)" },
+                  { value: "neutro", label: "Neutro" },
+                ]}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Usuário</label>
-              <Select
-                value={filters.userId ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, userId: v }))}
-              >
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[220px]"
+                allLabel="Todos"
+                placeholder="Buscar usuário…"
+                values={filters.userIds ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, userIds: v, userId: "all" }))}
+                options={users.map((u) => ({ value: u.id, label: u.name }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Δ mínimo (R$)</label>
@@ -443,34 +445,38 @@ export default function InterventionAdjustments() {
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Lote</label>
-              <Select
-                value={filters.paymentId ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, paymentId: v }))}
-              >
-                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[320px]">
-                  <SelectItem value="all">Todos ({loteOptions.length})</SelectItem>
-                  {loteOptions.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[200px]"
+                allLabel={`Todos (${loteOptions.length})`}
+                placeholder="Buscar lote…"
+                values={filters.paymentIds ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, paymentIds: v, paymentId: "all" }))}
+                options={loteOptions.map((l) => ({ value: l.id, label: l.label }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Empresa</label>
-              <Select
-                value={filters.companyName ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, companyName: v }))}
-              >
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[320px]">
-                  <SelectItem value="all">Todas ({companyOptions.length})</SelectItem>
-                  {companyOptions.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[220px]"
+                allLabel={`Todas (${companyOptions.length})`}
+                placeholder="Buscar empresa…"
+                values={filters.companyNames ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, companyNames: v, companyName: "all" }))}
+                options={companyOptions.map((c) => ({ value: c, label: c }))}
+              />
             </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Médico</label>
+              <MultiSelectPopover
+                width="w-[220px]"
+                allLabel={`Todos (${doctorOptions.length})`}
+                placeholder="Buscar médico…"
+                values={filters.doctorNames ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, doctorNames: v, doctorName: "all" }))}
+                options={doctorOptions.map((d) => ({ value: d, label: d }))}
+              />
+            </div>
+
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Médico</label>
               <Select
