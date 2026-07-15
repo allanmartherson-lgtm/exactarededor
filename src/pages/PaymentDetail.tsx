@@ -411,6 +411,8 @@ const PaymentDetail = () => {
   const [bulkConcludeSelected, setBulkConcludeSelected] = useState<Set<string>>(new Set());
   const [bulkConcluding, setBulkConcluding] = useState(false);
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
+  // IA opt-in: analista precisa marcar explicitamente para consumir créditos.
+  const [reprocessRunAi, setReprocessRunAi] = useState(false);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isBatchReconReportOpen, setIsBatchReconReportOpen] = useState(false);
@@ -2384,12 +2386,13 @@ const PaymentDetail = () => {
   };
 
 
-  const reprocessAi = async (statuses?: string[]) => {
+  const reprocessAi = async (statuses?: string[], opts?: { runAi?: boolean }) => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
       const isConfeccaoMode = payment?.analysis_mode === "confeccao";
       const isBatch = !statuses || statuses.length === 0;
+      const runAi = !!opts?.runAi;
 
       const result = await invokeDispatchAnalysis({
         payment_id: id,
@@ -2397,6 +2400,7 @@ const PaymentDetail = () => {
         tolerance_pct: toleranceValue,
         _job_id: null,
         _company_label: !isBatch ? "Processamento por filtro" : undefined,
+        ...(runAi ? { run_ai: true } : {}),
       });
       if (!result.ok) {
         if (result.blocked) return; // toast já exibido pelo wrapper (ex.: missing_parecer_report)
@@ -3336,6 +3340,20 @@ const PaymentDetail = () => {
                           );
                         })()}
 
+                        <label className="flex items-start gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/40">
+                          <Checkbox
+                            checked={reprocessRunAi}
+                            onCheckedChange={(c) => setReprocessRunAi(c === true)}
+                            className="mt-0.5"
+                          />
+                          <span className="text-xs">
+                            <strong>Incluir justificativas IA</strong>
+                            <span className="block text-muted-foreground">
+                              Quando desmarcado, roda apenas o motor de regras (sem consumo de créditos de IA).
+                            </span>
+                          </span>
+                        </label>
+
                         <p className="text-sm pt-2">
                           Responsável: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
                         </p>
@@ -3344,9 +3362,9 @@ const PaymentDetail = () => {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setReprocessFilter([])}>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel onClick={() => { setReprocessFilter([]); setReprocessRunAi(false); }}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction 
-                      onClick={() => reprocessAi(reprocessFilter)}
+                      onClick={() => { const runAi = reprocessRunAi; setReprocessRunAi(false); void reprocessAi(reprocessFilter, { runAi }); }}
                       className="bg-warning hover:bg-warning/90 text-white"
                     >
                       Confirmar Reanálise

@@ -406,6 +406,9 @@ export default function CompanyAnalysis() {
   // seguidas achando que a UI não tinha refletido.
   const [reanalyzeCooldown, setReanalyzeCooldown] = useState(false);
   const reanalyzeCooldownRef = useRef<number | null>(null);
+  // Diálogo de confirmação da reanálise manual — IA é opt-in.
+  const [reanalyzeConfirmOpen, setReanalyzeConfirmOpen] = useState(false);
+  const [reanalyzeRunAi, setReanalyzeRunAi] = useState(false);
 
   // ---- Reaplicar regras: progresso + diff antes/depois ----
   const [reapplyOpen, setReapplyOpen] = useState(false);
@@ -808,7 +811,7 @@ export default function CompanyAnalysis() {
     await claimPayment(id, user.id, "auto");
   };
 
-  const reanalyzeGroup = async () => {
+  const reanalyzeGroup = async (opts?: { runAi?: boolean }) => {
     if (!id || !group) return;
     if (!guardEditable()) return;
     await autoClaim();
@@ -838,14 +841,20 @@ export default function CompanyAnalysis() {
 
     const startedAt = Date.now();
     try {
+      const runAi = !!opts?.runAi;
       const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
         // force_fresh_rules: este botão é manual e geralmente vem logo após o
         // analista editar/cadastrar uma regra. Pulamos o ctx_cache para garantir
         // que o motor leia o estado atual do banco — caso contrário, workers
         // de uma reanalise nova podem reusar snapshot de regras antigo.
-        // skip_ai: "Reaplicar regras" precisa recalcular regra/valor; a IA só
-        // justifica alertas e pode estourar timeout em empresas grandes.
-        body: { payment_id: id, only_companies: [group.company_name], force_fresh_rules: true, skip_ai: true },
+        // IA é opt-in: quando runAi=true o analista aceita consumir créditos
+        // para gerar justificativas; caso contrário, roda só o motor de regras.
+        body: {
+          payment_id: id,
+          only_companies: [group.company_name],
+          force_fresh_rules: true,
+          ...(runAi ? { run_ai: true } : { skip_ai: true }),
+        },
       });
       if (error) throw error;
 
@@ -2502,15 +2511,59 @@ export default function CompanyAnalysis() {
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => { void reanalyzeGroup(); }}
-            disabled={busy || reanalyzing || reanalyzeCooldown}
-            className="h-7 text-xs"
+          <AlertDialog
+            open={reanalyzeConfirmOpen}
+            onOpenChange={(o) => { setReanalyzeConfirmOpen(o); if (!o) setReanalyzeRunAi(false); }}
           >
-            <RefreshCcw className={`h-3 w-3 mr-1 ${(reanalyzing || reanalyzeCooldown) ? "animate-spin" : ""}`} />
-            {reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Reanalisar agora"}
-          </Button>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                disabled={busy || reanalyzing || reanalyzeCooldown}
+                className="h-7 text-xs"
+              >
+                <RefreshCcw className={`h-3 w-3 mr-1 ${(reanalyzing || reanalyzeCooldown) ? "animate-spin" : ""}`} />
+                {reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Reanalisar agora"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="max-w-md">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar reanálise da empresa</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3 text-sm">
+                    <p>
+                      Reaplicar o motor de regras para esta empresa e refletir as últimas configurações.
+                    </p>
+                    <label className="flex items-start gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/40">
+                      <Checkbox
+                        checked={reanalyzeRunAi}
+                        onCheckedChange={(c) => setReanalyzeRunAi(c === true)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-xs">
+                        <strong>Incluir justificativas IA</strong>
+                        <span className="block text-muted-foreground">
+                          Quando desmarcado, roda apenas o motor de regras (sem consumo de créditos de IA).
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    const runAi = reanalyzeRunAi;
+                    setReanalyzeConfirmOpen(false);
+                    setReanalyzeRunAi(false);
+                    void reanalyzeGroup({ runAi });
+                  }}
+                >
+                  Confirmar reanálise
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 
@@ -2974,7 +3027,7 @@ export default function CompanyAnalysis() {
                 <>
                   {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
                     <>
-                      <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing || reanalyzeCooldown}>
+                      <Button variant="outline" size="sm" onClick={() => { void reanalyzeGroup(); }} disabled={busy || reanalyzing || reanalyzeCooldown}>
                         <RefreshCcw className={cn("h-4 w-4 mr-2", (reanalyzing || reanalyzeCooldown) && "animate-spin")} />
                         {isConfeccao
                           ? (reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Recalcular repasse")

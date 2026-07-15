@@ -398,10 +398,13 @@ const Payments = () => {
     totalCount: number | null;
     loading: boolean;
   } | null>(null);
+  // IA opt-in: analista precisa marcar explicitamente para consumir créditos.
+  const [reanalysisRunAi, setReanalysisRunAi] = useState(false);
 
   const openReanalysisConfirm = async () => {
     const ids = Array.from(selected);
     if (ids.length === 0) return;
+    setReanalysisRunAi(false);
     setReanalysisConfirm({ ids, aiCount: null, totalCount: null, loading: true });
     try {
       // Estima o custo: quantos itens IRÃO para IA (needs_ai_review) vs total analisado.
@@ -430,6 +433,7 @@ const Payments = () => {
 
   const runReanalysis = async () => {
     const ids = reanalysisConfirm?.ids ?? Array.from(selected);
+    const runAi = reanalysisRunAi;
     setReanalysisConfirm(null);
     if (ids.length === 0) return;
     setReprocessing(true);
@@ -437,7 +441,9 @@ const Payments = () => {
     let ok = 0; let fail = 0;
     for (let i = 0; i < ids.length; i++) {
       try {
-        const { error } = await supabase.functions.invoke("dispatch-payment-analysis", { body: { payment_id: ids[i] } });
+        const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
+          body: { payment_id: ids[i], ...(runAi ? { run_ai: true } : {}) },
+        });
         if (error) throw error;
         ok++;
       } catch (e) {
@@ -449,6 +455,7 @@ const Payments = () => {
     setReprocessing(false);
     setReprocessProgress(null);
     setSelected(new Set());
+    setReanalysisRunAi(false);
     toast.success(`Reanálise concluída: ${ok} ok${fail ? `, ${fail} com falha` : ""}`);
   };
 
@@ -2244,7 +2251,7 @@ const Payments = () => {
 
       <AlertDialog
         open={!!reanalysisConfirm}
-        onOpenChange={(o) => { if (!o) setReanalysisConfirm(null); }}
+        onOpenChange={(o) => { if (!o) { setReanalysisConfirm(null); setReanalysisRunAi(false); } }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -2271,6 +2278,19 @@ const Payments = () => {
                     Não foi possível estimar o custo — a reanálise será executada normalmente.
                   </p>
                 )}
+                <label className="flex items-start gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/40">
+                  <Checkbox
+                    checked={reanalysisRunAi}
+                    onCheckedChange={(c) => setReanalysisRunAi(c === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-xs">
+                    <strong>Incluir justificativas IA</strong>
+                    <span className="block text-muted-foreground">
+                      Quando desmarcado, roda apenas o motor de regras (sem consumo de créditos de IA).
+                    </span>
+                  </span>
+                </label>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
