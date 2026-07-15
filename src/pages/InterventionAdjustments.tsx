@@ -512,6 +512,60 @@ export default function InterventionAdjustments() {
             >
               <Download className="h-4 w-4 mr-2" /> Exportar CSV
             </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                try {
+                  exportInterventionExcel({
+                    hospitalName: currentHospital?.name ?? null,
+                    rangeDays: range,
+                    summary: filteredSummary,
+                    items: filteredItems,
+                  });
+                  void logExport({
+                    reportKey: "intervention_adjustments",
+                    reportLabel: "Ajustes por intervenção",
+                    format: "csv",
+                    filters: { range, ...filters, export: "xlsx" },
+                    hospitalId: currentHospitalId ?? null,
+                    rowCount: filteredItems.length,
+                  });
+                } catch (e: any) {
+                  toast.error("Falha ao gerar Excel", { description: e?.message });
+                }
+              }}
+              disabled={filteredItems.length === 0}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await exportInterventionPdf({
+                    hospitalName: currentHospital?.name ?? null,
+                    rangeDays: range,
+                    summary: filteredSummary,
+                    items: filteredItems,
+                  });
+                  void logExport({
+                    reportKey: "intervention_adjustments",
+                    reportLabel: "Ajustes por intervenção",
+                    format: "pdf",
+                    filters: { range, ...filters },
+                    hospitalId: currentHospitalId ?? null,
+                    rowCount: filteredItems.length,
+                  });
+                } catch (e: any) {
+                  toast.error("Falha ao gerar PDF", { description: e?.message });
+                }
+              }}
+              disabled={filteredItems.length === 0}
+            >
+              <FileText className="h-4 w-4 mr-2" /> PDF
+            </Button>
           </CardContent>
         </Card>
 
