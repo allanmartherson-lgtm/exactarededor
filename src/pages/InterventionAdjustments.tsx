@@ -313,15 +313,34 @@ export default function InterventionAdjustments() {
                 value={filters.role ?? "all"}
                 onValueChange={(v) => setFilters((f) => ({ ...f, role: v as IntervenorRole | "all" }))}
               >
-                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="diretor">Diretor</SelectItem>
                   <SelectItem value="validador">Supervisor</SelectItem>
                   <SelectItem value="analista">Analista</SelectItem>
+                  <SelectItem value="glosa_pj">Glosa aplicada (PJ)</SelectItem>
+                  <SelectItem value="ajuste_manual">Ajuste manual</SelectItem>
+                  <SelectItem value="aceite_esperado">Aceite do esperado</SelectItem>
+                  <SelectItem value="aceite_pago">Aceite mantendo pago</SelectItem>
                   <SelectItem value="cancelamento_empresa">Cancelamento empresa</SelectItem>
                   <SelectItem value="cancelamento_item">Cancelamento item</SelectItem>
                   <SelectItem value="cancelamento_conciliacao">Cancelamento via conciliação</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Classificação</label>
+              <Select
+                value={filters.classification ?? "all"}
+                onValueChange={(v) => setFilters((f) => ({ ...f, classification: v as "all" | "economia" | "aumento" | "neutro" }))}
+              >
+                <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="economia">Economia</SelectItem>
+                  <SelectItem value="aumento">Aumento (perda)</SelectItem>
+                  <SelectItem value="neutro">Neutro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -339,6 +358,28 @@ export default function InterventionAdjustments() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Δ mínimo (R$)</label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                className="w-[110px]"
+                value={filters.minValue ?? ""}
+                onChange={(e) => setFilters((f) => ({ ...f, minValue: e.target.value === "" ? null : Number(e.target.value) }))}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Δ máximo (R$)</label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                className="w-[110px]"
+                value={filters.maxValue ?? ""}
+                onChange={(e) => setFilters((f) => ({ ...f, maxValue: e.target.value === "" ? null : Number(e.target.value) }))}
+                placeholder="—"
+              />
             </div>
             <div className="space-y-1 flex-1 min-w-[200px]">
               <label className="text-xs text-muted-foreground">Buscar (médico, empresa, procedimento)</label>
