@@ -2714,18 +2714,78 @@ export function PaymentConciliationModal({
       }
 
 
-      const CHUNK = 500;
-      for (let i = 0; i < toInsert.length; i += CHUNK) {
-        const slice = toInsert.slice(i, i + CHUNK).map((r) => ({ ...r, run_id: newRun.id }));
-        const { error: insErr } = await (supabase as any)
+      // === HERANÇA — Tratativas manuais da run anterior ===
+      // Ao rodar "Nova conciliação" o motor recria os itens do zero. Sem herança,
+      // ações como "cancelado_conciliacao", "incorporar_credito/debito", "marcar_glosa"
+      // etc. feitas na run anterior são perdidas e o analista precisa refazer tudo.
+      // Copiamos action_taken/by/at do item equivalente (chave: atendimento+TUSS+médico
+      // normalizados) da última run concluída deste pagamento.
+      if (run?.id) {
+        try {
+          const prevActions: Array<{ attendance_number: string | null; procedure_code: string | null; doctor_name: string | null; action_taken: string | null; action_by: string | null; action_at: string | null }> = [];
+          const pageSize2 = 1000;
+          for (let from = 0; from < 50000; from += pageSize2) {
+            const { data: page, error: pageErr } = await (supabase as any)
+              .from("reconciliation_items")
+              .select("attendance_number, procedure_code, doctor_name, action_taken, action_by, action_at")
+              .eq("run_id", run.id)
+              .not("action_taken", "is", null)
+              .range(from, from + pageSize2 - 1);
+            if (pageErr) throw pageErr;
+            const rows = (page ?? []) as typeof prevActions;
+            prevActions.push(...rows);
+            if (rows.length < pageSize2) break;
+          }
+          const inheritKey = (att: string | null, tuss: string | null, doc: string | null) => {
+            const a = String(att ?? "").trim().toLowerCase();
+            const t = normalizeCode(tuss);
+            const d = String(doc ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+            return `${a}|${t}|${d}`;
+          };
+          const actionByKey = new Map<string, { action_taken: string | null; action_by: string | null; action_at: string | null }>();
+          for (const p of prevActions) {
+            actionByKey.set(inheritKey(p.attendance_number, p.procedure_code, p.doctor_name), {
+              action_taken: p.action_taken, action_by: p.action_by, action_at: p.action_at,
+            });
+          }
+          let inherited = 0;
+          for (const r of toInsert) {
+            const prev = actionByKey.get(inheritKey((r as any).attendance_number, (r as any).procedure_code, (r as any).doctor_name));
+            if (prev && !(r as any).action_taken) {
+              (r as any).action_taken = prev.action_taken;
+              (r as any).action_by = prev.action_by;
+              (r as any).action_at = prev.action_at;
+              inherited++;
+            }
+          }
+          console.log('[Conciliação] Herança da run anterior:', { prevActions: prevActions.length, itemsInsert: toInsert.length, inherited });
+        } catch (e) {
+          console.warn('[Conciliação] Falha ao herdar action_taken da run anterior — nova run seguirá sem herança.', e);
+        }
+      }
+
+      const CHUNK_INS = 500;
+      for (let i = 0; i < toInsert.length; i += CHUNK_INS) {
+        const slice = toInsert.slice(i, i + CHUNK_INS).map((r) => ({ ...r, run_id: newRun.id }));
+        const { error: insErr2 } = await (supabase as any)
           .from("reconciliation_items")
           .insert(slice);
-        if (insErr) throw insErr;
+        if (insErr2) throw insErr2;
       }
 
       await (supabase as any)
         .from("reconciliation_runs")
         .update({
+          total_items: toInsert.length,
+          conciliado,
+          valor_divergente,
+          so_hospital,
+          so_exacta,
+          risco_mais: Number(risco_mais.toFixed(2)),
+          risco_menos: Number(risco_menos.toFixed(2)),
+          divergencia_valor: Number(divergencia_valor.toFixed(2)),
+          status: "done",
+        })
           total_items: toInsert.length,
           conciliado,
           valor_divergente,
