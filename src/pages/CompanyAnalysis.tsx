@@ -808,7 +808,7 @@ export default function CompanyAnalysis() {
     await claimPayment(id, user.id, "auto");
   };
 
-  const reanalyzeGroup = async () => {
+  const reanalyzeGroup = async (opts?: { runAi?: boolean }) => {
     if (!id || !group) return;
     if (!guardEditable()) return;
     await autoClaim();
