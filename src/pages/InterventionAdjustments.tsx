@@ -16,7 +16,8 @@ import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowDownRight, ArrowUpRight, Download, FileSpreadsheet, FileText, Info, MinusCircle, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
-import { exportInterventionExcel, exportInterventionPdf } from "@/lib/interventionReport";
+import { exportInterventionExcel, exportInterventionPdf, exportInterventionExcelSintetico, exportInterventionPdfSintetico } from "@/lib/interventionReport";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useHospital } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -405,8 +406,8 @@ export default function InterventionAdjustments() {
                   }))
                 }
                 options={[
-                  { value: "economia", label: "Economia" },
-                  { value: "aumento", label: "Aumento (perda)" },
+                  { value: "economia", label: "Valor recuperado" },
+                  { value: "aumento", label: "Valor extra a pagar" },
                   { value: "neutro", label: "Neutro" },
                 ]}
               />
@@ -533,59 +534,121 @@ export default function InterventionAdjustments() {
               <Download className="h-4 w-4 mr-2" /> Exportar CSV
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await exportInterventionExcel({
-                    hospitalName: currentHospital?.name ?? null,
-                    rangeDays: range,
-                    summary: filteredSummary,
-                    items: filteredItems,
-                  });
-                  void logExport({
-                    reportKey: "intervention_adjustments",
-                    reportLabel: "Ajustes por intervenção",
-                    format: "csv",
-                    filters: { range, ...filters, export: "xlsx" },
-                    hospitalId: currentHospitalId ?? null,
-                    rowCount: filteredItems.length,
-                  });
-                } catch (e: any) {
-                  toast.error("Falha ao gerar Excel", { description: e?.message });
-                }
-              }}
-              disabled={filteredItems.length === 0}
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={filteredItems.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionExcel({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "csv",
+                        filters: { range, ...filters, export: "xlsx", mode: "analitico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar Excel", { description: e?.message });
+                    }
+                  }}
+                >
+                  Analítico (item a item)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionExcelSintetico({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "csv",
+                        filters: { range, ...filters, export: "xlsx", mode: "sintetico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar Excel sintético", { description: e?.message });
+                    }
+                  }}
+                >
+                  Sintético (consolidado)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await exportInterventionPdf({
-                    hospitalName: currentHospital?.name ?? null,
-                    rangeDays: range,
-                    summary: filteredSummary,
-                    items: filteredItems,
-                  });
-                  void logExport({
-                    reportKey: "intervention_adjustments",
-                    reportLabel: "Ajustes por intervenção",
-                    format: "pdf",
-                    filters: { range, ...filters },
-                    hospitalId: currentHospitalId ?? null,
-                    rowCount: filteredItems.length,
-                  });
-                } catch (e: any) {
-                  toast.error("Falha ao gerar PDF", { description: e?.message });
-                }
-              }}
-              disabled={filteredItems.length === 0}
-            >
-              <FileText className="h-4 w-4 mr-2" /> PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={filteredItems.length === 0}>
+                  <FileText className="h-4 w-4 mr-2" /> PDF
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionPdf({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "pdf",
+                        filters: { range, ...filters, mode: "analitico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar PDF", { description: e?.message });
+                    }
+                  }}
+                >
+                  Analítico (item a item)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionPdfSintetico({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "pdf",
+                        filters: { range, ...filters, mode: "sintetico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar PDF sintético", { description: e?.message });
+                    }
+                  }}
+                >
+                  Sintético (consolidado)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </CardContent>
         </Card>
 
@@ -593,15 +656,15 @@ export default function InterventionAdjustments() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <SummaryCard
             icon={TrendingUp}
-            label="Economia"
+            label="Valor recuperado"
             value={formatCurrency(filteredSummary.economia)}
-            hint="Cancelamentos de economia real + ajustes que reduziram pagamento"
+            hint="Cancelamentos de economia real + ajustes que reduziram o pagamento"
             tone="success"
             loading={loading}
           />
           <SummaryCard
             icon={TrendingDown}
-            label="Perda"
+            label="Valor extra a pagar"
             value={formatCurrency(filteredSummary.perda)}
             hint="Pagto final > valor regra"
             tone="destructive"
@@ -619,7 +682,7 @@ export default function InterventionAdjustments() {
             icon={Scale}
             label="Saldo líquido"
             value={formatCurrency(filteredSummary.saldo)}
-            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s). Convenção: "−" verde = hospital pagou menos (economia); "+" vermelho = pagou mais (perda).`}
+            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s). Convenção: "−" verde = hospital pagou menos (valor recuperado); "+" vermelho = pagou mais (valor extra a pagar).`}
             tone={saldoTone === "positive" ? "success" : saldoTone === "negative" ? "destructive" : "muted"}
             loading={loading}
           />
@@ -703,10 +766,10 @@ export default function InterventionAdjustments() {
               </div>
             </TooltipProvider>
             <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
-              <span className="font-semibold">Como o saldo é calculado:</span> Saldo = Economia − Perda.
-              Ajustes de diretor/supervisor/analista entram pelo Δ (Δ &gt; 0 vira <span className="text-success">Economia</span>;
-              Δ &lt; 0 vira <span className="text-destructive">Perda</span>).
-              Já <strong>cancelamentos manuais</strong> só contam como economia quando o motivo é
+              <span className="font-semibold">Como o saldo é calculado:</span> Saldo = Valor recuperado − Valor extra a pagar.
+              Ajustes de diretor/supervisor/analista entram pelo Δ (Δ &gt; 0 vira <span className="text-success">Valor recuperado</span>;
+              Δ &lt; 0 vira <span className="text-destructive">Valor extra a pagar</span>).
+              Já <strong>cancelamentos manuais</strong> só entram como valor recuperado quando o motivo é
               de economia real (médico fatura externamente, contrato encerrado, glosa, jurídico,
               duplicidade externa). Motivos operacionais (<em>pago em outro lote</em>,
               <em> duplicidade corrigida pelo motor</em>, <em>outro</em>) ficam em
@@ -731,8 +794,8 @@ export default function InterventionAdjustments() {
                   <TableHead>Usuário</TableHead>
                   <TableHead>Papel</TableHead>
                   <TableHead className="text-right">Itens</TableHead>
-                  <TableHead className="text-right">Economia</TableHead>
-                  <TableHead className="text-right">Perda</TableHead>
+                  <TableHead className="text-right">Recuperado</TableHead>
+                  <TableHead className="text-right">Extra a pagar</TableHead>
                   <TableHead className="text-right">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -895,8 +958,8 @@ export default function InterventionAdjustments() {
                             {classification === "neutro"
                               ? "Neutro"
                               : classification === "economia"
-                              ? "Economia"
-                              : "Aumento"}
+                              ? "Recuperado"
+                              : "Extra a pagar"}
                           </Badge>
                         </TableCell>
                         <TableCell>
