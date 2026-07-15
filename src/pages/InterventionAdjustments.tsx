@@ -15,7 +15,9 @@ import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, Download, Info, MinusCircle, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Download, FileSpreadsheet, FileText, Info, MinusCircle, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
+import { exportInterventionExcel, exportInterventionPdf } from "@/lib/interventionReport";
+import { useHospital } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
