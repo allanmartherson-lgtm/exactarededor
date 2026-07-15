@@ -3758,10 +3758,12 @@ export function PaymentConciliationModal({
         appliedPaymentId = targetPaymentId;
         appliedPaymentItemId = newItem.id;
 
-        toast({
-          title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote "${targetRef}"`,
-          description: `${formatCurrency(valorAjuste)} adicionado como ajuste de conciliação`,
-        });
+        if (!silent) {
+          toast({
+            title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote "${targetRef}"`,
+            description: `${formatCurrency(valorAjuste)} adicionado como ajuste de conciliação`,
+          });
+        }
       }
 
       // ============ Rolar saldo residual para próxima produção da médica ============
