@@ -21,6 +21,7 @@ export type IntervenorRole =
   | "aceite_pago"
   | "ajuste_manual"
   | "glosa"
+  | "glosa_pj"
   | "cancelamento";
 
 export const ROLE_LABELS: Record<IntervenorRole, string> = {
@@ -35,6 +36,7 @@ export const ROLE_LABELS: Record<IntervenorRole, string> = {
   aceite_pago: "Aceite mantendo pago",
   ajuste_manual: "Ajuste manual",
   glosa: "Glosa aplicada",
+  glosa_pj: "Glosa aplicada (PJ)",
   cancelamento: "Cancelamento",
 };
 
@@ -168,6 +170,11 @@ export interface InterventionFilters {
   role?: IntervenorRole | "all";
   userId?: string | "all";
   search?: string;
+  /** Filtra pela classificação semântica do item (economia/aumento/neutro). */
+  classification?: "all" | "economia" | "aumento" | "neutro";
+  /** Faixa de valor absoluto do Δ (em R$). */
+  minValue?: number | null;
+  maxValue?: number | null;
 }
 
 export const filterItems = (
@@ -175,9 +182,16 @@ export const filterItems = (
   f: InterventionFilters,
 ): InterventionItem[] => {
   const q = (f.search ?? "").trim().toLowerCase();
+  const min = f.minValue ?? null;
+  const max = f.maxValue ?? null;
+  const cls = f.classification ?? "all";
   return items.filter((it) => {
     if (f.role && f.role !== "all" && it.role !== f.role) return false;
     if (f.userId && f.userId !== "all" && it.author_id !== f.userId) return false;
+    if (cls !== "all" && classifyItem(it) !== cls) return false;
+    const abs = Math.abs(it.delta);
+    if (min != null && abs < min) return false;
+    if (max != null && abs > max) return false;
     if (q) {
       const hay = [
         it.autor,
