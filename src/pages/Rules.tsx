@@ -1232,7 +1232,7 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     const companyNames = Array.from(new Set(groups.map((g) => g.company_name))).filter(Boolean) as string[];
 
     // Estimativa de custo: itens que ainda precisam passar pela IA nos lotes impactados.
-    let aiCountLabel = "";
+    let aiCount: number | null = null;
     try {
       let q = supabase
         .from("payment_items")
@@ -1240,27 +1240,39 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
         .in("payment_id", paymentIds)
         .eq("ai_status", "needs_ai_review" as any);
       if (companyNames.length > 0) q = q.in("company_name", companyNames);
-      const { count: aiCount } = await q;
-      aiCountLabel = ` Esta reanálise processará aproximadamente ${aiCount ?? 0} item(ns) por IA (itens já em cache não consomem créditos).`;
+      const res = await q;
+      aiCount = res.count ?? 0;
     } catch (e) {
       console.warn("[Rules] falha ao estimar custo IA", e);
     }
 
-    const ok = await confirmDialog({
-      title: "Reanalisar lotes impactados?",
-      description: `${groups.length} lote(s) em aberto contêm a empresa-alvo desta regra (${ruleName ?? "sem nome"}). Disparar reanálise agora para refletir a nova configuração?${aiCountLabel}`,
-      confirmText: `Confirmar reanálise (${groups.length} lote(s))`,
-      cancelText: "Cancelar",
+    setReanalysisPrompt({
+      ruleName,
+      groupsCount: groups.length,
+      paymentIds,
+      companyNames,
+      aiCount,
+      runAi: false,
     });
-    if (!ok) return;
+  };
 
+  /** Confirma o disparo da reanálise (chamado pelo diálogo). */
+  const confirmReanalysisPrompt = async () => {
+    const prompt = reanalysisPrompt;
+    if (!prompt) return;
+    const { paymentIds, companyNames, runAi } = prompt;
+    setReanalysisPrompt(null);
     let dispatched = 0;
-
     let failed = 0;
     await Promise.all(paymentIds.map(async (pid) => {
       try {
         const { error } = await supabase.functions.invoke("dispatch-payment-analysis", {
-          body: { payment_id: pid, only_companies: companyNames, force_fresh_rules: true },
+          body: {
+            payment_id: pid,
+            only_companies: companyNames,
+            force_fresh_rules: true,
+            ...(runAi ? { run_ai: true } : {}),
+          },
         });
         if (error) throw error;
         dispatched++;
