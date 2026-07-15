@@ -20,6 +20,7 @@ import { exportInterventionExcel, exportInterventionPdf } from "@/lib/interventi
 import { useHospital } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MultiSelectPopover } from "@/components/ui/MultiSelectPopover";
 import {
   emptyResult,
   filterItems,
@@ -322,9 +323,21 @@ export default function InterventionAdjustments() {
     (filters.companyName && filters.companyName !== "all") ||
     (filters.doctorName && filters.doctorName !== "all") ||
     (filters.classification && filters.classification !== "all") ||
+    (filters.roles?.length ?? 0) > 0 ||
+    (filters.userIds?.length ?? 0) > 0 ||
+    (filters.paymentIds?.length ?? 0) > 0 ||
+    (filters.companyNames?.length ?? 0) > 0 ||
+    (filters.doctorNames?.length ?? 0) > 0 ||
+    // Considera "padrão" quando classifications = [economia, aumento].
+    (() => {
+      const c = filters.classifications ?? [];
+      const isDefault = c.length === 2 && c.includes("economia") && c.includes("aumento");
+      return c.length > 0 && !isDefault;
+    })() ||
     filters.minValue != null ||
     filters.maxValue != null ||
     (filters.search ?? "").trim() !== "";
+
 
 
   return (
