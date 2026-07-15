@@ -20,6 +20,7 @@ import { exportInterventionExcel, exportInterventionPdf } from "@/lib/interventi
 import { useHospital } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MultiSelectPopover } from "@/components/ui/MultiSelectPopover";
 import {
   emptyResult,
   filterItems,
@@ -173,7 +174,14 @@ export default function InterventionAdjustments() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
   const [paymentRefs, setPaymentRefs] = useState<Map<string, string>>(new Map());
-  const [filters, setFilters] = useState<InterventionFilters>({ role: initialRole, userId: "all", search: "" });
+  const [filters, setFilters] = useState<InterventionFilters>({
+    role: initialRole,
+    userId: "all",
+    search: "",
+    // Padrão: Neutro fora — reduz ruído de cancelamentos operacionais.
+    classifications: ["economia", "aumento"],
+  });
+
   // Set para permitir múltiplas reativações em paralelo de IDs distintos sem
   // que uma sobrescreva o estado da outra, e bloqueia retry no mesmo id.
   const [reactivatingIds, setReactivatingIds] = useState<Set<string>>(new Set());
@@ -254,7 +262,8 @@ export default function InterventionAdjustments() {
 
   /** Contadores por classificação semântica — sempre sobre o período (ignora filtro de papel). */
   const roleCounts = useMemo(() => {
-    const base = filterItems(data.items, { ...filters, role: "all" });
+    const base = filterItems(data.items, { ...filters, role: "all", roles: [] });
+
     const acc: Record<IntervenorRole, { qtd: number; saldo: number }> = {
       diretor: { qtd: 0, saldo: 0 },
       validador: { qtd: 0, saldo: 0 },
@@ -315,9 +324,21 @@ export default function InterventionAdjustments() {
     (filters.companyName && filters.companyName !== "all") ||
     (filters.doctorName && filters.doctorName !== "all") ||
     (filters.classification && filters.classification !== "all") ||
+    (filters.roles?.length ?? 0) > 0 ||
+    (filters.userIds?.length ?? 0) > 0 ||
+    (filters.paymentIds?.length ?? 0) > 0 ||
+    (filters.companyNames?.length ?? 0) > 0 ||
+    (filters.doctorNames?.length ?? 0) > 0 ||
+    // Considera "padrão" quando classifications = [economia, aumento].
+    (() => {
+      const c = filters.classifications ?? [];
+      const isDefault = c.length === 2 && c.includes("economia") && c.includes("aumento");
+      return c.length > 0 && !isDefault;
+    })() ||
     filters.minValue != null ||
     filters.maxValue != null ||
     (filters.search ?? "").trim() !== "";
+
 
 
   return (
@@ -349,55 +370,57 @@ export default function InterventionAdjustments() {
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Papel</label>
-              <Select
-                value={filters.role ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, role: v as IntervenorRole | "all" }))}
-              >
-                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="diretor">Diretor</SelectItem>
-                  <SelectItem value="validador">Supervisor</SelectItem>
-                  <SelectItem value="analista">Analista</SelectItem>
-                  <SelectItem value="glosa_pj">Glosa aplicada (PJ)</SelectItem>
-                  <SelectItem value="ajuste_manual">Ajuste manual</SelectItem>
-                  <SelectItem value="aceite_esperado">Aceite do esperado</SelectItem>
-                  <SelectItem value="aceite_pago">Aceite mantendo pago</SelectItem>
-                  <SelectItem value="cancelamento_empresa">Cancelamento empresa</SelectItem>
-                  <SelectItem value="cancelamento_item">Cancelamento item</SelectItem>
-                  <SelectItem value="cancelamento_conciliacao">Cancelamento via conciliação</SelectItem>
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[200px]"
+                allLabel="Todos os papéis"
+                placeholder="Buscar papel…"
+                values={filters.roles ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, roles: v, role: "all" }))}
+                options={[
+                  { value: "diretor", label: "Diretor" },
+                  { value: "validador", label: "Supervisor" },
+                  { value: "analista", label: "Analista" },
+                  { value: "glosa_pj", label: "Glosa aplicada (PJ)" },
+                  { value: "ajuste_manual", label: "Ajuste manual" },
+                  { value: "aceite_esperado", label: "Aceite do esperado" },
+                  { value: "aceite_pago", label: "Aceite mantendo pago" },
+                  { value: "cancelamento_empresa", label: "Cancelamento empresa" },
+                  { value: "cancelamento_item", label: "Cancelamento item" },
+                  { value: "cancelamento_conciliacao", label: "Cancelamento via conciliação" },
+                ]}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Classificação</label>
-              <Select
-                value={filters.classification ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, classification: v as "all" | "economia" | "aumento" | "neutro" }))}
-              >
-                <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="economia">Economia</SelectItem>
-                  <SelectItem value="aumento">Aumento (perda)</SelectItem>
-                  <SelectItem value="neutro">Neutro</SelectItem>
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[170px]"
+                allLabel="Todas"
+                searchable={false}
+                values={filters.classifications ?? []}
+                onChange={(v) =>
+                  setFilters((f) => ({
+                    ...f,
+                    classifications: v as Array<"economia" | "aumento" | "neutro">,
+                    classification: "all",
+                  }))
+                }
+                options={[
+                  { value: "economia", label: "Economia" },
+                  { value: "aumento", label: "Aumento (perda)" },
+                  { value: "neutro", label: "Neutro" },
+                ]}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Usuário</label>
-              <Select
-                value={filters.userId ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, userId: v }))}
-              >
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[220px]"
+                allLabel="Todos"
+                placeholder="Buscar usuário…"
+                values={filters.userIds ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, userIds: v, userId: "all" }))}
+                options={users.map((u) => ({ value: u.id, label: u.name }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Δ mínimo (R$)</label>
@@ -423,49 +446,39 @@ export default function InterventionAdjustments() {
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Lote</label>
-              <Select
-                value={filters.paymentId ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, paymentId: v }))}
-              >
-                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[320px]">
-                  <SelectItem value="all">Todos ({loteOptions.length})</SelectItem>
-                  {loteOptions.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[200px]"
+                allLabel={`Todos (${loteOptions.length})`}
+                placeholder="Buscar lote…"
+                values={filters.paymentIds ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, paymentIds: v, paymentId: "all" }))}
+                options={loteOptions.map((l) => ({ value: l.id, label: l.label }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Empresa</label>
-              <Select
-                value={filters.companyName ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, companyName: v }))}
-              >
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[320px]">
-                  <SelectItem value="all">Todas ({companyOptions.length})</SelectItem>
-                  {companyOptions.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[220px]"
+                allLabel={`Todas (${companyOptions.length})`}
+                placeholder="Buscar empresa…"
+                values={filters.companyNames ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, companyNames: v, companyName: "all" }))}
+                options={companyOptions.map((c) => ({ value: c, label: c }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Médico</label>
-              <Select
-                value={filters.doctorName ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, doctorName: v }))}
-              >
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[320px]">
-                  <SelectItem value="all">Todos ({doctorOptions.length})</SelectItem>
-                  {doctorOptions.map((d) => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectPopover
+                width="w-[220px]"
+                allLabel={`Todos (${doctorOptions.length})`}
+                placeholder="Buscar médico…"
+                values={filters.doctorNames ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, doctorNames: v, doctorName: "all" }))}
+                options={doctorOptions.map((d) => ({ value: d, label: d }))}
+              />
             </div>
+
+
             <div className="space-y-1 flex-1 min-w-[200px]">
               <label className="text-xs text-muted-foreground">Buscar (médico, empresa, procedimento)</label>
               <Input
@@ -485,15 +498,22 @@ export default function InterventionAdjustments() {
                     companyName: "all",
                     doctorName: "all",
                     classification: "all",
+                    roles: [],
+                    userIds: [],
+                    paymentIds: [],
+                    companyNames: [],
+                    doctorNames: [],
+                    classifications: ["economia", "aumento"],
                     minValue: null,
                     maxValue: null,
                     search: "",
                   })
                 }
               >
-                Limpar filtros
+                Restaurar padrão
               </Button>
             )}
+
 
             <Button
               variant="outline"
@@ -591,7 +611,7 @@ export default function InterventionAdjustments() {
             icon={MinusCircle}
             label="Neutro (operacional)"
             value={formatCurrency(filteredSummary.neutro)}
-            hint="Pago em outro lote, duplicidade do motor, sem motivo — não soma no saldo"
+            hint="Intervenções sem impacto financeiro: confirmações de valor e cancelamentos operacionais. Não somam no saldo."
             tone="muted"
             loading={loading}
           />
@@ -599,10 +619,11 @@ export default function InterventionAdjustments() {
             icon={Scale}
             label="Saldo líquido"
             value={formatCurrency(filteredSummary.saldo)}
-            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s)`}
+            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s). Convenção: "−" verde = hospital pagou menos (economia); "+" vermelho = pagou mais (perda).`}
             tone={saldoTone === "positive" ? "success" : saldoTone === "negative" ? "destructive" : "muted"}
             loading={loading}
           />
+
         </div>
 
         {/* Classificação dos itens — chips clicáveis para filtrar por papel */}
@@ -618,7 +639,8 @@ export default function InterventionAdjustments() {
               <div className="flex flex-wrap gap-2">
                 {ROLE_CHIPS.map(({ role: r, hint }) => {
                   const c = roleCounts[r];
-                  const active = filters.role === r;
+                  const activeRoles = filters.roles ?? [];
+                  const active = activeRoles.includes(r);
                   const tone =
                     c.saldo > 0.005 ? "text-success" :
                     c.saldo < -0.005 ? "text-destructive" : "text-muted-foreground";
@@ -632,7 +654,15 @@ export default function InterventionAdjustments() {
                     >
                       <button
                         type="button"
-                        onClick={() => setFilters((f) => ({ ...f, role: active ? "all" : r }))}
+                        onClick={() =>
+                          setFilters((f) => {
+                            const cur = f.roles ?? [];
+                            const next = cur.includes(r)
+                              ? cur.filter((x) => x !== r)
+                              : [...cur, r];
+                            return { ...f, roles: next, role: "all" };
+                          })
+                        }
                         className="text-left w-full"
                       >
                         <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground">
@@ -660,15 +690,16 @@ export default function InterventionAdjustments() {
                     </div>
                   );
                 })}
-                {filters.role !== "all" && (
+                {(filters.roles?.length ?? 0) > 0 && (
                   <button
                     type="button"
-                    onClick={() => setFilters((f) => ({ ...f, role: "all" }))}
+                    onClick={() => setFilters((f) => ({ ...f, roles: [], role: "all" }))}
                     className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 self-stretch"
                   >
                     Limpar filtro
                   </button>
                 )}
+
               </div>
             </TooltipProvider>
             <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
