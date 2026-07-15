@@ -3572,7 +3572,7 @@ export type Database = {
           fonte: string
           hospital_id: string
           id: string
-          item_id: string
+          item_id: string | null
           payment_id: string
           procedure_code: string | null
           procedure_name: string | null
@@ -3594,7 +3594,7 @@ export type Database = {
           fonte: string
           hospital_id: string
           id?: string
-          item_id: string
+          item_id?: string | null
           payment_id: string
           procedure_code?: string | null
           procedure_name?: string | null
@@ -3616,7 +3616,7 @@ export type Database = {
           fonte?: string
           hospital_id?: string
           id?: string
-          item_id?: string
+          item_id?: string | null
           payment_id?: string
           procedure_code?: string | null
           procedure_name?: string | null
