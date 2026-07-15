@@ -1337,6 +1337,22 @@ export function PaymentConciliationModal({
         exactaItemsForRun.push(...kept);
       }
 
+      // === FILTRO — Itens cancelados na conciliação anterior ===
+      // Itens com is_cancelled=true representam linhas que o analista já removeu
+      // (cancelamento por reconciliação, duplicidade externa, etc.). Uma "Nova
+      // conciliação" precisa ignorá-los: caso contrário, eles reaparecem como
+      // "só Exacta" e o analista tem que refazer o cancelamento a cada re-run.
+      {
+        const before = exactaItemsForRun.length;
+        const kept = exactaItemsForRun.filter((it) => (it as any).is_cancelled !== true);
+        const removed = before - kept.length;
+        if (removed > 0) {
+          console.log('[Conciliação] Excluídos por is_cancelled=true:', { before, removed, restantes: kept.length });
+        }
+        exactaItemsForRun.length = 0;
+        exactaItemsForRun.push(...kept);
+      }
+
       // === FILTRO — Convênios excluídos da análise ===
       // Convênios listados pelo analista (ex.: Sul América/Particular que operam
       // por pacote/tratativa manual). Itens desses convênios são removidos das
