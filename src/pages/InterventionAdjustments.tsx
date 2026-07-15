@@ -262,7 +262,8 @@ export default function InterventionAdjustments() {
 
   /** Contadores por classificação semântica — sempre sobre o período (ignora filtro de papel). */
   const roleCounts = useMemo(() => {
-    const base = filterItems(data.items, { ...filters, role: "all" });
+    const base = filterItems(data.items, { ...filters, role: "all", roles: [] });
+
     const acc: Record<IntervenorRole, { qtd: number; saldo: number }> = {
       diretor: { qtd: 0, saldo: 0 },
       validador: { qtd: 0, saldo: 0 },
