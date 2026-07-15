@@ -215,6 +215,17 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
 
+  // Diálogo pós-edição de regra: pergunta se dispara reanálise dos lotes
+  // impactados. IA é opt-in (checkbox desmarcado por padrão).
+  const [reanalysisPrompt, setReanalysisPrompt] = useState<{
+    ruleName: string | null;
+    groupsCount: number;
+    paymentIds: string[];
+    companyNames: string[];
+    aiCount: number | null;
+    runAi: boolean;
+  } | null>(null);
+
   const downloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
       ["nome", "descricao", "texto_da_regra", "severidade", "escopo", "setor", "tipo_alvo", "identificador_alvo", "natureza", "tipo_calculo", "valor_fixo", "percentual_convenio", "codigos_procedimento"],
