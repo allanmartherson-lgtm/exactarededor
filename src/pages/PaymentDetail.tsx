@@ -3340,6 +3340,20 @@ const PaymentDetail = () => {
                           );
                         })()}
 
+                        <label className="flex items-start gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/40">
+                          <Checkbox
+                            checked={reprocessRunAi}
+                            onCheckedChange={(c) => setReprocessRunAi(c === true)}
+                            className="mt-0.5"
+                          />
+                          <span className="text-xs">
+                            <strong>Incluir justificativas IA</strong>
+                            <span className="block text-muted-foreground">
+                              Quando desmarcado, roda apenas o motor de regras (sem consumo de créditos de IA).
+                            </span>
+                          </span>
+                        </label>
+
                         <p className="text-sm pt-2">
                           Responsável: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
                         </p>
@@ -3348,9 +3362,9 @@ const PaymentDetail = () => {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setReprocessFilter([])}>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel onClick={() => { setReprocessFilter([]); setReprocessRunAi(false); }}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction 
-                      onClick={() => reprocessAi(reprocessFilter)}
+                      onClick={() => { const runAi = reprocessRunAi; setReprocessRunAi(false); void reprocessAi(reprocessFilter, { runAi }); }}
                       className="bg-warning hover:bg-warning/90 text-white"
                     >
                       Confirmar Reanálise
