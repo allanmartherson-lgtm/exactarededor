@@ -2511,15 +2511,59 @@ export default function CompanyAnalysis() {
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => { void reanalyzeGroup(); }}
-            disabled={busy || reanalyzing || reanalyzeCooldown}
-            className="h-7 text-xs"
+          <AlertDialog
+            open={reanalyzeConfirmOpen}
+            onOpenChange={(o) => { setReanalyzeConfirmOpen(o); if (!o) setReanalyzeRunAi(false); }}
           >
-            <RefreshCcw className={`h-3 w-3 mr-1 ${(reanalyzing || reanalyzeCooldown) ? "animate-spin" : ""}`} />
-            {reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Reanalisar agora"}
-          </Button>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                disabled={busy || reanalyzing || reanalyzeCooldown}
+                className="h-7 text-xs"
+              >
+                <RefreshCcw className={`h-3 w-3 mr-1 ${(reanalyzing || reanalyzeCooldown) ? "animate-spin" : ""}`} />
+                {reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Reanalisar agora"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="max-w-md">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar reanálise da empresa</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3 text-sm">
+                    <p>
+                      Reaplicar o motor de regras para esta empresa e refletir as últimas configurações.
+                    </p>
+                    <label className="flex items-start gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/40">
+                      <Checkbox
+                        checked={reanalyzeRunAi}
+                        onCheckedChange={(c) => setReanalyzeRunAi(c === true)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-xs">
+                        <strong>Incluir justificativas IA</strong>
+                        <span className="block text-muted-foreground">
+                          Quando desmarcado, roda apenas o motor de regras (sem consumo de créditos de IA).
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    const runAi = reanalyzeRunAi;
+                    setReanalyzeConfirmOpen(false);
+                    setReanalyzeRunAi(false);
+                    void reanalyzeGroup({ runAi });
+                  }}
+                >
+                  Confirmar reanálise
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 
