@@ -766,10 +766,10 @@ export default function InterventionAdjustments() {
               </div>
             </TooltipProvider>
             <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
-              <span className="font-semibold">Como o saldo é calculado:</span> Saldo = Economia − Perda.
-              Ajustes de diretor/supervisor/analista entram pelo Δ (Δ &gt; 0 vira <span className="text-success">Economia</span>;
-              Δ &lt; 0 vira <span className="text-destructive">Perda</span>).
-              Já <strong>cancelamentos manuais</strong> só contam como economia quando o motivo é
+              <span className="font-semibold">Como o saldo é calculado:</span> Saldo = Valor recuperado − Valor extra a pagar.
+              Ajustes de diretor/supervisor/analista entram pelo Δ (Δ &gt; 0 vira <span className="text-success">Valor recuperado</span>;
+              Δ &lt; 0 vira <span className="text-destructive">Valor extra a pagar</span>).
+              Já <strong>cancelamentos manuais</strong> só entram como valor recuperado quando o motivo é
               de economia real (médico fatura externamente, contrato encerrado, glosa, jurídico,
               duplicidade externa). Motivos operacionais (<em>pago em outro lote</em>,
               <em> duplicidade corrigida pelo motor</em>, <em>outro</em>) ficam em
