@@ -5474,25 +5474,47 @@ export function PaymentConciliationModal({
                                                 )}
                                                 {!it.action_taken ? (
                                                   <div className="flex gap-2 mt-2 flex-wrap">
-                                                    {/* Crédito: hospital pagou A MENOS do que o esperado pela regra
-                                                        (so_exacta = nada foi pago; valor_divergente com exacta > hospital).
-                                                        Médico/PJ tem a receber → vira crédito no próximo lote. */}
+                                                    {/* Crédito: produção que a médica/PJ tem a RECEBER.
+                                                        - so_exacta: Exacta esperava e hospital não pagou → creditar diferença.
+                                                        - so_hospital: hospital registrou produção que não estava na base Exacta
+                                                          (possível inclusão) → creditar valor_regra/valor_hospital.
+                                                        - valor_divergente com exacta > hospital: hospital pagou a menos. */}
                                                     {(it.status === 'so_exacta' ||
+                                                      it.status === 'so_hospital' ||
                                                       (it.status === 'valor_divergente' && Number(it.valor_exacta) > Number(it.valor_hospital))) && (
                                                       <Button
                                                         size="sm"
-                                                        variant="outline"
                                                         disabled={actionLoading === it.id}
                                                         onClick={(e) => { e.stopPropagation(); handleAction(it, 'incorporar_credito'); }}
-                                                        className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+                                                        className={cn(
+                                                          it.status === 'so_hospital'
+                                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
+                                                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300',
+                                                        )}
+                                                        variant={it.status === 'so_hospital' ? 'default' : 'outline'}
                                                       >
                                                         {actionLoading === it.id ? '…' : '+ Incorporar como crédito'}
                                                       </Button>
                                                     )}
-                                                    {/* Débito: hospital pagou A MAIS do que o esperado (ou pagou algo que
-                                                        nem deveria existir — so_hospital). Médico/PJ deve devolver → débito. */}
-                                                    {(it.status === 'so_hospital' ||
-                                                      (it.status === 'valor_divergente' && Number(it.valor_hospital) > Number(it.valor_exacta))) && (
+                                                    {/* Escopo por atendimento — espelha o "Cancelar atendimento inteiro"
+                                                        do so_exacta. Aplica incorporar_credito a todos os so_hospital
+                                                        do mesmo attendance_number + company_name em uma única ação. */}
+                                                    {it.status === 'so_hospital' && it.attendance_number && it.company_name && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleIncorporarAttendanceCredito(it); }}
+                                                        className="text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300"
+                                                        title="Incorpora como crédito todos os itens só-no-hospital deste atendimento nesta empresa"
+                                                      >
+                                                        + Incorporar atendimento inteiro
+                                                      </Button>
+                                                    )}
+                                                    {/* Débito: hospital pagou A MAIS do que o esperado — médica/PJ deve devolver.
+                                                        Restrito a valor_divergente (hospital > exacta). so_hospital NÃO gera
+                                                        débito: é produção adicional a favor da PJ, não cobrança contra ela. */}
+                                                    {it.status === 'valor_divergente' && Number(it.valor_hospital) > Number(it.valor_exacta) && (
                                                       <Button
                                                         size="sm"
                                                         variant="outline"
