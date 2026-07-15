@@ -382,3 +382,243 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
   const stamp = generatedAt.toISOString().slice(0, 10);
   doc.save(`ajustes-intervencao-${ctx.rangeDays}d-${stamp}.pdf`);
 }
+
+/* ==================== SINTÉTICO ==================== */
+/**
+ * Consolida contagens úteis para os relatórios sintéticos.
+ * Não altera KPIs financeiros — apenas agrega dimensões distintas.
+ */
+function buildSyntheticCounters(items: InterventionItem[]) {
+  const empresas = new Set<string>();
+  const medicos = new Set<string>();
+  const autores = new Set<string>();
+  const lotes = new Set<string>();
+  const byRole: Record<string, number> = {};
+  let economiaItens = 0;
+  let perdaItens = 0;
+  let neutroItens = 0;
+  for (const it of items) {
+    if (it.company_name) empresas.add(it.company_name);
+    if (it.doctor_name) medicos.add(it.doctor_name);
+    if (it.autor) autores.add(it.autor);
+    if (it.payment_id) lotes.add(it.payment_id);
+    const r = String(it.role ?? "outro");
+    byRole[r] = (byRole[r] ?? 0) + 1;
+    const cls = classifyItem(it);
+    if (cls === "economia") economiaItens++;
+    else if (cls === "aumento") perdaItens++;
+    else neutroItens++;
+  }
+  return {
+    empresas: empresas.size,
+    medicos: medicos.size,
+    autores: autores.size,
+    lotes: lotes.size,
+    itens: items.length,
+    itensRecuperados: economiaItens,
+    itensExtras: perdaItens,
+    itensNeutros: neutroItens,
+    byRole,
+  };
+}
+
+export async function exportInterventionExcelSintetico(ctx: InterventionReportContext): Promise<void> {
+  const wb = XLSX.utils.book_new();
+  const generatedAt = ctx.generatedAt ?? new Date();
+  const counters = buildSyntheticCounters(ctx.items);
+
+  const brandFill = { patternType: "solid" as const, fgColor: { rgb: BRAND_HEX } };
+  const whiteBold = {
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12, name: "Calibri" },
+    fill: brandFill,
+    alignment: { vertical: "center" as const, horizontal: "left" as const },
+  };
+  const sectionHeader = {
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11, name: "Calibri" },
+    fill: brandFill,
+    alignment: { vertical: "center" as const, horizontal: "left" as const },
+  };
+  const metaLabel = { font: { bold: true, sz: 10, color: { rgb: "374151" } } };
+  const metaValue = { font: { sz: 10, color: { rgb: "111827" } } };
+  const currencyFmt = '[$R$-416] #,##0.00;[Red]-[$R$-416] #,##0.00;[$R$-416] "-"';
+
+  const totalCols = 4;
+  const spacer = new Array(totalCols).fill(null);
+  const title = (label: string) => {
+    const r = new Array(totalCols).fill(null); r[0] = { v: label, s: whiteBold }; return r;
+  };
+  const sectionRow = (label: string) => {
+    const r = new Array(totalCols).fill(null); r[0] = { v: label, s: sectionHeader }; return r;
+  };
+
+  const rows: any[][] = [];
+  rows.push(title("Rede D'Or — Exacta"));
+  rows.push(title("Ajustes por intervenção — Sintético"));
+  rows.push(spacer);
+  rows.push([
+    { v: "Hospital", s: metaLabel }, { v: ctx.hospitalName ?? "—", s: metaValue },
+    { v: "Período", s: metaLabel }, { v: `Últimos ${ctx.rangeDays} dias`, s: metaValue },
+  ]);
+  rows.push([
+    { v: "Gerado em", s: metaLabel }, { v: generatedAt.toLocaleString("pt-BR"), s: metaValue },
+    null, null,
+  ]);
+  rows.push(spacer);
+
+  rows.push(sectionRow("Resultado financeiro"));
+  rows.push([
+    { v: "Valor recuperado", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: ECON_HEX } } } },
+    { t: "n", v: Number(ctx.summary.economia) || 0, s: { ...metaValue, numFmt: currencyFmt } },
+    { v: "Valor extra a pagar", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: PERDA_HEX } } } },
+    { t: "n", v: Number(ctx.summary.perda) || 0, s: { ...metaValue, numFmt: currencyFmt } },
+  ]);
+  rows.push([
+    { v: "Neutro (operacional)", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: NEUTRO_HEX } } } },
+    { t: "n", v: Number(ctx.summary.neutro) || 0, s: { ...metaValue, numFmt: currencyFmt } },
+    { v: "Saldo líquido", s: metaLabel },
+    { t: "n", v: Number(ctx.summary.saldo) || 0, s: { ...metaValue, numFmt: currencyFmt, font: { bold: true, sz: 10 } } },
+  ]);
+  rows.push(spacer);
+
+  rows.push(sectionRow("Volume ajustado"));
+  rows.push([
+    { v: "Itens ajustados", s: metaLabel }, { t: "n", v: counters.itens, s: metaValue },
+    { v: "Lotes envolvidos", s: metaLabel }, { t: "n", v: counters.lotes, s: metaValue },
+  ]);
+  rows.push([
+    { v: "Empresas (PJs)", s: metaLabel }, { t: "n", v: counters.empresas, s: metaValue },
+    { v: "Médicos", s: metaLabel }, { t: "n", v: counters.medicos, s: metaValue },
+  ]);
+  rows.push([
+    { v: "Autores das intervenções", s: metaLabel }, { t: "n", v: counters.autores, s: metaValue },
+    null, null,
+  ]);
+  rows.push(spacer);
+
+  rows.push(sectionRow("Itens por classificação"));
+  rows.push([
+    { v: "Recuperados", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: ECON_HEX } } } },
+    { t: "n", v: counters.itensRecuperados, s: metaValue },
+    { v: "Extras a pagar", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: PERDA_HEX } } } },
+    { t: "n", v: counters.itensExtras, s: metaValue },
+  ]);
+  rows.push([
+    { v: "Neutros", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: NEUTRO_HEX } } } },
+    { t: "n", v: counters.itensNeutros, s: metaValue },
+    null, null,
+  ]);
+  rows.push(spacer);
+
+  rows.push(sectionRow("Intervenções por papel"));
+  const roleEntries = Object.entries(counters.byRole).sort((a, b) => b[1] - a[1]);
+  if (roleEntries.length === 0) {
+    rows.push([{ v: "—", s: metaValue }, null, null, null]);
+  } else {
+    for (const [r, n] of roleEntries) {
+      rows.push([
+        { v: roleLabel(r as any), s: metaLabel },
+        { t: "n", v: n, s: metaValue },
+        null, null,
+      ]);
+    }
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows, { cellDates: true });
+  ws["!cols"] = [{ wch: 28 }, { wch: 22 }, { wch: 28 }, { wch: 22 }];
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
+  ];
+  ws["!rows"] = [{ hpt: 22 }, { hpt: 20 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Sintético");
+  const stamp = generatedAt.toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `ajustes-intervencao-sintetico-${ctx.rangeDays}d-${stamp}.xlsx`);
+}
+
+export async function exportInterventionPdfSintetico(ctx: InterventionReportContext): Promise<void> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const marginX = 14;
+  const generatedAt = ctx.generatedAt ?? new Date();
+  const counters = buildSyntheticCounters(ctx.items);
+
+  const headerBottomY = await drawReportHeader(doc, {
+    title: "Ajustes por intervenção — Sintético",
+    subtitle: `${ctx.hospitalName ?? "Hospital —"} · Últimos ${ctx.rangeDays} dias · Gerado em ${generatedAt.toLocaleString("pt-BR")}`,
+    marginX,
+    logoHeightMm: 11,
+    filledBar: true,
+  });
+
+  // KPIs financeiros (mesma paleta do analítico)
+  const kpis: { label: string; value: string; rgb: [number, number, number] }[] = [
+    { label: "Valor recuperado", value: formatCurrency(ctx.summary.economia), rgb: [231, 245, 236] },
+    { label: "Valor extra a pagar", value: formatCurrency(ctx.summary.perda), rgb: [253, 236, 236] },
+    { label: "Neutro", value: formatCurrency(ctx.summary.neutro), rgb: [243, 244, 246] },
+    { label: "Saldo líquido", value: formatCurrency(ctx.summary.saldo), rgb: [219, 234, 254] },
+  ];
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const kpiGap = 3;
+  const kpiW = (pageWidth - marginX * 2 - kpiGap * (kpis.length - 1)) / kpis.length;
+  const kpiY = headerBottomY;
+  const kpiH = 18;
+  kpis.forEach((k, i) => {
+    const x = marginX + i * (kpiW + kpiGap);
+    doc.setFillColor(...k.rgb);
+    doc.roundedRect(x, kpiY, kpiW, kpiH, 1.5, 1.5, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text(k.label, x + 3, kpiY + 6);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(17, 24, 39);
+    doc.text(k.value, x + 3, kpiY + 13);
+  });
+
+  const volumeRows: [string, string][] = [
+    ["Itens ajustados", String(counters.itens)],
+    ["Lotes envolvidos", String(counters.lotes)],
+    ["Empresas (PJs)", String(counters.empresas)],
+    ["Médicos", String(counters.medicos)],
+    ["Autores das intervenções", String(counters.autores)],
+    ["Itens recuperados", String(counters.itensRecuperados)],
+    ["Itens extras a pagar", String(counters.itensExtras)],
+    ["Itens neutros", String(counters.itensNeutros)],
+  ];
+
+  autoTable(doc, {
+    head: [["Volume ajustado", "Total"]],
+    body: volumeRows,
+    startY: kpiY + kpiH + 6,
+    margin: { left: marginX, right: marginX },
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontStyle: "bold" },
+    columnStyles: { 1: { halign: "right", cellWidth: 40 } },
+  });
+
+  const roleEntries = Object.entries(counters.byRole).sort((a, b) => b[1] - a[1]);
+  if (roleEntries.length > 0) {
+    autoTable(doc, {
+      head: [["Intervenções por papel", "Total"]],
+      body: roleEntries.map(([r, n]) => [roleLabel(r as any), String(n)]),
+      startY: (doc as any).lastAutoTable.finalY + 6,
+      margin: { left: marginX, right: marginX },
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255, fontStyle: "bold" },
+      columnStyles: { 1: { halign: "right", cellWidth: 40 } },
+    });
+  }
+
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text(
+    `Rede D'Or — Exacta · Ajustes por intervenção (Sintético)`,
+    marginX,
+    pageHeight - 6,
+  );
+
+  const stamp = generatedAt.toISOString().slice(0, 10);
+  doc.save(`ajustes-intervencao-sintetico-${ctx.rangeDays}d-${stamp}.pdf`);
+}
