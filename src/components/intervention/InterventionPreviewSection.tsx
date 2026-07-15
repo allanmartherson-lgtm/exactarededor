@@ -108,7 +108,14 @@ export default function InterventionPreviewSection() {
           { p_hospital_id: hospitalId ?? null },
         );
         if (err) throw err;
-        if (!cancelled) setData((res as unknown as PreviewResult) ?? EMPTY);
+        // RPC pode voltar null, sem `by_payment`, ou sem `summary` — normalizar
+        // para evitar crash "undefined is not an object (evaluating 't.by_payment.map')".
+        const raw = (res ?? {}) as Partial<PreviewResult>;
+        const normalized: PreviewResult = {
+          summary: { ...EMPTY.summary, ...(raw.summary ?? {}) },
+          by_payment: Array.isArray(raw.by_payment) ? raw.by_payment : [],
+        };
+        if (!cancelled) setData(normalized);
       } catch (e) {
         console.error("[InterventionPreviewSection] rpc failed", e);
         if (!cancelled) {
