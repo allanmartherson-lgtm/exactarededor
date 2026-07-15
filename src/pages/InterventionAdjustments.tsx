@@ -280,6 +280,43 @@ export default function InterventionAdjustments() {
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data.by_user]);
 
+  // Opções dinâmicas — só o que aparece nos itens do período atual, para não poluir
+  // o select com valores inexistentes. Ordena alfabeticamente.
+  const loteOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const it of data.items) {
+      if (!it.payment_id) continue;
+      map.set(it.payment_id, paymentRefs.get(it.payment_id) ?? `${it.payment_id.slice(0, 8)}…`);
+    }
+    return Array.from(map.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [data.items, paymentRefs]);
+
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of data.items) if (it.company_name) set.add(it.company_name);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data.items]);
+
+  const doctorOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of data.items) if (it.doctor_name) set.add(it.doctor_name);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data.items]);
+
+  const hasActiveFilters =
+    (filters.role && filters.role !== "all") ||
+    (filters.userId && filters.userId !== "all") ||
+    (filters.paymentId && filters.paymentId !== "all") ||
+    (filters.companyName && filters.companyName !== "all") ||
+    (filters.doctorName && filters.doctorName !== "all") ||
+    (filters.classification && filters.classification !== "all") ||
+    filters.minValue != null ||
+    filters.maxValue != null ||
+    (filters.search ?? "").trim() !== "";
+
+
   return (
     <div>
       <PageHeader
