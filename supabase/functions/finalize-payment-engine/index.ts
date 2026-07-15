@@ -199,6 +199,18 @@ async function runPipeline(
       .eq("status", "approved");
     await markSource(payment_id, "special_case_marks", (marks ?? []).length, 0);
   }
+
+  // Recálculo final de prioridade: como recalc_payment_priority agora
+  // PULA quando encontra advisory lock (para não serializar workers em
+  // paralelo do analyze-payment), garantimos aqui o valor definitivo ao
+  // fim de todo o pipeline. Sem advisory concorrente neste ponto, a
+  // chamada realmente executa o UPDATE em payments.priority_score.
+  try {
+    const { error: prioErr } = await supabase.rpc("recalc_payment_priority", { _payment_id: payment_id });
+    if (prioErr) console.warn("[finalize-payment-engine] recalc_payment_priority falhou (não bloqueante)", prioErr.message);
+  } catch (e) {
+    console.warn("[finalize-payment-engine] recalc_payment_priority erro (não bloqueante)", (e as Error)?.message);
+  }
 }
 
 // @ts-ignore -- EdgeRuntime é injetado pelo runtime do Supabase
