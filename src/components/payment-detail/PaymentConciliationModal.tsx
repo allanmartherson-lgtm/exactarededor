@@ -3694,7 +3694,9 @@ export function PaymentConciliationModal({
     item: ReconciliationItem,
     action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar' | 'rolar_debito_residual',
     note?: string,
+    opts?: { silent?: boolean },
   ) => {
+    const silent = !!opts?.silent;
     if (!user) return;
     setActionLoading(item.id);
     try {
