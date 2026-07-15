@@ -3770,25 +3770,48 @@ export function PaymentConciliationModal({
       let appliedPaymentItemId: string | null = null;
 
       if (action === 'incorporar_credito' || action === 'incorporar_debito') {
-        const { data: groups } = await supabase
+        // Alvo é SEMPRE o lote vigente (paymentId). Precisamos do company_id
+        // + hospital_id do grupo desta PJ para satisfazer o trigger
+        // enforce_pool_item_consistency (company_id NOT NULL em lote comum).
+        const { data: grp, error: grpErr } = await supabase
           .from('payment_company_groups')
-          .select('payment_id, payments!inner(id, status, reference, created_at)')
+          .select('company_id, hospital_id')
+          .eq('payment_id', paymentId)
           .eq('company_name', item.company_name ?? '')
-          .in('payments.status', ['revisao_analista', 'concluida_analista', 'devolvido_analista'])
-          .order('payments(created_at)', { ascending: false })
-          .limit(1);
+          .maybeSingle();
 
-        if (!groups || groups.length === 0) {
+        if (grpErr || !grp?.company_id || !grp?.hospital_id) {
           toast({
-            title: 'Nenhum lote ativo encontrado para esta empresa',
-            description: 'Crie ou abra um lote em andamento para esta empresa antes de incorporar itens.',
+            title: 'PJ não vinculada ao lote vigente',
+            description: `Não achei a empresa "${item.company_name ?? '—'}" nos grupos deste lote. Verifique se a PJ faz parte do lote antes de incorporar.`,
             variant: 'destructive',
           });
           return;
         }
 
-        const targetPaymentId = (groups[0].payments as any).id;
-        const targetRef = (groups[0].payments as any).reference;
+        // doctor_id é opcional; se resolver por documento/nome ajuda o motor
+        // a reconhecer o item na reanálise. Nunca bloqueia.
+        let resolvedDoctorId: string | null = null;
+        try {
+          const doc = (item.doctor_document ?? '').replace(/\D/g, '');
+          if (doc) {
+            const { data } = await supabase
+              .from('doctors')
+              .select('id')
+              .filter('cpf', 'not.is', null)
+              .limit(50);
+            const match = (data ?? []).find((d: any) => (d.cpf ?? '').replace(/\D/g, '') === doc);
+            if (match) resolvedDoctorId = match.id;
+          }
+          if (!resolvedDoctorId && item.doctor_name) {
+            const { data } = await supabase
+              .from('doctors')
+              .select('id')
+              .ilike('full_name', item.doctor_name.trim())
+              .limit(2);
+            if ((data?.length ?? 0) === 1) resolvedDoctorId = data![0].id;
+          }
+        } catch { /* opcional */ }
 
         const valorConvenio = Number(item.valor_hospital ?? 0);
         const valorExacta = Number(item.valor_exacta ?? 0);
@@ -3798,10 +3821,15 @@ export function PaymentConciliationModal({
           ? (item.status === 'so_hospital' ? (item.valor_regra ?? valorConvenio) : diferenca)
           : diferenca;
 
+        const nowIso = new Date().toISOString();
         const { data: newItem, error: itemErr } = await supabase
           .from('payment_items')
           .insert({
-            payment_id: targetPaymentId,
+            payment_id: paymentId,
+            company_id: grp.company_id,
+            hospital_id: grp.hospital_id,
+            doctor_id: resolvedDoctorId,
+            is_pool_item: false,
             doctor_name: item.doctor_name ?? '—',
             doctor_document: item.doctor_document ?? null,
             company_name: item.company_name ?? null,
@@ -3810,8 +3838,13 @@ export function PaymentConciliationModal({
             procedure_date: item.procedure_date ?? null,
             patient_name: item.patient_name ?? null,
             agreement_text: item.agreement_text ?? null,
+            attendance_number: item.attendance_number ?? null,
+            // Baseline = 0 (item não existia antes da intervenção).
+            // Motor de intervenção usa item_origem='conciliacao_*' para calcular delta = 0 − gross.
+            expected_amount: 0,
             gross_amount: isCredito ? valorAjuste : -valorAjuste,
-            expected_amount: isCredito ? valorAjuste : -valorAjuste,
+            gross_override_at: nowIso,
+            gross_override_by: user.id,
             ai_status: 'aprovado',
             item_origem: isCredito ? 'conciliacao_credito' : 'conciliacao_debito',
             origem_referencia: `Conciliação ${item.competence_month ?? (run as any)?.competence_month ?? ''}`.trim(),
@@ -3821,13 +3854,22 @@ export function PaymentConciliationModal({
           .single();
 
         if (itemErr || !newItem) throw new Error(itemErr?.message ?? 'Erro ao criar item de ajuste');
-        appliedPaymentId = targetPaymentId;
+        appliedPaymentId = paymentId;
         appliedPaymentItemId = newItem.id;
+
+        // Dispara reanálise do lote vigente (sem IA — só motor determinístico).
+        try {
+          await supabase.functions.invoke('dispatch-payment-analysis', {
+            body: { payment_id: paymentId, run_ai: false, reason: 'conciliacao_incorporacao' },
+          });
+        } catch (e) {
+          console.warn('[incorporar] falha ao disparar reanálise', e);
+        }
 
         if (!silent) {
           toast({
-            title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote "${targetRef}"`,
-            description: `${formatCurrency(valorAjuste)} adicionado como ajuste de conciliação`,
+            title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote vigente`,
+            description: `${formatCurrency(valorAjuste)} adicionado — reanálise disparada e registrado em Ajustes por intervenção.`,
           });
         }
       }
