@@ -794,8 +794,8 @@ export default function InterventionAdjustments() {
                   <TableHead>Usuário</TableHead>
                   <TableHead>Papel</TableHead>
                   <TableHead className="text-right">Itens</TableHead>
-                  <TableHead className="text-right">Economia</TableHead>
-                  <TableHead className="text-right">Perda</TableHead>
+                  <TableHead className="text-right">Recuperado</TableHead>
+                  <TableHead className="text-right">Extra a pagar</TableHead>
                   <TableHead className="text-right">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
