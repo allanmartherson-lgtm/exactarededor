@@ -2786,16 +2786,6 @@ export function PaymentConciliationModal({
           divergencia_valor: Number(divergencia_valor.toFixed(2)),
           status: "done",
         })
-          total_items: toInsert.length,
-          conciliado,
-          valor_divergente,
-          so_hospital,
-          so_exacta,
-          risco_mais: Number(risco_mais.toFixed(2)),
-          risco_menos: Number(risco_menos.toFixed(2)),
-          divergencia_valor: Number(divergencia_valor.toFixed(2)),
-          status: "done",
-        })
         .eq("id", newRun.id);
 
       toast({
