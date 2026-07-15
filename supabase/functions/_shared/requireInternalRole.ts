@@ -138,6 +138,7 @@ export function assertCallerHospital(
 ): boolean {
   if (!auth.ok) return false;
   if (auth.is_internal) return true;
+  if (auth.has_global_scope) return true;
   if (!targetHospitalId) return false;
   const ids = auth.hospital_ids ?? [];
   return ids.includes(targetHospitalId);
