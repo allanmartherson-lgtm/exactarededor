@@ -958,8 +958,8 @@ export default function InterventionAdjustments() {
                             {classification === "neutro"
                               ? "Neutro"
                               : classification === "economia"
-                              ? "Economia"
-                              : "Aumento"}
+                              ? "Recuperado"
+                              : "Extra a pagar"}
                           </Badge>
                         </TableCell>
                         <TableCell>
