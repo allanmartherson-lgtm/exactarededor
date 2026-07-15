@@ -2251,7 +2251,7 @@ const Payments = () => {
 
       <AlertDialog
         open={!!reanalysisConfirm}
-        onOpenChange={(o) => { if (!o) setReanalysisConfirm(null); }}
+        onOpenChange={(o) => { if (!o) { setReanalysisConfirm(null); setReanalysisRunAi(false); } }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -2278,6 +2278,19 @@ const Payments = () => {
                     Não foi possível estimar o custo — a reanálise será executada normalmente.
                   </p>
                 )}
+                <label className="flex items-start gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/40">
+                  <Checkbox
+                    checked={reanalysisRunAi}
+                    onCheckedChange={(c) => setReanalysisRunAi(c === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-xs">
+                    <strong>Incluir justificativas IA</strong>
+                    <span className="block text-muted-foreground">
+                      Quando desmarcado, roda apenas o motor de regras (sem consumo de créditos de IA).
+                    </span>
+                  </span>
+                </label>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
