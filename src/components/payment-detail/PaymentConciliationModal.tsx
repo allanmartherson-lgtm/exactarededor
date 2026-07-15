@@ -5605,6 +5605,7 @@ export function PaymentConciliationModal({
                                                         disabled={actionLoading === it.id}
                                                         onClick={(e) => { e.stopPropagation(); handleAction(it, 'marcar_glosa'); }}
                                                         className="border-yellow-500/30 bg-yellow-500/10 text-yellow-800 hover:bg-yellow-500/20 dark:text-yellow-300"
+                                                        title="Item foi executado mas o convênio recusou o pagamento. Gera débito na PJ do médico (rola pra frente se faltar saldo)."
                                                       >
                                                         Marcar como glosa
                                                       </Button>
@@ -5617,6 +5618,7 @@ export function PaymentConciliationModal({
                                                           disabled={actionLoading === it.id}
                                                           onClick={(e) => { e.stopPropagation(); openCancelForItem(it); }}
                                                           className="border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                                                          title="Item não deveria estar neste lote (ex.: faturado por associação/externo, duplicidade, competência errada). Some do cálculo, sem débito na PJ."
                                                         >
                                                           Cancelar item deste pagamento
                                                         </Button>
@@ -5627,7 +5629,7 @@ export function PaymentConciliationModal({
                                                             disabled={actionLoading === it.id}
                                                             onClick={(e) => { e.stopPropagation(); openCancelForAttendance(it); }}
                                                             className="text-destructive hover:bg-destructive/10"
-                                                            title="Cancela todos os itens deste atendimento + empresa"
+                                                            title="Cancela todos os itens deste atendimento nesta empresa em uma ação só (ex.: cirurgia cancelada, atendimento inteiro pago via externo)."
                                                           >
                                                             Cancelar atendimento inteiro
                                                           </Button>
