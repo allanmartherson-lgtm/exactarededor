@@ -84,7 +84,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
     } catch (e) {
       if (!opts?.silent) {
         const msg = e instanceof Error ? e.message : "Erro ao gerar resumo";
-        toast({ title: "Resumo IA", description: msg, variant: "destructive" });
+        toast({ title: "Resumo da análise", description: msg, variant: "destructive" });
       }
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
             )}
           >
             <Sparkles className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">Resumo IA</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">Resumo da análise</span>
             {summary && (
               <Badge variant="outline" className={riskClasses[summary.risk_level]}>
                 {riskLabel[summary.risk_level]}

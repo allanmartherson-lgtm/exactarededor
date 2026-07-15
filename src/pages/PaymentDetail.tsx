@@ -2831,7 +2831,7 @@ const PaymentDetail = () => {
             )}
             <History className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-base">Histórico</CardTitle>
-            <span className="text-xs text-muted-foreground">{obs.length} obs · {aiVersions.length} análises da IA</span>
+            <span className="text-xs text-muted-foreground">{obs.length} obs · {aiVersions.length} análises automáticas</span>
           </button>
           {historyOpen && (
             <Select value={historyItemFilter} onValueChange={setHistoryItemFilter}>
@@ -2854,7 +2854,7 @@ const PaymentDetail = () => {
         <Tabs defaultValue="timeline">
           <TabsList>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="ai">Versões da IA</TabsTrigger>
+            <TabsTrigger value="ai">Versões automáticas</TabsTrigger>
             {canComment && <TabsTrigger value="comment">Comentar item</TabsTrigger>}
           </TabsList>
 
