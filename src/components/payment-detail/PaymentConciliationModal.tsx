@@ -3920,9 +3920,11 @@ export function PaymentConciliationModal({
         ),
       );
 
-      if (action === 'ignorar') toast({ title: 'Item marcado como ignorado' });
-      if (action === 'revisar_manual') toast({ title: 'Item marcado para revisão manual' });
-      if (action === 'marcar_glosa') toast({ title: 'Item marcado como glosa', description: 'Será processado no fluxo de glosas.' });
+      if (!silent) {
+        if (action === 'ignorar') toast({ title: 'Item marcado como ignorado' });
+        if (action === 'revisar_manual') toast({ title: 'Item marcado para revisão manual' });
+        if (action === 'marcar_glosa') toast({ title: 'Item marcado como glosa', description: 'Será processado no fluxo de glosas.' });
+      }
     } catch (e: any) {
       toast({ title: 'Erro ao processar ação', description: e.message, variant: 'destructive' });
     } finally {
