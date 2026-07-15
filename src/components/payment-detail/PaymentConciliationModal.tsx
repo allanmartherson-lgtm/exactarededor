@@ -4662,6 +4662,47 @@ export function PaymentConciliationModal({
                 </Button>
               </div>
 
+              {/* Legenda fixa das ações — evita confundir glosa com cancelamento.
+                  Usa <details> nativo pra colapsar sem custo de estado/render. */}
+              <details
+                className="group rounded-lg border border-info/30 bg-info/5 text-xs"
+                open={typeof window !== 'undefined' && localStorage.getItem('conciliacao_legend_open') !== '0'}
+                onToggle={(e) => {
+                  try { localStorage.setItem('conciliacao_legend_open', (e.currentTarget as HTMLDetailsElement).open ? '1' : '0'); } catch { /* noop */ }
+                }}
+              >
+                <summary className="flex items-center gap-2 px-4 py-2 cursor-pointer select-none text-info-text font-medium">
+                  <Info className="h-4 w-4" />
+                  <span>Quando usar cada ação? (glosa × cancelar item × cancelar atendimento)</span>
+                  <span className="ml-auto text-[11px] text-muted-foreground group-open:hidden">mostrar</span>
+                  <span className="ml-auto text-[11px] text-muted-foreground hidden group-open:inline">ocultar</span>
+                </summary>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-4 pb-3 pt-1 text-muted-foreground">
+                  <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3">
+                    <div className="font-semibold text-yellow-800 dark:text-yellow-300 mb-1">Marcar como glosa</div>
+                    <div className="leading-snug">
+                      O item <strong>existiu</strong> e foi executado, mas o convênio/auditoria <strong>recusou o pagamento</strong>.
+                      Gera <strong>débito na PJ do médico</strong> (rola pra frente se faltar saldo).
+                      <div className="mt-1 text-[11px] italic">Ex.: guia negada, auditoria médica indeferida.</div>
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                    <div className="font-semibold text-destructive mb-1">Cancelar item deste pagamento</div>
+                    <div className="leading-snug">
+                      O item <strong>não deveria estar neste lote</strong>. Some do cálculo, sem débito na PJ e sem impacto no médico.
+                      <div className="mt-1 text-[11px] italic">Ex.: honorário faturado por associação/externo, duplicidade, competência errada, lançamento indevido.</div>
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                    <div className="font-semibold text-destructive mb-1">Cancelar atendimento inteiro</div>
+                    <div className="leading-snug">
+                      Mesma lógica do cancelar item, mas aplicada a <strong>todos os itens do mesmo atendimento</strong> naquela empresa, em uma ação só.
+                      <div className="mt-1 text-[11px] italic">Ex.: cirurgia cancelada, atendimento de outro hospital caído na base, atendimento inteiro pago via externo.</div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
               {/* Auditoria: filtro de remessa */}
               {remittanceFilterStats && (
                 <div className={`flex items-start gap-3 px-4 py-2.5 border rounded-lg text-xs ${
