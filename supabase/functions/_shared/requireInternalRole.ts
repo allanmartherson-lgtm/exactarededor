@@ -29,6 +29,8 @@ export interface AuthCheckResult {
   hospital_ids?: string[] | null;
   /** Hospital ativo do usuário no momento da chamada (via user_active_hospital). */
   active_hospital_id?: string | null;
+  /** true quando o usuário tem role global (admin ou diretor) — bypassa checagem de hospital. */
+  has_global_scope?: boolean;
 }
 
 /**
@@ -90,12 +92,12 @@ export async function requireInternalOrRole(
   if (rolesErr) {
     return { ok: false, status: 500, error: "role_check_failed" };
   }
-  const has = (roles ?? []).some((r: { role: string }) =>
-    (allowedRoles as string[]).includes(r.role),
-  );
+  const rolesList = (roles ?? []).map((r: { role: string }) => r.role);
+  const has = rolesList.some((r) => (allowedRoles as string[]).includes(r));
   if (!has) {
     return { ok: false, status: 403, error: "forbidden" };
   }
+  const hasGlobalScope = rolesList.includes("admin") || rolesList.includes("diretor");
 
   // Extrai escopo de hospital do chamador (best-effort — nunca bloqueia auth).
   // hospital_ids: todos os vínculos em user_hospitals.
@@ -119,6 +121,7 @@ export async function requireInternalOrRole(
     user_id: userId,
     hospital_ids: hospitalIds,
     active_hospital_id: activeHospitalId,
+    has_global_scope: hasGlobalScope,
   };
 }
 
@@ -135,6 +138,7 @@ export function assertCallerHospital(
 ): boolean {
   if (!auth.ok) return false;
   if (auth.is_internal) return true;
+  if (auth.has_global_scope) return true;
   if (!targetHospitalId) return false;
   const ids = auth.hospital_ids ?? [];
   return ids.includes(targetHospitalId);
