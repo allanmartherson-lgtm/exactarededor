@@ -2974,7 +2974,7 @@ export default function CompanyAnalysis() {
                 <>
                   {(gStatus === "revisao_analista" || gStatus === "devolvido_analista" || isConfeccaoEditable) && (
                     <>
-                      <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing || reanalyzeCooldown}>
+                      <Button variant="outline" size="sm" onClick={() => { void reanalyzeGroup(); }} disabled={busy || reanalyzing || reanalyzeCooldown}>
                         <RefreshCcw className={cn("h-4 w-4 mr-2", (reanalyzing || reanalyzeCooldown) && "animate-spin")} />
                         {isConfeccao
                           ? (reanalyzing ? "Processando..." : reanalyzeCooldown ? "Estabilizando..." : "Recalcular repasse")
