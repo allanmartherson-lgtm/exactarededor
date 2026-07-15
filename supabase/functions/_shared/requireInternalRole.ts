@@ -92,12 +92,12 @@ export async function requireInternalOrRole(
   if (rolesErr) {
     return { ok: false, status: 500, error: "role_check_failed" };
   }
-  const has = (roles ?? []).some((r: { role: string }) =>
-    (allowedRoles as string[]).includes(r.role),
-  );
+  const rolesList = (roles ?? []).map((r: { role: string }) => r.role);
+  const has = rolesList.some((r) => (allowedRoles as string[]).includes(r));
   if (!has) {
     return { ok: false, status: 403, error: "forbidden" };
   }
+  const hasGlobalScope = rolesList.includes("admin") || rolesList.includes("diretor");
 
   // Extrai escopo de hospital do chamador (best-effort — nunca bloqueia auth).
   // hospital_ids: todos os vínculos em user_hospitals.
