@@ -11,12 +11,72 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { drawReportHeader, REDE_DOR_BRAND_BLUE_RGB } from "@/lib/brandLogo";
 import { formatCurrency } from "@/lib/status";
+import { supabase } from "@/integrations/supabase/client";
 import {
   classifyItem,
   roleLabel,
   type InterventionItem,
   type InterventionSummary,
 } from "@/lib/interventionSavings";
+
+/**
+ * Busca rótulo do lote (payments.reference + competence_month) e attendance_number
+ * dos itens para enriquecer o export — evita "duplicatas visuais" no arquivo quando
+ * o mesmo procedimento aparece em atendimentos/lotes distintos.
+ *
+ * Escopo: SOMENTE leitura auxiliar do exportador. Não altera RPC nem KPIs.
+ */
+type Enrichment = {
+  loteByPayment: Map<string, string>;
+  attendanceByItem: Map<string, string>;
+};
+
+const monthLabelPt = (iso: string | null | undefined): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
+};
+
+async function fetchEnrichment(items: InterventionItem[]): Promise<Enrichment> {
+  const loteByPayment = new Map<string, string>();
+  const attendanceByItem = new Map<string, string>();
+  const paymentIds = Array.from(new Set(items.map((i) => i.payment_id).filter(Boolean)));
+  const itemIds = Array.from(new Set(items.map((i) => i.item_id).filter(Boolean)));
+
+  try {
+    if (paymentIds.length > 0) {
+      const { data } = await supabase
+        .from("payments")
+        .select("id, reference, competence_month")
+        .in("id", paymentIds);
+      (data ?? []).forEach((p: any) => {
+        const ref = p.reference ?? "";
+        const comp = monthLabelPt(p.competence_month);
+        loteByPayment.set(p.id, [ref, comp].filter(Boolean).join(" · "));
+      });
+    }
+  } catch { /* enrichment é best-effort */ }
+
+  try {
+    if (itemIds.length > 0) {
+      // chunk para evitar URL gigante
+      const chunkSize = 500;
+      for (let i = 0; i < itemIds.length; i += chunkSize) {
+        const slice = itemIds.slice(i, i + chunkSize);
+        const { data } = await supabase
+          .from("payment_items")
+          .select("id, attendance_number")
+          .in("id", slice);
+        (data ?? []).forEach((r: any) => {
+          if (r.attendance_number) attendanceByItem.set(r.id, String(r.attendance_number));
+        });
+      }
+    }
+  } catch { /* itens de glosa_pj não existem em payment_items — ok */ }
+
+  return { loteByPayment, attendanceByItem };
+}
 
 const BRAND_HEX = "01498E";
 const ECON_HEX = "E7F5EC";
@@ -47,9 +107,10 @@ export interface InterventionReportContext {
 
 /* ==================== EXCEL ==================== */
 
-export function exportInterventionExcel(ctx: InterventionReportContext): void {
+export async function exportInterventionExcel(ctx: InterventionReportContext): Promise<void> {
   const wb = XLSX.utils.book_new();
   const generatedAt = ctx.generatedAt ?? new Date();
+  const { loteByPayment, attendanceByItem } = await fetchEnrichment(ctx.items);
 
   const brandFill = { patternType: "solid" as const, fgColor: { rgb: BRAND_HEX } };
   const whiteBold = {
@@ -71,10 +132,21 @@ export function exportInterventionExcel(ctx: InterventionReportContext): void {
   const metaLabel = { font: { bold: true, sz: 10, color: { rgb: "374151" } } };
   const metaValue = { font: { sz: 10, color: { rgb: "111827" } } };
 
+  // Formatos BR nativos do Excel (números/datas reais — permitem ordenação)
+  const currencyFmt = 'R$ #,##0.00;[Red]-R$ #,##0.00;-';
+  const dateFmt = 'dd/mm/yyyy';
+
   const rows: any[][] = [];
-  rows.push([{ v: "Rede D'Or — Exacta", s: whiteBold }, null, null, null, null, null, null, null, null, null, null]);
-  rows.push([{ v: "Ajustes por intervenção", s: whiteBold }, null, null, null, null, null, null, null, null, null, null]);
-  rows.push([]);
+  const totalCols = 12;
+  const spacerRow = new Array(totalCols).fill(null);
+  const titleRow = (label: string) => {
+    const r = new Array(totalCols).fill(null);
+    r[0] = { v: label, s: whiteBold };
+    return r;
+  };
+  rows.push(titleRow("Rede D'Or — Exacta"));
+  rows.push(titleRow("Ajustes por intervenção"));
+  rows.push(spacerRow);
   rows.push([
     { v: "Hospital", s: metaLabel },
     { v: ctx.hospitalName ?? "—", s: metaValue },
@@ -87,25 +159,29 @@ export function exportInterventionExcel(ctx: InterventionReportContext): void {
     null,
     { v: "Total de itens", s: metaLabel },
     { v: ctx.items.length, s: metaValue },
+    null,
   ]);
-  rows.push([]);
+  rows.push(spacerRow);
   rows.push([
     { v: "Economia", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: ECON_HEX } } } },
-    { v: ctx.summary.economia, s: { ...metaValue, numFmt: 'R$ #,##0.00' } },
+    { v: ctx.summary.economia, s: { ...metaValue, numFmt: currencyFmt } },
     null,
     { v: "Perda", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: PERDA_HEX } } } },
-    { v: ctx.summary.perda, s: { ...metaValue, numFmt: 'R$ #,##0.00' } },
+    { v: ctx.summary.perda, s: { ...metaValue, numFmt: currencyFmt } },
     null,
     { v: "Neutro (operacional)", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: NEUTRO_HEX } } } },
-    { v: ctx.summary.neutro, s: { ...metaValue, numFmt: 'R$ #,##0.00' } },
+    { v: ctx.summary.neutro, s: { ...metaValue, numFmt: currencyFmt } },
     null,
     { v: "Saldo líquido", s: metaLabel },
-    { v: ctx.summary.saldo, s: { ...metaValue, numFmt: 'R$ #,##0.00', font: { bold: true, sz: 10 } } },
+    { v: ctx.summary.saldo, s: { ...metaValue, numFmt: currencyFmt, font: { bold: true, sz: 10 } } },
+    null,
   ]);
-  rows.push([]);
+  rows.push(spacerRow);
 
   const headers = [
     "Data",
+    "Lote",
+    "Atendimento",
     "Autor",
     "Papel",
     "Empresa",
@@ -118,7 +194,6 @@ export function exportInterventionExcel(ctx: InterventionReportContext): void {
   ];
   rows.push(headers.map((h) => ({ v: h, s: headerCell })));
 
-  const currencyFmt = 'R$ #,##0.00;[Red]-R$ #,##0.00';
   ctx.items.forEach((it) => {
     const cls = classifyItem(it);
     const rowFill =
@@ -128,48 +203,66 @@ export function exportInterventionExcel(ctx: InterventionReportContext): void {
         ? { patternType: "solid" as const, fgColor: { rgb: PERDA_HEX } }
         : { patternType: "solid" as const, fgColor: { rgb: "FFFFFF" } };
     const base = { fill: rowFill, font: { sz: 10, name: "Calibri" } };
+    const rightNum = { ...base, numFmt: currencyFmt, alignment: { horizontal: "right" as const } };
+
+    // Data como número serial do Excel (célula 'd')
+    const dateObj = it.obs_at ? new Date(it.obs_at) : null;
+    const dateCell =
+      dateObj && !isNaN(dateObj.getTime())
+        ? { t: "d", v: dateObj, s: { ...base, numFmt: dateFmt, alignment: { horizontal: "center" as const } } }
+        : { v: "—", s: base };
+
     rows.push([
-      { v: fmtDatePt(it.obs_at), s: base },
+      dateCell,
+      { v: loteByPayment.get(it.payment_id) ?? "—", s: base },
+      { v: attendanceByItem.get(it.item_id) ?? "", s: { ...base, alignment: { horizontal: "center" as const } } },
       { v: it.autor ?? "—", s: base },
       { v: roleLabel(it.role), s: base },
       { v: it.company_name ?? "—", s: base },
       { v: it.doctor_name ?? "—", s: base },
       { v: [it.procedure_code, it.procedure_name].filter(Boolean).join(" — ") || "—", s: base },
-      { v: Number(it.valor_regra) || 0, s: { ...base, numFmt: currencyFmt, alignment: { horizontal: "right" } } },
-      { v: Number(it.valor_pago_final) || 0, s: { ...base, numFmt: currencyFmt, alignment: { horizontal: "right" } } },
+      { t: "n", v: Number(it.valor_regra) || 0, s: rightNum },
+      { t: "n", v: Number(it.valor_pago_final) || 0, s: rightNum },
       {
+        t: "n",
         v: Number(it.delta) || 0,
-        s: {
-          ...base,
-          numFmt: currencyFmt,
-          alignment: { horizontal: "right" },
-          font: { sz: 10, bold: true, name: "Calibri" },
-        },
+        s: { ...rightNum, font: { sz: 10, bold: true, name: "Calibri" } },
       },
-      { v: classificationLabel[cls], s: { ...base, alignment: { horizontal: "center" } } },
+      { v: classificationLabel[cls], s: { ...base, alignment: { horizontal: "center" as const } } },
     ]);
   });
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const ws = XLSX.utils.aoa_to_sheet(rows, { cellDates: true });
   ws["!cols"] = [
-    { wch: 12 },
-    { wch: 24 },
-    { wch: 20 },
-    { wch: 28 },
-    { wch: 26 },
-    { wch: 42 },
+    { wch: 12 }, // Data
+    { wch: 22 }, // Lote
+    { wch: 16 }, // Atendimento
+    { wch: 24 }, // Autor
+    { wch: 20 }, // Papel
+    { wch: 28 }, // Empresa
+    { wch: 26 }, // Médico
+    { wch: 42 }, // Procedimento
     { wch: 16 },
     { wch: 16 },
     { wch: 14 },
     { wch: 14 },
   ];
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
   ];
   ws["!rows"] = [{ hpt: 22 }, { hpt: 20 }];
-  // Congelar cabeçalho da tabela
+  // Congela cabeçalhos até a linha de header da tabela (linha 8, 1-indexed)
   (ws as any)["!freeze"] = { xSplit: 0, ySplit: 8 };
+
+  // AutoFilter na tabela (permite ordenação nativa por qualquer coluna)
+  const lastRow = rows.length - 1;
+  ws["!autofilter"] = {
+    ref: XLSX.utils.encode_range(
+      { r: 7, c: 0 },
+      { r: lastRow, c: totalCols - 1 },
+    ),
+  };
 
   XLSX.utils.book_append_sheet(wb, ws, "Ajustes por intervenção");
   const stamp = generatedAt.toISOString().slice(0, 10);

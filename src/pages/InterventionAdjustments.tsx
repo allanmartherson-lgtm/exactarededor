@@ -515,9 +515,9 @@ export default function InterventionAdjustments() {
 
             <Button
               variant="outline"
-              onClick={() => {
+              onClick={async () => {
                 try {
-                  exportInterventionExcel({
+                  await exportInterventionExcel({
                     hospitalName: currentHospital?.name ?? null,
                     rangeDays: range,
                     summary: filteredSummary,
