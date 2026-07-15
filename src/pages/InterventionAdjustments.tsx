@@ -534,59 +534,121 @@ export default function InterventionAdjustments() {
               <Download className="h-4 w-4 mr-2" /> Exportar CSV
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await exportInterventionExcel({
-                    hospitalName: currentHospital?.name ?? null,
-                    rangeDays: range,
-                    summary: filteredSummary,
-                    items: filteredItems,
-                  });
-                  void logExport({
-                    reportKey: "intervention_adjustments",
-                    reportLabel: "Ajustes por intervenção",
-                    format: "csv",
-                    filters: { range, ...filters, export: "xlsx" },
-                    hospitalId: currentHospitalId ?? null,
-                    rowCount: filteredItems.length,
-                  });
-                } catch (e: any) {
-                  toast.error("Falha ao gerar Excel", { description: e?.message });
-                }
-              }}
-              disabled={filteredItems.length === 0}
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={filteredItems.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionExcel({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "csv",
+                        filters: { range, ...filters, export: "xlsx", mode: "analitico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar Excel", { description: e?.message });
+                    }
+                  }}
+                >
+                  Analítico (item a item)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionExcelSintetico({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "csv",
+                        filters: { range, ...filters, export: "xlsx", mode: "sintetico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar Excel sintético", { description: e?.message });
+                    }
+                  }}
+                >
+                  Sintético (consolidado)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await exportInterventionPdf({
-                    hospitalName: currentHospital?.name ?? null,
-                    rangeDays: range,
-                    summary: filteredSummary,
-                    items: filteredItems,
-                  });
-                  void logExport({
-                    reportKey: "intervention_adjustments",
-                    reportLabel: "Ajustes por intervenção",
-                    format: "pdf",
-                    filters: { range, ...filters },
-                    hospitalId: currentHospitalId ?? null,
-                    rowCount: filteredItems.length,
-                  });
-                } catch (e: any) {
-                  toast.error("Falha ao gerar PDF", { description: e?.message });
-                }
-              }}
-              disabled={filteredItems.length === 0}
-            >
-              <FileText className="h-4 w-4 mr-2" /> PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={filteredItems.length === 0}>
+                  <FileText className="h-4 w-4 mr-2" /> PDF
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionPdf({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "pdf",
+                        filters: { range, ...filters, mode: "analitico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar PDF", { description: e?.message });
+                    }
+                  }}
+                >
+                  Analítico (item a item)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await exportInterventionPdfSintetico({
+                        hospitalName: currentHospital?.name ?? null,
+                        rangeDays: range,
+                        summary: filteredSummary,
+                        items: filteredItems,
+                      });
+                      void logExport({
+                        reportKey: "intervention_adjustments",
+                        reportLabel: "Ajustes por intervenção",
+                        format: "pdf",
+                        filters: { range, ...filters, mode: "sintetico" },
+                        hospitalId: currentHospitalId ?? null,
+                        rowCount: filteredItems.length,
+                      });
+                    } catch (e: any) {
+                      toast.error("Falha ao gerar PDF sintético", { description: e?.message });
+                    }
+                  }}
+                >
+                  Sintético (consolidado)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </CardContent>
         </Card>
 
