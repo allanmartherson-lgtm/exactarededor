@@ -3363,6 +3363,50 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
         onClose={() => setCloneTarget(null)}
         onCloned={() => { load(); }}
       />
+
+      <Dialog
+        open={!!reanalysisPrompt}
+        onOpenChange={(o) => { if (!o) setReanalysisPrompt(null); }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reanalisar lotes impactados?</DialogTitle>
+            <DialogDescription>
+              {reanalysisPrompt?.groupsCount ?? 0} lote(s) em aberto contêm a empresa-alvo desta regra
+              {reanalysisPrompt?.ruleName ? ` (${reanalysisPrompt.ruleName})` : ""}.
+              Disparar reanálise agora para refletir a nova configuração?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 px-3 py-2 text-xs">
+              Como a regra foi alterada, o cache foi invalidado e todos esses{" "}
+              <strong>{reanalysisPrompt?.aiCount ?? 0}</strong> item(ns) passarão pela IA
+              {" "}se você marcar a opção abaixo.
+            </div>
+            <label className="flex items-start gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/40">
+              <Checkbox
+                checked={!!reanalysisPrompt?.runAi}
+                onCheckedChange={(c) =>
+                  setReanalysisPrompt((p) => (p ? { ...p, runAi: c === true } : p))
+                }
+                className="mt-0.5"
+              />
+              <span className="text-xs">
+                <strong>Incluir justificativas IA</strong>
+                <span className="block text-muted-foreground">
+                  Quando desmarcado, roda apenas o motor de regras (sem consumo de créditos de IA).
+                </span>
+              </span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReanalysisPrompt(null)}>Cancelar</Button>
+            <Button onClick={() => { void confirmReanalysisPrompt(); }}>
+              Confirmar reanálise ({reanalysisPrompt?.groupsCount ?? 0} lote(s))
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
