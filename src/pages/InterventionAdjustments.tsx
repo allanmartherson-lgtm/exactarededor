@@ -15,7 +15,9 @@ import { useActiveHospitalId } from "@/contexts/HospitalContext";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, Download, Info, MinusCircle, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Download, FileSpreadsheet, FileText, Info, MinusCircle, Scale, TrendingDown, TrendingUp, Undo2 } from "lucide-react";
+import { exportInterventionExcel, exportInterventionPdf } from "@/lib/interventionReport";
+import { useHospital } from "@/contexts/HospitalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -162,6 +164,7 @@ async function fetchPaymentRefs(
 
 export default function InterventionAdjustments() {
   const currentHospitalId = useActiveHospitalId();
+  const { hospital: currentHospital } = useHospital();
   const { hasRole } = useAuth();
   const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [params] = useSearchParams();
@@ -508,6 +511,60 @@ export default function InterventionAdjustments() {
               disabled={filteredItems.length === 0}
             >
               <Download className="h-4 w-4 mr-2" /> Exportar CSV
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                try {
+                  exportInterventionExcel({
+                    hospitalName: currentHospital?.name ?? null,
+                    rangeDays: range,
+                    summary: filteredSummary,
+                    items: filteredItems,
+                  });
+                  void logExport({
+                    reportKey: "intervention_adjustments",
+                    reportLabel: "Ajustes por intervenção",
+                    format: "csv",
+                    filters: { range, ...filters, export: "xlsx" },
+                    hospitalId: currentHospitalId ?? null,
+                    rowCount: filteredItems.length,
+                  });
+                } catch (e: any) {
+                  toast.error("Falha ao gerar Excel", { description: e?.message });
+                }
+              }}
+              disabled={filteredItems.length === 0}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await exportInterventionPdf({
+                    hospitalName: currentHospital?.name ?? null,
+                    rangeDays: range,
+                    summary: filteredSummary,
+                    items: filteredItems,
+                  });
+                  void logExport({
+                    reportKey: "intervention_adjustments",
+                    reportLabel: "Ajustes por intervenção",
+                    format: "pdf",
+                    filters: { range, ...filters },
+                    hospitalId: currentHospitalId ?? null,
+                    rowCount: filteredItems.length,
+                  });
+                } catch (e: any) {
+                  toast.error("Falha ao gerar PDF", { description: e?.message });
+                }
+              }}
+              disabled={filteredItems.length === 0}
+            >
+              <FileText className="h-4 w-4 mr-2" /> PDF
             </Button>
           </CardContent>
         </Card>
