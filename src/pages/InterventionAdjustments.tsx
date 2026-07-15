@@ -263,6 +263,7 @@ export default function InterventionAdjustments() {
       aceite_pago: { qtd: 0, saldo: 0 },
       ajuste_manual: { qtd: 0, saldo: 0 },
       glosa: { qtd: 0, saldo: 0 },
+      glosa_pj: { qtd: 0, saldo: 0 },
       cancelamento: { qtd: 0, saldo: 0 },
     };
     for (const it of base) {
