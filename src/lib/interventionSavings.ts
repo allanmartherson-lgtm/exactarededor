@@ -170,6 +170,11 @@ export interface InterventionFilters {
   role?: IntervenorRole | "all";
   userId?: string | "all";
   search?: string;
+  /** Filtra pela classificação semântica do item (economia/aumento/neutro). */
+  classification?: "all" | "economia" | "aumento" | "neutro";
+  /** Faixa de valor absoluto do Δ (em R$). */
+  minValue?: number | null;
+  maxValue?: number | null;
 }
 
 export const filterItems = (
@@ -177,9 +182,16 @@ export const filterItems = (
   f: InterventionFilters,
 ): InterventionItem[] => {
   const q = (f.search ?? "").trim().toLowerCase();
+  const min = f.minValue ?? null;
+  const max = f.maxValue ?? null;
+  const cls = f.classification ?? "all";
   return items.filter((it) => {
     if (f.role && f.role !== "all" && it.role !== f.role) return false;
     if (f.userId && f.userId !== "all" && it.author_id !== f.userId) return false;
+    if (cls !== "all" && classifyItem(it) !== cls) return false;
+    const abs = Math.abs(it.delta);
+    if (min != null && abs < min) return false;
+    if (max != null && abs > max) return false;
     if (q) {
       const hay = [
         it.autor,
