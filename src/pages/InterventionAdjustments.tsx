@@ -418,6 +418,51 @@ export default function InterventionAdjustments() {
                 placeholder="—"
               />
             </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Lote</label>
+              <Select
+                value={filters.paymentId ?? "all"}
+                onValueChange={(v) => setFilters((f) => ({ ...f, paymentId: v }))}
+              >
+                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">Todos ({loteOptions.length})</SelectItem>
+                  {loteOptions.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Empresa</label>
+              <Select
+                value={filters.companyName ?? "all"}
+                onValueChange={(v) => setFilters((f) => ({ ...f, companyName: v }))}
+              >
+                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">Todas ({companyOptions.length})</SelectItem>
+                  {companyOptions.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Médico</label>
+              <Select
+                value={filters.doctorName ?? "all"}
+                onValueChange={(v) => setFilters((f) => ({ ...f, doctorName: v }))}
+              >
+                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">Todos ({doctorOptions.length})</SelectItem>
+                  {doctorOptions.map((d) => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1 flex-1 min-w-[200px]">
               <label className="text-xs text-muted-foreground">Buscar (médico, empresa, procedimento)</label>
               <Input
@@ -426,6 +471,27 @@ export default function InterventionAdjustments() {
                 placeholder="Ex: cardiologia, Acme, 31309096"
               />
             </div>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  setFilters({
+                    role: "all",
+                    userId: "all",
+                    paymentId: "all",
+                    companyName: "all",
+                    doctorName: "all",
+                    classification: "all",
+                    minValue: null,
+                    maxValue: null,
+                    search: "",
+                  })
+                }
+              >
+                Limpar filtros
+              </Button>
+            )}
+
             <Button
               variant="outline"
               onClick={() => {
