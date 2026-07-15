@@ -121,6 +121,7 @@ export async function requireInternalOrRole(
     user_id: userId,
     hospital_ids: hospitalIds,
     active_hospital_id: activeHospitalId,
+    has_global_scope: hasGlobalScope,
   };
 }
 
