@@ -406,6 +406,9 @@ export default function CompanyAnalysis() {
   // seguidas achando que a UI não tinha refletido.
   const [reanalyzeCooldown, setReanalyzeCooldown] = useState(false);
   const reanalyzeCooldownRef = useRef<number | null>(null);
+  // Diálogo de confirmação da reanálise manual — IA é opt-in.
+  const [reanalyzeConfirmOpen, setReanalyzeConfirmOpen] = useState(false);
+  const [reanalyzeRunAi, setReanalyzeRunAi] = useState(false);
 
   // ---- Reaplicar regras: progresso + diff antes/depois ----
   const [reapplyOpen, setReapplyOpen] = useState(false);
