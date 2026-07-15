@@ -287,8 +287,8 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
 
   // Bloco de KPIs
   const kpis: { label: string; value: string; rgb: [number, number, number] }[] = [
-    { label: "Economia", value: formatCurrency(ctx.summary.economia), rgb: [231, 245, 236] },
-    { label: "Perda", value: formatCurrency(ctx.summary.perda), rgb: [253, 236, 236] },
+    { label: "Valor recuperado", value: formatCurrency(ctx.summary.economia), rgb: [231, 245, 236] },
+    { label: "Valor extra a pagar", value: formatCurrency(ctx.summary.perda), rgb: [253, 236, 236] },
     { label: "Neutro", value: formatCurrency(ctx.summary.neutro), rgb: [243, 244, 246] },
     { label: "Saldo líquido", value: formatCurrency(ctx.summary.saldo), rgb: [219, 234, 254] },
     { label: "Itens", value: String(ctx.items.length), rgb: [243, 244, 246] },
