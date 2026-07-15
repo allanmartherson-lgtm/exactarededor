@@ -610,7 +610,7 @@ export default function InterventionAdjustments() {
             icon={MinusCircle}
             label="Neutro (operacional)"
             value={formatCurrency(filteredSummary.neutro)}
-            hint="Pago em outro lote, duplicidade do motor, sem motivo — não soma no saldo"
+            hint="Intervenções sem impacto financeiro: confirmações de valor e cancelamentos operacionais. Não somam no saldo."
             tone="muted"
             loading={loading}
           />
@@ -618,10 +618,11 @@ export default function InterventionAdjustments() {
             icon={Scale}
             label="Saldo líquido"
             value={formatCurrency(filteredSummary.saldo)}
-            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s)`}
+            hint={`${filteredSummary.qtd_itens} item(ns) ajustado(s). Convenção: "−" verde = hospital pagou menos (economia); "+" vermelho = pagou mais (perda).`}
             tone={saldoTone === "positive" ? "success" : saldoTone === "negative" ? "destructive" : "muted"}
             loading={loading}
           />
+
         </div>
 
         {/* Classificação dos itens — chips clicáveis para filtrar por papel */}
@@ -637,7 +638,8 @@ export default function InterventionAdjustments() {
               <div className="flex flex-wrap gap-2">
                 {ROLE_CHIPS.map(({ role: r, hint }) => {
                   const c = roleCounts[r];
-                  const active = filters.role === r;
+                  const activeRoles = filters.roles ?? [];
+                  const active = activeRoles.includes(r);
                   const tone =
                     c.saldo > 0.005 ? "text-success" :
                     c.saldo < -0.005 ? "text-destructive" : "text-muted-foreground";
@@ -651,7 +653,15 @@ export default function InterventionAdjustments() {
                     >
                       <button
                         type="button"
-                        onClick={() => setFilters((f) => ({ ...f, role: active ? "all" : r }))}
+                        onClick={() =>
+                          setFilters((f) => {
+                            const cur = f.roles ?? [];
+                            const next = cur.includes(r)
+                              ? cur.filter((x) => x !== r)
+                              : [...cur, r];
+                            return { ...f, roles: next, role: "all" };
+                          })
+                        }
                         className="text-left w-full"
                       >
                         <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground">
@@ -679,15 +689,16 @@ export default function InterventionAdjustments() {
                     </div>
                   );
                 })}
-                {filters.role !== "all" && (
+                {(filters.roles?.length ?? 0) > 0 && (
                   <button
                     type="button"
-                    onClick={() => setFilters((f) => ({ ...f, role: "all" }))}
+                    onClick={() => setFilters((f) => ({ ...f, roles: [], role: "all" }))}
                     className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 self-stretch"
                   >
                     Limpar filtro
                   </button>
                 )}
+
               </div>
             </TooltipProvider>
             <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
