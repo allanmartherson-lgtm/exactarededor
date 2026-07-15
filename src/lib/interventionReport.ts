@@ -132,8 +132,9 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
   const metaLabel = { font: { bold: true, sz: 10, color: { rgb: "374151" } } };
   const metaValue = { font: { sz: 10, color: { rgb: "111827" } } };
 
-  // Formatos BR nativos do Excel (números/datas reais — permitem ordenação)
-  const currencyFmt = 'R$ #,##0.00;[Red]-R$ #,##0.00;-';
+  // Formatos BR nativos (Excel usa locale-id 416 = pt-BR → força vírgula
+  // decimal e ponto de milhar, com "R$" prefixado e 2 casas).
+  const currencyFmt = '[$R$-416] #,##0.00;[Red]-[$R$-416] #,##0.00;[$R$-416] "-"';
   const dateFmt = 'dd/mm/yyyy';
 
   const rows: any[][] = [];
