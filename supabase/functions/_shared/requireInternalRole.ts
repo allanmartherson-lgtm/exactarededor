@@ -29,6 +29,8 @@ export interface AuthCheckResult {
   hospital_ids?: string[] | null;
   /** Hospital ativo do usuário no momento da chamada (via user_active_hospital). */
   active_hospital_id?: string | null;
+  /** true quando o usuário tem role global (admin ou diretor) — bypassa checagem de hospital. */
+  has_global_scope?: boolean;
 }
 
 /**
