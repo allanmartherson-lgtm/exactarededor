@@ -656,15 +656,15 @@ export default function InterventionAdjustments() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <SummaryCard
             icon={TrendingUp}
-            label="Economia"
+            label="Valor recuperado"
             value={formatCurrency(filteredSummary.economia)}
-            hint="Cancelamentos de economia real + ajustes que reduziram pagamento"
+            hint="Cancelamentos de economia real + ajustes que reduziram o pagamento"
             tone="success"
             loading={loading}
           />
           <SummaryCard
             icon={TrendingDown}
-            label="Perda"
+            label="Valor extra a pagar"
             value={formatCurrency(filteredSummary.perda)}
             hint="Pagto final > valor regra"
             tone="destructive"
