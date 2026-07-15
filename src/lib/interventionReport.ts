@@ -164,17 +164,17 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
   ]);
   rows.push(spacerRow);
   rows.push([
-    { v: "Economia", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: ECON_HEX } } } },
-    { v: ctx.summary.economia, s: { ...metaValue, numFmt: currencyFmt } },
+    { v: "Valor recuperado", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: ECON_HEX } } } },
+    { t: "n", v: Number(ctx.summary.economia) || 0, s: { ...metaValue, numFmt: currencyFmt } },
     null,
-    { v: "Perda", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: PERDA_HEX } } } },
-    { v: ctx.summary.perda, s: { ...metaValue, numFmt: currencyFmt } },
+    { v: "Valor extra a pagar", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: PERDA_HEX } } } },
+    { t: "n", v: Number(ctx.summary.perda) || 0, s: { ...metaValue, numFmt: currencyFmt } },
     null,
     { v: "Neutro (operacional)", s: { ...metaLabel, fill: { patternType: "solid", fgColor: { rgb: NEUTRO_HEX } } } },
-    { v: ctx.summary.neutro, s: { ...metaValue, numFmt: currencyFmt } },
+    { t: "n", v: Number(ctx.summary.neutro) || 0, s: { ...metaValue, numFmt: currencyFmt } },
     null,
     { v: "Saldo líquido", s: metaLabel },
-    { v: ctx.summary.saldo, s: { ...metaValue, numFmt: currencyFmt, font: { bold: true, sz: 10 } } },
+    { t: "n", v: Number(ctx.summary.saldo) || 0, s: { ...metaValue, numFmt: currencyFmt, font: { bold: true, sz: 10 } } },
     null,
   ]);
   rows.push(spacerRow);
