@@ -195,6 +195,9 @@ export const filterItems = (
   return items.filter((it) => {
     if (f.role && f.role !== "all" && it.role !== f.role) return false;
     if (f.userId && f.userId !== "all" && it.author_id !== f.userId) return false;
+    if (f.paymentId && f.paymentId !== "all" && it.payment_id !== f.paymentId) return false;
+    if (f.companyName && f.companyName !== "all" && (it.company_name ?? "") !== f.companyName) return false;
+    if (f.doctorName && f.doctorName !== "all" && (it.doctor_name ?? "") !== f.doctorName) return false;
     if (cls !== "all" && classifyItem(it) !== cls) return false;
     const abs = Math.abs(it.delta);
     if (min != null && abs < min) return false;
