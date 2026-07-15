@@ -477,21 +477,7 @@ export default function InterventionAdjustments() {
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Médico</label>
-              <Select
-                value={filters.doctorName ?? "all"}
-                onValueChange={(v) => setFilters((f) => ({ ...f, doctorName: v }))}
-              >
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[320px]">
-                  <SelectItem value="all">Todos ({doctorOptions.length})</SelectItem>
-                  {doctorOptions.map((d) => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
             <div className="space-y-1 flex-1 min-w-[200px]">
               <label className="text-xs text-muted-foreground">Buscar (médico, empresa, procedimento)</label>
               <Input
@@ -511,15 +497,22 @@ export default function InterventionAdjustments() {
                     companyName: "all",
                     doctorName: "all",
                     classification: "all",
+                    roles: [],
+                    userIds: [],
+                    paymentIds: [],
+                    companyNames: [],
+                    doctorNames: [],
+                    classifications: ["economia", "aumento"],
                     minValue: null,
                     maxValue: null,
                     search: "",
                   })
                 }
               >
-                Limpar filtros
+                Restaurar padrão
               </Button>
             )}
+
 
             <Button
               variant="outline"
