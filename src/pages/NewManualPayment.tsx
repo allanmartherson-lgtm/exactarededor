@@ -71,6 +71,19 @@ export default function NewManualPayment() {
   const handleCreate = async () => {
     if (!canSubmit || !user) return;
     setSubmitting(true);
+    // A FK payments.payment_model_id aponta para payment_types(id), mas o
+    // combo usa a view payment_types_unified (item_types + payment_models),
+    // cujos IDs não existem em payment_types. Resolve pelo `code` antes.
+    const selected = paymentTypes.find((p) => p.id === paymentModelId);
+    let resolvedTypeId = paymentModelId;
+    if (selected?.code) {
+      const { data: pt } = await supabase
+        .from("payment_types")
+        .select("id")
+        .eq("code", selected.code)
+        .maybeSingle();
+      if (pt?.id) resolvedTypeId = pt.id;
+    }
     const { data, error } = await supabase
       .from("payments")
       .insert({
@@ -85,7 +98,7 @@ export default function NewManualPayment() {
         competence_months: [`${competence}-01`],
         payment_due_date: paymentDueDate || null,
         analysis_mode: "manual" as any,
-        payment_model_id: paymentModelId,
+        payment_model_id: resolvedTypeId,
         cost_center_code: costCenterCode,
         competence_regime: competenceRegime,
         import_mode: prefillImportMode,
