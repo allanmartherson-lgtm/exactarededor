@@ -717,7 +717,7 @@ export function SimuladorCenario() {
         motorErro = "Selecione uma tabela de referência.";
       } else {
         const scenario = modelo === "percentual"
-          ? { calculation_type: "percentual_convenio" as const, convenio_percentage: pctNovo }
+          ? { calculation_type: "percentual_sobre_convenio" as const, convenio_percentage: pctNovo }
           : {
               calculation_type: "tabela_diferenciada" as const,
               reference_table_id: refTableId,
@@ -1117,8 +1117,11 @@ export function SimuladorCenario() {
                 </div>
               )}
             </CardHeader>
-            <CardContent>
-              <div className="rounded-md border p-3 bg-muted/20">
+            <CardContent className="px-2 sm:px-6">
+              {/* Wrapper com scroll horizontal em telas estreitas — a DRE tem 3 colunas de valores
+                  e não cabe legivelmente em <640px. Melhor pan lateral do que espremer as células. */}
+              <div className="overflow-x-auto -mx-2 sm:mx-0">
+                <div className="rounded-md border p-3 bg-muted/20 min-w-[560px]">
                 {/* Cabeçalho */}
                 <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 pb-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span></span>
@@ -1211,6 +1214,7 @@ export function SimuladorCenario() {
                     </>
                   );
                 })()}
+                </div>
               </div>
             </CardContent>
           </Card>

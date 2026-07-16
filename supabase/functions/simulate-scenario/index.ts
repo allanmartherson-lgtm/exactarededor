@@ -60,7 +60,7 @@ interface SimItem {
 }
 
 interface Scenario {
-  calculation_type: "percentual_convenio" | "tabela_diferenciada";
+  calculation_type: "percentual_convenio" | "percentual_sobre_convenio" | "tabela_diferenciada";
   convenio_percentage?: number | null;
   reference_table_id?: string | null;
   multiplier?: number | null;
@@ -100,7 +100,10 @@ function buildSyntheticRule(scenario: Scenario): RuleInput {
     procedure_codes: null,
     valid_from: null,
     valid_until: null,
-    calculation_type: scenario.calculation_type as any,
+    // Normaliza: motor real espera "percentual_sobre_convenio". Aceita "percentual_convenio" (alias legado da UI) para não quebrar chamadas antigas.
+    calculation_type: (scenario.calculation_type === "percentual_convenio"
+      ? "percentual_sobre_convenio"
+      : scenario.calculation_type) as any,
     convenio_percentage: isTabela ? null : Number(scenario.convenio_percentage ?? 100),
     fixed_amount: null,
     package_amount: null,
@@ -136,7 +139,7 @@ function buildSyntheticRule(scenario: Scenario): RuleInput {
     limiar_bloqueio_tipo: null,
     limiar_bloqueio_valor: null,
     prevent_external_fallback: false,
-    special_case_filter: ["*"],
+    special_case_filter: null,
   } as RuleInput;
 }
 
