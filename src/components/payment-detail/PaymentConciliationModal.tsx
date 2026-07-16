@@ -828,7 +828,17 @@ export function PaymentConciliationModal({
         // Exclui retroativamente bônus/complemento/manuais de runs antigos —
         // contagens, indicadores e PDF não devem considerá-los.
         const filtered = await filterOutNonReconcilable(all);
-        setItems(filtered);
+        // Itens já incorporados (crédito/débito) na conciliação deixam de ser
+        // divergência: passaram a existir no lote atual como ajuste. Marcamos
+        // como "conciliado" no carregamento para espelhar o que já acontece
+        // em memória logo após a ação — assim eles somem de "Só no hospital"/
+        // "Só no Exacta" também depois de recarregar a run.
+        const normalized = filtered.map((it) => (
+          (it.action_taken === 'incorporar_credito' || it.action_taken === 'incorporar_debito')
+            ? { ...it, status: 'conciliado' as const }
+            : it
+        ));
+        setItems(normalized);
         setStep("result");
       } else {
         setRun(null);
