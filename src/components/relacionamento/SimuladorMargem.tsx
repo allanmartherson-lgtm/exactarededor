@@ -835,6 +835,96 @@ export function SimuladorMargem() {
           </>
         )}
 
+        {/* Cenários salvos — sempre visível quando há hospital ativo */}
+        {hospitalId && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+              <CardTitle className="text-base">
+                Cenários Salvos{" "}
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({cenarios.length})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {cenarios.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum cenário salvo ainda. Configure uma simulação acima e clique em "Salvar cenário".
+                </p>
+              ) : (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Médico / Procedimento</TableHead>
+                        <TableHead className="w-16 text-right">Ano</TableHead>
+                        <TableHead className="w-24 text-right">% Repasse</TableHead>
+                        <TableHead className="w-32 text-right">Margem Sim.</TableHead>
+                        <TableHead className="w-32">Criado em</TableHead>
+                        <TableHead className="w-32 text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cenarios.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="text-sm font-medium">{c.nome}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {c.tipo === "medico" ? "Médico" : "Procedimento"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[240px] truncate"
+                            title={c.medico_nome ?? c.procedimento_nome ?? ""}>
+                            {c.medico_nome ?? c.procedimento_nome ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {c.ano_referencia ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {c.pct_repasse != null ? `${c.pct_repasse}%` : "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {BRL(c.margem_simulada)}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(c.created_at).toLocaleDateString("pt-BR")}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => loadCenario(c)}
+                                title="Carregar este cenário no simulador"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                <span className="ml-1 hidden sm:inline">Carregar</span>
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => void deleteCenario(c)}
+                                title="Excluir cenário"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {loadingAurum && (
           <div className="text-center text-sm text-muted-foreground">Carregando…</div>
         )}
