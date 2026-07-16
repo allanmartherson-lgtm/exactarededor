@@ -8168,6 +8168,47 @@ export type Database = {
           },
         ]
       }
+      procedure_aliases: {
+        Row: {
+          alias_normalized: string
+          alias_text: string
+          canonical_name: string
+          created_at: string
+          created_by: string | null
+          hospital_id: string
+          id: string
+          source: string | null
+        }
+        Insert: {
+          alias_normalized: string
+          alias_text: string
+          canonical_name: string
+          created_at?: string
+          created_by?: string | null
+          hospital_id: string
+          id?: string
+          source?: string | null
+        }
+        Update: {
+          alias_normalized?: string
+          alias_text?: string
+          canonical_name?: string
+          created_at?: string
+          created_by?: string | null
+          hospital_id?: string
+          id?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procedure_aliases_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procedure_classifications: {
         Row: {
           active: boolean
