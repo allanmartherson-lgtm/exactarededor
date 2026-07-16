@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_payment_items_hospital_procdate ON public.payment_items (hospital_id, procedure_date) WHERE is_cancelled = false;
