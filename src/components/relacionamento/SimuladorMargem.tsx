@@ -595,7 +595,7 @@ export function SimuladorMargem() {
                   <TableHead className="text-right">Margem Aurum</TableHead>
                   <TableHead className="text-right">Margem Recalc</TableHead>
                   <TableHead className="text-right">Δ Margem</TableHead>
-                  <TableHead className="text-right">% Margem</TableHead>
+                  <TableHead className="text-right">Δ % Margem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
