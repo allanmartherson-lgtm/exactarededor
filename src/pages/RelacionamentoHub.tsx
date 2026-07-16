@@ -5,11 +5,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Handshake, TrendingUp } from "lucide-react";
+import { AurumMargemUpload } from "@/components/relacionamento/AurumMargemUpload";
 
-type TabValue = "simulador-margem";
+type TabValue = "simulador-margem" | "bases-aurum";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "simulador-margem", label: "Simulador de Margem" },
+  { value: "bases-aurum", label: "Bases Aurum" },
 ];
 
 const VALID = new Set(TABS.map((t) => t.value));
@@ -27,6 +29,8 @@ export default function RelacionamentoHub() {
 
   const content = useMemo(() => {
     switch (active) {
+      case "bases-aurum":
+        return <AurumMargemUpload />;
       case "simulador-margem":
         return (
           <Card className="mx-auto max-w-2xl">
