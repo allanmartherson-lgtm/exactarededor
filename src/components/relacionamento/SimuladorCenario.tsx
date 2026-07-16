@@ -250,6 +250,13 @@ export function SimuladorCenario() {
   const [deflator, setDeflator] = useState<number>(0);
   const [acrescimo, setAcrescimo] = useState<number>(0);
   const [carater, setCarater] = useState<"todos" | "Eletiva" | "Urgência">("todos");
+  // Aurum só contempla pacientes INTERNADOS (cirúrgicos). Filtro default-on
+  // limita o Exacta a itens de Centro Cirúrgico / Hemodinâmica para evitar
+  // que consultas/pareceres/SADT distorçam a comparação.
+  const [apenasInternados, setApenasInternados] = useState<boolean>(true);
+  // Slugs canônicos + códigos hospital-específicos (DFStar) que representam
+  // setores cirúrgicos internados. Ampliar quando novas unidades entrarem.
+  const SURGICAL_SECTORS = ["centro_cirurgico", "hemodinamica", "1556", "1574"];
 
   const [simulando, setSimulando] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -440,6 +447,9 @@ export function SimuladorCenario() {
               .gte("procedure_date", dateFrom)
               .lt("procedure_date", dateTo)
               .not("attendance_number", "is", null);
+            if (apenasInternados) {
+              q = q.in("sector", SURGICAL_SECTORS);
+            }
             if (carater === "Eletiva") {
               q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
             } else if (carater === "Urgência") {
@@ -521,6 +531,9 @@ export function SimuladorCenario() {
               .lt("procedure_date", dateTo)
               .not("attendance_number", "is", null)
               .ilike("procedure_name", ilikeTerm);
+            if (apenasInternados) {
+              q = q.in("sector", SURGICAL_SECTORS);
+            }
             if (carater === "Eletiva") {
               q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
             } else if (carater === "Urgência") {
@@ -632,7 +645,7 @@ export function SimuladorCenario() {
     } finally {
       setSimulando(false);
     }
-  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater]);
+  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater, apenasInternados]);
 
   const salvarCenario = useCallback(async () => {
     if (!resultado || !hospitalId) return;
@@ -816,6 +829,25 @@ export function SimuladorCenario() {
               </Select>
             </div>
           </div>
+
+          {/* Escopo — Aurum só tem receita de INTERNADOS cirúrgicos.
+              Filtro default-on evita distorção por consultas/pareceres/SADT. */}
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+            <input
+              id="apenas-internados"
+              type="checkbox"
+              className="h-4 w-4 accent-primary"
+              checked={apenasInternados}
+              onChange={(e) => { setApenasInternados(e.target.checked); setResultado(null); }}
+            />
+            <Label htmlFor="apenas-internados" className="text-xs cursor-pointer m-0">
+              Apenas internados cirúrgicos (Centro Cirúrgico / Hemodinâmica)
+            </Label>
+            <span className="text-[11px] text-muted-foreground ml-auto">
+              Aurum agrega só cirúrgicos; desmarcar inclui consultas, pareceres e SADT e pode distorcer a comparação.
+            </span>
+          </div>
+
 
           {/* Linha 2 — modelo */}
           <div className="flex flex-wrap gap-3 items-end">
