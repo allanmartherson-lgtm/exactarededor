@@ -380,6 +380,7 @@ export function SimuladorCenario() {
     aurum: AurumAggregated;
     exacta: ExactaAggregated | null; // null quando sem match
     simulado: Simulado;
+    perItem: Record<string, SimPerItem>;
     parametros: {
       modelo: Modelo;
       pct?: number;
