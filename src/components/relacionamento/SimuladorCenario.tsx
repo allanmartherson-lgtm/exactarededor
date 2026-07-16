@@ -204,6 +204,7 @@ export function SimuladorCenario() {
   const [multiplicador, setMultiplicador] = useState<number>(1);
   const [deflator, setDeflator] = useState<number>(0);
   const [acrescimo, setAcrescimo] = useState<number>(0);
+  const [carater, setCarater] = useState<"todos" | "Eletiva" | "Urgência">("todos");
 
   const [simulando, setSimulando] = useState(false);
   const [salvando, setSalvando] = useState(false);
