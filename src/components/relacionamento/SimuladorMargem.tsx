@@ -505,7 +505,13 @@ export function SimuladorMargem() {
       for (const row of aurumMedico) {
         const nome = row.medico_cirurgiao;
         if (isTotalRow(nome)) continue;
-        const hit = exactaIndex.porMedico.get(norm(nome));
+        const nNome = norm(nome);
+        let hit = exactaIndex.porMedico.get(nNome);
+        if (!hit) {
+          // Fallback: doctor_alias → nome canônico do médico → busca no índice Exacta.
+          const canonNorm = doctorAliasToNorm.get(nNome);
+          if (canonNorm) hit = exactaIndex.porMedico.get(canonNorm);
+        }
         const ex = hit
           ? { total: hit.total, totalExpected: hit.totalExpected, itens: hit.itens, atendimentos: hit.atendimentos.size }
           : { total: null, totalExpected: 0, itens: 0, atendimentos: 0 };
@@ -519,9 +525,15 @@ export function SimuladorMargem() {
         const nome = row.ds_procedimento;
         if (isTotalRow(nome)) continue;
         const target = norm(nome);
+        // Alias manual tem PRIORIDADE sobre fuzzy — se o usuário mapeou "X"→"Y",
+        // procuramos apenas match exato (normalizado) contra "Y".
+        const aliasCanon = procAliasMap.get(target);
+        const canonTarget = aliasCanon ? norm(aliasCanon) : null;
         const matched = new Set<string>();
         for (const [att, normProcPrincipal] of exactaIndex.attPrincipal.entries()) {
-          if (fuzzyScore(target, normProcPrincipal) >= 20) {
+          if (canonTarget) {
+            if (normProcPrincipal === canonTarget) matched.add(att);
+          } else if (fuzzyScore(target, normProcPrincipal) >= 20) {
             matched.add(att);
           }
         }
@@ -538,7 +550,8 @@ export function SimuladorMargem() {
       }
     }
     return out;
-  }, [modo, aurumMedico, aurumProc, exactaIndex]);
+  }, [modo, aurumMedico, aurumProc, exactaIndex, doctorAliasToNorm, procAliasMap]);
+
 
   // Filtro busca
   const linhasFiltradas = useMemo(() => {
