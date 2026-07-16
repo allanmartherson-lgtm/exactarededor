@@ -7376,7 +7376,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       )}
 
       {(() => {
-        const retirar = toRetirarItems(results ?? []);
+        // Tópico 2: helper único para tirar do encaminhamento os itens
+        // marcados como excluir_do_encaminhamento. Reutilizado pelo
+        // runEncaminharFluxo — a lista principal da tela NÃO usa isso
+        // (excluídos continuam visíveis, é só opt-out do envio).
+        const encaminhaveis = (results ?? []).filter(notExcluded);
+        const retirar = toRetirarItems(encaminhaveis);
         const { groups, unassigned } = buildGlosaGroups(retirar);
         // Modo médico único (apuração vinculada a 1 PJ+médico) exige recon.company_id.
         // Modo multi-médico: cada débito é criado por médico e a PJ é resolvida via
@@ -7388,8 +7393,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <EncaminharApuracaoModal
             open={encaminharOpen}
             onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
-            headline={computeTvrHeadlineTotals(results ?? [])}
-            actionable={(results ?? []).filter(isActionableTvr)}
+            headline={computeTvrHeadlineTotals(encaminhaveis)}
+            actionable={encaminhaveis.filter(isActionableTvr)}
             retirar={retirar}
             groups={groups}
             unassigned={unassigned}
