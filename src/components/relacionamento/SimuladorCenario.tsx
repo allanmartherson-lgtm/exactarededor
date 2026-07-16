@@ -348,53 +348,65 @@ export function SimuladorCenario() {
       let exacta: ExactaAggregated | null = null;
 
       if (modo === "medico") {
-        // Puxa itens por doctor_name (ilike) para o(s) nome(s) alvo.
-        // Como pode ter variações de grafia, filtramos client-side por normalização.
-        const itens = await fetchAllPaginated<{
-          doctor_name: string | null;
-          gross_amount: number | null;
-          expected_amount: number | null;
-          attendance_number: string | null;
-        }>((from, to) =>
-          supabase
-            .from("payment_items")
-            .select("doctor_name,gross_amount,expected_amount,attendance_number")
-            .eq("hospital_id", hospitalId)
-            .eq("is_cancelled", false)
-            .gte("procedure_date", dateFrom)
-            .lt("procedure_date", dateTo)
-            .not("doctor_name", "is", null)
-            .range(from, to),
-        );
+        // Busca server-side por cada variante do nome (nome original + aliases)
+        // usando ilike, para não carregar toda a base de payment_items.
         let gross = 0, expected = 0, count = 0;
         const atts = new Set<string>();
-        for (const it of itens) {
-          if (!nomesAlvo.has(norm(it.doctor_name))) continue;
-          gross += Number(it.gross_amount ?? 0);
-          expected += Number(it.expected_amount ?? 0);
-          count += 1;
-          if (it.attendance_number) atts.add(it.attendance_number);
+        for (const nomeAlvo of nomesAlvo) {
+          const ilikeTerm = `%${nomeAlvo.split(" ").filter((t) => t.length > 2).join("%")}%`;
+          const itens = await fetchAllPaginated<{
+            gross_amount: number | null;
+            expected_amount: number | null;
+            attendance_number: string | null;
+          }>((from, to) =>
+            supabase
+              .from("payment_items")
+              .select("gross_amount,expected_amount,attendance_number")
+              .eq("hospital_id", hospitalId)
+              .eq("is_cancelled", false)
+              .gte("procedure_date", dateFrom)
+              .lt("procedure_date", dateTo)
+              .ilike("doctor_name", ilikeTerm)
+              .range(from, to),
+          );
+          for (const it of itens) {
+            gross += Number(it.gross_amount ?? 0);
+            expected += Number(it.expected_amount ?? 0);
+            count += 1;
+            if (it.attendance_number) atts.add(it.attendance_number);
+          }
         }
         exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size } : null;
       } else {
         // Modo procedimento: descobre attendance_number cujo item principal
         // bate com o nome (ou alias), depois soma gross+expected de TODOS os
         // itens desses atendimentos.
-        const principais = await fetchAllPaginated<{
+        // 1ª query: server-side ilike por procedure_name para cada variante.
+        const principais: Array<{
           attendance_number: string | null;
           procedure_name: string | null;
           access_route: string | null;
-        }>((from, to) =>
-          supabase
-            .from("payment_items")
-            .select("attendance_number,procedure_name,access_route")
-            .eq("hospital_id", hospitalId)
-            .eq("is_cancelled", false)
-            .gte("procedure_date", dateFrom)
-            .lt("procedure_date", dateTo)
-            .not("attendance_number", "is", null)
-            .range(from, to),
-        );
+        }> = [];
+        for (const nomeAlvo of nomesAlvo) {
+          const ilikeTerm = `%${nomeAlvo.split(" ").filter((t) => t.length > 2).join("%")}%`;
+          const parte = await fetchAllPaginated<{
+            attendance_number: string | null;
+            procedure_name: string | null;
+            access_route: string | null;
+          }>((from, to) =>
+            supabase
+              .from("payment_items")
+              .select("attendance_number,procedure_name,access_route")
+              .eq("hospital_id", hospitalId)
+              .eq("is_cancelled", false)
+              .gte("procedure_date", dateFrom)
+              .lt("procedure_date", dateTo)
+              .not("attendance_number", "is", null)
+              .ilike("procedure_name", ilikeTerm)
+              .range(from, to),
+          );
+          principais.push(...parte);
+        }
         const attsMatched = new Set<string>();
         for (const it of principais) {
           const ar = (it.access_route ?? "").toLowerCase();
