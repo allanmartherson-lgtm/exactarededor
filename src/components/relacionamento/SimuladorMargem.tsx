@@ -233,7 +233,7 @@ export function SimuladorMargem() {
         const rows = await fetchAllPaginated<ExactaItem>((from, to) =>
           supabase
             .from("payment_items")
-            .select("attendance_number,doctor_name,procedure_name,gross_amount")
+            .select("attendance_number,doctor_name,procedure_name,gross_amount,expected_amount,access_route,applied_calc_method")
             .eq("hospital_id", hospitalId)
             .eq("is_cancelled", false)
             .gte("procedure_date", dateFrom)
