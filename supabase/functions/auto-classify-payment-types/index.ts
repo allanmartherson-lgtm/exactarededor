@@ -94,8 +94,9 @@ Deno.serve(async (req) => {
     const tussToItemTypes = new Map<string, Set<string>>();
     let defaultItemTypeId: string | null = null;
     let defaultItemTypeCode: string | null = null;
-    let dynamicFallbackItemTypeId: string | null = null;
-    let dynamicFallbackItemTypeCode: string | null = null;
+    // Mapa code → id para tipos dinâmicos usados pela heurística por prefixo TUSS.
+    // TUSS/AMB agrupa por 1º dígito: 2 = SADT, 3 = cirúrgicos/invasivos, 4 = procedimentos clínicos.
+    const dynamicByCode: Record<string, { id: string; code: string }> = {};
 
     for (const it of itemTypes) {
       const codes = new Set<string>();
@@ -113,11 +114,24 @@ Deno.serve(async (req) => {
         defaultItemTypeId = it.id;
         defaultItemTypeCode = it.code;
       }
-      if (it.code === "procedimento" && !dynamicFallbackItemTypeId) {
-        dynamicFallbackItemTypeId = it.id;
-        dynamicFallbackItemTypeCode = it.code;
+      if (["procedimento", "cirurgia", "sadt"].includes(it.code)) {
+        dynamicByCode[it.code] = { id: it.id, code: it.code };
       }
     }
+
+    // Fallback final quando o prefixo TUSS não bate em cadastro — mantém compat: usa "procedimento".
+    const dynamicFallbackItemTypeId = dynamicByCode["procedimento"]?.id ?? null;
+    const dynamicFallbackItemTypeCode = dynamicByCode["procedimento"]?.code ?? null;
+
+    // Heurística por prefixo TUSS/AMB. Retorna item_type dinâmico ou null quando o
+    // prefixo não tem tipo cadastrado (aí cai no fallback "procedimento").
+    const classifyByTussPrefix = (code: string): { id: string; code: string } | null => {
+      const first = code.charAt(0);
+      if (first === "3") return dynamicByCode["cirurgia"] ?? null;
+      if (first === "4") return dynamicByCode["procedimento"] ?? null;
+      if (first === "2") return dynamicByCode["sadt"] ?? null;
+      return null;
+    };
 
     const ambiguousTussCodes: string[] = [];
     for (const [code, set] of tussToItemTypes) {
@@ -191,8 +205,9 @@ Deno.serve(async (req) => {
             nextItemTypeId = null;
             nextSource = "ambiguous_tuss";
           }
-        } else if (code && dynamicFallbackItemTypeId) {
-          nextItemTypeId = dynamicFallbackItemTypeId;
+        } else if (code && (classifyByTussPrefix(code) || dynamicFallbackItemTypeId)) {
+          const byPrefix = classifyByTussPrefix(code);
+          nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
           nextSource = "auto_heuristic";
         } else if (defaultItemTypeId) {
           nextItemTypeId = defaultItemTypeId;
