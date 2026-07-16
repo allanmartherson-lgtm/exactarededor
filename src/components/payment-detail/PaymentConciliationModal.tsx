@@ -3872,7 +3872,7 @@ export function PaymentConciliationModal({
             tipo_linha: 'procedimento',
             sector: irmao?.sector ?? null,
             specialty: irmao?.specialty ?? null,
-            convenio_id: irmao?.convenio_id ?? null,
+            convenio_slug: irmao?.convenio_slug ?? null,
             attendance_character: irmao?.attendance_character ?? null,
             gross_amount: isCredito ? valorAjuste : -valorAjuste,
             item_origem: isCredito ? 'conciliacao_credito' : 'conciliacao_debito',
