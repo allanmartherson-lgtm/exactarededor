@@ -54,7 +54,9 @@ export default function NewManualPaymentComposicao() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hospital } = useHospital();
-  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
+  // Composição por modelo: só faz sentido escolher modelo de pagamento no cabeçalho
+  // (item_types como Parecer/Visita/Cirurgia são definidos por linha, não por lote).
+  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true, origin: "payment_model" });
 
   const [paymentModelId, setPaymentModelId] = useState<string>("");
   const [company, setCompany] = useState<CompanyOption | null>(null);
