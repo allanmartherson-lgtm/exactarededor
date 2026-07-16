@@ -69,6 +69,9 @@ interface ExactaItem {
   doctor_name: string | null;
   procedure_name: string | null;
   gross_amount: number | null;
+  expected_amount: number | null;
+  access_route: string | null;
+  applied_calc_method: string | null;
 }
 
 interface LinhaComparativa {
@@ -81,6 +84,7 @@ interface LinhaComparativa {
   outros_custos: number; // custo_total − custo_hm
   margem_aurum: number;
   hm_exacta_real: number | null; // null = sem match Exacta
+  hm_exacta_expected: number; // soma de expected_amount — base convênio (fica no bolso do hospital)
   hm_exacta_qtd_itens: number;
   hm_exacta_qtd_atendimentos: number;
   custo_total_recalc: number | null;
