@@ -463,15 +463,16 @@ export function SimuladorCenario() {
             const partial = await fetchAllPaginated<{
               gross_amount: number | null;
               expected_amount: number | null;
-            }>((from, to) =>
-              supabase
+            }>((from, to) => {
+              let q = supabase
                 .from("payment_items")
                 .select("gross_amount,expected_amount")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
-                .in("attendance_number", slice)
-                .range(from, to),
-            );
+                .in("attendance_number", slice);
+              if (carater !== "todos") q = q.eq("attendance_character", carater);
+              return q.range(from, to);
+            });
             for (const it of partial) {
               gross += Number(it.gross_amount ?? 0);
               expected += Number(it.expected_amount ?? 0);
