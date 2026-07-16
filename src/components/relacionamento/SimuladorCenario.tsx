@@ -593,20 +593,23 @@ export function SimuladorCenario() {
       }
 
       // 3) Cálculo do cenário simulado.
-      // Base = valor do CONVÊNIO (procedure_amount). Aplicamos também o
-      // "fator efetivo real" observado no pagamento (gross / procedure_amount),
-      // que embute o peso de via de acesso, % de auxiliares, exclusões e
-      // demais deflatores que o convênio/acordo aplicou. Sem isso a simulação
-      // trata todo item como 100% convênio (principal, via única) e infla.
+      // Base = valor do CONVÊNIO (procedure_amount) por item, que JÁ carrega
+      // a composição real de cada linha do pagamento (principal vs. auxiliar,
+      // via de acesso, redutores CBHPM etc.). Aplicamos APENAS os parâmetros
+      // que o usuário informou. NÃO reponderar pelo fator efetivo real
+      // (gross/base) porque isso duplicaria a regra atualmente paga.
       const baseConvenio = exacta?.baseConvenio ?? 0;
       const grossReal = exacta?.gross ?? 0;
-      const fatorEfetivo = baseConvenio > 0 ? grossReal / baseConvenio : 1;
+      const fatorEfetivo = baseConvenio > 0 ? grossReal / baseConvenio : 0;
+      const fatorSimulado =
+        modelo === "percentual"
+          ? pctNovo / 100
+          : multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
       let novoHm = 0;
       if (modelo === "percentual") {
-        novoHm = baseConvenio * (pctNovo / 100) * fatorEfetivo;
+        novoHm = baseConvenio * (pctNovo / 100);
       } else {
-        // Tabela diferenciada — sem lookup TUSS direto ainda; usa base convênio como referência.
-        novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100) * fatorEfetivo;
+        novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
       }
       const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
       const novaPct = aurum.receita_liquida > 0 ? novaMargem / aurum.receita_liquida : 0;
@@ -615,7 +618,8 @@ export function SimuladorCenario() {
         ? "Sem itens do Exacta para este médico/procedimento no ano. HM Exacta real e Simulado indisponíveis (base convênio zerada)."
         : baseConvenio <= 0
           ? "Itens do Exacta encontrados, mas sem procedure_amount (base convênio) — Simulado zerado."
-          : `Simulado ponderado pelo fator efetivo real ${(fatorEfetivo * 100).toFixed(1)}% (gross/base convênio), preservando peso de via de acesso, % de auxiliares e demais deflatores aplicados no pagamento.`;
+          : `Aderência à regra real: fator pago observado ${(fatorEfetivo * 100).toFixed(1)}% (gross/base) × fator simulado ${(fatorSimulado * 100).toFixed(1)}%. O Simulado aplica os parâmetros informados sobre a base do convênio de cada item (já com peso de via/auxiliar/principal); não reponderamos pelo fator real para não duplicar a regra atual.`;
+
 
       setResultado({
         nome: nomeSelecionado,
