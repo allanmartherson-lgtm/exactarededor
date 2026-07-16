@@ -76,8 +76,8 @@ describe("REGRESSÃO comportamental — decideGlosaApplications", () => {
       { id: "c", doctor_id: "m3", total_debt: 1200, parcelas_default: 12 },
     ];
     const { decisions } = decideGlosaApplications(debts, 250, new Set());
-    // 100 + 100 + parcial de 50 — nenhum "pulado por médico"
-    expect(decisions.map((d) => d.action)).toEqual(["proposto", "proposto", "partial"]);
+    // 100 + 100 + adiado (sem parcial) — nenhum "pulado por médico"
+    expect(decisions.map((d) => d.action)).toEqual(["proposto", "proposto", "postponed"]);
   });
 
   it("passar médicos com produção NÃO altera o resultado (parâmetro é semanticamente inerte)", () => {
