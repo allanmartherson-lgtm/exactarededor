@@ -830,6 +830,25 @@ export function SimuladorCenario() {
             </div>
           </div>
 
+          {/* Escopo — Aurum só tem receita de INTERNADOS cirúrgicos.
+              Filtro default-on evita distorção por consultas/pareceres/SADT. */}
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+            <input
+              id="apenas-internados"
+              type="checkbox"
+              className="h-4 w-4 accent-primary"
+              checked={apenasInternados}
+              onChange={(e) => { setApenasInternados(e.target.checked); setResultado(null); }}
+            />
+            <Label htmlFor="apenas-internados" className="text-xs cursor-pointer m-0">
+              Apenas internados cirúrgicos (Centro Cirúrgico / Hemodinâmica)
+            </Label>
+            <span className="text-[11px] text-muted-foreground ml-auto">
+              Aurum agrega só cirúrgicos; desmarcar inclui consultas, pareceres e SADT e pode distorcer a comparação.
+            </span>
+          </div>
+
+
           {/* Linha 2 — modelo */}
           <div className="flex flex-wrap gap-3 items-end">
             <div className="min-w-[14rem] flex-1 max-w-[20rem]">
