@@ -1317,6 +1317,19 @@ export default function CreditosDebitos() {
     return groupCount <= 5; // auto-fecha quando muitas PJs
   };
 
+  // Lote "finalizado" = já saiu do ciclo de validação; débitos aplicados nele
+  // podem ser arquivados na visão de andamento.
+  const FINAL_PAYMENT_STATUSES = new Set(["aprovado", "pago", "quitado", "finalizado", "concluido"]);
+  const isPaymentFinalized = (payId: string | null | undefined) =>
+    !!payId && FINAL_PAYMENT_STATUSES.has((paymentStatuses[payId] ?? "").toLowerCase());
+
+  // Grupo (PJ) é "arquivado" quando: todos os débitos aplicados E o lote-alvo finalizado.
+  const isGroupArchived = (list: GlosaDebt[]) =>
+    list.length > 0 && list.every(g => {
+      const app = debtAppliedAt(g.id, g.target_payment_id);
+      return app && app.status !== "postponed" && isPaymentFinalized(g.target_payment_id);
+    });
+
   // ============ RENDER ============
   const kpiCard = (label: string, value: string, tone?: string, hint?: string) => (
     <div className="rounded-lg border bg-card p-3">
