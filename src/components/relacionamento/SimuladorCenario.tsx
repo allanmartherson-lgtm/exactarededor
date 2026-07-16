@@ -1441,10 +1441,15 @@ export function SimuladorCenario() {
                   );
                 })()}
               </div>
-              <Button type="button" onClick={salvarCenario} disabled={salvando}>
-                {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Salvar cenário
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button type="button" variant="outline" onClick={exportarDetalhado} disabled={!resultado.exacta}>
+                  Exportar Excel detalhado
+                </Button>
+                <Button type="button" onClick={salvarCenario} disabled={salvando}>
+                  {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Salvar cenário
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </>
