@@ -829,9 +829,7 @@ export function SimuladorCenario() {
               )}
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border p-3 bg-muted/20 relative">
-                {/* Overlay de destaque da coluna Simulado */}
-                <div className="absolute right-0 top-0 bottom-0 w-[calc((100%-2rem-1fr)/3)] bg-primary/5 rounded-r-md pointer-events-none" aria-hidden />
+              <div className="rounded-md border p-3 bg-muted/20">
                 {/* Cabeçalho */}
                 <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 pb-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span></span>
