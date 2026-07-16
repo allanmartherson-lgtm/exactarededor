@@ -933,6 +933,7 @@ export function SimuladorCenario() {
                 resultado.exacta == null ? "neutral" :
                 resultado.simulado.novo_hm > resultado.exacta.gross ? "negative" : "positive"
               }
+              highlight
             />
           </div>
 
