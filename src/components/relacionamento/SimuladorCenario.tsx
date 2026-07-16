@@ -486,18 +486,14 @@ export function SimuladorCenario() {
         },
         aviso,
       });
-    } catch (e) {
-      // Supabase devolve objeto { message, details, hint, code } — não Error.
-      const anyErr = e as { message?: string; details?: string; hint?: string; code?: string } | null;
+    } catch (e: unknown) {
       const msg =
         e instanceof Error
           ? e.message
-          : anyErr?.message ||
-            anyErr?.details ||
-            anyErr?.hint ||
-            (anyErr?.code ? `código ${anyErr.code}` : "") ||
-            (typeof e === "string" ? e : JSON.stringify(e));
-      console.error("[SimuladorCenario] Falha ao simular:", e);
+          : typeof e === "object" && e !== null && "message" in e
+            ? String((e as { message: unknown }).message)
+            : JSON.stringify(e);
+      console.error("SimuladorCenario error:", e);
       toast.error(`Falha ao simular: ${msg}`);
     } finally {
       setSimulando(false);
@@ -543,8 +539,14 @@ export function SimuladorCenario() {
       const { error } = await supabase.from("simulacao_cenario" as never).insert(payload as never);
       if (error) throw error;
       toast.success("Cenário salvo.");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e !== null && "message" in e
+            ? String((e as { message: unknown }).message)
+            : JSON.stringify(e);
+      console.error("SimuladorCenario error:", e);
       toast.error(`Falha ao salvar: ${msg}`);
     } finally {
       setSalvando(false);
