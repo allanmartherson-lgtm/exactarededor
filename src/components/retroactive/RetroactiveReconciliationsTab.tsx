@@ -3164,6 +3164,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [pjMapApplying, setPjMapApplying] = useState(false);
   const resultTopScrollRef = useRef<HTMLDivElement | null>(null);
   const resultTableScrollRef = useRef<HTMLDivElement | null>(null);
+  const resultScrollSyncingRef = useRef(false);
   const [resultScrollWidth, setResultScrollWidth] = useState(1);
   const [doctorInfo, setDoctorInfo] = useState<{ id: string | null; name: string | null; crm: string | null }>({ id: null, name: null, crm: null });
   const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
@@ -4357,48 +4358,84 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
 
+  const getResultHorizontalScrollElement = () => {
+    const outerEl = resultTableScrollRef.current;
+    if (!outerEl) return null;
+
+    const tableWrapper = outerEl.firstElementChild;
+    if (tableWrapper instanceof HTMLElement && tableWrapper.scrollWidth > tableWrapper.clientWidth + 1) {
+      return tableWrapper;
+    }
+
+    return outerEl;
+  };
+
   useEffect(() => {
     if (!results) return;
-    const scrollEl = resultTableScrollRef.current;
-    if (!scrollEl) return;
+    const outerEl = resultTableScrollRef.current;
+    const scrollEl = getResultHorizontalScrollElement();
+    if (!outerEl || !scrollEl) return;
 
     const updateScrollWidth = () => {
-      setResultScrollWidth(Math.max(scrollEl.scrollWidth, scrollEl.clientWidth, 1));
-      if (resultTopScrollRef.current) resultTopScrollRef.current.scrollLeft = scrollEl.scrollLeft;
+      const currentScrollEl = getResultHorizontalScrollElement();
+      if (!currentScrollEl) return;
+      setResultScrollWidth(Math.max(currentScrollEl.scrollWidth, currentScrollEl.clientWidth, 1));
+      if (resultTopScrollRef.current) resultTopScrollRef.current.scrollLeft = currentScrollEl.scrollLeft;
+    };
+
+    const syncFromTable = () => {
+      if (resultScrollSyncingRef.current) return;
+      const top = resultTopScrollRef.current;
+      const currentScrollEl = getResultHorizontalScrollElement();
+      if (!top || !currentScrollEl) return;
+      resultScrollSyncingRef.current = true;
+      top.scrollLeft = currentScrollEl.scrollLeft;
+      resultScrollSyncingRef.current = false;
     };
 
     updateScrollWidth();
 
     const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateScrollWidth) : null;
+    resizeObserver?.observe(outerEl);
     resizeObserver?.observe(scrollEl);
     if (scrollEl.firstElementChild) resizeObserver?.observe(scrollEl.firstElementChild);
+    scrollEl.addEventListener("scroll", syncFromTable, { passive: true });
     window.addEventListener("resize", updateScrollWidth);
 
     return () => {
       resizeObserver?.disconnect();
+      scrollEl.removeEventListener("scroll", syncFromTable);
       window.removeEventListener("resize", updateScrollWidth);
     };
   }, [results, visible.length, statusFilter, search, onlyWithPayment]);
 
   const syncResultScroll = (source: "top" | "table") => {
     const top = resultTopScrollRef.current;
-    const table = resultTableScrollRef.current;
+    const table = getResultHorizontalScrollElement();
     if (!top || !table) return;
+    if (resultScrollSyncingRef.current) return;
     // Reidrata a largura a cada scroll: cobre casos onde o conteúdo cresce
     // depois do primeiro layout (linhas carregadas sob demanda, colunas que
     // dependem de dados assíncronos) sem depender apenas do ResizeObserver.
     const currentWidth = Math.max(table.scrollWidth, table.clientWidth, 1);
     setResultScrollWidth((prev) => (Math.abs(prev - currentWidth) > 1 ? currentWidth : prev));
-    if (source === "top") table.scrollLeft = top.scrollLeft;
-    else top.scrollLeft = table.scrollLeft;
+    resultScrollSyncingRef.current = true;
+    if (source === "top") {
+      table.scrollLeft = top.scrollLeft;
+      top.scrollLeft = table.scrollLeft;
+    } else {
+      top.scrollLeft = table.scrollLeft;
+    }
+    resultScrollSyncingRef.current = false;
   };
 
   const nudgeResultScroll = (direction: -1 | 1) => {
-    const table = resultTableScrollRef.current;
+    const table = getResultHorizontalScrollElement();
     if (!table) return;
     // Passo dinâmico: ~80% da área visível, com piso de 320px.
     const step = Math.max(320, Math.floor(table.clientWidth * 0.8));
     table.scrollBy({ left: direction * step, behavior: "smooth" });
+    requestAnimationFrame(() => syncResultScroll("table"));
   };
 
   const counts = useMemo(() => {
