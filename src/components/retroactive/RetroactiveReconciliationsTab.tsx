@@ -3194,18 +3194,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // Pagina para escapar do teto default de 1000 linhas do PostgREST — sem
     // isso, apurações grandes ficam truncadas em "1000 de 1000".
     const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
-    const savedItems = await fetchAllPaginated<{ raw?: { tvr_result?: unknown } }>((from, to) =>
+    const savedItems = await fetchAllPaginated<{
+      raw?: { tvr_result?: unknown };
+      excluir_do_encaminhamento?: boolean | null;
+      exclusion_reason?: TvrResult["exclusion_reason"] | null;
+      exclusion_note?: string | null;
+    }>((from, to) =>
       supabase
         .from("retroactive_reconciliation_items" as never)
-        .select("raw")
+        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note")
         .eq("reconciliation_id", id)
         .eq("source", TVR_SOURCE)
         .order("created_at", { ascending: true })
         .range(from, to),
     );
     const savedResults = savedItems
-      .map((item) => item.raw?.tvr_result)
-      .filter(isTvrResult);
+      .map((item) => {
+        const tvr = item.raw?.tvr_result;
+        if (!isTvrResult(tvr)) return null;
+        return {
+          ...tvr,
+          excluir_do_encaminhamento: Boolean(item.excluir_do_encaminhamento),
+          exclusion_reason: item.exclusion_reason ?? null,
+          exclusion_note: item.exclusion_note ?? null,
+        } as TvrResult;
+      })
+      .filter((x): x is TvrResult => x !== null);
     if (savedResults.length > 0) {
       setResults(savedResults);
       setTasyRows(savedResults.filter((r) => r.status !== "ausente_tasy").map<TasyRow>((r) => ({
