@@ -361,6 +361,7 @@ const App = () => (
                   <Route path="/comunicacao/massa" element={<Navigate to="/comunicacao?tab=massa" replace />} />
                   <Route path="/comunicacao/aprovacoes" element={<Navigate to="/comunicacao?tab=aprovacoes" replace />} />
                   <Route path="/comunicacao/supervisao" element={<Navigate to="/comunicacao?tab=supervisao" replace />} />
+                  <Route path="/relacionamento" element={<ProtectedRoute roles={["admin", "diretor"]}><RelacionamentoHub /></ProtectedRoute>} />
 
                   <Route path="/notificacoes" element={<ProtectedRoute><NotificationsInbox /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><SaudeHub /></ProtectedRoute>} />
