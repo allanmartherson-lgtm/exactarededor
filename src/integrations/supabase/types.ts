@@ -598,56 +598,6 @@ export type Database = {
           },
         ]
       }
-      cbhpm_tabela: {
-        Row: {
-          auxiliar_qtd: number | null
-          codigo: string
-          created_at: string
-          descricao: string
-          hospital_id: string
-          id: string
-          incidencia: number | null
-          porte: string | null
-          porte_anestesico: string | null
-          updated_at: string
-          valor_base: number
-        }
-        Insert: {
-          auxiliar_qtd?: number | null
-          codigo: string
-          created_at?: string
-          descricao: string
-          hospital_id: string
-          id?: string
-          incidencia?: number | null
-          porte?: string | null
-          porte_anestesico?: string | null
-          updated_at?: string
-          valor_base?: number
-        }
-        Update: {
-          auxiliar_qtd?: number | null
-          codigo?: string
-          created_at?: string
-          descricao?: string
-          hospital_id?: string
-          id?: string
-          incidencia?: number | null
-          porte?: string | null
-          porte_anestesico?: string | null
-          updated_at?: string
-          valor_base?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cbhpm_tabela_hospital_id_fkey"
-            columns: ["hospital_id"]
-            isOneToOne: false
-            referencedRelation: "hospitals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       comm_campaign_recipients: {
         Row: {
           campaign_id: string
