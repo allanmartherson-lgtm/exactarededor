@@ -717,7 +717,7 @@ export function SimuladorCenario() {
         motorErro = "Selecione uma tabela de referência.";
       } else {
         const scenario = modelo === "percentual"
-          ? { calculation_type: "percentual_convenio" as const, convenio_percentage: pctNovo }
+          ? { calculation_type: "percentual_sobre_convenio" as const, convenio_percentage: pctNovo }
           : {
               calculation_type: "tabela_diferenciada" as const,
               reference_table_id: refTableId,
