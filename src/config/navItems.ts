@@ -178,6 +178,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Casos Especiais", iconName: "ShieldCheck" },
   { label: "Conversas", iconName: "ChatsIcon" },
   { label: "Comunicação", iconName: "Megaphone" },
+  { label: "Simulador de Margem", iconName: "TrendingUp" },
   { label: "Central de Relatórios", iconName: "FileBarChart" },
   { label: "BI · Diretoria", iconName: "BarChart3" },
   { label: "BI · Pagamentos", iconName: "Wallet" },
