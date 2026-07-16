@@ -198,43 +198,46 @@ export function CompanyHistoryPanel({
       });
     }
 
-    // Atribuições (assumiu/transferiu) — escopo do lote inteiro, sempre
-    // exibidas (não filtradas por item, pois afetam o lote todo).
-    for (const a of assignments) {
-      const analystName = profiles[a.analyst_id] || "—";
-      const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
-      const isTransfer = a.action === "transferiu";
-      const assignText = `${analystName} ${
-        isTransfer
-          ? `assumiu o lote${prevName ? ` de ${prevName}` : ""}`
-          : "assumiu o lote"
-      }${a.source === "auto" ? " (registro automático na 1ª ação)" : ""}${a.note ? ` — ${a.note}` : ""}.`;
-      out.push({
-        id: `assign-${a.id}`,
-        at: a.created_at,
-        kind: "assign",
-        authorType: isTransfer ? "transferência" : "atribuição",
-        authorName: analystName,
-        itemId: null,
-        itemLabel: null,
-        bodyText: assignText,
-        body: (
-          <p className="whitespace-pre-wrap">
-            <strong>{analystName}</strong>{" "}
-            {isTransfer ? (
-              <>assumiu o lote {prevName ? <>de <strong>{prevName}</strong></> : null}</>
-            ) : (
-              <>assumiu o lote</>
-            )}
-            {a.source === "auto" ? " (registro automático na 1ª ação)" : ""}
-            {a.note ? ` — ${a.note}` : ""}.
-          </p>
-        ),
-      });
+    // Atribuições (assumiu/transferiu) — escopo do lote inteiro.
+    // No modo empresa ficam ocultas por padrão e só aparecem via toggle
+    // "Mostrar eventos do lote".
+    if (!scopedToCompany || showLoteEvents) {
+      for (const a of assignments) {
+        const analystName = profiles[a.analyst_id] || "—";
+        const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
+        const isTransfer = a.action === "transferiu";
+        const assignText = `${analystName} ${
+          isTransfer
+            ? `assumiu o lote${prevName ? ` de ${prevName}` : ""}`
+            : "assumiu o lote"
+        }${a.source === "auto" ? " (registro automático na 1ª ação)" : ""}${a.note ? ` — ${a.note}` : ""}.`;
+        out.push({
+          id: `assign-${a.id}`,
+          at: a.created_at,
+          kind: "assign",
+          authorType: isTransfer ? "transferência" : "atribuição",
+          authorName: analystName,
+          itemId: null,
+          itemLabel: null,
+          bodyText: assignText,
+          body: (
+            <p className="whitespace-pre-wrap">
+              <strong>{analystName}</strong>{" "}
+              {isTransfer ? (
+                <>assumiu o lote {prevName ? <>de <strong>{prevName}</strong></> : null}</>
+              ) : (
+                <>assumiu o lote</>
+              )}
+              {a.source === "auto" ? " (registro automático na 1ª ação)" : ""}
+              {a.note ? ` — ${a.note}` : ""}.
+            </p>
+          ),
+        });
+      }
     }
 
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  }, [observations, aiVersions, assignments, itemIds, itemMap, profiles]);
+  }, [observations, aiVersions, assignments, itemIds, itemMap, profiles, scopedToCompany, companyName, showLoteEvents]);
 
   const filtered = useMemo(() => {
     let out = entries;
