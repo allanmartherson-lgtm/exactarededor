@@ -153,6 +153,7 @@ export function SimuladorMargem() {
 
   // Filtros gerais
   const [modo, setModo] = useState<Modo>("medico");
+  const [selectedLinha, setSelectedLinha] = useState<LinhaComparativa | null>(null);
   const [ano, setAno] = useState<number | null>(null);
   const [carater, setCarater] = useState<Carater>("todos");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
