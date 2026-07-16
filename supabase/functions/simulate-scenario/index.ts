@@ -60,7 +60,7 @@ interface SimItem {
 }
 
 interface Scenario {
-  calculation_type: "percentual_convenio" | "tabela_diferenciada";
+  calculation_type: "percentual_convenio" | "percentual_sobre_convenio" | "tabela_diferenciada";
   convenio_percentage?: number | null;
   reference_table_id?: string | null;
   multiplier?: number | null;
