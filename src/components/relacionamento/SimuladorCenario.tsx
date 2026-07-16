@@ -209,6 +209,17 @@ interface ItemDetalhe {
   quantity: number;
   procedure_amount: number;
   gross_amount: number;
+  expected_amount: number;
+  company_name: string | null;
+  rule_summary: string | null;
+  applied_calc_method: string | null;
+}
+
+interface SimPerItem {
+  expected_amount: number;
+  matched: boolean;
+  calculation_type_used: string | null;
+  alerts: string[];
 }
 
 interface Simulado {
