@@ -2206,6 +2206,18 @@ export type TvrResult = {
     };
   };
   status: TvrStatus;
+  // Tópico 2 (opt-out do encaminhamento): campos vindos das colunas
+  // adicionadas em retroactive_reconciliation_items no Tópico 1.
+  // Undefined em resultados recém-calculados que ainda não foram persistidos.
+  excluir_do_encaminhamento?: boolean;
+  exclusion_reason?:
+    | "mudanca_data_administrativa"
+    | "cancelamento_externo"
+    | "duplicidade_ja_resolvida"
+    | "acordo_diferenciado"
+    | "outro"
+    | null;
+  exclusion_note?: string | null;
 };
 
 // Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
