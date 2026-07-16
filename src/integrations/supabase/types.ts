@@ -8907,6 +8907,13 @@ export type Database = {
           classification_reason: string | null
           company_id: string | null
           created_at: string
+          excluded_at: string | null
+          excluded_by: string | null
+          excluir_do_encaminhamento: boolean
+          exclusion_note: string | null
+          exclusion_reason:
+            | Database["public"]["Enums"]["retro_exclusion_reason"]
+            | null
           expected_amount: number | null
           function_label: string | null
           gap_amount: number | null
@@ -8935,6 +8942,13 @@ export type Database = {
           classification_reason?: string | null
           company_id?: string | null
           created_at?: string
+          excluded_at?: string | null
+          excluded_by?: string | null
+          excluir_do_encaminhamento?: boolean
+          exclusion_note?: string | null
+          exclusion_reason?:
+            | Database["public"]["Enums"]["retro_exclusion_reason"]
+            | null
           expected_amount?: number | null
           function_label?: string | null
           gap_amount?: number | null
@@ -8963,6 +8977,13 @@ export type Database = {
           classification_reason?: string | null
           company_id?: string | null
           created_at?: string
+          excluded_at?: string | null
+          excluded_by?: string | null
+          excluir_do_encaminhamento?: boolean
+          exclusion_note?: string | null
+          exclusion_reason?:
+            | Database["public"]["Enums"]["retro_exclusion_reason"]
+            | null
           expected_amount?: number | null
           function_label?: string | null
           gap_amount?: number | null
@@ -13110,6 +13131,12 @@ export type Database = {
         | "tabela_propria"
         | "lista_codigos"
         | "pacote_combinacao"
+      retro_exclusion_reason:
+        | "mudanca_data_administrativa"
+        | "cancelamento_externo"
+        | "duplicidade_ja_resolvida"
+        | "acordo_diferenciado"
+        | "outro"
       retro_recon_classification:
         | "ok_pago"
         | "pago_a_menos"
@@ -13417,6 +13444,13 @@ export const Constants = {
         "tabela_propria",
         "lista_codigos",
         "pacote_combinacao",
+      ],
+      retro_exclusion_reason: [
+        "mudanca_data_administrativa",
+        "cancelamento_externo",
+        "duplicidade_ja_resolvida",
+        "acordo_diferenciado",
+        "outro",
       ],
       retro_recon_classification: [
         "ok_pago",
