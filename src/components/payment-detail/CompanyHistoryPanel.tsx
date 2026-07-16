@@ -377,6 +377,17 @@ export function CompanyHistoryPanel({
                 <SelectItem value="justificativa_override">Justificativa</SelectItem>
               </SelectContent>
             </Select>
+            {scopedToCompany && (
+              <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={showLoteEvents}
+                  onChange={(e) => setShowLoteEvents(e.target.checked)}
+                />
+                Mostrar eventos do lote
+              </label>
+            )}
             <Button
               size="sm"
               variant="outline"
