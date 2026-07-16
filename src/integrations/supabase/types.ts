@@ -162,50 +162,6 @@ export type Database = {
           },
         ]
       }
-      ai_checklist_cache: {
-        Row: {
-          created_at: string
-          hospital_id: string
-          id: string
-          input_hash: string
-          model: string | null
-          result: Json
-          scope: string
-          scope_key: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          hospital_id: string
-          id?: string
-          input_hash: string
-          model?: string | null
-          result: Json
-          scope: string
-          scope_key: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          hospital_id?: string
-          id?: string
-          input_hash?: string
-          model?: string | null
-          result?: Json
-          scope?: string
-          scope_key?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_checklist_cache_hospital_id_fkey"
-            columns: ["hospital_id"]
-            isOneToOne: false
-            referencedRelation: "hospitals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ai_retry_queue: {
         Row: {
           attempts: number
