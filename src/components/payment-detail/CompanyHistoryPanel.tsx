@@ -40,6 +40,14 @@ export type CompanyHistoryPanelProps = {
   aiVersions: AiVersionRow[];
   assignments?: AssignmentRow[];
   profiles: Record<string, string>;
+  /**
+   * Quando presente, ativa o modo "escopo por empresa": observações gerais
+   * (sem item_id) só entram se começarem com o prefixo "[<companyName>]".
+   * aiVersions e items já são naturalmente escopados. Sem companyId, o
+   * painel funciona no modo lote (comportamento original).
+   */
+  companyId?: string | null;
+  companyName?: string | null;
 };
 
 type Entry = {
