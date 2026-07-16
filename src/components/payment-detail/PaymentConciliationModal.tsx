@@ -4022,10 +4022,22 @@ export function PaymentConciliationModal({
       }
 
       setItems(prev =>
-        prev.map(ri => ri.id === item.id
-          ? { ...ri, action_taken: action, action_by: user.id, action_at: new Date().toISOString() }
-          : ri,
-        ),
+        prev.map(ri => {
+          if (ri.id !== item.id) return ri;
+          const nowIso = new Date().toISOString();
+          // Após incorporar (crédito/débito), o item deixa de ser divergência:
+          // ele foi trazido para o lote atual, ou seja, virou "conciliado".
+          // Isso o remove imediatamente do bucket "Só no hospital"/"Só no Exacta"
+          // e passa a somar em "Conciliados", sem esperar recarregar a run.
+          const becameConciliado = action === 'incorporar_credito' || action === 'incorporar_debito';
+          return {
+            ...ri,
+            action_taken: action,
+            action_by: user.id,
+            action_at: nowIso,
+            ...(becameConciliado ? { status: 'conciliado' as const } : {}),
+          };
+        }),
       );
 
       if (!silent) {
