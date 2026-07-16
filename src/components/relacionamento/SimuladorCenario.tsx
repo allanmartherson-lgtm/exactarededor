@@ -724,10 +724,13 @@ export function SimuladorCenario() {
               sector: string | null;
               specialty: string | null;
               quantity: number | null;
+              company_name: string | null;
+              rule_summary: string | null;
+              applied_calc_method: string | null;
             }>((from, to) => {
               let q = supabase
                 .from("payment_items")
-                .select("id,attendance_number,gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,procedure_name,agreement_text,doctor_role,doctor_name,access_route,sector,specialty,quantity")
+                .select("id,attendance_number,gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,procedure_name,agreement_text,doctor_role,doctor_name,access_route,sector,specialty,quantity,company_name,rule_summary,applied_calc_method")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
                 .in("attendance_number", slice);
@@ -758,6 +761,10 @@ export function SimuladorCenario() {
                 quantity: Number(it.quantity ?? 1) || 1,
                 procedure_amount: Number(it.procedure_amount ?? 0),
                 gross_amount: Number(it.gross_amount ?? 0),
+                expected_amount: Number(it.expected_amount ?? 0),
+                company_name: it.company_name ?? null,
+                rule_summary: it.rule_summary ?? null,
+                applied_calc_method: it.applied_calc_method ?? null,
               });
             }
           }
