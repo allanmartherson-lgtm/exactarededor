@@ -6520,8 +6520,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <SendIcon className="h-3 w-3 mr-1" /> Retomar confecção
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={desfazerEncaminhamento}
+          >
+            <RotateCcwIcon className="h-3 w-3 mr-1" /> Desfazer encaminhamento
+          </Button>
         </div>
       )}
+
 
 
       {/* Step 1 — TASY file */}
