@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEnforcedHospitalId } from "@/contexts/HospitalContext";
 import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { cn } from "@/lib/utils";
+import { SimuladorDetalhe } from "./SimuladorDetalhe";
 
 type Modo = "medico" | "procedimento";
 type Carater = "todos" | "Eletiva" | "Urgência";
