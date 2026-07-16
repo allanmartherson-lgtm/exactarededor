@@ -603,6 +603,7 @@ export function SimuladorMargem() {
                   <TableHead className="text-right">Custo total (Aurum)</TableHead>
                   <TableHead className="text-right">HM Aurum</TableHead>
                   <TableHead className="text-right">HM Exacta (real)</TableHead>
+                  <TableHead className="text-right" title="Soma de expected_amount — valor que o convênio pagou ao hospital. Base para simular percentual convênio.">Base Convênio</TableHead>
                   <TableHead className="text-right">Margem Aurum</TableHead>
                   <TableHead className="text-right">Margem Recalc</TableHead>
                   <TableHead className="text-right">Δ Margem</TableHead>
