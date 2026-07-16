@@ -180,7 +180,7 @@ function DreLine({
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(aurum)}</span>
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(exacta)}</span>
       <span className={cn(
-        "text-sm text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r",
+        "text-sm text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r",
         bold && "font-semibold",
         simCor,
       )}>{BRL(simulado)}</span>
@@ -836,7 +836,7 @@ export function SimuladorCenario() {
                   <span></span>
                   <span className="text-right">Aurum</span>
                   <span className="text-right">Exacta Real</span>
-                  <span className="text-right text-primary font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
+                  <span className="text-right text-primary font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
                 </div>
 
                 {(() => {
@@ -890,7 +890,7 @@ export function SimuladorCenario() {
                         <span className="italic">média por cirurgia/atend.</span>
                         <span className="text-right tabular-nums">{mediaHmAurum != null ? `${BRL(mediaHmAurum)}/cir` : "—"}</span>
                         <span className="text-right tabular-nums">{mediaHmExacta != null ? `${BRL(mediaHmExacta)}/atend` : "—"}</span>
-                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{mediaHmSim != null ? `${BRL(mediaHmSim)}/cir` : "—"}</span>
+                        <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{mediaHmSim != null ? `${BRL(mediaHmSim)}/cir` : "—"}</span>
                       </div>
                       {/* Sub-linha: % da Receita Líquida */}
                       <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
@@ -898,7 +898,7 @@ export function SimuladorCenario() {
                         <span className="italic">% da Receita Líquida</span>
                         <span className="text-right tabular-nums">{PCT(pctHmAurum)}</span>
                         <span className="text-right tabular-nums">{PCT(pctHmExacta)}</span>
-                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
+                        <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
                       </div>
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent />
@@ -908,14 +908,14 @@ export function SimuladorCenario() {
                           <span className="text-sm font-semibold">Margem de Contribuição</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", A.margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(A.margem)}</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", (margemExacta ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(margemExacta)}</span>
-                          <span className={cn("text-lg text-right tabular-nums font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
+                          <span className={cn("text-lg text-right tabular-nums font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
                         </div>
                         <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
                           <span></span>
                           <span>% Margem</span>
                           <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
                           <span className="text-right tabular-nums">{PCT(pctExacta)}</span>
-                          <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
+                          <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
                         </div>
                       </div>
                     </>
