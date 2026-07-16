@@ -422,8 +422,8 @@ export function SimuladorCenario() {
             attendance_number: string | null;
             procedure_name: string | null;
             access_route: string | null;
-          }>((from, to) =>
-            supabase
+          }>((from, to) => {
+            let q = supabase
               .from("payment_items")
               .select("attendance_number,procedure_name,access_route")
               .eq("hospital_id", hospitalId)
@@ -431,9 +431,10 @@ export function SimuladorCenario() {
               .gte("procedure_date", dateFrom)
               .lt("procedure_date", dateTo)
               .not("attendance_number", "is", null)
-              .ilike("procedure_name", ilikeTerm)
-              .range(from, to),
-          );
+              .ilike("procedure_name", ilikeTerm);
+            if (carater !== "todos") q = q.eq("attendance_character", carater);
+            return q.range(from, to);
+          });
           principais.push(...parte);
         }
         const attsMatched = new Set<string>();
