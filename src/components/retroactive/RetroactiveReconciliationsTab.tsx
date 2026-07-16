@@ -6800,11 +6800,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         )}
         {results && !isLocked && (
           <div className="ml-auto flex items-center gap-2">
-            {selectedKeys.size > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setSelectedKeys(new Set())}>
-                Limpar seleção
-              </Button>
-            )}
+            {selectedKeys.size > 0 && (() => {
+              // T3: dos selecionados, só os que NÃO estão excluídos e têm row id no banco
+              // podem virar "excluir do encaminhamento" em lote.
+              const excludableIds = (results ?? [])
+                .filter((r) => selectedKeys.has(r.key) && !r.excluir_do_encaminhamento && r._retroReconRowId)
+                .map((r) => r._retroReconRowId!) as string[];
+              return (
+                <>
+                  <span className="text-[11px] text-muted-foreground">{selectedKeys.size} selecionado(s)</span>
+                  {excludableIds.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openExcludeDialog(excludableIds)}
+                      title="Marcar os selecionados como fora do encaminhamento (permanecem visíveis na lista)"
+                    >
+                      <BanIcon className="h-4 w-4 mr-1" />
+                      Excluir do encaminhamento ({excludableIds.length})
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedKeys(new Set())}>
+                    Limpar seleção
+                  </Button>
+                </>
+              );
+            })()}
             <Button
               size="sm"
               onClick={() => setEncaminharOpen(true)}
