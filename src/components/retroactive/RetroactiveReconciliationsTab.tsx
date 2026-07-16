@@ -3692,6 +3692,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
   const process = (pagRowsOverride?: PagRow[]) => {
+    // Defesa em profundidade: o botão já vem disabled quando isLocked,
+    // mas atalho/mobile/chamada programática pode driblar o disabled.
+    if (recon?.summary && (recon.summary as { handoff?: unknown }).handoff) {
+      toast({
+        title: "Apuração encaminhada",
+        description: "Desfaça o encaminhamento antes de processar novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
     const effectivePagRows = pagRowsOverride ?? pagRows;
     if (tasyRows.length === 0 || effectivePagRows.length === 0) {
       toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
