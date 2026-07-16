@@ -2849,6 +2849,9 @@ export type Database = {
           parcelas_default: number
           resolution_reason: string | null
           resolution_status: string
+          reverted_at: string | null
+          reverted_by: string | null
+          reverted_reason: string | null
           status: string
           target_payment_id: string | null
           total_debt: number
@@ -2876,6 +2879,9 @@ export type Database = {
           parcelas_default?: number
           resolution_reason?: string | null
           resolution_status?: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
           status?: string
           target_payment_id?: string | null
           total_debt?: number
@@ -2903,6 +2909,9 @@ export type Database = {
           parcelas_default?: number
           resolution_reason?: string | null
           resolution_status?: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
           status?: string
           target_payment_id?: string | null
           total_debt?: number
@@ -12841,6 +12850,10 @@ export type Database = {
         Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
+      revert_glosa_debt: {
+        Args: { p_debt_id: string; p_reason: string }
+        Returns: Json
+      }
       rls_test_cleanup: {
         Args: {
           _hosp_a: string
