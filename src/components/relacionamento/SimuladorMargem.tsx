@@ -179,17 +179,27 @@ export function SimuladorMargem() {
     if (!hospitalId) return;
     let cancelled = false;
     void (async () => {
-      const { data, error } = await supabase
-        .from("aurum_margem_medico" as never)
-        .select("ano")
-        .eq("hospital_id", hospitalId)
-        .limit(20000);
-      if (cancelled || error) return;
-      const rows = (data ?? []) as Array<{ ano: number }>;
-      const anos = Array.from(new Set(rows.map((r) => r.ano).filter(Number.isFinite))).sort((a, b) => b - a);
+      // Pagina para contornar o cap padrão do PostgREST (~1000 linhas),
+      // que fazia apenas o primeiro ano aparecer no combo mesmo com múltiplos anos na base.
+      const anosSet = new Set<number>();
+      const PAGE = 1000;
+      for (let offset = 0; offset < 100000; offset += PAGE) {
+        const { data, error } = await supabase
+          .from("aurum_margem_medico" as never)
+          .select("ano")
+          .eq("hospital_id", hospitalId)
+          .range(offset, offset + PAGE - 1);
+        if (cancelled || error) return;
+        const rows = (data ?? []) as Array<{ ano: number }>;
+        rows.forEach((r) => { if (Number.isFinite(r.ano)) anosSet.add(r.ano); });
+        if (rows.length < PAGE) break;
+      }
+      if (cancelled) return;
+      const anos = Array.from(anosSet).sort((a, b) => b - a);
       setAnosDisponiveis(anos);
       setAno((prev) => (prev && anos.includes(prev)) ? prev : (anos[0] ?? null));
     })();
+
     return () => { cancelled = true; };
   }, [hospitalId]);
 
@@ -256,22 +266,32 @@ export function SimuladorMargem() {
     void (async () => {
       try {
         const tabela = modo === "medico" ? "aurum_margem_medico" : "aurum_margem_procedimento";
-        let q = supabase
-          .from(tabela as never)
-          .select("*")
-          .eq("hospital_id", hospitalId)
-          .eq("ano", ano);
-        if (carater !== "todos") q = q.eq("carater", carater);
-        if (periodo !== "todos") q = q.eq("periodo_internacao", periodo);
-        if (faturado !== "todos") q = q.eq("faturado", faturado === "sim");
-        const { data, error } = await q.limit(20000);
+        // Pagina para contornar o cap padrão do PostgREST (~1000 linhas),
+        // que truncava silenciosamente as bases grandes do Aurum.
+        const PAGE = 1000;
+        const all: any[] = [];
+        for (let offset = 0; offset < 100000; offset += PAGE) {
+          let q = supabase
+            .from(tabela as never)
+            .select("*")
+            .eq("hospital_id", hospitalId)
+            .eq("ano", ano);
+          if (carater !== "todos") q = q.eq("carater", carater);
+          if (periodo !== "todos") q = q.eq("periodo_internacao", periodo);
+          if (faturado !== "todos") q = q.eq("faturado", faturado === "sim");
+          const { data, error } = await q.range(offset, offset + PAGE - 1);
+          if (cancelled) return;
+          if (error) throw error;
+          const rows = (data ?? []) as any[];
+          all.push(...rows);
+          if (rows.length < PAGE) break;
+        }
         if (cancelled) return;
-        if (error) throw error;
         if (modo === "medico") {
-          setAurumMedico((data ?? []) as AurumMedicoRow[]);
+          setAurumMedico(all as AurumMedicoRow[]);
           setAurumProc([]);
         } else {
-          setAurumProc((data ?? []) as AurumProcRow[]);
+          setAurumProc(all as AurumProcRow[]);
           setAurumMedico([]);
         }
       } catch (e) {
@@ -281,6 +301,7 @@ export function SimuladorMargem() {
         if (!cancelled) setLoadingAurum(false);
       }
     })();
+
     return () => { cancelled = true; };
   }, [hospitalId, modo, ano, carater, periodo, faturado]);
 
