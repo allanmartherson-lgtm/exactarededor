@@ -40,6 +40,14 @@ export type CompanyHistoryPanelProps = {
   aiVersions: AiVersionRow[];
   assignments?: AssignmentRow[];
   profiles: Record<string, string>;
+  /**
+   * Quando presente, ativa o modo "escopo por empresa": observações gerais
+   * (sem item_id) só entram se começarem com o prefixo "[<companyName>]".
+   * aiVersions e items já são naturalmente escopados. Sem companyId, o
+   * painel funciona no modo lote (comportamento original).
+   */
+  companyId?: string | null;
+  companyName?: string | null;
 };
 
 type Entry = {
@@ -77,7 +85,10 @@ export function CompanyHistoryPanel({
   aiVersions,
   assignments = [],
   profiles,
+  companyId = null,
+  companyName = null,
 }: CompanyHistoryPanelProps) {
+  const scopedToCompany = !!companyId;
   const itemIds = useMemo(() => new Set(items.map((i) => i.id)), [items]);
   const itemMap = useMemo(() => {
     const m = new Map<string, PaymentItemRow>();
@@ -88,6 +99,7 @@ export function CompanyHistoryPanel({
   const [filterItem, setFilterItem] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
+  const [showLoteEvents, setShowLoteEvents] = useState<boolean>(!scopedToCompany);
   const [expanded, setExpanded] = useState(false);
   const [openEntries, setOpenEntries] = useState<Set<string>>(new Set());
   const toggleEntry = (id: string) =>
@@ -103,10 +115,20 @@ export function CompanyHistoryPanel({
 
     // Observações (manuais e do sistema/IA) — escopo do grupo:
     //  - associadas a itens do grupo (item_id ∈ itemIds), ou
-    //  - sem item_id (comentários gerais do pagamento, exibidos aqui também).
+    //  - sem item_id → comentários gerais do pagamento.
+    // No modo empresa (scopedToCompany), observações sem item_id só entram se
+    // começarem com o prefixo "[<companyName>]" (padrão dos eventos por PJ:
+    // envio para validação, devolução, reanálise etc.). Gerais sem prefixo
+    // ou de OUTRA empresa são descartados — matching frágil por texto, deve
+    // virar coluna company_id no futuro.
+    const companyPrefix = scopedToCompany && companyName ? `[${companyName}]` : null;
     for (const o of observations) {
       const itemBelongs = o.item_id ? itemIds.has(o.item_id) : true;
       if (!itemBelongs) continue;
+      if (scopedToCompany && !o.item_id) {
+        const msg = (o.message ?? "").trimStart();
+        if (!companyPrefix || !msg.startsWith(companyPrefix)) continue;
+      }
       const it = o.item_id ? itemMap.get(o.item_id) : undefined;
       out.push({
         id: `obs-${o.id}`,
@@ -176,43 +198,46 @@ export function CompanyHistoryPanel({
       });
     }
 
-    // Atribuições (assumiu/transferiu) — escopo do lote inteiro, sempre
-    // exibidas (não filtradas por item, pois afetam o lote todo).
-    for (const a of assignments) {
-      const analystName = profiles[a.analyst_id] || "—";
-      const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
-      const isTransfer = a.action === "transferiu";
-      const assignText = `${analystName} ${
-        isTransfer
-          ? `assumiu o lote${prevName ? ` de ${prevName}` : ""}`
-          : "assumiu o lote"
-      }${a.source === "auto" ? " (registro automático na 1ª ação)" : ""}${a.note ? ` — ${a.note}` : ""}.`;
-      out.push({
-        id: `assign-${a.id}`,
-        at: a.created_at,
-        kind: "assign",
-        authorType: isTransfer ? "transferência" : "atribuição",
-        authorName: analystName,
-        itemId: null,
-        itemLabel: null,
-        bodyText: assignText,
-        body: (
-          <p className="whitespace-pre-wrap">
-            <strong>{analystName}</strong>{" "}
-            {isTransfer ? (
-              <>assumiu o lote {prevName ? <>de <strong>{prevName}</strong></> : null}</>
-            ) : (
-              <>assumiu o lote</>
-            )}
-            {a.source === "auto" ? " (registro automático na 1ª ação)" : ""}
-            {a.note ? ` — ${a.note}` : ""}.
-          </p>
-        ),
-      });
+    // Atribuições (assumiu/transferiu) — escopo do lote inteiro.
+    // No modo empresa ficam ocultas por padrão e só aparecem via toggle
+    // "Mostrar eventos do lote".
+    if (!scopedToCompany || showLoteEvents) {
+      for (const a of assignments) {
+        const analystName = profiles[a.analyst_id] || "—";
+        const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
+        const isTransfer = a.action === "transferiu";
+        const assignText = `${analystName} ${
+          isTransfer
+            ? `assumiu o lote${prevName ? ` de ${prevName}` : ""}`
+            : "assumiu o lote"
+        }${a.source === "auto" ? " (registro automático na 1ª ação)" : ""}${a.note ? ` — ${a.note}` : ""}.`;
+        out.push({
+          id: `assign-${a.id}`,
+          at: a.created_at,
+          kind: "assign",
+          authorType: isTransfer ? "transferência" : "atribuição",
+          authorName: analystName,
+          itemId: null,
+          itemLabel: null,
+          bodyText: assignText,
+          body: (
+            <p className="whitespace-pre-wrap">
+              <strong>{analystName}</strong>{" "}
+              {isTransfer ? (
+                <>assumiu o lote {prevName ? <>de <strong>{prevName}</strong></> : null}</>
+              ) : (
+                <>assumiu o lote</>
+              )}
+              {a.source === "auto" ? " (registro automático na 1ª ação)" : ""}
+              {a.note ? ` — ${a.note}` : ""}.
+            </p>
+          ),
+        });
+      }
     }
 
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  }, [observations, aiVersions, assignments, itemIds, itemMap, profiles]);
+  }, [observations, aiVersions, assignments, itemIds, itemMap, profiles, scopedToCompany, companyName, showLoteEvents]);
 
   const filtered = useMemo(() => {
     let out = entries;
@@ -352,6 +377,17 @@ export function CompanyHistoryPanel({
                 <SelectItem value="justificativa_override">Justificativa</SelectItem>
               </SelectContent>
             </Select>
+            {scopedToCompany && (
+              <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={showLoteEvents}
+                  onChange={(e) => setShowLoteEvents(e.target.checked)}
+                />
+                Mostrar eventos do lote
+              </label>
+            )}
             <Button
               size="sm"
               variant="outline"

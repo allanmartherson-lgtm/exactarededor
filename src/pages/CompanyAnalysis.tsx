@@ -2985,7 +2985,10 @@ export default function CompanyAnalysis() {
             aiVersions={aiVersions}
             assignments={assignments}
             profiles={profiles}
+            companyId={group?.company_id ?? null}
+            companyName={group?.company_name ?? null}
           />
+
         </TabsContent>
 
 
