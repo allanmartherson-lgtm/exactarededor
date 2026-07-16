@@ -1404,7 +1404,8 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
     const itemsToReview = __skip_ai || is_dry_run || isConfeccao ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     __telemetry.ai_items_count = itemsToReview.length;
     const __aiStart = Date.now();
-    let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
+    let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string; ai_fallback?: boolean }> = {};
+    const AI_FALLBACK_LEGACY_PREFIX = "Justificativa automática indisponível";
     // Hash canônico do payload da IA por item (short-circuit de cache).
     // Populado abaixo mesmo em cache hit para persistir em payment_items depois.
     const hashByItemId: Record<string, string> = {};
