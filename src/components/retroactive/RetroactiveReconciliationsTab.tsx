@@ -6903,6 +6903,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 {unknown.length === 0 && missingTotal === 0 && ausenteIncomplete.length === 0 && (
                   <span className="text-emerald-700">✓ Todas as linhas classificadas e completas</span>
                 )}
+                {(() => {
+                  const excluidos = (results ?? []).filter((r) => r.excluir_do_encaminhamento).length;
+                  return excluidos > 0 ? (
+                    <span className="text-[12px] text-muted-foreground">· {excluidos} excluído{excluidos === 1 ? "" : "s"} do encaminhamento</span>
+                  ) : null;
+                })()}
               </div>
             );
           })()}
