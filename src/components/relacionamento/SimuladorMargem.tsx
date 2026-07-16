@@ -24,7 +24,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Check, ChevronsUpDown, Save, TrendingUp } from "lucide-react";
+import { AlertCircle, Check, ChevronsUpDown, Save, TrendingUp, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useEnforcedHospitalId } from "@/contexts/HospitalContext";
@@ -65,6 +65,39 @@ const PCT = (v: number | null | undefined) =>
 
 const sumNullable = (arr: (number | null | undefined)[]) =>
   arr.reduce<number>((acc, v) => acc + (v ?? 0), 0);
+
+const normalizeDesc = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+interface CbhpmLookupItem {
+  codigo: string;
+  descricao: string;
+  valor_base: number;
+  norm: string;
+}
+
+interface CenarioSalvo {
+  id: string;
+  nome: string;
+  tipo: "medico" | "procedimento";
+  medico_nome: string | null;
+  procedimento_nome: string | null;
+  ano_referencia: number | null;
+  pct_repasse: number | null;
+  dobra_cbhpm: number | null;
+  via_acesso_pct: number | null;
+  volume_estimado: number | null;
+  margem_simulada: number | null;
+  pct_margem_simulada: number | null;
+  created_at: string;
+  parametros_json: Record<string, unknown> | null;
+}
 
 function Autocomplete({
   value, options, onChange, placeholder, loading,
@@ -151,12 +184,20 @@ export function SimuladorMargem() {
   const [viaAcessoPct, setViaAcessoPct] = useState(0);
   const [volume, setVolume] = useState(0);
   const [cbhpmBase, setCbhpmBase] = useState(0);
+  const [cbhpmMatch, setCbhpmMatch] = useState<{ codigo: string; descricao: string } | null>(null);
+
+  // CBHPM (cache por hospital)
+  const [cbhpmList, setCbhpmList] = useState<CbhpmLookupItem[]>([]);
 
   // Salvar
   const [saveOpen, setSaveOpen] = useState(false);
   const [nomeCenario, setNomeCenario] = useState("");
   const [descCenario, setDescCenario] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Cenários salvos
+  const [cenarios, setCenarios] = useState<CenarioSalvo[]>([]);
+  const [cenariosTick, setCenariosTick] = useState(0);
 
   const tabela = modo === "medico" ? "aurum_margem_medico" : "aurum_margem_procedimento";
   const keyField = modo === "medico" ? "medico_cirurgiao" : "ds_procedimento";
@@ -266,6 +307,82 @@ export function SimuladorMargem() {
     return () => { cancelled = true; };
   }, [hospitalId, selName, ano, modo]);
 
+  // Carrega tabela CBHPM do hospital (uma vez).
+  useEffect(() => {
+    if (!hospitalId) {
+      setCbhpmList([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("cbhpm_tabela" as unknown as never)
+        .select("codigo,descricao,valor_base")
+        .eq("hospital_id", hospitalId)
+        .limit(20000);
+      if (cancelled) return;
+      if (error) {
+        setCbhpmList([]);
+        return;
+      }
+      const rows = (data ?? []) as Array<{ codigo: string; descricao: string; valor_base: number }>;
+      setCbhpmList(rows.map((r) => ({ ...r, norm: normalizeDesc(r.descricao) })));
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+  // Auto-lookup CBHPM ao selecionar procedimento.
+  useEffect(() => {
+    if (modo !== "procedimento" || !selName || cbhpmList.length === 0) {
+      setCbhpmMatch(null);
+      return;
+    }
+    const target = normalizeDesc(selName);
+    if (!target) return;
+    // Match: exato, contém, ou tokens em comum (score simples).
+    let best: { item: CbhpmLookupItem; score: number } | null = null;
+    const targetTokens = new Set(target.split(" ").filter((t) => t.length > 2));
+    for (const item of cbhpmList) {
+      let score = 0;
+      if (item.norm === target) score = 1000;
+      else if (item.norm.includes(target) || target.includes(item.norm)) {
+        score = 500 - Math.abs(item.norm.length - target.length);
+      } else if (targetTokens.size > 0) {
+        const tokens = item.norm.split(" ");
+        let hit = 0;
+        for (const t of tokens) if (targetTokens.has(t)) hit++;
+        if (hit > 0) score = hit * 10 - Math.abs(item.norm.length - target.length) * 0.01;
+      }
+      if (score > 0 && (!best || score > best.score)) best = { item, score };
+    }
+    if (best && best.score >= 20) {
+      setCbhpmMatch({ codigo: best.item.codigo, descricao: best.item.descricao });
+      setCbhpmBase(best.item.valor_base);
+    } else {
+      setCbhpmMatch(null);
+    }
+  }, [modo, selName, cbhpmList]);
+
+  // Carrega cenários salvos.
+  useEffect(() => {
+    if (!hospitalId) {
+      setCenarios([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("simulacao_cenario" as unknown as never)
+        .select("id,nome,tipo,medico_nome,procedimento_nome,ano_referencia,pct_repasse,dobra_cbhpm,via_acesso_pct,volume_estimado,margem_simulada,pct_margem_simulada,created_at,parametros_json")
+        .eq("hospital_id", hospitalId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (cancelled) return;
+      if (!error) setCenarios((data ?? []) as CenarioSalvo[]);
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId, cenariosTick]);
+
   // Agregados Aurum.
   const aur = useMemo(() => {
     if (aurumRows.length === 0) return null;
@@ -344,6 +461,7 @@ export function SimuladorMargem() {
       setSaveOpen(false);
       setNomeCenario("");
       setDescCenario("");
+      setCenariosTick((t) => t + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao salvar cenário.");
     } finally {
@@ -354,6 +472,41 @@ export function SimuladorMargem() {
     pctRepasse, dobra, viaAcessoPct, exactaRepasse, sim, real, carater,
     periodo, faturado, cbhpmBase,
   ]);
+
+  const loadCenario = useCallback((c: CenarioSalvo) => {
+    setModo(c.tipo);
+    const nome = c.tipo === "medico" ? c.medico_nome : c.procedimento_nome;
+    if (nome) setSelName(nome);
+    if (c.ano_referencia) setAno(c.ano_referencia);
+    if (c.pct_repasse != null) setPctRepasse(Number(c.pct_repasse));
+    if (c.dobra_cbhpm != null) setDobra(Number(c.dobra_cbhpm));
+    if (c.via_acesso_pct != null) setViaAcessoPct(Number(c.via_acesso_pct));
+    if (c.volume_estimado != null) setVolume(Number(c.volume_estimado));
+    const params = c.parametros_json ?? {};
+    const cb = (params as Record<string, unknown>).cbhpm_base;
+    if (typeof cb === "number") setCbhpmBase(cb);
+    const kar = (params as Record<string, unknown>).carater;
+    if (typeof kar === "string") setCarater(kar as Carater);
+    const per = (params as Record<string, unknown>).periodo;
+    if (typeof per === "string") setPeriodo(per as Periodo);
+    const fat = (params as Record<string, unknown>).faturado;
+    if (typeof fat === "string") setFaturado(fat as Faturado);
+    toast.success(`Cenário "${c.nome}" carregado.`);
+  }, []);
+
+  const deleteCenario = useCallback(async (c: CenarioSalvo) => {
+    if (!window.confirm(`Excluir o cenário "${c.nome}"? Esta ação não pode ser desfeita.`)) return;
+    const { error } = await supabase
+      .from("simulacao_cenario" as unknown as never)
+      .delete()
+      .eq("id", c.id);
+    if (error) {
+      toast.error(`Falha ao excluir: ${error.message}`);
+      return;
+    }
+    toast.success("Cenário excluído.");
+    setCenariosTick((t) => t + 1);
+  }, []);
 
   const canRender = !!aur && !!selName && !!ano;
 
@@ -580,13 +733,33 @@ export function SimuladorMargem() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">CBHPM base (R$)</Label>
+                      <Label className="text-xs">
+                        CBHPM base (R$)
+                        {cbhpmMatch && (
+                          <span className="ml-1 text-[10px] font-normal text-emerald-600 dark:text-emerald-400">
+                            · auto ({cbhpmMatch.codigo})
+                          </span>
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
                         value={cbhpmBase}
-                        onChange={(e) => setCbhpmBase(Number(e.target.value) || 0)}
+                        onChange={(e) => {
+                          setCbhpmBase(Number(e.target.value) || 0);
+                          setCbhpmMatch(null);
+                        }}
                       />
+                      {cbhpmMatch && (
+                        <p className="text-[10px] text-muted-foreground truncate" title={cbhpmMatch.descricao}>
+                          {cbhpmMatch.descricao}
+                        </p>
+                      )}
+                      {modo === "procedimento" && !cbhpmMatch && selName && cbhpmList.length > 0 && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                          Sem match CBHPM — informe o valor manualmente.
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Volume (cirurgias)</Label>
@@ -660,6 +833,96 @@ export function SimuladorMargem() {
               </CardContent>
             </Card>
           </>
+        )}
+
+        {/* Cenários salvos — sempre visível quando há hospital ativo */}
+        {hospitalId && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+              <CardTitle className="text-base">
+                Cenários Salvos{" "}
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({cenarios.length})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {cenarios.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum cenário salvo ainda. Configure uma simulação acima e clique em "Salvar cenário".
+                </p>
+              ) : (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Médico / Procedimento</TableHead>
+                        <TableHead className="w-16 text-right">Ano</TableHead>
+                        <TableHead className="w-24 text-right">% Repasse</TableHead>
+                        <TableHead className="w-32 text-right">Margem Sim.</TableHead>
+                        <TableHead className="w-32">Criado em</TableHead>
+                        <TableHead className="w-32 text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cenarios.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="text-sm font-medium">{c.nome}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {c.tipo === "medico" ? "Médico" : "Procedimento"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[240px] truncate"
+                            title={c.medico_nome ?? c.procedimento_nome ?? ""}>
+                            {c.medico_nome ?? c.procedimento_nome ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {c.ano_referencia ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {c.pct_repasse != null ? `${c.pct_repasse}%` : "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {BRL(c.margem_simulada)}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(c.created_at).toLocaleDateString("pt-BR")}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => loadCenario(c)}
+                                title="Carregar este cenário no simulador"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                <span className="ml-1 hidden sm:inline">Carregar</span>
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => void deleteCenario(c)}
+                                title="Excluir cenário"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {loadingAurum && (

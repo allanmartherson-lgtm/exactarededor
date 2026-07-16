@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Handshake } from "lucide-react";
 import { AurumMargemUpload } from "@/components/relacionamento/AurumMargemUpload";
 import { SimuladorMargem } from "@/components/relacionamento/SimuladorMargem";
+import { CbhpmTabelaCard } from "@/components/relacionamento/CbhpmTabelaCard";
 
 type TabValue = "simulador-margem" | "bases-aurum";
 
@@ -30,7 +31,12 @@ export default function RelacionamentoHub() {
   const content = useMemo(() => {
     switch (active) {
       case "bases-aurum":
-        return <AurumMargemUpload />;
+        return (
+          <div className="space-y-6">
+            <AurumMargemUpload />
+            <CbhpmTabelaCard />
+          </div>
+        );
       case "simulador-margem":
         return <SimuladorMargem />;
     }
