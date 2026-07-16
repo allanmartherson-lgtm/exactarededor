@@ -529,7 +529,7 @@ export function SimuladorCenario() {
     } finally {
       setSimulando(false);
     }
-  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo]);
+  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater]);
 
   const salvarCenario = useCallback(async () => {
     if (!resultado || !hospitalId) return;
