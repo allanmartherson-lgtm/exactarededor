@@ -21,8 +21,7 @@ export type DebtInput = {
 
 export type ApplicationDecision =
   | { debt_id: string; action: "proposto"; valor: number; parcela_numero: number; parcelas_total: number }
-  | { debt_id: string; action: "partial"; valor: number; parcela_numero: number; parcelas_total: number; parcela_prevista: number }
-  | { debt_id: string; action: "postponed"; reason: "insufficient_net"; parcela_numero: number; parcelas_total: number }
+  | { debt_id: string; action: "postponed"; reason: "insufficient_net"; parcela_numero: number; parcelas_total: number; parcela_prevista?: number }
   | { debt_id: string; action: "skipped_completed" };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -50,28 +49,17 @@ export function decideGlosaApplications(
     }
     const parcelaPrevista = round2(Number(debt.total_debt) / parcelas);
 
-    if (capacidade <= 0.01) {
+    // Regra de negócio (07/2026): sem aplicação parcial. Se a capacidade
+    // não cobre a parcela inteira (ou está esgotada), adia integralmente.
+    if (capacidade <= 0.01 || parcelaPrevista > capacidade) {
       decisions.push({
         debt_id: debt.id,
         action: "postponed",
         reason: "insufficient_net",
         parcela_numero: parcelaNumero,
         parcelas_total: parcelas,
-      });
-      continue;
-    }
-
-    if (parcelaPrevista > capacidade) {
-      const parcial = round2(capacidade);
-      decisions.push({
-        debt_id: debt.id,
-        action: "partial",
-        valor: parcial,
-        parcela_numero: parcelaNumero,
-        parcelas_total: parcelas,
         parcela_prevista: parcelaPrevista,
       });
-      capacidade = 0;
       continue;
     }
 
