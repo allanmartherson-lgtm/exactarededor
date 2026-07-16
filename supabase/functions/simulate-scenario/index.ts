@@ -139,7 +139,7 @@ function buildSyntheticRule(scenario: Scenario): RuleInput {
     limiar_bloqueio_tipo: null,
     limiar_bloqueio_valor: null,
     prevent_external_fallback: false,
-    special_case_filter: ["*"],
+    special_case_filter: null,
   } as RuleInput;
 }
 
