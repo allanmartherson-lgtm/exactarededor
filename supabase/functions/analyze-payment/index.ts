@@ -1535,7 +1535,9 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           });
         }
 
-        // Lookup do cache: itens prévios com o mesmo hash e ai_findings.ai preenchido.
+        // Lookup do cache: itens prévios com o mesmo hash e ai_findings.engine.ai_note preenchido.
+        // Pula linhas marcadas como fallback (ai_fallback=true) e o legado com o
+        // prefixo determinístico — fallback nunca pode virar "análise real" via cache.
         if (!__force_fresh) {
           const hashList = Array.from(new Set(Object.values(hashByItemId).filter(Boolean)));
           if (hashList.length > 0) {
@@ -1549,10 +1551,14 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
             for (const row of (cacheRows ?? []) as any[]) {
               const h = row.ai_input_hash as string;
               if (!h || cacheByHash[h]) continue;
-              const aiBlock = row.ai_findings?.ai;
-              const note = typeof aiBlock?.note === "string" ? aiBlock.note : null;
+              const engineBlock = row.ai_findings?.engine;
+              if (engineBlock?.ai_fallback === true) continue;
+              const note = typeof engineBlock?.ai_note === "string" ? engineBlock.ai_note : null;
               if (!note) continue;
-              const extras = Array.isArray(aiBlock?.extra_alerts) ? aiBlock.extra_alerts : [];
+              if (note.startsWith(AI_FALLBACK_LEGACY_PREFIX)) continue;
+              const extras = Array.isArray(row.ai_findings?.alerts)
+                ? row.ai_findings.alerts.filter((a: unknown) => typeof a === "string")
+                : [];
               cacheByHash[h] = { ai_note: note, extra_alerts: extras };
             }
             const missing: typeof itemsForAi = [];
