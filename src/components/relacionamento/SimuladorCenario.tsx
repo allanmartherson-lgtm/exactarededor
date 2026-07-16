@@ -684,26 +684,51 @@ export function SimuladorCenario() {
         novoHm = baseConvenio * (pctNovo / 100);
         itensCalculados = detalhes.length;
       } else {
-        // Carrega valores da tabela de referência escolhida.
+        // Espelha o motor real (supabase/functions/analyze-payment/index.ts:934-976):
+        // busca somente os códigos presentes nos itens (evita cap de 1000 rows
+        // do PostgREST) e resolve valor role-specific (`code|role`) antes do
+        // fallback para valor genérico.
+        const codesInItems = Array.from(new Set(
+          detalhes.map((d) => (d.procedure_code ?? "").trim()).filter(Boolean),
+        ));
         const tabelaValores = new Map<string, number>();
-        if (refTableId) {
-          const { data: refItems } = await supabase
-            .from("reference_table_items")
-            .select("code,amount,tuss_codes")
-            .eq("reference_table_id", refTableId);
-          for (const r of (refItems ?? []) as Array<{ code: string | null; amount: number | null; tuss_codes: string[] | null }>) {
-            const v = Number(r.amount ?? 0);
-            if (!v) continue;
-            if (r.code) tabelaValores.set(String(r.code).trim(), v);
-            for (const tc of r.tuss_codes ?? []) {
-              if (tc) tabelaValores.set(String(tc).trim(), v);
+        if (refTableId && codesInItems.length > 0) {
+          // Blocos de 500 pra não estourar tamanho da URL em `in()`.
+          const chunk = 500;
+          for (let i = 0; i < codesInItems.length; i += chunk) {
+            const slice = codesInItems.slice(i, i + chunk);
+            const { data: refItems, error: refErr } = await supabase
+              .from("reference_table_items")
+              .select("code,amount,package_amount,role")
+              .eq("reference_table_id", refTableId)
+              .in("code", slice);
+            if (refErr) throw refErr;
+            for (const r of (refItems ?? []) as Array<{ code: string | null; amount: number | null; package_amount: number | null; role: string | null }>) {
+              const code = String(r.code ?? "").trim();
+              if (!code) continue;
+              const v = Number(r.amount ?? r.package_amount ?? 0);
+              if (!v) continue;
+              const roleNorm = r.role
+                ? r.role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+                : null;
+              const key = roleNorm ? `${code}|${roleNorm}` : code;
+              tabelaValores.set(key, v);
             }
           }
         }
+        const lookup = (code: string, role: string | null | undefined): number => {
+          const c = code.trim();
+          if (!c) return 0;
+          if (role) {
+            const rNorm = role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const rv = tabelaValores.get(`${c}|${rNorm}`);
+            if (rv != null) return rv;
+          }
+          return tabelaValores.get(c) ?? 0;
+        };
         const fatorParam = multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
         for (const it of detalhes) {
-          const code = (it.procedure_code ?? "").trim();
-          const valorTuss = code ? tabelaValores.get(code) ?? 0 : 0;
+          const valorTuss = lookup(it.procedure_code ?? "", it.doctor_role);
           if (!valorTuss) { itensSemTabela += 1; continue; }
           const fRole = roleFactor(it.doctor_role);
           const fVia = viaFactor(it.access_route);
@@ -721,13 +746,16 @@ export function SimuladorCenario() {
       } else if (modelo === "percentual") {
         aviso = `Percentual sobre convênio: ${pctNovo}% aplicado sobre a base do convênio (Σ procedure_amount = ${BRL(baseConvenio)}). Fator efetivo pago hoje: ${(fatorEfetivo * 100).toFixed(1)}%.`;
       } else {
+        const cobertura = detalhes.length > 0 ? (itensCalculados / detalhes.length) * 100 : 0;
         const partes = [
-          `Tabela diferenciada: valor de cada TUSS × multiplicador ${multiplicador} × deflator ${deflator}% × acréscimo ${acrescimo}%, ponderado por função (CBHPM padrão) e via de acesso.`,
-          `${itensCalculados} de ${detalhes.length} itens calculados${itensSemTabela ? ` — ${itensSemTabela} sem código na tabela de referência` : ""}.`,
-          !refTableId ? "⚠ Selecione uma tabela de referência para calcular." : "",
+          `Tabela diferenciada: valor de cada TUSS × mult ${multiplicador} × (1-defl ${deflator}%) × (1+acr ${acrescimo}%), ponderado por função e via.`,
+          `${itensCalculados}/${detalhes.length} itens calculados (${cobertura.toFixed(0)}% de cobertura)${itensSemTabela ? ` — ${itensSemTabela} sem match na tabela` : ""}.`,
+          !refTableId ? "⚠ Selecione uma tabela de referência." : "",
+          itensSemTabela > 0 && refTableId ? "⚠ Cobertura parcial subestima o Simulado — verifique se a tabela cobre todos os TUSS do período." : "",
         ].filter(Boolean);
         aviso = partes.join(" ");
       }
+
 
 
 
