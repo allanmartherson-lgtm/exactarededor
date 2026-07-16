@@ -580,15 +580,20 @@ export function SimuladorCenario() {
       }
 
       // 3) Cálculo do cenário simulado.
-      // Base = valor do CONVÊNIO (procedure_amount), NÃO o expected_amount (que já
-      // é o valor calculado pela regra atual e coincide com o gross quando 100%).
+      // Base = valor do CONVÊNIO (procedure_amount). Aplicamos também o
+      // "fator efetivo real" observado no pagamento (gross / procedure_amount),
+      // que embute o peso de via de acesso, % de auxiliares, exclusões e
+      // demais deflatores que o convênio/acordo aplicou. Sem isso a simulação
+      // trata todo item como 100% convênio (principal, via única) e infla.
       const baseConvenio = exacta?.baseConvenio ?? 0;
+      const grossReal = exacta?.gross ?? 0;
+      const fatorEfetivo = baseConvenio > 0 ? grossReal / baseConvenio : 1;
       let novoHm = 0;
       if (modelo === "percentual") {
-        novoHm = baseConvenio * (pctNovo / 100);
+        novoHm = baseConvenio * (pctNovo / 100) * fatorEfetivo;
       } else {
         // Tabela diferenciada — sem lookup TUSS direto ainda; usa base convênio como referência.
-        novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
+        novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100) * fatorEfetivo;
       }
       const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
       const novaPct = aurum.receita_liquida > 0 ? novaMargem / aurum.receita_liquida : 0;
@@ -597,7 +602,7 @@ export function SimuladorCenario() {
         ? "Sem itens do Exacta para este médico/procedimento no ano. HM Exacta real e Simulado indisponíveis (base convênio zerada)."
         : baseConvenio <= 0
           ? "Itens do Exacta encontrados, mas sem procedure_amount (base convênio) — Simulado zerado."
-          : undefined;
+          : `Simulado ponderado pelo fator efetivo real ${(fatorEfetivo * 100).toFixed(1)}% (gross/base convênio), preservando peso de via de acesso, % de auxiliares e demais deflatores aplicados no pagamento.`;
 
       setResultado({
         nome: nomeSelecionado,
