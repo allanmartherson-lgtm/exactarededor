@@ -3837,7 +3837,7 @@ export function PaymentConciliationModal({
         try {
           const { data } = await supabase
             .from('payment_items')
-            .select('doctor_role, sector, specialty, convenio_id, attendance_character')
+            .select('doctor_role, sector, specialty, convenio_slug, attendance_character')
             .eq('payment_id', paymentId)
             .eq('company_name', item.company_name ?? '')
             .eq('attendance_number', item.attendance_number ?? '')
