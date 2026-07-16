@@ -41,6 +41,7 @@ import {
   HeadsetIcon,
   ListChecksIcon,
   ChatsIcon,
+  Handshake,
 } from "@/config/icons/navIcons";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
