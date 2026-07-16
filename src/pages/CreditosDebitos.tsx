@@ -2363,6 +2363,45 @@ export default function CreditosDebitos() {
         companyNameById={Object.fromEntries(companies.map(c => [c.id, c.name]))}
         paymentLabelById={paymentLabels}
       />
+
+      {/* Diálogo de reversão de glosa — substitui window.prompt, bloqueado no preview em iframe. */}
+      <Dialog open={!!revertTarget} onOpenChange={(o) => { if (!o && !reverting) { setRevertTarget(null); setRevertReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reverter glosa</DialogTitle>
+          </DialogHeader>
+          {revertTarget && (
+            <div className="space-y-3 text-sm">
+              <p>
+                Reverter glosa de <strong>{revertTarget.doctor_name}</strong> ({brl(revertTarget.total_debt)}).
+              </p>
+              <p className="text-muted-foreground text-xs">
+                A dívida e todas as deduções ativas serão canceladas. Se veio da conciliação e o lote de origem
+                ainda está em análise, o item volta para "Só no Exacta".
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="revert-reason">Motivo (obrigatório)</Label>
+                <Textarea
+                  id="revert-reason"
+                  value={revertReason}
+                  onChange={(e) => setRevertReason(e.target.value)}
+                  placeholder="Ex.: reclassificar como cancelamento de item na conciliação"
+                  rows={3}
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRevertTarget(null); setRevertReason(""); }} disabled={reverting}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmRevertGlosa} disabled={reverting || !revertReason.trim()}>
+              {reverting ? "Revertendo…" : "Reverter glosa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
