@@ -613,7 +613,7 @@ export function SimuladorMargem() {
               <TableBody>
                 {linhasOrdenadas.length === 0 && !loadingAurum && (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={11} className="py-10 text-center text-sm text-muted-foreground">
                       Nenhuma linha para os filtros escolhidos.
                     </TableCell>
                   </TableRow>
