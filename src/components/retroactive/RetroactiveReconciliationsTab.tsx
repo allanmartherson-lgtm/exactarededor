@@ -54,6 +54,8 @@ import {
   CalendarIcon,
   PercentIcon,
   PackageIcon,
+  BanIcon,
+  RotateCcwIcon,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -2218,6 +2220,9 @@ export type TvrResult = {
     | "outro"
     | null;
   exclusion_note?: string | null;
+  // T3: id da linha em retroactive_reconciliation_items (necessário
+  // p/ UPDATEs de exclusão — matched_payment_item_id NÃO serve como PK).
+  _retroReconRowId?: string;
 };
 
 // Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
@@ -3195,6 +3200,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // isso, apurações grandes ficam truncadas em "1000 de 1000".
     const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
     const savedItems = await fetchAllPaginated<{
+      id: string;
       raw?: { tvr_result?: unknown };
       excluir_do_encaminhamento?: boolean | null;
       exclusion_reason?: TvrResult["exclusion_reason"] | null;
@@ -3217,6 +3223,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           excluir_do_encaminhamento: Boolean(item.excluir_do_encaminhamento),
           exclusion_reason: item.exclusion_reason ?? null,
           exclusion_note: item.exclusion_note ?? null,
+          _retroReconRowId: item.id,
         } as TvrResult;
       })
       .filter((x): x is TvrResult => x !== null);
@@ -5921,6 +5928,120 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   // apuração/glosa — a listagem principal continua exibindo tudo.
   const notExcluded = (r: TvrResult) => !r.excluir_do_encaminhamento;
 
+  // ============================================================
+  // T3 — Exclusão manual do encaminhamento (UI)
+  // ============================================================
+  type ExclusionReason =
+    | "mudanca_data_administrativa"
+    | "cancelamento_externo"
+    | "duplicidade_ja_resolvida"
+    | "acordo_diferenciado"
+    | "outro";
+
+  const REASON_LABEL: Record<ExclusionReason, string> = {
+    mudanca_data_administrativa: "Mudança administrativa de data",
+    cancelamento_externo: "Cancelamento externo",
+    duplicidade_ja_resolvida: "Duplicidade já resolvida",
+    acordo_diferenciado: "Acordo diferenciado",
+    outro: "Outro",
+  };
+  const reasonLabel = (r?: TvrResult["exclusion_reason"]) =>
+    r ? REASON_LABEL[r as ExclusionReason] ?? "Excluído" : "Excluído";
+
+  const [excludeDialog, setExcludeDialog] = useState<{ open: boolean; targetIds: string[] }>({
+    open: false,
+    targetIds: [],
+  });
+  const [excludeReason, setExcludeReason] = useState<ExclusionReason | "">("");
+  const [excludeNote, setExcludeNote] = useState("");
+  const [excluding, setExcluding] = useState(false);
+
+  const openExcludeDialog = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setExcludeReason("");
+    setExcludeNote("");
+    setExcludeDialog({ open: true, targetIds: ids });
+  };
+
+  const markExcluded = async (
+    itemIds: string[],
+    reason: ExclusionReason,
+    note: string | null,
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (itemIds.length === 0) return { ok: true };
+    if (reason === "outro" && !(note && note.trim().length > 0)) {
+      return { ok: false, error: "Observação é obrigatória para 'Outro'." };
+    }
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) return { ok: false, error: "Usuário não autenticado." };
+    const trimmed = note?.trim() || null;
+    const { error } = await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .update({
+        excluir_do_encaminhamento: true,
+        exclusion_reason: reason,
+        exclusion_note: trimmed,
+        excluded_by: uid,
+        excluded_at: new Date().toISOString(),
+      } as never)
+      .in("id", itemIds);
+    if (error) return { ok: false, error: error.message };
+    const idSet = new Set(itemIds);
+    setResults((prev) =>
+      prev?.map((r) =>
+        r._retroReconRowId && idSet.has(r._retroReconRowId)
+          ? { ...r, excluir_do_encaminhamento: true, exclusion_reason: reason, exclusion_note: trimmed }
+          : r,
+      ) ?? prev,
+    );
+    return { ok: true };
+  };
+
+  const unmarkExcluded = async (
+    itemIds: string[],
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (itemIds.length === 0) return { ok: true };
+    const { error } = await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .update({
+        excluir_do_encaminhamento: false,
+        exclusion_reason: null,
+        exclusion_note: null,
+        excluded_by: null,
+        excluded_at: null,
+      } as never)
+      .in("id", itemIds);
+    if (error) return { ok: false, error: error.message };
+    const idSet = new Set(itemIds);
+    setResults((prev) =>
+      prev?.map((r) =>
+        r._retroReconRowId && idSet.has(r._retroReconRowId)
+          ? { ...r, excluir_do_encaminhamento: false, exclusion_reason: null, exclusion_note: null }
+          : r,
+      ) ?? prev,
+    );
+    return { ok: true };
+  };
+
+  const confirmExcludeDialog = async () => {
+    if (!excludeReason) return;
+    setExcluding(true);
+    const res = await markExcluded(excludeDialog.targetIds, excludeReason as ExclusionReason, excludeNote);
+    setExcluding(false);
+    if (!res.ok) {
+      toast({ title: "Falha ao excluir do encaminhamento", description: res.error, variant: "destructive" });
+      return;
+    }
+    // Ao excluir em lote (via selectedKeys), limpa seleção.
+    if (excludeDialog.targetIds.length > 1) {
+      setSelectedKeys(new Set());
+    }
+    setExcludeDialog({ open: false, targetIds: [] });
+    toast({ title: excludeDialog.targetIds.length === 1 ? "Item excluído do encaminhamento" : `${excludeDialog.targetIds.length} itens excluídos do encaminhamento` });
+  };
+
+
   // ===== Agrupamento por médico (apuração só-PJ) =====
   type GlosaGroup = {
     doctor_id: string;
@@ -6679,11 +6800,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         )}
         {results && !isLocked && (
           <div className="ml-auto flex items-center gap-2">
-            {selectedKeys.size > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setSelectedKeys(new Set())}>
-                Limpar seleção
-              </Button>
-            )}
+            {selectedKeys.size > 0 && (() => {
+              // T3: dos selecionados, só os que NÃO estão excluídos e têm row id no banco
+              // podem virar "excluir do encaminhamento" em lote.
+              const excludableIds = (results ?? [])
+                .filter((r) => selectedKeys.has(r.key) && !r.excluir_do_encaminhamento && r._retroReconRowId)
+                .map((r) => r._retroReconRowId!) as string[];
+              return (
+                <>
+                  <span className="text-[11px] text-muted-foreground">{selectedKeys.size} selecionado(s)</span>
+                  {excludableIds.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openExcludeDialog(excludableIds)}
+                      title="Marcar os selecionados como fora do encaminhamento (permanecem visíveis na lista)"
+                    >
+                      <BanIcon className="h-4 w-4 mr-1" />
+                      Excluir do encaminhamento ({excludableIds.length})
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedKeys(new Set())}>
+                    Limpar seleção
+                  </Button>
+                </>
+              );
+            })()}
             <Button
               size="sm"
               onClick={() => setEncaminharOpen(true)}
@@ -6761,6 +6903,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                 {unknown.length === 0 && missingTotal === 0 && ausenteIncomplete.length === 0 && (
                   <span className="text-emerald-700">✓ Todas as linhas classificadas e completas</span>
                 )}
+                {(() => {
+                  const excluidos = (results ?? []).filter((r) => r.excluir_do_encaminhamento).length;
+                  return excluidos > 0 ? (
+                    <span className="text-[12px] text-muted-foreground">· {excluidos} excluído{excluidos === 1 ? "" : "s"} do encaminhamento</span>
+                  ) : null;
+                })()}
               </div>
             );
           })()}
@@ -7174,7 +7322,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     </TableHead>
                     <TableHead className="w-10 text-center">
                       {(() => {
-                        const selectableKeys = visible.filter(isActionableTvr).map((r) => r.key);
+                        // T3: "selecionar todos" ignora itens já excluídos do encaminhamento.
+                        const selectableKeys = visible.filter((r) => isActionableTvr(r) && !r.excluir_do_encaminhamento).map((r) => r.key);
                         const allSelected = selectableKeys.length > 0 && selectableKeys.every((k) => selectedKeys.has(k));
                         const someSelected = selectableKeys.some((k) => selectedKeys.has(k));
                         return (
@@ -7215,9 +7364,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       : acao.kind === "complementar" ? "text-orange-700"
                       : acao.kind === "validar" ? "text-amber-700"
                       : "text-muted-foreground";
+                    const isExcluded = !!r.excluir_do_encaminhamento;
+                    const canExclude = !isLocked && !isExcluded && !!r._retroReconRowId;
+                    const canReinclude = !isLocked && isExcluded && !!r._retroReconRowId;
                     return (
                     <React.Fragment key={r.key}>
-                    <TableRow data-state={selectedKeys.has(r.key) ? "selected" : undefined}>
+                    <TableRow
+                      data-state={selectedKeys.has(r.key) ? "selected" : undefined}
+                      className={cn(isExcluded && "opacity-60 text-muted-foreground")}
+                    >
                       <TableCell className="text-center align-top">
                         <button
                           type="button"
@@ -7230,7 +7385,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         </button>
                       </TableCell>
                       <TableCell className="text-center align-top">
-                        {selectable ? (
+                        {selectable && !isExcluded ? (
                           <Checkbox
                             checked={selectedKeys.has(r.key)}
                             onCheckedChange={(v) => {
@@ -7282,11 +7437,56 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         <TableCell key={c.key} className={cn("align-top", c.className)}>{c.cell(r)}</TableCell>
                       ))}
                       <TableCell
-                        className={cn("align-top", acaoTone, (acao.kind === "recuperar" || acao.kind === "complementar") && "font-semibold")}
-                        title={acao.hint}
+                        className={cn("align-top", !isExcluded && acaoTone, !isExcluded && (acao.kind === "recuperar" || acao.kind === "complementar") && "font-semibold")}
+                        title={isExcluded ? r.exclusion_note || undefined : acao.hint}
                       >
-                        <div className="text-[12px] leading-tight">{acao.label}</div>
-                        <div className="text-[10px] text-muted-foreground font-normal leading-tight mt-0.5">{acao.hint}</div>
+                        {isExcluded ? (
+                          <div className="space-y-1">
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-900 text-[10px] font-medium">
+                              Excluído · {reasonLabel(r.exclusion_reason)}
+                            </Badge>
+                            {r.exclusion_note && (
+                              <div className="text-[10px] text-muted-foreground italic leading-tight" title={r.exclusion_note}>
+                                {r.exclusion_note}
+                              </div>
+                            )}
+                            {canReinclude && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={async () => {
+                                  const res = await unmarkExcluded([r._retroReconRowId!]);
+                                  if (!res.ok) {
+                                    toast({ title: "Falha ao reincluir", description: res.error, variant: "destructive" });
+                                  } else {
+                                    toast({ title: "Item reincluído no encaminhamento" });
+                                  }
+                                }}
+                              >
+                                <RotateCcwIcon className="h-3.5 w-3.5 mr-1" />
+                                Reincluir
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="text-[12px] leading-tight">{acao.label}</div>
+                            <div className="text-[10px] text-muted-foreground font-normal leading-tight">{acao.hint}</div>
+                            {canExclude && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                                onClick={() => openExcludeDialog([r._retroReconRowId!])}
+                                title="Marcar este item como fora do encaminhamento (permanece visível na lista)"
+                              >
+                                <BanIcon className="h-3.5 w-3.5 mr-1" />
+                                Não encaminhar
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
@@ -7415,6 +7615,71 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           />
         );
       })()}
+
+      {/* T3 — Dialog de motivo para exclusão do encaminhamento */}
+      <Dialog
+        open={excludeDialog.open}
+        onOpenChange={(v) => {
+          if (excluding) return;
+          if (!v) setExcludeDialog({ open: false, targetIds: [] });
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {excludeDialog.targetIds.length === 1
+                ? "Excluir do encaminhamento"
+                : `Excluir ${excludeDialog.targetIds.length} itens do encaminhamento`}
+            </DialogTitle>
+            <DialogDescription>
+              Os itens somem da apuração mas continuam visíveis na lista.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Motivo</Label>
+              <Select value={excludeReason} onValueChange={(v) => setExcludeReason(v as ExclusionReason)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o motivo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mudanca_data_administrativa">Mudança administrativa de data</SelectItem>
+                  <SelectItem value="cancelamento_externo">Cancelamento externo</SelectItem>
+                  <SelectItem value="duplicidade_ja_resolvida">Duplicidade já resolvida</SelectItem>
+                  <SelectItem value="acordo_diferenciado">Acordo diferenciado</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                {excludeReason === "outro" ? "Observação (obrigatória)" : "Observação (opcional)"}
+              </Label>
+              <Textarea
+                value={excludeNote}
+                onChange={(e) => setExcludeNote(e.target.value)}
+                placeholder="Ex: data alterada em 12/07 conforme conferência com o setor…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExcludeDialog({ open: false, targetIds: [] })} disabled={excluding}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void confirmExcludeDialog()}
+              disabled={
+                excluding ||
+                !excludeReason ||
+                (excludeReason === "outro" && excludeNote.trim().length === 0)
+              }
+            >
+              {excluding ? "Excluindo…" : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
