@@ -32,6 +32,57 @@ import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { cn } from "@/lib/utils";
 import { normAccessRoute } from "@/lib/normAccessRoute";
 
+// Input decimal tolerante: aceita vírgula ou ponto, permite ficar vazio
+// enquanto o usuário digita (ex.: apagar o 0 para digitar 5, ou digitar
+// "1," antes do "5"). Só reporta um número válido; enquanto o texto for
+// parcial/vazio mantém o último número (não força "0" no meio da edição).
+function DecimalInput({
+  value,
+  onChange,
+  step = "0.1",
+  className,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  step?: string;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState<string>(() => String(value));
+  // Ressincroniza quando o valor externo muda por outro caminho (reset, etc.)
+  useEffect(() => {
+    const parsed = Number(draft.replace(",", "."));
+    if (!Number.isFinite(parsed) || parsed !== value) {
+      setDraft(String(value));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      step={step}
+      className={className}
+      value={draft}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw.trim() === "") return; // não força número enquanto vazio
+        const n = Number(raw.replace(",", "."));
+        if (Number.isFinite(n)) onChange(n);
+      }}
+      onBlur={() => {
+        const n = Number(draft.replace(",", "."));
+        if (!Number.isFinite(n)) {
+          setDraft(String(value));
+        } else {
+          onChange(n);
+          setDraft(String(n));
+        }
+      }}
+    />
+  );
+}
+
 // ---- Fatores CBHPM para o Simulado (padrão AMB/CBHPM 2018) ----
 // Percentual do valor do procedimento devido a cada função da equipe.
 // Cirurgião principal recebe 100%; auxiliares em cascata; anestesista 30%.
@@ -1031,10 +1082,7 @@ export function SimuladorCenario() {
             {modelo === "percentual" ? (
               <div className="max-w-[8rem]">
                 <Label className="text-xs">Novo %</Label>
-                <Input
-                  type="number" step="0.1" value={pctNovo}
-                  onChange={(e) => setPctNovo(Number(e.target.value))}
-                />
+                <DecimalInput value={pctNovo} onChange={setPctNovo} />
               </div>
             ) : (
               <>
@@ -1053,15 +1101,15 @@ export function SimuladorCenario() {
                 </div>
                 <div className="max-w-[7rem]">
                   <Label className="text-xs">Multiplicador (x)</Label>
-                  <Input type="number" step="0.1" value={multiplicador} onChange={(e) => setMultiplicador(Number(e.target.value))} />
+                  <DecimalInput value={multiplicador} onChange={setMultiplicador} />
                 </div>
                 <div className="max-w-[7rem]">
                   <Label className="text-xs">Deflator (%)</Label>
-                  <Input type="number" step="0.1" value={deflator} onChange={(e) => setDeflator(Number(e.target.value))} />
+                  <DecimalInput value={deflator} onChange={setDeflator} />
                 </div>
                 <div className="max-w-[7rem]">
                   <Label className="text-xs">Acréscimo (%)</Label>
-                  <Input type="number" step="0.1" value={acrescimo} onChange={(e) => setAcrescimo(Number(e.target.value))} />
+                  <DecimalInput value={acrescimo} onChange={setAcrescimo} />
                 </div>
               </>
             )}
