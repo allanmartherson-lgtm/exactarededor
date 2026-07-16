@@ -318,9 +318,17 @@ export function SimuladorMargem() {
       };
     };
 
+    // Linhas "Total" no Aurum são totalizadores gerais da planilha — ignoramos
+    // para não poluir o comparativo (nunca terão match no Exacta e distorcem KPIs).
+    const isTotalRow = (nome: string | null | undefined) => {
+      const n = norm(nome);
+      return !n || n === "total" || n.startsWith("total ");
+    };
+
     if (modo === "medico") {
       for (const row of aurumMedico) {
         const nome = row.medico_cirurgiao;
+        if (isTotalRow(nome)) continue;
         const hit = exactaIndex.porMedico.get(norm(nome));
         const ex = hit
           ? { total: hit.total, itens: hit.itens, atendimentos: hit.atendimentos.size }
@@ -340,6 +348,7 @@ export function SimuladorMargem() {
 
       for (const row of aurumProc) {
         const nome = row.ds_procedimento;
+        if (isTotalRow(nome)) continue;
         const target = norm(nome);
         // encontra os melhores procedure_name Exacta
         const matched = new Set<string>();
@@ -586,7 +595,7 @@ export function SimuladorMargem() {
                   <TableHead className="text-right">Margem Aurum</TableHead>
                   <TableHead className="text-right">Margem Recalc</TableHead>
                   <TableHead className="text-right">Δ Margem</TableHead>
-                  <TableHead className="text-right">% Margem</TableHead>
+                  <TableHead className="text-right">Δ % Margem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -614,13 +623,37 @@ export function SimuladorMargem() {
                       </TableCell>
                       <TableCell className="text-right">{NUM(l.qtd_cirurgias)}</TableCell>
                       <TableCell className="text-right">{BRL(l.receita_liquida)}</TableCell>
-                      <TableCell className="text-right">{BRL(l.custo_total_aurum)}</TableCell>
-                      <TableCell className="text-right">{BRL(l.custo_hm_aurum)}</TableCell>
-                      <TableCell className={cn("text-right", semMatch ? "text-muted-foreground" : "font-medium")}>
-                        {BRL(l.hm_exacta_real)}
+                      <TableCell className="text-right">
+                        <div>{BRL(l.custo_total_aurum)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {l.receita_liquida > 0 ? PCT(l.custo_total_aurum / l.receita_liquida) : "—"}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right">{BRL(l.margem_aurum)}</TableCell>
-                      <TableCell className="text-right">{BRL(l.margem_recalc)}</TableCell>
+                      <TableCell className="text-right">
+                        <div>{BRL(l.custo_hm_aurum)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {l.receita_liquida > 0 ? PCT(l.custo_hm_aurum / l.receita_liquida) : "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell className={cn("text-right", semMatch ? "text-muted-foreground" : "font-medium")}>
+                        <div>{BRL(l.hm_exacta_real)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {!semMatch && l.receita_liquida > 0 && l.hm_exacta_real != null
+                            ? PCT(l.hm_exacta_real / l.receita_liquida)
+                            : "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div>{BRL(l.margem_aurum)}</div>
+                        <div className="text-[10px] text-muted-foreground">{PCT(l.pct_margem_aurum)}</div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div>{BRL(l.margem_recalc)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {l.pct_margem_recalc != null ? PCT(l.pct_margem_recalc) : "—"}
+                        </div>
+                      </TableCell>
+
                       <TableCell className={cn(
                         "text-right font-semibold",
                         (l.delta_margem ?? 0) > 0 ? "text-emerald-600" : (l.delta_margem ?? 0) < 0 ? "text-red-600" : "",
@@ -628,11 +661,11 @@ export function SimuladorMargem() {
                         {BRL(l.delta_margem)}
                       </TableCell>
                       <TableCell className="text-right text-xs">
-                        <div>{PCT(l.pct_margem_aurum)}</div>
-                        {l.pct_margem_recalc != null && (
-                          <div className="text-muted-foreground">→ {PCT(l.pct_margem_recalc)}</div>
-                        )}
+                        {l.pct_margem_recalc != null && l.pct_margem_aurum
+                          ? PCT(l.pct_margem_recalc - l.pct_margem_aurum)
+                          : "—"}
                       </TableCell>
+
                     </TableRow>
                   );
                 })}
