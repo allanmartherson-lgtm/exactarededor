@@ -789,6 +789,17 @@ export function SimuladorMargem() {
         </CardContent>
       </Card>
 
+      {selectedLinha && (
+        <SimuladorDetalhe
+          linha={selectedLinha}
+          modo={modo}
+          hospitalId={hospitalId}
+          onClose={() => setSelectedLinha(null)}
+        />
+      )}
+
+
+
       <div className="text-xs text-muted-foreground">
         Fase 2 (próxima): base histórica de simulação por atendimento para cada médico/procedimento.
         Fase 3: motor de simulação com modelos <em>percentual convênio</em>, <em>tabela diferenciada</em> e <em>valor fixo</em>.
