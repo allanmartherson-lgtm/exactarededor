@@ -1681,7 +1681,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         for (const item of chunk) {
           aiJustifications[item.id] = {
             extra_alerts: [],
-            ai_note: `Justificativa automática indisponível (${reason}). Decisão mantida pelo motor determinístico.`,
+            ai_note: `${AI_FALLBACK_LEGACY_PREFIX} (${reason}). Decisão mantida pelo motor determinístico.`,
+            ai_fallback: true,
           };
         }
         summaries.push(`IA indisponível em parte da análise (${reason}); valores e status foram mantidos pelo motor determinístico.`);
