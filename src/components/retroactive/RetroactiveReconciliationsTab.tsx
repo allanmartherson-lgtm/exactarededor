@@ -6369,6 +6369,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     };
   };
 
+  const desfazerEncaminhamento = async (): Promise<void> => {
+    if (!id || !recon?.summary) return;
+    const ok = window.confirm(
+      "Desfazer o encaminhamento desta apuração?\n\n" +
+      "A marca de 'encaminhada' será removida e a apuração volta a ficar editável. " +
+      "O histórico de processamentos e escopo selecionado são preservados. " +
+      "Nenhum ajuste é revertido (este encaminhamento não gerou ajuste — apenas sugestão de confecção).",
+    );
+    if (!ok) return;
+    const currentSummary = recon.summary as Record<string, unknown>;
+    const nextSummary = { ...currentSummary };
+    delete nextSummary.handoff;
+    const { error } = await supabase
+      .from("retroactive_reconciliations" as never)
+      .update({ summary: nextSummary } as never)
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Falha ao desfazer encaminhamento", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRecon((prev) => prev ? { ...prev, summary: nextSummary as typeof prev.summary } : prev);
+    toast({ title: "Encaminhamento desfeito", description: "A apuração voltou a ficar editável." });
+  };
+
+
+
   const runEncaminharFluxo = async (opts: {
     includeComplementar: boolean;
     gerarGlosa: boolean;
@@ -6494,8 +6520,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <SendIcon className="h-3 w-3 mr-1" /> Retomar confecção
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={desfazerEncaminhamento}
+          >
+            <RotateCcwIcon className="h-3 w-3 mr-1" /> Desfazer encaminhamento
+          </Button>
         </div>
       )}
+
 
 
       {/* Step 1 — TASY file */}
