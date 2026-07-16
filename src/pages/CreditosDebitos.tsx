@@ -544,6 +544,72 @@ export default function CreditosDebitos() {
     setGlosaDebts(prev => prev.map(item => item.id === g.id ? { ...item, confirmed_at: null } : item));
   };
 
+  /** Reverte glosa: anula dívida + aplicações e devolve o item à conciliação (quando aplicável). */
+  const revertGlosa = async (g: GlosaDebt) => {
+    const reason = window.prompt(
+      `Reverter glosa de ${g.doctor_name} (${brl(g.total_debt)})?\n\n` +
+      `A dívida e todas as deduções ativas serão canceladas. ` +
+      `Se veio da conciliação e o lote de origem ainda está em análise, ` +
+      `o item volta para "Só no Exacta".\n\n` +
+      `Motivo (obrigatório):`,
+      ""
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (!trimmed) { toast.error("Motivo obrigatório para reverter."); return; }
+
+    const { data, error } = await (supabase as any).rpc("revert_glosa_debt", {
+      p_debt_id: g.id,
+      p_reason: trimmed,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (msg.includes("glosa_locked_in_finalized_payment")) {
+        toast.error("Não é possível reverter: há aplicação confirmada em lote lançado/arquivado/pago. Use ajuste manual.");
+      } else if (msg.includes("wrong_hospital_scope")) {
+        toast.error("Glosa pertence a outro hospital.");
+      } else if (msg.includes("debt_not_found")) {
+        toast.error("Glosa não encontrada.");
+      } else {
+        toast.error(`Falha ao reverter: ${msg}`);
+      }
+      return;
+    }
+
+    const result = (data ?? {}) as {
+      already_reverted?: boolean;
+      reconciliation_item_reopened?: boolean;
+      affected_payment_ids?: string[];
+    };
+
+    if (result.already_reverted) {
+      toast.info("Esta glosa já estava revertida.");
+    } else {
+      toast.success(
+        result.reconciliation_item_reopened
+          ? "Glosa revertida e item devolvido à conciliação."
+          : "Glosa revertida."
+      );
+    }
+
+    // Recomputa o financeiro dos lotes afetados (fire-and-forget)
+    const affected = Array.isArray(result.affected_payment_ids) ? result.affected_payment_ids : [];
+    for (const pid of affected) {
+      if (!pid || !g.company_id) continue;
+      supabase.functions.invoke("compute-company-financials", {
+        body: { payment_id: pid, company_id: g.company_id },
+      }).catch((err) => console.warn("[revertGlosa] compute-company-financials falhou:", err?.message));
+    }
+
+    // Atualização otimista + recarga leve
+    setGlosaDebts(prev => prev.filter(item => item.id !== g.id));
+    setGlosaAppsByDebt(prev => {
+      const next = { ...prev };
+      delete next[g.id];
+      return next;
+    });
+  };
+
   // ============ APLICAR FILTROS ============
   const { from: periodFrom, to: periodTo } = periodRange(period);
   const q = search.trim().toLowerCase();
