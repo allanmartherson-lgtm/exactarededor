@@ -145,9 +145,16 @@ interface ExactaAggregated {
 }
 
 interface ItemDetalhe {
+  id: string;
+  attendance_number: string | null;
   procedure_code: string | null;
+  procedure_name: string | null;
+  agreement_name: string | null;
   doctor_role: string | null;
+  doctor_name: string | null;
   access_route: string | null;
+  sector: string | null;
+  specialty: string | null;
   quantity: number;
   procedure_amount: number;
   gross_amount: number;
