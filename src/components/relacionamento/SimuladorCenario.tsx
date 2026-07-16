@@ -527,18 +527,25 @@ export function SimuladorCenario() {
             for (let i = 0; i < attsArr.length; i += chunk) {
               const slice = attsArr.slice(i, i + chunk);
               const partial = await fetchAllPaginated<{
+                id: string;
+                attendance_number: string | null;
                 gross_amount: number | null;
                 expected_amount: number | null;
                 procedure_amount: number | null;
                 attendance_character: string | null;
                 procedure_code: string | null;
+                procedure_name: string | null;
+                agreement_name: string | null;
                 doctor_role: string | null;
+                doctor_name: string | null;
                 access_route: string | null;
+                sector: string | null;
+                specialty: string | null;
                 quantity: number | null;
               }>((from, to) => {
                 let q = supabase
                   .from("payment_items")
-                  .select("gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,doctor_role,access_route,quantity")
+                  .select("id,attendance_number,gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,procedure_name,agreement_name,doctor_role,doctor_name,access_route,sector,specialty,quantity")
                   .eq("hospital_id", hospitalId)
                   .eq("is_cancelled", false)
                   .in("attendance_number", slice);
@@ -556,9 +563,16 @@ export function SimuladorCenario() {
                 count += 1;
                 if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
                 detalhes.push({
+                  id: it.id,
+                  attendance_number: it.attendance_number,
                   procedure_code: it.procedure_code,
+                  procedure_name: it.procedure_name,
+                  agreement_name: it.agreement_name,
                   doctor_role: it.doctor_role,
+                  doctor_name: it.doctor_name,
                   access_route: it.access_route,
+                  sector: it.sector,
+                  specialty: it.specialty,
                   quantity: Number(it.quantity ?? 1) || 1,
                   procedure_amount: Number(it.procedure_amount ?? 0),
                   gross_amount: Number(it.gross_amount ?? 0),
