@@ -917,12 +917,18 @@ export function SimuladorCenario() {
 
                   return (
                     <>
-                      <DreLine op="(+)" label="Receita Bruta" aurum={A.receita} exacta={A.receita} simulado={A.receita} />
-                      <DreLine op="(−)" label="Impostos" aurum={-A.impostos} exacta={-A.impostos} simulado={-A.impostos} indent />
-                      <DreLine op="(−)" label="Glosas" aurum={-A.glosa_externa} exacta={-A.glosa_externa} simulado={-A.glosa_externa} indent />
-                      <DreLine op="(=)" label="Receita Líquida" aurum={A.receita_liquida} exacta={receitaLiqExacta} simulado={A.receita_liquida} bold />
-                      <DreLine op="(−)" label="OPME" aurum={-A.custo_opme} exacta={-A.custo_opme} simulado={-A.custo_opme} indent />
-                      <DreLine op="(−)" label="Mat/Med" aurum={-A.custo_mat_med} exacta={-A.custo_mat_med} simulado={-A.custo_mat_med} indent />
+                      <DreLine op="(+)" label="Receita Bruta" aurum={A.receita} exacta={A.receita} simulado={A.receita}
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} bold />
+                      <DreLine op="(−)" label="Impostos" aurum={-A.impostos} exacta={-A.impostos} simulado={-A.impostos} indent
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} />
+                      <DreLine op="(−)" label="Glosas" aurum={-A.glosa_externa} exacta={-A.glosa_externa} simulado={-A.glosa_externa} indent
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} />
+                      <DreLine op="(=)" label="Receita Líquida" aurum={A.receita_liquida} exacta={receitaLiqExacta} simulado={A.receita_liquida} bold
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} />
+                      <DreLine op="(−)" label="OPME" aurum={-A.custo_opme} exacta={-A.custo_opme} simulado={-A.custo_opme} indent
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} />
+                      <DreLine op="(−)" label="Mat/Med" aurum={-A.custo_mat_med} exacta={-A.custo_mat_med} simulado={-A.custo_mat_med} indent
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} />
                       <DreLine
                         op="(−)"
                         label="Honorários Médicos"
@@ -932,26 +938,24 @@ export function SimuladorCenario() {
                         indent
                         highlight="amber"
                         simuladoTone={simHmTone}
+                        denomAurum={qc}
+                        denomExacta={atd}
+                        denomSim={qc}
+                        base={A.receita}
                         tooltip="Aurum: contábil. Exacta Real: gross_amount pago. Simulado: cenário calculado."
                       />
-                      {/* Sub-linha: média por cirurgia/atendimento */}
-                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
-                        <span></span>
-                        <span className="italic">média por cirurgia/atend.</span>
-                        <span className="text-right tabular-nums">{mediaHmAurum != null ? `${BRL(mediaHmAurum)}/cir` : "—"}</span>
-                        <span className="text-right tabular-nums">{mediaHmExacta != null ? `${BRL(mediaHmExacta)}/atend` : "—"}</span>
-                        <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{mediaHmSim != null ? `${BRL(mediaHmSim)}/cir` : "—"}</span>
-                      </div>
-                      {/* Sub-linha: % da Receita Líquida */}
-                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
+                      {/* Sub-linha extra: % HM sobre Receita Líquida (referência clássica de honorários). */}
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[10px] text-muted-foreground pl-3">
                         <span></span>
                         <span className="italic">% da Receita Líquida</span>
                         <span className="text-right tabular-nums">{PCT(pctHmAurum)}</span>
                         <span className="text-right tabular-nums">{PCT(pctHmExacta)}</span>
                         <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
                       </div>
-                      <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent />
-                      <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent />
+                      <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} />
+                      <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent
+                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} />
                       <div className="mt-2 pt-2 border-t space-y-1">
                         <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline">
                           <span className="text-xs text-muted-foreground">(=)</span>
