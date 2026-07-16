@@ -416,20 +416,22 @@ Deno.serve(async (req) => {
         }
 
         if (parcelaPrevista > capacidadeRestante) {
-          const parcial = round2(capacidadeRestante);
+          // Regra de negócio (07/2026): NUNCA aplicar parcial.
+          // Se a PJ não tem líquido suficiente para cobrir a parcela inteira,
+          // o débito rola integralmente para o próximo ciclo. Parcial gerava
+          // resíduos de conciliação difíceis de auditar e confundia analistas.
           const { error: e4 } = await supabase.from("glosa_payment_applications").insert({
             payment_id, company_id, hospital_id: paymentHospitalId,
             glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-            parcela_numero: parcelaNumero, valor_aplicado: parcial,
-            status: "partial", source: "auto",
-            postpone_reason: "partial_capacity",
-            resolution_note: `Aplicado parcialmente: R$ ${parcial.toFixed(2)} de R$ ${parcelaPrevista.toFixed(2)} previstos. Saldo continua no débito.`,
+            parcela_numero: parcelaNumero, valor_aplicado: 0,
+            status: "postponed", source: "auto",
+            postpone_reason: "insufficient_net",
+            resolution_note: `Líquido insuficiente: parcela prevista R$ ${parcelaPrevista.toFixed(2)}, capacidade R$ ${capacidadeRestante.toFixed(2)}. Débito rola integralmente para o próximo ciclo (sem aplicação parcial).`,
             applied_by: user_id,
           });
-          if (e4) { console.error(`[glosa partial] ${debt.id}`, e4); throw e4; }
-          capacidadeRestante = 0;
-          summary.glosas.partial = (summary.glosas.partial ?? 0) + 1;
-          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcial, parcela: `${parcelaNumero}/${parcelas}`, action: "partial" });
+          if (e4) { console.error(`[glosa postponed-insufficient] ${debt.id}`, e4); throw e4; }
+          summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
+          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
           continue;
         }
 
