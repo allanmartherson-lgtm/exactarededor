@@ -178,7 +178,11 @@ function DreLine({
       <span className={cn("text-sm truncate", bold && "font-semibold")}>{label}</span>
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(aurum)}</span>
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(exacta)}</span>
-      <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold", simCor)}>{BRL(simulado)}</span>
+      <span className={cn(
+        "text-sm text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r",
+        bold && "font-semibold",
+        simCor,
+      )}>{BRL(simulado)}</span>
     </div>
   );
 }
