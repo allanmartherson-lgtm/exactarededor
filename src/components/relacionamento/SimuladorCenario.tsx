@@ -956,6 +956,84 @@ export function SimuladorCenario() {
     }
   }, [resultado, hospitalId, modo]);
 
+  // Exporta Excel detalhado item a item — útil para investigar por que o
+  // Simulado diverge do real (falta de match, TUSS sem preço na tabela,
+  // funções auxiliares zeradas etc.). Inclui a regra aplicada hoje, a PJ
+  // vinculada e o valor pago à época.
+  const exportarDetalhado = useCallback(() => {
+    if (!resultado || !resultado.exacta) {
+      toast.error("Nada para exportar — rode a simulação primeiro.");
+      return;
+    }
+    void (async () => {
+      try {
+        const XLSX = await import("xlsx");
+        const det = resultado.exacta!.detalhes;
+        const rows = det.map((d) => {
+          const sim = resultado.perItem[d.id];
+          const simExpected = sim?.expected_amount ?? 0;
+          const deltaSimVsPago = simExpected - d.gross_amount;
+          const deltaRegraVsPago = d.expected_amount - d.gross_amount;
+          return {
+            "Atendimento": d.attendance_number ?? "",
+            "Data": "", // não temos a data no detalhe agregado; ignorada por simplicidade
+            "Código (TUSS)": d.procedure_code ?? "",
+            "Procedimento": d.procedure_name ?? "",
+            "Convênio": d.agreement_text ?? "",
+            "Médico": d.doctor_name ?? "",
+            "Função": d.doctor_role ?? "",
+            "Via de acesso": d.access_route ?? "",
+            "Setor": d.sector ?? "",
+            "Especialidade": d.specialty ?? "",
+            "PJ (empresa)": d.company_name ?? "",
+            "Qtd": d.quantity,
+            "Base convênio (proc_amount)": d.procedure_amount,
+            "Valor pago à época (gross)": d.gross_amount,
+            "Valor esperado pela regra (época)": d.expected_amount,
+            "Regra aplicada (época)": d.rule_summary ?? "",
+            "Método de cálculo (época)": d.applied_calc_method ?? "",
+            "Δ Regra − Pago (época)": Number(deltaRegraVsPago.toFixed(2)),
+            "Simulado (motor real)": simExpected,
+            "Método simulado": sim?.calculation_type_used ?? "",
+            "Simulado sem match?": sim ? (sim.matched ? "" : "SEM MATCH") : "—",
+            "Alertas simulado": sim?.alerts?.join(" | ") ?? "",
+            "Δ Simulado − Pago": Number(deltaSimVsPago.toFixed(2)),
+          };
+        });
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, "Itens");
+
+        // Aba de parâmetros — audit trail do cenário exportado.
+        const params = [
+          ["Nome", resultado.nome],
+          ["Ano", resultado.ano],
+          ["Modelo", resultado.parametros.modelo],
+          ["% convênio", resultado.parametros.pct ?? ""],
+          ["Tabela referência (id)", resultado.parametros.reference_table_id ?? ""],
+          ["Multiplicador", resultado.parametros.multiplicador ?? ""],
+          ["Deflator (%)", resultado.parametros.deflator ?? ""],
+          ["Acréscimo (%)", resultado.parametros.acrescimo ?? ""],
+          ["Total pago (real)", resultado.exacta!.gross],
+          ["Total esperado (regra época)", resultado.exacta!.expected],
+          ["Total simulado (motor)", resultado.simulado.novo_hm],
+          ["Itens", det.length],
+          ["Itens sem match no simulado", det.filter((d) => !resultado.perItem[d.id]?.matched).length],
+        ];
+        const wsp = XLSX.utils.aoa_to_sheet(params);
+        XLSX.utils.book_append_sheet(wb, wsp, "Parâmetros");
+
+        const safe = resultado.nome.replace(/[^a-zA-Z0-9]+/g, "_").slice(0, 40);
+        XLSX.writeFile(wb, `simulador_${safe}_${resultado.ano}.xlsx`);
+        toast.success(`Exportado ${det.length} itens.`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        toast.error(`Falha ao exportar: ${msg}`);
+      }
+    })();
+  }, [resultado]);
+
+
   // Renderização — inclui estados sem base.
   if (hospitalId && !loadingNomes && anosDisponiveis.length === 0) {
     return (
