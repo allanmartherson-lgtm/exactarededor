@@ -7322,7 +7322,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     </TableHead>
                     <TableHead className="w-10 text-center">
                       {(() => {
-                        const selectableKeys = visible.filter(isActionableTvr).map((r) => r.key);
+                        // T3: "selecionar todos" ignora itens já excluídos do encaminhamento.
+                        const selectableKeys = visible.filter((r) => isActionableTvr(r) && !r.excluir_do_encaminhamento).map((r) => r.key);
                         const allSelected = selectableKeys.length > 0 && selectableKeys.every((k) => selectedKeys.has(k));
                         const someSelected = selectableKeys.some((k) => selectedKeys.has(k));
                         return (
