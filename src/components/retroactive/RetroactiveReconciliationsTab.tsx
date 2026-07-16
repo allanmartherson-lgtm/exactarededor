@@ -6792,6 +6792,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             process(rowsForProcess);
           }}
           disabled={isLocked || processing || loadingPayments || tasyRows.length === 0}
+          title={isLocked ? "Apuração encaminhada. Desfaça o encaminhamento antes de processar." : undefined}
         >
           <PlayIcon className="h-4 w-4 mr-1" />
           {processing ? "Processando…" : loadingPayments ? "Buscando repasse…" : "Processar"}
