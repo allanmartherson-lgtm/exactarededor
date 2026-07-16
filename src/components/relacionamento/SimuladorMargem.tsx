@@ -262,6 +262,63 @@ export function SimuladorMargem() {
     return () => { cancelled = true; };
   }, [hospitalId, ano]);
 
+  // Carrega doctor_aliases + doctors + procedure_aliases (fallback de match).
+  useEffect(() => {
+    if (!hospitalId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [aliasRows, doctorRows, procAliasRows] = await Promise.all([
+          fetchAllPaginated<{ alias_normalized: string | null; doctor_id: string | null }>((from, to) =>
+            supabase
+              .from("doctor_aliases")
+              .select("alias_normalized, doctor_id")
+              .range(from, to),
+          ),
+          fetchAllPaginated<{ id: string; name: string | null }>((from, to) =>
+            supabase
+              .from("doctors")
+              .select("id, name")
+              .range(from, to),
+          ),
+          fetchAllPaginated<{ alias_normalized: string | null; canonical_name: string | null }>((from, to) =>
+            supabase
+              .from("procedure_aliases" as never)
+              .select("alias_normalized, canonical_name")
+              .eq("hospital_id", hospitalId)
+              .range(from, to) as never,
+          ),
+        ]);
+        if (cancelled) return;
+
+        const idToNormName = new Map<string, string>();
+        for (const d of doctorRows) {
+          if (d.id && d.name) idToNormName.set(d.id, norm(d.name));
+        }
+        const aliasToNorm = new Map<string, string>();
+        for (const a of aliasRows) {
+          if (!a.alias_normalized || !a.doctor_id) continue;
+          const canonNorm = idToNormName.get(a.doctor_id);
+          if (canonNorm) aliasToNorm.set(a.alias_normalized, canonNorm);
+        }
+        setDoctorAliasToNorm(aliasToNorm);
+
+        const pMap = new Map<string, string>();
+        for (const p of procAliasRows) {
+          if (p.alias_normalized && p.canonical_name) {
+            pMap.set(p.alias_normalized, p.canonical_name);
+          }
+        }
+        setProcAliasMap(pMap);
+      } catch {
+        // Aliases são apenas otimização — se falhar, o fuzzy/match direto ainda roda.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+
+
 
 
   // Carrega Aurum (linhas agregadas por médico / procedimento).
