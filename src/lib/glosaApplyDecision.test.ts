@@ -57,16 +57,17 @@ describe("decideGlosaApplications — glosa desconta da PJ, não do médico", ()
     expect(decisions[1]).toMatchObject({ action: "postponed", reason: "insufficient_net" });
   });
 
-  it("parcializa quando parcela prevista > capacidade restante (motivo = capacidade, não médico)", () => {
+  it("adia integralmente quando parcela prevista > capacidade restante (sem parcial)", () => {
     const debts = [{ id: "d1", doctor_id: "sem-prod", total_debt: 1200, parcelas_default: 12 }];
     const { decisions, capacidadeRestante } = decideGlosaApplications(debts, 40, new Set());
 
     expect(decisions[0]).toMatchObject({
-      action: "partial",
-      valor: 40,
+      action: "postponed",
+      reason: "insufficient_net",
       parcela_prevista: 100,
     });
-    expect(capacidadeRestante).toBe(0);
+    // capacidade preservada — nada foi consumido, rola pro próximo ciclo
+    expect(capacidadeRestante).toBe(40);
   });
 
   it("REGRESSÃO: NUNCA gera 'postponed' com motivo relacionado a produção do médico", () => {
