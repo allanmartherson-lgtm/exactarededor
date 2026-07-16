@@ -348,6 +348,7 @@ export function SimuladorMargem() {
 
       for (const row of aurumProc) {
         const nome = row.ds_procedimento;
+        if (isTotalRow(nome)) continue;
         const target = norm(nome);
         // encontra os melhores procedure_name Exacta
         const matched = new Set<string>();
