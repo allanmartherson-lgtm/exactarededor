@@ -370,12 +370,19 @@ export function SimuladorMargem() {
       };
     };
 
-    // Linhas "Total" no Aurum são totalizadores gerais da planilha — ignoramos
-    // para não poluir o comparativo (nunca terão match no Exacta e distorcem KPIs).
+    // Linhas "Total"/"Total geral"/"Subtotal" no Aurum são totalizadores da planilha —
+    // ignoramos para não poluir o comparativo (nunca terão match no Exacta e distorcem KPIs).
     const isTotalRow = (nome: string | null | undefined) => {
       const n = norm(nome);
-      return !n || n === "total" || n.startsWith("total ");
+      if (!n) return true;
+      if (n === "total" || n === "totais" || n === "subtotal" || n === "total geral") return true;
+      if (n.startsWith("total ") || n.startsWith("subtotal ")) return true;
+      // fallback: se começa com "total" e não tem nenhum caractere de nome próprio (2 tokens > 3 chars),
+      // trata como totalizador defensivamente.
+      if (n.startsWith("total") && n.split(" ").filter((t) => t.length > 3).length < 2) return true;
+      return false;
     };
+
 
     if (modo === "medico") {
       for (const row of aurumMedico) {
