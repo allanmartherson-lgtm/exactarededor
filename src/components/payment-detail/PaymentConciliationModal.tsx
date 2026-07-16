@@ -5758,8 +5758,8 @@ export function PaymentConciliationModal({
                                                     it.action_taken === 'rolar_debito_residual' && 'bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300',
                                                   )}>
                                                     {({
-                                                      incorporar_credito: '✓ Crédito incorporado ao próximo lote',
-                                                      incorporar_debito: '✓ Débito incorporado ao próximo lote',
+                                                      incorporar_credito: '✓ Crédito incorporado ao lote atual',
+                                                      incorporar_debito: '✓ Débito incorporado ao lote atual',
                                                       ignorar: '— Ignorado',
                                                       revisar_manual: '⚠ Revisão manual pendente',
                                                       marcar_glosa: '⚠ Marcado como glosa',
