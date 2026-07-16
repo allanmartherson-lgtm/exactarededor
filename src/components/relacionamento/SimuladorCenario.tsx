@@ -30,6 +30,40 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEnforcedHospitalId } from "@/contexts/HospitalContext";
 import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { cn } from "@/lib/utils";
+import { normAccessRoute } from "@/lib/normAccessRoute";
+
+// ---- Fatores CBHPM para o Simulado (padrão AMB/CBHPM 2018) ----
+// Percentual do valor do procedimento devido a cada função da equipe.
+// Cirurgião principal recebe 100%; auxiliares em cascata; anestesista 30%.
+// Ajuste esta tabela ao contrato hospitalar quando divergir.
+function roleFactor(role: string | null | undefined): number {
+  const r = (role ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  if (!r) return 1;
+  if (r.includes("principal") || r === "cirurgiao" || r.includes("unico")) return 1;
+  if (r.includes("primeiro")) return 0.30;
+  if (r.includes("segundo")) return 0.20;
+  if (r.includes("terceiro") || r.includes("quarto")) return 0.20;
+  if (r.includes("anestes")) return 0.30;
+  if (r.includes("instrument")) return 0.20;
+  if (r.includes("pediatra")) return 0.20;
+  if (r.includes("clinic")) return 0.15;
+  if (r.includes("visita")) return 0.15;
+  return 1;
+}
+
+// Redutor da via de acesso para procedimentos combinados (CBHPM padrão).
+// Aplicado sobre o valor do procedimento adicional segundo a via.
+function viaFactor(access: string | null | undefined): number {
+  const key = normAccessRoute(access);
+  if (key === "mesma_via") return 0.50;
+  if (key === "outra_via") return 0.70;
+  // "unica_principal", "sem_via" ou desconhecido → 100%
+  return 1;
+}
 
 type Modo = "medico" | "procedimento";
 type Modelo = "percentual" | "tabela_diferenciada";
