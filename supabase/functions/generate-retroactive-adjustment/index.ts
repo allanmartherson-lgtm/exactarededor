@@ -1,3 +1,4 @@
+// v2: respeita excluir_do_encaminhamento (Tópico 2 opt-out)
 // Edge function: gera company_financial_adjustments (tipo
 // complemento_retroativo) a partir dos itens nao_pago / pago_a_menos
 // de uma apuração retroativa. Agrupa por PJ vinculada ao médico.
