@@ -501,12 +501,14 @@ export function SimuladorCenario() {
       }
 
       // 3) Cálculo do cenário simulado.
-      const baseConvenio = exacta?.expected ?? 0;
+      // Base = valor do CONVÊNIO (procedure_amount), NÃO o expected_amount (que já
+      // é o valor calculado pela regra atual e coincide com o gross quando 100%).
+      const baseConvenio = exacta?.baseConvenio ?? 0;
       let novoHm = 0;
       if (modelo === "percentual") {
         novoHm = baseConvenio * (pctNovo / 100);
       } else {
-        // Tabela diferenciada — sem lookup TUSS direto ainda; usa expected como base.
+        // Tabela diferenciada — sem lookup TUSS direto ainda; usa base convênio como referência.
         novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
       }
       const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
@@ -515,7 +517,7 @@ export function SimuladorCenario() {
       const aviso = exacta == null
         ? "Sem itens do Exacta para este médico/procedimento no ano. HM Exacta real e Simulado indisponíveis (base convênio zerada)."
         : baseConvenio <= 0
-          ? "Itens do Exacta encontrados, mas sem expected_amount (base convênio) — Simulado zerado."
+          ? "Itens do Exacta encontrados, mas sem procedure_amount (base convênio) — Simulado zerado."
           : undefined;
 
       setResultado({
