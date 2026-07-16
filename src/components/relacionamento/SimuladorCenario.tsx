@@ -178,7 +178,11 @@ function DreLine({
       <span className={cn("text-sm truncate", bold && "font-semibold")}>{label}</span>
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(aurum)}</span>
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(exacta)}</span>
-      <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold", simCor)}>{BRL(simulado)}</span>
+      <span className={cn(
+        "text-sm text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r",
+        bold && "font-semibold",
+        simCor,
+      )}>{BRL(simulado)}</span>
     </div>
   );
 }
@@ -200,6 +204,7 @@ export function SimuladorCenario() {
   const [multiplicador, setMultiplicador] = useState<number>(1);
   const [deflator, setDeflator] = useState<number>(0);
   const [acrescimo, setAcrescimo] = useState<number>(0);
+  const [carater, setCarater] = useState<"todos" | "Eletiva" | "Urgência">("todos");
 
   const [simulando, setSimulando] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -297,12 +302,14 @@ export function SimuladorCenario() {
     setSimulando(true);
     try {
       // 1) Aurum — todas as linhas do nome+ano.
-      const { data: aurumData, error: aurumErr } = await supabase
+      let aurumQ = supabase
         .from(tabelaAurum as never)
         .select("*")
         .eq("hospital_id", hospitalId)
         .eq("ano", ano)
         .eq(nomeCampo, nomeSelecionado);
+      if (carater !== "todos") aurumQ = aurumQ.eq("carater", carater);
+      const { data: aurumData, error: aurumErr } = await aurumQ;
       if (aurumErr) throw aurumErr;
       const aurumRows = (aurumData ?? []) as AurumRow[];
       if (aurumRows.length === 0) {
@@ -379,17 +386,18 @@ export function SimuladorCenario() {
             gross_amount: number | null;
             expected_amount: number | null;
             attendance_number: string | null;
-          }>((from, to) =>
-            supabase
+          }>((from, to) => {
+            let q = supabase
               .from("payment_items")
               .select("gross_amount,expected_amount,attendance_number")
               .eq("hospital_id", hospitalId)
               .eq("is_cancelled", false)
               .in("doctor_id", idsArr)
               .gte("procedure_date", dateFrom)
-              .lt("procedure_date", dateTo)
-              .range(from, to),
-          );
+              .lt("procedure_date", dateTo);
+            if (carater !== "todos") q = q.eq("attendance_character", carater);
+            return q.range(from, to);
+          });
           for (const it of itens) {
             gross += Number(it.gross_amount ?? 0);
             expected += Number(it.expected_amount ?? 0);
@@ -414,8 +422,8 @@ export function SimuladorCenario() {
             attendance_number: string | null;
             procedure_name: string | null;
             access_route: string | null;
-          }>((from, to) =>
-            supabase
+          }>((from, to) => {
+            let q = supabase
               .from("payment_items")
               .select("attendance_number,procedure_name,access_route")
               .eq("hospital_id", hospitalId)
@@ -423,9 +431,10 @@ export function SimuladorCenario() {
               .gte("procedure_date", dateFrom)
               .lt("procedure_date", dateTo)
               .not("attendance_number", "is", null)
-              .ilike("procedure_name", ilikeTerm)
-              .range(from, to),
-          );
+              .ilike("procedure_name", ilikeTerm);
+            if (carater !== "todos") q = q.eq("attendance_character", carater);
+            return q.range(from, to);
+          });
           principais.push(...parte);
         }
         const attsMatched = new Set<string>();
@@ -454,15 +463,16 @@ export function SimuladorCenario() {
             const partial = await fetchAllPaginated<{
               gross_amount: number | null;
               expected_amount: number | null;
-            }>((from, to) =>
-              supabase
+            }>((from, to) => {
+              let q = supabase
                 .from("payment_items")
                 .select("gross_amount,expected_amount")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
-                .in("attendance_number", slice)
-                .range(from, to),
-            );
+                .in("attendance_number", slice);
+              if (carater !== "todos") q = q.eq("attendance_character", carater);
+              return q.range(from, to);
+            });
             for (const it of partial) {
               gross += Number(it.gross_amount ?? 0);
               expected += Number(it.expected_amount ?? 0);
@@ -519,7 +529,7 @@ export function SimuladorCenario() {
     } finally {
       setSimulando(false);
     }
-  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo]);
+  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater]);
 
   const salvarCenario = useCallback(async () => {
     if (!resultado || !hospitalId) return;
@@ -596,7 +606,7 @@ export function SimuladorCenario() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Linha 1 */}
-          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_10rem] gap-3 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_8rem_9rem] gap-3 items-end">
             <div>
               <Label className="text-xs">Tipo</Label>
               <div className="inline-flex rounded-md border overflow-hidden">
@@ -687,11 +697,26 @@ export function SimuladorCenario() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div>
+              <Label className="text-xs">Caráter</Label>
+              <Select
+                value={carater}
+                onValueChange={(v) => { setCarater(v as typeof carater); setResultado(null); }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="Eletiva">Eletiva</SelectItem>
+                  <SelectItem value="Urgência">Urgência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Linha 2 — modelo */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-            <div>
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="min-w-[14rem] flex-1 max-w-[20rem]">
               <Label className="text-xs">Modelo de simulação</Label>
               <Select value={modelo} onValueChange={(v) => { setModelo(v as Modelo); setResultado(null); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -703,8 +728,8 @@ export function SimuladorCenario() {
             </div>
 
             {modelo === "percentual" ? (
-              <div>
-                <Label className="text-xs">Novo percentual (%)</Label>
+              <div className="max-w-[8rem]">
+                <Label className="text-xs">Novo %</Label>
                 <Input
                   type="number" step="0.1" value={pctNovo}
                   onChange={(e) => setPctNovo(Number(e.target.value))}
@@ -712,7 +737,7 @@ export function SimuladorCenario() {
               </div>
             ) : (
               <>
-                <div>
+                <div className="min-w-[12rem] flex-1 max-w-[18rem]">
                   <Label className="text-xs">Tabela de referência</Label>
                   <Select value={refTableId} onValueChange={setRefTableId}>
                     <SelectTrigger>
@@ -725,15 +750,15 @@ export function SimuladorCenario() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                <div className="max-w-[7rem]">
                   <Label className="text-xs">Multiplicador (x)</Label>
                   <Input type="number" step="0.1" value={multiplicador} onChange={(e) => setMultiplicador(Number(e.target.value))} />
                 </div>
-                <div>
+                <div className="max-w-[7rem]">
                   <Label className="text-xs">Deflator (%)</Label>
                   <Input type="number" step="0.1" value={deflator} onChange={(e) => setDeflator(Number(e.target.value))} />
                 </div>
-                <div>
+                <div className="max-w-[7rem]">
                   <Label className="text-xs">Acréscimo (%)</Label>
                   <Input type="number" step="0.1" value={acrescimo} onChange={(e) => setAcrescimo(Number(e.target.value))} />
                 </div>
@@ -777,6 +802,11 @@ export function SimuladorCenario() {
               <CardTitle className="text-base">
                 DRE comparativa — {resultado.nome} <span className="text-xs text-muted-foreground">({resultado.ano})</span>
               </CardTitle>
+              <div className="text-xs text-muted-foreground mt-1">
+                Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
+                {" | "}
+                Exacta: {resultado.exacta ? `${resultado.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${resultado.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border p-3 bg-muted/20">
@@ -786,7 +816,7 @@ export function SimuladorCenario() {
                   <span></span>
                   <span className="text-right">Aurum</span>
                   <span className="text-right">Exacta Real</span>
-                  <span className="text-right">Simulado</span>
+                  <span className="text-right text-primary font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
                 </div>
 
                 {(() => {
@@ -797,14 +827,23 @@ export function SimuladorCenario() {
                   const margemExacta = exGross != null ? A.receita_liquida + A.outros_custos - exGross : null;
                   const pctExacta = margemExacta != null && A.receita_liquida > 0 ? margemExacta / A.receita_liquida : null;
 
-                  const simTone: "positive" | "negative" | "neutral" =
-                    exGross == null ? "neutral" :
-                    sim.novo_hm < exGross ? "negative" : // paga menos ao médico → tone default; UI destaca em amber
-                    "positive";
                   // Convenção: se simulado piora margem (HM maior), coluna Simulado da linha HM em vermelho.
                   const simHmTone: "positive" | "negative" | "neutral" =
                     exGross == null ? "neutral" :
                     sim.novo_hm > exGross ? "negative" : "positive";
+
+                  // Médias por cirurgia / atendimento
+                  const qc = A.qtd_cirurgias;
+                  const atd = resultado.exacta?.atendimentos ?? 0;
+                  const mediaHmAurum = qc > 0 ? A.custo_hm / qc : null;
+                  const mediaHmExacta = exGross != null && atd > 0 ? exGross / atd : null;
+                  const mediaHmSim = qc > 0 ? sim.novo_hm / qc : null;
+
+                  // % HM sobre receita líquida
+                  const rl = A.receita_liquida;
+                  const pctHmAurum = rl > 0 ? A.custo_hm / rl : null;
+                  const pctHmExacta = rl > 0 && exGross != null ? exGross / rl : null;
+                  const pctHmSim = rl > 0 ? sim.novo_hm / rl : null;
 
                   return (
                     <>
@@ -825,6 +864,22 @@ export function SimuladorCenario() {
                         simuladoTone={simHmTone}
                         tooltip="Aurum: contábil. Exacta Real: gross_amount pago. Simulado: cenário calculado."
                       />
+                      {/* Sub-linha: média por cirurgia/atendimento */}
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
+                        <span></span>
+                        <span className="italic">média por cirurgia/atend.</span>
+                        <span className="text-right tabular-nums">{mediaHmAurum != null ? `${BRL(mediaHmAurum)}/cir` : "—"}</span>
+                        <span className="text-right tabular-nums">{mediaHmExacta != null ? `${BRL(mediaHmExacta)}/atend` : "—"}</span>
+                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{mediaHmSim != null ? `${BRL(mediaHmSim)}/cir` : "—"}</span>
+                      </div>
+                      {/* Sub-linha: % da Receita Líquida */}
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
+                        <span></span>
+                        <span className="italic">% da Receita Líquida</span>
+                        <span className="text-right tabular-nums">{PCT(pctHmAurum)}</span>
+                        <span className="text-right tabular-nums">{PCT(pctHmExacta)}</span>
+                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
+                      </div>
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent />
                       <div className="mt-2 pt-2 border-t space-y-1">
@@ -833,14 +888,14 @@ export function SimuladorCenario() {
                           <span className="text-sm font-semibold">Margem de Contribuição</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", A.margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(A.margem)}</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", (margemExacta ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(margemExacta)}</span>
-                          <span className={cn("text-sm text-right tabular-nums font-semibold", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
+                          <span className={cn("text-lg text-right tabular-nums font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
                         </div>
                         <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
                           <span></span>
                           <span>% Margem</span>
                           <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
                           <span className="text-right tabular-nums">{PCT(pctExacta)}</span>
-                          <span className="text-right tabular-nums">{PCT(sim.nova_pct_margem)}</span>
+                          <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
                         </div>
                       </div>
                     </>
@@ -878,6 +933,7 @@ export function SimuladorCenario() {
                 resultado.exacta == null ? "neutral" :
                 resultado.simulado.novo_hm > resultado.exacta.gross ? "negative" : "positive"
               }
+              highlight
             />
           </div>
 
@@ -924,21 +980,22 @@ function ChevronsUpDream() {
 }
 
 function SummaryCard({
-  title, valor, pct, extra, tone = "neutral",
+  title, valor, pct, extra, tone = "neutral", highlight = false,
 }: {
   title: string;
   valor: number | null;
   pct: number | null;
   extra?: string;
   tone?: "positive" | "negative" | "neutral";
+  highlight?: boolean;
 }) {
   const cor =
     tone === "positive" ? "text-emerald-700" :
     tone === "negative" ? "text-red-700" : "text-foreground";
   return (
-    <Card>
+    <Card className={cn(highlight && "border-primary bg-primary/5")}>
       <CardContent className="py-4">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</div>
+        <div className={cn("text-xs font-medium uppercase tracking-wide", highlight ? "text-primary font-bold" : "text-muted-foreground")}>{title}</div>
         <div className={cn("text-2xl font-semibold tabular-nums mt-1", cor)}>{BRL(valor)}</div>
         <div className="text-xs text-muted-foreground mt-1">
           {pct != null ? `${PCT(pct)} da receita líquida` : "—"}
