@@ -140,6 +140,17 @@ interface ExactaAggregated {
   itens: number;
   atendimentos: number;
   sem_carater: number;
+  // Detalhes por item — usados para calcular o Simulado por linha.
+  detalhes: ItemDetalhe[];
+}
+
+interface ItemDetalhe {
+  procedure_code: string | null;
+  doctor_role: string | null;
+  access_route: string | null;
+  quantity: number;
+  procedure_amount: number;
+  gross_amount: number;
 }
 
 interface Simulado {
