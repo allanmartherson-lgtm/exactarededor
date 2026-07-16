@@ -616,7 +616,7 @@ export function SimuladorCenario() {
                     <span className="truncate text-left">
                       {loadingNomes ? "Carregando…" : (nomeSelecionado || `Digite para buscar…`)}
                     </span>
-                    <ChevronsUpDream />
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-[min(30rem,90vw)]" align="start">
