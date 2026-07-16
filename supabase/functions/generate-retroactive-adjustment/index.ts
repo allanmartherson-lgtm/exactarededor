@@ -136,6 +136,7 @@ Deno.serve(async (req) => {
       .from("retroactive_reconciliation_items")
       .update({ generated_adjustment_id: adj.id })
       .eq("reconciliation_id", reconciliation_id)
+      .eq("excluir_do_encaminhamento", false)
       .in("classification", ["nao_pago", "pago_a_menos", "tuss_divergente"]);
 
     await supabase
