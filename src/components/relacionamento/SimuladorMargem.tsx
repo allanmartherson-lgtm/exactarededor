@@ -1,33 +1,40 @@
-// Simulador de Margem — cruza Aurum (custo hospitalar) com Exacta (repasse real).
-// Permite simular cenários de acordo comercial e salvar em simulacao_cenario.
-import { useCallback, useEffect, useMemo, useState } from "react";
+// Simulador de Margem — Fase 1 (comparativo Aurum × Exacta com HM real).
+//
+// Objetivo desta fase: substituir o `custo_hm` do Aurum (que traz o honorário
+// que caiu na conta pelo faturamento) pelo REPASSE REAL pago pelo Exacta
+// (`payment_items.gross_amount`). A margem recalculada mostra o cenário
+// verdadeiro — quase sempre pior que o Aurum sozinho.
+//
+// Regras de agregação (definidas com o usuário):
+//   • Modo médico → soma gross_amount de todos os payment_items daquele médico
+//     no intervalo escolhido (match por doctor_name normalizado).
+//   • Modo procedimento → o "código principal" (Aurum) é balizador, mas o
+//     Exacta deve trazer o HONORÁRIO INTEIRO do atendimento. Passo:
+//       1) Match fuzzy ds_procedimento (Aurum) ↔ procedure_name (Exacta)
+//          para descobrir os attendance_number cobertos.
+//       2) Somar gross_amount de TODOS os itens desses attendance_number
+//          (mesmo com TUSS diferentes: primeiro/segundo aux, anestesia, etc.).
+//
+// Motor de simulação (percentual convênio, tabela diferenciada, valor fixo)
+// entra na Fase 3 e volta pra este arquivo depois — foi removido dessa versão
+// porque ainda estava calcado no modelo antigo (base único-registro).
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Check, ChevronsUpDown, Save, TrendingUp, Trash2, RotateCcw } from "lucide-react";
+import { AlertCircle, RefreshCw, Info } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useEnforcedHospitalId } from "@/contexts/HospitalContext";
+import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { cn } from "@/lib/utils";
 
 type Modo = "medico" | "procedimento";
@@ -35,39 +42,73 @@ type Carater = "todos" | "Eletiva" | "Urgência";
 type Periodo = "todos" | "Diurno" | "Noturno";
 type Faturado = "todos" | "sim" | "nao";
 
-interface AurumRow {
+interface AurumBase {
   carater: string;
   periodo_internacao: string;
   faturado: boolean;
   ano: number;
-  medico_cirurgiao?: string;
-  ds_procedimento?: string;
   qtd_cirurgias: number | null;
   receita: number | null;
   impostos: number | null;
   glosa_externa: number | null;
   receita_liquida: number | null;
   custo_total: number | null;
+  custo_opme: number | null;
+  custo_mat_med: number | null;
+  custo_hm: number | null;
+  custo_exames_img: number | null;
+  custo_laboratorio: number | null;
   margem: number | null;
   pct_margem: number | null;
-  custo_hm: number | null;
+}
+interface AurumMedicoRow extends AurumBase { medico_cirurgiao: string }
+interface AurumProcRow extends AurumBase { ds_procedimento: string }
+
+interface ExactaItem {
+  attendance_number: string | null;
+  doctor_name: string | null;
+  procedure_name: string | null;
+  gross_amount: number | null;
+}
+
+interface LinhaComparativa {
+  nome: string;
+  ano: number;
+  qtd_cirurgias: number;
+  receita_liquida: number;
+  custo_total_aurum: number;
+  custo_hm_aurum: number;
+  outros_custos: number; // custo_total − custo_hm
+  margem_aurum: number;
+  hm_exacta_real: number | null; // null = sem match Exacta
+  hm_exacta_qtd_itens: number;
+  hm_exacta_qtd_atendimentos: number;
+  custo_total_recalc: number | null;
+  margem_recalc: number | null;
+  delta_margem: number | null;
+  pct_margem_aurum: number;
+  pct_margem_recalc: number | null;
 }
 
 const BRL = (v: number | null | undefined) =>
   v == null || !Number.isFinite(v)
     ? "—"
-    : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-const PCT = (v: number | null | undefined) =>
+const PCT = (v: number | null | undefined) => {
+  if (v == null || !Number.isFinite(v)) return "—";
+  const abs = Math.abs(v) < 1 ? v * 100 : v;
+  return `${abs.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+};
+
+const NUM = (v: number | null | undefined) =>
   v == null || !Number.isFinite(v)
     ? "—"
-    : `${(v * (Math.abs(v) < 1 ? 100 : 1)).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    : v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 
-const sumNullable = (arr: (number | null | undefined)[]) =>
-  arr.reduce<number>((acc, v) => acc + (v ?? 0), 0);
-
-const normalizeDesc = (s: string) =>
-  s
+// Normalizador comum: minúscula, sem acento, só alfanum + espaço.
+const norm = (s: string | null | undefined) =>
+  (s ?? "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -75,959 +116,536 @@ const normalizeDesc = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-interface CbhpmLookupItem {
-  codigo: string;
-  descricao: string;
-  valor_base: number;
-  norm: string;
+// Score fuzzy simples: exato > substring > intersecção de tokens>2 chars.
+// Retorna número; ≥ 20 já é considerado match utilizável.
+function fuzzyScore(target: string, candidate: string): number {
+  if (!target || !candidate) return 0;
+  if (target === candidate) return 1000;
+  if (candidate.includes(target) || target.includes(candidate)) {
+    return 500 - Math.abs(candidate.length - target.length);
+  }
+  const tTok = new Set(target.split(" ").filter((t) => t.length > 3));
+  if (tTok.size === 0) return 0;
+  let hit = 0;
+  for (const t of candidate.split(" ")) if (tTok.has(t)) hit++;
+  return hit >= 2 ? hit * 10 : 0;
 }
 
-interface CenarioSalvo {
-  id: string;
-  nome: string;
-  tipo: "medico" | "procedimento";
-  medico_nome: string | null;
-  procedimento_nome: string | null;
-  ano_referencia: number | null;
-  pct_repasse: number | null;
-  dobra_cbhpm: number | null;
-  via_acesso_pct: number | null;
-  volume_estimado: number | null;
-  margem_simulada: number | null;
-  pct_margem_simulada: number | null;
-  created_at: string;
-  parametros_json: Record<string, unknown> | null;
-}
-
-function Autocomplete({
-  value, options, onChange, placeholder, loading,
-}: {
-  value: string | null;
-  options: string[];
-  onChange: (v: string | null) => void;
-  placeholder: string;
-  loading: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          className="w-full justify-between"
-          disabled={loading}
-        >
-          <span className="truncate">
-            {value ?? (loading ? "Carregando..." : placeholder)}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Buscar..." />
-          <CommandList>
-            <CommandEmpty>Nenhum resultado.</CommandEmpty>
-            <CommandGroup>
-              {options.slice(0, 200).map((opt) => (
-                <CommandItem
-                  key={opt}
-                  value={opt}
-                  onSelect={() => {
-                    onChange(opt === value ? null : opt);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === opt ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <span className="truncate">{opt}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
+function firstOfYear(y: number) { return `${y}-01-01`; }
+function firstOfNextYear(y: number) { return `${y + 1}-01-01`; }
 
 export function SimuladorMargem() {
   const hospitalId = useEnforcedHospitalId();
-  const [modo, setModo] = useState<Modo>("medico");
 
-  // Filtros
-  const [selName, setSelName] = useState<string | null>(null);
+  // Filtros gerais
+  const [modo, setModo] = useState<Modo>("medico");
   const [ano, setAno] = useState<number | null>(null);
   const [carater, setCarater] = useState<Carater>("todos");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
   const [faturado, setFaturado] = useState<Faturado>("todos");
+  const [busca, setBusca] = useState("");
+
+  // Intervalo Exacta (default = ano Aurum selecionado)
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   // Dados
-  const [names, setNames] = useState<string[]>([]);
-  const [anos, setAnos] = useState<number[]>([]);
-  const [loadingList, setLoadingList] = useState(false);
-  const [aurumRows, setAurumRows] = useState<AurumRow[]>([]);
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
+  const [aurumMedico, setAurumMedico] = useState<AurumMedicoRow[]>([]);
+  const [aurumProc, setAurumProc] = useState<AurumProcRow[]>([]);
+  const [exactaItems, setExactaItems] = useState<ExactaItem[]>([]);
   const [loadingAurum, setLoadingAurum] = useState(false);
-  const [exactaRepasse, setExactaRepasse] = useState<number | null>(null);
-  const [exactaQtd, setExactaQtd] = useState<number>(0);
   const [loadingExacta, setLoadingExacta] = useState(false);
 
-  // Cenário
-  const [pctRepasse, setPctRepasse] = useState(30);
-  const [dobra, setDobra] = useState(1);
-  const [viaAcessoPct, setViaAcessoPct] = useState(0);
-  const [volume, setVolume] = useState(0);
-  const [cbhpmBase, setCbhpmBase] = useState(0);
-  const [cbhpmMatch, setCbhpmMatch] = useState<{ codigo: string; descricao: string } | null>(null);
-
-  // CBHPM (cache por hospital)
-  const [cbhpmList, setCbhpmList] = useState<CbhpmLookupItem[]>([]);
-
-  // Salvar
-  const [saveOpen, setSaveOpen] = useState(false);
-  const [nomeCenario, setNomeCenario] = useState("");
-  const [descCenario, setDescCenario] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  // Cenários salvos
-  const [cenarios, setCenarios] = useState<CenarioSalvo[]>([]);
-  const [cenariosTick, setCenariosTick] = useState(0);
-
-  const tabela = modo === "medico" ? "aurum_margem_medico" : "aurum_margem_procedimento";
-  const keyField = modo === "medico" ? "medico_cirurgiao" : "ds_procedimento";
-
-  // Carrega lista de nomes + anos disponíveis.
+  // Descobre anos disponíveis (uma vez por hospital).
   useEffect(() => {
     if (!hospitalId) return;
     let cancelled = false;
-    setLoadingList(true);
-    setSelName(null);
     void (async () => {
       const { data, error } = await supabase
-        .from(tabela as unknown as never)
-        .select(`${keyField},ano`)
+        .from("aurum_margem_medico" as never)
+        .select("ano")
         .eq("hospital_id", hospitalId)
         .limit(20000);
-      if (cancelled) return;
-      if (error) {
-        toast.error(`Falha ao carregar base Aurum: ${error.message}`);
-        setNames([]);
-        setAnos([]);
-      } else {
-        const rows = (data ?? []) as Array<Record<string, unknown>>;
-        const nSet = new Set<string>();
-        const aSet = new Set<number>();
-        for (const r of rows) {
-          const n = String(r[keyField] ?? "").trim();
-          if (n) nSet.add(n);
-          const a = Number(r.ano);
-          if (Number.isFinite(a)) aSet.add(a);
-        }
-        const sortedNames = Array.from(nSet).sort((a, b) => a.localeCompare(b, "pt-BR"));
-        const sortedAnos = Array.from(aSet).sort((a, b) => b - a);
-        setNames(sortedNames);
-        setAnos(sortedAnos);
-        setAno((prev) => prev && sortedAnos.includes(prev) ? prev : (sortedAnos[0] ?? null));
-      }
-      setLoadingList(false);
-    })();
-    return () => { cancelled = true; };
-  }, [hospitalId, tabela, keyField]);
-
-  // Carrega linhas Aurum agregadas para a seleção.
-  useEffect(() => {
-    if (!hospitalId || !selName || !ano) {
-      setAurumRows([]);
-      return;
-    }
-    let cancelled = false;
-    setLoadingAurum(true);
-    void (async () => {
-      let q = supabase
-        .from(tabela as unknown as never)
-        .select("*")
-        .eq("hospital_id", hospitalId)
-        .eq("ano", ano)
-        .eq(keyField, selName);
-      if (carater !== "todos") q = q.eq("carater", carater);
-      if (periodo !== "todos") q = q.eq("periodo_internacao", periodo);
-      if (faturado !== "todos") q = q.eq("faturado", faturado === "sim");
-      const { data, error } = await q;
-      if (cancelled) return;
-      if (error) {
-        toast.error(`Falha ao carregar dados: ${error.message}`);
-        setAurumRows([]);
-      } else {
-        setAurumRows((data ?? []) as AurumRow[]);
-      }
-      setLoadingAurum(false);
-    })();
-    return () => { cancelled = true; };
-  }, [hospitalId, tabela, keyField, selName, ano, carater, periodo, faturado]);
-
-  // Busca repasse real no Exacta.
-  useEffect(() => {
-    if (!hospitalId || !selName || !ano) {
-      setExactaRepasse(null);
-      setExactaQtd(0);
-      return;
-    }
-    let cancelled = false;
-    setLoadingExacta(true);
-    void (async () => {
-      const start = `${ano}-01-01`;
-      const end = `${ano + 1}-01-01`;
-      const col = modo === "medico" ? "doctor_name" : "procedure_name";
-      const { data, error } = await supabase
-        .from("payment_items")
-        .select("gross_amount")
-        .eq("hospital_id", hospitalId)
-        .eq("is_cancelled", false)
-        .gte("procedure_date", start)
-        .lt("procedure_date", end)
-        .ilike(col, `%${selName.trim()}%`)
-        .limit(50000);
-      if (cancelled) return;
-      if (error) {
-        setExactaRepasse(null);
-        setExactaQtd(0);
-      } else {
-        const rows = (data ?? []) as Array<{ gross_amount: number | null }>;
-        setExactaRepasse(rows.length ? sumNullable(rows.map((r) => r.gross_amount)) : null);
-        setExactaQtd(rows.length);
-      }
-      setLoadingExacta(false);
-    })();
-    return () => { cancelled = true; };
-  }, [hospitalId, selName, ano, modo]);
-
-  // Carrega tabela CBHPM a partir do submenu "Tabelas de Referência".
-  // Busca reference_tables ativas cujo nome contenha "CBHPM" no hospital ativo
-  // e agrega os itens (code/description/amount) para o auto-lookup.
-  useEffect(() => {
-    if (!hospitalId) {
-      setCbhpmList([]);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { data: tables, error: tErr } = await supabase
-        .from("reference_tables")
-        .select("id,name,active,hospital_id")
-        .eq("hospital_id", hospitalId)
-        .eq("active", true)
-        .ilike("name", "%cbhpm%");
-      if (cancelled) return;
-      if (tErr || !tables || tables.length === 0) {
-        setCbhpmList([]);
-        return;
-      }
-      const ids = tables.map((t) => t.id);
-      const { data, error } = await supabase
-        .from("reference_table_items")
-        .select("code,description,amount")
-        .in("reference_table_id", ids)
-        .limit(50000);
-      if (cancelled) return;
-      if (error) {
-        setCbhpmList([]);
-        return;
-      }
-      const rows = (data ?? []) as Array<{ code: string; description: string | null; amount: number | null }>;
-      setCbhpmList(
-        rows
-          .filter((r) => r.description && r.amount != null)
-          .map((r) => ({
-            codigo: r.code,
-            descricao: r.description as string,
-            valor_base: Number(r.amount ?? 0),
-            norm: normalizeDesc(r.description as string),
-          })),
-      );
+      if (cancelled || error) return;
+      const rows = (data ?? []) as Array<{ ano: number }>;
+      const anos = Array.from(new Set(rows.map((r) => r.ano).filter(Number.isFinite))).sort((a, b) => b - a);
+      setAnosDisponiveis(anos);
+      setAno((prev) => (prev && anos.includes(prev)) ? prev : (anos[0] ?? null));
     })();
     return () => { cancelled = true; };
   }, [hospitalId]);
 
-  // Auto-lookup CBHPM ao selecionar procedimento.
+  // Sincroniza intervalo Exacta com ano Aurum quando o usuário troca de ano.
   useEffect(() => {
-    if (modo !== "procedimento" || !selName || cbhpmList.length === 0) {
-      setCbhpmMatch(null);
-      return;
-    }
-    const target = normalizeDesc(selName);
-    if (!target) return;
-    // Match: exato, contém, ou tokens em comum (score simples).
-    let best: { item: CbhpmLookupItem; score: number } | null = null;
-    const targetTokens = new Set(target.split(" ").filter((t) => t.length > 2));
-    for (const item of cbhpmList) {
-      let score = 0;
-      if (item.norm === target) score = 1000;
-      else if (item.norm.includes(target) || target.includes(item.norm)) {
-        score = 500 - Math.abs(item.norm.length - target.length);
-      } else if (targetTokens.size > 0) {
-        const tokens = item.norm.split(" ");
-        let hit = 0;
-        for (const t of tokens) if (targetTokens.has(t)) hit++;
-        if (hit > 0) score = hit * 10 - Math.abs(item.norm.length - target.length) * 0.01;
-      }
-      if (score > 0 && (!best || score > best.score)) best = { item, score };
-    }
-    if (best && best.score >= 20) {
-      setCbhpmMatch({ codigo: best.item.codigo, descricao: best.item.descricao });
-      setCbhpmBase(best.item.valor_base);
-    } else {
-      setCbhpmMatch(null);
-    }
-  }, [modo, selName, cbhpmList]);
+    if (!ano) return;
+    setDateFrom(firstOfYear(ano));
+    setDateTo(firstOfNextYear(ano));
+  }, [ano]);
 
-  // Carrega cenários salvos.
+  // Carrega Aurum (linhas agregadas por médico / procedimento).
   useEffect(() => {
-    if (!hospitalId) {
-      setCenarios([]);
-      return;
-    }
+    if (!hospitalId || !ano) return;
     let cancelled = false;
+    setLoadingAurum(true);
     void (async () => {
-      const { data, error } = await supabase
-        .from("simulacao_cenario" as unknown as never)
-        .select("id,nome,tipo,medico_nome,procedimento_nome,ano_referencia,pct_repasse,dobra_cbhpm,via_acesso_pct,volume_estimado,margem_simulada,pct_margem_simulada,created_at,parametros_json")
-        .eq("hospital_id", hospitalId)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (cancelled) return;
-      if (!error) setCenarios((data ?? []) as CenarioSalvo[]);
+      try {
+        const tabela = modo === "medico" ? "aurum_margem_medico" : "aurum_margem_procedimento";
+        let q = supabase
+          .from(tabela as never)
+          .select("*")
+          .eq("hospital_id", hospitalId)
+          .eq("ano", ano);
+        if (carater !== "todos") q = q.eq("carater", carater);
+        if (periodo !== "todos") q = q.eq("periodo_internacao", periodo);
+        if (faturado !== "todos") q = q.eq("faturado", faturado === "sim");
+        const { data, error } = await q.limit(20000);
+        if (cancelled) return;
+        if (error) throw error;
+        if (modo === "medico") {
+          setAurumMedico((data ?? []) as AurumMedicoRow[]);
+          setAurumProc([]);
+        } else {
+          setAurumProc((data ?? []) as AurumProcRow[]);
+          setAurumMedico([]);
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        toast.error(`Falha ao carregar Aurum: ${msg}`);
+      } finally {
+        if (!cancelled) setLoadingAurum(false);
+      }
     })();
     return () => { cancelled = true; };
-  }, [hospitalId, cenariosTick]);
+  }, [hospitalId, modo, ano, carater, periodo, faturado]);
 
-  // Agregados Aurum.
-  const aur = useMemo(() => {
-    if (aurumRows.length === 0) return null;
-    const receita = sumNullable(aurumRows.map((r) => r.receita));
-    const receitaLiq = sumNullable(aurumRows.map((r) => r.receita_liquida));
-    const custoTotal = sumNullable(aurumRows.map((r) => r.custo_total));
-    const custoHm = sumNullable(aurumRows.map((r) => r.custo_hm));
-    const margem = sumNullable(aurumRows.map((r) => r.margem));
-    const qtd = sumNullable(aurumRows.map((r) => r.qtd_cirurgias));
-    const pctMargem = receitaLiq > 0 ? margem / receitaLiq : null;
-    return { receita, receitaLiq, custoTotal, custoHm, margem, pctMargem, qtd };
-  }, [aurumRows]);
+  // Carrega itens Exacta no intervalo (paginado).
+  useEffect(() => {
+    if (!hospitalId || !dateFrom || !dateTo) return;
+    let cancelled = false;
+    setLoadingExacta(true);
+    void (async () => {
+      try {
+        const rows = await fetchAllPaginated<ExactaItem>((from, to) =>
+          supabase
+            .from("payment_items")
+            .select("attendance_number,doctor_name,procedure_name,gross_amount")
+            .eq("hospital_id", hospitalId)
+            .eq("is_cancelled", false)
+            .gte("procedure_date", dateFrom)
+            .lt("procedure_date", dateTo)
+            .range(from, to),
+        );
+        if (cancelled) return;
+        setExactaItems(rows);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        toast.error(`Falha ao carregar Exacta: ${msg}`);
+        setExactaItems([]);
+      } finally {
+        if (!cancelled) setLoadingExacta(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId, dateFrom, dateTo]);
 
-  // Margem real (com Exacta) — só ajusta se houve repasse encontrado.
-  const real = useMemo(() => {
-    if (!aur || exactaRepasse == null) return null;
-    const custoAjustado = aur.custoTotal - aur.custoHm + exactaRepasse;
-    const margemReal = aur.receitaLiq - custoAjustado;
-    const pctReal = aur.receitaLiq > 0 ? margemReal / aur.receitaLiq : null;
-    return { custoAjustado, margemReal, pctReal };
-  }, [aur, exactaRepasse]);
+  // Índices Exacta pré-processados para não recomputar por linha.
+  const exactaIndex = useMemo(() => {
+    const porMedico = new Map<string, { total: number; atendimentos: Set<string>; itens: number }>();
+    const porAtendimento = new Map<string, number>(); // soma gross de todos os itens do atendimento
+    const procIndex: Array<{ normProc: string; attendance: string }> = [];
 
-  // Cenário simulado.
-  const sim = useMemo(() => {
-    if (!aur) return null;
-    const repasseUnit = cbhpmBase * dobra * (1 + viaAcessoPct / 100);
-    const repasseSim = repasseUnit * (volume || 0);
-    const custoAjustado = aur.custoTotal - aur.custoHm + repasseSim;
-    const margemSim = aur.receitaLiq - custoAjustado;
-    const pctSim = aur.receitaLiq > 0 ? margemSim / aur.receitaLiq : null;
-    return { repasseUnit, repasseSim, custoAjustado, margemSim, pctSim };
-  }, [aur, cbhpmBase, dobra, viaAcessoPct, volume]);
+    for (const it of exactaItems) {
+      const g = Number(it.gross_amount ?? 0);
+      const nMed = norm(it.doctor_name);
+      const att = (it.attendance_number ?? "").trim();
+      const nProc = norm(it.procedure_name);
 
-  const saveScenario = useCallback(async () => {
-    if (!hospitalId || !aur || !selName) return;
-    if (!nomeCenario.trim()) {
-      toast.error("Informe um nome para o cenário.");
-      return;
+      if (nMed) {
+        const cur = porMedico.get(nMed) ?? { total: 0, atendimentos: new Set<string>(), itens: 0 };
+        cur.total += g;
+        cur.itens += 1;
+        if (att) cur.atendimentos.add(att);
+        porMedico.set(nMed, cur);
+      }
+      if (att) {
+        porAtendimento.set(att, (porAtendimento.get(att) ?? 0) + g);
+        if (nProc) procIndex.push({ normProc: nProc, attendance: att });
+      }
     }
-    setSaving(true);
-    try {
-      const { data: userRes } = await supabase.auth.getUser();
-      const payload = {
-        hospital_id: hospitalId,
-        nome: nomeCenario.trim(),
-        descricao: descCenario.trim() || null,
-        tipo: modo,
-        medico_nome: modo === "medico" ? selName : null,
-        procedimento_nome: modo === "procedimento" ? selName : null,
-        ano_referencia: ano,
-        volume_estimado: volume || null,
-        pct_repasse: pctRepasse,
-        dobra_cbhpm: dobra,
-        via_acesso_pct: viaAcessoPct,
-        margem_aurum_original: aur.margem,
-        pct_margem_aurum_original: aur.pctMargem,
-        custo_hm_aurum: aur.custoHm,
-        repasse_real_exacta: exactaRepasse,
-        repasse_simulado: sim?.repasseSim ?? null,
-        margem_simulada: sim?.margemSim ?? null,
-        pct_margem_simulada: sim?.pctSim ?? null,
-        delta_margem: sim ? sim.margemSim - aur.margem : null,
-        parametros_json: {
-          carater, periodo, faturado, cbhpm_base: cbhpmBase,
-        },
-        resultado_json: {
-          aurum: aur, real, sim,
-        },
-        criado_por: userRes.user?.id ?? null,
+    return { porMedico, porAtendimento, procIndex };
+  }, [exactaItems]);
+
+  // Casa cada linha Aurum com o Exacta e monta as linhas comparativas.
+  const linhas: LinhaComparativa[] = useMemo(() => {
+    const out: LinhaComparativa[] = [];
+
+    const emp = (row: AurumBase, nome: string, exacta: { total: number | null; itens: number; atendimentos: number }): LinhaComparativa => {
+      const custoTotal = Number(row.custo_total ?? 0);
+      const custoHmAurum = Number(row.custo_hm ?? 0);
+      const receitaLiq = Number(row.receita_liquida ?? 0);
+      const outros = custoTotal - custoHmAurum;
+      const margemAurum = Number(row.margem ?? (receitaLiq - custoTotal));
+      const pctMargemAurum = receitaLiq > 0 ? margemAurum / receitaLiq : 0;
+
+      let custoRecalc: number | null = null;
+      let margemRecalc: number | null = null;
+      let delta: number | null = null;
+      let pctMargemRecalc: number | null = null;
+      if (exacta.total != null) {
+        custoRecalc = outros + exacta.total;
+        margemRecalc = receitaLiq - custoRecalc;
+        delta = margemRecalc - margemAurum;
+        pctMargemRecalc = receitaLiq > 0 ? margemRecalc / receitaLiq : null;
+      }
+      return {
+        nome,
+        ano: row.ano,
+        qtd_cirurgias: Number(row.qtd_cirurgias ?? 0),
+        receita_liquida: receitaLiq,
+        custo_total_aurum: custoTotal,
+        custo_hm_aurum: custoHmAurum,
+        outros_custos: outros,
+        margem_aurum: margemAurum,
+        hm_exacta_real: exacta.total,
+        hm_exacta_qtd_itens: exacta.itens,
+        hm_exacta_qtd_atendimentos: exacta.atendimentos,
+        custo_total_recalc: custoRecalc,
+        margem_recalc: margemRecalc,
+        delta_margem: delta,
+        pct_margem_aurum: pctMargemAurum,
+        pct_margem_recalc: pctMargemRecalc,
       };
-      const { error } = await supabase
-        .from("simulacao_cenario" as unknown as never)
-        .insert(payload as never);
-      if (error) throw error;
-      toast.success("Cenário salvo.");
-      setSaveOpen(false);
-      setNomeCenario("");
-      setDescCenario("");
-      setCenariosTick((t) => t + 1);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao salvar cenário.");
-    } finally {
-      setSaving(false);
+    };
+
+    if (modo === "medico") {
+      for (const row of aurumMedico) {
+        const nome = row.medico_cirurgiao;
+        const hit = exactaIndex.porMedico.get(norm(nome));
+        const ex = hit
+          ? { total: hit.total, itens: hit.itens, atendimentos: hit.atendimentos.size }
+          : { total: null, itens: 0, atendimentos: 0 };
+        out.push(emp(row, nome, ex));
+      }
+    } else {
+      // Procedimento: fuzzy match ds_procedimento vs procedure_name Exacta.
+      // Passo 1: agrupamos procIndex por procedure_name normalizado uma vez.
+      const porProc: Map<string, Set<string>> = new Map();
+      for (const { normProc, attendance } of exactaIndex.procIndex) {
+        const cur = porProc.get(normProc) ?? new Set<string>();
+        cur.add(attendance);
+        porProc.set(normProc, cur);
+      }
+      const procNames = Array.from(porProc.keys());
+
+      for (const row of aurumProc) {
+        const nome = row.ds_procedimento;
+        const target = norm(nome);
+        // encontra os melhores procedure_name Exacta
+        const matched = new Set<string>();
+        for (const cand of procNames) {
+          if (fuzzyScore(target, cand) >= 20) {
+            const atts = porProc.get(cand);
+            if (atts) for (const a of atts) matched.add(a);
+          }
+        }
+        // soma o honorário INTEIRO desses atendimentos
+        let total = 0;
+        for (const att of matched) total += exactaIndex.porAtendimento.get(att) ?? 0;
+        const ex = matched.size > 0
+          ? { total, itens: 0, atendimentos: matched.size }
+          : { total: null as number | null, itens: 0, atendimentos: 0 };
+        out.push(emp(row, nome, ex));
+      }
     }
-  }, [
-    hospitalId, aur, selName, nomeCenario, descCenario, modo, ano, volume,
-    pctRepasse, dobra, viaAcessoPct, exactaRepasse, sim, real, carater,
-    periodo, faturado, cbhpmBase,
-  ]);
+    return out;
+  }, [modo, aurumMedico, aurumProc, exactaIndex]);
 
-  const loadCenario = useCallback((c: CenarioSalvo) => {
-    setModo(c.tipo);
-    const nome = c.tipo === "medico" ? c.medico_nome : c.procedimento_nome;
-    if (nome) setSelName(nome);
-    if (c.ano_referencia) setAno(c.ano_referencia);
-    if (c.pct_repasse != null) setPctRepasse(Number(c.pct_repasse));
-    if (c.dobra_cbhpm != null) setDobra(Number(c.dobra_cbhpm));
-    if (c.via_acesso_pct != null) setViaAcessoPct(Number(c.via_acesso_pct));
-    if (c.volume_estimado != null) setVolume(Number(c.volume_estimado));
-    const params = c.parametros_json ?? {};
-    const cb = (params as Record<string, unknown>).cbhpm_base;
-    if (typeof cb === "number") setCbhpmBase(cb);
-    const kar = (params as Record<string, unknown>).carater;
-    if (typeof kar === "string") setCarater(kar as Carater);
-    const per = (params as Record<string, unknown>).periodo;
-    if (typeof per === "string") setPeriodo(per as Periodo);
-    const fat = (params as Record<string, unknown>).faturado;
-    if (typeof fat === "string") setFaturado(fat as Faturado);
-    toast.success(`Cenário "${c.nome}" carregado.`);
-  }, []);
+  // Filtro busca
+  const linhasFiltradas = useMemo(() => {
+    const q = norm(busca);
+    if (!q) return linhas;
+    return linhas.filter((l) => norm(l.nome).includes(q));
+  }, [linhas, busca]);
 
-  const deleteCenario = useCallback(async (c: CenarioSalvo) => {
-    if (!window.confirm(`Excluir o cenário "${c.nome}"? Esta ação não pode ser desfeita.`)) return;
-    const { error } = await supabase
-      .from("simulacao_cenario" as unknown as never)
-      .delete()
-      .eq("id", c.id);
-    if (error) {
-      toast.error(`Falha ao excluir: ${error.message}`);
-      return;
+  // Ordenação padrão: maior receita líquida no topo
+  const linhasOrdenadas = useMemo(
+    () => [...linhasFiltradas].sort((a, b) => b.receita_liquida - a.receita_liquida),
+    [linhasFiltradas],
+  );
+
+  // Totais consolidados (KPIs)
+  const totais = useMemo(() => {
+    let receita = 0, custoAurum = 0, hmAurum = 0, hmExacta = 0, matched = 0;
+    for (const l of linhasOrdenadas) {
+      receita += l.receita_liquida;
+      custoAurum += l.custo_total_aurum;
+      hmAurum += l.custo_hm_aurum;
+      if (l.hm_exacta_real != null) {
+        hmExacta += l.hm_exacta_real;
+        matched += 1;
+      }
     }
-    toast.success("Cenário excluído.");
-    setCenariosTick((t) => t + 1);
-  }, []);
+    const margemAurum = receita - custoAurum;
+    const custoRecalc = custoAurum - hmAurum + hmExacta;
+    const margemRecalc = receita - custoRecalc;
+    return {
+      receita, custoAurum, hmAurum, hmExacta, matched,
+      margemAurum, margemRecalc,
+      delta: margemRecalc - margemAurum,
+      pctMatched: linhasOrdenadas.length > 0 ? matched / linhasOrdenadas.length : 0,
+    };
+  }, [linhasOrdenadas]);
 
-  const canRender = !!aur && !!selName && !!ano;
+  const semAurum = anosDisponiveis.length === 0;
 
   return (
-    <TooltipProvider>
-      <div className="space-y-6">
-        {/* Seleção */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Seleção</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
-                {(["medico", "procedimento"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setModo(m)}
-                    className={cn(
-                      "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                      modo === m
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Por {m === "medico" ? "Médico" : "Procedimento"}
-                  </button>
-                ))}
-              </div>
+    <div className="space-y-4">
+      {/* Filtros */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Comparativo Aurum × Repasse Real (Exacta)</CardTitle>
+            <Badge variant="outline" className="text-xs">Fase 1</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+            <div className="col-span-2">
+              <Label className="text-xs">Base</Label>
+              <Select value={modo} onValueChange={(v) => setModo(v as Modo)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="medico">Por médico cirurgião</SelectItem>
+                  <SelectItem value="procedimento">Por procedimento (principal)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <div>
+              <Label className="text-xs">Ano Aurum</Label>
+              <Select
+                value={ano ? String(ano) : ""}
+                onValueChange={(v) => setAno(Number(v))}
+                disabled={semAurum}
+              >
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  {anosDisponiveis.map((a) => (
+                    <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Caráter</Label>
+              <Select value={carater} onValueChange={(v) => setCarater(v as Carater)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="Eletiva">Eletiva</SelectItem>
+                  <SelectItem value="Urgência">Urgência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Período</Label>
+              <Select value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="Diurno">Diurno</SelectItem>
+                  <SelectItem value="Noturno">Noturno</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Faturado</Label>
+              <Select value={faturado} onValueChange={(v) => setFaturado(v as Faturado)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="sim">Sim</SelectItem>
+                  <SelectItem value="nao">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
-              <div className="lg:col-span-2 space-y-1.5">
-                <Label>{modo === "medico" ? "Médico" : "Procedimento"}</Label>
-                <Autocomplete
-                  value={selName}
-                  options={names}
-                  onChange={setSelName}
-                  placeholder={modo === "medico" ? "Buscar médico..." : "Buscar procedimento..."}
-                  loading={loadingList}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Ano</Label>
-                <Select
-                  value={ano ? String(ano) : ""}
-                  onValueChange={(v) => setAno(Number(v))}
-                  disabled={anos.length === 0}
-                >
-                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    {anos.map((a) => (
-                      <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Caráter</Label>
-                <Select value={carater} onValueChange={(v) => setCarater(v as Carater)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    <SelectItem value="Eletiva">Eletiva</SelectItem>
-                    <SelectItem value="Urgência">Urgência</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Faturado</Label>
-                <Select value={faturado} onValueChange={(v) => setFaturado(v as Faturado)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    <SelectItem value="sim">Sim</SelectItem>
-                    <SelectItem value="nao">Não</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+            <div>
+              <Label className="text-xs">Exacta — de</Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Exacta — até</Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <Label className="text-xs">Buscar por nome</Label>
+              <Input
+                placeholder={modo === "medico" ? "Ex.: dr. joão silva" : "Ex.: colecistectomia"}
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+            <div className="col-span-2 flex items-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (ano) {
+                    setDateFrom(firstOfYear(ano));
+                    setDateTo(firstOfNextYear(ano));
+                  }
+                }}
+              >
+                <RefreshCw className="mr-1 h-3 w-3" /> Sincronizar Exacta com ano Aurum
+              </Button>
+            </div>
+          </div>
+
+          {semAurum && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <AlertCircle className="h-4 w-4" />
+              Nenhuma base Aurum importada para este hospital. Vá em "Bases Aurum" para subir o XLSX.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* KPIs consolidados */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Receita líquida</div>
+            <div className="text-lg font-semibold">{BRL(totais.receita)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">HM Aurum × Exacta</div>
+            <div className="text-sm">
+              <span className="font-semibold">{BRL(totais.hmAurum)}</span>{" "}
+              <span className="text-muted-foreground">vs</span>{" "}
+              <span className="font-semibold">{BRL(totais.hmExacta)}</span>
+            </div>
+            <div className="text-xs text-muted-foreground">{NUM(totais.matched)} de {NUM(linhasOrdenadas.length)} linhas casadas ({PCT(totais.pctMatched)})</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Margem Aurum → Recalculada</div>
+            <div className="text-sm">
+              <span className="font-semibold">{BRL(totais.margemAurum)}</span>{" "}
+              <span className="text-muted-foreground">→</span>{" "}
+              <span className="font-semibold">{BRL(totais.margemRecalc)}</span>
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Δ Margem (Recalc − Aurum)</div>
+            <div className={cn(
+              "text-lg font-semibold",
+              totais.delta > 0 ? "text-emerald-600" : totais.delta < 0 ? "text-red-600" : "",
+            )}>
+              {BRL(totais.delta)}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        {!hospitalId && (
-          <div className="rounded-md border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-            Selecione um hospital ativo para carregar as bases.
+      {/* Tabela comparativa */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">
+              {modo === "medico" ? "Médicos cirurgiões" : "Procedimentos (código principal)"}
+              {(loadingAurum || loadingExacta) && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">carregando…</span>
+              )}
+            </CardTitle>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Info className="h-3 w-3" />
+              Coluna "HM Exacta" = repasse real pago no período. Substitui o "Custo HM" do Aurum.
+            </div>
           </div>
-        )}
-
-        {hospitalId && names.length === 0 && !loadingList && (
-          <div className="rounded-md border border-dashed border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">
-            Sem base Aurum importada para <strong>{modo === "medico" ? "médicos" : "procedimentos"}</strong>.
-            Vá para a aba <strong>Bases Aurum</strong> e faça o upload da planilha.
-          </div>
-        )}
-
-        {canRender && aur && (
-          <>
-            {/* Cards */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {/* Aurum */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Margem Aurum (HM contábil)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <Row label="Receita" value={BRL(aur.receita)} />
-                  <Row label="Receita líquida" value={BRL(aur.receitaLiq)} />
-                  <Row label="Custo total" value={BRL(aur.custoTotal)} />
-                  <div className="flex items-center justify-between rounded-md bg-yellow-50 dark:bg-yellow-950/40 px-2 py-1.5">
-                    <div className="flex items-center gap-1.5 text-yellow-800 dark:text-yellow-200">
-                      <span>Custo HM</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <AlertCircle className="h-3.5 w-3.5" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Este valor NÃO reflete o repasse real ao médico.
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <span className="font-medium text-yellow-900 dark:text-yellow-100">
-                      {BRL(aur.custoHm)}
-                    </span>
-                  </div>
-                  <Row label="Margem" value={BRL(aur.margem)} strong />
-                  <Row label="% Margem" value={PCT(aur.pctMargem)} strong />
-                  <div className="pt-1 text-xs text-muted-foreground">
-                    {aur.qtd || 0} cirurgias · {aurumRows.length} linhas
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Real */}
-              <Card
-                className={cn(
-                  real && real.margemReal > aur.margem && "border-emerald-500/60",
-                  real && real.margemReal < aur.margem && "border-red-500/60",
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="max-h-[65vh] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-background">
+                <TableRow>
+                  <TableHead className="min-w-[240px]">{modo === "medico" ? "Médico" : "Procedimento"}</TableHead>
+                  <TableHead className="text-right">Qtd</TableHead>
+                  <TableHead className="text-right">Receita Líq.</TableHead>
+                  <TableHead className="text-right">Custo total (Aurum)</TableHead>
+                  <TableHead className="text-right">HM Aurum</TableHead>
+                  <TableHead className="text-right">HM Exacta (real)</TableHead>
+                  <TableHead className="text-right">Margem Aurum</TableHead>
+                  <TableHead className="text-right">Margem Recalc</TableHead>
+                  <TableHead className="text-right">Δ Margem</TableHead>
+                  <TableHead className="text-right">% Margem</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhasOrdenadas.length === 0 && !loadingAurum && (
+                  <TableRow>
+                    <TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">
+                      Nenhuma linha para os filtros escolhidos.
+                    </TableCell>
+                  </TableRow>
                 )}
-              >
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Margem Real (com repasse Exacta)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {loadingExacta ? (
-                    <p className="text-muted-foreground">Carregando repasse Exacta…</p>
-                  ) : exactaRepasse == null || !real ? (
-                    <p className="text-sm text-muted-foreground">
-                      Sem dados de repasse no Exacta para este {modo === "medico" ? "médico" : "procedimento"}.
-                    </p>
-                  ) : (
-                    <>
-                      <Row label="Receita líquida" value={BRL(aur.receitaLiq)} />
-                      <Row label="Custo total ajustado" value={BRL(real.custoAjustado)} />
-                      <Row
-                        label="Repasse real (Exacta)"
-                        value={BRL(exactaRepasse)}
-                        hint={`${exactaQtd} itens`}
-                      />
-                      <Row label="Margem real" value={BRL(real.margemReal)} strong
-                        tone={real.margemReal > aur.margem ? "up" : real.margemReal < aur.margem ? "down" : undefined}
-                      />
-                      <Row label="% Margem real" value={PCT(real.pctReal)} strong
-                        tone={real.margemReal > aur.margem ? "up" : real.margemReal < aur.margem ? "down" : undefined}
-                      />
-                      <div className="pt-1 text-xs text-muted-foreground">
-                        Δ vs. Aurum: {BRL(real.margemReal - aur.margem)}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Simulador */}
-              <Card className="border-primary/40">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    Simulador de cenário
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">% de repasse simulado</Label>
-                    <div className="flex items-center gap-2">
-                      <Slider
-                        value={[pctRepasse]}
-                        onValueChange={([v]) => setPctRepasse(v)}
-                        min={0}
-                        max={200}
-                        step={1}
-                        className="flex-1"
-                      />
-                      <Input
-                        type="number"
-                        value={pctRepasse}
-                        onChange={(e) => setPctRepasse(Number(e.target.value) || 0)}
-                        className="w-20"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Dobra CBHPM</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={dobra}
-                        onChange={(e) => setDobra(Number(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Via acesso (%)</Label>
-                      <Input
-                        type="number"
-                        step="1"
-                        value={viaAcessoPct}
-                        onChange={(e) => setViaAcessoPct(Number(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">
-                        CBHPM base (R$)
-                        {cbhpmMatch && (
-                          <span className="ml-1 text-[10px] font-normal text-emerald-600 dark:text-emerald-400">
-                            · auto ({cbhpmMatch.codigo})
+                {linhasOrdenadas.map((l) => {
+                  const semMatch = l.hm_exacta_real == null;
+                  return (
+                    <TableRow key={`${l.nome}-${l.ano}`}>
+                      <TableCell className="font-medium">
+                        <div className="truncate max-w-[280px]" title={l.nome}>{l.nome}</div>
+                        {semMatch && (
+                          <span className="text-[10px] uppercase tracking-wide text-amber-600">sem match no exacta</span>
+                        )}
+                        {!semMatch && modo === "procedimento" && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {NUM(l.hm_exacta_qtd_atendimentos)} atendimento(s) somado(s)
                           </span>
                         )}
-                      </Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={cbhpmBase}
-                        onChange={(e) => {
-                          setCbhpmBase(Number(e.target.value) || 0);
-                          setCbhpmMatch(null);
-                        }}
-                      />
-                      {cbhpmMatch && (
-                        <p className="text-[10px] text-muted-foreground truncate" title={cbhpmMatch.descricao}>
-                          {cbhpmMatch.descricao}
-                        </p>
-                      )}
-                      {modo === "procedimento" && !cbhpmMatch && selName && cbhpmList.length > 0 && (
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                          Sem match CBHPM — informe o valor manualmente.
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Volume (cirurgias)</Label>
-                      <Input
-                        type="number"
-                        step="1"
-                        value={volume}
-                        onChange={(e) => setVolume(Number(e.target.value) || 0)}
-                      />
-                    </div>
-                  </div>
-                  {sim && (
-                    <div className="space-y-2 rounded-md bg-muted/50 p-2 text-sm">
-                      <Row label="Repasse unit." value={BRL(sim.repasseUnit)} />
-                      <Row label="Repasse simulado" value={BRL(sim.repasseSim)} />
-                      <Row label="Margem simulada" value={BRL(sim.margemSim)} strong
-                        tone={sim.margemSim > aur.margem ? "up" : sim.margemSim < aur.margem ? "down" : undefined}
-                      />
-                      <Row label="% Margem simulada" value={PCT(sim.pctSim)} strong />
-                    </div>
-                  )}
-                  <Button
-                    type="button"
-                    onClick={() => setSaveOpen(true)}
-                    className="w-full"
-                    disabled={!sim}
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    Salvar cenário
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Tabela comparativa */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Comparativo</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Métrica</TableHead>
-                      <TableHead className="text-right">Aurum</TableHead>
-                      <TableHead className="text-right">Real (Exacta)</TableHead>
-                      <TableHead className="text-right">Simulado</TableHead>
+                      </TableCell>
+                      <TableCell className="text-right">{NUM(l.qtd_cirurgias)}</TableCell>
+                      <TableCell className="text-right">{BRL(l.receita_liquida)}</TableCell>
+                      <TableCell className="text-right">{BRL(l.custo_total_aurum)}</TableCell>
+                      <TableCell className="text-right">{BRL(l.custo_hm_aurum)}</TableCell>
+                      <TableCell className={cn("text-right", semMatch ? "text-muted-foreground" : "font-medium")}>
+                        {BRL(l.hm_exacta_real)}
+                      </TableCell>
+                      <TableCell className="text-right">{BRL(l.margem_aurum)}</TableCell>
+                      <TableCell className="text-right">{BRL(l.margem_recalc)}</TableCell>
+                      <TableCell className={cn(
+                        "text-right font-semibold",
+                        (l.delta_margem ?? 0) > 0 ? "text-emerald-600" : (l.delta_margem ?? 0) < 0 ? "text-red-600" : "",
+                      )}>
+                        {BRL(l.delta_margem)}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">
+                        <div>{PCT(l.pct_margem_aurum)}</div>
+                        {l.pct_margem_recalc != null && (
+                          <div className="text-muted-foreground">→ {PCT(l.pct_margem_recalc)}</div>
+                        )}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <CompareRow label="Receita líquida"
-                      a={BRL(aur.receitaLiq)} b={BRL(aur.receitaLiq)} c={BRL(aur.receitaLiq)} />
-                    <CompareRow label="Custo total"
-                      a={BRL(aur.custoTotal)}
-                      b={real ? BRL(real.custoAjustado) : "—"}
-                      c={sim ? BRL(sim.custoAjustado) : "—"} />
-                    <CompareRow label="Repasse HM/Médico"
-                      a={BRL(aur.custoHm)}
-                      b={exactaRepasse != null ? BRL(exactaRepasse) : "—"}
-                      c={sim ? BRL(sim.repasseSim) : "—"} />
-                    <CompareRow label="Margem R$"
-                      a={BRL(aur.margem)}
-                      b={real ? BRL(real.margemReal) : "—"}
-                      c={sim ? BRL(sim.margemSim) : "—"} strong />
-                    <CompareRow label="% Margem"
-                      a={PCT(aur.pctMargem)}
-                      b={real ? PCT(real.pctReal) : "—"}
-                      c={sim ? PCT(sim.pctSim) : "—"} strong />
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </>
-        )}
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Cenários salvos — sempre visível quando há hospital ativo */}
-        {hospitalId && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-              <CardTitle className="text-base">
-                Cenários Salvos{" "}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  ({cenarios.length})
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {cenarios.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum cenário salvo ainda. Configure uma simulação acima e clique em "Salvar cenário".
-                </p>
-              ) : (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Médico / Procedimento</TableHead>
-                        <TableHead className="w-16 text-right">Ano</TableHead>
-                        <TableHead className="w-24 text-right">% Repasse</TableHead>
-                        <TableHead className="w-32 text-right">Margem Sim.</TableHead>
-                        <TableHead className="w-32">Criado em</TableHead>
-                        <TableHead className="w-32 text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {cenarios.map((c) => (
-                        <TableRow key={c.id}>
-                          <TableCell className="text-sm font-medium">{c.nome}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {c.tipo === "medico" ? "Médico" : "Procedimento"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm max-w-[240px] truncate"
-                            title={c.medico_nome ?? c.procedimento_nome ?? ""}>
-                            {c.medico_nome ?? c.procedimento_nome ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {c.ano_referencia ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {c.pct_repasse != null ? `${c.pct_repasse}%` : "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {BRL(c.margem_simulada)}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(c.created_at).toLocaleDateString("pt-BR")}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => loadCenario(c)}
-                                title="Carregar este cenário no simulador"
-                              >
-                                <RotateCcw className="h-3.5 w-3.5" />
-                                <span className="ml-1 hidden sm:inline">Carregar</span>
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => void deleteCenario(c)}
-                                title="Excluir cenário"
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {loadingAurum && (
-          <div className="text-center text-sm text-muted-foreground">Carregando…</div>
-        )}
-
-        {/* Dialog salvar cenário */}
-        <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Salvar cenário</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Nome do cenário</Label>
-                <Input
-                  value={nomeCenario}
-                  onChange={(e) => setNomeCenario(e.target.value)}
-                  placeholder="Ex: Acordo Dr. X — 2026 (dobra 1.5)"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Descrição (opcional)</Label>
-                <Textarea
-                  value={descCenario}
-                  onChange={(e) => setDescCenario(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setSaveOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="button" onClick={saveScenario} disabled={saving}>
-                {saving ? "Salvando…" : "Salvar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <div className="text-xs text-muted-foreground">
+        Fase 2 (próxima): base histórica de simulação por atendimento para cada médico/procedimento.
+        Fase 3: motor de simulação com modelos <em>percentual convênio</em>, <em>tabela diferenciada</em> e <em>valor fixo</em>.
       </div>
-    </TooltipProvider>
-  );
-}
-
-function Row({
-  label, value, strong, hint, tone,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  hint?: string;
-  tone?: "up" | "down";
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">
-        {label}
-        {hint && <span className="ml-1 text-xs opacity-70">({hint})</span>}
-      </span>
-      <span
-        className={cn(
-          strong && "font-semibold",
-          tone === "up" && "text-emerald-600 dark:text-emerald-400",
-          tone === "down" && "text-red-600 dark:text-red-400",
-        )}
-      >
-        {value}
-      </span>
     </div>
-  );
-}
-
-function CompareRow({
-  label, a, b, c, strong,
-}: { label: string; a: string; b: string; c: string; strong?: boolean }) {
-  return (
-    <TableRow>
-      <TableCell className={cn(strong && "font-medium")}>{label}</TableCell>
-      <TableCell className={cn("text-right tabular-nums", strong && "font-semibold")}>{a}</TableCell>
-      <TableCell className={cn("text-right tabular-nums", strong && "font-semibold")}>{b}</TableCell>
-      <TableCell className={cn("text-right tabular-nums", strong && "font-semibold")}>{c}</TableCell>
-    </TableRow>
   );
 }
