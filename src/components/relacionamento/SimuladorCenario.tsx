@@ -1082,10 +1082,7 @@ export function SimuladorCenario() {
             {modelo === "percentual" ? (
               <div className="max-w-[8rem]">
                 <Label className="text-xs">Novo %</Label>
-                <Input
-                  type="number" step="0.1" value={pctNovo}
-                  onChange={(e) => setPctNovo(Number(e.target.value))}
-                />
+                <DecimalInput value={pctNovo} onChange={setPctNovo} />
               </div>
             ) : (
               <>
@@ -1104,15 +1101,15 @@ export function SimuladorCenario() {
                 </div>
                 <div className="max-w-[7rem]">
                   <Label className="text-xs">Multiplicador (x)</Label>
-                  <Input type="number" step="0.1" value={multiplicador} onChange={(e) => setMultiplicador(Number(e.target.value))} />
+                  <DecimalInput value={multiplicador} onChange={setMultiplicador} />
                 </div>
                 <div className="max-w-[7rem]">
                   <Label className="text-xs">Deflator (%)</Label>
-                  <Input type="number" step="0.1" value={deflator} onChange={(e) => setDeflator(Number(e.target.value))} />
+                  <DecimalInput value={deflator} onChange={setDeflator} />
                 </div>
                 <div className="max-w-[7rem]">
                   <Label className="text-xs">Acréscimo (%)</Label>
-                  <Input type="number" step="0.1" value={acrescimo} onChange={(e) => setAcrescimo(Number(e.target.value))} />
+                  <DecimalInput value={acrescimo} onChange={setAcrescimo} />
                 </div>
               </>
             )}
