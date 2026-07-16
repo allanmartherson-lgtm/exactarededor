@@ -2220,6 +2220,9 @@ export type TvrResult = {
     | "outro"
     | null;
   exclusion_note?: string | null;
+  // T3: id da linha em retroactive_reconciliation_items (necessário
+  // p/ UPDATEs de exclusão — matched_payment_item_id NÃO serve como PK).
+  _retroReconRowId?: string;
 };
 
 // Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
