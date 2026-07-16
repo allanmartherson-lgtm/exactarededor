@@ -2,10 +2,10 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Handshake, TrendingUp } from "lucide-react";
+import { Handshake } from "lucide-react";
 import { AurumMargemUpload } from "@/components/relacionamento/AurumMargemUpload";
+import { SimuladorMargem } from "@/components/relacionamento/SimuladorMargem";
 
 type TabValue = "simulador-margem" | "bases-aurum";
 
@@ -32,19 +32,7 @@ export default function RelacionamentoHub() {
       case "bases-aurum":
         return <AurumMargemUpload />;
       case "simulador-margem":
-        return (
-          <Card className="mx-auto max-w-2xl">
-            <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-              <div className="rounded-full bg-primary/10 p-4">
-                <TrendingUp className="h-8 w-8 text-primary" />
-              </div>
-              <h2 className="text-lg font-semibold">
-                Simulador de Acordo e Margem Cirúrgica
-              </h2>
-              <p className="text-sm text-muted-foreground">Em construção</p>
-            </CardContent>
-          </Card>
-        );
+        return <SimuladorMargem />;
     }
   }, [active]);
 
