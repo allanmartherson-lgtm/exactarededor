@@ -85,7 +85,10 @@ export function CompanyHistoryPanel({
   aiVersions,
   assignments = [],
   profiles,
+  companyId = null,
+  companyName = null,
 }: CompanyHistoryPanelProps) {
+  const scopedToCompany = !!companyId;
   const itemIds = useMemo(() => new Set(items.map((i) => i.id)), [items]);
   const itemMap = useMemo(() => {
     const m = new Map<string, PaymentItemRow>();
@@ -96,6 +99,7 @@ export function CompanyHistoryPanel({
   const [filterItem, setFilterItem] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
+  const [showLoteEvents, setShowLoteEvents] = useState<boolean>(!scopedToCompany);
   const [expanded, setExpanded] = useState(false);
   const [openEntries, setOpenEntries] = useState<Set<string>>(new Set());
   const toggleEntry = (id: string) =>
