@@ -31,7 +31,9 @@ export default function NewManualPayment() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { hospital } = useHospital();
-  const { list: paymentTypes, loading: typesLoading } = usePaymentTypes({ onlyActive: true });
+  // Lote manual carrega MODELO de pagamento (Produção/Remessa/Plantão/Valor fixo).
+  // Item_types (Parecer, Visita, Cirurgia, Consulta...) são definidos por linha, não no cabeçalho.
+  const { list: paymentTypes, loading: typesLoading } = usePaymentTypes({ onlyActive: true, origin: "payment_model" });
 
   const prefillCompetence = (() => {
     const raw = searchParams.get("competence_month");
