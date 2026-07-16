@@ -5928,6 +5928,120 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   // apuração/glosa — a listagem principal continua exibindo tudo.
   const notExcluded = (r: TvrResult) => !r.excluir_do_encaminhamento;
 
+  // ============================================================
+  // T3 — Exclusão manual do encaminhamento (UI)
+  // ============================================================
+  type ExclusionReason =
+    | "mudanca_data_administrativa"
+    | "cancelamento_externo"
+    | "duplicidade_ja_resolvida"
+    | "acordo_diferenciado"
+    | "outro";
+
+  const REASON_LABEL: Record<ExclusionReason, string> = {
+    mudanca_data_administrativa: "Mudança administrativa de data",
+    cancelamento_externo: "Cancelamento externo",
+    duplicidade_ja_resolvida: "Duplicidade já resolvida",
+    acordo_diferenciado: "Acordo diferenciado",
+    outro: "Outro",
+  };
+  const reasonLabel = (r?: TvrResult["exclusion_reason"]) =>
+    r ? REASON_LABEL[r as ExclusionReason] ?? "Excluído" : "Excluído";
+
+  const [excludeDialog, setExcludeDialog] = useState<{ open: boolean; targetIds: string[] }>({
+    open: false,
+    targetIds: [],
+  });
+  const [excludeReason, setExcludeReason] = useState<ExclusionReason | "">("");
+  const [excludeNote, setExcludeNote] = useState("");
+  const [excluding, setExcluding] = useState(false);
+
+  const openExcludeDialog = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setExcludeReason("");
+    setExcludeNote("");
+    setExcludeDialog({ open: true, targetIds: ids });
+  };
+
+  const markExcluded = async (
+    itemIds: string[],
+    reason: ExclusionReason,
+    note: string | null,
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (itemIds.length === 0) return { ok: true };
+    if (reason === "outro" && !(note && note.trim().length > 0)) {
+      return { ok: false, error: "Observação é obrigatória para 'Outro'." };
+    }
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) return { ok: false, error: "Usuário não autenticado." };
+    const trimmed = note?.trim() || null;
+    const { error } = await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .update({
+        excluir_do_encaminhamento: true,
+        exclusion_reason: reason,
+        exclusion_note: trimmed,
+        excluded_by: uid,
+        excluded_at: new Date().toISOString(),
+      } as never)
+      .in("id", itemIds);
+    if (error) return { ok: false, error: error.message };
+    const idSet = new Set(itemIds);
+    setResults((prev) =>
+      prev?.map((r) =>
+        r._retroReconRowId && idSet.has(r._retroReconRowId)
+          ? { ...r, excluir_do_encaminhamento: true, exclusion_reason: reason, exclusion_note: trimmed }
+          : r,
+      ) ?? prev,
+    );
+    return { ok: true };
+  };
+
+  const unmarkExcluded = async (
+    itemIds: string[],
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (itemIds.length === 0) return { ok: true };
+    const { error } = await supabase
+      .from("retroactive_reconciliation_items" as never)
+      .update({
+        excluir_do_encaminhamento: false,
+        exclusion_reason: null,
+        exclusion_note: null,
+        excluded_by: null,
+        excluded_at: null,
+      } as never)
+      .in("id", itemIds);
+    if (error) return { ok: false, error: error.message };
+    const idSet = new Set(itemIds);
+    setResults((prev) =>
+      prev?.map((r) =>
+        r._retroReconRowId && idSet.has(r._retroReconRowId)
+          ? { ...r, excluir_do_encaminhamento: false, exclusion_reason: null, exclusion_note: null }
+          : r,
+      ) ?? prev,
+    );
+    return { ok: true };
+  };
+
+  const confirmExcludeDialog = async () => {
+    if (!excludeReason) return;
+    setExcluding(true);
+    const res = await markExcluded(excludeDialog.targetIds, excludeReason as ExclusionReason, excludeNote);
+    setExcluding(false);
+    if (!res.ok) {
+      toast({ title: "Falha ao excluir do encaminhamento", description: res.error, variant: "destructive" });
+      return;
+    }
+    // Ao excluir em lote (via selectedKeys), limpa seleção.
+    if (excludeDialog.targetIds.length > 1) {
+      setSelectedKeys(new Set());
+    }
+    setExcludeDialog({ open: false, targetIds: [] });
+    toast({ title: excludeDialog.targetIds.length === 1 ? "Item excluído do encaminhamento" : `${excludeDialog.targetIds.length} itens excluídos do encaminhamento` });
+  };
+
+
   // ===== Agrupamento por médico (apuração só-PJ) =====
   type GlosaGroup = {
     doctor_id: string;
