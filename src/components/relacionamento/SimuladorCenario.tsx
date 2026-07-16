@@ -902,12 +902,9 @@ export function SimuladorCenario() {
                     exGross == null ? "neutral" :
                     sim.novo_hm > exGross ? "negative" : "positive";
 
-                  // Médias por cirurgia / atendimento
+                  // Médias por cirurgia / atendimento — usadas nas sub-linhas dentro de cada célula da DRE.
                   const qc = A.qtd_cirurgias;
                   const atd = resultado.exacta?.atendimentos ?? 0;
-                  const mediaHmAurum = qc > 0 ? A.custo_hm / qc : null;
-                  const mediaHmExacta = exGross != null && atd > 0 ? exGross / atd : null;
-                  const mediaHmSim = qc > 0 ? sim.novo_hm / qc : null;
 
                   // % HM sobre receita líquida
                   const rl = A.receita_liquida;
