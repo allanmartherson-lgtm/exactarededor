@@ -205,8 +205,9 @@ Deno.serve(async (req) => {
             nextItemTypeId = null;
             nextSource = "ambiguous_tuss";
           }
-        } else if (code && dynamicFallbackItemTypeId) {
-          nextItemTypeId = dynamicFallbackItemTypeId;
+        } else if (code && (classifyByTussPrefix(code) || dynamicFallbackItemTypeId)) {
+          const byPrefix = classifyByTussPrefix(code);
+          nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
           nextSource = "auto_heuristic";
         } else if (defaultItemTypeId) {
           nextItemTypeId = defaultItemTypeId;
