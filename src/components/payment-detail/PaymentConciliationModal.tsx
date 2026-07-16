@@ -3837,7 +3837,7 @@ export function PaymentConciliationModal({
         try {
           const { data } = await supabase
             .from('payment_items')
-            .select('doctor_role, sector, specialty, convenio_id, attendance_character')
+            .select('doctor_role, sector, specialty, convenio_slug, attendance_character')
             .eq('payment_id', paymentId)
             .eq('company_name', item.company_name ?? '')
             .eq('attendance_number', item.attendance_number ?? '')
@@ -3872,7 +3872,7 @@ export function PaymentConciliationModal({
             tipo_linha: 'procedimento',
             sector: irmao?.sector ?? null,
             specialty: irmao?.specialty ?? null,
-            convenio_id: irmao?.convenio_id ?? null,
+            convenio_slug: irmao?.convenio_slug ?? null,
             attendance_character: irmao?.attendance_character ?? null,
             gross_amount: isCredito ? valorAjuste : -valorAjuste,
             item_origem: isCredito ? 'conciliacao_credito' : 'conciliacao_debito',
