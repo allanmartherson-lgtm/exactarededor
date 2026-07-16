@@ -3200,6 +3200,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // isso, apurações grandes ficam truncadas em "1000 de 1000".
     const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
     const savedItems = await fetchAllPaginated<{
+      id: string;
       raw?: { tvr_result?: unknown };
       excluir_do_encaminhamento?: boolean | null;
       exclusion_reason?: TvrResult["exclusion_reason"] | null;
@@ -3222,6 +3223,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           excluir_do_encaminhamento: Boolean(item.excluir_do_encaminhamento),
           exclusion_reason: item.exclusion_reason ?? null,
           exclusion_note: item.exclusion_note ?? null,
+          _retroReconRowId: item.id,
         } as TvrResult;
       })
       .filter((x): x is TvrResult => x !== null);
