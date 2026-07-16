@@ -818,10 +818,20 @@ export function SimuladorCenario() {
                 Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
                 {" | "}
                 Exacta: {resultado.exacta ? `${resultado.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${resultado.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
+                {" | "}
+                Filtro: {carater === "todos" ? "Todos" : carater}
               </div>
+              {carater === "todos" && resultado.exacta && resultado.exacta.sem_carater > 0 && (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {resultado.exacta.sem_carater} de {resultado.exacta.itens} itens do Exacta não têm caráter preenchido e foram incluídos no total.
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border p-3 bg-muted/20">
+              <div className="rounded-md border p-3 bg-muted/20 relative">
+                {/* Overlay de destaque da coluna Simulado */}
+                <div className="absolute right-0 top-0 bottom-0 w-[calc((100%-2rem-1fr)/3)] bg-primary/5 rounded-r-md pointer-events-none" aria-hidden />
                 {/* Cabeçalho */}
                 <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 pb-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span></span>
