@@ -1556,9 +1556,9 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
               const note = typeof engineBlock?.ai_note === "string" ? engineBlock.ai_note : null;
               if (!note) continue;
               if (note.startsWith(AI_FALLBACK_LEGACY_PREFIX)) continue;
-              const extras = Array.isArray(row.ai_findings?.alerts)
-                ? row.ai_findings.alerts.filter((a: unknown) => typeof a === "string")
-                : [];
+              // extra_alerts não é persistido separadamente hoje; cache preserva
+              // apenas a nota. Alerts do motor são recomputados a cada análise.
+              const extras: string[] = [];
               cacheByHash[h] = { ai_note: note, extra_alerts: extras };
             }
             const missing: typeof itemsForAi = [];
