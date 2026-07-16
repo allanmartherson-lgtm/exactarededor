@@ -174,6 +174,12 @@ export function SimuladorMargem() {
   // Faixa real de dados Exacta do hospital (para default e aviso quando o filtro está fora).
   const [exactaRange, setExactaRange] = useState<{ min: string; max: string } | null>(null);
 
+  // Aliases: doctor_aliases (norm alias → norm doctor canônico) e procedure_aliases
+  // (norm alias → canonical_name). Usados como fallback antes do fuzzy match.
+  const [doctorAliasToNorm, setDoctorAliasToNorm] = useState<Map<string, string>>(new Map());
+  const [procAliasMap, setProcAliasMap] = useState<Map<string, string>>(new Map());
+
+
   // Descobre anos disponíveis (uma vez por hospital).
   useEffect(() => {
     if (!hospitalId) return;
