@@ -2610,7 +2610,7 @@ export function buildTvrReplaceSummary(
     ...(preservedMultiCompanyIds !== undefined ? { multi_company_ids: preservedMultiCompanyIds } : {}),
     ...(preservedMultiDoctorIds !== undefined ? { multi_doctor_ids: preservedMultiDoctorIds } : {}),
     ...(preservedMultiLabels !== undefined ? { multi_labels: preservedMultiLabels } : {}),
-    ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
+    
   };
 }
 
