@@ -386,17 +386,18 @@ export function SimuladorCenario() {
             gross_amount: number | null;
             expected_amount: number | null;
             attendance_number: string | null;
-          }>((from, to) =>
-            supabase
+          }>((from, to) => {
+            let q = supabase
               .from("payment_items")
               .select("gross_amount,expected_amount,attendance_number")
               .eq("hospital_id", hospitalId)
               .eq("is_cancelled", false)
               .in("doctor_id", idsArr)
               .gte("procedure_date", dateFrom)
-              .lt("procedure_date", dateTo)
-              .range(from, to),
-          );
+              .lt("procedure_date", dateTo);
+            if (carater !== "todos") q = q.eq("attendance_character", carater);
+            return q.range(from, to);
+          });
           for (const it of itens) {
             gross += Number(it.gross_amount ?? 0);
             expected += Number(it.expected_amount ?? 0);
