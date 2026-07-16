@@ -420,6 +420,234 @@ export type Database = {
           },
         ]
       }
+      aurum_margem_medico: {
+        Row: {
+          ano: number
+          carater: string
+          created_at: string
+          custo_exames_img: number | null
+          custo_hm: number | null
+          custo_laboratorio: number | null
+          custo_mat_med: number | null
+          custo_opme: number | null
+          custo_total: number | null
+          dias: number | null
+          faturado: boolean
+          glosa_externa: number | null
+          hospital_id: string
+          id: string
+          impostos: number | null
+          margem: number | null
+          margem_dia: number | null
+          medico_cirurgiao: string
+          pct_margem: number | null
+          periodo_internacao: string
+          qtd_cirurgias: number | null
+          receita: number | null
+          receita_liquida: number | null
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          carater?: string
+          created_at?: string
+          custo_exames_img?: number | null
+          custo_hm?: number | null
+          custo_laboratorio?: number | null
+          custo_mat_med?: number | null
+          custo_opme?: number | null
+          custo_total?: number | null
+          dias?: number | null
+          faturado?: boolean
+          glosa_externa?: number | null
+          hospital_id: string
+          id?: string
+          impostos?: number | null
+          margem?: number | null
+          margem_dia?: number | null
+          medico_cirurgiao: string
+          pct_margem?: number | null
+          periodo_internacao?: string
+          qtd_cirurgias?: number | null
+          receita?: number | null
+          receita_liquida?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          carater?: string
+          created_at?: string
+          custo_exames_img?: number | null
+          custo_hm?: number | null
+          custo_laboratorio?: number | null
+          custo_mat_med?: number | null
+          custo_opme?: number | null
+          custo_total?: number | null
+          dias?: number | null
+          faturado?: boolean
+          glosa_externa?: number | null
+          hospital_id?: string
+          id?: string
+          impostos?: number | null
+          margem?: number | null
+          margem_dia?: number | null
+          medico_cirurgiao?: string
+          pct_margem?: number | null
+          periodo_internacao?: string
+          qtd_cirurgias?: number | null
+          receita?: number | null
+          receita_liquida?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aurum_margem_medico_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aurum_margem_procedimento: {
+        Row: {
+          ano: number
+          carater: string
+          created_at: string
+          custo_exames_img: number | null
+          custo_hm: number | null
+          custo_laboratorio: number | null
+          custo_mat_med: number | null
+          custo_opme: number | null
+          custo_total: number | null
+          dias: number | null
+          ds_procedimento: string
+          faturado: boolean
+          glosa_externa: number | null
+          hospital_id: string
+          id: string
+          impostos: number | null
+          margem: number | null
+          margem_dia: number | null
+          pct_margem: number | null
+          periodo_internacao: string
+          qtd_cirurgias: number | null
+          receita: number | null
+          receita_liquida: number | null
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          carater?: string
+          created_at?: string
+          custo_exames_img?: number | null
+          custo_hm?: number | null
+          custo_laboratorio?: number | null
+          custo_mat_med?: number | null
+          custo_opme?: number | null
+          custo_total?: number | null
+          dias?: number | null
+          ds_procedimento: string
+          faturado?: boolean
+          glosa_externa?: number | null
+          hospital_id: string
+          id?: string
+          impostos?: number | null
+          margem?: number | null
+          margem_dia?: number | null
+          pct_margem?: number | null
+          periodo_internacao?: string
+          qtd_cirurgias?: number | null
+          receita?: number | null
+          receita_liquida?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          carater?: string
+          created_at?: string
+          custo_exames_img?: number | null
+          custo_hm?: number | null
+          custo_laboratorio?: number | null
+          custo_mat_med?: number | null
+          custo_opme?: number | null
+          custo_total?: number | null
+          dias?: number | null
+          ds_procedimento?: string
+          faturado?: boolean
+          glosa_externa?: number | null
+          hospital_id?: string
+          id?: string
+          impostos?: number | null
+          margem?: number | null
+          margem_dia?: number | null
+          pct_margem?: number | null
+          periodo_internacao?: string
+          qtd_cirurgias?: number | null
+          receita?: number | null
+          receita_liquida?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aurum_margem_procedimento_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbhpm_tabela: {
+        Row: {
+          auxiliar_qtd: number | null
+          codigo: string
+          created_at: string
+          descricao: string
+          hospital_id: string
+          id: string
+          incidencia: number | null
+          porte: string | null
+          porte_anestesico: string | null
+          updated_at: string
+          valor_base: number
+        }
+        Insert: {
+          auxiliar_qtd?: number | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          hospital_id: string
+          id?: string
+          incidencia?: number | null
+          porte?: string | null
+          porte_anestesico?: string | null
+          updated_at?: string
+          valor_base?: number
+        }
+        Update: {
+          auxiliar_qtd?: number | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          hospital_id?: string
+          id?: string
+          incidencia?: number | null
+          porte?: string | null
+          porte_anestesico?: string | null
+          updated_at?: string
+          valor_base?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbhpm_tabela_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comm_campaign_recipients: {
         Row: {
           campaign_id: string
@@ -10052,6 +10280,101 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sheet_column_templates_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      simulacao_cenario: {
+        Row: {
+          ano_referencia: number | null
+          created_at: string
+          criado_por: string | null
+          custo_hm_aurum: number | null
+          custo_sala_minuto: number | null
+          delta_margem: number | null
+          descricao: string | null
+          dobra_cbhpm: number | null
+          hospital_id: string
+          id: string
+          margem_aurum_original: number | null
+          margem_simulada: number | null
+          medico_nome: string | null
+          nome: string
+          parametros_json: Json | null
+          pct_margem_aurum_original: number | null
+          pct_margem_simulada: number | null
+          pct_repasse: number | null
+          procedimento_nome: string | null
+          repasse_real_exacta: number | null
+          repasse_simulado: number | null
+          resultado_json: Json | null
+          tipo: string
+          updated_at: string
+          via_acesso_pct: number | null
+          volume_estimado: number | null
+        }
+        Insert: {
+          ano_referencia?: number | null
+          created_at?: string
+          criado_por?: string | null
+          custo_hm_aurum?: number | null
+          custo_sala_minuto?: number | null
+          delta_margem?: number | null
+          descricao?: string | null
+          dobra_cbhpm?: number | null
+          hospital_id: string
+          id?: string
+          margem_aurum_original?: number | null
+          margem_simulada?: number | null
+          medico_nome?: string | null
+          nome: string
+          parametros_json?: Json | null
+          pct_margem_aurum_original?: number | null
+          pct_margem_simulada?: number | null
+          pct_repasse?: number | null
+          procedimento_nome?: string | null
+          repasse_real_exacta?: number | null
+          repasse_simulado?: number | null
+          resultado_json?: Json | null
+          tipo?: string
+          updated_at?: string
+          via_acesso_pct?: number | null
+          volume_estimado?: number | null
+        }
+        Update: {
+          ano_referencia?: number | null
+          created_at?: string
+          criado_por?: string | null
+          custo_hm_aurum?: number | null
+          custo_sala_minuto?: number | null
+          delta_margem?: number | null
+          descricao?: string | null
+          dobra_cbhpm?: number | null
+          hospital_id?: string
+          id?: string
+          margem_aurum_original?: number | null
+          margem_simulada?: number | null
+          medico_nome?: string | null
+          nome?: string
+          parametros_json?: Json | null
+          pct_margem_aurum_original?: number | null
+          pct_margem_simulada?: number | null
+          pct_repasse?: number | null
+          procedimento_nome?: string | null
+          repasse_real_exacta?: number | null
+          repasse_simulado?: number | null
+          resultado_json?: Json | null
+          tipo?: string
+          updated_at?: string
+          via_acesso_pct?: number | null
+          volume_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulacao_cenario_hospital_id_fkey"
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
