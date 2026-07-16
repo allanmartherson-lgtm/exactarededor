@@ -100,7 +100,10 @@ function buildSyntheticRule(scenario: Scenario): RuleInput {
     procedure_codes: null,
     valid_from: null,
     valid_until: null,
-    calculation_type: scenario.calculation_type as any,
+    // Normaliza: motor real espera "percentual_sobre_convenio". Aceita "percentual_convenio" (alias legado da UI) para não quebrar chamadas antigas.
+    calculation_type: (scenario.calculation_type === "percentual_convenio"
+      ? "percentual_sobre_convenio"
+      : scenario.calculation_type) as any,
     convenio_percentage: isTabela ? null : Number(scenario.convenio_percentage ?? 100),
     fixed_amount: null,
     package_amount: null,
