@@ -550,7 +550,7 @@ export function SimuladorMargem() {
                 onChange={(e) => setBusca(e.target.value)}
               />
             </div>
-            <div className="col-span-2 flex items-end gap-2">
+            <div className="col-span-2 flex items-end gap-2 flex-wrap">
               <Button
                 type="button"
                 variant="outline"
@@ -562,8 +562,22 @@ export function SimuladorMargem() {
                   }
                 }}
               >
-                <RefreshCw className="mr-1 h-3 w-3" /> Sincronizar Exacta com ano Aurum
+                <RefreshCw className="mr-1 h-3 w-3" /> Usar ano Aurum
               </Button>
+              {exactaRange && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDateFrom(exactaRange.min);
+                    setDateTo(exactaRange.max);
+                  }}
+                  title={`Produção real: ${exactaRange.min} a ${exactaRange.max}`}
+                >
+                  <RefreshCw className="mr-1 h-3 w-3" /> Usar faixa real do Exacta
+                </Button>
+              )}
             </div>
           </div>
 
@@ -571,6 +585,24 @@ export function SimuladorMargem() {
             <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               <AlertCircle className="h-4 w-4" />
               Nenhuma base Aurum importada para este hospital. Vá em "Bases Aurum" para subir o XLSX.
+            </div>
+          )}
+
+          {!loadingExacta && exactaRange && dateFrom && dateTo && (dateTo < exactaRange.min || dateFrom > exactaRange.max) && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                O intervalo Exacta selecionado ({dateFrom} → {dateTo}) está fora da produção real deste hospital
+                (dados de <strong>{exactaRange.min}</strong> a <strong>{exactaRange.max}</strong>).
+                Nenhum médico casará. Clique em <em>"Usar faixa real do Exacta"</em> ou ajuste as datas.
+              </div>
+            </div>
+          )}
+
+          {!loadingExacta && exactaItems.length === 0 && exactaRange && dateFrom && dateTo && dateFrom >= exactaRange.min && dateTo <= exactaRange.max && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              Nenhum item Exacta encontrado no intervalo selecionado, mas o hospital tem produção entre {exactaRange.min} e {exactaRange.max}.
             </div>
           )}
         </CardContent>
