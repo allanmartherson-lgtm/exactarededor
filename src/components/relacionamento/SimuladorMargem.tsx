@@ -217,6 +217,17 @@ export function SimuladorMargem() {
           .limit(1),
       ]);
       if (cancelled) return;
+      if (minRes.error || maxRes.error) {
+        // Range indisponível (timeout/erro). Cai para default baseado no ano Aurum
+        // selecionado — evita deixar o filtro em branco (que zera todo o comparativo).
+        const err = minRes.error || maxRes.error;
+        toast.warning(`Não foi possível descobrir a faixa real do Exacta (${err?.message ?? "erro"}). Usando o ano selecionado como intervalo.`);
+        if (ano) {
+          setDateFrom((prev) => prev || `${ano}-01-01`);
+          setDateTo((prev) => prev || `${ano + 1}-01-01`);
+        }
+        return;
+      }
       const min = (minRes.data?.[0] as { procedure_date?: string } | undefined)?.procedure_date;
       const max = (maxRes.data?.[0] as { procedure_date?: string } | undefined)?.procedure_date;
       if (min && max) {
@@ -226,10 +237,14 @@ export function SimuladorMargem() {
         // Só preenche defaults se o usuário ainda não escolheu nada.
         setDateFrom((prev) => prev || minIso);
         setDateTo((prev) => prev || maxIso);
+      } else if (ano) {
+        // Sem dados de produção — usa o ano como default só para não travar a UI.
+        setDateFrom((prev) => prev || `${ano}-01-01`);
+        setDateTo((prev) => prev || `${ano + 1}-01-01`);
       }
     })();
     return () => { cancelled = true; };
-  }, [hospitalId]);
+  }, [hospitalId, ano]);
 
 
 
