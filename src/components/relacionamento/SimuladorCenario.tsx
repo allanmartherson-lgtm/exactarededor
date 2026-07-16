@@ -834,6 +834,17 @@ export function SimuladorCenario() {
           novoHm = Number(simResp.total_expected ?? 0);
           itensCalculados = Number(simResp.summary?.matched ?? 0);
           itensSemMatch = Number(simResp.summary?.without_match ?? 0);
+          for (const p of (simResp.per_item ?? []) as Array<{
+            id: string; expected_amount: number; matched: boolean;
+            calculation_type_used: string | null; alerts: string[] | null;
+          }>) {
+            perItem[p.id] = {
+              expected_amount: Number(p.expected_amount ?? 0),
+              matched: !!p.matched,
+              calculation_type_used: p.calculation_type_used ?? null,
+              alerts: Array.isArray(p.alerts) ? p.alerts : [],
+            };
+          }
         }
       }
 
