@@ -613,9 +613,8 @@ export function SimuladorCenario() {
         } else {
           // Agora soma tudo desses atendimentos (todos os TUSS).
           let gross = 0, expected = 0, baseConv = 0, count = 0, semCar = 0;
-          // Rebusca todos os itens desses atendimentos (agregado).
+          const detalhes: ItemDetalhe[] = [];
           const attsArr = Array.from(attsMatched);
-          // Buscamos em blocos pra evitar URL gigante.
           const chunk = 200;
           for (let i = 0; i < attsArr.length; i += chunk) {
             const slice = attsArr.slice(i, i + chunk);
@@ -624,10 +623,14 @@ export function SimuladorCenario() {
               expected_amount: number | null;
               procedure_amount: number | null;
               attendance_character: string | null;
+              procedure_code: string | null;
+              doctor_role: string | null;
+              access_route: string | null;
+              quantity: number | null;
             }>((from, to) => {
               let q = supabase
                 .from("payment_items")
-                .select("gross_amount,expected_amount,procedure_amount,attendance_character")
+                .select("gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,doctor_role,access_route,quantity")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
                 .in("attendance_number", slice);
@@ -644,39 +647,88 @@ export function SimuladorCenario() {
               baseConv += Number(it.procedure_amount ?? 0);
               count += 1;
               if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
+              detalhes.push({
+                procedure_code: it.procedure_code,
+                doctor_role: it.doctor_role,
+                access_route: it.access_route,
+                quantity: Number(it.quantity ?? 1) || 1,
+                procedure_amount: Number(it.procedure_amount ?? 0),
+                gross_amount: Number(it.gross_amount ?? 0),
+              });
             }
           }
-          exacta = { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: attsMatched.size, sem_carater: semCar };
+          exacta = { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: attsMatched.size, sem_carater: semCar, detalhes };
         }
       }
 
-      // 3) Cálculo do cenário simulado.
-      // Base = valor do CONVÊNIO (procedure_amount) por item, que JÁ carrega
-      // a composição real de cada linha do pagamento (principal vs. auxiliar,
-      // via de acesso, redutores CBHPM etc.). Aplicamos APENAS os parâmetros
-      // que o usuário informou. NÃO reponderar pelo fator efetivo real
-      // (gross/base) porque isso duplicaria a regra atualmente paga.
+      // 3) Cálculo do cenário simulado — POR ITEM.
+      //  • Percentual sobre convênio: novoHm_item = procedure_amount × (pct/100)
+      //    (o procedure_amount já reflete o valor do convênio negociado para
+      //    aquela função/via, então basta aplicar o multiplicador escolhido.)
+      //  • Tabela diferenciada: busca o valor do TUSS na reference_table_items
+      //    e aplica multiplicador/deflator/acréscimo × fator da função ×
+      //    fator da via de acesso × quantidade.
       const baseConvenio = exacta?.baseConvenio ?? 0;
       const grossReal = exacta?.gross ?? 0;
       const fatorEfetivo = baseConvenio > 0 ? grossReal / baseConvenio : 0;
-      const fatorSimulado =
-        modelo === "percentual"
-          ? pctNovo / 100
-          : multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
+      const detalhes = exacta?.detalhes ?? [];
+
       let novoHm = 0;
+      let itensSemTabela = 0;
+      let itensCalculados = 0;
+
       if (modelo === "percentual") {
+        // Para % convênio: soma direta do procedure_amount × pct (aplicado a
+        // TODOS os itens, inclusive auxiliares — o procedure_amount por item
+        // já vem ponderado pela função no faturamento hospitalar).
         novoHm = baseConvenio * (pctNovo / 100);
+        itensCalculados = detalhes.length;
       } else {
-        novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
+        // Carrega valores da tabela de referência escolhida.
+        const tabelaValores = new Map<string, number>();
+        if (refTableId) {
+          const { data: refItems } = await supabase
+            .from("reference_table_items")
+            .select("code,amount,tuss_codes")
+            .eq("reference_table_id", refTableId);
+          for (const r of (refItems ?? []) as Array<{ code: string | null; amount: number | null; tuss_codes: string[] | null }>) {
+            const v = Number(r.amount ?? 0);
+            if (!v) continue;
+            if (r.code) tabelaValores.set(String(r.code).trim(), v);
+            for (const tc of r.tuss_codes ?? []) {
+              if (tc) tabelaValores.set(String(tc).trim(), v);
+            }
+          }
+        }
+        const fatorParam = multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
+        for (const it of detalhes) {
+          const code = (it.procedure_code ?? "").trim();
+          const valorTuss = code ? tabelaValores.get(code) ?? 0 : 0;
+          if (!valorTuss) { itensSemTabela += 1; continue; }
+          const fRole = roleFactor(it.doctor_role);
+          const fVia = viaFactor(it.access_route);
+          novoHm += valorTuss * fatorParam * fRole * fVia * it.quantity;
+          itensCalculados += 1;
+        }
       }
+
       const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
       const novaPct = aurum.receita_liquida > 0 ? novaMargem / aurum.receita_liquida : 0;
 
-      const aviso = exacta == null
-        ? "Sem itens do Exacta para este médico/procedimento no ano. HM Exacta real e Simulado indisponíveis (base convênio zerada)."
-        : baseConvenio <= 0
-          ? "Itens do Exacta encontrados, mas sem procedure_amount (base convênio) — Simulado zerado."
-          : `Aderência à regra real: fator pago observado ${(fatorEfetivo * 100).toFixed(1)}% (gross/base) × fator simulado ${(fatorSimulado * 100).toFixed(1)}%. O Simulado aplica os parâmetros informados sobre a base do convênio de cada item (já com peso de via/auxiliar/principal); não reponderamos pelo fator real para não duplicar a regra atual.`;
+      let aviso: string;
+      if (exacta == null) {
+        aviso = "Sem itens do Exacta para este médico/procedimento no ano. HM Exacta real e Simulado indisponíveis.";
+      } else if (modelo === "percentual") {
+        aviso = `Percentual sobre convênio: ${pctNovo}% aplicado sobre a base do convênio (Σ procedure_amount = ${BRL(baseConvenio)}). Fator efetivo pago hoje: ${(fatorEfetivo * 100).toFixed(1)}%.`;
+      } else {
+        const partes = [
+          `Tabela diferenciada: valor de cada TUSS × multiplicador ${multiplicador} × deflator ${deflator}% × acréscimo ${acrescimo}%, ponderado por função (CBHPM padrão) e via de acesso.`,
+          `${itensCalculados} de ${detalhes.length} itens calculados${itensSemTabela ? ` — ${itensSemTabela} sem código na tabela de referência` : ""}.`,
+          !refTableId ? "⚠ Selecione uma tabela de referência para calcular." : "",
+        ].filter(Boolean);
+        aviso = partes.join(" ");
+      }
+
 
 
       setResultado({
