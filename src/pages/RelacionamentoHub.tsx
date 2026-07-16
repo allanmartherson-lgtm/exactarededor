@@ -6,12 +6,14 @@ import { cn } from "@/lib/utils";
 import { Handshake } from "lucide-react";
 import { AurumMargemUpload } from "@/components/relacionamento/AurumMargemUpload";
 import { SimuladorMargem } from "@/components/relacionamento/SimuladorMargem";
+import { SimuladorCenario } from "@/components/relacionamento/SimuladorCenario";
 import { ProcedureAliasManager } from "@/components/relacionamento/ProcedureAliasManager";
 
-type TabValue = "simulador-margem" | "bases-aurum" | "aliases";
+type TabValue = "simulador" | "panorama" | "bases-aurum" | "aliases";
 
 const TABS: { value: TabValue; label: string }[] = [
-  { value: "simulador-margem", label: "Simulador de Margem" },
+  { value: "simulador", label: "Simulador" },
+  { value: "panorama", label: "Panorama" },
   { value: "bases-aurum", label: "Bases Aurum" },
   { value: "aliases", label: "Aliases Procedimento" },
 ];
@@ -22,7 +24,7 @@ const VALID = new Set(TABS.map((t) => t.value));
 export default function RelacionamentoHub() {
   const [params, setParams] = useSearchParams();
   const raw = params.get("tab") as TabValue | null;
-  const active: TabValue = raw && VALID.has(raw) ? raw : "simulador-margem";
+  const active: TabValue = raw && VALID.has(raw) ? raw : "simulador";
 
   const setActive = (v: TabValue) => {
     const next = new URLSearchParams(params);
@@ -40,8 +42,10 @@ export default function RelacionamentoHub() {
         );
       case "aliases":
         return <ProcedureAliasManager />;
-      case "simulador-margem":
+      case "panorama":
         return <SimuladorMargem />;
+      case "simulador":
+        return <SimuladorCenario />;
     }
   }, [active]);
 
