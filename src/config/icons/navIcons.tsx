@@ -117,6 +117,7 @@ export const GitCompare = makeIcon(ArrowsLeftRight, "GitCompare");
 export const GitCompareIcon = GitCompare;
 export const Pencil = makeIcon(PencilSimple, "Pencil");
 export const FolderKanban = makeIcon(Folders, "FolderKanban");
+export const Handshake = makeIcon(PhHandshake, "Handshake");
 
 export type NavIconComponent = ReturnType<typeof makeIcon>;
 
