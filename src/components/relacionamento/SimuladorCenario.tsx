@@ -462,7 +462,7 @@ export function SimuladorCenario() {
           exacta = null;
         } else {
           // Agora soma tudo desses atendimentos (todos os TUSS).
-          let gross = 0, expected = 0, count = 0, semCar = 0;
+          let gross = 0, expected = 0, baseConv = 0, count = 0, semCar = 0;
           // Rebusca todos os itens desses atendimentos (agregado).
           const attsArr = Array.from(attsMatched);
           // Buscamos em blocos pra evitar URL gigante.
@@ -472,11 +472,12 @@ export function SimuladorCenario() {
             const partial = await fetchAllPaginated<{
               gross_amount: number | null;
               expected_amount: number | null;
+              procedure_amount: number | null;
               attendance_character: string | null;
             }>((from, to) => {
               let q = supabase
                 .from("payment_items")
-                .select("gross_amount,expected_amount,attendance_character")
+                .select("gross_amount,expected_amount,procedure_amount,attendance_character")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
                 .in("attendance_number", slice);
@@ -490,11 +491,12 @@ export function SimuladorCenario() {
             for (const it of partial) {
               gross += Number(it.gross_amount ?? 0);
               expected += Number(it.expected_amount ?? 0);
+              baseConv += Number(it.procedure_amount ?? 0);
               count += 1;
               if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
             }
           }
-          exacta = { gross, expected, itens: count, atendimentos: attsMatched.size, sem_carater: semCar };
+          exacta = { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: attsMatched.size, sem_carater: semCar };
         }
       }
 
