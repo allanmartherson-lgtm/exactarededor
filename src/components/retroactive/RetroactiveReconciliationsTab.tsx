@@ -2206,6 +2206,18 @@ export type TvrResult = {
     };
   };
   status: TvrStatus;
+  // Tópico 2 (opt-out do encaminhamento): campos vindos das colunas
+  // adicionadas em retroactive_reconciliation_items no Tópico 1.
+  // Undefined em resultados recém-calculados que ainda não foram persistidos.
+  excluir_do_encaminhamento?: boolean;
+  exclusion_reason?:
+    | "mudanca_data_administrativa"
+    | "cancelamento_externo"
+    | "duplicidade_ja_resolvida"
+    | "acordo_diferenciado"
+    | "outro"
+    | null;
+  exclusion_note?: string | null;
 };
 
 // Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
@@ -3182,18 +3194,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // Pagina para escapar do teto default de 1000 linhas do PostgREST — sem
     // isso, apurações grandes ficam truncadas em "1000 de 1000".
     const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
-    const savedItems = await fetchAllPaginated<{ raw?: { tvr_result?: unknown } }>((from, to) =>
+    const savedItems = await fetchAllPaginated<{
+      raw?: { tvr_result?: unknown };
+      excluir_do_encaminhamento?: boolean | null;
+      exclusion_reason?: TvrResult["exclusion_reason"] | null;
+      exclusion_note?: string | null;
+    }>((from, to) =>
       supabase
         .from("retroactive_reconciliation_items" as never)
-        .select("raw")
+        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note")
         .eq("reconciliation_id", id)
         .eq("source", TVR_SOURCE)
         .order("created_at", { ascending: true })
         .range(from, to),
     );
     const savedResults = savedItems
-      .map((item) => item.raw?.tvr_result)
-      .filter(isTvrResult);
+      .map((item) => {
+        const tvr = item.raw?.tvr_result;
+        if (!isTvrResult(tvr)) return null;
+        return {
+          ...tvr,
+          excluir_do_encaminhamento: Boolean(item.excluir_do_encaminhamento),
+          exclusion_reason: item.exclusion_reason ?? null,
+          exclusion_note: item.exclusion_note ?? null,
+        } as TvrResult;
+      })
+      .filter((x): x is TvrResult => x !== null);
     if (savedResults.length > 0) {
       setResults(savedResults);
       setTasyRows(savedResults.filter((r) => r.status !== "ausente_tasy").map<TasyRow>((r) => ({
@@ -5890,6 +5916,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const toRetirarItems = (list: TvrResult[]) =>
     list.filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5);
 
+  // Tópico 2: helper único para filtrar itens marcados como
+  // "excluir do encaminhamento". Usado apenas nos fluxos que geram
+  // apuração/glosa — a listagem principal continua exibindo tudo.
+  const notExcluded = (r: TvrResult) => !r.excluir_do_encaminhamento;
+
   // ===== Agrupamento por médico (apuração só-PJ) =====
   type GlosaGroup = {
     doctor_id: string;
@@ -6225,8 +6256,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     selectedDoctorIds: string[];
   }) => {
     if (!results) return;
-    const actionable = results.filter(isActionableTvr);
-    const retirar = toRetirarItems(results);
+    // Tópico 2: itens marcados como excluir_do_encaminhamento saem
+    // de TODO o pipeline de encaminhamento (complementar E glosa).
+    const source = results.filter(notExcluded);
+    const actionable = source.filter(isActionableTvr);
+    const retirar = toRetirarItems(source);
 
     if (!opts.includeComplementar && !opts.gerarGlosa) {
       toast({ title: "Selecione ao menos um caminho", variant: "destructive" });
@@ -7347,7 +7381,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       )}
 
       {(() => {
-        const retirar = toRetirarItems(results ?? []);
+        // Tópico 2: helper único para tirar do encaminhamento os itens
+        // marcados como excluir_do_encaminhamento. Reutilizado pelo
+        // runEncaminharFluxo — a lista principal da tela NÃO usa isso
+        // (excluídos continuam visíveis, é só opt-out do envio).
+        const encaminhaveis = (results ?? []).filter(notExcluded);
+        const retirar = toRetirarItems(encaminhaveis);
         const { groups, unassigned } = buildGlosaGroups(retirar);
         // Modo médico único (apuração vinculada a 1 PJ+médico) exige recon.company_id.
         // Modo multi-médico: cada débito é criado por médico e a PJ é resolvida via
@@ -7359,8 +7398,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           <EncaminharApuracaoModal
             open={encaminharOpen}
             onOpenChange={(v) => { if (!encaminharBusy) setEncaminharOpen(v); }}
-            headline={computeTvrHeadlineTotals(results ?? [])}
-            actionable={(results ?? []).filter(isActionableTvr)}
+            headline={computeTvrHeadlineTotals(encaminhaveis)}
+            actionable={encaminhaveis.filter(isActionableTvr)}
             retirar={retirar}
             groups={groups}
             unassigned={unassigned}

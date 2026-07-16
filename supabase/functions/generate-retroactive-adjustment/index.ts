@@ -1,3 +1,4 @@
+// v2: respeita excluir_do_encaminhamento (Tópico 2 opt-out)
 // Edge function: gera company_financial_adjustments (tipo
 // complemento_retroativo) a partir dos itens nao_pago / pago_a_menos
 // de uma apuração retroativa. Agrupa por PJ vinculada ao médico.
@@ -54,13 +55,14 @@ Deno.serve(async (req) => {
       .from("retroactive_reconciliation_items")
       .select("id, gap_amount, classification, company_id")
       .eq("reconciliation_id", reconciliation_id)
+      .eq("excluir_do_encaminhamento", false)
       .in("classification", ["nao_pago", "pago_a_menos", "tuss_divergente"]);
 
     if (itErr) throw itErr;
 
     if (!items || items.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Nenhum item elegível para complemento." }),
+        JSON.stringify({ error: "Nenhum item elegível para complemento após aplicar exclusões manuais." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -134,6 +136,7 @@ Deno.serve(async (req) => {
       .from("retroactive_reconciliation_items")
       .update({ generated_adjustment_id: adj.id })
       .eq("reconciliation_id", reconciliation_id)
+      .eq("excluir_do_encaminhamento", false)
       .in("classification", ["nao_pago", "pago_a_menos", "tuss_divergente"]);
 
     await supabase
