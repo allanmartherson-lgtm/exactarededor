@@ -980,21 +980,22 @@ function ChevronsUpDream() {
 }
 
 function SummaryCard({
-  title, valor, pct, extra, tone = "neutral",
+  title, valor, pct, extra, tone = "neutral", highlight = false,
 }: {
   title: string;
   valor: number | null;
   pct: number | null;
   extra?: string;
   tone?: "positive" | "negative" | "neutral";
+  highlight?: boolean;
 }) {
   const cor =
     tone === "positive" ? "text-emerald-700" :
     tone === "negative" ? "text-red-700" : "text-foreground";
   return (
-    <Card>
+    <Card className={cn(highlight && "border-primary bg-primary/5")}>
       <CardContent className="py-4">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</div>
+        <div className={cn("text-xs font-medium uppercase tracking-wide", highlight ? "text-primary font-bold" : "text-muted-foreground")}>{title}</div>
         <div className={cn("text-2xl font-semibold tabular-nums mt-1", cor)}>{BRL(valor)}</div>
         <div className="text-xs text-muted-foreground mt-1">
           {pct != null ? `${PCT(pct)} da receita líquida` : "—"}
