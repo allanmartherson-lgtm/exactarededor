@@ -606,7 +606,7 @@ export function SimuladorCenario() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Linha 1 */}
-          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_10rem] gap-3 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_8rem_9rem] gap-3 items-end">
             <div>
               <Label className="text-xs">Tipo</Label>
               <div className="inline-flex rounded-md border overflow-hidden">
