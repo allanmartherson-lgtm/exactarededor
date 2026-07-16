@@ -221,6 +221,8 @@ const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
+const loadRelacionamentoHub = () => import("./pages/RelacionamentoHub.tsx");
+const RelacionamentoHub = lazy(loadRelacionamentoHub);
 const RegrasHub = lazy(() => import("./pages/RegrasHub.tsx"));
 const SistemaHub = lazy(() => import("./pages/SistemaHub.tsx"));
 const SystemParameters = lazy(() => import("./pages/SystemParameters.tsx"));
@@ -359,6 +361,7 @@ const App = () => (
                   <Route path="/comunicacao/massa" element={<Navigate to="/comunicacao?tab=massa" replace />} />
                   <Route path="/comunicacao/aprovacoes" element={<Navigate to="/comunicacao?tab=aprovacoes" replace />} />
                   <Route path="/comunicacao/supervisao" element={<Navigate to="/comunicacao?tab=supervisao" replace />} />
+                  <Route path="/relacionamento" element={<ProtectedRoute roles={["admin", "diretor"]}><RelacionamentoHub /></ProtectedRoute>} />
 
                   <Route path="/notificacoes" element={<ProtectedRoute><NotificationsInbox /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><SaudeHub /></ProtectedRoute>} />

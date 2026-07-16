@@ -41,6 +41,7 @@ import {
   HeadsetIcon,
   ListChecksIcon,
   ChatsIcon,
+  Handshake,
 } from "@/config/icons/navIcons";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -102,6 +103,15 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/casos-especiais", label: "Casos Especiais", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor", "analista", "validador"] as const },
       { to: "/conversas", label: "Conversas", icon: ChatsIcon, iconName: "ChatsIcon", roles: ALL_ROLES },
       { to: "/comunicacao", label: "Comunicação", icon: Megaphone, iconName: "Megaphone", roles: ["admin", "diretor", "analista", "validador"] as const },
+    ],
+  },
+  {
+    label: "Relacionamento",
+    icon: Handshake,
+    iconName: "Handshake",
+    roles: ["admin", "diretor"] as const,
+    children: [
+      { to: "/relacionamento", label: "Simulador de Margem", icon: TrendingUp, iconName: "TrendingUp", roles: ["admin", "diretor"] as const },
     ],
   },
   {
@@ -168,6 +178,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Casos Especiais", iconName: "ShieldCheck" },
   { label: "Conversas", iconName: "ChatsIcon" },
   { label: "Comunicação", iconName: "Megaphone" },
+  { label: "Simulador de Margem", iconName: "TrendingUp" },
   { label: "Central de Relatórios", iconName: "FileBarChart" },
   { label: "BI · Diretoria", iconName: "BarChart3" },
   { label: "BI · Pagamentos", iconName: "Wallet" },
