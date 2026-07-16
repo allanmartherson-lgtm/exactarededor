@@ -1782,9 +1782,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               return true;
             }
 
-            // Outros erros HTTP: não vale retry; loga e desiste deste chunk.
+            // Outros erros HTTP: não vale retry; loga, aplica fallback e desiste.
             const txt = await aiResp.text().catch(() => "");
             console.error(`${__t} AI justification error chunk ${ci + 1}/${aiChunks.length}`, aiResp.status, txt);
+            applyAiUnavailableFallback(chunk, `erro ${aiResp.status} da IA`);
             return false;
           } catch (aiErr: any) {
             // Abort/timeout/rede: retry se ainda houver tentativa.
@@ -1796,6 +1797,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
               continue;
             }
+            applyAiUnavailableFallback(chunk, isTransient ? "timeout/erro de rede na IA" : "erro inesperado na IA");
             return false;
           } finally {
             clearTimeout(aiTimer);
