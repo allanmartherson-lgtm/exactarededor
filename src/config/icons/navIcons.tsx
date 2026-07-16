@@ -54,6 +54,7 @@ import {
   ArrowsLeftRight,
   PencilSimple,
   Folders,
+  Handshake as PhHandshake,
   type IconProps,
 } from "@phosphor-icons/react";
 
