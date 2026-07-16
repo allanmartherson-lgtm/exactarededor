@@ -487,7 +487,17 @@ export function SimuladorCenario() {
         aviso,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      // Supabase devolve objeto { message, details, hint, code } — não Error.
+      const anyErr = e as { message?: string; details?: string; hint?: string; code?: string } | null;
+      const msg =
+        e instanceof Error
+          ? e.message
+          : anyErr?.message ||
+            anyErr?.details ||
+            anyErr?.hint ||
+            (anyErr?.code ? `código ${anyErr.code}` : "") ||
+            (typeof e === "string" ? e : JSON.stringify(e));
+      console.error("[SimuladorCenario] Falha ao simular:", e);
       toast.error(`Falha ao simular: ${msg}`);
     } finally {
       setSimulando(false);
