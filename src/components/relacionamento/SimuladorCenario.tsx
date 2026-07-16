@@ -539,8 +539,14 @@ export function SimuladorCenario() {
       const { error } = await supabase.from("simulacao_cenario" as never).insert(payload as never);
       if (error) throw error;
       toast.success("Cenário salvo.");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e !== null && "message" in e
+            ? String((e as { message: unknown }).message)
+            : JSON.stringify(e);
+      console.error("SimuladorCenario error:", e);
       toast.error(`Falha ao salvar: ${msg}`);
     } finally {
       setSalvando(false);
