@@ -2366,7 +2366,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           hospital_id: __paymentHospitalId,
           item_id: r.item_id,
           author_type: "ia",
-          message: parts.join(" · ") + ` — ${r.calculation_explanation}` + (aiJ?.ai_note ? ` | IA: ${aiJ.ai_note}` : ""),
+          message: parts.join(" · ") + ` — ${r.calculation_explanation}` + (aiJ?.ai_fallback ? ` | IA indisponível — decisão do motor` : (aiJ?.ai_note ? ` | IA: ${aiJ.ai_note}` : "")),
         });
       }
     }
