@@ -487,7 +487,17 @@ export function SimuladorCenario() {
         aviso,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      // Supabase devolve objeto { message, details, hint, code } — não Error.
+      const anyErr = e as { message?: string; details?: string; hint?: string; code?: string } | null;
+      const msg =
+        e instanceof Error
+          ? e.message
+          : anyErr?.message ||
+            anyErr?.details ||
+            anyErr?.hint ||
+            (anyErr?.code ? `código ${anyErr.code}` : "") ||
+            (typeof e === "string" ? e : JSON.stringify(e));
+      console.error("[SimuladorCenario] Falha ao simular:", e);
       toast.error(`Falha ao simular: ${msg}`);
     } finally {
       setSimulando(false);
@@ -606,7 +616,7 @@ export function SimuladorCenario() {
                     <span className="truncate text-left">
                       {loadingNomes ? "Carregando…" : (nomeSelecionado || `Digite para buscar…`)}
                     </span>
-                    <ChevronsUpDream />
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-[min(30rem,90vw)]" align="start">
