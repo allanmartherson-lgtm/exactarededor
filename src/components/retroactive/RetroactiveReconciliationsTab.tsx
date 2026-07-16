@@ -7364,9 +7364,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                       : acao.kind === "complementar" ? "text-orange-700"
                       : acao.kind === "validar" ? "text-amber-700"
                       : "text-muted-foreground";
+                    const isExcluded = !!r.excluir_do_encaminhamento;
+                    const canExclude = !isLocked && !isExcluded && !!r._retroReconRowId;
+                    const canReinclude = !isLocked && isExcluded && !!r._retroReconRowId;
                     return (
                     <React.Fragment key={r.key}>
-                    <TableRow data-state={selectedKeys.has(r.key) ? "selected" : undefined}>
+                    <TableRow
+                      data-state={selectedKeys.has(r.key) ? "selected" : undefined}
+                      className={cn(isExcluded && "opacity-60 text-muted-foreground")}
+                    >
                       <TableCell className="text-center align-top">
                         <button
                           type="button"
@@ -7379,7 +7385,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         </button>
                       </TableCell>
                       <TableCell className="text-center align-top">
-                        {selectable ? (
+                        {selectable && !isExcluded ? (
                           <Checkbox
                             checked={selectedKeys.has(r.key)}
                             onCheckedChange={(v) => {
@@ -7431,11 +7437,56 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                         <TableCell key={c.key} className={cn("align-top", c.className)}>{c.cell(r)}</TableCell>
                       ))}
                       <TableCell
-                        className={cn("align-top", acaoTone, (acao.kind === "recuperar" || acao.kind === "complementar") && "font-semibold")}
-                        title={acao.hint}
+                        className={cn("align-top", !isExcluded && acaoTone, !isExcluded && (acao.kind === "recuperar" || acao.kind === "complementar") && "font-semibold")}
+                        title={isExcluded ? r.exclusion_note || undefined : acao.hint}
                       >
-                        <div className="text-[12px] leading-tight">{acao.label}</div>
-                        <div className="text-[10px] text-muted-foreground font-normal leading-tight mt-0.5">{acao.hint}</div>
+                        {isExcluded ? (
+                          <div className="space-y-1">
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-900 text-[10px] font-medium">
+                              Excluído · {reasonLabel(r.exclusion_reason)}
+                            </Badge>
+                            {r.exclusion_note && (
+                              <div className="text-[10px] text-muted-foreground italic leading-tight" title={r.exclusion_note}>
+                                {r.exclusion_note}
+                              </div>
+                            )}
+                            {canReinclude && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={async () => {
+                                  const res = await unmarkExcluded([r._retroReconRowId!]);
+                                  if (!res.ok) {
+                                    toast({ title: "Falha ao reincluir", description: res.error, variant: "destructive" });
+                                  } else {
+                                    toast({ title: "Item reincluído no encaminhamento" });
+                                  }
+                                }}
+                              >
+                                <RotateCcwIcon className="h-3.5 w-3.5 mr-1" />
+                                Reincluir
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="text-[12px] leading-tight">{acao.label}</div>
+                            <div className="text-[10px] text-muted-foreground font-normal leading-tight">{acao.hint}</div>
+                            {canExclude && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                                onClick={() => openExcludeDialog([r._retroReconRowId!])}
+                                title="Marcar este item como fora do encaminhamento (permanece visível na lista)"
+                              >
+                                <BanIcon className="h-3.5 w-3.5 mr-1" />
+                                Não encaminhar
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
