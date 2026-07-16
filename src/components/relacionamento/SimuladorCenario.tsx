@@ -325,9 +325,9 @@ export function SimuladorCenario() {
           .limit(5);
         const docIds = (aliasRows ?? []).map((r: { doctor_id: string | null }) => r.doctor_id).filter(Boolean) as string[];
         if (docIds.length) {
-          const { data: docs } = await supabase.from("doctors").select("name").in("id", docIds);
-          for (const d of (docs ?? []) as Array<{ name: string | null }>) {
-            if (d.name) nomesAlvo.add(norm(d.name));
+          const { data: docs } = await supabase.from("doctors").select("full_name").in("id", docIds);
+          for (const d of (docs ?? []) as Array<{ full_name: string | null }>) {
+            if (d.full_name) nomesAlvo.add(norm(d.full_name));
           }
         }
       } else {
