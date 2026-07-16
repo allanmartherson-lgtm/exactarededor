@@ -184,12 +184,20 @@ export function SimuladorMargem() {
   const [viaAcessoPct, setViaAcessoPct] = useState(0);
   const [volume, setVolume] = useState(0);
   const [cbhpmBase, setCbhpmBase] = useState(0);
+  const [cbhpmMatch, setCbhpmMatch] = useState<{ codigo: string; descricao: string } | null>(null);
+
+  // CBHPM (cache por hospital)
+  const [cbhpmList, setCbhpmList] = useState<CbhpmLookupItem[]>([]);
 
   // Salvar
   const [saveOpen, setSaveOpen] = useState(false);
   const [nomeCenario, setNomeCenario] = useState("");
   const [descCenario, setDescCenario] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Cenários salvos
+  const [cenarios, setCenarios] = useState<CenarioSalvo[]>([]);
+  const [cenariosTick, setCenariosTick] = useState(0);
 
   const tabela = modo === "medico" ? "aurum_margem_medico" : "aurum_margem_procedimento";
   const keyField = modo === "medico" ? "medico_cirurgiao" : "ds_procedimento";
