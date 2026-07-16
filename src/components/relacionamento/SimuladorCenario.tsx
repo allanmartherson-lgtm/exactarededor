@@ -1214,6 +1214,7 @@ export function SimuladorCenario() {
                     </>
                   );
                 })()}
+                </div>
               </div>
             </CardContent>
           </Card>
