@@ -381,22 +381,27 @@ export function SimuladorCenario() {
           exacta = null;
         } else {
           const idsArr = Array.from(doctorIds);
-          let gross = 0, expected = 0, count = 0;
+          let gross = 0, expected = 0, count = 0, semCar = 0;
           const atts = new Set<string>();
           const itens = await fetchAllPaginated<{
             gross_amount: number | null;
             expected_amount: number | null;
             attendance_number: string | null;
+            attendance_character: string | null;
           }>((from, to) => {
             let q = supabase
               .from("payment_items")
-              .select("gross_amount,expected_amount,attendance_number")
+              .select("gross_amount,expected_amount,attendance_number,attendance_character")
               .eq("hospital_id", hospitalId)
               .eq("is_cancelled", false)
               .in("doctor_id", idsArr)
               .gte("procedure_date", dateFrom)
               .lt("procedure_date", dateTo);
-            if (carater !== "todos") q = q.eq("attendance_character", carater);
+            if (carater === "Eletiva") {
+              q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
+            } else if (carater === "Urgência") {
+              q = q.or("attendance_character.ilike.%URGENCIA%,attendance_character.ilike.%Urgência%");
+            }
             return q.range(from, to);
           });
           for (const it of itens) {
@@ -404,8 +409,9 @@ export function SimuladorCenario() {
             expected += Number(it.expected_amount ?? 0);
             count += 1;
             if (it.attendance_number) atts.add(it.attendance_number);
+            if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
           }
-          exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size } : null;
+          exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size, sem_carater: semCar } : null;
         }
       } else {
         // Modo procedimento: descobre attendance_number cujo item principal
