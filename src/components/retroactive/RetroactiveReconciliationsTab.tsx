@@ -4384,12 +4384,21 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const top = resultTopScrollRef.current;
     const table = resultTableScrollRef.current;
     if (!top || !table) return;
+    // Reidrata a largura a cada scroll: cobre casos onde o conteúdo cresce
+    // depois do primeiro layout (linhas carregadas sob demanda, colunas que
+    // dependem de dados assíncronos) sem depender apenas do ResizeObserver.
+    const currentWidth = Math.max(table.scrollWidth, table.clientWidth, 1);
+    setResultScrollWidth((prev) => (Math.abs(prev - currentWidth) > 1 ? currentWidth : prev));
     if (source === "top") table.scrollLeft = top.scrollLeft;
     else top.scrollLeft = table.scrollLeft;
   };
 
   const nudgeResultScroll = (direction: -1 | 1) => {
-    resultTableScrollRef.current?.scrollBy({ left: direction * 720, behavior: "smooth" });
+    const table = resultTableScrollRef.current;
+    if (!table) return;
+    // Passo dinâmico: ~80% da área visível, com piso de 320px.
+    const step = Math.max(320, Math.floor(table.clientWidth * 0.8));
+    table.scrollBy({ left: direction * step, behavior: "smooth" });
   };
 
   const counts = useMemo(() => {
@@ -7178,7 +7187,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
-            <div className="flex items-center gap-1 border-b border-border bg-muted/20 px-2 py-1">
+            <div className="sticky top-0 z-20 flex items-center gap-1 border-b border-border bg-muted/40 backdrop-blur px-2 py-1 shadow-sm">
               <Button
                 type="button"
                 variant="outline"
@@ -7192,7 +7201,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <div
                 ref={resultTopScrollRef}
                 onScroll={() => syncResultScroll("top")}
-                className="h-5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+                className="h-5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:thin]"
                 aria-label="Rolagem horizontal da tabela de resultados"
               >
                 <div className="h-4" style={{ width: resultScrollWidth }} />
@@ -7211,7 +7220,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <div
               ref={resultTableScrollRef}
               onScroll={() => syncResultScroll("table")}
-              className="overflow-auto max-h-[65vh] rounded-b-lg border-border"
+              className="overflow-auto max-h-[65vh] rounded-b-lg border-border [scrollbar-width:thin]"
             >
 
               {(() => {
