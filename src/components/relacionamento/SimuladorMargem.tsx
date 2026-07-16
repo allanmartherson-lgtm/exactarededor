@@ -655,6 +655,9 @@ export function SimuladorMargem() {
                             : "—"}
                         </div>
                       </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        {l.hm_exacta_expected > 0 ? BRL(l.hm_exacta_expected) : "—"}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div>{BRL(l.margem_aurum)}</div>
                         <div className="text-[10px] text-muted-foreground">{PCT(l.pct_margem_aurum)}</div>
