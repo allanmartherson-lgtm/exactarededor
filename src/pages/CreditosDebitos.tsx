@@ -318,10 +318,13 @@ export default function CreditosDebitos() {
       const { data: pays } = await supabase
         .from("payments").select("id, reference, competence_month, status").in("id", tgtIds);
       const labels: Record<string, string> = {};
+      const statuses: Record<string, string> = {};
       ((pays as any[]) ?? []).forEach(p => {
         labels[p.id] = `${p.reference} · ${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
+        statuses[p.id] = String(p.status ?? "");
       });
       setPaymentLabels(prev => ({ ...prev, ...labels }));
+      setPaymentStatuses(prev => ({ ...prev, ...statuses }));
     }
     setLoading(false);
   };
