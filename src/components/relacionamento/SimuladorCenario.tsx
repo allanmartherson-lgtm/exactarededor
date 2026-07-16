@@ -514,6 +514,7 @@ export function SimuladorCenario() {
             // custo HM real reflete o valor total pago pela cirurgia, no
             // mesmo escopo do Custo HM contábil do Aurum.
             let gross = 0, expected = 0, baseConv = 0, count = 0, semCar = 0;
+            const detalhes: ItemDetalhe[] = [];
             const attsArr = Array.from(attsAlvo);
             const chunk = 200;
             for (let i = 0; i < attsArr.length; i += chunk) {
@@ -523,10 +524,14 @@ export function SimuladorCenario() {
                 expected_amount: number | null;
                 procedure_amount: number | null;
                 attendance_character: string | null;
+                procedure_code: string | null;
+                doctor_role: string | null;
+                access_route: string | null;
+                quantity: number | null;
               }>((from, to) => {
                 let q = supabase
                   .from("payment_items")
-                  .select("gross_amount,expected_amount,procedure_amount,attendance_character")
+                  .select("gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,doctor_role,access_route,quantity")
                   .eq("hospital_id", hospitalId)
                   .eq("is_cancelled", false)
                   .in("attendance_number", slice);
@@ -543,10 +548,18 @@ export function SimuladorCenario() {
                 baseConv += Number(it.procedure_amount ?? 0);
                 count += 1;
                 if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
+                detalhes.push({
+                  procedure_code: it.procedure_code,
+                  doctor_role: it.doctor_role,
+                  access_route: it.access_route,
+                  quantity: Number(it.quantity ?? 1) || 1,
+                  procedure_amount: Number(it.procedure_amount ?? 0),
+                  gross_amount: Number(it.gross_amount ?? 0),
+                });
               }
             }
             exacta = count > 0
-              ? { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: attsAlvo.size, sem_carater: semCar }
+              ? { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: attsAlvo.size, sem_carater: semCar, detalhes }
               : null;
           }
         }
