@@ -878,6 +878,7 @@ export function SimuladorCenario() {
         aurum,
         exacta,
         simulado: { novo_hm: novoHm, nova_margem: novaMargem, nova_pct_margem: novaPct },
+        perItem,
         parametros: {
           modelo,
           pct: modelo === "percentual" ? pctNovo : undefined,
