@@ -696,79 +696,67 @@ export function SimuladorCenario() {
         }
       }
 
-      // 3) Cálculo do cenário simulado — POR ITEM.
-      //  • Percentual sobre convênio: novoHm_item = procedure_amount × (pct/100)
-      //    (o procedure_amount já reflete o valor do convênio negociado para
-      //    aquela função/via, então basta aplicar o multiplicador escolhido.)
-      //  • Tabela diferenciada: busca o valor do TUSS na reference_table_items
-      //    e aplica multiplicador/deflator/acréscimo × fator da função ×
-      //    fator da via de acesso × quantidade.
+      // 3) Cálculo do cenário simulado — via edge function `simulate-scenario`,
+      //    que invoca o MESMO motor determinístico usado no pagamento real.
+      //    Assim eliminamos heurísticas hardcoded no cliente (fatores por
+      //    função/via, redutor de tabela) e garantimos paridade com a regra
+      //    quando os parâmetros forem idênticos.
       const baseConvenio = exacta?.baseConvenio ?? 0;
       const grossReal = exacta?.gross ?? 0;
       const fatorEfetivo = baseConvenio > 0 ? grossReal / baseConvenio : 0;
       const detalhes = exacta?.detalhes ?? [];
 
       let novoHm = 0;
-      let itensSemTabela = 0;
       let itensCalculados = 0;
+      let itensSemMatch = 0;
+      let motorErro: string | null = null;
 
-      if (modelo === "percentual") {
-        // Para % convênio: soma direta do procedure_amount × pct (aplicado a
-        // TODOS os itens, inclusive auxiliares — o procedure_amount por item
-        // já vem ponderado pela função no faturamento hospitalar).
-        novoHm = baseConvenio * (pctNovo / 100);
-        itensCalculados = detalhes.length;
+      if (detalhes.length === 0) {
+        // Sem itens do Exacta → não há como simular via motor.
+      } else if (modelo === "tabela_diferenciada" && !refTableId) {
+        motorErro = "Selecione uma tabela de referência.";
       } else {
-        // Espelha o motor real (supabase/functions/analyze-payment/index.ts:934-976):
-        // busca somente os códigos presentes nos itens (evita cap de 1000 rows
-        // do PostgREST) e resolve valor role-specific (`code|role`) antes do
-        // fallback para valor genérico.
-        const codesInItems = Array.from(new Set(
-          detalhes.map((d) => (d.procedure_code ?? "").trim()).filter(Boolean),
-        ));
-        const tabelaValores = new Map<string, number>();
-        if (refTableId && codesInItems.length > 0) {
-          // Blocos de 500 pra não estourar tamanho da URL em `in()`.
-          const chunk = 500;
-          for (let i = 0; i < codesInItems.length; i += chunk) {
-            const slice = codesInItems.slice(i, i + chunk);
-            const { data: refItems, error: refErr } = await supabase
-              .from("reference_table_items")
-              .select("code,amount,package_amount,role")
-              .eq("reference_table_id", refTableId)
-              .in("code", slice);
-            if (refErr) throw refErr;
-            for (const r of (refItems ?? []) as Array<{ code: string | null; amount: number | null; package_amount: number | null; role: string | null }>) {
-              const code = String(r.code ?? "").trim();
-              if (!code) continue;
-              const v = Number(r.amount ?? r.package_amount ?? 0);
-              if (!v) continue;
-              const roleNorm = r.role
-                ? r.role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
-                : null;
-              const key = roleNorm ? `${code}|${roleNorm}` : code;
-              tabelaValores.set(key, v);
-            }
-          }
-        }
-        const lookup = (code: string, role: string | null | undefined): number => {
-          const c = code.trim();
-          if (!c) return 0;
-          if (role) {
-            const rNorm = role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            const rv = tabelaValores.get(`${c}|${rNorm}`);
-            if (rv != null) return rv;
-          }
-          return tabelaValores.get(c) ?? 0;
-        };
-        const fatorParam = multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
-        for (const it of detalhes) {
-          const valorTuss = lookup(it.procedure_code ?? "", it.doctor_role);
-          if (!valorTuss) { itensSemTabela += 1; continue; }
-          const fRole = roleFactor(it.doctor_role);
-          const fVia = viaFactor(it.access_route);
-          novoHm += valorTuss * fatorParam * fRole * fVia * it.quantity;
-          itensCalculados += 1;
+        const scenario = modelo === "percentual"
+          ? { calculation_type: "percentual_convenio" as const, convenio_percentage: pctNovo }
+          : {
+              calculation_type: "tabela_diferenciada" as const,
+              reference_table_id: refTableId,
+              multiplier: multiplicador,
+              deflator_pct: deflator,
+              acrescimo_pct: acrescimo,
+              apply_access_route: true,
+              include_auxiliaries: true,
+            };
+        const { data: simResp, error: simErr } = await supabase.functions.invoke("simulate-scenario", {
+          body: {
+            hospital_id: hospitalId,
+            scenario,
+            items: detalhes.map((d) => ({
+              id: d.id,
+              attendance_number: d.attendance_number,
+              procedure_code: d.procedure_code,
+              procedure_name: d.procedure_name,
+              agreement_name: d.agreement_name,
+              doctor_role: d.doctor_role,
+              doctor_name: d.doctor_name,
+              access_route: d.access_route,
+              sector: d.sector,
+              specialty: d.specialty,
+              procedure_amount: d.procedure_amount,
+              gross_amount: d.gross_amount,
+              quantity: d.quantity,
+            })),
+            reference_date: `${ano}-06-30`,
+          },
+        });
+        if (simErr) {
+          motorErro = simErr.message ?? "Falha ao chamar motor de simulação.";
+        } else if (!simResp?.ok) {
+          motorErro = simResp?.error ?? "Motor de simulação retornou erro.";
+        } else {
+          novoHm = Number(simResp.total_expected ?? 0);
+          itensCalculados = Number(simResp.summary?.matched ?? 0);
+          itensSemMatch = Number(simResp.summary?.without_match ?? 0);
         }
       }
 
@@ -778,15 +766,16 @@ export function SimuladorCenario() {
       let aviso: string;
       if (exacta == null) {
         aviso = "Sem itens do Exacta para este médico/procedimento no ano. HM Exacta real e Simulado indisponíveis.";
+      } else if (motorErro) {
+        aviso = `⚠ ${motorErro}`;
       } else if (modelo === "percentual") {
-        aviso = `Percentual sobre convênio: ${pctNovo}% aplicado sobre a base do convênio (Σ procedure_amount = ${BRL(baseConvenio)}). Fator efetivo pago hoje: ${(fatorEfetivo * 100).toFixed(1)}%.`;
+        aviso = `Percentual sobre convênio: ${pctNovo}% aplicado pelo motor real (${itensCalculados}/${detalhes.length} itens). Fator efetivo pago hoje: ${(fatorEfetivo * 100).toFixed(1)}%.`;
       } else {
         const cobertura = detalhes.length > 0 ? (itensCalculados / detalhes.length) * 100 : 0;
         const partes = [
-          `Tabela diferenciada: valor de cada TUSS × mult ${multiplicador} × (1-defl ${deflator}%) × (1+acr ${acrescimo}%), ponderado por função e via.`,
-          `${itensCalculados}/${detalhes.length} itens calculados (${cobertura.toFixed(0)}% de cobertura)${itensSemTabela ? ` — ${itensSemTabela} sem match na tabela` : ""}.`,
-          !refTableId ? "⚠ Selecione uma tabela de referência." : "",
-          itensSemTabela > 0 && refTableId ? "⚠ Cobertura parcial subestima o Simulado — verifique se a tabela cobre todos os TUSS do período." : "",
+          `Tabela diferenciada via motor real: mult ${multiplicador} × (1-defl ${deflator}%) × (1+acr ${acrescimo}%).`,
+          `${itensCalculados}/${detalhes.length} itens calculados (${cobertura.toFixed(0)}% de cobertura)${itensSemMatch ? ` — ${itensSemMatch} sem match` : ""}.`,
+          itensSemMatch > 0 ? "⚠ Cobertura parcial subestima o Simulado — verifique se a tabela cobre todos os TUSS." : "",
         ].filter(Boolean);
         aviso = partes.join(" ");
       }
