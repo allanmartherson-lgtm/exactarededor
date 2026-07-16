@@ -733,13 +733,33 @@ export function SimuladorMargem() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">CBHPM base (R$)</Label>
+                      <Label className="text-xs">
+                        CBHPM base (R$)
+                        {cbhpmMatch && (
+                          <span className="ml-1 text-[10px] font-normal text-emerald-600 dark:text-emerald-400">
+                            · auto ({cbhpmMatch.codigo})
+                          </span>
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
                         value={cbhpmBase}
-                        onChange={(e) => setCbhpmBase(Number(e.target.value) || 0)}
+                        onChange={(e) => {
+                          setCbhpmBase(Number(e.target.value) || 0);
+                          setCbhpmMatch(null);
+                        }}
                       />
+                      {cbhpmMatch && (
+                        <p className="text-[10px] text-muted-foreground truncate" title={cbhpmMatch.descricao}>
+                          {cbhpmMatch.descricao}
+                        </p>
+                      )}
+                      {modo === "procedimento" && !cbhpmMatch && selName && cbhpmList.length > 0 && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                          Sem match CBHPM — informe o valor manualmente.
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Volume (cirurgias)</Label>
