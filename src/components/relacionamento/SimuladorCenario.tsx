@@ -348,12 +348,33 @@ export function SimuladorCenario() {
       let exacta: ExactaAggregated | null = null;
 
       if (modo === "medico") {
-        // Busca server-side por cada variante do nome (nome original + aliases)
-        // usando ilike, para não carregar toda a base de payment_items.
-        let gross = 0, expected = 0, count = 0;
-        const atts = new Set<string>();
-        for (const nomeAlvo of nomesAlvo) {
-          const ilikeTerm = `%${nomeAlvo.split(" ").filter((t) => t.length > 2).join("%")}%`;
+        // Passo 1: resolver doctor_id(s) via doctor_aliases
+        const doctorIds = new Set<string>();
+        const { data: aliasRows } = await supabase
+          .from("doctor_aliases")
+          .select("doctor_id")
+          .eq("alias_normalized", targetNorm)
+          .limit(10);
+        for (const r of (aliasRows ?? []) as Array<{ doctor_id: string | null }>) {
+          if (r.doctor_id) doctorIds.add(r.doctor_id);
+        }
+        // Fallback: buscar direto na tabela doctors por full_name
+        if (doctorIds.size === 0) {
+          const { data: docRows } = await supabase
+            .from("doctors")
+            .select("id")
+            .ilike("full_name", nomeSelecionado.trim())
+            .limit(5);
+          for (const r of (docRows ?? []) as Array<{ id: string }>) {
+            doctorIds.add(r.id);
+          }
+        }
+        if (doctorIds.size === 0) {
+          exacta = null;
+        } else {
+          const idsArr = Array.from(doctorIds);
+          let gross = 0, expected = 0, count = 0;
+          const atts = new Set<string>();
           const itens = await fetchAllPaginated<{
             gross_amount: number | null;
             expected_amount: number | null;
@@ -364,9 +385,9 @@ export function SimuladorCenario() {
               .select("gross_amount,expected_amount,attendance_number")
               .eq("hospital_id", hospitalId)
               .eq("is_cancelled", false)
+              .in("doctor_id", idsArr)
               .gte("procedure_date", dateFrom)
               .lt("procedure_date", dateTo)
-              .ilike("doctor_name", ilikeTerm)
               .range(from, to),
           );
           for (const it of itens) {
@@ -375,8 +396,8 @@ export function SimuladorCenario() {
             count += 1;
             if (it.attendance_number) atts.add(it.attendance_number);
           }
+          exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size } : null;
         }
-        exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size } : null;
       } else {
         // Modo procedimento: descobre attendance_number cujo item principal
         // bate com o nome (ou alias), depois soma gross+expected de TODOS os
