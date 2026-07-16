@@ -38,10 +38,13 @@ export default function RelacionamentoHub() {
             <AurumMargemUpload />
           </div>
         );
+      case "aliases":
+        return <ProcedureAliasManager />;
       case "simulador-margem":
         return <SimuladorMargem />;
     }
   }, [active]);
+
 
   return (
     <div>
