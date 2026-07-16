@@ -425,23 +425,21 @@ export function SimuladorCenario() {
           exacta = null;
         } else {
           const idsArr = Array.from(doctorIds);
-          let gross = 0, expected = 0, baseConv = 0, count = 0, semCar = 0;
-          const atts = new Set<string>();
-          const itens = await fetchAllPaginated<{
-            gross_amount: number | null;
-            expected_amount: number | null;
-            procedure_amount: number | null;
-            attendance_number: string | null;
-            attendance_character: string | null;
-          }>((from, to) => {
+
+          // Passo 2: descobre os attendance_number onde o médico-alvo
+          // participou (como principal OU auxiliar). Isso define o escopo
+          // da cirurgia — tem que casar com o Aurum, que agrega por atendimento.
+          const attsAlvo = new Set<string>();
+          const attsRows = await fetchAllPaginated<{ attendance_number: string | null }>((from, to) => {
             let q = supabase
               .from("payment_items")
-              .select("gross_amount,expected_amount,procedure_amount,attendance_number,attendance_character")
+              .select("attendance_number")
               .eq("hospital_id", hospitalId)
               .eq("is_cancelled", false)
               .in("doctor_id", idsArr)
               .gte("procedure_date", dateFrom)
-              .lt("procedure_date", dateTo);
+              .lt("procedure_date", dateTo)
+              .not("attendance_number", "is", null);
             if (carater === "Eletiva") {
               q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
             } else if (carater === "Urgência") {
@@ -449,15 +447,53 @@ export function SimuladorCenario() {
             }
             return q.range(from, to);
           });
-          for (const it of itens) {
-            gross += Number(it.gross_amount ?? 0);
-            expected += Number(it.expected_amount ?? 0);
-            baseConv += Number(it.procedure_amount ?? 0);
-            count += 1;
-            if (it.attendance_number) atts.add(it.attendance_number);
-            if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
+          for (const r of attsRows) {
+            if (r.attendance_number) attsAlvo.add(String(r.attendance_number));
           }
-          exacta = count > 0 ? { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: atts.size, sem_carater: semCar } : null;
+
+          if (attsAlvo.size === 0) {
+            exacta = null;
+          } else {
+            // Passo 3: agrega TODOS os itens desses atendimentos — inclui
+            // auxiliares, anestesista, instrumentador e qualquer PJ. Assim o
+            // custo HM real reflete o valor total pago pela cirurgia, no
+            // mesmo escopo do Custo HM contábil do Aurum.
+            let gross = 0, expected = 0, baseConv = 0, count = 0, semCar = 0;
+            const attsArr = Array.from(attsAlvo);
+            const chunk = 200;
+            for (let i = 0; i < attsArr.length; i += chunk) {
+              const slice = attsArr.slice(i, i + chunk);
+              const partial = await fetchAllPaginated<{
+                gross_amount: number | null;
+                expected_amount: number | null;
+                procedure_amount: number | null;
+                attendance_character: string | null;
+              }>((from, to) => {
+                let q = supabase
+                  .from("payment_items")
+                  .select("gross_amount,expected_amount,procedure_amount,attendance_character")
+                  .eq("hospital_id", hospitalId)
+                  .eq("is_cancelled", false)
+                  .in("attendance_number", slice);
+                if (carater === "Eletiva") {
+                  q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
+                } else if (carater === "Urgência") {
+                  q = q.or("attendance_character.ilike.%URGENCIA%,attendance_character.ilike.%Urgência%");
+                }
+                return q.range(from, to);
+              });
+              for (const it of partial) {
+                gross += Number(it.gross_amount ?? 0);
+                expected += Number(it.expected_amount ?? 0);
+                baseConv += Number(it.procedure_amount ?? 0);
+                count += 1;
+                if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
+              }
+            }
+            exacta = count > 0
+              ? { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: attsAlvo.size, sem_carater: semCar }
+              : null;
+          }
         }
       } else {
         // Modo procedimento: descobre attendance_number cujo item principal
