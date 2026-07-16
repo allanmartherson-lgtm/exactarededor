@@ -2087,6 +2087,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           matched_priority: r.matched_priority,
           diff_pct: r.diff_pct,
           ai_note: aiJ?.ai_note ?? null,
+          ai_fallback: aiJ?.ai_fallback === true ? true : false,
         },
         calculation_breakdown: r.calculation_breakdown ?? null,
         selection_trace: r.selection_trace ?? null,
