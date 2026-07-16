@@ -908,7 +908,7 @@ export function SimuladorCenario() {
                           <span className="text-sm font-semibold">Margem de Contribuição</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", A.margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(A.margem)}</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", (margemExacta ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(margemExacta)}</span>
-                          <span className={cn("text-lg text-right tabular-nums font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
+                          <span className={cn("text-xl text-right tabular-nums font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
                         </div>
                         <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
                           <span></span>
