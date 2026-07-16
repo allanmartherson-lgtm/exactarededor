@@ -318,9 +318,17 @@ export function SimuladorMargem() {
       };
     };
 
+    // Linhas "Total" no Aurum são totalizadores gerais da planilha — ignoramos
+    // para não poluir o comparativo (nunca terão match no Exacta e distorcem KPIs).
+    const isTotalRow = (nome: string | null | undefined) => {
+      const n = norm(nome);
+      return !n || n === "total" || n.startsWith("total ");
+    };
+
     if (modo === "medico") {
       for (const row of aurumMedico) {
         const nome = row.medico_cirurgiao;
+        if (isTotalRow(nome)) continue;
         const hit = exactaIndex.porMedico.get(norm(nome));
         const ex = hit
           ? { total: hit.total, itens: hit.itens, atendimentos: hit.atendimentos.size }
