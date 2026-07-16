@@ -482,7 +482,7 @@ export function SimuladorCenario() {
         // Tabela diferenciada — sem lookup TUSS direto ainda; usa expected como base.
         novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
       }
-      const novaMargem = aurum.receita_liquida - aurum.outros_custos - novoHm;
+      const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
       const novaPct = aurum.receita_liquida > 0 ? novaMargem / aurum.receita_liquida : 0;
 
       const aviso = exacta == null
@@ -530,7 +530,7 @@ export function SimuladorCenario() {
       const modeloLabel = resultado.parametros.modelo === "percentual" ? "% convênio" : "Tabela diferenciada";
       const hmExactaReal = resultado.exacta?.gross ?? null;
       const margemRealExacta = resultado.exacta
-        ? resultado.aurum.receita_liquida - resultado.aurum.outros_custos - resultado.exacta.gross
+        ? resultado.aurum.receita_liquida + resultado.aurum.outros_custos - resultado.exacta.gross
         : null;
       const payload = {
         hospital_id: hospitalId,
@@ -794,7 +794,7 @@ export function SimuladorCenario() {
                   const exGross = resultado.exacta?.gross ?? null;
                   const sim = resultado.simulado;
                   const receitaLiqExacta = A.receita_liquida;
-                  const margemExacta = exGross != null ? A.receita_liquida - A.outros_custos - exGross : null;
+                  const margemExacta = exGross != null ? A.receita_liquida + A.outros_custos - exGross : null;
                   const pctExacta = margemExacta != null && A.receita_liquida > 0 ? margemExacta / A.receita_liquida : null;
 
                   const simTone: "positive" | "negative" | "neutral" =
@@ -888,7 +888,7 @@ export function SimuladorCenario() {
                 {(() => {
                   const A = resultado.aurum;
                   const exGross = resultado.exacta?.gross ?? null;
-                  const margemAtual = exGross != null ? A.receita_liquida - A.outros_custos - exGross : A.margem;
+                  const margemAtual = exGross != null ? A.receita_liquida + A.outros_custos - exGross : A.margem;
                   const pctAtual = A.receita_liquida > 0 ? margemAtual / A.receita_liquida : 0;
                   const delta = resultado.simulado.nova_margem - margemAtual;
                   const deltaCor = delta > 0 ? "text-emerald-700" : delta < 0 ? "text-red-700" : "";
