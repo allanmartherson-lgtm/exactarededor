@@ -661,11 +661,11 @@ export function SimuladorMargem() {
                         {BRL(l.delta_margem)}
                       </TableCell>
                       <TableCell className="text-right text-xs">
-                        <div>{PCT(l.pct_margem_aurum)}</div>
-                        {l.pct_margem_recalc != null && (
-                          <div className="text-muted-foreground">→ {PCT(l.pct_margem_recalc)}</div>
-                        )}
+                        {l.pct_margem_recalc != null && l.pct_margem_aurum
+                          ? PCT(l.pct_margem_recalc - l.pct_margem_aurum)
+                          : "—"}
                       </TableCell>
+
                     </TableRow>
                   );
                 })}
