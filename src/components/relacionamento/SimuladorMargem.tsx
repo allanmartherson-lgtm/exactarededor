@@ -266,22 +266,32 @@ export function SimuladorMargem() {
     void (async () => {
       try {
         const tabela = modo === "medico" ? "aurum_margem_medico" : "aurum_margem_procedimento";
-        let q = supabase
-          .from(tabela as never)
-          .select("*")
-          .eq("hospital_id", hospitalId)
-          .eq("ano", ano);
-        if (carater !== "todos") q = q.eq("carater", carater);
-        if (periodo !== "todos") q = q.eq("periodo_internacao", periodo);
-        if (faturado !== "todos") q = q.eq("faturado", faturado === "sim");
-        const { data, error } = await q.limit(20000);
+        // Pagina para contornar o cap padrão do PostgREST (~1000 linhas),
+        // que truncava silenciosamente as bases grandes do Aurum.
+        const PAGE = 1000;
+        const all: any[] = [];
+        for (let offset = 0; offset < 100000; offset += PAGE) {
+          let q = supabase
+            .from(tabela as never)
+            .select("*")
+            .eq("hospital_id", hospitalId)
+            .eq("ano", ano);
+          if (carater !== "todos") q = q.eq("carater", carater);
+          if (periodo !== "todos") q = q.eq("periodo_internacao", periodo);
+          if (faturado !== "todos") q = q.eq("faturado", faturado === "sim");
+          const { data, error } = await q.range(offset, offset + PAGE - 1);
+          if (cancelled) return;
+          if (error) throw error;
+          const rows = (data ?? []) as any[];
+          all.push(...rows);
+          if (rows.length < PAGE) break;
+        }
         if (cancelled) return;
-        if (error) throw error;
         if (modo === "medico") {
-          setAurumMedico((data ?? []) as AurumMedicoRow[]);
+          setAurumMedico(all as AurumMedicoRow[]);
           setAurumProc([]);
         } else {
-          setAurumProc((data ?? []) as AurumProcRow[]);
+          setAurumProc(all as AurumProcRow[]);
           setAurumMedico([]);
         }
       } catch (e) {
@@ -291,6 +301,7 @@ export function SimuladorMargem() {
         if (!cancelled) setLoadingAurum(false);
       }
     })();
+
     return () => { cancelled = true; };
   }, [hospitalId, modo, ano, carater, periodo, faturado]);
 
