@@ -2577,7 +2577,6 @@ export function buildTvrReplaceSummary(
     ausente_incomplete: incompleteAusente.length,
   };
   const trimmedHistory = [...prevHistory.slice(-19), historyEntry];
-  const preservedHandoff = (prev as { handoff?: unknown }).handoff;
   // Preserva chaves de escopo definidas no Passo 1/2 — sem elas o trigger do
   // banco (enforce_tvr_selected_payment_ids) rejeita o UPDATE pós-processamento
   // e o motor volta a misturar lotes de outros meses no reprocesso.
@@ -2587,6 +2586,9 @@ export function buildTvrReplaceSummary(
   const preservedMultiCompanyIds = (prev as { multi_company_ids?: unknown }).multi_company_ids;
   const preservedMultiDoctorIds = (prev as { multi_doctor_ids?: unknown }).multi_doctor_ids;
   const preservedMultiLabels = (prev as { multi_labels?: unknown }).multi_labels;
+  // handoff NÃO é preservado: se a apuração está encaminhada, o botão Processar
+  // fica bloqueado (obriga desfazer primeiro). Se algum caminho de código chegar
+  // aqui com handoff antigo, é bug — deixe cair para o próximo estado sem handoff.
 
   return {
     mode: "tasy_vs_repasse",
