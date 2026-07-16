@@ -7615,6 +7615,71 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           />
         );
       })()}
+
+      {/* T3 — Dialog de motivo para exclusão do encaminhamento */}
+      <Dialog
+        open={excludeDialog.open}
+        onOpenChange={(v) => {
+          if (excluding) return;
+          if (!v) setExcludeDialog({ open: false, targetIds: [] });
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {excludeDialog.targetIds.length === 1
+                ? "Excluir do encaminhamento"
+                : `Excluir ${excludeDialog.targetIds.length} itens do encaminhamento`}
+            </DialogTitle>
+            <DialogDescription>
+              Os itens somem da apuração mas continuam visíveis na lista.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Motivo</Label>
+              <Select value={excludeReason} onValueChange={(v) => setExcludeReason(v as ExclusionReason)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o motivo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mudanca_data_administrativa">Mudança administrativa de data</SelectItem>
+                  <SelectItem value="cancelamento_externo">Cancelamento externo</SelectItem>
+                  <SelectItem value="duplicidade_ja_resolvida">Duplicidade já resolvida</SelectItem>
+                  <SelectItem value="acordo_diferenciado">Acordo diferenciado</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                {excludeReason === "outro" ? "Observação (obrigatória)" : "Observação (opcional)"}
+              </Label>
+              <Textarea
+                value={excludeNote}
+                onChange={(e) => setExcludeNote(e.target.value)}
+                placeholder="Ex: data alterada em 12/07 conforme conferência com o setor…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExcludeDialog({ open: false, targetIds: [] })} disabled={excluding}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void confirmExcludeDialog()}
+              disabled={
+                excluding ||
+                !excludeReason ||
+                (excludeReason === "outro" && excludeNote.trim().length === 0)
+              }
+            >
+              {excluding ? "Excluindo…" : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
