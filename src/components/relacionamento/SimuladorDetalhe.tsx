@@ -143,7 +143,7 @@ export function SimuladorDetalhe({ linha, modo, hospitalId, onClose }: Props) {
         .from("reference_tables")
         .select("id, name")
         .eq("hospital_id", hospitalId)
-        .eq("is_active", true)
+        .eq("active", true)
         .order("name");
       if (cancelled || error) return;
       setRefTables((data ?? []) as Array<{ id: string; name: string }>);
