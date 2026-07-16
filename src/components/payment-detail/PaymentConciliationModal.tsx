@@ -3831,7 +3831,23 @@ export function PaymentConciliationModal({
           ? (item.status === 'so_hospital' ? (item.valor_regra ?? valorConvenio) : diferenca)
           : diferenca;
 
-        const nowIso = new Date().toISOString();
+        // Busca "irmão" no lote vigente (mesma PJ + mesmo atendimento) para herdar
+        // atributos operacionais que o motor de regras precisa (sector, convênio, etc.).
+        let irmao: any = null;
+        try {
+          const { data } = await supabase
+            .from('payment_items')
+            .select('doctor_role, sector, specialty, convenio_id, attendance_character')
+            .eq('payment_id', paymentId)
+            .eq('company_name', item.company_name ?? '')
+            .eq('attendance_number', item.attendance_number ?? '')
+            .neq('item_origem', 'conciliacao_credito')
+            .neq('item_origem', 'conciliacao_debito')
+            .limit(1)
+            .maybeSingle();
+          irmao = data ?? null;
+        } catch { /* fallback null */ }
+
         const { data: newItem, error: itemErr } = await supabase
           .from('payment_items')
           .insert({
@@ -3849,19 +3865,23 @@ export function PaymentConciliationModal({
             patient_name: item.patient_name ?? null,
             agreement_text: item.agreement_text ?? null,
             attendance_number: item.attendance_number ?? null,
-            // Baseline = 0 (item não existia antes da intervenção).
-            // Motor de intervenção usa item_origem='conciliacao_*' para calcular delta = 0 − gross.
-            expected_amount: 0,
+            // Campos operacionais que o motor de regras usa para casar acordo:
+            doctor_role: (item as any).role ?? irmao?.doctor_role ?? null,
+            quantity: (item as any).quantity ?? 1,
+            procedure_amount: Number(item.valor_hospital ?? 0),
+            tipo_linha: 'procedimento',
+            sector: irmao?.sector ?? null,
+            specialty: irmao?.specialty ?? null,
+            convenio_id: irmao?.convenio_id ?? null,
+            attendance_character: irmao?.attendance_character ?? null,
             gross_amount: isCredito ? valorAjuste : -valorAjuste,
-            gross_override_at: nowIso,
-            gross_override_by: user.id,
-            ai_status: 'aprovado',
             item_origem: isCredito ? 'conciliacao_credito' : 'conciliacao_debito',
             origem_referencia: `Conciliação ${item.competence_month ?? (run as any)?.competence_month ?? ''}`.trim(),
             origem_reconciliation_item_id: item.id,
           } as any)
           .select('id')
           .single();
+
 
         if (itemErr || !newItem) throw new Error(itemErr?.message ?? 'Erro ao criar item de ajuste');
         appliedPaymentId = paymentId;
