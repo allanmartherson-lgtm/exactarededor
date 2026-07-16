@@ -1651,41 +1651,50 @@ export default function CreditosDebitos() {
                   );
                 })()}
                 {(() => {
-                const groups = groupByPj(emAndamento);
-                return groups.map(([pjId, list]) => {
+                const allGroups = groupByPj(emAndamento);
+                const activeGroups = allGroups.filter(([, list]) => !isGroupArchived(list));
+                const archivedGroups = allGroups.filter(([, list]) => isGroupArchived(list));
+                const renderGroup = (pjId: string, list: GlosaDebt[], groupCount: number, archived: boolean) => {
                   const pjName = list[0]?._company_name ?? "PJ";
                   const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
-                  const isOpen = isGroupOpen(pjId, groups.length);
+                  // Arquivados: colapsados por default (ignora auto-open por cardinalidade)
+                  const isOpen = openGroups[pjId] !== undefined ? openGroups[pjId] : (archived ? false : isGroupOpen(pjId, groupCount));
                   const pjPending = list.filter(g => !g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id)).length;
                   const pjApplied = list.length - pjPending;
                   return (
-                    <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className="border border-border rounded-md">
+                    <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className={`border rounded-md ${archived ? "border-border/60 bg-muted/20" : "border-border"}`}>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
                         <CollapsibleTrigger className="flex-1 flex items-center gap-2 min-w-0 hover:opacity-80 text-left">
                           {isOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
-                          <span className="font-medium text-sm truncate flex-1 min-w-0">{pjName}</span>
+                          <span className={`font-medium text-sm truncate flex-1 min-w-0 ${archived ? "text-muted-foreground" : ""}`}>{pjName}</span>
                           <Badge variant="outline" className="shrink-0">{list.length}</Badge>
-                          {pjApplied > 0 && (
+                          {archived ? (
+                            <Badge className="bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30 shrink-0 whitespace-nowrap">
+                              🗄 Arquivado (lote finalizado)
+                            </Badge>
+                          ) : pjApplied > 0 && (
                             <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 shrink-0 whitespace-nowrap">
                               ✓ {pjApplied} aplicado{pjApplied > 1 ? "s" : ""}
                             </Badge>
                           )}
                           <span className="text-xs text-muted-foreground font-mono shrink-0 whitespace-nowrap">{brl(total)}</span>
                         </CollapsibleTrigger>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => { e.stopPropagation(); openApplyCurrentDialog(pjId); }}
-                          disabled={applyingCurrent !== null || pjPending === 0}
-                          className="w-full sm:w-auto shrink-0 whitespace-nowrap"
-                        >
-                          <Rocket className="w-3.5 h-3.5 mr-1 shrink-0" />
-                          {applyingCurrent === pjId
-                            ? "Aplicando…"
-                            : pjPending === 0
-                              ? `Tudo aplicado (${pjApplied})`
-                              : `Aplicar (${pjPending}${pjApplied ? ` · ${pjApplied} já aplic.` : ""})`}
-                        </Button>
+                        {!archived && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => { e.stopPropagation(); openApplyCurrentDialog(pjId); }}
+                            disabled={applyingCurrent !== null || pjPending === 0}
+                            className="w-full sm:w-auto shrink-0 whitespace-nowrap"
+                          >
+                            <Rocket className="w-3.5 h-3.5 mr-1 shrink-0" />
+                            {applyingCurrent === pjId
+                              ? "Aplicando…"
+                              : pjPending === 0
+                                ? `Tudo aplicado (${pjApplied})`
+                                : `Aplicar (${pjPending}${pjApplied ? ` · ${pjApplied} já aplic.` : ""})`}
+                          </Button>
+                        )}
                       </div>
 
 
@@ -1703,7 +1712,7 @@ export default function CreditosDebitos() {
                                     {applied && (
                                       applied.status === "postponed" ? (
                                         <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
-                                          ⏳ Adiada ({applied.postpone_reason === "sem_producao" ? "sem produção" : applied.postpone_reason === "partial_capacity" ? "parcial" : "saldo insuficiente"})
+                                          ⏳ Adiada ({applied.postpone_reason === "sem_producao" ? "sem produção" : applied.postpone_reason === "insufficient_net" ? "saldo insuficiente" : applied.postpone_reason ?? "aguardando ciclo"})
                                         </Badge>
                                       ) : (
                                         <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
@@ -1757,7 +1766,23 @@ export default function CreditosDebitos() {
                       </CollapsibleContent>
                     </Collapsible>
                   );
-                });
+                };
+                return (
+                  <>
+                    {activeGroups.map(([pjId, list]) => renderGroup(pjId, list, activeGroups.length, false))}
+                    {archivedGroups.length > 0 && (
+                      <div className="flex items-center justify-between gap-2 mt-3 px-2 py-1.5 border-t border-dashed">
+                        <span className="text-xs text-muted-foreground">
+                          🗄 {archivedGroups.length} PJ{archivedGroups.length > 1 ? "s" : ""} arquivada{archivedGroups.length > 1 ? "s" : ""} (100% aplicado em lote finalizado)
+                        </span>
+                        <Button size="sm" variant="ghost" onClick={() => setShowArchived(v => !v)} className="h-7 text-xs">
+                          {showArchived ? "Ocultar arquivados" : "Mostrar arquivados"}
+                        </Button>
+                      </div>
+                    )}
+                    {showArchived && archivedGroups.map(([pjId, list]) => renderGroup(pjId, list, archivedGroups.length, true))}
+                  </>
+                );
               })()}
               </>
             )}
