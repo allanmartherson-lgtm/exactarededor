@@ -100,8 +100,9 @@ interface AurumAggregated {
 }
 
 interface ExactaAggregated {
-  gross: number;
-  expected: number;
+  gross: number;         // valor pago ao médico (gross_amount)
+  expected: number;      // valor esperado pela regra (expected_amount)
+  baseConvenio: number;  // valor bruto do convênio (procedure_amount) — base 100%
   itens: number;
   atendimentos: number;
   sem_carater: number;
