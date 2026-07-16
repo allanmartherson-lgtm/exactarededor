@@ -6251,8 +6251,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     selectedDoctorIds: string[];
   }) => {
     if (!results) return;
-    const actionable = results.filter(isActionableTvr);
-    const retirar = toRetirarItems(results);
+    // Tópico 2: itens marcados como excluir_do_encaminhamento saem
+    // de TODO o pipeline de encaminhamento (complementar E glosa).
+    const source = results.filter(notExcluded);
+    const actionable = source.filter(isActionableTvr);
+    const retirar = toRetirarItems(source);
 
     if (!opts.includeComplementar && !opts.gerarGlosa) {
       toast({ title: "Selecione ao menos um caminho", variant: "destructive" });
