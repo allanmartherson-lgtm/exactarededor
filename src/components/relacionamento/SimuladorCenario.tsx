@@ -381,21 +381,32 @@ export function SimuladorCenario() {
         // Modo procedimento: descobre attendance_number cujo item principal
         // bate com o nome (ou alias), depois soma gross+expected de TODOS os
         // itens desses atendimentos.
-        const principais = await fetchAllPaginated<{
+        // 1ª query: server-side ilike por procedure_name para cada variante.
+        const principais: Array<{
           attendance_number: string | null;
           procedure_name: string | null;
           access_route: string | null;
-        }>((from, to) =>
-          supabase
-            .from("payment_items")
-            .select("attendance_number,procedure_name,access_route")
-            .eq("hospital_id", hospitalId)
-            .eq("is_cancelled", false)
-            .gte("procedure_date", dateFrom)
-            .lt("procedure_date", dateTo)
-            .not("attendance_number", "is", null)
-            .range(from, to),
-        );
+        }> = [];
+        for (const nomeAlvo of nomesAlvo) {
+          const ilikeTerm = `%${nomeAlvo.split(" ").filter((t) => t.length > 2).join("%")}%`;
+          const parte = await fetchAllPaginated<{
+            attendance_number: string | null;
+            procedure_name: string | null;
+            access_route: string | null;
+          }>((from, to) =>
+            supabase
+              .from("payment_items")
+              .select("attendance_number,procedure_name,access_route")
+              .eq("hospital_id", hospitalId)
+              .eq("is_cancelled", false)
+              .gte("procedure_date", dateFrom)
+              .lt("procedure_date", dateTo)
+              .not("attendance_number", "is", null)
+              .ilike("procedure_name", ilikeTerm)
+              .range(from, to),
+          );
+          principais.push(...parte);
+        }
         const attsMatched = new Set<string>();
         for (const it of principais) {
           const ar = (it.access_route ?? "").toLowerCase();
