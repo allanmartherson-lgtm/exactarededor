@@ -16,6 +16,7 @@ Escopo por hospital é INVARIANTE. Toda escrita operacional grava hospital_id do
 
 ## Memories
 - [Setor nunca bloqueia importação](mem://constraints/sector-never-blocks-import) — Setor é aviso no painel, nunca gate; motor não usa setor no cálculo
+- [Glosa sem aplicação parcial](mem://constraints/glosa-sem-parcial) — Sem líquido suficiente → adia integral; nunca grava status='partial'
 - [Modais respeitam viewport](mem://design/modal-viewport-fit) — DialogContent/AlertDialogContent já limitam altura/largura e scroll interno; não patchar por modal
 - [Guard obrigatório em edge functions](mem://constraints/edge-function-auth-guard) — requireInternalOrRole + CI enforce; PUBLIC_ALLOWLIST documenta exceções
 - [Identidade Exacta/Rede D'Or](mem://design/brand-exacta-rededor) — Paleta, fontes, ícone oficial, favicon, pendências de marca
