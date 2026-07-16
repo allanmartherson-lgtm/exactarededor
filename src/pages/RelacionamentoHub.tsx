@@ -2,9 +2,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Handshake, TrendingUp } from "lucide-react";
+import { Handshake } from "lucide-react";
 import { AurumMargemUpload } from "@/components/relacionamento/AurumMargemUpload";
 import { SimuladorMargem } from "@/components/relacionamento/SimuladorMargem";
 
