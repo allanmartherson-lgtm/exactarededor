@@ -1559,9 +1559,19 @@ export default function CreditosDebitos() {
                                       <span className="text-amber-600 font-medium">sugestão {parc}× de {brl(g.total_debt / parc)}</span>
                                     </div>
                                   </div>
-                                  <Button size="sm" onClick={() => openGlosa(g)}>
-                                    <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar e confirmar
-                                  </Button>
+                                  <div className="flex gap-1 shrink-0">
+                                    <Button size="sm" onClick={() => openGlosa(g)}>
+                                      <Pencil className="w-3.5 h-3.5 mr-1" /> Parcelar e confirmar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => revertGlosa(g)}
+                                      title="Cancelar esta glosa e devolvê-la à conciliação"
+                                    >
+                                      Reverter
+                                    </Button>
+                                  </div>
                                 </div>
                               );
                             })}
