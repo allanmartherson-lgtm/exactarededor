@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { useActiveHospitalId, useHospital } from "@/contexts/HospitalContext";
@@ -544,24 +545,31 @@ export default function CreditosDebitos() {
     setGlosaDebts(prev => prev.map(item => item.id === g.id ? { ...item, confirmed_at: null } : item));
   };
 
-  /** Reverte glosa: anula dívida + aplicações e devolve o item à conciliação (quando aplicável). */
-  const revertGlosa = async (g: GlosaDebt) => {
-    const reason = window.prompt(
-      `Reverter glosa de ${g.doctor_name} (${brl(g.total_debt)})?\n\n` +
-      `A dívida e todas as deduções ativas serão canceladas. ` +
-      `Se veio da conciliação e o lote de origem ainda está em análise, ` +
-      `o item volta para "Só no Exacta".\n\n` +
-      `Motivo (obrigatório):`,
-      ""
-    );
-    if (reason === null) return;
-    const trimmed = reason.trim();
+  /** Estado do diálogo de reversão (substitui window.prompt, que é bloqueado no preview em iframe). */
+  const [revertTarget, setRevertTarget] = useState<GlosaDebt | null>(null);
+  const [revertReason, setRevertReason] = useState("");
+  const [reverting, setReverting] = useState(false);
+
+  /** Abre o diálogo de reversão. */
+  const revertGlosa = (g: GlosaDebt) => {
+    setRevertReason("");
+    setRevertTarget(g);
+  };
+
+  /** Executa a reversão após confirmação no diálogo. */
+  const confirmRevertGlosa = async () => {
+    const g = revertTarget;
+    if (!g) return;
+    const trimmed = revertReason.trim();
     if (!trimmed) { toast.error("Motivo obrigatório para reverter."); return; }
 
+    setReverting(true);
     const { data, error } = await (supabase as any).rpc("revert_glosa_debt", {
       p_debt_id: g.id,
       p_reason: trimmed,
     });
+    setReverting(false);
+
     if (error) {
       const msg = String(error.message || "");
       if (msg.includes("glosa_locked_in_finalized_payment")) {
@@ -601,13 +609,15 @@ export default function CreditosDebitos() {
       }).catch((err) => console.warn("[revertGlosa] compute-company-financials falhou:", err?.message));
     }
 
-    // Atualização otimista + recarga leve
+    // Atualização otimista + fecha diálogo
     setGlosaDebts(prev => prev.filter(item => item.id !== g.id));
     setGlosaAppsByDebt(prev => {
       const next = { ...prev };
       delete next[g.id];
       return next;
     });
+    setRevertTarget(null);
+    setRevertReason("");
   };
 
   // ============ APLICAR FILTROS ============
@@ -2353,6 +2363,45 @@ export default function CreditosDebitos() {
         companyNameById={Object.fromEntries(companies.map(c => [c.id, c.name]))}
         paymentLabelById={paymentLabels}
       />
+
+      {/* Diálogo de reversão de glosa — substitui window.prompt, bloqueado no preview em iframe. */}
+      <Dialog open={!!revertTarget} onOpenChange={(o) => { if (!o && !reverting) { setRevertTarget(null); setRevertReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reverter glosa</DialogTitle>
+          </DialogHeader>
+          {revertTarget && (
+            <div className="space-y-3 text-sm">
+              <p>
+                Reverter glosa de <strong>{revertTarget.doctor_name}</strong> ({brl(revertTarget.total_debt)}).
+              </p>
+              <p className="text-muted-foreground text-xs">
+                A dívida e todas as deduções ativas serão canceladas. Se veio da conciliação e o lote de origem
+                ainda está em análise, o item volta para "Só no Exacta".
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="revert-reason">Motivo (obrigatório)</Label>
+                <Textarea
+                  id="revert-reason"
+                  value={revertReason}
+                  onChange={(e) => setRevertReason(e.target.value)}
+                  placeholder="Ex.: reclassificar como cancelamento de item na conciliação"
+                  rows={3}
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRevertTarget(null); setRevertReason(""); }} disabled={reverting}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmRevertGlosa} disabled={reverting || !revertReason.trim()}>
+              {reverting ? "Revertendo…" : "Reverter glosa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
