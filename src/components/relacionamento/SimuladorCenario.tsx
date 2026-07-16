@@ -104,6 +104,7 @@ interface ExactaAggregated {
   expected: number;
   itens: number;
   atendimentos: number;
+  sem_carater: number;
 }
 
 interface Simulado {
