@@ -7187,7 +7187,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </div>
             <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
-            <div className="flex items-center gap-1 border-b border-border bg-muted/20 px-2 py-1">
+            <div className="sticky top-0 z-20 flex items-center gap-1 border-b border-border bg-muted/40 backdrop-blur px-2 py-1 shadow-sm">
               <Button
                 type="button"
                 variant="outline"
@@ -7201,7 +7201,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <div
                 ref={resultTopScrollRef}
                 onScroll={() => syncResultScroll("top")}
-                className="h-5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+                className="h-5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:thin]"
                 aria-label="Rolagem horizontal da tabela de resultados"
               >
                 <div className="h-4" style={{ width: resultScrollWidth }} />
@@ -7220,7 +7220,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             <div
               ref={resultTableScrollRef}
               onScroll={() => syncResultScroll("table")}
-              className="overflow-auto max-h-[65vh] rounded-b-lg border-border"
+              className="overflow-auto max-h-[65vh] rounded-b-lg border-border [scrollbar-width:thin]"
             >
 
               {(() => {
