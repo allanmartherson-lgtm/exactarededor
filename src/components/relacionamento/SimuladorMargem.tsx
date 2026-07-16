@@ -160,6 +160,8 @@ export function SimuladorMargem() {
   const [exactaItems, setExactaItems] = useState<ExactaItem[]>([]);
   const [loadingAurum, setLoadingAurum] = useState(false);
   const [loadingExacta, setLoadingExacta] = useState(false);
+  // Faixa real de dados Exacta do hospital (para default e aviso quando o filtro está fora).
+  const [exactaRange, setExactaRange] = useState<{ min: string; max: string } | null>(null);
 
   // Descobre anos disponíveis (uma vez por hospital).
   useEffect(() => {
@@ -180,12 +182,45 @@ export function SimuladorMargem() {
     return () => { cancelled = true; };
   }, [hospitalId]);
 
-  // Sincroniza intervalo Exacta com ano Aurum quando o usuário troca de ano.
+  // Descobre a faixa real de procedure_date no Exacta deste hospital.
+  // Serve como default do intervalo (evita ano Aurum "fiscal" desalinhado do período real de produção)
+  // e alimenta o aviso quando o filtro atual não cobre a produção.
   useEffect(() => {
-    if (!ano) return;
-    setDateFrom(firstOfYear(ano));
-    setDateTo(firstOfNextYear(ano));
-  }, [ano]);
+    if (!hospitalId) return;
+    let cancelled = false;
+    void (async () => {
+      const [minRes, maxRes] = await Promise.all([
+        supabase.from("payment_items")
+          .select("procedure_date")
+          .eq("hospital_id", hospitalId)
+          .eq("is_cancelled", false)
+          .not("procedure_date", "is", null)
+          .order("procedure_date", { ascending: true })
+          .limit(1),
+        supabase.from("payment_items")
+          .select("procedure_date")
+          .eq("hospital_id", hospitalId)
+          .eq("is_cancelled", false)
+          .not("procedure_date", "is", null)
+          .order("procedure_date", { ascending: false })
+          .limit(1),
+      ]);
+      if (cancelled) return;
+      const min = (minRes.data?.[0] as { procedure_date?: string } | undefined)?.procedure_date;
+      const max = (maxRes.data?.[0] as { procedure_date?: string } | undefined)?.procedure_date;
+      if (min && max) {
+        const minIso = min.slice(0, 10);
+        const maxIso = max.slice(0, 10);
+        setExactaRange({ min: minIso, max: maxIso });
+        // Só preenche defaults se o usuário ainda não escolheu nada.
+        setDateFrom((prev) => prev || minIso);
+        setDateTo((prev) => prev || maxIso);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+
 
   // Carrega Aurum (linhas agregadas por médico / procedimento).
   useEffect(() => {
@@ -335,12 +370,19 @@ export function SimuladorMargem() {
       };
     };
 
-    // Linhas "Total" no Aurum são totalizadores gerais da planilha — ignoramos
-    // para não poluir o comparativo (nunca terão match no Exacta e distorcem KPIs).
+    // Linhas "Total"/"Total geral"/"Subtotal" no Aurum são totalizadores da planilha —
+    // ignoramos para não poluir o comparativo (nunca terão match no Exacta e distorcem KPIs).
     const isTotalRow = (nome: string | null | undefined) => {
       const n = norm(nome);
-      return !n || n === "total" || n.startsWith("total ");
+      if (!n) return true;
+      if (n === "total" || n === "totais" || n === "subtotal" || n === "total geral") return true;
+      if (n.startsWith("total ") || n.startsWith("subtotal ")) return true;
+      // fallback: se começa com "total" e não tem nenhum caractere de nome próprio (2 tokens > 3 chars),
+      // trata como totalizador defensivamente.
+      if (n.startsWith("total") && n.split(" ").filter((t) => t.length > 3).length < 2) return true;
+      return false;
     };
+
 
     if (modo === "medico") {
       for (const row of aurumMedico) {
@@ -508,7 +550,7 @@ export function SimuladorMargem() {
                 onChange={(e) => setBusca(e.target.value)}
               />
             </div>
-            <div className="col-span-2 flex items-end gap-2">
+            <div className="col-span-2 flex items-end gap-2 flex-wrap">
               <Button
                 type="button"
                 variant="outline"
@@ -520,8 +562,22 @@ export function SimuladorMargem() {
                   }
                 }}
               >
-                <RefreshCw className="mr-1 h-3 w-3" /> Sincronizar Exacta com ano Aurum
+                <RefreshCw className="mr-1 h-3 w-3" /> Usar ano Aurum
               </Button>
+              {exactaRange && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDateFrom(exactaRange.min);
+                    setDateTo(exactaRange.max);
+                  }}
+                  title={`Produção real: ${exactaRange.min} a ${exactaRange.max}`}
+                >
+                  <RefreshCw className="mr-1 h-3 w-3" /> Usar faixa real do Exacta
+                </Button>
+              )}
             </div>
           </div>
 
@@ -529,6 +585,24 @@ export function SimuladorMargem() {
             <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               <AlertCircle className="h-4 w-4" />
               Nenhuma base Aurum importada para este hospital. Vá em "Bases Aurum" para subir o XLSX.
+            </div>
+          )}
+
+          {!loadingExacta && exactaRange && dateFrom && dateTo && (dateTo < exactaRange.min || dateFrom > exactaRange.max) && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                O intervalo Exacta selecionado ({dateFrom} → {dateTo}) está fora da produção real deste hospital
+                (dados de <strong>{exactaRange.min}</strong> a <strong>{exactaRange.max}</strong>).
+                Nenhum médico casará. Clique em <em>"Usar faixa real do Exacta"</em> ou ajuste as datas.
+              </div>
+            </div>
+          )}
+
+          {!loadingExacta && exactaItems.length === 0 && exactaRange && dateFrom && dateTo && dateFrom >= exactaRange.min && dateTo <= exactaRange.max && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              Nenhum item Exacta encontrado no intervalo selecionado, mas o hospital tem produção entre {exactaRange.min} e {exactaRange.max}.
             </div>
           )}
         </CardContent>
