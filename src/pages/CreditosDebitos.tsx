@@ -157,6 +157,8 @@ export default function CreditosDebitos() {
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [lotePick, setLotePick] = useState<string>("");
   const [paymentLabels, setPaymentLabels] = useState<Record<string, string>>({});
+  const [paymentStatuses, setPaymentStatuses] = useState<Record<string, string>>({});
+  const [showArchived, setShowArchived] = useState(false);
   const [appsByAdj, setAppsByAdj] = useState<Record<string, AdjApplication[]>>({});
   // Aplicações de glosa por debt_id → usado para sinalizar "já aplicado neste lote"
   // e evitar reinvocar apply-company-deductions em (payment_id, company_id) já processados.
