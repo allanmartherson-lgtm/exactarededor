@@ -697,11 +697,26 @@ export function SimuladorCenario() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div>
+              <Label className="text-xs">Caráter</Label>
+              <Select
+                value={carater}
+                onValueChange={(v) => { setCarater(v as typeof carater); setResultado(null); }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="Eletiva">Eletiva</SelectItem>
+                  <SelectItem value="Urgência">Urgência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Linha 2 — modelo */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-            <div>
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="min-w-[14rem] flex-1 max-w-[20rem]">
               <Label className="text-xs">Modelo de simulação</Label>
               <Select value={modelo} onValueChange={(v) => { setModelo(v as Modelo); setResultado(null); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -713,8 +728,8 @@ export function SimuladorCenario() {
             </div>
 
             {modelo === "percentual" ? (
-              <div>
-                <Label className="text-xs">Novo percentual (%)</Label>
+              <div className="max-w-[8rem]">
+                <Label className="text-xs">Novo %</Label>
                 <Input
                   type="number" step="0.1" value={pctNovo}
                   onChange={(e) => setPctNovo(Number(e.target.value))}
@@ -722,7 +737,7 @@ export function SimuladorCenario() {
               </div>
             ) : (
               <>
-                <div>
+                <div className="min-w-[12rem] flex-1 max-w-[18rem]">
                   <Label className="text-xs">Tabela de referência</Label>
                   <Select value={refTableId} onValueChange={setRefTableId}>
                     <SelectTrigger>
@@ -735,15 +750,15 @@ export function SimuladorCenario() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                <div className="max-w-[7rem]">
                   <Label className="text-xs">Multiplicador (x)</Label>
                   <Input type="number" step="0.1" value={multiplicador} onChange={(e) => setMultiplicador(Number(e.target.value))} />
                 </div>
-                <div>
+                <div className="max-w-[7rem]">
                   <Label className="text-xs">Deflator (%)</Label>
                   <Input type="number" step="0.1" value={deflator} onChange={(e) => setDeflator(Number(e.target.value))} />
                 </div>
-                <div>
+                <div className="max-w-[7rem]">
                   <Label className="text-xs">Acréscimo (%)</Label>
                   <Input type="number" step="0.1" value={acrescimo} onChange={(e) => setAcrescimo(Number(e.target.value))} />
                 </div>
