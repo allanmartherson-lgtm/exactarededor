@@ -250,6 +250,13 @@ export function SimuladorCenario() {
   const [deflator, setDeflator] = useState<number>(0);
   const [acrescimo, setAcrescimo] = useState<number>(0);
   const [carater, setCarater] = useState<"todos" | "Eletiva" | "Urgência">("todos");
+  // Aurum só contempla pacientes INTERNADOS (cirúrgicos). Filtro default-on
+  // limita o Exacta a itens de Centro Cirúrgico / Hemodinâmica para evitar
+  // que consultas/pareceres/SADT distorçam a comparação.
+  const [apenasInternados, setApenasInternados] = useState<boolean>(true);
+  // Slugs canônicos + códigos hospital-específicos (DFStar) que representam
+  // setores cirúrgicos internados. Ampliar quando novas unidades entrarem.
+  const SURGICAL_SECTORS = ["centro_cirurgico", "hemodinamica", "1556", "1574"];
 
   const [simulando, setSimulando] = useState(false);
   const [salvando, setSalvando] = useState(false);
