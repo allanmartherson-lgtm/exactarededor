@@ -461,6 +461,7 @@ export function SimuladorMargem() {
       setSaveOpen(false);
       setNomeCenario("");
       setDescCenario("");
+      setCenariosTick((t) => t + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao salvar cenário.");
     } finally {
@@ -471,6 +472,41 @@ export function SimuladorMargem() {
     pctRepasse, dobra, viaAcessoPct, exactaRepasse, sim, real, carater,
     periodo, faturado, cbhpmBase,
   ]);
+
+  const loadCenario = useCallback((c: CenarioSalvo) => {
+    setModo(c.tipo);
+    const nome = c.tipo === "medico" ? c.medico_nome : c.procedimento_nome;
+    if (nome) setSelName(nome);
+    if (c.ano_referencia) setAno(c.ano_referencia);
+    if (c.pct_repasse != null) setPctRepasse(Number(c.pct_repasse));
+    if (c.dobra_cbhpm != null) setDobra(Number(c.dobra_cbhpm));
+    if (c.via_acesso_pct != null) setViaAcessoPct(Number(c.via_acesso_pct));
+    if (c.volume_estimado != null) setVolume(Number(c.volume_estimado));
+    const params = c.parametros_json ?? {};
+    const cb = (params as Record<string, unknown>).cbhpm_base;
+    if (typeof cb === "number") setCbhpmBase(cb);
+    const kar = (params as Record<string, unknown>).carater;
+    if (typeof kar === "string") setCarater(kar as Carater);
+    const per = (params as Record<string, unknown>).periodo;
+    if (typeof per === "string") setPeriodo(per as Periodo);
+    const fat = (params as Record<string, unknown>).faturado;
+    if (typeof fat === "string") setFaturado(fat as Faturado);
+    toast.success(`Cenário "${c.nome}" carregado.`);
+  }, []);
+
+  const deleteCenario = useCallback(async (c: CenarioSalvo) => {
+    if (!window.confirm(`Excluir o cenário "${c.nome}"? Esta ação não pode ser desfeita.`)) return;
+    const { error } = await supabase
+      .from("simulacao_cenario" as unknown as never)
+      .delete()
+      .eq("id", c.id);
+    if (error) {
+      toast.error(`Falha ao excluir: ${error.message}`);
+      return;
+    }
+    toast.success("Cenário excluído.");
+    setCenariosTick((t) => t + 1);
+  }, []);
 
   const canRender = !!aur && !!selName && !!ano;
 
