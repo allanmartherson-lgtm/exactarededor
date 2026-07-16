@@ -69,6 +69,9 @@ interface ExactaItem {
   doctor_name: string | null;
   procedure_name: string | null;
   gross_amount: number | null;
+  expected_amount: number | null;
+  access_route: string | null;
+  applied_calc_method: string | null;
 }
 
 interface LinhaComparativa {
@@ -81,6 +84,7 @@ interface LinhaComparativa {
   outros_custos: number; // custo_total − custo_hm
   margem_aurum: number;
   hm_exacta_real: number | null; // null = sem match Exacta
+  hm_exacta_expected: number; // soma de expected_amount — base convênio (fica no bolso do hospital)
   hm_exacta_qtd_itens: number;
   hm_exacta_qtd_atendimentos: number;
   custo_total_recalc: number | null;
@@ -229,7 +233,7 @@ export function SimuladorMargem() {
         const rows = await fetchAllPaginated<ExactaItem>((from, to) =>
           supabase
             .from("payment_items")
-            .select("attendance_number,doctor_name,procedure_name,gross_amount")
+            .select("attendance_number,doctor_name,procedure_name,gross_amount,expected_amount,access_route,applied_calc_method")
             .eq("hospital_id", hospitalId)
             .eq("is_cancelled", false)
             .gte("procedure_date", dateFrom)
@@ -251,36 +255,48 @@ export function SimuladorMargem() {
 
   // Índices Exacta pré-processados para não recomputar por linha.
   const exactaIndex = useMemo(() => {
-    const porMedico = new Map<string, { total: number; atendimentos: Set<string>; itens: number }>();
+    const porMedico = new Map<string, { total: number; totalExpected: number; atendimentos: Set<string>; itens: number }>();
     const porAtendimento = new Map<string, number>(); // soma gross de todos os itens do atendimento
-    const procIndex: Array<{ normProc: string; attendance: string }> = [];
+    const porAtendimentoExpected = new Map<string, number>(); // soma expected_amount por atendimento (base convênio)
+    // access_route "Única"/"principal" marca o procedimento balizador da controladoria.
+    // Guardamos o procedure_name normalizado do PRIMEIRO principal por atendimento.
+    const attPrincipal = new Map<string, string>();
 
     for (const it of exactaItems) {
       const g = Number(it.gross_amount ?? 0);
+      const e = Number(it.expected_amount ?? 0);
       const nMed = norm(it.doctor_name);
       const att = (it.attendance_number ?? "").trim();
-      const nProc = norm(it.procedure_name);
 
       if (nMed) {
-        const cur = porMedico.get(nMed) ?? { total: 0, atendimentos: new Set<string>(), itens: 0 };
+        const cur = porMedico.get(nMed) ?? { total: 0, totalExpected: 0, atendimentos: new Set<string>(), itens: 0 };
         cur.total += g;
+        cur.totalExpected += e;
         cur.itens += 1;
         if (att) cur.atendimentos.add(att);
         porMedico.set(nMed, cur);
       }
-      if (att) {
+      if (att && att !== "Desconhecido") {
         porAtendimento.set(att, (porAtendimento.get(att) ?? 0) + g);
-        if (nProc) procIndex.push({ normProc: nProc, attendance: att });
+        porAtendimentoExpected.set(att, (porAtendimentoExpected.get(att) ?? 0) + e);
+        const ar = (it.access_route ?? "").toLowerCase();
+        if (!attPrincipal.has(att) && (ar.includes("nica") || ar.includes("principal"))) {
+          attPrincipal.set(att, norm(it.procedure_name));
+        }
       }
     }
-    return { porMedico, porAtendimento, procIndex };
+    return { porMedico, porAtendimento, porAtendimentoExpected, attPrincipal };
   }, [exactaItems]);
 
   // Casa cada linha Aurum com o Exacta e monta as linhas comparativas.
   const linhas: LinhaComparativa[] = useMemo(() => {
     const out: LinhaComparativa[] = [];
 
-    const emp = (row: AurumBase, nome: string, exacta: { total: number | null; itens: number; atendimentos: number }): LinhaComparativa => {
+    const emp = (
+      row: AurumBase,
+      nome: string,
+      exacta: { total: number | null; totalExpected: number; itens: number; atendimentos: number },
+    ): LinhaComparativa => {
       const custoTotal = Number(row.custo_total ?? 0);
       const custoHmAurum = Number(row.custo_hm ?? 0);
       const receitaLiq = Number(row.receita_liquida ?? 0);
@@ -308,6 +324,7 @@ export function SimuladorMargem() {
         outros_custos: outros,
         margem_aurum: margemAurum,
         hm_exacta_real: exacta.total,
+        hm_exacta_expected: exacta.totalExpected,
         hm_exacta_qtd_itens: exacta.itens,
         hm_exacta_qtd_atendimentos: exacta.atendimentos,
         custo_total_recalc: custoRecalc,
@@ -331,39 +348,33 @@ export function SimuladorMargem() {
         if (isTotalRow(nome)) continue;
         const hit = exactaIndex.porMedico.get(norm(nome));
         const ex = hit
-          ? { total: hit.total, itens: hit.itens, atendimentos: hit.atendimentos.size }
-          : { total: null, itens: 0, atendimentos: 0 };
+          ? { total: hit.total, totalExpected: hit.totalExpected, itens: hit.itens, atendimentos: hit.atendimentos.size }
+          : { total: null, totalExpected: 0, itens: 0, atendimentos: 0 };
         out.push(emp(row, nome, ex));
       }
     } else {
-      // Procedimento: fuzzy match ds_procedimento vs procedure_name Exacta.
-      // Passo 1: agrupamos procIndex por procedure_name normalizado uma vez.
-      const porProc: Map<string, Set<string>> = new Map();
-      for (const { normProc, attendance } of exactaIndex.procIndex) {
-        const cur = porProc.get(normProc) ?? new Set<string>();
-        cur.add(attendance);
-        porProc.set(normProc, cur);
-      }
-      const procNames = Array.from(porProc.keys());
-
+      // Procedimento: match via access_route ("Única"/"principal") — o item
+      // balizador da controladoria. Depois somamos o honorário INTEIRO
+      // (equipe toda) dos atendimentos que caírem no match.
       for (const row of aurumProc) {
         const nome = row.ds_procedimento;
         if (isTotalRow(nome)) continue;
         const target = norm(nome);
-        // encontra os melhores procedure_name Exacta
         const matched = new Set<string>();
-        for (const cand of procNames) {
-          if (fuzzyScore(target, cand) >= 20) {
-            const atts = porProc.get(cand);
-            if (atts) for (const a of atts) matched.add(a);
+        for (const [att, normProcPrincipal] of exactaIndex.attPrincipal.entries()) {
+          if (fuzzyScore(target, normProcPrincipal) >= 20) {
+            matched.add(att);
           }
         }
-        // soma o honorário INTEIRO desses atendimentos
-        let total = 0;
-        for (const att of matched) total += exactaIndex.porAtendimento.get(att) ?? 0;
+        let totalGross = 0;
+        let totalExpected = 0;
+        for (const att of matched) {
+          totalGross += exactaIndex.porAtendimento.get(att) ?? 0;
+          totalExpected += exactaIndex.porAtendimentoExpected.get(att) ?? 0;
+        }
         const ex = matched.size > 0
-          ? { total, itens: 0, atendimentos: matched.size }
-          : { total: null as number | null, itens: 0, atendimentos: 0 };
+          ? { total: totalGross, totalExpected, itens: 0, atendimentos: matched.size }
+          : { total: null as number | null, totalExpected: 0, itens: 0, atendimentos: 0 };
         out.push(emp(row, nome, ex));
       }
     }
@@ -592,6 +603,7 @@ export function SimuladorMargem() {
                   <TableHead className="text-right">Custo total (Aurum)</TableHead>
                   <TableHead className="text-right">HM Aurum</TableHead>
                   <TableHead className="text-right">HM Exacta (real)</TableHead>
+                  <TableHead className="text-right" title="Soma de expected_amount — valor que o convênio pagou ao hospital. Base para simular percentual convênio.">Base Convênio</TableHead>
                   <TableHead className="text-right">Margem Aurum</TableHead>
                   <TableHead className="text-right">Margem Recalc</TableHead>
                   <TableHead className="text-right">Δ Margem</TableHead>
@@ -601,7 +613,7 @@ export function SimuladorMargem() {
               <TableBody>
                 {linhasOrdenadas.length === 0 && !loadingAurum && (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={11} className="py-10 text-center text-sm text-muted-foreground">
                       Nenhuma linha para os filtros escolhidos.
                     </TableCell>
                   </TableRow>
@@ -642,6 +654,9 @@ export function SimuladorMargem() {
                             ? PCT(l.hm_exacta_real / l.receita_liquida)
                             : "—"}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        {l.hm_exacta_expected > 0 ? BRL(l.hm_exacta_expected) : "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div>{BRL(l.margem_aurum)}</div>
