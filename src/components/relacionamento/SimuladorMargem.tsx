@@ -179,17 +179,27 @@ export function SimuladorMargem() {
     if (!hospitalId) return;
     let cancelled = false;
     void (async () => {
-      const { data, error } = await supabase
-        .from("aurum_margem_medico" as never)
-        .select("ano")
-        .eq("hospital_id", hospitalId)
-        .limit(20000);
-      if (cancelled || error) return;
-      const rows = (data ?? []) as Array<{ ano: number }>;
-      const anos = Array.from(new Set(rows.map((r) => r.ano).filter(Number.isFinite))).sort((a, b) => b - a);
+      // Pagina para contornar o cap padrão do PostgREST (~1000 linhas),
+      // que fazia apenas o primeiro ano aparecer no combo mesmo com múltiplos anos na base.
+      const anosSet = new Set<number>();
+      const PAGE = 1000;
+      for (let offset = 0; offset < 100000; offset += PAGE) {
+        const { data, error } = await supabase
+          .from("aurum_margem_medico" as never)
+          .select("ano")
+          .eq("hospital_id", hospitalId)
+          .range(offset, offset + PAGE - 1);
+        if (cancelled || error) return;
+        const rows = (data ?? []) as Array<{ ano: number }>;
+        rows.forEach((r) => { if (Number.isFinite(r.ano)) anosSet.add(r.ano); });
+        if (rows.length < PAGE) break;
+      }
+      if (cancelled) return;
+      const anos = Array.from(anosSet).sort((a, b) => b - a);
       setAnosDisponiveis(anos);
       setAno((prev) => (prev && anos.includes(prev)) ? prev : (anos[0] ?? null));
     })();
+
     return () => { cancelled = true; };
   }, [hospitalId]);
 
