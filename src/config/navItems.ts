@@ -109,9 +109,9 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Relacionamento",
     icon: Handshake,
     iconName: "Handshake",
-    roles: ["admin", "diretor"] as const,
+    roles: ALL_ROLES,
     children: [
-      { to: "/relacionamento", label: "Simulador de Margem", icon: TrendingUp, iconName: "TrendingUp", roles: ["admin", "diretor"] as const },
+      { to: "/relacionamento", label: "Simulador de Margem", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
     ],
   },
   {
