@@ -66,6 +66,39 @@ const PCT = (v: number | null | undefined) =>
 const sumNullable = (arr: (number | null | undefined)[]) =>
   arr.reduce<number>((acc, v) => acc + (v ?? 0), 0);
 
+const normalizeDesc = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+interface CbhpmLookupItem {
+  codigo: string;
+  descricao: string;
+  valor_base: number;
+  norm: string;
+}
+
+interface CenarioSalvo {
+  id: string;
+  nome: string;
+  tipo: "medico" | "procedimento";
+  medico_nome: string | null;
+  procedimento_nome: string | null;
+  ano_referencia: number | null;
+  pct_repasse: number | null;
+  dobra_cbhpm: number | null;
+  via_acesso_pct: number | null;
+  volume_estimado: number | null;
+  margem_simulada: number | null;
+  pct_margem_simulada: number | null;
+  created_at: string;
+  parametros_json: Record<string, unknown> | null;
+}
+
 function Autocomplete({
   value, options, onChange, placeholder, loading,
 }: {
