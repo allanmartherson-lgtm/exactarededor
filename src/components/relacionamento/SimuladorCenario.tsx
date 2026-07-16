@@ -100,8 +100,9 @@ interface AurumAggregated {
 }
 
 interface ExactaAggregated {
-  gross: number;
-  expected: number;
+  gross: number;         // valor pago ao médico (gross_amount)
+  expected: number;      // valor esperado pela regra (expected_amount)
+  baseConvenio: number;  // valor bruto do convênio (procedure_amount) — base 100%
   itens: number;
   atendimentos: number;
   sem_carater: number;
@@ -381,17 +382,18 @@ export function SimuladorCenario() {
           exacta = null;
         } else {
           const idsArr = Array.from(doctorIds);
-          let gross = 0, expected = 0, count = 0, semCar = 0;
+          let gross = 0, expected = 0, baseConv = 0, count = 0, semCar = 0;
           const atts = new Set<string>();
           const itens = await fetchAllPaginated<{
             gross_amount: number | null;
             expected_amount: number | null;
+            procedure_amount: number | null;
             attendance_number: string | null;
             attendance_character: string | null;
           }>((from, to) => {
             let q = supabase
               .from("payment_items")
-              .select("gross_amount,expected_amount,attendance_number,attendance_character")
+              .select("gross_amount,expected_amount,procedure_amount,attendance_number,attendance_character")
               .eq("hospital_id", hospitalId)
               .eq("is_cancelled", false)
               .in("doctor_id", idsArr)
@@ -407,11 +409,12 @@ export function SimuladorCenario() {
           for (const it of itens) {
             gross += Number(it.gross_amount ?? 0);
             expected += Number(it.expected_amount ?? 0);
+            baseConv += Number(it.procedure_amount ?? 0);
             count += 1;
             if (it.attendance_number) atts.add(it.attendance_number);
             if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
           }
-          exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size, sem_carater: semCar } : null;
+          exacta = count > 0 ? { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: atts.size, sem_carater: semCar } : null;
         }
       } else {
         // Modo procedimento: descobre attendance_number cujo item principal
@@ -459,7 +462,7 @@ export function SimuladorCenario() {
           exacta = null;
         } else {
           // Agora soma tudo desses atendimentos (todos os TUSS).
-          let gross = 0, expected = 0, count = 0, semCar = 0;
+          let gross = 0, expected = 0, baseConv = 0, count = 0, semCar = 0;
           // Rebusca todos os itens desses atendimentos (agregado).
           const attsArr = Array.from(attsMatched);
           // Buscamos em blocos pra evitar URL gigante.
@@ -469,11 +472,12 @@ export function SimuladorCenario() {
             const partial = await fetchAllPaginated<{
               gross_amount: number | null;
               expected_amount: number | null;
+              procedure_amount: number | null;
               attendance_character: string | null;
             }>((from, to) => {
               let q = supabase
                 .from("payment_items")
-                .select("gross_amount,expected_amount,attendance_character")
+                .select("gross_amount,expected_amount,procedure_amount,attendance_character")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
                 .in("attendance_number", slice);
@@ -487,21 +491,24 @@ export function SimuladorCenario() {
             for (const it of partial) {
               gross += Number(it.gross_amount ?? 0);
               expected += Number(it.expected_amount ?? 0);
+              baseConv += Number(it.procedure_amount ?? 0);
               count += 1;
               if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
             }
           }
-          exacta = { gross, expected, itens: count, atendimentos: attsMatched.size, sem_carater: semCar };
+          exacta = { gross, expected, baseConvenio: baseConv, itens: count, atendimentos: attsMatched.size, sem_carater: semCar };
         }
       }
 
       // 3) Cálculo do cenário simulado.
-      const baseConvenio = exacta?.expected ?? 0;
+      // Base = valor do CONVÊNIO (procedure_amount), NÃO o expected_amount (que já
+      // é o valor calculado pela regra atual e coincide com o gross quando 100%).
+      const baseConvenio = exacta?.baseConvenio ?? 0;
       let novoHm = 0;
       if (modelo === "percentual") {
         novoHm = baseConvenio * (pctNovo / 100);
       } else {
-        // Tabela diferenciada — sem lookup TUSS direto ainda; usa expected como base.
+        // Tabela diferenciada — sem lookup TUSS direto ainda; usa base convênio como referência.
         novoHm = baseConvenio * multiplicador * (1 - deflator / 100) * (1 + acrescimo / 100);
       }
       const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
@@ -510,7 +517,7 @@ export function SimuladorCenario() {
       const aviso = exacta == null
         ? "Sem itens do Exacta para este médico/procedimento no ano. HM Exacta real e Simulado indisponíveis (base convênio zerada)."
         : baseConvenio <= 0
-          ? "Itens do Exacta encontrados, mas sem expected_amount (base convênio) — Simulado zerado."
+          ? "Itens do Exacta encontrados, mas sem procedure_amount (base convênio) — Simulado zerado."
           : undefined;
 
       setResultado({
