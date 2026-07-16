@@ -307,6 +307,82 @@ export function SimuladorMargem() {
     return () => { cancelled = true; };
   }, [hospitalId, selName, ano, modo]);
 
+  // Carrega tabela CBHPM do hospital (uma vez).
+  useEffect(() => {
+    if (!hospitalId) {
+      setCbhpmList([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("cbhpm_tabela" as unknown as never)
+        .select("codigo,descricao,valor_base")
+        .eq("hospital_id", hospitalId)
+        .limit(20000);
+      if (cancelled) return;
+      if (error) {
+        setCbhpmList([]);
+        return;
+      }
+      const rows = (data ?? []) as Array<{ codigo: string; descricao: string; valor_base: number }>;
+      setCbhpmList(rows.map((r) => ({ ...r, norm: normalizeDesc(r.descricao) })));
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+  // Auto-lookup CBHPM ao selecionar procedimento.
+  useEffect(() => {
+    if (modo !== "procedimento" || !selName || cbhpmList.length === 0) {
+      setCbhpmMatch(null);
+      return;
+    }
+    const target = normalizeDesc(selName);
+    if (!target) return;
+    // Match: exato, contém, ou tokens em comum (score simples).
+    let best: { item: CbhpmLookupItem; score: number } | null = null;
+    const targetTokens = new Set(target.split(" ").filter((t) => t.length > 2));
+    for (const item of cbhpmList) {
+      let score = 0;
+      if (item.norm === target) score = 1000;
+      else if (item.norm.includes(target) || target.includes(item.norm)) {
+        score = 500 - Math.abs(item.norm.length - target.length);
+      } else if (targetTokens.size > 0) {
+        const tokens = item.norm.split(" ");
+        let hit = 0;
+        for (const t of tokens) if (targetTokens.has(t)) hit++;
+        if (hit > 0) score = hit * 10 - Math.abs(item.norm.length - target.length) * 0.01;
+      }
+      if (score > 0 && (!best || score > best.score)) best = { item, score };
+    }
+    if (best && best.score >= 20) {
+      setCbhpmMatch({ codigo: best.item.codigo, descricao: best.item.descricao });
+      setCbhpmBase(best.item.valor_base);
+    } else {
+      setCbhpmMatch(null);
+    }
+  }, [modo, selName, cbhpmList]);
+
+  // Carrega cenários salvos.
+  useEffect(() => {
+    if (!hospitalId) {
+      setCenarios([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("simulacao_cenario" as unknown as never)
+        .select("id,nome,tipo,medico_nome,procedimento_nome,ano_referencia,pct_repasse,dobra_cbhpm,via_acesso_pct,volume_estimado,margem_simulada,pct_margem_simulada,created_at,parametros_json")
+        .eq("hospital_id", hospitalId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (cancelled) return;
+      if (!error) setCenarios((data ?? []) as CenarioSalvo[]);
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId, cenariosTick]);
+
   // Agregados Aurum.
   const aur = useMemo(() => {
     if (aurumRows.length === 0) return null;
