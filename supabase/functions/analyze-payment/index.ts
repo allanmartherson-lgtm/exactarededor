@@ -1404,7 +1404,8 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
     const itemsToReview = __skip_ai || is_dry_run || isConfeccao ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     __telemetry.ai_items_count = itemsToReview.length;
     const __aiStart = Date.now();
-    let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
+    let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string; ai_fallback?: boolean }> = {};
+    const AI_FALLBACK_LEGACY_PREFIX = "Justificativa automática indisponível";
     // Hash canônico do payload da IA por item (short-circuit de cache).
     // Populado abaixo mesmo em cache hit para persistir em payment_items depois.
     const hashByItemId: Record<string, string> = {};
@@ -1534,7 +1535,9 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           });
         }
 
-        // Lookup do cache: itens prévios com o mesmo hash e ai_findings.ai preenchido.
+        // Lookup do cache: itens prévios com o mesmo hash e ai_findings.engine.ai_note preenchido.
+        // Pula linhas marcadas como fallback (ai_fallback=true) e o legado com o
+        // prefixo determinístico — fallback nunca pode virar "análise real" via cache.
         if (!__force_fresh) {
           const hashList = Array.from(new Set(Object.values(hashByItemId).filter(Boolean)));
           if (hashList.length > 0) {
@@ -1548,10 +1551,14 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
             for (const row of (cacheRows ?? []) as any[]) {
               const h = row.ai_input_hash as string;
               if (!h || cacheByHash[h]) continue;
-              const aiBlock = row.ai_findings?.ai;
-              const note = typeof aiBlock?.note === "string" ? aiBlock.note : null;
+              const engineBlock = row.ai_findings?.engine;
+              if (engineBlock?.ai_fallback === true) continue;
+              const note = typeof engineBlock?.ai_note === "string" ? engineBlock.ai_note : null;
               if (!note) continue;
-              const extras = Array.isArray(aiBlock?.extra_alerts) ? aiBlock.extra_alerts : [];
+              if (note.startsWith(AI_FALLBACK_LEGACY_PREFIX)) continue;
+              // extra_alerts não é persistido separadamente hoje; cache preserva
+              // apenas a nota. Alerts do motor são recomputados a cada análise.
+              const extras: string[] = [];
               cacheByHash[h] = { ai_note: note, extra_alerts: extras };
             }
             const missing: typeof itemsForAi = [];
@@ -1674,7 +1681,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         for (const item of chunk) {
           aiJustifications[item.id] = {
             extra_alerts: [],
-            ai_note: `Justificativa automática indisponível (${reason}). Decisão mantida pelo motor determinístico.`,
+            ai_note: `${AI_FALLBACK_LEGACY_PREFIX} (${reason}). Decisão mantida pelo motor determinístico.`,
+            ai_fallback: true,
           };
         }
         summaries.push(`IA indisponível em parte da análise (${reason}); valores e status foram mantidos pelo motor determinístico.`);
@@ -1774,9 +1782,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               return true;
             }
 
-            // Outros erros HTTP: não vale retry; loga e desiste deste chunk.
+            // Outros erros HTTP: não vale retry; loga, aplica fallback e desiste.
             const txt = await aiResp.text().catch(() => "");
             console.error(`${__t} AI justification error chunk ${ci + 1}/${aiChunks.length}`, aiResp.status, txt);
+            applyAiUnavailableFallback(chunk, `erro ${aiResp.status} da IA`);
             return false;
           } catch (aiErr: any) {
             // Abort/timeout/rede: retry se ainda houver tentativa.
@@ -1788,6 +1797,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
               await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
               continue;
             }
+            applyAiUnavailableFallback(chunk, isTransient ? "timeout/erro de rede na IA" : "erro inesperado na IA");
             return false;
           } finally {
             clearTimeout(aiTimer);
@@ -2077,6 +2087,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           matched_priority: r.matched_priority,
           diff_pct: r.diff_pct,
           ai_note: aiJ?.ai_note ?? null,
+          ai_fallback: aiJ?.ai_fallback === true ? true : false,
         },
         calculation_breakdown: r.calculation_breakdown ?? null,
         selection_trace: r.selection_trace ?? null,
@@ -2355,7 +2366,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           hospital_id: __paymentHospitalId,
           item_id: r.item_id,
           author_type: "ia",
-          message: parts.join(" · ") + ` — ${r.calculation_explanation}` + (aiJ?.ai_note ? ` | IA: ${aiJ.ai_note}` : ""),
+          message: parts.join(" · ") + ` — ${r.calculation_explanation}` + (aiJ?.ai_fallback ? ` | IA indisponível — decisão do motor` : (aiJ?.ai_note ? ` | IA: ${aiJ.ai_note}` : "")),
         });
       }
     }
