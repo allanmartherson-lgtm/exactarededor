@@ -1713,6 +1713,14 @@ export default function CreditosDebitos() {
                                     <Pencil className="w-3.5 h-3.5 mr-1" /> Reparcelar
                                   </Button>
                                   <Button size="sm" variant="ghost" onClick={() => reopenGlosa(g)}>Reabrir</Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => revertGlosa(g)}
+                                    title="Cancelar esta glosa e devolvê-la à conciliação"
+                                  >
+                                    Reverter
+                                  </Button>
                                 </div>
                               </div>
                             );
