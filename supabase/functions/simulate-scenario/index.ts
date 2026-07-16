@@ -46,7 +46,7 @@ interface SimItem {
   id?: string;
   procedure_code?: string | null;
   procedure_name?: string | null;
-  agreement_name?: string | null;
+  agreement_text?: string | null;
   doctor_name?: string | null;
   doctor_role?: string | null;
   access_route?: string | null;
@@ -125,7 +125,7 @@ function buildSyntheticRule(scenario: Scenario): RuleInput {
     allows_authorized_exception: null,
     force_totalized: null,
     application_unit: null,
-    agreement_name: null,
+    agreement_text: null,
     agreement_aliases: null,
     agreement_match_mode: null,
     allowed_access_routes: null,
@@ -159,7 +159,7 @@ function buildItem(it: SimItem, idx: number): ItemInput {
     patient_name: null,
     procedure_date: it.procedure_date ?? null,
     quantity: it.quantity ?? 1,
-    agreement_name: it.agreement_name ?? null,
+    agreement_text: it.agreement_text ?? null,
     specialty: it.specialty ?? null,
     sector: it.sector ?? null,
     tipo_linha: null,
