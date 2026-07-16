@@ -104,6 +104,7 @@ interface ExactaAggregated {
   expected: number;
   itens: number;
   atendimentos: number;
+  sem_carater: number;
 }
 
 interface Simulado {
@@ -179,7 +180,7 @@ function DreLine({
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(aurum)}</span>
       <span className={cn("text-sm text-right tabular-nums", bold && "font-semibold")}>{BRL(exacta)}</span>
       <span className={cn(
-        "text-sm text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r",
+        "text-sm text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r",
         bold && "font-semibold",
         simCor,
       )}>{BRL(simulado)}</span>
@@ -380,22 +381,27 @@ export function SimuladorCenario() {
           exacta = null;
         } else {
           const idsArr = Array.from(doctorIds);
-          let gross = 0, expected = 0, count = 0;
+          let gross = 0, expected = 0, count = 0, semCar = 0;
           const atts = new Set<string>();
           const itens = await fetchAllPaginated<{
             gross_amount: number | null;
             expected_amount: number | null;
             attendance_number: string | null;
+            attendance_character: string | null;
           }>((from, to) => {
             let q = supabase
               .from("payment_items")
-              .select("gross_amount,expected_amount,attendance_number")
+              .select("gross_amount,expected_amount,attendance_number,attendance_character")
               .eq("hospital_id", hospitalId)
               .eq("is_cancelled", false)
               .in("doctor_id", idsArr)
               .gte("procedure_date", dateFrom)
               .lt("procedure_date", dateTo);
-            if (carater !== "todos") q = q.eq("attendance_character", carater);
+            if (carater === "Eletiva") {
+              q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
+            } else if (carater === "Urgência") {
+              q = q.or("attendance_character.ilike.%URGENCIA%,attendance_character.ilike.%Urgência%");
+            }
             return q.range(from, to);
           });
           for (const it of itens) {
@@ -403,8 +409,9 @@ export function SimuladorCenario() {
             expected += Number(it.expected_amount ?? 0);
             count += 1;
             if (it.attendance_number) atts.add(it.attendance_number);
+            if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
           }
-          exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size } : null;
+          exacta = count > 0 ? { gross, expected, itens: count, atendimentos: atts.size, sem_carater: semCar } : null;
         }
       } else {
         // Modo procedimento: descobre attendance_number cujo item principal
@@ -432,7 +439,11 @@ export function SimuladorCenario() {
               .lt("procedure_date", dateTo)
               .not("attendance_number", "is", null)
               .ilike("procedure_name", ilikeTerm);
-            if (carater !== "todos") q = q.eq("attendance_character", carater);
+            if (carater === "Eletiva") {
+              q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
+            } else if (carater === "Urgência") {
+              q = q.or("attendance_character.ilike.%URGENCIA%,attendance_character.ilike.%Urgência%");
+            }
             return q.range(from, to);
           });
           principais.push(...parte);
@@ -448,12 +459,7 @@ export function SimuladorCenario() {
           exacta = null;
         } else {
           // Agora soma tudo desses atendimentos (todos os TUSS).
-          let gross = 0, expected = 0, count = 0;
-          for (const it of principais as Array<{
-            attendance_number: string | null;
-          }>) {
-            // principais só tem 3 colunas — precisamos rebuscar valores.
-          }
+          let gross = 0, expected = 0, count = 0, semCar = 0;
           // Rebusca todos os itens desses atendimentos (agregado).
           const attsArr = Array.from(attsMatched);
           // Buscamos em blocos pra evitar URL gigante.
@@ -463,23 +469,29 @@ export function SimuladorCenario() {
             const partial = await fetchAllPaginated<{
               gross_amount: number | null;
               expected_amount: number | null;
+              attendance_character: string | null;
             }>((from, to) => {
               let q = supabase
                 .from("payment_items")
-                .select("gross_amount,expected_amount")
+                .select("gross_amount,expected_amount,attendance_character")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
                 .in("attendance_number", slice);
-              if (carater !== "todos") q = q.eq("attendance_character", carater);
+              if (carater === "Eletiva") {
+                q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
+              } else if (carater === "Urgência") {
+                q = q.or("attendance_character.ilike.%URGENCIA%,attendance_character.ilike.%Urgência%");
+              }
               return q.range(from, to);
             });
             for (const it of partial) {
               gross += Number(it.gross_amount ?? 0);
               expected += Number(it.expected_amount ?? 0);
               count += 1;
+              if (!it.attendance_character || String(it.attendance_character).trim() === "") semCar += 1;
             }
           }
-          exacta = { gross, expected, itens: count, atendimentos: attsMatched.size };
+          exacta = { gross, expected, itens: count, atendimentos: attsMatched.size, sem_carater: semCar };
         }
       }
 
@@ -806,7 +818,15 @@ export function SimuladorCenario() {
                 Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
                 {" | "}
                 Exacta: {resultado.exacta ? `${resultado.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${resultado.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
+                {" | "}
+                Filtro: {carater === "todos" ? "Todos" : carater}
               </div>
+              {carater === "todos" && resultado.exacta && resultado.exacta.sem_carater > 0 && (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {resultado.exacta.sem_carater} de {resultado.exacta.itens} itens do Exacta não têm caráter preenchido e foram incluídos no total.
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="rounded-md border p-3 bg-muted/20">
@@ -816,7 +836,7 @@ export function SimuladorCenario() {
                   <span></span>
                   <span className="text-right">Aurum</span>
                   <span className="text-right">Exacta Real</span>
-                  <span className="text-right text-primary font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
+                  <span className="text-right text-primary font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
                 </div>
 
                 {(() => {
@@ -870,7 +890,7 @@ export function SimuladorCenario() {
                         <span className="italic">média por cirurgia/atend.</span>
                         <span className="text-right tabular-nums">{mediaHmAurum != null ? `${BRL(mediaHmAurum)}/cir` : "—"}</span>
                         <span className="text-right tabular-nums">{mediaHmExacta != null ? `${BRL(mediaHmExacta)}/atend` : "—"}</span>
-                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{mediaHmSim != null ? `${BRL(mediaHmSim)}/cir` : "—"}</span>
+                        <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{mediaHmSim != null ? `${BRL(mediaHmSim)}/cir` : "—"}</span>
                       </div>
                       {/* Sub-linha: % da Receita Líquida */}
                       <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
@@ -878,7 +898,7 @@ export function SimuladorCenario() {
                         <span className="italic">% da Receita Líquida</span>
                         <span className="text-right tabular-nums">{PCT(pctHmAurum)}</span>
                         <span className="text-right tabular-nums">{PCT(pctHmExacta)}</span>
-                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
+                        <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
                       </div>
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent />
@@ -888,14 +908,14 @@ export function SimuladorCenario() {
                           <span className="text-sm font-semibold">Margem de Contribuição</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", A.margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(A.margem)}</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", (margemExacta ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(margemExacta)}</span>
-                          <span className={cn("text-lg text-right tabular-nums font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
+                          <span className={cn("text-xl text-right tabular-nums font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
                         </div>
                         <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
                           <span></span>
                           <span>% Margem</span>
                           <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
                           <span className="text-right tabular-nums">{PCT(pctExacta)}</span>
-                          <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
+                          <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
                         </div>
                       </div>
                     </>
@@ -993,10 +1013,10 @@ function SummaryCard({
     tone === "positive" ? "text-emerald-700" :
     tone === "negative" ? "text-red-700" : "text-foreground";
   return (
-    <Card className={cn(highlight && "border-primary bg-primary/5")}>
+    <Card className={cn(highlight && "border-2 border-primary bg-primary/5")}>
       <CardContent className="py-4">
         <div className={cn("text-xs font-medium uppercase tracking-wide", highlight ? "text-primary font-bold" : "text-muted-foreground")}>{title}</div>
-        <div className={cn("text-2xl font-semibold tabular-nums mt-1", cor)}>{BRL(valor)}</div>
+        <div className={cn("text-2xl font-semibold tabular-nums mt-1", highlight ? "text-primary" : cor)}>{BRL(valor)}</div>
         <div className="text-xs text-muted-foreground mt-1">
           {pct != null ? `${PCT(pct)} da receita líquida` : "—"}
           {extra ? ` · ${extra}` : ""}
