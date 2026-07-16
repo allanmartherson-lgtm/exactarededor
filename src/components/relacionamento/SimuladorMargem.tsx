@@ -307,7 +307,9 @@ export function SimuladorMargem() {
     return () => { cancelled = true; };
   }, [hospitalId, selName, ano, modo]);
 
-  // Carrega tabela CBHPM do hospital (uma vez).
+  // Carrega tabela CBHPM a partir do submenu "Tabelas de Referência".
+  // Busca reference_tables ativas cujo nome contenha "CBHPM" no hospital ativo
+  // e agrega os itens (code/description/amount) para o auto-lookup.
   useEffect(() => {
     if (!hospitalId) {
       setCbhpmList([]);
@@ -315,18 +317,39 @@ export function SimuladorMargem() {
     }
     let cancelled = false;
     void (async () => {
-      const { data, error } = await supabase
-        .from("cbhpm_tabela" as unknown as never)
-        .select("codigo,descricao,valor_base")
+      const { data: tables, error: tErr } = await supabase
+        .from("reference_tables")
+        .select("id,name,active,hospital_id")
         .eq("hospital_id", hospitalId)
-        .limit(20000);
+        .eq("active", true)
+        .ilike("name", "%cbhpm%");
+      if (cancelled) return;
+      if (tErr || !tables || tables.length === 0) {
+        setCbhpmList([]);
+        return;
+      }
+      const ids = tables.map((t) => t.id);
+      const { data, error } = await supabase
+        .from("reference_table_items")
+        .select("code,description,amount")
+        .in("reference_table_id", ids)
+        .limit(50000);
       if (cancelled) return;
       if (error) {
         setCbhpmList([]);
         return;
       }
-      const rows = (data ?? []) as Array<{ codigo: string; descricao: string; valor_base: number }>;
-      setCbhpmList(rows.map((r) => ({ ...r, norm: normalizeDesc(r.descricao) })));
+      const rows = (data ?? []) as Array<{ code: string; description: string | null; amount: number | null }>;
+      setCbhpmList(
+        rows
+          .filter((r) => r.description && r.amount != null)
+          .map((r) => ({
+            codigo: r.code,
+            descricao: r.description as string,
+            valor_base: Number(r.amount ?? 0),
+            norm: normalizeDesc(r.description as string),
+          })),
+      );
     })();
     return () => { cancelled = true; };
   }, [hospitalId]);
