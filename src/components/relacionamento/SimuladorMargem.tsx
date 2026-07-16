@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEnforcedHospitalId } from "@/contexts/HospitalContext";
 import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { cn } from "@/lib/utils";
+import { SimuladorDetalhe } from "./SimuladorDetalhe";
 
 type Modo = "medico" | "procedimento";
 type Carater = "todos" | "Eletiva" | "Urgência";
@@ -78,11 +79,20 @@ interface LinhaComparativa {
   nome: string;
   ano: number;
   qtd_cirurgias: number;
+  // DRE Aurum
+  receita: number;
+  impostos: number;
+  glosa_externa: number;
   receita_liquida: number;
-  custo_total_aurum: number;
+  custo_opme: number;
+  custo_mat_med: number;
   custo_hm_aurum: number;
+  custo_exames_img: number;
+  custo_laboratorio: number;
+  custo_total_aurum: number;
   outros_custos: number; // custo_total − custo_hm
   margem_aurum: number;
+  // Exacta
   hm_exacta_real: number | null; // null = sem match Exacta
   hm_exacta_expected: number; // soma de expected_amount — base convênio (fica no bolso do hospital)
   hm_exacta_qtd_itens: number;
@@ -143,6 +153,7 @@ export function SimuladorMargem() {
 
   // Filtros gerais
   const [modo, setModo] = useState<Modo>("medico");
+  const [selectedLinha, setSelectedLinha] = useState<LinhaComparativa | null>(null);
   const [ano, setAno] = useState<number | null>(null);
   const [carater, setCarater] = useState<Carater>("todos");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
@@ -353,9 +364,16 @@ export function SimuladorMargem() {
         nome,
         ano: row.ano,
         qtd_cirurgias: Number(row.qtd_cirurgias ?? 0),
+        receita: Number(row.receita ?? 0),
+        impostos: Number(row.impostos ?? 0),
+        glosa_externa: Number(row.glosa_externa ?? 0),
         receita_liquida: receitaLiq,
-        custo_total_aurum: custoTotal,
+        custo_opme: Number(row.custo_opme ?? 0),
+        custo_mat_med: Number(row.custo_mat_med ?? 0),
         custo_hm_aurum: custoHmAurum,
+        custo_exames_img: Number(row.custo_exames_img ?? 0),
+        custo_laboratorio: Number(row.custo_laboratorio ?? 0),
+        custo_total_aurum: custoTotal,
         outros_custos: outros,
         margem_aurum: margemAurum,
         hm_exacta_real: exacta.total,
@@ -695,7 +713,14 @@ export function SimuladorMargem() {
                 {linhasOrdenadas.map((l) => {
                   const semMatch = l.hm_exacta_real == null;
                   return (
-                    <TableRow key={`${l.nome}-${l.ano}`}>
+                    <TableRow
+                      key={`${l.nome}-${l.ano}`}
+                      onClick={() => setSelectedLinha(l)}
+                      className={cn(
+                        "cursor-pointer hover:bg-muted/50",
+                        selectedLinha?.nome === l.nome && selectedLinha?.ano === l.ano && "bg-primary/5",
+                      )}
+                    >
                       <TableCell className="font-medium">
                         <div className="truncate max-w-[280px]" title={l.nome}>{l.nome}</div>
                         {semMatch && (
@@ -763,6 +788,17 @@ export function SimuladorMargem() {
           </div>
         </CardContent>
       </Card>
+
+      {selectedLinha && (
+        <SimuladorDetalhe
+          linha={selectedLinha}
+          modo={modo}
+          hospitalId={hospitalId}
+          onClose={() => setSelectedLinha(null)}
+        />
+      )}
+
+
 
       <div className="text-xs text-muted-foreground">
         Fase 2 (próxima): base histórica de simulação por atendimento para cada médico/procedimento.
