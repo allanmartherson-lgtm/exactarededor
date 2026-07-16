@@ -2577,7 +2577,6 @@ export function buildTvrReplaceSummary(
     ausente_incomplete: incompleteAusente.length,
   };
   const trimmedHistory = [...prevHistory.slice(-19), historyEntry];
-  const preservedHandoff = (prev as { handoff?: unknown }).handoff;
   // Preserva chaves de escopo definidas no Passo 1/2 — sem elas o trigger do
   // banco (enforce_tvr_selected_payment_ids) rejeita o UPDATE pós-processamento
   // e o motor volta a misturar lotes de outros meses no reprocesso.
@@ -2587,6 +2586,9 @@ export function buildTvrReplaceSummary(
   const preservedMultiCompanyIds = (prev as { multi_company_ids?: unknown }).multi_company_ids;
   const preservedMultiDoctorIds = (prev as { multi_doctor_ids?: unknown }).multi_doctor_ids;
   const preservedMultiLabels = (prev as { multi_labels?: unknown }).multi_labels;
+  // handoff NÃO é preservado: se a apuração está encaminhada, o botão Processar
+  // fica bloqueado (obriga desfazer primeiro). Se algum caminho de código chegar
+  // aqui com handoff antigo, é bug — deixe cair para o próximo estado sem handoff.
 
   return {
     mode: "tasy_vs_repasse",
@@ -2608,7 +2610,7 @@ export function buildTvrReplaceSummary(
     ...(preservedMultiCompanyIds !== undefined ? { multi_company_ids: preservedMultiCompanyIds } : {}),
     ...(preservedMultiDoctorIds !== undefined ? { multi_doctor_ids: preservedMultiDoctorIds } : {}),
     ...(preservedMultiLabels !== undefined ? { multi_labels: preservedMultiLabels } : {}),
-    ...(preservedHandoff ? { handoff: preservedHandoff } : {}),
+    
   };
 }
 
@@ -3690,6 +3692,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
 
   const process = (pagRowsOverride?: PagRow[]) => {
+    // Defesa em profundidade: o botão já vem disabled quando isLocked,
+    // mas atalho/mobile/chamada programática pode driblar o disabled.
+    if (recon?.summary && (recon.summary as { handoff?: unknown }).handoff) {
+      toast({
+        title: "Apuração encaminhada",
+        description: "Desfaça o encaminhamento antes de processar novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
     const effectivePagRows = pagRowsOverride ?? pagRows;
     if (tasyRows.length === 0 || effectivePagRows.length === 0) {
       toast({ title: "Carregue o TASY e aguarde a busca dos pagamentos do sistema", variant: "destructive" });
@@ -6780,6 +6792,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             process(rowsForProcess);
           }}
           disabled={isLocked || processing || loadingPayments || tasyRows.length === 0}
+          title={isLocked ? "Apuração encaminhada. Desfaça o encaminhamento antes de processar." : undefined}
         >
           <PlayIcon className="h-4 w-4 mr-1" />
           {processing ? "Processando…" : loadingPayments ? "Buscando repasse…" : "Processar"}
