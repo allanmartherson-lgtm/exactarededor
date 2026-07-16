@@ -221,6 +221,8 @@ const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
+const loadRelacionamentoHub = () => import("./pages/RelacionamentoHub.tsx");
+const RelacionamentoHub = lazy(loadRelacionamentoHub);
 const RegrasHub = lazy(() => import("./pages/RegrasHub.tsx"));
 const SistemaHub = lazy(() => import("./pages/SistemaHub.tsx"));
 const SystemParameters = lazy(() => import("./pages/SystemParameters.tsx"));
