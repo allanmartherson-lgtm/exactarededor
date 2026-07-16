@@ -787,6 +787,7 @@ export function SimuladorCenario() {
       let itensCalculados = 0;
       let itensSemMatch = 0;
       let motorErro: string | null = null;
+      const perItem: Record<string, SimPerItem> = {};
 
       if (detalhes.length === 0) {
         // Sem itens do Exacta → não há como simular via motor.
