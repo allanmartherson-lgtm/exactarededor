@@ -6,13 +6,16 @@ import { cn } from "@/lib/utils";
 import { Handshake } from "lucide-react";
 import { AurumMargemUpload } from "@/components/relacionamento/AurumMargemUpload";
 import { SimuladorMargem } from "@/components/relacionamento/SimuladorMargem";
+import { ProcedureAliasManager } from "@/components/relacionamento/ProcedureAliasManager";
 
-type TabValue = "simulador-margem" | "bases-aurum";
+type TabValue = "simulador-margem" | "bases-aurum" | "aliases";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "simulador-margem", label: "Simulador de Margem" },
   { value: "bases-aurum", label: "Bases Aurum" },
+  { value: "aliases", label: "Aliases Procedimento" },
 ];
+
 
 const VALID = new Set(TABS.map((t) => t.value));
 
@@ -35,10 +38,13 @@ export default function RelacionamentoHub() {
             <AurumMargemUpload />
           </div>
         );
+      case "aliases":
+        return <ProcedureAliasManager />;
       case "simulador-margem":
         return <SimuladorMargem />;
     }
   }, [active]);
+
 
   return (
     <div>

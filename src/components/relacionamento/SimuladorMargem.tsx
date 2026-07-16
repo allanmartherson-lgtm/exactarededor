@@ -174,6 +174,12 @@ export function SimuladorMargem() {
   // Faixa real de dados Exacta do hospital (para default e aviso quando o filtro está fora).
   const [exactaRange, setExactaRange] = useState<{ min: string; max: string } | null>(null);
 
+  // Aliases: doctor_aliases (norm alias → norm doctor canônico) e procedure_aliases
+  // (norm alias → canonical_name). Usados como fallback antes do fuzzy match.
+  const [doctorAliasToNorm, setDoctorAliasToNorm] = useState<Map<string, string>>(new Map());
+  const [procAliasMap, setProcAliasMap] = useState<Map<string, string>>(new Map());
+
+
   // Descobre anos disponíveis (uma vez por hospital).
   useEffect(() => {
     if (!hospitalId) return;
@@ -255,6 +261,63 @@ export function SimuladorMargem() {
     })();
     return () => { cancelled = true; };
   }, [hospitalId, ano]);
+
+  // Carrega doctor_aliases + doctors + procedure_aliases (fallback de match).
+  useEffect(() => {
+    if (!hospitalId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [aliasRows, doctorRows, procAliasRows] = await Promise.all([
+          fetchAllPaginated<{ alias_normalized: string | null; doctor_id: string | null }>((from, to) =>
+            supabase
+              .from("doctor_aliases")
+              .select("alias_normalized, doctor_id")
+              .range(from, to),
+          ),
+          fetchAllPaginated<{ id: string; name: string | null }>((from, to) =>
+            supabase
+              .from("doctors")
+              .select("id, name")
+              .range(from, to),
+          ),
+          fetchAllPaginated<{ alias_normalized: string | null; canonical_name: string | null }>((from, to) =>
+            supabase
+              .from("procedure_aliases" as never)
+              .select("alias_normalized, canonical_name")
+              .eq("hospital_id", hospitalId)
+              .range(from, to) as never,
+          ),
+        ]);
+        if (cancelled) return;
+
+        const idToNormName = new Map<string, string>();
+        for (const d of doctorRows) {
+          if (d.id && d.name) idToNormName.set(d.id, norm(d.name));
+        }
+        const aliasToNorm = new Map<string, string>();
+        for (const a of aliasRows) {
+          if (!a.alias_normalized || !a.doctor_id) continue;
+          const canonNorm = idToNormName.get(a.doctor_id);
+          if (canonNorm) aliasToNorm.set(a.alias_normalized, canonNorm);
+        }
+        setDoctorAliasToNorm(aliasToNorm);
+
+        const pMap = new Map<string, string>();
+        for (const p of procAliasRows) {
+          if (p.alias_normalized && p.canonical_name) {
+            pMap.set(p.alias_normalized, p.canonical_name);
+          }
+        }
+        setProcAliasMap(pMap);
+      } catch {
+        // Aliases são apenas otimização — se falhar, o fuzzy/match direto ainda roda.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+
 
 
 
@@ -442,7 +505,13 @@ export function SimuladorMargem() {
       for (const row of aurumMedico) {
         const nome = row.medico_cirurgiao;
         if (isTotalRow(nome)) continue;
-        const hit = exactaIndex.porMedico.get(norm(nome));
+        const nNome = norm(nome);
+        let hit = exactaIndex.porMedico.get(nNome);
+        if (!hit) {
+          // Fallback: doctor_alias → nome canônico do médico → busca no índice Exacta.
+          const canonNorm = doctorAliasToNorm.get(nNome);
+          if (canonNorm) hit = exactaIndex.porMedico.get(canonNorm);
+        }
         const ex = hit
           ? { total: hit.total, totalExpected: hit.totalExpected, itens: hit.itens, atendimentos: hit.atendimentos.size }
           : { total: null, totalExpected: 0, itens: 0, atendimentos: 0 };
@@ -456,9 +525,15 @@ export function SimuladorMargem() {
         const nome = row.ds_procedimento;
         if (isTotalRow(nome)) continue;
         const target = norm(nome);
+        // Alias manual tem PRIORIDADE sobre fuzzy — se o usuário mapeou "X"→"Y",
+        // procuramos apenas match exato (normalizado) contra "Y".
+        const aliasCanon = procAliasMap.get(target);
+        const canonTarget = aliasCanon ? norm(aliasCanon) : null;
         const matched = new Set<string>();
         for (const [att, normProcPrincipal] of exactaIndex.attPrincipal.entries()) {
-          if (fuzzyScore(target, normProcPrincipal) >= 20) {
+          if (canonTarget) {
+            if (normProcPrincipal === canonTarget) matched.add(att);
+          } else if (fuzzyScore(target, normProcPrincipal) >= 20) {
             matched.add(att);
           }
         }
@@ -475,7 +550,8 @@ export function SimuladorMargem() {
       }
     }
     return out;
-  }, [modo, aurumMedico, aurumProc, exactaIndex]);
+  }, [modo, aurumMedico, aurumProc, exactaIndex, doctorAliasToNorm, procAliasMap]);
+
 
   // Filtro busca
   const linhasFiltradas = useMemo(() => {
