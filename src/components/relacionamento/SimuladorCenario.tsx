@@ -802,6 +802,11 @@ export function SimuladorCenario() {
               <CardTitle className="text-base">
                 DRE comparativa — {resultado.nome} <span className="text-xs text-muted-foreground">({resultado.ano})</span>
               </CardTitle>
+              <div className="text-xs text-muted-foreground mt-1">
+                Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
+                {" | "}
+                Exacta: {resultado.exacta ? `${resultado.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${resultado.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border p-3 bg-muted/20">
@@ -811,7 +816,7 @@ export function SimuladorCenario() {
                   <span></span>
                   <span className="text-right">Aurum</span>
                   <span className="text-right">Exacta Real</span>
-                  <span className="text-right">Simulado</span>
+                  <span className="text-right text-primary font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
                 </div>
 
                 {(() => {
@@ -822,14 +827,23 @@ export function SimuladorCenario() {
                   const margemExacta = exGross != null ? A.receita_liquida + A.outros_custos - exGross : null;
                   const pctExacta = margemExacta != null && A.receita_liquida > 0 ? margemExacta / A.receita_liquida : null;
 
-                  const simTone: "positive" | "negative" | "neutral" =
-                    exGross == null ? "neutral" :
-                    sim.novo_hm < exGross ? "negative" : // paga menos ao médico → tone default; UI destaca em amber
-                    "positive";
                   // Convenção: se simulado piora margem (HM maior), coluna Simulado da linha HM em vermelho.
                   const simHmTone: "positive" | "negative" | "neutral" =
                     exGross == null ? "neutral" :
                     sim.novo_hm > exGross ? "negative" : "positive";
+
+                  // Médias por cirurgia / atendimento
+                  const qc = A.qtd_cirurgias;
+                  const atd = resultado.exacta?.atendimentos ?? 0;
+                  const mediaHmAurum = qc > 0 ? A.custo_hm / qc : null;
+                  const mediaHmExacta = exGross != null && atd > 0 ? exGross / atd : null;
+                  const mediaHmSim = qc > 0 ? sim.novo_hm / qc : null;
+
+                  // % HM sobre receita líquida
+                  const rl = A.receita_liquida;
+                  const pctHmAurum = rl > 0 ? A.custo_hm / rl : null;
+                  const pctHmExacta = rl > 0 && exGross != null ? exGross / rl : null;
+                  const pctHmSim = rl > 0 ? sim.novo_hm / rl : null;
 
                   return (
                     <>
@@ -850,6 +864,22 @@ export function SimuladorCenario() {
                         simuladoTone={simHmTone}
                         tooltip="Aurum: contábil. Exacta Real: gross_amount pago. Simulado: cenário calculado."
                       />
+                      {/* Sub-linha: média por cirurgia/atendimento */}
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
+                        <span></span>
+                        <span className="italic">média por cirurgia/atend.</span>
+                        <span className="text-right tabular-nums">{mediaHmAurum != null ? `${BRL(mediaHmAurum)}/cir` : "—"}</span>
+                        <span className="text-right tabular-nums">{mediaHmExacta != null ? `${BRL(mediaHmExacta)}/atend` : "—"}</span>
+                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{mediaHmSim != null ? `${BRL(mediaHmSim)}/cir` : "—"}</span>
+                      </div>
+                      {/* Sub-linha: % da Receita Líquida */}
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[11px] text-muted-foreground pl-3">
+                        <span></span>
+                        <span className="italic">% da Receita Líquida</span>
+                        <span className="text-right tabular-nums">{PCT(pctHmAurum)}</span>
+                        <span className="text-right tabular-nums">{PCT(pctHmExacta)}</span>
+                        <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
+                      </div>
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent />
                       <div className="mt-2 pt-2 border-t space-y-1">
@@ -858,14 +888,14 @@ export function SimuladorCenario() {
                           <span className="text-sm font-semibold">Margem de Contribuição</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", A.margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(A.margem)}</span>
                           <span className={cn("text-sm text-right tabular-nums font-semibold", (margemExacta ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(margemExacta)}</span>
-                          <span className={cn("text-sm text-right tabular-nums font-semibold", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
+                          <span className={cn("text-lg text-right tabular-nums font-bold bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
                         </div>
                         <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
                           <span></span>
                           <span>% Margem</span>
                           <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
                           <span className="text-right tabular-nums">{PCT(pctExacta)}</span>
-                          <span className="text-right tabular-nums">{PCT(sim.nova_pct_margem)}</span>
+                          <span className="text-right tabular-nums bg-primary/5 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
                         </div>
                       </div>
                     </>
