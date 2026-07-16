@@ -302,12 +302,14 @@ export function SimuladorCenario() {
     setSimulando(true);
     try {
       // 1) Aurum — todas as linhas do nome+ano.
-      const { data: aurumData, error: aurumErr } = await supabase
+      let aurumQ = supabase
         .from(tabelaAurum as never)
         .select("*")
         .eq("hospital_id", hospitalId)
         .eq("ano", ano)
         .eq(nomeCampo, nomeSelecionado);
+      if (carater !== "todos") aurumQ = aurumQ.eq("carater", carater);
+      const { data: aurumData, error: aurumErr } = await aurumQ;
       if (aurumErr) throw aurumErr;
       const aurumRows = (aurumData ?? []) as AurumRow[];
       if (aurumRows.length === 0) {
