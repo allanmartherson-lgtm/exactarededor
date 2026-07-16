@@ -531,6 +531,9 @@ export function SimuladorCenario() {
               .lt("procedure_date", dateTo)
               .not("attendance_number", "is", null)
               .ilike("procedure_name", ilikeTerm);
+            if (apenasInternados) {
+              q = q.in("sector", SURGICAL_SECTORS);
+            }
             if (carater === "Eletiva") {
               q = q.or("attendance_character.ilike.%ELETIV%,attendance_character.ilike.%Eletiva%");
             } else if (carater === "Urgência") {
