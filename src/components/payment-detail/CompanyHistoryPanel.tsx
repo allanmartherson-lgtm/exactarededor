@@ -115,10 +115,20 @@ export function CompanyHistoryPanel({
 
     // Observações (manuais e do sistema/IA) — escopo do grupo:
     //  - associadas a itens do grupo (item_id ∈ itemIds), ou
-    //  - sem item_id (comentários gerais do pagamento, exibidos aqui também).
+    //  - sem item_id → comentários gerais do pagamento.
+    // No modo empresa (scopedToCompany), observações sem item_id só entram se
+    // começarem com o prefixo "[<companyName>]" (padrão dos eventos por PJ:
+    // envio para validação, devolução, reanálise etc.). Gerais sem prefixo
+    // ou de OUTRA empresa são descartados — matching frágil por texto, deve
+    // virar coluna company_id no futuro.
+    const companyPrefix = scopedToCompany && companyName ? `[${companyName}]` : null;
     for (const o of observations) {
       const itemBelongs = o.item_id ? itemIds.has(o.item_id) : true;
       if (!itemBelongs) continue;
+      if (scopedToCompany && !o.item_id) {
+        const msg = (o.message ?? "").trimStart();
+        if (!companyPrefix || !msg.startsWith(companyPrefix)) continue;
+      }
       const it = o.item_id ? itemMap.get(o.item_id) : undefined;
       out.push({
         id: `obs-${o.id}`,
