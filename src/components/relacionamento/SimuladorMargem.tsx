@@ -713,7 +713,14 @@ export function SimuladorMargem() {
                 {linhasOrdenadas.map((l) => {
                   const semMatch = l.hm_exacta_real == null;
                   return (
-                    <TableRow key={`${l.nome}-${l.ano}`}>
+                    <TableRow
+                      key={`${l.nome}-${l.ano}`}
+                      onClick={() => setSelectedLinha(l)}
+                      className={cn(
+                        "cursor-pointer hover:bg-muted/50",
+                        selectedLinha?.nome === l.nome && selectedLinha?.ano === l.ano && "bg-primary/5",
+                      )}
+                    >
                       <TableCell className="font-medium">
                         <div className="truncate max-w-[280px]" title={l.nome}>{l.nome}</div>
                         {semMatch && (
