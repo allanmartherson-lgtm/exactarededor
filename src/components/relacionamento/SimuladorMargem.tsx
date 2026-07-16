@@ -78,11 +78,20 @@ interface LinhaComparativa {
   nome: string;
   ano: number;
   qtd_cirurgias: number;
+  // DRE Aurum
+  receita: number;
+  impostos: number;
+  glosa_externa: number;
   receita_liquida: number;
-  custo_total_aurum: number;
+  custo_opme: number;
+  custo_mat_med: number;
   custo_hm_aurum: number;
+  custo_exames_img: number;
+  custo_laboratorio: number;
+  custo_total_aurum: number;
   outros_custos: number; // custo_total − custo_hm
   margem_aurum: number;
+  // Exacta
   hm_exacta_real: number | null; // null = sem match Exacta
   hm_exacta_expected: number; // soma de expected_amount — base convênio (fica no bolso do hospital)
   hm_exacta_qtd_itens: number;
