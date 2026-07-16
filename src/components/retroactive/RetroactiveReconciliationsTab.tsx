@@ -5916,6 +5916,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const toRetirarItems = (list: TvrResult[]) =>
     list.filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5);
 
+  // Tópico 2: helper único para filtrar itens marcados como
+  // "excluir do encaminhamento". Usado apenas nos fluxos que geram
+  // apuração/glosa — a listagem principal continua exibindo tudo.
+  const notExcluded = (r: TvrResult) => !r.excluir_do_encaminhamento;
+
   // ===== Agrupamento por médico (apuração só-PJ) =====
   type GlosaGroup = {
     doctor_id: string;
