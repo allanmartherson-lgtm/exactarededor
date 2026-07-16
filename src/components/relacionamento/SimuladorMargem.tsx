@@ -160,6 +160,8 @@ export function SimuladorMargem() {
   const [exactaItems, setExactaItems] = useState<ExactaItem[]>([]);
   const [loadingAurum, setLoadingAurum] = useState(false);
   const [loadingExacta, setLoadingExacta] = useState(false);
+  // Faixa real de dados Exacta do hospital (para default e aviso quando o filtro está fora).
+  const [exactaRange, setExactaRange] = useState<{ min: string; max: string } | null>(null);
 
   // Descobre anos disponíveis (uma vez por hospital).
   useEffect(() => {
@@ -180,12 +182,45 @@ export function SimuladorMargem() {
     return () => { cancelled = true; };
   }, [hospitalId]);
 
-  // Sincroniza intervalo Exacta com ano Aurum quando o usuário troca de ano.
+  // Descobre a faixa real de procedure_date no Exacta deste hospital.
+  // Serve como default do intervalo (evita ano Aurum "fiscal" desalinhado do período real de produção)
+  // e alimenta o aviso quando o filtro atual não cobre a produção.
   useEffect(() => {
-    if (!ano) return;
-    setDateFrom(firstOfYear(ano));
-    setDateTo(firstOfNextYear(ano));
-  }, [ano]);
+    if (!hospitalId) return;
+    let cancelled = false;
+    void (async () => {
+      const [minRes, maxRes] = await Promise.all([
+        supabase.from("payment_items")
+          .select("procedure_date")
+          .eq("hospital_id", hospitalId)
+          .eq("is_cancelled", false)
+          .not("procedure_date", "is", null)
+          .order("procedure_date", { ascending: true })
+          .limit(1),
+        supabase.from("payment_items")
+          .select("procedure_date")
+          .eq("hospital_id", hospitalId)
+          .eq("is_cancelled", false)
+          .not("procedure_date", "is", null)
+          .order("procedure_date", { ascending: false })
+          .limit(1),
+      ]);
+      if (cancelled) return;
+      const min = (minRes.data?.[0] as { procedure_date?: string } | undefined)?.procedure_date;
+      const max = (maxRes.data?.[0] as { procedure_date?: string } | undefined)?.procedure_date;
+      if (min && max) {
+        const minIso = min.slice(0, 10);
+        const maxIso = max.slice(0, 10);
+        setExactaRange({ min: minIso, max: maxIso });
+        // Só preenche defaults se o usuário ainda não escolheu nada.
+        setDateFrom((prev) => prev || minIso);
+        setDateTo((prev) => prev || maxIso);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+
 
   // Carrega Aurum (linhas agregadas por médico / procedimento).
   useEffect(() => {
