@@ -494,12 +494,107 @@ export function SimuladorCenario() {
     return () => { cancelled = true; };
   }, [hospitalId]);
 
-  // Sugestões filtradas por query — top 20.
+  // Calcula quais nomes do Aurum possuem correspondência real no Exacta
+  // para o ano+modo selecionados. Considera match direto por nome
+  // normalizado e, adicionalmente, resolução via alias (procedure_aliases /
+  // doctor_aliases) — a mesma lógica usada em `simular()`.
+  useEffect(() => {
+    if (!hospitalId || !ano || nomes.length === 0) {
+      setMatchedNames(new Set());
+      return;
+    }
+    let cancelled = false;
+    setLoadingMatched(true);
+    void (async () => {
+      try {
+        const dateFrom = `${ano}-01-01`;
+        const dateTo = `${ano + 1}-01-01`;
+        const itemField = modo === "medico" ? "doctor_name" : "procedure_name";
+        const rows = await fetchAllPaginated<Record<string, unknown>>((from, to) =>
+          supabase
+            .from("payment_items")
+            .select(itemField)
+            .eq("hospital_id", hospitalId)
+            .gte("procedure_date", dateFrom)
+            .lt("procedure_date", dateTo)
+            .range(from, to) as never,
+        );
+        if (cancelled) return;
+        const itemNorm = new Set<string>();
+        for (const r of rows) {
+          const v = r[itemField] as string | null | undefined;
+          if (v) itemNorm.add(norm(v));
+        }
+
+        // Expansão por alias: se o alias_normalized do nome do Aurum aponta
+        // para algo presente nos itens, considera match. Usamos os nomes do
+        // Aurum como filtro para reduzir payload.
+        const nomesNormArr = nomes.map(norm);
+        const nomesNormSet = new Set(nomesNormArr);
+        const matched = new Set<string>();
+        for (const n of nomes) {
+          if (itemNorm.has(norm(n))) matched.add(n);
+        }
+
+        if (modo === "procedimento") {
+          // procedure_aliases: alias_normalized (nome do Aurum) → canonical_name
+          const { data: pa } = await supabase
+            .from("procedure_aliases" as never)
+            .select("alias_normalized,canonical_name")
+            .eq("hospital_id", hospitalId)
+            .in("alias_normalized", nomesNormArr);
+          for (const r of (pa ?? []) as Array<{ alias_normalized: string | null; canonical_name: string | null }>) {
+            if (r.canonical_name && itemNorm.has(norm(r.canonical_name))) {
+              for (const n of nomes) {
+                if (norm(n) === r.alias_normalized) matched.add(n);
+              }
+            }
+          }
+        } else {
+          // doctor_aliases: alias_normalized → doctor_id → full_name em itens
+          const { data: da } = await supabase
+            .from("doctor_aliases")
+            .select("alias_normalized,doctor_id")
+            .in("alias_normalized", nomesNormArr);
+          const aliasRows = (da ?? []) as Array<{ alias_normalized: string | null; doctor_id: string | null }>;
+          const docIds = Array.from(new Set(aliasRows.map((r) => r.doctor_id).filter(Boolean) as string[]));
+          if (docIds.length) {
+            const { data: docs } = await supabase.from("doctors").select("id,full_name").in("id", docIds);
+            const docMap = new Map<string, string>();
+            for (const d of (docs ?? []) as Array<{ id: string; full_name: string | null }>) {
+              if (d.full_name) docMap.set(d.id, norm(d.full_name));
+            }
+            for (const r of aliasRows) {
+              const canonicalNorm = r.doctor_id ? docMap.get(r.doctor_id) : undefined;
+              if (canonicalNorm && itemNorm.has(canonicalNorm)) {
+                for (const n of nomes) {
+                  if (norm(n) === r.alias_normalized) matched.add(n);
+                }
+              }
+            }
+          }
+        }
+        void nomesNormSet;
+        if (!cancelled) setMatchedNames(matched);
+      } catch (e) {
+        if (!cancelled) {
+          console.error("[simulador] falha ao calcular matches", e);
+          setMatchedNames(new Set());
+        }
+      } finally {
+        if (!cancelled) setLoadingMatched(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId, ano, modo, nomes]);
+
+  // Sugestões filtradas por query + toggle "Apenas com match" — top 30.
   const sugestoes = useMemo(() => {
     const q = norm(nomeQuery);
-    if (!q) return nomes.slice(0, 20);
-    return nomes.filter((n) => norm(n).includes(q)).slice(0, 20);
-  }, [nomes, nomeQuery]);
+    const base = apenasComMatch ? nomes.filter((n) => matchedNames.has(n)) : nomes;
+    if (!q) return base.slice(0, 30);
+    return base.filter((n) => norm(n).includes(q)).slice(0, 30);
+  }, [nomes, nomeQuery, apenasComMatch, matchedNames]);
 
   const podeSimular = !!hospitalId && !!nomeSelecionado && !!ano;
 
