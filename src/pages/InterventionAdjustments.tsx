@@ -915,9 +915,21 @@ export default function InterventionAdjustments() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">{it.autor}</div>
-                          <Badge variant="outline" className="text-[10px] mt-0.5">
-                            {roleLabel(it.role)}
-                          </Badge>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            <Badge variant="outline" className="text-[10px]" title="Tipo da intervenção">
+                              {roleLabel(it.role)}
+                            </Badge>
+                            {it.papel_autor && it.papel_autor !== "sistema" && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] border-primary/40 text-primary bg-primary/5"
+                                title="Papel cadastrado do autor"
+                              >
+                                {it.papel_autor === "validador" ? "Supervisor" :
+                                 it.papel_autor.charAt(0).toUpperCase() + it.papel_autor.slice(1)}
+                              </Badge>
+                            )}
+                          </div>
                           {isCancellationRole && (
                             <div className="mt-1">
                               <Badge
