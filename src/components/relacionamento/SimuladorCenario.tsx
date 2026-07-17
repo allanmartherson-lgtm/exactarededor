@@ -1902,7 +1902,7 @@ export function SimuladorCenario() {
           </Card>
 
           {/* Cards de resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 [&>*]:min-w-0">
             <SummaryCard
               title="HM Aurum (contábil)"
               valor={resultado.aurum.custo_hm}
@@ -1922,7 +1922,7 @@ export function SimuladorCenario() {
               pct={resultado.aurum.receita_liquida > 0 ? disp.simulado.novo_hm / resultado.aurum.receita_liquida : null}
               extra={
                 disp.exacta
-                  ? `Δ vs Exacta: ${BRL(disp.simulado.novo_hm - disp.exacta.gross)}`
+                  ? `Δ Exacta ${BRL(disp.simulado.novo_hm - disp.exacta.gross)}`
                   : undefined
               }
               tone={
@@ -1997,11 +1997,11 @@ function SummaryCard({
     tone === "positive" ? "text-emerald-700" :
     tone === "negative" ? "text-red-700" : "text-foreground";
   return (
-    <Card className={cn(highlight && "border-2 border-primary bg-primary/5")}>
-      <CardContent className="py-4">
-        <div className={cn("text-xs font-medium uppercase tracking-wide", highlight ? "text-primary font-bold" : "text-muted-foreground")}>{title}</div>
-        <div className={cn("text-2xl font-semibold tabular-nums mt-1", highlight ? "text-primary" : cor)}>{BRL(valor)}</div>
-        <div className="text-xs text-muted-foreground mt-1">
+    <Card className={cn("min-w-0 overflow-hidden", highlight && "border-2 border-primary bg-primary/5")}>
+      <CardContent className="py-4 min-w-0">
+        <div className={cn("text-xs font-medium uppercase tracking-wide truncate", highlight ? "text-primary font-bold" : "text-muted-foreground")}>{title}</div>
+        <div className={cn("text-2xl font-semibold tabular-nums mt-1 truncate", highlight ? "text-primary" : cor)}>{BRL(valor)}</div>
+        <div className="text-xs text-muted-foreground mt-1 break-words">
           {pct != null ? `${PCT(pct)} da receita líquida` : "—"}
           {extra ? ` · ${extra}` : ""}
         </div>
@@ -2009,3 +2009,4 @@ function SummaryCard({
     </Card>
   );
 }
+
