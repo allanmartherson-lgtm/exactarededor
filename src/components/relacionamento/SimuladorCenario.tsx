@@ -1362,6 +1362,32 @@ export function SimuladorCenario() {
             </div>
           )}
 
+          {/* Banner "sem match" + toggle de exclusão (opção B).
+              Regra atual (A): itens sem regra sintética compatível mantêm o
+              valor pago à época no Simulado — evita zerar pacote/sem_acordo. */}
+          {disp.semMatchCount > 0 && (
+            <div className="flex flex-col md:flex-row md:items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              <div className="flex items-start gap-2 flex-1">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-700" />
+                <span className="text-amber-800">
+                  <b>{disp.semMatchCount}</b> item(ns) sem match (pacote, sem acordo, TUSS fora da tabela…) —{" "}
+                  <b>{BRL(disp.semMatchValor)}</b> mantidos ao valor pago à época para não distorcer o Simulado.
+                </span>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={excluirSemMatch}
+                  onChange={(e) => setExcluirSemMatch(e.target.checked)}
+                />
+                <span className="text-amber-900">Excluir sem match do total</span>
+              </label>
+            </div>
+          )}
+
+
+
           {/* DRE 3 colunas */}
           <Card>
             <CardHeader className="pb-3">
