@@ -296,9 +296,9 @@ function DreLine({
     simuladoTone === "positive" ? "text-emerald-700" :
     simuladoTone === "negative" ? "text-red-700" : "text-foreground";
 
-  // Em modo "media", o valor principal é a média por denom (evita comparar
-  // 4 cirurgias do Aurum contra 2 atendimentos do Exacta como se fossem a
-  // mesma escala) e a sublinha mostra o total. Em "soma" é o inverso.
+  // Mostra APENAS o valor principal (média em "media", total em "soma") + %
+  // da base como referência secundária. Sublinha total/média foi removida
+  // para reduzir poluição visual e destacar o número que importa.
   const Cell = ({
     v, denom, denomLabel, extraCls, corTotal,
   }: {
@@ -317,19 +317,14 @@ function DreLine({
     const mediaMain = viewMode === "media" && media != null;
     const mainValue = mediaMain ? media : v;
     const mainSuffix = mediaMain && denomLabel ? `/${denomLabel}` : "";
-    const subValue = mediaMain ? v : media;
-    const subSuffix = !mediaMain && denomLabel ? `/${denomLabel}` : "";
-    const subPrefix = mediaMain ? "total " : "";
     return (
       <div className={cn("text-right tabular-nums flex flex-col leading-tight", extraCls)}>
         <span className={cn("text-sm", bold && "font-semibold", corTotal)}>
           {BRL(mainValue)}{mainSuffix}
         </span>
-        {(subValue != null || pctStr) && (
+        {pctStr && (
           <span className="text-[10px] text-muted-foreground font-normal">
-            {subValue != null ? `${subPrefix}${BRL(subValue)}${subSuffix}` : ""}
-            {subValue != null && pctStr ? " " : ""}
-            {pctStr ? `(${pctStr})` : ""}
+            ({pctStr})
           </span>
         )}
       </div>
