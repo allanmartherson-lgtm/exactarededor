@@ -1,9 +1,8 @@
 /**
  * Painel de auditoria de sobreposição assistencial.
  *
- * Consulta autônoma sobre payment_items do hospital ativo: identifica
- * mesmo paciente + mesmo dia + ≥2 especialidades distintas em lançamentos
- * de visita/parecer. Não depende da regra ter rodado no lote.
+ * Duplicidade pura: mesmo atendimento + mesmo dia + mesmo tipo (visita/parecer)
+ * com ≥ N médicos distintos lançando. Não depende da regra ter rodado no lote.
  */
 import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -110,7 +109,7 @@ export default function OverlapAudit() {
     <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
       <PageHeader
         title="Sobreposição assistencial"
-        description="Auditoria autônoma de mesmo paciente + mesmo dia + ≥2 especialidades em visitas ou pareceres."
+        description="Duplicidade pura: mesmo atendimento + mesmo dia com ≥ N médicos distintos em visitas ou pareceres."
       />
 
       {/* Filtros */}
@@ -140,7 +139,7 @@ export default function OverlapAudit() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Mín. especialidades distintas</Label>
+              <Label>Mín. médicos distintos</Label>
               <Input
                 type="number"
                 min={2}
