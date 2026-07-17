@@ -925,12 +925,13 @@ Deno.serve(async (req) => {
           }
           group = g;
         }
-        const extForOverlap = scope === "cross" ? externalItems : [];
+        const extForOverlap = externalItems;
         const result = applySobreposicaoAssistencial(
           rule, items, allDoctors, group, findingsByItem, paymentReference,
           (payment as any).payment_type ?? null,
-          extForOverlap, externalRefById, payment_id,
+          extForOverlap, externalRefById, payment_id, aliasesRaw ?? [],
         );
+
 
         totalHits += result.hits;
         if (result.unresolvedDoctors.size > 0) {
