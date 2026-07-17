@@ -1543,13 +1543,41 @@ export function SimuladorCenario() {
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent
                         denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
                       <div className="mt-2 pt-2 border-t space-y-1">
-                        <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline">
-                          <span className="text-xs text-muted-foreground">(=)</span>
-                          <span className="text-sm font-semibold">Margem de Contribuição</span>
-                          <span className={cn("text-sm text-right tabular-nums font-semibold", A.margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(A.margem)}</span>
-                          <span className={cn("text-sm text-right tabular-nums font-semibold", (margemExacta ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(margemExacta)}</span>
-                          <span className={cn("text-xl text-right tabular-nums font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r", sim.nova_margem >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(sim.nova_margem)}</span>
-                        </div>
+                        {(() => {
+                          // Aplica o mesmo toggle média/soma na linha de Margem.
+                          const aMarg = A.margem;
+                          const eMarg = margemExacta;
+                          const sMarg = sim.nova_margem;
+                          const useMedia = dreView === "media";
+                          const dA = qc, dE = atd || qc, dS = qc;
+                          const showA = useMedia && dA > 0 ? aMarg / dA : aMarg;
+                          const showE = useMedia && dE > 0 && eMarg != null ? eMarg / dE : eMarg;
+                          const showS = useMedia && dS > 0 ? sMarg / dS : sMarg;
+                          const subA = useMedia ? aMarg : (dA > 0 ? aMarg / dA : null);
+                          const subE = useMedia ? eMarg : (dE > 0 && eMarg != null ? eMarg / dE : null);
+                          const subS = useMedia ? sMarg : (dS > 0 ? sMarg / dS : null);
+                          const suf = (label: string) => useMedia ? `/${label}` : "";
+                          const subSuf = (label: string) => useMedia ? "" : `/${label}`;
+                          const subPre = useMedia ? "total " : "";
+                          return (
+                            <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-start">
+                              <span className="text-xs text-muted-foreground">(=)</span>
+                              <span className="text-sm font-semibold">Margem de Contribuição</span>
+                              <div className="text-right flex flex-col leading-tight">
+                                <span className={cn("text-sm tabular-nums font-semibold", aMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showA)}{suf("cir")}</span>
+                                {subA != null && <span className="text-[10px] text-muted-foreground">{subPre}{BRL(subA)}{subSuf("cir")}</span>}
+                              </div>
+                              <div className="text-right flex flex-col leading-tight">
+                                <span className={cn("text-sm tabular-nums font-semibold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf("atend") : ""}</span>
+                                {subE != null && <span className="text-[10px] text-muted-foreground">{subPre}{BRL(subE)}{subSuf("atend")}</span>}
+                              </div>
+                              <div className="text-right flex flex-col leading-tight bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">
+                                <span className={cn("text-xl tabular-nums font-bold", sMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showS)}{suf("cir")}</span>
+                                {subS != null && <span className="text-[10px] text-muted-foreground">{subPre}{BRL(subS)}{subSuf("cir")}</span>}
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
                           <span></span>
                           <span>% Margem</span>
