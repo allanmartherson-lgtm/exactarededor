@@ -1998,15 +1998,16 @@ function SummaryCard({
     tone === "negative" ? "text-red-700" : "text-foreground";
   return (
     <Card className={cn("min-w-0 overflow-hidden", highlight && "border-2 border-primary bg-primary/5")}>
-      <CardContent className="py-4 min-w-0">
-        <div className={cn("text-xs font-medium uppercase tracking-wide truncate", highlight ? "text-primary font-bold" : "text-muted-foreground")}>{title}</div>
+      <CardContent className="py-4 px-4 min-w-0">
+        <div className={cn("text-[11px] font-medium uppercase tracking-wide truncate", highlight ? "text-primary font-bold" : "text-muted-foreground")}>{title}</div>
         <div className={cn("text-2xl font-semibold tabular-nums mt-1 truncate", highlight ? "text-primary" : cor)}>{BRL(valor)}</div>
-        <div className="text-xs text-muted-foreground mt-1 break-words">
-          {pct != null ? `${PCT(pct)} da receita líquida` : "—"}
-          {extra ? ` · ${extra}` : ""}
+        <div className="text-[11px] text-muted-foreground mt-1 leading-snug break-words">
+          <div className="truncate">{pct != null ? `${PCT(pct)} da receita líquida` : "—"}</div>
+          {extra ? <div className="truncate">{extra}</div> : null}
         </div>
       </CardContent>
     </Card>
   );
 }
+
 
