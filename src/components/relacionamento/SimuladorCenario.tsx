@@ -363,12 +363,9 @@ export function SimuladorCenario() {
   const [multiplicador, setMultiplicador] = useState<number>(1);
   const [deflator, setDeflator] = useState<number>(0);
   const [acrescimo, setAcrescimo] = useState<number>(0);
-  // Percentuais dos auxiliares aplicados pelo motor. Defaults refletem o
-  // padrão histórico da controladoria (1º Aux 30%, 2º Aux 20%, Instrumentador 20%).
-  // Sem esses valores o motor paga 100% para auxiliares (bug reportado).
-  const [auxFirstPct, setAuxFirstPct] = useState<number>(30);
-  const [auxSecondPct, setAuxSecondPct] = useState<number>(20);
-  const [instrumentadorPct, setInstrumentadorPct] = useState<number>(20);
+  // Percentuais de auxiliares NÃO são configurados aqui: são derivados
+  // automaticamente do histórico real (aux.gross / principal.gross) após a
+  // resposta do motor, garantindo paridade com o que foi pago à época.
   const [carater, setCarater] = useState<"todos" | "Eletiva" | "Urgência">("todos");
   // Aurum só contempla pacientes INTERNADOS (cirúrgicos). Filtro default-on
   // limita o Exacta a itens de Centro Cirúrgico / Hemodinâmica para evitar
@@ -812,9 +809,6 @@ export function SimuladorCenario() {
               convenio_percentage: pctNovo,
               apply_access_route: true,
               include_auxiliaries: true,
-              aux_first_pct: auxFirstPct,
-              aux_second_pct: auxSecondPct,
-              instrumentador_pct: instrumentadorPct,
             }
           : {
               calculation_type: "tabela_diferenciada" as const,
@@ -824,9 +818,6 @@ export function SimuladorCenario() {
               acrescimo_pct: acrescimo,
               apply_access_route: true,
               include_auxiliaries: true,
-              aux_first_pct: auxFirstPct,
-              aux_second_pct: auxSecondPct,
-              instrumentador_pct: instrumentadorPct,
             };
         const { data: simResp, error: simErr } = await supabase.functions.invoke("simulate-scenario", {
           body: {
@@ -869,6 +860,53 @@ export function SimuladorCenario() {
               alerts: Array.isArray(p.alerts) ? p.alerts : [],
             };
           }
+
+          // Override histórico para auxiliares: aplica o mesmo percentual que
+          // de fato foi pago à época (aux.gross_amount / principal.gross_amount
+          // dentro do mesmo atendimento+TUSS) sobre o valor SIMULADO do
+          // principal. Motivo: a regra sintética do simulador não conhece a
+          // tabela de funções da regra original, então sem esse override os
+          // auxiliares receberiam 100% (mesmo valor do cirurgião).
+          const grupos = new Map<string, typeof detalhes>();
+          for (const d of detalhes) {
+            const k = `${d.attendance_number ?? ""}|${(d.procedure_code ?? "").trim()}`;
+            if (!grupos.has(k)) grupos.set(k, []);
+            grupos.get(k)!.push(d);
+          }
+          const roleNorm = (r?: string | null) =>
+            (r ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+          const isPrincipal = (r?: string | null) => {
+            const n = roleNorm(r);
+            if (!n) return false;
+            if (/auxili|instrument/.test(n)) return false;
+            return /cirurgiao/.test(n) || /principal|unico/.test(n);
+          };
+          const isAux = (r?: string | null) => /auxili|instrument/.test(roleNorm(r));
+          for (const [, grupo] of grupos) {
+            const principal = grupo.find((g) => isPrincipal(g.doctor_role));
+            if (!principal) continue;
+            const principalSim = perItem[principal.id]?.expected_amount ?? 0;
+            const principalReal = Number(principal.gross_amount ?? 0);
+            if (principalSim <= 0 || principalReal <= 0) continue;
+            for (const g of grupo) {
+              if (g.id === principal.id || !isAux(g.doctor_role)) continue;
+              const auxReal = Number(g.gross_amount ?? 0);
+              if (auxReal <= 0) continue;
+              const ratio = auxReal / principalReal;
+              if (ratio > 1.001) continue; // ratio implausível, mantém motor
+              const cur = perItem[g.id];
+              perItem[g.id] = {
+                expected_amount: principalSim * ratio,
+                matched: cur?.matched ?? true,
+                calculation_type_used: cur?.calculation_type_used ?? "aux_historical_override",
+                alerts: [
+                  ...(cur?.alerts ?? []),
+                  `Aux ajustado ao histórico: ${(ratio * 100).toFixed(1)}% do principal`,
+                ],
+              };
+            }
+          }
+          novoHm = Object.values(perItem).reduce((s, p) => s + (p.expected_amount ?? 0), 0);
         }
       }
 
@@ -924,7 +962,7 @@ export function SimuladorCenario() {
     } finally {
       setSimulando(false);
     }
-  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, auxFirstPct, auxSecondPct, instrumentadorPct, refTableId, tabelaAurum, nomeCampo, carater, apenasInternados]);
+  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater, apenasInternados]);
 
   const salvarCenario = useCallback(async () => {
     if (!resultado || !hospitalId) return;
@@ -1253,21 +1291,6 @@ export function SimuladorCenario() {
                 </div>
               </>
             )}
-
-            {/* Percentuais de auxiliares — aplicados pelo motor real.
-                Sem esses valores auxiliares eram pagos como 100% (bug). */}
-            <div className="max-w-[7rem]">
-              <Label className="text-xs">1º Aux (%)</Label>
-              <DecimalInput value={auxFirstPct} onChange={setAuxFirstPct} />
-            </div>
-            <div className="max-w-[7rem]">
-              <Label className="text-xs">2º Aux (%)</Label>
-              <DecimalInput value={auxSecondPct} onChange={setAuxSecondPct} />
-            </div>
-            <div className="max-w-[7rem]">
-              <Label className="text-xs">Instrumentador (%)</Label>
-              <DecimalInput value={instrumentadorPct} onChange={setInstrumentadorPct} />
-            </div>
           </div>
 
           {/* Linha 3 — ação */}
