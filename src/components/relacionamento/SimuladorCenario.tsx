@@ -1477,53 +1477,70 @@ export function SimuladorCenario() {
                   const exGross = disp.exacta?.gross ?? null;
                   const sim = disp.simulado;
                   const receitaLiqExacta = A.receita_liquida;
-                  const margemExacta = exGross != null ? A.receita_liquida + A.outros_custos - exGross : null;
-                  const pctExacta = margemExacta != null && A.receita_liquida > 0 ? margemExacta / A.receita_liquida : null;
 
-                  // Convenção: se simulado piora margem (HM maior), coluna Simulado da linha HM em vermelho.
-                  const simHmTone: "positive" | "negative" | "neutral" =
-                    exGross == null ? "neutral" :
-                    sim.novo_hm > exGross ? "negative" : "positive";
-
-                  // Médias por cirurgia / atendimento — usadas nas sub-linhas dentro de cada célula da DRE.
+                  // Cirurgia (Aurum) == Atendimento (Exacta). Quando Exacta
+                  // tem menos atendimentos que Aurum tem cirurgias, significa
+                  // que alguns honorários foram faturados externamente. Para
+                  // manter proporção honesta, projetamos HM do Exacta para a
+                  // mesma escala do Aurum: exGrossProj = média × qc.
                   const qc = A.qtd_cirurgias;
                   const atd = disp.exacta?.atendimentos ?? 0;
+                  const exGrossProj =
+                    exGross != null && atd > 0 && qc > 0 ? (exGross / atd) * qc : exGross;
+
+                  const margemExactaProj =
+                    exGrossProj != null ? A.receita_liquida + A.outros_custos - exGrossProj : null;
+                  const pctExactaProj =
+                    margemExactaProj != null && A.receita_liquida > 0
+                      ? margemExactaProj / A.receita_liquida
+                      : null;
+
+                  // Convenção: se simulado piora margem (HM maior que projetado), coluna Simulado da linha HM em vermelho.
+                  const simHmTone: "positive" | "negative" | "neutral" =
+                    exGrossProj == null ? "neutral" :
+                    sim.novo_hm > exGrossProj ? "negative" : "positive";
 
                   // % HM sobre receita líquida
                   const rl = A.receita_liquida;
                   const pctHmAurum = rl > 0 ? A.custo_hm / rl : null;
-                  const pctHmExacta = rl > 0 && exGross != null ? exGross / rl : null;
+                  const pctHmExacta = rl > 0 && exGrossProj != null ? exGrossProj / rl : null;
                   const pctHmSim = rl > 0 ? sim.novo_hm / rl : null;
 
                   return (
                     <>
                       <DreLine op="(+)" label="Receita Bruta" aurum={A.receita} exacta={A.receita} simulado={A.receita}
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} bold />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView}
+                        denomLabelExacta="cir" bold />
                       <DreLine op="(−)" label="Impostos" aurum={-A.impostos} exacta={-A.impostos} simulado={-A.impostos} indent
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(−)" label="Glosas" aurum={-A.glosa_externa} exacta={-A.glosa_externa} simulado={-A.glosa_externa} indent
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(=)" label="Receita Líquida" aurum={A.receita_liquida} exacta={receitaLiqExacta} simulado={A.receita_liquida} bold
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(−)" label="OPME" aurum={-A.custo_opme} exacta={-A.custo_opme} simulado={-A.custo_opme} indent
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(−)" label="Mat/Med" aurum={-A.custo_mat_med} exacta={-A.custo_mat_med} simulado={-A.custo_mat_med} indent
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine
                         op="(−)"
                         label="Honorários Médicos"
                         aurum={-A.custo_hm}
-                        exacta={exGross != null ? -exGross : null}
+                        exacta={exGrossProj != null ? -exGrossProj : null}
                         simulado={-sim.novo_hm}
                         indent
                         highlight="amber"
                         simuladoTone={simHmTone}
                         denomAurum={qc}
-                        denomExacta={atd}
+                        denomExacta={qc}
                         denomSim={qc}
                         base={A.receita}
                         viewMode={dreView}
-                        tooltip="Aurum: contábil. Exacta Real: gross_amount pago. Simulado: cenário calculado."
+                        denomLabelExacta="cir"
+                        tooltip={
+                          atd > 0 && qc > 0 && atd !== qc
+                            ? `Exacta projetado para ${qc} cirurgias (média × ${qc}) — original: ${atd} atend. com R$ ${exGross?.toFixed(2)}. Diferença = honorários faturados externamente.`
+                            : "Aurum: contábil. Exacta Real: gross_amount pago. Simulado: cenário calculado."
+                        }
                       />
                       {/* Sub-linha extra: % HM sobre Receita Líquida (referência clássica de honorários). */}
                       <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[10px] text-muted-foreground pl-3">
@@ -1534,41 +1551,32 @@ export function SimuladorCenario() {
                         <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
                       </div>
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent
-                        denomAurum={qc} denomExacta={atd || qc} denomSim={qc} base={A.receita} viewMode={dreView} />
+                        denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <div className="mt-2 pt-2 border-t space-y-1">
                         {(() => {
-                          // Aplica o mesmo toggle média/soma na linha de Margem.
+                          // Margem usa HM projetado do Exacta, mesma escala do Aurum.
                           const aMarg = A.margem;
-                          const eMarg = margemExacta;
+                          const eMarg = margemExactaProj;
                           const sMarg = sim.nova_margem;
                           const useMedia = dreView === "media";
-                          const dA = qc, dE = atd || qc, dS = qc;
-                          const showA = useMedia && dA > 0 ? aMarg / dA : aMarg;
-                          const showE = useMedia && dE > 0 && eMarg != null ? eMarg / dE : eMarg;
-                          const showS = useMedia && dS > 0 ? sMarg / dS : sMarg;
-                          const subA = useMedia ? aMarg : (dA > 0 ? aMarg / dA : null);
-                          const subE = useMedia ? eMarg : (dE > 0 && eMarg != null ? eMarg / dE : null);
-                          const subS = useMedia ? sMarg : (dS > 0 ? sMarg / dS : null);
-                          const suf = (label: string) => useMedia ? `/${label}` : "";
-                          const subSuf = (label: string) => useMedia ? "" : `/${label}`;
-                          const subPre = useMedia ? "total " : "";
+                          const showA = useMedia && qc > 0 ? aMarg / qc : aMarg;
+                          const showE = useMedia && qc > 0 && eMarg != null ? eMarg / qc : eMarg;
+                          const showS = useMedia && qc > 0 ? sMarg / qc : sMarg;
+                          const suf = useMedia ? "/cir" : "";
                           return (
                             <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-start">
                               <span className="text-xs text-muted-foreground">(=)</span>
                               <span className="text-sm font-semibold">Margem de Contribuição</span>
                               <div className="text-right flex flex-col leading-tight">
-                                <span className={cn("text-sm tabular-nums font-semibold", aMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showA)}{suf("cir")}</span>
-                                {subA != null && <span className="text-[10px] text-muted-foreground">{subPre}{BRL(subA)}{subSuf("cir")}</span>}
+                                <span className={cn("text-sm tabular-nums font-semibold", aMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showA)}{suf}</span>
                               </div>
                               <div className="text-right flex flex-col leading-tight">
-                                <span className={cn("text-sm tabular-nums font-semibold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf("atend") : ""}</span>
-                                {subE != null && <span className="text-[10px] text-muted-foreground">{subPre}{BRL(subE)}{subSuf("atend")}</span>}
+                                <span className={cn("text-sm tabular-nums font-semibold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf : ""}</span>
                               </div>
                               <div className="text-right flex flex-col leading-tight bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">
-                                <span className={cn("text-xl tabular-nums font-bold", sMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showS)}{suf("cir")}</span>
-                                {subS != null && <span className="text-[10px] text-muted-foreground">{subPre}{BRL(subS)}{subSuf("cir")}</span>}
+                                <span className={cn("text-xl tabular-nums font-bold", sMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showS)}{suf}</span>
                               </div>
                             </div>
                           );
@@ -1577,7 +1585,7 @@ export function SimuladorCenario() {
                           <span></span>
                           <span>% Margem</span>
                           <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
-                          <span className="text-right tabular-nums">{PCT(pctExacta)}</span>
+                          <span className="text-right tabular-nums">{PCT(pctExactaProj)}</span>
                           <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
                         </div>
                       </div>
