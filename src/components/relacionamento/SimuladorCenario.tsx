@@ -1594,28 +1594,29 @@ export function SimuladorCenario() {
                           const showS = useMedia && qc > 0 ? sMarg / qc : sMarg;
                           const suf = useMedia ? "/cir" : "";
                           return (
-                            <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-start py-2 bg-emerald-50/40 border border-emerald-100 -mx-2 px-2 rounded">
-                              <span className="text-xs text-muted-foreground pt-1">(=)</span>
-                              <span className="text-base font-semibold pt-1">Margem de Contribuição</span>
-                              <div className="text-right flex flex-col leading-tight">
+                            <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 py-2 bg-emerald-50/40 border border-emerald-100 -mx-2 px-2 rounded">
+                              <span className="text-xs text-muted-foreground self-center">(=)</span>
+                              <span className="text-base font-semibold self-center">Margem de Contribuição</span>
+                              <div className="text-right flex flex-col justify-center leading-tight">
                                 <span className={cn("text-base tabular-nums font-bold", aMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showA)}{suf}</span>
                               </div>
-                              <div className="text-right flex flex-col leading-tight">
+                              <div className="text-right flex flex-col justify-center leading-tight">
                                 <span className={cn("text-base tabular-nums font-bold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf : ""}</span>
                               </div>
-                              <div className="text-right flex flex-col leading-tight bg-blue-100/70 dark:bg-blue-950/30 -my-2 -mr-2 py-2 pr-2 pl-2 rounded-r">
+                              <div className="text-right flex flex-col justify-center leading-tight bg-primary/[0.08] dark:bg-primary/10 border-l border-primary/20 -mr-2 pr-3 pl-3 rounded-r">
                                 <span className={cn("text-xl tabular-nums font-bold", sMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showS)}{suf}</span>
                               </div>
                             </div>
                           );
                         })()}
-                        <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
+                        <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 text-xs text-muted-foreground">
                           <span></span>
-                          <span>% Margem</span>
-                          <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
-                          <span className="text-right tabular-nums">{PCT(pctExactaProj)}</span>
-                          <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(pctMargemSimProj)}</span>
+                          <span className="self-center">% Margem</span>
+                          <span className="text-right tabular-nums self-center">{PCT(A.pct_margem)}</span>
+                          <span className="text-right tabular-nums self-center">{PCT(pctExactaProj)}</span>
+                          <span className="text-right tabular-nums bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r font-semibold text-primary self-stretch flex items-center justify-end">{PCT(pctMargemSimProj)}</span>
                         </div>
+
                       </div>
                     </>
                   );
