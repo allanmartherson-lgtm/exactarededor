@@ -32,6 +32,7 @@ import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { cn } from "@/lib/utils";
 import { normAccessRoute } from "@/lib/normAccessRoute";
 import { applyHistoricalAuxOverride } from "@/lib/simulatorAuxOverride";
+import { loadConvenioAliases } from "@/hooks/useConvenioAliases";
 
 // Input decimal tolerante: aceita vírgula ou ponto, permite ficar vazio
 // enquanto o usuário digita (ex.: apagar o 0 para digitar 5, ou digitar
@@ -400,6 +401,30 @@ export function SimuladorCenario() {
   // Slugs canônicos + códigos hospital-específicos (DFStar) que representam
   // setores cirúrgicos internados. Ampliar quando novas unidades entrarem.
   const SURGICAL_SECTORS = ["centro_cirurgico", "hemodinamica", "1556", "1574"];
+
+  // Exclusão de convênios (ex: Particular, Seguradora Internacional — casos
+  // onde não há acordo com Exacta e a comparação distorce). Slugs canônicos
+  // resolvidos via `convenios`/aliases; texto legado sem match no cadastro
+  // não pode ser excluído aqui (aparece bruto no relatório).
+  const [convenioOptions, setConvenioOptions] = useState<Array<{ slug: string; name: string }>>([]);
+  const [conveniosExcluidos, setConveniosExcluidos] = useState<string[]>([]);
+  const [convenioPickerOpen, setConvenioPickerOpen] = useState(false);
+  useEffect(() => {
+    if (!hospitalId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("convenios")
+        .select("slug,name,active,hospital_id")
+        .or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+        .order("name");
+      if (cancelled) return;
+      setConvenioOptions(((data ?? []) as Array<{ slug: string; name: string; active: boolean }>)
+        .filter((r) => r.active !== false)
+        .map((r) => ({ slug: r.slug, name: r.name })));
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
 
   // Filtro (B): quando ligado, itens sem regra sintética compatível são
   // removidos tanto do Exacta Real quanto do Simulado — cenário puro só do
@@ -875,6 +900,39 @@ export function SimuladorCenario() {
         }
       }
 
+      // 2.5) Exclusão de convênios (ex: Particular, Seguradora Internacional).
+      // Resolve cada `agreement_text` via aliases e remove itens cujo slug
+      // esteja na lista de exclusão. Recomputa agregados para manter DRE/HM
+      // coerentes. Sem match no cadastro → mantém (não conseguimos afirmar
+      // que é o convênio excluído).
+      if (exacta && conveniosExcluidos.length > 0) {
+        const aliasMap = await loadConvenioAliases(hospitalId);
+        const excludeSet = new Set(conveniosExcluidos.map((s) => s.toLowerCase()));
+        const kept = exacta.detalhes.filter((d) => {
+          const slug = aliasMap.resolveSlug(d.agreement_text);
+          return !(slug && excludeSet.has(slug.toLowerCase()));
+        });
+        if (kept.length !== exacta.detalhes.length) {
+          let g = 0, e = 0, b = 0, sc = 0;
+          const atts = new Set<string>();
+          for (const d of kept) {
+            g += Number(d.gross_amount ?? 0);
+            e += Number(d.expected_amount ?? 0);
+            b += Number(d.procedure_amount ?? 0);
+            if (d.attendance_number) atts.add(String(d.attendance_number));
+            // sem_carater não é reconstruível a partir de ItemDetalhe; mantém proporcional
+          }
+          sc = exacta.detalhes.length > 0
+            ? Math.round((exacta.sem_carater * kept.length) / exacta.detalhes.length)
+            : 0;
+          exacta = kept.length > 0
+            ? { gross: g, expected: e, baseConvenio: b, itens: kept.length, atendimentos: atts.size, sem_carater: sc, detalhes: kept }
+            : null;
+        }
+      }
+
+
+
       // 3) Cálculo do cenário simulado — via edge function `simulate-scenario`,
       //    que invoca o MESMO motor determinístico usado no pagamento real.
       //    Assim eliminamos heurísticas hardcoded no cliente (fatores por
@@ -1037,7 +1095,7 @@ export function SimuladorCenario() {
     } finally {
       setSimulando(false);
     }
-  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater, apenasInternados]);
+  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater, apenasInternados, conveniosExcluidos]);
 
   const salvarCenario = useCallback(async () => {
     if (!resultado || !hospitalId) return;
@@ -1391,6 +1449,71 @@ export function SimuladorCenario() {
             </span>
           </div>
 
+          {/* Exclusão de convênios — remove do Exacta os itens de convênios
+              sem acordo (Particular, Seguradora Internacional etc.) para não
+              distorcer a comparação com o Aurum. */}
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+            <Label className="text-xs m-0 shrink-0">Excluir convênios do Exacta</Label>
+            <Popover open={convenioPickerOpen} onOpenChange={setConvenioPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs font-normal justify-between min-w-[16rem]"
+                >
+                  <span className="truncate">
+                    {conveniosExcluidos.length === 0
+                      ? "Nenhum (usa todos)"
+                      : `${conveniosExcluidos.length} convênio${conveniosExcluidos.length > 1 ? "s" : ""} excluído${conveniosExcluidos.length > 1 ? "s" : ""}`}
+                  </span>
+                  <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0 ml-1" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[320px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar convênio…" />
+                  <CommandList className="max-h-[280px]">
+                    <CommandEmpty>Nenhum convênio cadastrado.</CommandEmpty>
+                    <CommandGroup>
+                      {convenioOptions.map((c) => {
+                        const checked = conveniosExcluidos.includes(c.slug);
+                        return (
+                          <CommandItem
+                            key={c.slug}
+                            value={`${c.name} ${c.slug}`}
+                            onSelect={() => {
+                              setConveniosExcluidos((prev) =>
+                                prev.includes(c.slug) ? prev.filter((s) => s !== c.slug) : [...prev, c.slug],
+                              );
+                              setResultado(null);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
+                            <span className="text-xs truncate">{c.name}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {conveniosExcluidos.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => { setConveniosExcluidos([]); setResultado(null); }}
+              >
+                Limpar
+              </Button>
+            )}
+            <span className="text-[11px] text-muted-foreground ml-auto">
+              Ex.: Particular, Seguradora Internacional — sem acordo, comparação distorce.
+            </span>
+          </div>
 
           {/* Linha 2 — modelo */}
           <div className="flex flex-wrap gap-3 items-end">
