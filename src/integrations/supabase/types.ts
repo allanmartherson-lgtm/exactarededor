@@ -12393,6 +12393,7 @@ export type Database = {
       get_exacta_principal_procedure_names: {
         Args: { p_hospital_id: string }
         Returns: {
+          origem: string
           procedure_name: string
         }[]
       }
