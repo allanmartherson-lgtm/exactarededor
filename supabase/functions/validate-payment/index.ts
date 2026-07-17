@@ -764,6 +764,7 @@ Deno.serve(async (req) => {
       { data: rulesRaw, error: rulesErr },
       { data: doctorsRaw, error: docErr },
       { data: groupsRaw, error: grpErr },
+      { data: aliasesRaw, error: aliasErr },
     ] = await Promise.all([
       supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
       supabase
@@ -789,12 +790,29 @@ Deno.serve(async (req) => {
         return { data: all, error: null };
       })(),
       supabase.from("assistance_groups").select("id, name, specialties, active").eq("active", true),
+      (async () => {
+        const all: Array<{ doctor_id: string; alias_normalized: string }> = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await supabase
+            .from("doctor_aliases")
+            .select("doctor_id, alias_normalized")
+            .range(from, from + PAGE - 1);
+          if (error) return { data: null as any, error };
+          if (!data || data.length === 0) break;
+          all.push(...data);
+          if (data.length < PAGE) break;
+        }
+        return { data: all, error: null };
+      })(),
     ]);
     if (payErr || !payment) throw payErr ?? new Error("payment not found");
     if (itErr) throw itErr;
     if (rulesErr) throw rulesErr;
     if (docErr) throw docErr;
     if (grpErr) throw grpErr;
+    if (aliasErr) throw aliasErr;
+
 
     const items = (itemsRaw ?? []) as Item[];
     const rules = (rulesRaw ?? []) as ValidationRule[];
