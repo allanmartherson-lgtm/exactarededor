@@ -807,7 +807,15 @@ export function SimuladorCenario() {
         motorErro = "Selecione uma tabela de referência.";
       } else {
         const scenario = modelo === "percentual"
-          ? { calculation_type: "percentual_sobre_convenio" as const, convenio_percentage: pctNovo }
+          ? {
+              calculation_type: "percentual_sobre_convenio" as const,
+              convenio_percentage: pctNovo,
+              apply_access_route: true,
+              include_auxiliaries: true,
+              aux_first_pct: auxFirstPct,
+              aux_second_pct: auxSecondPct,
+              instrumentador_pct: instrumentadorPct,
+            }
           : {
               calculation_type: "tabela_diferenciada" as const,
               reference_table_id: refTableId,
@@ -816,6 +824,9 @@ export function SimuladorCenario() {
               acrescimo_pct: acrescimo,
               apply_access_route: true,
               include_auxiliaries: true,
+              aux_first_pct: auxFirstPct,
+              aux_second_pct: auxSecondPct,
+              instrumentador_pct: instrumentadorPct,
             };
         const { data: simResp, error: simErr } = await supabase.functions.invoke("simulate-scenario", {
           body: {
