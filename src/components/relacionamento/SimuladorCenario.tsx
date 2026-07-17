@@ -394,6 +394,10 @@ export function SimuladorCenario() {
   // que casou. Default OFF: usamos o fallback "manter pago" (A) para não
   // distorcer casos de pacote/sem_acordo.
   const [excluirSemMatch, setExcluirSemMatch] = useState<boolean>(false);
+  // Toggle média/soma na DRE. Default "media" porque comparar TOTAIS entre
+  // Aurum (N cirurgias) e Exacta (M atendimentos) distorce — a média
+  // normaliza a escala e é o comparativo mais honesto.
+  const [dreView, setDreView] = useState<"media" | "soma">("media");
 
   const [simulando, setSimulando] = useState(false);
   const [salvando, setSalvando] = useState(false);
