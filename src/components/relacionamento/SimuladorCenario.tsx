@@ -1527,6 +1527,7 @@ export function SimuladorCenario() {
                         denomExacta={atd}
                         denomSim={qc}
                         base={A.receita}
+                        viewMode={dreView}
                         tooltip="Aurum: contábil. Exacta Real: gross_amount pago. Simulado: cenário calculado."
                       />
                       {/* Sub-linha extra: % HM sobre Receita Líquida (referência clássica de honorários). */}
