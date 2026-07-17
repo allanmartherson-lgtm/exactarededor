@@ -253,11 +253,11 @@ const Payments = () => {
   const [analysts, setAnalysts] = useState<Record<string, string>>({});
   const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
-  const [analystFilter, setAnalystFilter] = useState<string[]>(persisted.analystFilter ?? []);
-  const [typeFilter, setTypeFilter] = useState<string[]>(persisted.typeFilter ?? []);
-  const [itemTypeFilter, setItemTypeFilter] = useState<string[]>(persisted.itemTypeFilter ?? []);
+  const [analystFilter, setAnalystFilter] = useState<string[]>(Array.isArray(persisted.analystFilter) ? persisted.analystFilter : []);
+  const [typeFilter, setTypeFilter] = useState<string[]>(Array.isArray(persisted.typeFilter) ? persisted.typeFilter : []);
+  const [itemTypeFilter, setItemTypeFilter] = useState<string[]>(Array.isArray(persisted.itemTypeFilter) ? persisted.itemTypeFilter : []);
   const { list: itemTypesList } = useItemTypes({ onlyActive: true });
-  const [trackFilter, setTrackFilter] = useState<string[]>(persisted.trackFilter ?? []);
+  const [trackFilter, setTrackFilter] = useState<string[]>(Array.isArray(persisted.trackFilter) ? persisted.trackFilter : []);
   const [statusFilter, setStatusFilter] = useState<string[]>(() => {
     const raw: any = persisted.statusFilter;
     if (Array.isArray(raw)) return raw;
@@ -329,8 +329,8 @@ const Payments = () => {
   // Filtros avançados (não dependem de "criado por")
   const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">(persisted.divergenceFilter ?? "all");
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">(persisted.questionedFilter ?? "all");
-  const [poolFilter, setPoolFilter] = useState<string[]>(persisted.poolFilter ?? []);
-  const [importModeFilter, setImportModeFilter] = useState<Array<"normal" | "historico">>(persisted.importModeFilter ?? []);
+  const [poolFilter, setPoolFilter] = useState<string[]>(Array.isArray(persisted.poolFilter) ? persisted.poolFilter : []);
+  const [importModeFilter, setImportModeFilter] = useState<Array<"normal" | "historico">>(Array.isArray(persisted.importModeFilter) ? persisted.importModeFilter as Array<"normal" | "historico"> : []);
   const [emptyOnly, setEmptyOnly] = useState<boolean>(persisted.emptyOnly ?? false);
   const [hasProposedGlosas, setHasProposedGlosas] = useState<boolean>(persisted.hasProposedGlosas ?? false);
   const [hasAppliedDebits, setHasAppliedDebits] = useState<boolean>(persisted.hasAppliedDebits ?? false);
