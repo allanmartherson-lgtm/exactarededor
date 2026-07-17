@@ -295,7 +295,7 @@ export default function OverlapAudit() {
                     {data.by_patient.map((p) => {
                       const isOpen = expandedPatient === p.patient_name;
                       return (
-                        <>
+                        <FragmentWithKey key={p.patient_key}>
                           <TableRow key={p.patient_key}>
                             <TableCell className="font-medium">{p.patient_name}</TableCell>
                             <TableCell className="text-right">{p.days}</TableCell>
