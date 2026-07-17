@@ -31,6 +31,7 @@ import { useEnforcedHospitalId } from "@/contexts/HospitalContext";
 import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { cn } from "@/lib/utils";
 import { normAccessRoute } from "@/lib/normAccessRoute";
+import { applyHistoricalAuxOverride } from "@/lib/simulatorAuxOverride";
 
 // Input decimal tolerante: aceita vírgula ou ponto, permite ficar vazio
 // enquanto o usuário digita (ex.: apagar o 0 para digitar 5, ou digitar
