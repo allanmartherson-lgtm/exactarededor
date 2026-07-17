@@ -1902,7 +1902,7 @@ export function SimuladorCenario() {
           </Card>
 
           {/* Cards de resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 [&>*]:min-w-0">
             <SummaryCard
               title="HM Aurum (contábil)"
               valor={resultado.aurum.custo_hm}
