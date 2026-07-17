@@ -439,6 +439,11 @@ function applySobreposicaoAssistencial(
       if (unionSpecs.size < minDistinct) continue;
     }
 
+    // Precisa ter pelo menos 1 item interno para emitir finding (não polui
+    // outros lotes com alertas gerados na validação deste lote).
+    const internos = grp.filter((e) => !e.external);
+    if (internos.length === 0) continue;
+
     const doctorNames = Array.from(new Set(grp.map((e) => e.doctor.full_name)));
     const specialtiesList = Array.from(unionSpecs);
 
@@ -449,11 +454,14 @@ function applySobreposicaoAssistencial(
       ? `${doctorNames.join(", ")}`
       : `${specialtiesList.join(" + ")} — ${doctorNames.join(", ")}`;
 
-    for (const e of grp) {
+    for (const e of internos) {
       const other =
         grp.find((x) => normName(x.doctor.full_name) !== normName(e.doctor.full_name)) ??
         grp.find((x) => x.specialty !== e.specialty);
       if (!other) continue;
+      const otherRef = other.external
+        ? (externalRefById.get(other.item.payment_id ?? "") ?? null)
+        : paymentReference;
       const snapshot: ConflictingItemSnapshot = {
         attendance_number: other.item.attendance_number,
         patient_name: getPatient(other.item),
@@ -463,8 +471,9 @@ function applySobreposicaoAssistencial(
         procedure_date: other.item.procedure_date,
         company_name: other.item.company_name,
         payment_id: other.item.payment_id,
-        payment_reference: paymentReference,
+        payment_reference: otherRef,
       };
+      const crossTag = other.external ? ` (lote ${otherRef ?? "externo"})` : "";
       const list = findingsByItem.get(e.item.id) ?? [];
       list.push({
         rule_id: rule.id,
@@ -472,7 +481,7 @@ function applySobreposicaoAssistencial(
         kind: rule.kind,
         severity: rule.severity,
         action: rule.action,
-        message: `Sobreposição assistencial: ${patientName} foi atendido em ${dateStr} por médicos ${contextLabel} (${detailLabel}).`,
+        message: `Sobreposição assistencial: ${patientName} foi atendido em ${dateStr} por médicos ${contextLabel} (${detailLabel})${crossTag}.`,
         conflicting_item_id: other.item.id,
         conflicting_item: snapshot,
         detected_at: now,
@@ -481,6 +490,7 @@ function applySobreposicaoAssistencial(
       hits++;
     }
   }
+
 
   return { hits, unresolvedDoctors };
 }
