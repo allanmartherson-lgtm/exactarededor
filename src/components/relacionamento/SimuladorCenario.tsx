@@ -1959,6 +1959,9 @@ export function SimuladorCenario() {
                 })()}
               </div>
               <div className="flex gap-2 flex-wrap">
+                <Button type="button" variant="outline" onClick={exportarPdf}>
+                  Exportar PDF
+                </Button>
                 <Button type="button" variant="outline" onClick={exportarDetalhado} disabled={!disp.exacta}>
                   Exportar Excel detalhado
                 </Button>
