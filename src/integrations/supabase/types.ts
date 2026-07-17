@@ -12538,6 +12538,17 @@ export type Database = {
               status: string
             }[]
           }
+      get_overlap_audit: {
+        Args: {
+          p_end: string
+          p_excluded_specs?: string[]
+          p_item_scope?: string
+          p_min_distinct?: number
+          p_specialty_mode?: string
+          p_start: string
+        }
+        Returns: Json
+      }
       get_payment_pivot:
         | {
             Args: {

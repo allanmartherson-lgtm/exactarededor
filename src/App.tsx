@@ -75,6 +75,7 @@ const loadKpis = () => import("./pages/Kpis.tsx");
 const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
 
 const loadInterventionAudit = () => import("./pages/InterventionAudit.tsx");
+const loadOverlapAudit = () => import("./pages/OverlapAudit.tsx");
 const loadCancelledPayments = () => import("./pages/CancelledPayments.tsx");
 const loadInterventionReports = () => import("./pages/InterventionReports.tsx");
 const loadLoteInterventionReport = () => import("./pages/LoteInterventionReport.tsx");
@@ -173,6 +174,7 @@ const Kpis = lazy(loadKpis);
 const InterventionAdjustments = lazy(loadInterventionAdjustments);
 
 const InterventionAudit = lazy(loadInterventionAudit);
+const OverlapAudit = lazy(loadOverlapAudit);
 const CancelledPayments = lazy(loadCancelledPayments);
 const InterventionReports = lazy(loadInterventionReports);
 const LoteInterventionReport = lazy(loadLoteInterventionReport);
@@ -333,6 +335,7 @@ const App = () => (
                   <Route path="/notas-fiscais" element={<NotasFiscaisHub />} />
                   <Route path="/kpis" element={<Kpis />} />
                   <Route path="/relatorios/intervencoes" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><InterventionReports /></ProtectedRoute>} />
+                  <Route path="/auditoria/sobreposicao-assistencial" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><OverlapAudit /></ProtectedRoute>} />
                   {/* Compat: rotas antigas redirecionam para a página unificada com a view correta */}
                   <Route path="/relatorios/ajustes-intervencao" element={<Navigate to="/relatorios/intervencoes?view=ajustes" replace />} />
                   <Route path="/relatorios/correcoes-analista" element={<Navigate to="/relatorios/intervencoes?view=ajustes&papel=analista" replace />} />
