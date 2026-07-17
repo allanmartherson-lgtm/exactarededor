@@ -83,12 +83,14 @@ interface Props {
 }
 
 function fmtDate(s: string | null | undefined): string {
+  // UTC-safe: usa os 10 primeiros caracteres do ISO (yyyy-mm-dd) para bater
+  // exatamente com a chave de agrupamento do motor (procedure_date.slice(0,10)).
+  // Evita que timestamps 00:00Z apareçam "no dia anterior" em navegadores UTC-3.
   if (!s) return "—";
-  try {
-    return new Date(s).toLocaleDateString("pt-BR");
-  } catch {
-    return String(s);
-  }
+  const iso = String(s).slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return String(s);
+  return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
 function fmtCurrency(n: number): string {
