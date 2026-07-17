@@ -71,6 +71,8 @@ export type AssistanceAlertRow = {
   conflicting_date: string;
   conflicting_attendance: string;
   conflicting_payment_ref: string;
+  conflicting_item_id: string;
+  conflicting_gross_amount: number;
 };
 
 interface Props {
