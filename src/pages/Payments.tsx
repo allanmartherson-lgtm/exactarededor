@@ -27,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MultiSelectPopover } from "@/components/ui/MultiSelectPopover";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride } from "@/lib/sla";
 import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import { toast } from "sonner";
@@ -187,10 +188,10 @@ type PersistedPaymentsState = Partial<{
   q: string;
   companyFilter: CompanyOption | null;
   doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
-  analystFilter: string;
-  typeFilter: string;
-  itemTypeFilter: string;
-  trackFilter: string;
+  analystFilter: string[];
+  typeFilter: string[];
+  itemTypeFilter: string[];
+  trackFilter: string[];
   statusFilter: string[];
   competenceFilter: string;
   view: "lista" | "kanban";
@@ -198,8 +199,8 @@ type PersistedPaymentsState = Partial<{
   colSort: { col: ColSortCol; dir: "asc" | "desc" } | null;
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
-  poolFilter: string;
-  importModeFilter: "all" | "normal" | "historico";
+  poolFilter: string[];
+  importModeFilter: Array<"normal" | "historico">;
   emptyOnly: boolean;
   hasProposedGlosas: boolean;
   hasAppliedDebits: boolean;
@@ -252,11 +253,11 @@ const Payments = () => {
   const [analysts, setAnalysts] = useState<Record<string, string>>({});
   const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
-  const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
-  const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
-  const [itemTypeFilter, setItemTypeFilter] = useState<string>(persisted.itemTypeFilter ?? "all");
+  const [analystFilter, setAnalystFilter] = useState<string[]>(persisted.analystFilter ?? []);
+  const [typeFilter, setTypeFilter] = useState<string[]>(persisted.typeFilter ?? []);
+  const [itemTypeFilter, setItemTypeFilter] = useState<string[]>(persisted.itemTypeFilter ?? []);
   const { list: itemTypesList } = useItemTypes({ onlyActive: true });
-  const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
+  const [trackFilter, setTrackFilter] = useState<string[]>(persisted.trackFilter ?? []);
   const [statusFilter, setStatusFilter] = useState<string[]>(() => {
     const raw: any = persisted.statusFilter;
     if (Array.isArray(raw)) return raw;
@@ -328,8 +329,8 @@ const Payments = () => {
   // Filtros avançados (não dependem de "criado por")
   const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">(persisted.divergenceFilter ?? "all");
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">(persisted.questionedFilter ?? "all");
-  const [poolFilter, setPoolFilter] = useState<string>(persisted.poolFilter ?? "all");
-  const [importModeFilter, setImportModeFilter] = useState<"all" | "normal" | "historico">(persisted.importModeFilter ?? "all");
+  const [poolFilter, setPoolFilter] = useState<string[]>(persisted.poolFilter ?? []);
+  const [importModeFilter, setImportModeFilter] = useState<Array<"normal" | "historico">>(persisted.importModeFilter ?? []);
   const [emptyOnly, setEmptyOnly] = useState<boolean>(persisted.emptyOnly ?? false);
   const [hasProposedGlosas, setHasProposedGlosas] = useState<boolean>(persisted.hasProposedGlosas ?? false);
   const [hasAppliedDebits, setHasAppliedDebits] = useState<boolean>(persisted.hasAppliedDebits ?? false);
@@ -563,10 +564,10 @@ const Payments = () => {
   const rpcFilters = useMemo(() => {
     const f: Record<string, any> = {};
     if (serverStatuses) f.statuses = serverStatuses;
-    if (typeFilter !== "all") f.payment_types = [typeFilter];
-    if (itemTypeFilter !== "all") f.item_type_ids = [itemTypeFilter];
-    if (trackFilter !== "all") f.payment_tracks = [trackFilter];
-    if (analystFilter !== "all") f.created_by_ids = [analystFilter];
+    if (typeFilter.length > 0) f.payment_types = typeFilter;
+    if (itemTypeFilter.length > 0) f.item_type_ids = itemTypeFilter;
+    if (trackFilter.length > 0) f.payment_tracks = trackFilter;
+    if (analystFilter.length > 0) f.created_by_ids = analystFilter;
     if (companyFilter?.id) f.company_ids = [companyFilter.id];
     if (doctorFilter?.id) f.doctor_ids = [doctorFilter.id];
     if (competenceFilter !== "all") {
@@ -582,8 +583,8 @@ const Payments = () => {
     if (openQuestionOnly) f.only_open_questions = true;
     if (divergenceFilter === "with") f.only_divergence = true;
     if (questionedFilter !== "all") f.with_questions = questionedFilter;
-    if (poolFilter !== "all") f.pool_ids = [poolFilter];
-    if (importModeFilter !== "all") f.import_modes = [importModeFilter];
+    if (poolFilter.length > 0) f.pool_ids = poolFilter;
+    if (importModeFilter.length > 0) f.import_modes = importModeFilter;
     if (emptyOnly) f.only_empty = true;
     if (hasProposedGlosas) f.has_proposed_glosas = true;
     if (hasAppliedDebits) f.has_applied_debits = true;
@@ -1327,16 +1328,16 @@ const Payments = () => {
           );
           // Conta filtros secundários ativos (mostrados dentro do popover)
           const advancedCount = [
-            analystFilter !== "all",
-            typeFilter !== "all",
-            itemTypeFilter !== "all",
-            trackFilter !== "all",
+            analystFilter.length > 0,
+            typeFilter.length > 0,
+            itemTypeFilter.length > 0,
+            trackFilter.length > 0,
             competenceFilter !== "all",
             ownerGroup !== "all",
             divergenceFilter !== "all",
             questionedFilter !== "all",
-            poolFilter !== "all",
-            importModeFilter !== "all",
+            poolFilter.length > 0,
+            importModeFilter.length > 0,
             emptyOnly,
             hasProposedGlosas,
             hasAppliedDebits,
@@ -1348,44 +1349,54 @@ const Payments = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Analista</label>
-                <Select value={analystFilter} onValueChange={setAnalystFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Analista" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos analistas</SelectItem>
-                    {analystOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos analistas"
+                  allLabel="Todos analistas"
+                  values={analystFilter}
+                  onChange={setAnalystFilter}
+                  options={analystOptions.map((a) => ({ value: a.id, label: a.name }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo (lote)</label>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos tipos</SelectItem>
-                    {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos tipos"
+                  allLabel="Todos tipos"
+                  values={typeFilter}
+                  onChange={setTypeFilter}
+                  options={Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v as string }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo de item</label>
-                <Select value={itemTypeFilter} onValueChange={setItemTypeFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Tipo de item" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os itens</SelectItem>
-                    {itemTypesList.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os itens"
+                  allLabel="Todos os itens"
+                  values={itemTypeFilter}
+                  onChange={setItemTypeFilter}
+                  options={itemTypesList.map((t) => ({ value: t.id, label: t.label }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Trilha</label>
-                <Select value={trackFilter} onValueChange={setTrackFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Trilha" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as trilhas</SelectItem>
-                    <SelectItem value="habitual">{PAYMENT_TRACK_SHORT_LABELS.habitual}</SelectItem>
-                    <SelectItem value="prioritario">{PAYMENT_TRACK_SHORT_LABELS.prioritario}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todas as trilhas"
+                  allLabel="Todas as trilhas"
+                  values={trackFilter}
+                  onChange={setTrackFilter}
+                  options={[
+                    { value: "habitual", label: PAYMENT_TRACK_SHORT_LABELS.habitual },
+                    { value: "prioritario", label: PAYMENT_TRACK_SHORT_LABELS.prioritario },
+                  ]}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Competência</label>
@@ -1439,24 +1450,30 @@ const Payments = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Pool (rateio)</label>
-                <Select value={poolFilter} onValueChange={setPoolFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Pool" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os pools</SelectItem>
-                    {poolOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os pools"
+                  allLabel="Todos os pools"
+                  values={poolFilter}
+                  onChange={setPoolFilter}
+                  options={poolOptions.map((p) => ({ value: p.id, label: p.nome }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Modo de importação</label>
-                <Select value={importModeFilter} onValueChange={(v) => setImportModeFilter(v as typeof importModeFilter)}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Modo" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os modos</SelectItem>
-                    <SelectItem value="normal">Normal (corrente)</SelectItem>
-                    <SelectItem value="historico">Histórico (retroativo)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os modos"
+                  allLabel="Todos os modos"
+                  values={importModeFilter}
+                  onChange={(v) => setImportModeFilter(v as Array<"normal" | "historico">)}
+                  options={[
+                    { value: "normal", label: "Normal (corrente)" },
+                    { value: "historico", label: "Histórico (retroativo)" },
+                  ]}
+                />
               </div>
               <div className="space-y-1 flex items-end">
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -1600,16 +1617,16 @@ const Payments = () => {
                         type="button"
                         className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
                         onClick={() => {
-                          setAnalystFilter("all");
-                          setTypeFilter("all");
-                          setItemTypeFilter("all");
-                          setTrackFilter("all");
+                          setAnalystFilter([]);
+                          setTypeFilter([]);
+                          setItemTypeFilter([]);
+                          setTrackFilter([]);
                           setCompetenceFilter("all");
                           setOwnerGroup("all");
                           setDivergenceFilter("all");
                           setQuestionedFilter("all");
-                          setPoolFilter("all");
-                          setImportModeFilter("all");
+                          setPoolFilter([]);
+                          setImportModeFilter([]);
                           setEmptyOnly(false);
                           setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                           const next = new URLSearchParams(searchParams);
@@ -1647,15 +1664,15 @@ const Payments = () => {
                       setOpenQuestionOnly(false);
                       setOnlyMine(false);
                       setOwnerGroup("all");
-                      setAnalystFilter("all");
-                      setTypeFilter("all");
-                      setItemTypeFilter("all");
-                      setTrackFilter("all");
+                      setAnalystFilter([]);
+                      setTypeFilter([]);
+                      setItemTypeFilter([]);
+                      setTrackFilter([]);
                       setCompetenceFilter("all");
                       setDivergenceFilter("all");
                       setQuestionedFilter("all");
-                      setPoolFilter("all");
-                      setImportModeFilter("all");
+                      setPoolFilter([]);
+                      setImportModeFilter([]);
                       setEmptyOnly(false);
                       setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                       const next = new URLSearchParams(searchParams);
@@ -1707,13 +1724,13 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || itemTypeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts) && (
+              {(companyFilter || analystFilter.length > 0 || typeFilter.length > 0 || itemTypeFilter.length > 0 || trackFilter.length > 0 || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter.length > 0 || importModeFilter.length > 0 || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
-                  setAnalystFilter("all"); setTypeFilter("all"); setItemTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setAnalystFilter([]); setTypeFilter([]); setItemTypeFilter([]); setTrackFilter([]); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
-                  setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
+                  setPoolFilter([]); setImportModeFilter([]); setEmptyOnly(false);
                   setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                   setSearchParams(new URLSearchParams(), { replace: true });
                 }}>
