@@ -1539,9 +1539,10 @@ export function SimuladorCenario() {
                         label="Honorários Médicos"
                         aurum={-A.custo_hm}
                         exacta={exGrossProj != null ? -exGrossProj : null}
-                        simulado={-sim.novo_hm}
+                        simulado={-novoHmProj}
                         indent
                         highlight="amber"
+                        emphasize
                         simuladoTone={simHmTone}
                         denomAurum={qc}
                         denomExacta={qc}
@@ -1551,7 +1552,7 @@ export function SimuladorCenario() {
                         denomLabelExacta="cir"
                         tooltip={
                           atd > 0 && qc > 0 && atd !== qc
-                            ? `Exacta projetado para ${qc} cirurgias (média × ${qc}) — original: ${atd} atend. com R$ ${exGross?.toFixed(2)}. Diferença = honorários faturados externamente.`
+                            ? `Exacta e Simulado projetados para ${qc} cirurgias (média × ${qc}) — original: ${atd} atend. com HM R$ ${exGross?.toFixed(2)}. Diferença Aurum × Exacta = honorários faturados externamente.`
                             : "Aurum: contábil. Exacta Real: gross_amount pago. Simulado: cenário calculado."
                         }
                       />
