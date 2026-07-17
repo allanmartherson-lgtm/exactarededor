@@ -524,6 +524,7 @@ export default function InterventionAdjustments() {
                     paymentIds: [],
                     companyNames: [],
                     doctorNames: [],
+                    papeisAutor: [],
                     classifications: ["economia", "aumento"],
                     minValue: null,
                     maxValue: null,
