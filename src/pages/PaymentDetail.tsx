@@ -4291,6 +4291,11 @@ const PaymentDetail = () => {
                       </div>
                     )}
                   </div>
+                  {totalRuleAlerts > 0 && totalRiskWithConflicts > totalRuleValue && (
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      incluindo outros lotes: <span className="text-red-600 font-medium">{formatCurrency(totalRiskWithConflicts)}</span>
+                    </div>
+                  )}
                   {sortedRules.length === 0 ? (
                     <p className="italic text-muted-foreground">Nenhum alerta</p>
                   ) : (
