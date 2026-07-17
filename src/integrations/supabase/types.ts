@@ -12390,6 +12390,12 @@ export type Database = {
               status: string
             }[]
           }
+      get_exacta_principal_procedure_names: {
+        Args: { p_hospital_id: string }
+        Returns: {
+          procedure_name: string
+        }[]
+      }
       get_group_block_thresholds: {
         Args: { _hospital_id: string }
         Returns: {

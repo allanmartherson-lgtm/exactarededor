@@ -119,31 +119,50 @@ export function ProcedureAliasManager() {
     setLoading(true);
     void (async () => {
       try {
-        const [aurumRows, exactaRows, aliasRows] = await Promise.all([
+        const [aurumRes, exactaRes, aliasRes] = await Promise.all([
           fetchAllPaginated<{ ds_procedimento: string | null }>((from, to) =>
             supabase
               .from("aurum_margem_procedimento" as never)
               .select("ds_procedimento")
               .eq("hospital_id", hospitalId)
               .range(from, to) as never,
-          ),
-          fetchAllPaginated<{ procedure_name: string | null; access_route: string | null }>((from, to) =>
-            supabase
-              .from("payment_items")
-              .select("procedure_name,access_route")
-              .eq("hospital_id", hospitalId)
-              .eq("is_cancelled", false)
-              .or("access_route.ilike.%nica%,access_route.ilike.%principal%")
-              .range(from, to),
-          ),
+          )
+            .then((rows) => ({ rows, error: null as unknown }))
+            .catch((error) => ({ rows: [] as { ds_procedimento: string | null }[], error })),
+          // RPC agregada no banco (DISTINCT). Substitui a paginação em massa de
+          // payment_items com OR ilike, que estourava statement_timeout (57014).
+          (
+            supabase.rpc as unknown as (
+              name: string,
+              args: Record<string, unknown>,
+            ) => Promise<{ data: { procedure_name: string | null }[] | null; error: unknown }>
+          )("get_exacta_principal_procedure_names", { p_hospital_id: hospitalId }),
           fetchAllPaginated<AliasRow>((from, to) =>
             supabase
               .from("procedure_aliases" as never)
               .select("id, alias_text, canonical_name, created_at")
               .eq("hospital_id", hospitalId)
               .range(from, to) as never,
-          ),
+          )
+            .then((rows) => ({ rows, error: null as unknown }))
+            .catch((error) => ({ rows: [] as AliasRow[], error })),
         ]);
+        const aurumRows = aurumRes.rows;
+        const exactaRows = (exactaRes.data ?? []) as { procedure_name: string | null }[];
+        const aliasRows = aliasRes.rows;
+        const firstError =
+          (aurumRes as { error: unknown }).error ??
+          (exactaRes as { error: unknown }).error ??
+          (aliasRes as { error: unknown }).error;
+        if (firstError) {
+          const msg =
+            firstError instanceof Error
+              ? firstError.message
+              : typeof firstError === "object" && firstError && "message" in firstError
+                ? String((firstError as { message: unknown }).message)
+                : String(firstError);
+          toast.error(`Falha ao carregar parte dos dados: ${msg}`);
+        }
         if (cancelled) return;
 
         const aurumSet = new Map<string, string>(); // normalizado → nome original
