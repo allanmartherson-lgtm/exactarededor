@@ -1,9 +1,8 @@
 /**
  * Painel de auditoria de sobreposição assistencial.
  *
- * Consulta autônoma sobre payment_items do hospital ativo: identifica
- * mesmo paciente + mesmo dia + ≥2 especialidades distintas em lançamentos
- * de visita/parecer. Não depende da regra ter rodado no lote.
+ * Duplicidade pura: mesmo atendimento + mesmo dia + mesmo tipo (visita/parecer)
+ * com ≥ N médicos distintos lançando. Não depende da regra ter rodado no lote.
  */
 import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
