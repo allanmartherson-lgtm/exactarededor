@@ -1049,6 +1049,7 @@ export function SimuladorCenario() {
             "Simulado (motor real)": simExpected,
             "Método simulado": sim?.calculation_type_used ?? "",
             "Simulado sem match?": sim ? (sim.matched ? "" : "SEM MATCH") : "—",
+            "Valor mantido (fallback pago)?": sim?.usedFallback ? "SIM" : "",
             "Alertas simulado": sim?.alerts?.join(" | ") ?? "",
             "Δ Simulado − Pago": Number(deltaSimVsPago.toFixed(2)),
           };
