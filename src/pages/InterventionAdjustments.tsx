@@ -372,11 +372,11 @@ export default function InterventionAdjustments() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Papel</label>
+              <label className="text-xs text-muted-foreground">Tipo de intervenção</label>
               <MultiSelectPopover
                 width="w-[200px]"
-                allLabel="Todos os papéis"
-                placeholder="Buscar papel…"
+                allLabel="Todos os tipos"
+                placeholder="Buscar tipo…"
                 values={filters.roles ?? []}
                 onChange={(v) => setFilters((f) => ({ ...f, roles: v, role: "all" }))}
                 options={[
@@ -390,6 +390,23 @@ export default function InterventionAdjustments() {
                   { value: "cancelamento_empresa", label: "Cancelamento empresa" },
                   { value: "cancelamento_item", label: "Cancelamento item" },
                   { value: "cancelamento_conciliacao", label: "Cancelamento via conciliação" },
+                ]}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Papel do autor</label>
+              <MultiSelectPopover
+                width="w-[180px]"
+                allLabel="Todos"
+                searchable={false}
+                values={filters.papeisAutor ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, papeisAutor: v }))}
+                options={[
+                  { value: "analista", label: "Analista" },
+                  { value: "validador", label: "Supervisor" },
+                  { value: "diretor", label: "Diretor" },
+                  { value: "admin", label: "Admin" },
+                  { value: "sistema", label: "Sistema (automático)" },
                 ]}
               />
             </div>
