@@ -190,16 +190,21 @@ export function ProcedureAliasManager() {
           if (!aurumSet.has(n)) aurumSet.set(n, nome);
         }
         const exactaSet = new Map<string, string>();
+        const originMap = new Map<string, Set<string>>();
         for (const r of exactaRows) {
           const nome = (r.procedure_name ?? "").trim();
           if (!nome) continue;
           const n = norm(nome);
           if (!n) continue;
           if (!exactaSet.has(n)) exactaSet.set(n, nome);
+          const set = originMap.get(n) ?? new Set<string>();
+          if (r.origem) set.add(r.origem);
+          originMap.set(n, set);
         }
 
         setAurumNames(Array.from(aurumSet.values()).sort((a, b) => a.localeCompare(b, "pt-BR")));
         setExactaNames(Array.from(exactaSet.values()).sort((a, b) => a.localeCompare(b, "pt-BR")));
+        setExactaOriginMap(originMap);
         setAliases(aliasRows);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
