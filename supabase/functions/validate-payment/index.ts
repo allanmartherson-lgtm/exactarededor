@@ -843,7 +843,7 @@ Deno.serve(async (req) => {
     let externalItems: Item[] = [];
     const externalRefById = new Map<string, string | null>();
     const hasSobreposicao = rules.some((r) => r.kind === "sobreposicao_assistencial");
-    const loadExternals = items.length > 0 && (dupRules.length > 0 || (scope === "cross" && hasSobreposicao));
+    const loadExternals = items.length > 0 && (dupRules.length > 0 || hasSobreposicao);
     if (loadExternals) {
 
       const dates = items.map((i) => i.procedure_date).filter((d): d is string => !!d);
