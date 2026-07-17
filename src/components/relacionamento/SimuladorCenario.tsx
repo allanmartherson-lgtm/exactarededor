@@ -1449,6 +1449,71 @@ export function SimuladorCenario() {
             </span>
           </div>
 
+          {/* Exclusão de convênios — remove do Exacta os itens de convênios
+              sem acordo (Particular, Seguradora Internacional etc.) para não
+              distorcer a comparação com o Aurum. */}
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+            <Label className="text-xs m-0 shrink-0">Excluir convênios do Exacta</Label>
+            <Popover open={convenioPickerOpen} onOpenChange={setConvenioPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs font-normal justify-between min-w-[16rem]"
+                >
+                  <span className="truncate">
+                    {conveniosExcluidos.length === 0
+                      ? "Nenhum (usa todos)"
+                      : `${conveniosExcluidos.length} convênio${conveniosExcluidos.length > 1 ? "s" : ""} excluído${conveniosExcluidos.length > 1 ? "s" : ""}`}
+                  </span>
+                  <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0 ml-1" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[320px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar convênio…" />
+                  <CommandList className="max-h-[280px]">
+                    <CommandEmpty>Nenhum convênio cadastrado.</CommandEmpty>
+                    <CommandGroup>
+                      {convenioOptions.map((c) => {
+                        const checked = conveniosExcluidos.includes(c.slug);
+                        return (
+                          <CommandItem
+                            key={c.slug}
+                            value={`${c.name} ${c.slug}`}
+                            onSelect={() => {
+                              setConveniosExcluidos((prev) =>
+                                prev.includes(c.slug) ? prev.filter((s) => s !== c.slug) : [...prev, c.slug],
+                              );
+                              setResultado(null);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
+                            <span className="text-xs truncate">{c.name}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {conveniosExcluidos.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => { setConveniosExcluidos([]); setResultado(null); }}
+              >
+                Limpar
+              </Button>
+            )}
+            <span className="text-[11px] text-muted-foreground ml-auto">
+              Ex.: Particular, Seguradora Internacional — sem acordo, comparação distorce.
+            </span>
+          </div>
 
           {/* Linha 2 — modelo */}
           <div className="flex flex-wrap gap-3 items-end">
