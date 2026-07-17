@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { normAccessRoute } from "@/lib/normAccessRoute";
 import { applyHistoricalAuxOverride } from "@/lib/simulatorAuxOverride";
 import { loadConvenioAliases } from "@/hooks/useConvenioAliases";
+import { exportSimuladorCenarioPdf } from "@/lib/simuladorCenarioPdf";
 
 // Input decimal tolerante: aceita vírgula ou ponto, permite ficar vazio
 // enquanto o usuário digita (ex.: apagar o 0 para digitar 5, ou digitar
