@@ -221,6 +221,9 @@ interface SimPerItem {
   matched: boolean;
   calculation_type_used: string | null;
   alerts: string[];
+  /** true quando o motor não achou regra e caímos no fallback "manter pago à época" (gross_amount).
+   *  Evita distorcer o Simulado zerando itens que hoje são pacote, sem_acordo, etc. */
+  usedFallback?: boolean;
 }
 
 interface Simulado {
