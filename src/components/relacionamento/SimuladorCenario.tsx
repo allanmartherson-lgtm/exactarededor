@@ -900,6 +900,39 @@ export function SimuladorCenario() {
         }
       }
 
+      // 2.5) Exclusão de convênios (ex: Particular, Seguradora Internacional).
+      // Resolve cada `agreement_text` via aliases e remove itens cujo slug
+      // esteja na lista de exclusão. Recomputa agregados para manter DRE/HM
+      // coerentes. Sem match no cadastro → mantém (não conseguimos afirmar
+      // que é o convênio excluído).
+      if (exacta && conveniosExcluidos.length > 0) {
+        const aliasMap = await loadConvenioAliases(hospitalId);
+        const excludeSet = new Set(conveniosExcluidos.map((s) => s.toLowerCase()));
+        const kept = exacta.detalhes.filter((d) => {
+          const slug = aliasMap.resolveSlug(d.agreement_text);
+          return !(slug && excludeSet.has(slug.toLowerCase()));
+        });
+        if (kept.length !== exacta.detalhes.length) {
+          let g = 0, e = 0, b = 0, sc = 0;
+          const atts = new Set<string>();
+          for (const d of kept) {
+            g += Number(d.gross_amount ?? 0);
+            e += Number(d.expected_amount ?? 0);
+            b += Number(d.procedure_amount ?? 0);
+            if (d.attendance_number) atts.add(String(d.attendance_number));
+            // sem_carater não é reconstruível a partir de ItemDetalhe; mantém proporcional
+          }
+          sc = exacta.detalhes.length > 0
+            ? Math.round((exacta.sem_carater * kept.length) / exacta.detalhes.length)
+            : 0;
+          exacta = kept.length > 0
+            ? { gross: g, expected: e, baseConvenio: b, itens: kept.length, atendimentos: atts.size, sem_carater: sc, detalhes: kept }
+            : null;
+        }
+      }
+
+
+
       // 3) Cálculo do cenário simulado — via edge function `simulate-scenario`,
       //    que invoca o MESMO motor determinístico usado no pagamento real.
       //    Assim eliminamos heurísticas hardcoded no cliente (fatores por
