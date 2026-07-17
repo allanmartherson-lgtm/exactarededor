@@ -360,7 +360,7 @@ function DreLine({
         v={simulado}
         denom={denomSim}
         denomLabel={denomLabelSim}
-        extraCls="bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r"
+        extraCls="bg-muted/70 dark:bg-muted/40 border-l border-border -mr-2 pr-3 pl-3 rounded-r"
         corTotal={simCor}
       />
     </div>
@@ -1482,7 +1482,7 @@ export function SimuladorCenario() {
                   <span></span>
                   <span className="text-right self-center">Aurum</span>
                   <span className="text-right self-center">Exacta Real</span>
-                  <span className="text-right text-primary font-bold bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">Simulado</span>
+                  <span className="text-right text-primary font-bold bg-muted/70 dark:bg-muted/40 border-l border-border -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">Simulado</span>
                 </div>
 
 
@@ -1575,7 +1575,7 @@ export function SimuladorCenario() {
                         <span className="italic self-center">% da Receita Líquida</span>
                         <span className="text-right tabular-nums self-center">{PCT(pctHmAurum)}</span>
                         <span className="text-right tabular-nums self-center">{PCT(pctHmExacta)}</span>
-                        <span className="text-right tabular-nums bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">{PCT(pctHmSim)}</span>
+                        <span className="text-right tabular-nums bg-muted/70 dark:bg-muted/40 border-l border-border -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">{PCT(pctHmSim)}</span>
                       </div>
 
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent
@@ -1603,7 +1603,7 @@ export function SimuladorCenario() {
                               <div className="text-right flex flex-col justify-center leading-tight">
                                 <span className={cn("text-base tabular-nums font-bold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf : ""}</span>
                               </div>
-                              <div className="text-right flex flex-col justify-center leading-tight bg-primary/[0.08] dark:bg-primary/10 border-l border-primary/20 -mr-2 pr-3 pl-3 rounded-r">
+                              <div className="text-right flex flex-col justify-center leading-tight bg-muted dark:bg-muted/60 border-l border-border -mr-2 pr-3 pl-3 rounded-r">
                                 <span className={cn("text-xl tabular-nums font-bold", sMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showS)}{suf}</span>
                               </div>
                             </div>
@@ -1614,7 +1614,7 @@ export function SimuladorCenario() {
                           <span className="self-center">% Margem</span>
                           <span className="text-right tabular-nums self-center">{PCT(A.pct_margem)}</span>
                           <span className="text-right tabular-nums self-center">{PCT(pctExactaProj)}</span>
-                          <span className="text-right tabular-nums bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r font-semibold text-primary self-stretch flex items-center justify-end">{PCT(pctMargemSimProj)}</span>
+                          <span className="text-right tabular-nums bg-muted/70 dark:bg-muted/40 border-l border-border -mr-2 pr-3 pl-3 rounded-r font-semibold text-primary self-stretch flex items-center justify-end">{PCT(pctMargemSimProj)}</span>
                         </div>
 
                       </div>
