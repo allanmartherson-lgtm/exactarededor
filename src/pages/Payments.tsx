@@ -187,10 +187,10 @@ type PersistedPaymentsState = Partial<{
   q: string;
   companyFilter: CompanyOption | null;
   doctorFilter: { id: string; full_name: string; crm: string | null; crm_uf: string | null } | null;
-  analystFilter: string;
-  typeFilter: string;
-  itemTypeFilter: string;
-  trackFilter: string;
+  analystFilter: string[];
+  typeFilter: string[];
+  itemTypeFilter: string[];
+  trackFilter: string[];
   statusFilter: string[];
   competenceFilter: string;
   view: "lista" | "kanban";
@@ -198,8 +198,8 @@ type PersistedPaymentsState = Partial<{
   colSort: { col: ColSortCol; dir: "asc" | "desc" } | null;
   divergenceFilter: "all" | "with" | "without";
   questionedFilter: "all" | "with" | "without";
-  poolFilter: string;
-  importModeFilter: "all" | "normal" | "historico";
+  poolFilter: string[];
+  importModeFilter: Array<"normal" | "historico">;
   emptyOnly: boolean;
   hasProposedGlosas: boolean;
   hasAppliedDebits: boolean;
