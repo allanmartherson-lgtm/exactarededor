@@ -211,7 +211,7 @@ interface ItemDetalhe {
   gross_amount: number;
   expected_amount: number;
   company_name: string | null;
-  rule_summary: string | null;
+  applied_rule_label: string | null;
   applied_calc_method: string | null;
 }
 
@@ -606,12 +606,12 @@ export function SimuladorCenario() {
                 specialty: string | null;
                 quantity: number | null;
                 company_name: string | null;
-                rule_summary: string | null;
+                applied_rule_label: string | null;
                 applied_calc_method: string | null;
               }>((from, to) => {
                 let q = supabase
                   .from("payment_items")
-                  .select("id,attendance_number,gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,procedure_name,agreement_text,doctor_role,doctor_name,access_route,sector,specialty,quantity,company_name,rule_summary,applied_calc_method")
+                  .select("id,attendance_number,gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,procedure_name,agreement_text,doctor_role,doctor_name,access_route,sector,specialty,quantity,company_name,applied_rule_label,applied_calc_method")
                   .eq("hospital_id", hospitalId)
                   .eq("is_cancelled", false)
                   .in("attendance_number", slice);
@@ -644,7 +644,7 @@ export function SimuladorCenario() {
                   gross_amount: Number(it.gross_amount ?? 0),
                   expected_amount: Number(it.expected_amount ?? 0),
                   company_name: it.company_name ?? null,
-                  rule_summary: it.rule_summary ?? null,
+                  applied_rule_label: it.applied_rule_label ?? null,
                   applied_calc_method: it.applied_calc_method ?? null,
                 });
               }
@@ -726,12 +726,12 @@ export function SimuladorCenario() {
               specialty: string | null;
               quantity: number | null;
               company_name: string | null;
-              rule_summary: string | null;
+              applied_rule_label: string | null;
               applied_calc_method: string | null;
             }>((from, to) => {
               let q = supabase
                 .from("payment_items")
-                .select("id,attendance_number,gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,procedure_name,agreement_text,doctor_role,doctor_name,access_route,sector,specialty,quantity,company_name,rule_summary,applied_calc_method")
+                .select("id,attendance_number,gross_amount,expected_amount,procedure_amount,attendance_character,procedure_code,procedure_name,agreement_text,doctor_role,doctor_name,access_route,sector,specialty,quantity,company_name,applied_rule_label,applied_calc_method")
                 .eq("hospital_id", hospitalId)
                 .eq("is_cancelled", false)
                 .in("attendance_number", slice);
@@ -764,7 +764,7 @@ export function SimuladorCenario() {
                 gross_amount: Number(it.gross_amount ?? 0),
                 expected_amount: Number(it.expected_amount ?? 0),
                 company_name: it.company_name ?? null,
-                rule_summary: it.rule_summary ?? null,
+                applied_rule_label: it.applied_rule_label ?? null,
                 applied_calc_method: it.applied_calc_method ?? null,
               });
             }
@@ -990,7 +990,7 @@ export function SimuladorCenario() {
             "Base convênio (proc_amount)": d.procedure_amount,
             "Valor pago à época (gross)": d.gross_amount,
             "Valor esperado pela regra (época)": d.expected_amount,
-            "Regra aplicada (época)": d.rule_summary ?? "",
+            "Regra aplicada (época)": d.applied_rule_label ?? "",
             "Método de cálculo (época)": d.applied_calc_method ?? "",
             "Δ Regra − Pago (época)": Number(deltaRegraVsPago.toFixed(2)),
             "Simulado (motor real)": simExpected,
