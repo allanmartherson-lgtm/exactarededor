@@ -18,7 +18,7 @@ import {
   Search,
   BarChart2,
   Scale,
-  Pencil,
+  
   ClipboardList,
   ShieldX,
   Activity,
