@@ -1446,10 +1446,11 @@ export function SimuladorCenario() {
                   acidente. E o denominador de Exacta (atendimentos) difere
                   do de Aurum (cirurgias). */}
               <div className="text-[11px] text-muted-foreground/90 bg-muted/40 border border-border rounded px-2 py-1 mt-2 leading-snug">
-                <b>Como ler:</b> só <b>Honorários Médicos</b> difere entre Aurum e Exacta Real —
-                as demais linhas do Exacta Real reutilizam os valores do Aurum (não temos custo
-                item-a-item no Exacta). Escalas também diferem: Aurum conta <b>cirurgias</b> e
-                Exacta conta <b>atendimentos</b>; por isso a média é o default.
+                <b>Como ler:</b> cada <b>cirurgia (Aurum) = atendimento (Exacta)</b>. Quando o Exacta
+                tem menos atendimentos que o Aurum tem cirurgias, significa que alguns honorários foram
+                faturados externamente. Nesses casos, projetamos <b>HM e Margem do Exacta Real</b> para
+                a mesma escala do Aurum (média × nº de cirurgias) — as demais linhas do Exacta Real já
+                reutilizam os valores do Aurum. Toggle Média/Soma no cabeçalho.
               </div>
               {carater === "todos" && disp.exacta && disp.exacta.sem_carater > 0 && (
                 <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1">
