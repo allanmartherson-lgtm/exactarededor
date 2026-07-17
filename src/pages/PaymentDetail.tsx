@@ -3376,56 +3376,80 @@ const PaymentDetail = () => {
             {(isAnalista || isValidador || isDiretor) && !isNfPhase && (() => {
               const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
               const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
+              const runValidation = async (scope: "batch" | "cross") => {
+                if (!id) return;
+                setValidatingRules(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("validate-payment", { body: { payment_id: id, scope } });
+                  if (error) throw error;
+                  const flaggedNow = (data as any)?.items_flagged ?? 0;
+                  const totalNow = (data as any)?.total_findings ?? 0;
+                  const extScanned = (data as any)?.external_items_scanned ?? 0;
+                  const scopeLabel = scope === "cross"
+                    ? ` (varredura cruzada — ${extScanned.toLocaleString("pt-BR")} itens externos)`
+                    : " (somente este lote)";
+                  toast({
+                    title: "Validação concluída",
+                    description: totalNow > 0
+                      ? `${totalNow} alerta(s) em ${flaggedNow} item(ns)${scopeLabel}.`
+                      : `Nenhuma inconsistência detectada${scopeLabel}.`,
+                  });
+                  const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+                  const freshItems = await fetchAllPaginated<any>((from, to) =>
+                    supabase
+                      .from("payment_items")
+                      .select("*")
+                      .eq("payment_id", id)
+                      .order("created_at")
+                      .range(from, to),
+                  );
+                  if (freshItems) setItems(freshItems as any);
+                  load();
+                } catch (e: unknown) {
+                  const msg = e instanceof Error ? e.message : String(e);
+                  toast({ title: "Falha ao validar", description: msg, variant: "destructive" });
+                } finally {
+                  setValidatingRules(false);
+                }
+              };
               return (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={validatingRules}
-                  className="hidden md:inline-flex"
-                  title="Aplicar regras de validação assistencial nos itens deste lote"
-                  onClick={async () => {
-                    if (!id) return;
-                    setValidatingRules(true);
-                    try {
-                      const { data, error } = await supabase.functions.invoke("validate-payment", { body: { payment_id: id } });
-                      if (error) throw error;
-                      const flaggedNow = (data as any)?.items_flagged ?? 0;
-                      const totalNow = (data as any)?.total_findings ?? 0;
-                      toast({
-                        title: "Validação concluída",
-                        description: totalNow > 0
-                          ? `${totalNow} alerta(s) em ${flaggedNow} item(ns).`
-                          : "Nenhuma inconsistência detectada.",
-                      });
-                      const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
-                      const freshItems = await fetchAllPaginated<any>((from, to) =>
-                        supabase
-                          .from("payment_items")
-                          .select("*")
-                          .eq("payment_id", id)
-                          .order("created_at")
-                          .range(from, to),
-                      );
-                      if (freshItems) setItems(freshItems as any);
-                      load();
-                    } catch (e: unknown) {
-                      const msg = e instanceof Error ? e.message : String(e);
-                      toast({ title: "Falha ao validar", description: msg, variant: "destructive" });
-                    } finally {
-                      setValidatingRules(false);
-                    }
-                  }}
-                >
-                  <ShieldCheck className={cn("h-4 w-4 mr-1.5 text-muted-foreground", validatingRules && "animate-spin")} />
-                  {validatingRules ? "Validando..." : "Validação assistencial"}
-                  {!validatingRules && flagged > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-warning-soft text-warning text-[10px] font-semibold">
-                      {totalFindings}
-                    </span>
-                  )}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={validatingRules}
+                      className="hidden md:inline-flex"
+                      title="Aplicar regras de validação assistencial nos itens deste lote"
+                    >
+                      <ShieldCheck className={cn("h-4 w-4 mr-1.5 text-muted-foreground", validatingRules && "animate-spin")} />
+                      {validatingRules ? "Validando..." : "Validação assistencial"}
+                      {!validatingRules && flagged > 0 && (
+                        <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-warning-soft text-warning text-[10px] font-semibold">
+                          {totalFindings}
+                        </span>
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Escopo da validação assistencial</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        <strong>Somente este lote:</strong> cruza itens apenas entre os pagamentos deste lote. Mais rápido; ideal quando o lote agrupa várias especialidades.
+                        <br /><br />
+                        <strong>Este lote + outros lotes (30d):</strong> varre também itens de outros lotes do mesmo hospital dentro de ±30 dias das datas dos procedimentos. Detecta sobreposições entre lotes de especialidades diferentes (ex.: Neuro × Clínica Médica no mesmo paciente/dia). Pode levar mais tempo.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => runValidation("batch")}>Somente este lote</AlertDialogAction>
+                      <AlertDialogAction onClick={() => runValidation("cross")}>Este lote + outros lotes</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               );
             })()}
+
             {/* "Fazer questionamento" agora vive no FAB flutuante (canto inferior direito). */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
