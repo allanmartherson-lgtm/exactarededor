@@ -1724,13 +1724,13 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || itemTypeFilter !== "all" || trackFilter !== "all" || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter !== "all" || importModeFilter !== "all" || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts) && (
+              {(companyFilter || analystFilter.length > 0 || typeFilter.length > 0 || itemTypeFilter.length > 0 || trackFilter.length > 0 || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter.length > 0 || importModeFilter.length > 0 || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
-                  setAnalystFilter("all"); setTypeFilter("all"); setItemTypeFilter("all"); setTrackFilter("all"); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setAnalystFilter([]); setTypeFilter([]); setItemTypeFilter([]); setTrackFilter([]); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
                   setOwnerGroup("all"); setOnlyMine(false);
                   setDivergenceFilter("all"); setQuestionedFilter("all");
-                  setPoolFilter("all"); setImportModeFilter("all"); setEmptyOnly(false);
+                  setPoolFilter([]); setImportModeFilter([]); setEmptyOnly(false);
                   setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                   setSearchParams(new URLSearchParams(), { replace: true });
                 }}>
