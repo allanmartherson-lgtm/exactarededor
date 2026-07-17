@@ -320,7 +320,7 @@ function DreLine({
     const mainValue = mediaMain ? media : v;
     const mainSuffix = mediaMain && denomLabel ? `/${denomLabel}` : "";
     return (
-      <div className={cn("text-right tabular-nums flex flex-col leading-tight", extraCls)}>
+      <div className={cn("text-right tabular-nums flex flex-col leading-tight justify-center h-full", extraCls)}>
         <span className={cn(
           emphasize ? "text-base font-semibold" : "text-sm",
           bold && "font-semibold",
@@ -340,7 +340,7 @@ function DreLine({
   return (
     <div
       className={cn(
-        "grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-start gap-2 py-1 border-b border-dashed border-muted/40 last:border-0",
+        "grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 py-1 border-b border-dashed border-muted/40 last:border-0",
         indent && "pl-3",
         emphasize && "py-2 border-b-0 border-t border-border/60 bg-muted/20 -mx-2 px-2 rounded",
         bg && !emphasize && `${bg} -mx-2 px-2 rounded`,
@@ -350,7 +350,7 @@ function DreLine({
     >
       <span className="text-xs text-muted-foreground pt-0.5">{op}</span>
       <span className={cn(
-        "truncate pt-0.5",
+        "truncate self-center",
         emphasize ? "text-base font-semibold" : "text-sm",
         bold && "font-semibold",
       )}>{label}</span>
@@ -360,7 +360,7 @@ function DreLine({
         v={simulado}
         denom={denomSim}
         denomLabel={denomLabelSim}
-        extraCls="bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r"
+        extraCls="bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r"
         corTotal={simCor}
       />
     </div>
@@ -1477,13 +1477,14 @@ export function SimuladorCenario() {
               <div className="overflow-x-auto -mx-2 sm:mx-0">
                 <div className="rounded-md border p-3 bg-muted/20 min-w-[560px]">
                 {/* Cabeçalho */}
-                <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 pb-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 pb-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span></span>
                   <span></span>
-                  <span className="text-right">Aurum</span>
-                  <span className="text-right">Exacta Real</span>
-                  <span className="text-right text-primary font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
+                  <span className="text-right self-center">Aurum</span>
+                  <span className="text-right self-center">Exacta Real</span>
+                  <span className="text-right text-primary font-bold bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">Simulado</span>
                 </div>
+
 
                 {(() => {
                   const A = resultado.aurum;
@@ -1569,13 +1570,14 @@ export function SimuladorCenario() {
                         }
                       />
                       {/* Sub-linha extra: % HM sobre Receita Líquida (referência clássica de honorários). */}
-                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[10px] text-muted-foreground pl-3">
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 text-[10px] text-muted-foreground pl-3">
                         <span></span>
-                        <span className="italic">% da Receita Líquida</span>
-                        <span className="text-right tabular-nums">{PCT(pctHmAurum)}</span>
-                        <span className="text-right tabular-nums">{PCT(pctHmExacta)}</span>
-                        <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
+                        <span className="italic self-center">% da Receita Líquida</span>
+                        <span className="text-right tabular-nums self-center">{PCT(pctHmAurum)}</span>
+                        <span className="text-right tabular-nums self-center">{PCT(pctHmExacta)}</span>
+                        <span className="text-right tabular-nums bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">{PCT(pctHmSim)}</span>
                       </div>
+
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent
                         denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent
@@ -1592,28 +1594,29 @@ export function SimuladorCenario() {
                           const showS = useMedia && qc > 0 ? sMarg / qc : sMarg;
                           const suf = useMedia ? "/cir" : "";
                           return (
-                            <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-start py-2 bg-emerald-50/40 border border-emerald-100 -mx-2 px-2 rounded">
-                              <span className="text-xs text-muted-foreground pt-1">(=)</span>
-                              <span className="text-base font-semibold pt-1">Margem de Contribuição</span>
-                              <div className="text-right flex flex-col leading-tight">
+                            <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 py-2 bg-emerald-50/40 border border-emerald-100 -mx-2 px-2 rounded">
+                              <span className="text-xs text-muted-foreground self-center">(=)</span>
+                              <span className="text-base font-semibold self-center">Margem de Contribuição</span>
+                              <div className="text-right flex flex-col justify-center leading-tight">
                                 <span className={cn("text-base tabular-nums font-bold", aMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showA)}{suf}</span>
                               </div>
-                              <div className="text-right flex flex-col leading-tight">
+                              <div className="text-right flex flex-col justify-center leading-tight">
                                 <span className={cn("text-base tabular-nums font-bold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf : ""}</span>
                               </div>
-                              <div className="text-right flex flex-col leading-tight bg-blue-100/70 dark:bg-blue-950/30 -my-2 -mr-2 py-2 pr-2 pl-2 rounded-r">
+                              <div className="text-right flex flex-col justify-center leading-tight bg-primary/[0.08] dark:bg-primary/10 border-l border-primary/20 -mr-2 pr-3 pl-3 rounded-r">
                                 <span className={cn("text-xl tabular-nums font-bold", sMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showS)}{suf}</span>
                               </div>
                             </div>
                           );
                         })()}
-                        <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-xs text-muted-foreground">
+                        <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 text-xs text-muted-foreground">
                           <span></span>
-                          <span>% Margem</span>
-                          <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
-                          <span className="text-right tabular-nums">{PCT(pctExactaProj)}</span>
-                          <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(pctMargemSimProj)}</span>
+                          <span className="self-center">% Margem</span>
+                          <span className="text-right tabular-nums self-center">{PCT(A.pct_margem)}</span>
+                          <span className="text-right tabular-nums self-center">{PCT(pctExactaProj)}</span>
+                          <span className="text-right tabular-nums bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r font-semibold text-primary self-stretch flex items-center justify-end">{PCT(pctMargemSimProj)}</span>
                         </div>
+
                       </div>
                     </>
                   );
