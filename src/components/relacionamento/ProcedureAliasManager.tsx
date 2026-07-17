@@ -164,7 +164,7 @@ export function ProcedureAliasManager() {
             .catch((error) => ({ rows: [] as AliasRow[], error })),
         ]);
         const aurumRows = aurumRes.rows;
-        const exactaRows = (exactaRes.data ?? []) as { procedure_name: string | null }[];
+        const exactaRows = (exactaRes.data ?? []) as { procedure_name: string | null; origem: string | null }[];
         const aliasRows = aliasRes.rows;
         const firstError =
           (aurumRes as { error: unknown }).error ??
