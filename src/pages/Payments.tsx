@@ -563,10 +563,10 @@ const Payments = () => {
   const rpcFilters = useMemo(() => {
     const f: Record<string, any> = {};
     if (serverStatuses) f.statuses = serverStatuses;
-    if (typeFilter !== "all") f.payment_types = [typeFilter];
-    if (itemTypeFilter !== "all") f.item_type_ids = [itemTypeFilter];
-    if (trackFilter !== "all") f.payment_tracks = [trackFilter];
-    if (analystFilter !== "all") f.created_by_ids = [analystFilter];
+    if (typeFilter.length > 0) f.payment_types = typeFilter;
+    if (itemTypeFilter.length > 0) f.item_type_ids = itemTypeFilter;
+    if (trackFilter.length > 0) f.payment_tracks = trackFilter;
+    if (analystFilter.length > 0) f.created_by_ids = analystFilter;
     if (companyFilter?.id) f.company_ids = [companyFilter.id];
     if (doctorFilter?.id) f.doctor_ids = [doctorFilter.id];
     if (competenceFilter !== "all") {
@@ -582,8 +582,8 @@ const Payments = () => {
     if (openQuestionOnly) f.only_open_questions = true;
     if (divergenceFilter === "with") f.only_divergence = true;
     if (questionedFilter !== "all") f.with_questions = questionedFilter;
-    if (poolFilter !== "all") f.pool_ids = [poolFilter];
-    if (importModeFilter !== "all") f.import_modes = [importModeFilter];
+    if (poolFilter.length > 0) f.pool_ids = poolFilter;
+    if (importModeFilter.length > 0) f.import_modes = importModeFilter;
     if (emptyOnly) f.only_empty = true;
     if (hasProposedGlosas) f.has_proposed_glosas = true;
     if (hasAppliedDebits) f.has_applied_debits = true;
