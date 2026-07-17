@@ -567,8 +567,14 @@ export function SimuladorCenario() {
       const aurum = sumAurum(aurumRows);
 
       // 2) Exacta — busca por nome + fallback por alias.
+      // Mantemos DUAS coleções: `nomesAlvo` (normalizado, para checagem
+      // de igualdade final) e `nomesAlvoOriginais` (com acentos, para o
+      // pré-filtro `.ilike()` — que é case-insensitive mas NÃO ignora
+      // acentos, então usar a versão normalizada perdia matches como
+      // "Revisão …").
       const targetNorm = norm(nomeSelecionado);
       const nomesAlvo = new Set<string>([targetNorm]);
+      const nomesAlvoOriginais = new Set<string>([nomeSelecionado]);
 
       if (modo === "medico") {
         // procura alias -> pega doctor_id -> pega nome canônico
@@ -581,7 +587,10 @@ export function SimuladorCenario() {
         if (docIds.length) {
           const { data: docs } = await supabase.from("doctors").select("full_name").in("id", docIds);
           for (const d of (docs ?? []) as Array<{ full_name: string | null }>) {
-            if (d.full_name) nomesAlvo.add(norm(d.full_name));
+            if (d.full_name) {
+              nomesAlvo.add(norm(d.full_name));
+              nomesAlvoOriginais.add(d.full_name);
+            }
           }
         }
       } else {
@@ -592,9 +601,13 @@ export function SimuladorCenario() {
           .eq("alias_normalized", targetNorm)
           .limit(5);
         for (const p of ((procAlias ?? []) as Array<{ canonical_name: string | null }>)) {
-          if (p.canonical_name) nomesAlvo.add(norm(p.canonical_name));
+          if (p.canonical_name) {
+            nomesAlvo.add(norm(p.canonical_name));
+            nomesAlvoOriginais.add(p.canonical_name);
+          }
         }
       }
+
 
       const dateFrom = `${ano}-01-01`;
       const dateTo = `${ano + 1}-01-01`;
@@ -750,8 +763,13 @@ export function SimuladorCenario() {
           procedure_name: string | null;
           access_route: string | null;
         }> = [];
-        for (const nomeAlvo of nomesAlvo) {
-          const ilikeTerm = `%${nomeAlvo.split(" ").filter((t) => t.length > 2).join("%")}%`;
+        for (const nomeAlvo of nomesAlvoOriginais) {
+          // Preserva acentos no termo de busca — `.ilike()` no PostgREST é
+          // case-insensitive porém sensível a acento; usar a forma
+          // normalizada (sem acento) fazia `revisao%` nunca casar
+          // `Revisão …` no banco.
+          const ilikeTerm = `%${nomeAlvo.split(/\s+/).filter((t) => t.length > 2).join("%")}%`;
+
           const parte = await fetchAllPaginated<{
             attendance_number: string | null;
             procedure_name: string | null;
