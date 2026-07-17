@@ -109,7 +109,7 @@ export default function OverlapAudit() {
     <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
       <PageHeader
         title="Sobreposição assistencial"
-        description="Auditoria autônoma de mesmo paciente + mesmo dia + ≥2 especialidades em visitas ou pareceres."
+        description="Duplicidade pura: mesmo atendimento + mesmo dia com ≥ N médicos distintos em visitas ou pareceres."
       />
 
       {/* Filtros */}
