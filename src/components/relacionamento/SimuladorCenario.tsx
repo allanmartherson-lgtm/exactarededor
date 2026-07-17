@@ -1922,7 +1922,7 @@ export function SimuladorCenario() {
               pct={resultado.aurum.receita_liquida > 0 ? disp.simulado.novo_hm / resultado.aurum.receita_liquida : null}
               extra={
                 disp.exacta
-                  ? `Δ vs Exacta: ${BRL(disp.simulado.novo_hm - disp.exacta.gross)}`
+                  ? `Δ Exacta ${BRL(disp.simulado.novo_hm - disp.exacta.gross)}`
                   : undefined
               }
               tone={
