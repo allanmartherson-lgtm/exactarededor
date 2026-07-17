@@ -7,12 +7,13 @@
  * Independente do relatório geral (aprovados/reprovados): este foca apenas
  * em assistencial (sobreposição, parecer→cirurgia, duplicidade, etc.).
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Download, Search, List, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type ConflictingSnap = {
   attendance_number?: string | null;
