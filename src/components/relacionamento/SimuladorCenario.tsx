@@ -1229,6 +1229,70 @@ export function SimuladorCenario() {
     })();
   }, [resultado]);
 
+  // Exporta PDF resumido (layout retrato A4, padrão Rede D'Or). Sem detalhamento
+  // item a item — o Excel continua sendo o canal para a base linha a linha.
+  const exportarPdf = useCallback(() => {
+    if (!resultado) {
+      toast.error("Rode a simulação primeiro.");
+      return;
+    }
+    try {
+      const convLabels = conveniosExcluidos
+        .map((slug) => convenioOptions.find((c) => c.slug === slug)?.name ?? slug);
+      const refTableLabel = resultado.parametros.reference_table_id
+        ? (refTables.find((t) => t.id === resultado.parametros.reference_table_id)?.name ?? null)
+        : null;
+      // Cobertura vem embutida no aviso; extrai "X/Y itens calculados".
+      let cobertura: { calculados: number; total: number; pct: number; semMatch: number } | null = null;
+      const m = /(\d+)\/(\d+)\s+itens?\s+calculad/i.exec(resultado.aviso ?? "");
+      if (m) {
+        const calculados = Number(m[1]);
+        const total = Number(m[2]);
+        const semMatchMatch = /—\s*(\d+)\s+sem\s+match/i.exec(resultado.aviso ?? "");
+        cobertura = {
+          calculados,
+          total,
+          pct: total > 0 ? calculados / total : 0,
+          semMatch: semMatchMatch ? Number(semMatchMatch[1]) : 0,
+        };
+      }
+      exportSimuladorCenarioPdf({
+        modo,
+        nome: resultado.nome,
+        ano: resultado.ano,
+        carater,
+        apenasInternados,
+        conveniosExcluidos: convLabels,
+        parametros: {
+          modelo: resultado.parametros.modelo,
+          pct: resultado.parametros.pct ?? null,
+          reference_table_label: refTableLabel,
+          multiplicador: resultado.parametros.multiplicador ?? null,
+          deflator: resultado.parametros.deflator ?? null,
+          acrescimo: resultado.parametros.acrescimo ?? null,
+        },
+        aurum: resultado.aurum,
+        exacta: disp.exacta
+          ? { gross: disp.exacta.gross, itens: disp.exacta.itens, atendimentos: disp.exacta.atendimentos }
+          : null,
+        simulado: {
+          novo_hm: disp.simulado.novo_hm,
+          nova_margem: disp.simulado.nova_margem,
+          nova_pct_margem: disp.simulado.nova_pct_margem,
+        },
+        semMatch: { count: disp.semMatchCount, valor: disp.semMatchValor },
+        cobertura,
+        dreView,
+      });
+      toast.success("PDF gerado.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Falha ao gerar PDF: ${msg}`);
+    }
+    // disp é derivado de resultado; incluir apenas as fontes reais evita loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultado, modo, carater, apenasInternados, conveniosExcluidos, convenioOptions, refTables, dreView]);
+
   // Vista derivada — aplica o toggle "excluir sem match" (B) sobre o resultado
   // bruto, sem re-simular. Também calcula os KPIs "sem match" para o banner.
   const disp = useMemo(() => {
