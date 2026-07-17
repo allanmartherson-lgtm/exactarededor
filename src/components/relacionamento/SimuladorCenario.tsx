@@ -1365,7 +1365,7 @@ export function SimuladorCenario() {
           {/* Linha 1 */}
           <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_8rem_9rem] gap-3 items-end">
             <div>
-              <Label className="text-xs">Tipo</Label>
+              <Label className="text-xs mb-1.5 block">Tipo</Label>
               <div className="inline-flex rounded-md border overflow-hidden">
                 <button
                   type="button"
