@@ -252,11 +252,11 @@ const Payments = () => {
   const [analysts, setAnalysts] = useState<Record<string, string>>({});
   const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
-  const [analystFilter, setAnalystFilter] = useState<string>(persisted.analystFilter ?? "all");
-  const [typeFilter, setTypeFilter] = useState<string>(persisted.typeFilter ?? "all");
-  const [itemTypeFilter, setItemTypeFilter] = useState<string>(persisted.itemTypeFilter ?? "all");
+  const [analystFilter, setAnalystFilter] = useState<string[]>(persisted.analystFilter ?? []);
+  const [typeFilter, setTypeFilter] = useState<string[]>(persisted.typeFilter ?? []);
+  const [itemTypeFilter, setItemTypeFilter] = useState<string[]>(persisted.itemTypeFilter ?? []);
   const { list: itemTypesList } = useItemTypes({ onlyActive: true });
-  const [trackFilter, setTrackFilter] = useState<string>(persisted.trackFilter ?? "all");
+  const [trackFilter, setTrackFilter] = useState<string[]>(persisted.trackFilter ?? []);
   const [statusFilter, setStatusFilter] = useState<string[]>(() => {
     const raw: any = persisted.statusFilter;
     if (Array.isArray(raw)) return raw;
