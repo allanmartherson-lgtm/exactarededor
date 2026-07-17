@@ -387,10 +387,10 @@ function applySobreposicaoAssistencial(
     return picked.filter((s) => !excludedSet.has(s));
   };
 
-  type Elig = { item: Item; doctor: Doctor; specialty: string; specialties: string[] };
+  type Elig = { item: Item; doctor: Doctor; specialty: string; specialties: string[]; external: boolean };
   const eligible: Elig[] = [];
-  for (const it of items) {
-    if (!isVisitaOuParecer(it.procedure_name, it.procedure_code, paymentTypeForElig)) continue;
+  const collectEligible = (it: Item, external: boolean) => {
+    if (!isVisitaOuParecer(it.procedure_name, it.procedure_code, paymentTypeForElig)) return;
     let doc: Doctor | undefined;
     if (it.doctor_document && it.doctor_document.trim()) {
       doc = doctorByCrm.get(it.doctor_document.trim());
@@ -399,14 +399,17 @@ function applySobreposicaoAssistencial(
       doc = doctorByName.get(normName(it.doctor_name));
     }
     if (!doc) {
-      if (it.doctor_name) unresolvedDoctors.add(it.doctor_name);
-      continue;
+      if (!external && it.doctor_name) unresolvedDoctors.add(it.doctor_name);
+      return;
     }
-    if (!isAfim(doc)) continue;
+    if (!isAfim(doc)) return;
     const specs = groupSpecSet ? (doc.specialties ?? []).map(normSpecialty).filter(Boolean) : docSpecialties(doc);
-    if (!groupSpecSet && specs.length === 0) continue;
-    eligible.push({ item: it, doctor: doc, specialty: specs[0] ?? "", specialties: specs });
-  }
+    if (!groupSpecSet && specs.length === 0) return;
+    eligible.push({ item: it, doctor: doc, specialty: specs[0] ?? "", specialties: specs, external });
+  };
+  for (const it of items) collectEligible(it, false);
+  for (const it of externalItems) collectEligible(it, true);
+
 
 
 
