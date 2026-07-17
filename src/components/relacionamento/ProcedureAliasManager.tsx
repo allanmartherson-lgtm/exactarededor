@@ -138,11 +138,6 @@ function CanonicalPicker({
         </div>,
         document.body,
       )}
-      {open && q && filtered.length === 0 && (
-        <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-popover shadow-lg px-3 py-2 text-xs text-muted-foreground">
-          Nenhum procedimento Exacta/CBHPM encontrado.
-        </div>
-      )}
     </div>
   );
 }
