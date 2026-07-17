@@ -893,7 +893,13 @@ Deno.serve(async (req) => {
           }
           group = g;
         }
-        const result = applySobreposicaoAssistencial(rule, items, allDoctors, group, findingsByItem, paymentReference, (payment as any).payment_type ?? null);
+        const extForOverlap = scope === "cross" ? externalItems : [];
+        const result = applySobreposicaoAssistencial(
+          rule, items, allDoctors, group, findingsByItem, paymentReference,
+          (payment as any).payment_type ?? null,
+          extForOverlap, externalRefById, payment_id,
+        );
+
         totalHits += result.hits;
         if (result.unresolvedDoctors.size > 0) {
           unresolvedByRule[rule.name] = Array.from(result.unresolvedDoctors);
