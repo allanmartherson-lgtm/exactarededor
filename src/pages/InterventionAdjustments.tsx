@@ -171,6 +171,7 @@ export default function InterventionAdjustments() {
   const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [params] = useSearchParams();
   const initialRole = (params.get("role") as IntervenorRole | null) ?? "all";
+  const initialPapel = params.get("papel");
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
@@ -181,6 +182,7 @@ export default function InterventionAdjustments() {
     search: "",
     // Padrão: Neutro fora — reduz ruído de cancelamentos operacionais.
     classifications: ["economia", "aumento"],
+    papeisAutor: initialPapel ? [initialPapel] : [],
   });
 
   // Set para permitir múltiplas reativações em paralelo de IDs distintos sem
