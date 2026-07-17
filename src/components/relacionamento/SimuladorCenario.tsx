@@ -1329,23 +1329,48 @@ export function SimuladorCenario() {
                       value={nomeQuery}
                       onValueChange={setNomeQuery}
                     />
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 border-b text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5"
+                          checked={apenasComMatch}
+                          onChange={(e) => setApenasComMatch(e.target.checked)}
+                        />
+                        <span>Apenas com match no Exacta</span>
+                      </label>
+                      <span className="text-muted-foreground">
+                        {loadingMatched ? "Calculando…" : `${matchedNames.size} com match`}
+                      </span>
+                    </div>
                     <CommandList>
                       <CommandEmpty>Nenhum resultado.</CommandEmpty>
-                      <CommandGroup heading={`${sugestoes.length} de ${nomes.length}`}>
-                        {sugestoes.map((n) => (
-                          <CommandItem
-                            key={n}
-                            value={n}
-                            onSelect={() => {
-                              setNomeSelecionado(n);
-                              setNomeOpen(false);
-                              setResultado(null);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", nomeSelecionado === n ? "opacity-100" : "opacity-0")} />
-                            <span className="truncate">{n}</span>
-                          </CommandItem>
-                        ))}
+                      <CommandGroup heading={`${sugestoes.length} de ${apenasComMatch ? matchedNames.size : nomes.length}`}>
+                        {sugestoes.map((n) => {
+                          const hasMatch = matchedNames.has(n);
+                          return (
+                            <CommandItem
+                              key={n}
+                              value={n}
+                              onSelect={() => {
+                                setNomeSelecionado(n);
+                                setNomeOpen(false);
+                                setResultado(null);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", nomeSelecionado === n ? "opacity-100" : "opacity-0")} />
+                              <span
+                                className={cn(
+                                  "mr-2 inline-block h-2 w-2 rounded-full shrink-0",
+                                  hasMatch ? "bg-emerald-500" : "bg-muted-foreground/30",
+                                )}
+                                title={hasMatch ? "Com correspondência no Exacta" : "Sem correspondência no Exacta"}
+                                aria-label={hasMatch ? "Com match" : "Sem match"}
+                              />
+                              <span className="truncate">{n}</span>
+                            </CommandItem>
+                          );
+                        })}
                       </CommandGroup>
                     </CommandList>
                   </Command>
