@@ -221,6 +221,9 @@ interface SimPerItem {
   matched: boolean;
   calculation_type_used: string | null;
   alerts: string[];
+  /** true quando o motor não achou regra e caímos no fallback "manter pago à época" (gross_amount).
+   *  Evita distorcer o Simulado zerando itens que hoje são pacote, sem_acordo, etc. */
+  usedFallback?: boolean;
 }
 
 interface Simulado {
@@ -375,6 +378,12 @@ export function SimuladorCenario() {
   // Slugs canônicos + códigos hospital-específicos (DFStar) que representam
   // setores cirúrgicos internados. Ampliar quando novas unidades entrarem.
   const SURGICAL_SECTORS = ["centro_cirurgico", "hemodinamica", "1556", "1574"];
+
+  // Filtro (B): quando ligado, itens sem regra sintética compatível são
+  // removidos tanto do Exacta Real quanto do Simulado — cenário puro só do
+  // que casou. Default OFF: usamos o fallback "manter pago" (A) para não
+  // distorcer casos de pacote/sem_acordo.
+  const [excluirSemMatch, setExcluirSemMatch] = useState<boolean>(false);
 
   const [simulando, setSimulando] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -854,11 +863,24 @@ export function SimuladorCenario() {
             id: string; expected_amount: number; matched: boolean;
             calculation_type_used: string | null; alerts: string[] | null;
           }>) {
+            const matched = !!p.matched;
+            // Fallback (A): item sem regra sintética compatível NÃO pode zerar
+            // no Simulado — isso distorce pacote/sem_acordo/Sul América etc.
+            // Mantemos o valor pago à época (gross_amount) e sinalizamos
+            // usedFallback para UI/export/filtro.
+            let expected = Number(p.expected_amount ?? 0);
+            let usedFallback = false;
+            if (!matched) {
+              const det = detalhes.find((d) => d.id === p.id);
+              expected = Number(det?.gross_amount ?? 0);
+              usedFallback = true;
+            }
             perItem[p.id] = {
-              expected_amount: Number(p.expected_amount ?? 0),
-              matched: !!p.matched,
+              expected_amount: expected,
+              matched,
               calculation_type_used: p.calculation_type_used ?? null,
               alerts: Array.isArray(p.alerts) ? p.alerts : [],
+              usedFallback,
             };
           }
 
@@ -1027,6 +1049,7 @@ export function SimuladorCenario() {
             "Simulado (motor real)": simExpected,
             "Método simulado": sim?.calculation_type_used ?? "",
             "Simulado sem match?": sim ? (sim.matched ? "" : "SEM MATCH") : "—",
+            "Valor mantido (fallback pago)?": sim?.usedFallback ? "SIM" : "",
             "Alertas simulado": sim?.alerts?.join(" | ") ?? "",
             "Δ Simulado − Pago": Number(deltaSimVsPago.toFixed(2)),
           };
@@ -1064,8 +1087,55 @@ export function SimuladorCenario() {
     })();
   }, [resultado]);
 
+  // Vista derivada — aplica o toggle "excluir sem match" (B) sobre o resultado
+  // bruto, sem re-simular. Também calcula os KPIs "sem match" para o banner.
+  const disp = useMemo(() => {
+    if (!resultado) return null;
+    const { aurum, exacta, simulado, perItem } = resultado;
+    const semMatchDet = exacta
+      ? exacta.detalhes.filter((d) => perItem[d.id]?.usedFallback)
+      : [];
+    const semMatchCount = semMatchDet.length;
+    const semMatchValor = semMatchDet.reduce((s, d) => s + d.gross_amount, 0);
+
+    if (!exacta || !excluirSemMatch) {
+      return { exacta, simulado, semMatchCount, semMatchValor };
+    }
+
+    const detFilt = exacta.detalhes.filter((d) => !perItem[d.id]?.usedFallback);
+    const attSet = new Set(
+      detFilt.map((d) => d.attendance_number).filter(Boolean) as string[],
+    );
+    const gross = detFilt.reduce((s, d) => s + d.gross_amount, 0);
+    const expected = detFilt.reduce((s, d) => s + d.expected_amount, 0);
+    const baseConvenio = detFilt.reduce((s, d) => s + d.procedure_amount, 0);
+    const semCarater = detFilt.filter((d) => !d.attendance_number).length; // aproximação
+    const novoHm = detFilt.reduce(
+      (s, d) => s + (perItem[d.id]?.expected_amount ?? 0),
+      0,
+    );
+    const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
+    const novaPct = aurum.receita_liquida > 0 ? novaMargem / aurum.receita_liquida : 0;
+
+    return {
+      exacta: {
+        ...exacta,
+        gross,
+        expected,
+        baseConvenio,
+        itens: detFilt.length,
+        atendimentos: attSet.size,
+        sem_carater: semCarater,
+        detalhes: detFilt,
+      },
+      simulado: { novo_hm: novoHm, nova_margem: novaMargem, nova_pct_margem: novaPct },
+      semMatchCount,
+      semMatchValor,
+    };
+  }, [resultado, excluirSemMatch]);
 
   // Renderização — inclui estados sem base.
+
   if (hospitalId && !loadingNomes && anosDisponiveis.length === 0) {
     return (
       <Card>
@@ -1284,7 +1354,7 @@ export function SimuladorCenario() {
       </Card>
 
       {/* SEÇÃO 2 — Resultado */}
-      {resultado && (
+      {resultado && disp && (
         <>
           {resultado.aviso && (
             <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
@@ -1292,6 +1362,32 @@ export function SimuladorCenario() {
               <span>{resultado.aviso}</span>
             </div>
           )}
+
+          {/* Banner "sem match" + toggle de exclusão (opção B).
+              Regra atual (A): itens sem regra sintética compatível mantêm o
+              valor pago à época no Simulado — evita zerar pacote/sem_acordo. */}
+          {disp.semMatchCount > 0 && (
+            <div className="flex flex-col md:flex-row md:items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              <div className="flex items-start gap-2 flex-1">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-700" />
+                <span className="text-amber-800">
+                  <b>{disp.semMatchCount}</b> item(ns) sem match (pacote, sem acordo, TUSS fora da tabela…) —{" "}
+                  <b>{BRL(disp.semMatchValor)}</b> mantidos ao valor pago à época para não distorcer o Simulado.
+                </span>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={excluirSemMatch}
+                  onChange={(e) => setExcluirSemMatch(e.target.checked)}
+                />
+                <span className="text-amber-900">Excluir sem match do total</span>
+              </label>
+            </div>
+          )}
+
+
 
           {/* DRE 3 colunas */}
           <Card>
@@ -1302,14 +1398,14 @@ export function SimuladorCenario() {
               <div className="text-xs text-muted-foreground mt-1">
                 Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
                 {" | "}
-                Exacta: {resultado.exacta ? `${resultado.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${resultado.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
+                Exacta: {disp.exacta ? `${disp.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${disp.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
                 {" | "}
                 Filtro: {carater === "todos" ? "Todos" : carater}
               </div>
-              {carater === "todos" && resultado.exacta && resultado.exacta.sem_carater > 0 && (
+              {carater === "todos" && disp.exacta && disp.exacta.sem_carater > 0 && (
                 <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
-                  {resultado.exacta.sem_carater} de {resultado.exacta.itens} itens do Exacta não têm caráter preenchido e foram incluídos no total.
+                  {disp.exacta.sem_carater} de {disp.exacta.itens} itens do Exacta não têm caráter preenchido e foram incluídos no total.
                 </div>
               )}
             </CardHeader>
@@ -1329,8 +1425,8 @@ export function SimuladorCenario() {
 
                 {(() => {
                   const A = resultado.aurum;
-                  const exGross = resultado.exacta?.gross ?? null;
-                  const sim = resultado.simulado;
+                  const exGross = disp.exacta?.gross ?? null;
+                  const sim = disp.simulado;
                   const receitaLiqExacta = A.receita_liquida;
                   const margemExacta = exGross != null ? A.receita_liquida + A.outros_custos - exGross : null;
                   const pctExacta = margemExacta != null && A.receita_liquida > 0 ? margemExacta / A.receita_liquida : null;
@@ -1342,7 +1438,7 @@ export function SimuladorCenario() {
 
                   // Médias por cirurgia / atendimento — usadas nas sub-linhas dentro de cada célula da DRE.
                   const qc = A.qtd_cirurgias;
-                  const atd = resultado.exacta?.atendimentos ?? 0;
+                  const atd = disp.exacta?.atendimentos ?? 0;
 
                   // % HM sobre receita líquida
                   const rl = A.receita_liquida;
@@ -1425,23 +1521,23 @@ export function SimuladorCenario() {
             />
             <SummaryCard
               title="HM Exacta (real pago)"
-              valor={resultado.exacta?.gross ?? null}
-              pct={resultado.exacta && resultado.aurum.receita_liquida > 0 ? resultado.exacta.gross / resultado.aurum.receita_liquida : null}
-              extra={resultado.exacta ? `${resultado.exacta.itens} item(s) · ${resultado.exacta.atendimentos} atend.` : "sem match"}
+              valor={disp.exacta?.gross ?? null}
+              pct={disp.exacta && resultado.aurum.receita_liquida > 0 ? disp.exacta.gross / resultado.aurum.receita_liquida : null}
+              extra={disp.exacta ? `${disp.exacta.itens} item(s) · ${disp.exacta.atendimentos} atend.` : "sem match"}
               tone="neutral"
             />
             <SummaryCard
               title="HM Simulado (cenário)"
-              valor={resultado.simulado.novo_hm}
-              pct={resultado.aurum.receita_liquida > 0 ? resultado.simulado.novo_hm / resultado.aurum.receita_liquida : null}
+              valor={disp.simulado.novo_hm}
+              pct={resultado.aurum.receita_liquida > 0 ? disp.simulado.novo_hm / resultado.aurum.receita_liquida : null}
               extra={
-                resultado.exacta
-                  ? `Δ vs Exacta: ${BRL(resultado.simulado.novo_hm - resultado.exacta.gross)}`
+                disp.exacta
+                  ? `Δ vs Exacta: ${BRL(disp.simulado.novo_hm - disp.exacta.gross)}`
                   : undefined
               }
               tone={
-                resultado.exacta == null ? "neutral" :
-                resultado.simulado.novo_hm > resultado.exacta.gross ? "negative" : "positive"
+                disp.exacta == null ? "neutral" :
+                disp.simulado.novo_hm > disp.exacta.gross ? "negative" : "positive"
               }
               highlight
             />
@@ -1453,10 +1549,10 @@ export function SimuladorCenario() {
               <div className="text-sm">
                 {(() => {
                   const A = resultado.aurum;
-                  const exGross = resultado.exacta?.gross ?? null;
+                  const exGross = disp.exacta?.gross ?? null;
                   const margemAtual = exGross != null ? A.receita_liquida + A.outros_custos - exGross : A.margem;
                   const pctAtual = A.receita_liquida > 0 ? margemAtual / A.receita_liquida : 0;
-                  const delta = resultado.simulado.nova_margem - margemAtual;
+                  const delta = disp.simulado.nova_margem - margemAtual;
                   const deltaCor = delta > 0 ? "text-emerald-700" : delta < 0 ? "text-red-700" : "";
                   return (
                     <>
@@ -1464,7 +1560,7 @@ export function SimuladorCenario() {
                       <span className="font-semibold">{BRL(margemAtual)} ({PCT(pctAtual)})</span>
                       <span className="mx-2 text-muted-foreground">→</span>
                       <span className="text-muted-foreground">Simulada: </span>
-                      <span className="font-semibold">{BRL(resultado.simulado.nova_margem)} ({PCT(resultado.simulado.nova_pct_margem)})</span>
+                      <span className="font-semibold">{BRL(disp.simulado.nova_margem)} ({PCT(disp.simulado.nova_pct_margem)})</span>
                       <span className="mx-2 text-muted-foreground">|</span>
                       <span className="text-muted-foreground">Δ </span>
                       <span className={cn("font-semibold", deltaCor)}>{BRL(delta)}</span>
@@ -1473,7 +1569,7 @@ export function SimuladorCenario() {
                 })()}
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Button type="button" variant="outline" onClick={exportarDetalhado} disabled={!resultado.exacta}>
+                <Button type="button" variant="outline" onClick={exportarDetalhado} disabled={!disp.exacta}>
                   Exportar Excel detalhado
                 </Button>
                 <Button type="button" onClick={salvarCenario} disabled={salvando}>
