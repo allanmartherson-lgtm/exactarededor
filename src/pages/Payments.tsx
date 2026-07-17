@@ -328,8 +328,8 @@ const Payments = () => {
   // Filtros avançados (não dependem de "criado por")
   const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">(persisted.divergenceFilter ?? "all");
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">(persisted.questionedFilter ?? "all");
-  const [poolFilter, setPoolFilter] = useState<string>(persisted.poolFilter ?? "all");
-  const [importModeFilter, setImportModeFilter] = useState<"all" | "normal" | "historico">(persisted.importModeFilter ?? "all");
+  const [poolFilter, setPoolFilter] = useState<string[]>(persisted.poolFilter ?? []);
+  const [importModeFilter, setImportModeFilter] = useState<Array<"normal" | "historico">>(persisted.importModeFilter ?? []);
   const [emptyOnly, setEmptyOnly] = useState<boolean>(persisted.emptyOnly ?? false);
   const [hasProposedGlosas, setHasProposedGlosas] = useState<boolean>(persisted.hasProposedGlosas ?? false);
   const [hasAppliedDebits, setHasAppliedDebits] = useState<boolean>(persisted.hasAppliedDebits ?? false);
