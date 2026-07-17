@@ -734,8 +734,6 @@ export function SimuladorCenario() {
         }
         const attsMatched = new Set<string>();
         for (const it of principais) {
-          const ar = (it.access_route ?? "").toLowerCase();
-          if (!(ar.includes("nica") || ar.includes("principal"))) continue;
           if (!it.attendance_number) continue;
           if (nomesAlvo.has(norm(it.procedure_name))) attsMatched.add(it.attendance_number);
         }
