@@ -321,7 +321,11 @@ function DreLine({
     const mainSuffix = mediaMain && denomLabel ? `/${denomLabel}` : "";
     return (
       <div className={cn("text-right tabular-nums flex flex-col leading-tight", extraCls)}>
-        <span className={cn("text-sm", bold && "font-semibold", corTotal)}>
+        <span className={cn(
+          emphasize ? "text-base font-semibold" : "text-sm",
+          bold && "font-semibold",
+          corTotal,
+        )}>
           {BRL(mainValue)}{mainSuffix}
         </span>
         {pctStr && (
@@ -338,12 +342,18 @@ function DreLine({
       className={cn(
         "grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-start gap-2 py-1 border-b border-dashed border-muted/40 last:border-0",
         indent && "pl-3",
-        bg && `${bg} -mx-2 px-2 rounded`,
+        emphasize && "py-2 border-b-0 border-t border-border/60 bg-muted/20 -mx-2 px-2 rounded",
+        bg && !emphasize && `${bg} -mx-2 px-2 rounded`,
+        bg && emphasize && bg,
       )}
       title={tooltip}
     >
       <span className="text-xs text-muted-foreground pt-0.5">{op}</span>
-      <span className={cn("text-sm truncate pt-0.5", bold && "font-semibold")}>{label}</span>
+      <span className={cn(
+        "truncate pt-0.5",
+        emphasize ? "text-base font-semibold" : "text-sm",
+        bold && "font-semibold",
+      )}>{label}</span>
       <Cell v={aurum} denom={denomAurum} denomLabel={denomLabelAurum} />
       <Cell v={exacta} denom={denomExacta} denomLabel={denomLabelExacta} />
       <Cell
