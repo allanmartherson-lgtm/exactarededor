@@ -863,11 +863,24 @@ export function SimuladorCenario() {
             id: string; expected_amount: number; matched: boolean;
             calculation_type_used: string | null; alerts: string[] | null;
           }>) {
+            const matched = !!p.matched;
+            // Fallback (A): item sem regra sintética compatível NÃO pode zerar
+            // no Simulado — isso distorce pacote/sem_acordo/Sul América etc.
+            // Mantemos o valor pago à época (gross_amount) e sinalizamos
+            // usedFallback para UI/export/filtro.
+            let expected = Number(p.expected_amount ?? 0);
+            let usedFallback = false;
+            if (!matched) {
+              const det = detalhes.find((d) => d.id === p.id);
+              expected = Number(det?.gross_amount ?? 0);
+              usedFallback = true;
+            }
             perItem[p.id] = {
-              expected_amount: Number(p.expected_amount ?? 0),
-              matched: !!p.matched,
+              expected_amount: expected,
+              matched,
               calculation_type_used: p.calculation_type_used ?? null,
               alerts: Array.isArray(p.alerts) ? p.alerts : [],
+              usedFallback,
             };
           }
 
