@@ -1327,16 +1327,16 @@ const Payments = () => {
           );
           // Conta filtros secundários ativos (mostrados dentro do popover)
           const advancedCount = [
-            analystFilter !== "all",
-            typeFilter !== "all",
-            itemTypeFilter !== "all",
-            trackFilter !== "all",
+            analystFilter.length > 0,
+            typeFilter.length > 0,
+            itemTypeFilter.length > 0,
+            trackFilter.length > 0,
             competenceFilter !== "all",
             ownerGroup !== "all",
             divergenceFilter !== "all",
             questionedFilter !== "all",
-            poolFilter !== "all",
-            importModeFilter !== "all",
+            poolFilter.length > 0,
+            importModeFilter.length > 0,
             emptyOnly,
             hasProposedGlosas,
             hasAppliedDebits,
