@@ -763,8 +763,13 @@ export function SimuladorCenario() {
           procedure_name: string | null;
           access_route: string | null;
         }> = [];
-        for (const nomeAlvo of nomesAlvo) {
-          const ilikeTerm = `%${nomeAlvo.split(" ").filter((t) => t.length > 2).join("%")}%`;
+        for (const nomeAlvo of nomesAlvoOriginais) {
+          // Preserva acentos no termo de busca — `.ilike()` no PostgREST é
+          // case-insensitive porém sensível a acento; usar a forma
+          // normalizada (sem acento) fazia `revisao%` nunca casar
+          // `Revisão …` no banco.
+          const ilikeTerm = `%${nomeAlvo.split(/\s+/).filter((t) => t.length > 2).join("%")}%`;
+
           const parte = await fetchAllPaginated<{
             attendance_number: string | null;
             procedure_name: string | null;
