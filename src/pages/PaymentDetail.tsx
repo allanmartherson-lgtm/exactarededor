@@ -4194,6 +4194,8 @@ const PaymentDetail = () => {
           // Alertas assistenciais agregados por nome de regra
           const ruleCounts = new Map<string, number>();
           const ruleValues = new Map<string, number>();
+          const seenConflictIds = new Set<string>();
+          let conflictExtraValue = 0;
           items.forEach((it) => {
             const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
             if (!Array.isArray(findings)) return;
@@ -4201,11 +4203,17 @@ const PaymentDetail = () => {
               const name = String(f?.rule_name ?? "Regra sem nome");
               ruleCounts.set(name, (ruleCounts.get(name) ?? 0) + 1);
               ruleValues.set(name, (ruleValues.get(name) ?? 0) + Number(it.gross_amount ?? 0));
+              const cid = f?.conflicting_item_id as string | undefined;
+              if (cid && !seenConflictIds.has(cid)) {
+                seenConflictIds.add(cid);
+                conflictExtraValue += Number(conflictGrossForCard[cid] ?? 0);
+              }
             });
           });
           const sortedRules = Array.from(ruleCounts.entries()).sort((a, b) => b[1] - a[1]);
           const totalRuleAlerts = sortedRules.reduce((acc, [, n]) => acc + n, 0);
           const totalRuleValue = Array.from(ruleValues.values()).reduce((a, b) => a + b, 0);
+          const totalRiskWithConflicts = totalRuleValue + conflictExtraValue;
 
           return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
