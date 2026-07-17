@@ -345,7 +345,11 @@ function applySobreposicaoAssistencial(
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
   paymentTypeForElig: string | null,
+  externalItems: Item[] = [],
+  externalRefById: Map<string, string | null> = new Map(),
+  currentPaymentId: string | null = null,
 ): { hits: number; unresolvedDoctors: Set<string> } {
+
   const params = (rule.params ?? {}) as Json;
   const unresolvedDoctors = new Set<string>();
 
