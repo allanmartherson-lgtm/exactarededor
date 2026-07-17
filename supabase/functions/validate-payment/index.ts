@@ -349,6 +349,7 @@ function applySobreposicaoAssistencial(
   externalItems: Item[] = [],
   externalRefById: Map<string, string | null> = new Map(),
   currentPaymentId: string | null = null,
+  allAliases: Array<{ doctor_id: string; alias_normalized: string }> = [],
 ): { hits: number; unresolvedDoctors: Set<string> } {
 
   const params = (rule.params ?? {}) as Json;
@@ -356,10 +357,19 @@ function applySobreposicaoAssistencial(
 
   const doctorByName = new Map<string, Doctor>();
   const doctorByCrm = new Map<string, Doctor>();
+  const doctorsById = new Map<string, Doctor>();
   for (const d of allDoctors) {
+    doctorsById.set(d.id, d);
     if (d.full_name) doctorByName.set(normName(d.full_name), d);
     if (d.crm) doctorByCrm.set(d.crm.trim(), d);
   }
+  for (const a of allAliases) {
+    if (!a.alias_normalized) continue;
+    if (doctorByName.has(a.alias_normalized)) continue; // don't overwrite canonical
+    const doc = doctorsById.get(a.doctor_id);
+    if (doc) doctorByName.set(a.alias_normalized, doc);
+  }
+
 
   // Com grupo: filtra por especialidades afins. Sem grupo: aceita qualquer
   // combinação de especialidades distintas (modo "múltiplas especialidades").
