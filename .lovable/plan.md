@@ -1,82 +1,49 @@
 ## Objetivo
 
-Permitir que o analista defina uma ordenação personalizada multi-nível (estilo Excel: "Ordenar por A, depois por B…") aplicada **dentro de cada grupo de atendimento**. A ordem dos atendimentos entre si permanece inalterada — só reordena os itens de cada paciente.
+Eliminar a tela redundante "Correções em análise" e fazer as edições manuais do analista aparecerem categorizadas dentro do relatório único de **Ajustes por Intervenção** — hoje elas ficam misturadas no bucket `ajuste_manual` junto com edições de diretor/validador, sem distinção.
 
-## Escopo (arquivos)
+## Diagnóstico
 
-Apenas **frontend**, tudo em `src/components/payment-detail/ItemsDataGrid.tsx`. Sem migration, sem edge function, sem alteração em arquivos compartilhados.
+Hoje o ledger (`intervention_ledger.fonte`) categoriza por **tipo de evento** (`ajuste_manual`, `cancelamento`, `glosa`, `glosa_pj`, `aceite_esperado`, `aceite_pago`, `sem_intervencao`), não por **quem** interveio. Consequência:
 
-## UX
+- Edição de valor feita pelo analista, diretor ou validador → todas caem em `ajuste_manual`.
+- A sub-tab "Correções em análise" tenta separar filtrando `role='analista'`, mas o campo `role` retornado pela RPC vem de `fonte`, então nunca casa → sempre vazio.
 
-**1. Novo botão** ao lado do botão "Colunas" (canto direito da barra de filtros):
+A categorização certa é **cruzada**: `fonte` (o que aconteceu) × `papel_autor` (quem fez).
 
-```text
-[ Colunas ]  [ ↕ Classificar ]
-```
+## Escopo — arquivos afetados
 
-Ícone `ArrowUpDown` (Lucide), label "Classificar". Quando houver 1+ nível ativo, mostra badge com o nº de níveis (ex.: `Classificar · 2`).
+### Backend (1 migração)
+- **`supabase/migrations/<nova>.sql`** — atualizar `public.get_intervention_savings`:
+  - Derivar `papel_autor` a partir de `user_roles` do `autor_id` (prioridade: diretor > validador > analista > outros; fallback `sistema` quando `autor_id IS NULL`).
+  - Adicionar `papel_autor` em cada linha de `items` e em uma nova agregação `by_papel`.
+  - Manter `role` = `fonte` (não quebra consumidores atuais nem os filtros de "Papel" já existentes na UI).
+  - Sem mudança no ledger em si — só a RPC de leitura. Zero backfill necessário.
 
-**2. Popover/Modal** aberto pelo botão, inspirado no diálogo do Excel:
+### Frontend (3 arquivos)
+- **`src/lib/interventionSavings.ts`** — adicionar campo opcional `papel_autor` em `InterventionItem` + tipo `InterventionByPapel`; helper `filterItems` aceitar filtro `papeisAutor?: string[]`.
+- **`src/pages/InterventionReports.tsx`** — adicionar coluna "Papel do autor" no drill-down + `MultiSelectPopover` de "Papel" (analista/validador/diretor/sistema) usando o padrão já existente dos outros filtros. Sem novo componente.
+- **`src/pages/AnalystCorrections.tsx`** — **deletar** o arquivo.
+- **`src/App.tsx`** (ou onde a rota estiver) — remover rota `/relatorios/correcoes-analista`.
+- Remover sub-tab/link "Correções em análise" onde aparecer (buscarei em `InterventionReports.tsx` e `navItems.ts`).
 
-```text
-┌─ Classificação personalizada ───────────────────┐
-│  Ordenar itens dentro de cada atendimento por:  │
-│                                                 │
-│  1. [Data do procedimento ▾]  [Crescente ▾]  ✕ │
-│  2. [Paciente             ▾]  [A → Z      ▾]  ✕ │
-│                                                 │
-│  [+ Adicionar nível]                            │
-│                                                 │
-│  [ Limpar tudo ]              [ Aplicar ]       │
-└─────────────────────────────────────────────────┘
-```
+### Fora do escopo
+- Nenhuma mudança em `materialize_intervention_ledger`, no export (Excel/PDF já usam `itemsToCsv`/`role`), em `payment_observations`, no fluxo de edição do analista, nem no cálculo de delta.
 
-- Cada nível: **campo** + **direção** + **remover**.
-- Botão **+ Adicionar nível** empilha até 4 níveis.
-- **Aplicar** persiste no `localStorage` (chave `medpay:items-grid:custom-sort:v1`) para sobreviver a refresh do lote.
-- **Limpar tudo** volta ao default atual (status → gross desc).
+## Como o usuário passa a usar
 
-**3. Campos ordenáveis** disponíveis:
+No relatório único de Ajustes por Intervenção:
+- Filtro **"Tipo de intervenção"** (existente) = ajuste manual / cancelamento / glosa etc.
+- Filtro **"Papel do autor"** (novo) = analista / validador / diretor / sistema.
+- Para reproduzir a antiga tela: `Tipo = Ajuste manual` + `Papel = Analista`.
 
-- Data do procedimento (`procedure_date`)
-- Paciente (nome)
-- Convênio
-- Médico
-- Função (`doctor_function`)
-- Código TUSS
-- Procedimento (descrição)
-- Valor bruto (`gross_amount`)
-- Valor esperado (`expected_amount`)
-- Diferença (`expected − gross`)
-- Status (usa a mesma ordem de prioridade do default)
-- Método de cálculo (`applied_calc_method`)
+## Riscos e mitigação
 
-**4. Direção:** Crescente / Decrescente (com rótulos "A → Z" / "Z → A" para texto e "Menor → Maior" / "Maior → Menor" para numérico — só cosmético).
+- **RPC sem breaking change**: `role` continua vindo como `fonte`. `papel_autor` é campo aditivo.
+- **Performance**: lookup em `user_roles` é 1 JOIN por linha do ledger. Volume é pequeno (drill-down de ~90 dias por hospital); usarei subquery lateral com `LIMIT 1` e ordenação por precedência.
+- **Consumidores da RPC**: `InterventionReports.tsx`, `AnalystProductivity.tsx`, `LoteInterventionReport.tsx` — todos permanecem funcionais sem alteração. Só o arquivo deletado deixa de consumir.
 
-## Comportamento
+## Aprovação necessária
 
-- **Escopo:** aplicado **dentro de cada atendimento** (mesmo `attendance_number`). Itens sem atendimento continuam no fim, como hoje.
-- **Preserva regras invioláveis já existentes:**
-  - Ajustes de conciliação (`item_origem ≠ pagamento_atual`, não-bônus) continuam no fim absoluto.
-  - Linhas de **bônus** continuam grudadas logo abaixo do item pai do mesmo atendimento.
-  - Cluster de **pacote** continua no início do atendimento (a classificação personalizada roda **dentro** do cluster de pacote e dentro do cluster de "outros métodos", separadamente).
-- **Coexistência com ordenação por clique no header:** clique em header continua funcionando como override global temporário (como hoje). Se houver custom-sort ativo E o usuário clicar num header, o clique vence naquela sessão e o custom-sort volta assim que o header for desselecionado. Um aviso no popover explica: *"Um cabeçalho está sendo usado para ordenar. Limpe-o para aplicar a classificação personalizada."*
-- **Ordem entre atendimentos não muda.** A classificação personalizada nunca reordena os headers de atendimento entre si.
-
-## Implementação técnica
-
-1. **Novo tipo** `CustomSortLevel = { field: SortField; dir: "asc" | "desc" }` e estado `customSort: CustomSortLevel[]` persistido em `localStorage`.
-2. **Novo botão** logo antes ou depois do `<Popover>` de "Colunas" (linhas 2425-2431).
-3. **Novo componente inline** `CustomSortPopover` (~150 linhas) dentro do mesmo arquivo, seguindo o padrão do popover de Colunas para consistência visual.
-4. **Aplicar ordenação:** dentro do bloco que reordena por atendimento (linhas 1798-1816), quando `customSort.length > 0` e não houver `sortKey` de header ativo, substituir o `sort estável por índice original` por um comparador multi-nível que:
-   - primeiro respeita `clusterKey` (pacote antes de outros métodos — inviolável);
-   - depois aplica cada nível de `customSort` na ordem;
-   - desempata pelo índice original.
-5. **Bônus:** a passagem que reancora bônus abaixo do pai (linhas 1663-1700) roda **depois**, então continua correta.
-
-## Fora do escopo
-
-- Não altera ordenação de headers de atendimento.
-- Não altera export para Excel (mantém ordem atual do export).
-- Não altera default para novos usuários (só quando o analista abrir o popover e aplicar).
-- Nenhuma mudança de banco.
+1. Confirmar que a solução unificada (com dois eixos de filtro) atende — ou se prefere que `ajuste_manual` seja **subdividido em `fonte`** distinta por papel (opção mais invasiva: mexe no ledger e exige backfill; não recomendo).
+2. Autorizar a migração da RPC + deleção da tela.

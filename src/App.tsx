@@ -73,7 +73,7 @@ const loadPreviewCura = () => import("./pages/PreviewCura.tsx");
 const loadWcagAudit = () => import("./pages/WcagAudit.tsx");
 const loadKpis = () => import("./pages/Kpis.tsx");
 const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
-const loadAnalystCorrections = () => import("./pages/AnalystCorrections.tsx");
+
 const loadInterventionAudit = () => import("./pages/InterventionAudit.tsx");
 const loadCancelledPayments = () => import("./pages/CancelledPayments.tsx");
 const loadInterventionReports = () => import("./pages/InterventionReports.tsx");
@@ -171,7 +171,7 @@ const PreviewCura = lazy(loadPreviewCura);
 const WcagAudit = lazy(loadWcagAudit);
 const Kpis = lazy(loadKpis);
 const InterventionAdjustments = lazy(loadInterventionAdjustments);
-const AnalystCorrections = lazy(loadAnalystCorrections);
+
 const InterventionAudit = lazy(loadInterventionAudit);
 const CancelledPayments = lazy(loadCancelledPayments);
 const InterventionReports = lazy(loadInterventionReports);
@@ -335,7 +335,7 @@ const App = () => (
                   <Route path="/relatorios/intervencoes" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><InterventionReports /></ProtectedRoute>} />
                   {/* Compat: rotas antigas redirecionam para a página unificada com a view correta */}
                   <Route path="/relatorios/ajustes-intervencao" element={<Navigate to="/relatorios/intervencoes?view=ajustes" replace />} />
-                  <Route path="/relatorios/correcoes-analista" element={<Navigate to="/relatorios/intervencoes?view=correcoes" replace />} />
+                  <Route path="/relatorios/correcoes-analista" element={<Navigate to="/relatorios/intervencoes?view=ajustes&papel=analista" replace />} />
                   <Route path="/relatorios/auditoria-intervencao" element={<Navigate to="/relatorios/intervencoes?view=auditoria" replace />} />
                   <Route path="/relatorios/pagamentos-cancelados" element={<Navigate to="/relatorios/intervencoes?view=ajustes&role=cancelamento_empresa" replace />} />
                   <Route path="/relatorios/central" element={<ReportsCentral />} />

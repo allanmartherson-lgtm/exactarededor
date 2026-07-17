@@ -79,6 +79,8 @@ export interface InterventionItem {
   author_id: string;
   autor: string;
   role: IntervenorRole;
+  /** Papel cadastrado do autor no momento da leitura: analista | validador | diretor | admin | sistema. */
+  papel_autor?: string | null;
   obs_at: string;
   acatado_at: string;
   doctor_name: string | null;
@@ -186,6 +188,8 @@ export interface InterventionFilters {
   companyNames?: string[];
   doctorNames?: string[];
   classifications?: Array<"economia" | "aumento" | "neutro">;
+  /** Papéis cadastrados do autor (analista/validador/diretor/admin/sistema). OR interno. */
+  papeisAutor?: string[];
   search?: string;
   /** Faixa de valor absoluto do Δ (em R$). */
   minValue?: number | null;
@@ -216,6 +220,9 @@ export const filterItems = (
     if (!matchesMulti(f.paymentIds, f.paymentId, it.payment_id)) return false;
     if (!matchesMulti(f.companyNames, f.companyName, it.company_name ?? "")) return false;
     if (!matchesMulti(f.doctorNames, f.doctorName, it.doctor_name ?? "")) return false;
+    if (f.papeisAutor && f.papeisAutor.length > 0) {
+      if (!f.papeisAutor.includes(it.papel_autor ?? "sistema")) return false;
+    }
     const cls = classifyItem(it);
     if (!matchesMulti(f.classifications, f.classification, cls)) return false;
     const abs = Math.abs(it.delta);

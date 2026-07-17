@@ -171,6 +171,7 @@ export default function InterventionAdjustments() {
   const canReactivate = hasRole("admin") || hasRole("diretor") || hasRole("validador");
   const [params] = useSearchParams();
   const initialRole = (params.get("role") as IntervenorRole | null) ?? "all";
+  const initialPapel = params.get("papel");
   const [range, setRange] = useState<Range>(30);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
@@ -181,6 +182,7 @@ export default function InterventionAdjustments() {
     search: "",
     // Padrão: Neutro fora — reduz ruído de cancelamentos operacionais.
     classifications: ["economia", "aumento"],
+    papeisAutor: initialPapel ? [initialPapel] : [],
   });
 
   // Set para permitir múltiplas reativações em paralelo de IDs distintos sem
@@ -330,6 +332,7 @@ export default function InterventionAdjustments() {
     (filters.paymentIds?.length ?? 0) > 0 ||
     (filters.companyNames?.length ?? 0) > 0 ||
     (filters.doctorNames?.length ?? 0) > 0 ||
+    (filters.papeisAutor?.length ?? 0) > 0 ||
     // Considera "padrão" quando classifications = [economia, aumento].
     (() => {
       const c = filters.classifications ?? [];
@@ -370,11 +373,11 @@ export default function InterventionAdjustments() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Papel</label>
+              <label className="text-xs text-muted-foreground">Tipo de intervenção</label>
               <MultiSelectPopover
                 width="w-[200px]"
-                allLabel="Todos os papéis"
-                placeholder="Buscar papel…"
+                allLabel="Todos os tipos"
+                placeholder="Buscar tipo…"
                 values={filters.roles ?? []}
                 onChange={(v) => setFilters((f) => ({ ...f, roles: v, role: "all" }))}
                 options={[
@@ -388,6 +391,23 @@ export default function InterventionAdjustments() {
                   { value: "cancelamento_empresa", label: "Cancelamento empresa" },
                   { value: "cancelamento_item", label: "Cancelamento item" },
                   { value: "cancelamento_conciliacao", label: "Cancelamento via conciliação" },
+                ]}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Papel do autor</label>
+              <MultiSelectPopover
+                width="w-[180px]"
+                allLabel="Todos"
+                searchable={false}
+                values={filters.papeisAutor ?? []}
+                onChange={(v) => setFilters((f) => ({ ...f, papeisAutor: v }))}
+                options={[
+                  { value: "analista", label: "Analista" },
+                  { value: "validador", label: "Supervisor" },
+                  { value: "diretor", label: "Diretor" },
+                  { value: "admin", label: "Admin" },
+                  { value: "sistema", label: "Sistema (automático)" },
                 ]}
               />
             </div>
@@ -504,6 +524,7 @@ export default function InterventionAdjustments() {
                     paymentIds: [],
                     companyNames: [],
                     doctorNames: [],
+                    papeisAutor: [],
                     classifications: ["economia", "aumento"],
                     minValue: null,
                     maxValue: null,
@@ -894,9 +915,21 @@ export default function InterventionAdjustments() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">{it.autor}</div>
-                          <Badge variant="outline" className="text-[10px] mt-0.5">
-                            {roleLabel(it.role)}
-                          </Badge>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            <Badge variant="outline" className="text-[10px]" title="Tipo da intervenção">
+                              {roleLabel(it.role)}
+                            </Badge>
+                            {it.papel_autor && it.papel_autor !== "sistema" && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] border-primary/40 text-primary bg-primary/5"
+                                title="Papel cadastrado do autor"
+                              >
+                                {it.papel_autor === "validador" ? "Supervisor" :
+                                 it.papel_autor.charAt(0).toUpperCase() + it.papel_autor.slice(1)}
+                              </Badge>
+                            )}
+                          </div>
                           {isCancellationRole && (
                             <div className="mt-1">
                               <Badge

@@ -18,7 +18,7 @@ import {
   Search,
   BarChart2,
   Scale,
-  Pencil,
+  
   ClipboardList,
   ShieldX,
   Activity,
@@ -104,15 +104,6 @@ const REPORTS: ReportSpec[] = [
     category: "Intervenções",
     icon: Scale,
     roles: ["diretor", "admin", "validador"],
-  },
-  {
-    key: "analyst-corrections",
-    label: "Correções em análise",
-    description: "Itens corrigidos pelo analista (valor original × valor corrigido).",
-    route: "/relatorios/correcoes-analista",
-    category: "Intervenções",
-    icon: Pencil,
-    roles: ["diretor", "admin", "validador", "analista"],
   },
   {
     key: "intervention-audit",

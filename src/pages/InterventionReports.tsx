@@ -1,8 +1,8 @@
 /**
  * Relatórios de Intervenção — página única com subtabs, no padrão de
- * Inteligência Financeira. Consolida Ajustes, Correções, Auditoria e
- * Pagamentos cancelados. As páginas individuais continuam acessíveis
- * via deep link (?view=...) para compatibilidade.
+ * Inteligência Financeira. Consolida Ajustes e Auditoria. As correções
+ * do analista deixaram de ter tela dedicada: aparecem em "Ajustes" com
+ * o filtro "Papel do autor = Analista" (deep link legado redireciona).
  */
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -11,10 +11,9 @@ import { Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import InterventionAdjustments from "./InterventionAdjustments";
-import AnalystCorrections from "./AnalystCorrections";
 import InterventionAudit from "./InterventionAudit";
 
-type TabValue = "ajustes" | "correcoes" | "auditoria";
+type TabValue = "ajustes" | "auditoria";
 
 interface TabDef {
   value: TabValue;
@@ -32,12 +31,6 @@ const GROUPS: { label: string; items: TabDef[] }[] = [
         label: "Ajustes por intervenção",
         roles: ["diretor", "admin", "validador", "analista"] as const,
         render: () => <InterventionAdjustments />,
-      },
-      {
-        value: "correcoes",
-        label: "Correções em análise",
-        roles: ["diretor", "admin", "validador", "analista"] as const,
-        render: () => <AnalystCorrections />,
       },
     ],
   },

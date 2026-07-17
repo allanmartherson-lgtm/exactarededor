@@ -25,7 +25,6 @@ const RPC_NAME = "get_intervention_savings";
 // wrapper de sub-tabs; LoteInterventionReport lê ledger por payment_id (ok).
 const REPORT_PAGES = [
   "InterventionAdjustments.tsx",
-  "AnalystCorrections.tsx",
   "InterventionAudit.tsx",
 ];
 
