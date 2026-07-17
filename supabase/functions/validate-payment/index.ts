@@ -943,7 +943,10 @@ Deno.serve(async (req) => {
         rules_skipped: skippedRules,
         items_flagged: updates.length,
         total_findings: totalHits,
+        scope,
+        external_items_scanned: externalItems.length,
         unresolved_doctors_by_rule: unresolvedByRule,
+
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
