@@ -115,6 +115,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
       for (const fRaw of findings as Finding[]) {
         const f = fRaw ?? {};
         const c = f.conflicting_item ?? {};
+        const cid = f.conflicting_item_id ?? "";
         out.push({
           itemId: it.id,
           rule_name: f.rule_name ?? "Regra sem nome",
@@ -134,11 +135,50 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
           conflicting_date: c.procedure_date ?? "",
           conflicting_attendance: c.attendance_number ?? "",
           conflicting_payment_ref: c.payment_reference ?? "",
+          conflicting_item_id: cid,
+          conflicting_gross_amount: cid ? Number(conflictGross[cid] ?? 0) : 0,
         });
       }
     }
     return out;
-  }, [items]);
+  }, [items, conflictGross]);
+
+  // Busca gross_amount dos itens conflitantes (podem estar em outros lotes),
+  // pois o snapshot em validation_findings não persiste valor. Sem isso, o
+  // "valor em risco" só refletia o lote atual.
+  useEffect(() => {
+    if (!open) return;
+    const ids = new Set<string>();
+    for (const it of items) {
+      const findings = it.validation_findings;
+      if (!Array.isArray(findings)) continue;
+      for (const f of findings as Finding[]) {
+        const cid = f?.conflicting_item_id;
+        if (cid) ids.add(cid);
+      }
+    }
+    const missing = Array.from(ids).filter((id) => !(id in conflictGross));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const chunkSize = 200;
+      const acc: Record<string, number> = {};
+      for (let i = 0; i < missing.length; i += chunkSize) {
+        const slice = missing.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("payment_items")
+          .select("id, gross_amount")
+          .in("id", slice);
+        if (error) continue;
+        for (const r of data ?? []) acc[r.id as string] = Number(r.gross_amount ?? 0);
+      }
+      if (!cancelled) setConflictGross((prev) => ({ ...prev, ...acc }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, items, conflictGross]);
+
 
   const rules = useMemo(() => {
     const set = new Set<string>();
