@@ -1,7 +1,8 @@
 // Gerenciador de aliases de procedimento — vincula nomes do Aurum
 // (ds_procedimento) a nomes canônicos do Exacta (procedure_name do item
 // principal), para que o Simulador consiga casar mesmo com grafias distintas.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -58,17 +59,38 @@ function CanonicalPicker({
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const filtered = useMemo(() => {
     const nq = norm(q);
     if (!nq) return candidates.slice(0, 30);
     return candidates.filter((c) => norm(c).includes(nq)).slice(0, 30);
   }, [q, candidates]);
 
+  // Recalcula posição do dropdown (portal) para escapar do overflow do container.
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ left: r.left, top: r.bottom + 4, width: r.width });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
+
   return (
     <div className="relative">
       <div className="relative">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
+          ref={inputRef}
           className="h-8 pl-7 text-xs"
           placeholder="Digite para buscar procedimento Exacta ou CBHPM..."
           value={q}
@@ -78,9 +100,12 @@ function CanonicalPicker({
           onBlur={() => setTimeout(() => setOpen(false), 150)}
         />
       </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-md border border-border bg-popover shadow-lg">
-          {filtered.map((c) => {
+      {open && rect && createPortal(
+        <div
+          className="fixed z-[9999] max-h-64 overflow-auto rounded-md border border-border bg-popover shadow-lg"
+          style={{ left: rect.left, top: rect.top, width: rect.width }}
+        >
+          {filtered.length > 0 ? filtered.map((c) => {
             const origens = originMap.get(norm(c)) ?? new Set<string>();
             return (
               <button
@@ -105,13 +130,13 @@ function CanonicalPicker({
                 </span>
               </button>
             );
-          })}
-        </div>
-      )}
-      {open && q && filtered.length === 0 && (
-        <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-popover shadow-lg px-3 py-2 text-xs text-muted-foreground">
-          Nenhum procedimento Exacta/CBHPM encontrado.
-        </div>
+          }) : (
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              {q ? "Nenhum procedimento Exacta/CBHPM encontrado." : "Digite para buscar..."}
+            </div>
+          )}
+        </div>,
+        document.body,
       )}
     </div>
   );
