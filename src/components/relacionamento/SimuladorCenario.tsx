@@ -1477,13 +1477,14 @@ export function SimuladorCenario() {
               <div className="overflow-x-auto -mx-2 sm:mx-0">
                 <div className="rounded-md border p-3 bg-muted/20 min-w-[560px]">
                 {/* Cabeçalho */}
-                <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 pb-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 pb-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span></span>
                   <span></span>
-                  <span className="text-right">Aurum</span>
-                  <span className="text-right">Exacta Real</span>
-                  <span className="text-right text-primary font-bold bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">Simulado</span>
+                  <span className="text-right self-center">Aurum</span>
+                  <span className="text-right self-center">Exacta Real</span>
+                  <span className="text-right text-primary font-bold bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">Simulado</span>
                 </div>
+
 
                 {(() => {
                   const A = resultado.aurum;
