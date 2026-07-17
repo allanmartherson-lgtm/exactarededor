@@ -5,7 +5,7 @@
  * mesmo paciente + mesmo dia + ≥2 especialidades distintas em lançamentos
  * de visita/parecer. Não depende da regra ter rodado no lote.
  */
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -337,7 +337,7 @@ export default function OverlapAudit() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </Fragment>
                       );
                     })}
                   </TableBody>
