@@ -1570,13 +1570,14 @@ export function SimuladorCenario() {
                         }
                       />
                       {/* Sub-linha extra: % HM sobre Receita Líquida (referência clássica de honorários). */}
-                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-baseline text-[10px] text-muted-foreground pl-3">
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 text-[10px] text-muted-foreground pl-3">
                         <span></span>
-                        <span className="italic">% da Receita Líquida</span>
-                        <span className="text-right tabular-nums">{PCT(pctHmAurum)}</span>
-                        <span className="text-right tabular-nums">{PCT(pctHmExacta)}</span>
-                        <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">{PCT(pctHmSim)}</span>
+                        <span className="italic self-center">% da Receita Líquida</span>
+                        <span className="text-right tabular-nums self-center">{PCT(pctHmAurum)}</span>
+                        <span className="text-right tabular-nums self-center">{PCT(pctHmExacta)}</span>
+                        <span className="text-right tabular-nums bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r self-stretch flex items-center justify-end">{PCT(pctHmSim)}</span>
                       </div>
+
                       <DreLine op="(−)" label="Exames Imagem" aurum={-A.custo_exames_img} exacta={-A.custo_exames_img} simulado={-A.custo_exames_img} indent
                         denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent
