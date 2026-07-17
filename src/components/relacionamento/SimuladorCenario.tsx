@@ -267,7 +267,7 @@ function DreLine({
   op, label, aurum, exacta, simulado, indent, bold, highlight, tooltip,
   simuladoTone, denomAurum, denomExacta, denomSim, base,
   denomLabelAurum = "cir", denomLabelExacta = "atend", denomLabelSim = "cir",
-  viewMode = "media",
+  viewMode = "media", emphasize = false,
 }: {
   op: string;
   label: string;
@@ -287,9 +287,11 @@ function DreLine({
   denomLabelExacta?: string;
   denomLabelSim?: string;
   viewMode?: "media" | "soma";
+  /** Destaque suave para linhas-chave (HM, Margem): tipografia maior + peso extra. */
+  emphasize?: boolean;
 }) {
   const bg =
-    highlight === "amber" ? "bg-amber-50" :
+    highlight === "amber" ? "bg-amber-50/60" :
     highlight === "success" ? "bg-emerald-50" :
     highlight === "danger" ? "bg-red-50" : "";
   const simCor =
