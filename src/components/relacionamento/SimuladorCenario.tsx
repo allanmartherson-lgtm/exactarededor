@@ -1488,6 +1488,16 @@ export function SimuladorCenario() {
                   const atd = disp.exacta?.atendimentos ?? 0;
                   const exGrossProj =
                     exGross != null && atd > 0 && qc > 0 ? (exGross / atd) * qc : exGross;
+                  // Simulado também vem dos mesmos atd atendimentos do Exacta —
+                  // projetamos para qc cirurgias na mesma proporção para que a
+                  // comparação Exacta Real × Simulado permaneça 1:1 quando o
+                  // acordo é o mesmo (ex.: 100% convênio → mesmo valor pago).
+                  const novoHmProj =
+                    atd > 0 && qc > 0 ? (sim.novo_hm / atd) * qc : sim.novo_hm;
+                  const novaMargemProj =
+                    atd > 0 && qc > 0
+                      ? A.receita_liquida + A.outros_custos - novoHmProj
+                      : sim.nova_margem;
 
                   const margemExactaProj =
                     exGrossProj != null ? A.receita_liquida + A.outros_custos - exGrossProj : null;
@@ -1499,13 +1509,15 @@ export function SimuladorCenario() {
                   // Convenção: se simulado piora margem (HM maior que projetado), coluna Simulado da linha HM em vermelho.
                   const simHmTone: "positive" | "negative" | "neutral" =
                     exGrossProj == null ? "neutral" :
-                    sim.novo_hm > exGrossProj ? "negative" : "positive";
+                    novoHmProj > exGrossProj ? "negative" : "positive";
 
                   // % HM sobre receita líquida
                   const rl = A.receita_liquida;
                   const pctHmAurum = rl > 0 ? A.custo_hm / rl : null;
                   const pctHmExacta = rl > 0 && exGrossProj != null ? exGrossProj / rl : null;
-                  const pctHmSim = rl > 0 ? sim.novo_hm / rl : null;
+                  const pctHmSim = rl > 0 ? novoHmProj / rl : null;
+                  const pctMargemSimProj =
+                    rl > 0 ? novaMargemProj / rl : null;
 
                   return (
                     <>
