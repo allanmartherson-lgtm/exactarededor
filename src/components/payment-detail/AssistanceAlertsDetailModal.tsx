@@ -286,9 +286,12 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
       }
       // item em conflito
       if (r.conflicting_procedure || r.conflicting_doctor || r.conflicting_attendance) {
-        const cid = `conf|${r.itemId}|${r.conflicting_attendance}|${r.conflicting_procedure}|${r.conflicting_payment_ref}`;
+        const cid = r.conflicting_item_id
+          ? `confid|${r.conflicting_item_id}`
+          : `conf|${r.itemId}|${r.conflicting_attendance}|${r.conflicting_procedure}|${r.conflicting_payment_ref}`;
         if (!seen.has(cid)) {
           seen.add(cid);
+          g.total += r.conflicting_gross_amount;
           g.timeline.push({
             procedure_name: r.conflicting_procedure,
             procedure_code: "",
@@ -296,7 +299,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
             attendance: r.conflicting_attendance,
             payment_ref: r.conflicting_payment_ref,
             rule_name: r.rule_name,
-            gross_amount: 0,
+            gross_amount: r.conflicting_gross_amount,
             isConflict: true,
           });
         }
