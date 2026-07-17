@@ -125,6 +125,7 @@ export function ProcedureAliasManager() {
   const [saving, setSaving] = useState<string | null>(null);
   const [aurumNames, setAurumNames] = useState<string[]>([]);
   const [exactaNames, setExactaNames] = useState<string[]>([]);
+  const [exactaOriginMap, setExactaOriginMap] = useState<Map<string, Set<string>>>(new Map());
   const [aliases, setAliases] = useState<AliasRow[]>([]);
 
   // Carrega tudo em paralelo.
