@@ -106,15 +106,6 @@ const REPORTS: ReportSpec[] = [
     roles: ["diretor", "admin", "validador"],
   },
   {
-    key: "analyst-corrections",
-    label: "Correções em análise",
-    description: "Itens corrigidos pelo analista (valor original × valor corrigido).",
-    route: "/relatorios/correcoes-analista",
-    category: "Intervenções",
-    icon: Pencil,
-    roles: ["diretor", "admin", "validador", "analista"],
-  },
-  {
     key: "intervention-audit",
     label: "Auditoria de intervenções",
     description: "Eventos detalhados (ajuste, cancelamento empresa/item) que alimentam o KPI.",
