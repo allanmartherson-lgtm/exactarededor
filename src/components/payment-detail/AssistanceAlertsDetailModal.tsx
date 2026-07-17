@@ -350,7 +350,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
           <p className="text-xs text-foreground/70">
             {paymentReference ? <span className="font-medium">{paymentReference}</span> : null}
             {paymentReference ? " · " : ""}
-            Cruzamentos detectados pelo motor assistencial dentro deste lote.
+            Cruzamentos detectados pelo motor assistencial. Valor em risco inclui itens conflitantes de outros lotes.
           </p>
         </DialogHeader>
 
