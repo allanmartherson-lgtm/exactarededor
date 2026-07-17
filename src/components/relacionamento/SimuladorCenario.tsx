@@ -1086,8 +1086,55 @@ export function SimuladorCenario() {
     })();
   }, [resultado]);
 
+  // Vista derivada — aplica o toggle "excluir sem match" (B) sobre o resultado
+  // bruto, sem re-simular. Também calcula os KPIs "sem match" para o banner.
+  const disp = useMemo(() => {
+    if (!resultado) return null;
+    const { aurum, exacta, simulado, perItem } = resultado;
+    const semMatchDet = exacta
+      ? exacta.detalhes.filter((d) => perItem[d.id]?.usedFallback)
+      : [];
+    const semMatchCount = semMatchDet.length;
+    const semMatchValor = semMatchDet.reduce((s, d) => s + d.gross_amount, 0);
+
+    if (!exacta || !excluirSemMatch) {
+      return { exacta, simulado, semMatchCount, semMatchValor };
+    }
+
+    const detFilt = exacta.detalhes.filter((d) => !perItem[d.id]?.usedFallback);
+    const attSet = new Set(
+      detFilt.map((d) => d.attendance_number).filter(Boolean) as string[],
+    );
+    const gross = detFilt.reduce((s, d) => s + d.gross_amount, 0);
+    const expected = detFilt.reduce((s, d) => s + d.expected_amount, 0);
+    const baseConvenio = detFilt.reduce((s, d) => s + d.procedure_amount, 0);
+    const semCarater = detFilt.filter((d) => !d.attendance_number).length; // aproximação
+    const novoHm = detFilt.reduce(
+      (s, d) => s + (perItem[d.id]?.expected_amount ?? 0),
+      0,
+    );
+    const novaMargem = aurum.receita_liquida + aurum.outros_custos - novoHm;
+    const novaPct = aurum.receita_liquida > 0 ? novaMargem / aurum.receita_liquida : 0;
+
+    return {
+      exacta: {
+        ...exacta,
+        gross,
+        expected,
+        baseConvenio,
+        itens: detFilt.length,
+        atendimentos: attSet.size,
+        sem_carater: semCarater,
+        detalhes: detFilt,
+      },
+      simulado: { novo_hm: novoHm, nova_margem: novaMargem, nova_pct_margem: novaPct },
+      semMatchCount,
+      semMatchValor,
+    };
+  }, [resultado, excluirSemMatch]);
 
   // Renderização — inclui estados sem base.
+
   if (hospitalId && !loadingNomes && anosDisponiveis.length === 0) {
     return (
       <Card>
