@@ -377,6 +377,11 @@ export function SimuladorCenario() {
   const [nomeQuery, setNomeQuery] = useState("");
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
   const [ano, setAno] = useState<number | null>(null);
+  // Nomes (Aurum) que possuem correspondência no Exacta para o ano+modo
+  // vigente. Usado para sinalizar match no picker e permitir "Apenas com match".
+  const [matchedNames, setMatchedNames] = useState<Set<string>>(new Set());
+  const [loadingMatched, setLoadingMatched] = useState(false);
+  const [apenasComMatch, setApenasComMatch] = useState(false);
   const [modelo, setModelo] = useState<Modelo>("percentual");
   const [pctNovo, setPctNovo] = useState<number>(100);
   const [refTables, setRefTables] = useState<Array<{ id: string; name: string }>>([]);
