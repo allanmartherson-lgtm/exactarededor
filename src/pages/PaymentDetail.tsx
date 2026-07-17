@@ -418,6 +418,7 @@ const PaymentDetail = () => {
   const [isBatchReconReportOpen, setIsBatchReconReportOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
+  const [conflictGrossForCard, setConflictGrossForCard] = useState<Record<string, number>>({});
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
   // isTestModalOpen removido — teste de regras foi para /regras?tab=teste-motor
   // O modal de conciliação só abre por ação explícita do usuário (botão/menu).
@@ -455,6 +456,39 @@ const PaymentDetail = () => {
   const [onlyRegIssues, setOnlyRegIssues] = useState(false);
   const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
   const tussAuditOpenCount = useTussAuditOpenCount(id);
+  // Busca gross_amount de itens conflitantes (possivelmente em outros lotes)
+  // para exibir "valor total em risco" no card de Alertas Assistenciais.
+  // Mesmo padrão do AssistanceAlertsDetailModal.
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const it of items) {
+      const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
+      if (!Array.isArray(findings)) continue;
+      for (const f of findings as Array<{ conflicting_item_id?: string }>) {
+        const cid = f?.conflicting_item_id;
+        if (cid) ids.add(cid);
+      }
+    }
+    const missing = Array.from(ids).filter((cid) => !(cid in conflictGrossForCard));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const chunkSize = 200;
+      const acc: Record<string, number> = {};
+      for (let i = 0; i < missing.length; i += chunkSize) {
+        const slice = missing.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("payment_items")
+          .select("id, gross_amount")
+          .in("id", slice);
+        if (error) continue;
+        for (const r of data ?? []) acc[r.id as string] = Number(r.gross_amount ?? 0);
+      }
+      if (!cancelled) setConflictGrossForCard((prev) => ({ ...prev, ...acc }));
+    })();
+    return () => { cancelled = true; };
+  }, [items, conflictGrossForCard]);
+
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -4160,6 +4194,8 @@ const PaymentDetail = () => {
           // Alertas assistenciais agregados por nome de regra
           const ruleCounts = new Map<string, number>();
           const ruleValues = new Map<string, number>();
+          const seenConflictIds = new Set<string>();
+          let conflictExtraValue = 0;
           items.forEach((it) => {
             const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
             if (!Array.isArray(findings)) return;
@@ -4167,11 +4203,17 @@ const PaymentDetail = () => {
               const name = String(f?.rule_name ?? "Regra sem nome");
               ruleCounts.set(name, (ruleCounts.get(name) ?? 0) + 1);
               ruleValues.set(name, (ruleValues.get(name) ?? 0) + Number(it.gross_amount ?? 0));
+              const cid = f?.conflicting_item_id as string | undefined;
+              if (cid && !seenConflictIds.has(cid)) {
+                seenConflictIds.add(cid);
+                conflictExtraValue += Number(conflictGrossForCard[cid] ?? 0);
+              }
             });
           });
           const sortedRules = Array.from(ruleCounts.entries()).sort((a, b) => b[1] - a[1]);
           const totalRuleAlerts = sortedRules.reduce((acc, [, n]) => acc + n, 0);
           const totalRuleValue = Array.from(ruleValues.values()).reduce((a, b) => a + b, 0);
+          const totalRiskWithConflicts = totalRuleValue + conflictExtraValue;
 
           return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -4249,6 +4291,11 @@ const PaymentDetail = () => {
                       </div>
                     )}
                   </div>
+                  {totalRuleAlerts > 0 && totalRiskWithConflicts > totalRuleValue && (
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      incluindo outros lotes: <span className="text-red-600 font-medium">{formatCurrency(totalRiskWithConflicts)}</span>
+                    </div>
+                  )}
                   {sortedRules.length === 0 ? (
                     <p className="italic text-muted-foreground">Nenhum alerta</p>
                   ) : (
