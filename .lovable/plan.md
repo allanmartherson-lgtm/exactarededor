@@ -1,49 +1,77 @@
-## Objetivo
+## Painel de padrões de sobreposição assistencial
 
-Eliminar a tela redundante "Correções em análise" e fazer as edições manuais do analista aparecerem categorizadas dentro do relatório único de **Ajustes por Intervenção** — hoje elas ficam misturadas no bucket `ajuste_manual` junto com edições de diretor/validador, sem distinção.
+Auditoria autônoma dos casos "mesmo paciente + mesmo dia + ≥2 lançamentos assistenciais". Não depende da regra ter rodado no lote — consulta direto os `payment_items` do hospital ativo por janela de datas.
 
-## Diagnóstico
+### Onde vive
 
-Hoje o ledger (`intervention_ledger.fonte`) categoriza por **tipo de evento** (`ajuste_manual`, `cancelamento`, `glosa`, `glosa_pj`, `aceite_esperado`, `aceite_pago`, `sem_intervencao`), não por **quem** interveio. Consequência:
+Nova rota `/auditoria/sobreposicao-assistencial` (link no menu de Relatórios/Auditoria). Escopo por `current_active_hospital()` via RLS já existente.
 
-- Edição de valor feita pelo analista, diretor ou validador → todas caem em `ajuste_manual`.
-- A sub-tab "Correções em análise" tenta separar filtrando `role='analista'`, mas o campo `role` retornado pela RPC vem de `fonte`, então nunca casa → sempre vazio.
+### O que a tela mostra
 
-A categorização certa é **cruzada**: `fonte` (o que aconteceu) × `papel_autor` (quem fez).
+**Filtros no topo**
+- Janela (data inicial / final; default últimos 90 dias sobre `procedure_date`)
+- Tipo de item: Visita+Parecer (default) / só Visita / só Parecer
+- Mínimo de especialidades distintas por paciente/dia (default 2)
+- Modo de especialidade: Principal (1ª do médico) / Qualquer
+- Especialidades a ignorar (multi-select — default Infectologia, como na regra)
 
-## Escopo — arquivos afetados
+**Card 1 — Combinações de especialidades**
+Tabela: `Especialidades | Pacientes | Dias | Atendimentos | Ver exemplos`
+Ex.: `Neurologia + Geriatria — 47 pac / 112 dias / 189 atend.`
+Inclui combinações mesma-especialidade quando o TUSS difere (ex.: Neuro EEG + Neuro Visita) — coluna extra "Mesma especialidade" com badge.
 
-### Backend (1 migração)
-- **`supabase/migrations/<nova>.sql`** — atualizar `public.get_intervention_savings`:
-  - Derivar `papel_autor` a partir de `user_roles` do `autor_id` (prioridade: diretor > validador > analista > outros; fallback `sistema` quando `autor_id IS NULL`).
-  - Adicionar `papel_autor` em cada linha de `items` e em uma nova agregação `by_papel`.
-  - Manter `role` = `fonte` (não quebra consumidores atuais nem os filtros de "Papel" já existentes na UI).
-  - Sem mudança no ledger em si — só a RPC de leitura. Zero backfill necessário.
+**Card 2 — Pacientes com mais dias em sobreposição**
+Top 50: `Paciente | Dias | Especialidades envolvidas | Atendimentos`. Clique expande drill-down por dia com lote, médico, TUSS, valor.
 
-### Frontend (3 arquivos)
-- **`src/lib/interventionSavings.ts`** — adicionar campo opcional `papel_autor` em `InterventionItem` + tipo `InterventionByPapel`; helper `filterItems` aceitar filtro `papeisAutor?: string[]`.
-- **`src/pages/InterventionReports.tsx`** — adicionar coluna "Papel do autor" no drill-down + `MultiSelectPopover` de "Papel" (analista/validador/diretor/sistema) usando o padrão já existente dos outros filtros. Sem novo componente.
-- **`src/pages/AnalystCorrections.tsx`** — **deletar** o arquivo.
-- **`src/App.tsx`** (ou onde a rota estiver) — remover rota `/relatorios/correcoes-analista`.
-- Remover sub-tab/link "Correções em análise" onde aparecer (buscarei em `InterventionReports.tsx` e `navItems.ts`).
+**Card 3 — Atendimentos com sobreposição no mesmo dia**
+Lista paginada: `Data | Paciente | Atendimento | Médicos (especialidades) | Lotes | Total pago`. Link para cada lote.
+
+**Ações**
+- Exportar Excel (3 abas: Combinações, Pacientes, Atendimentos)
+- "Abrir regra de sobreposição" (link para `/regras`) — não altera regra a partir daqui
+
+### Como o cálculo funciona
+
+Nova RPC `get_overlap_audit(p_start, p_end, p_item_scope, p_min_distinct, p_specialty_mode, p_excluded_specs[])` que:
+1. Filtra `payment_items` do hospital ativo com `procedure_date` na janela.
+2. Elegibilidade estrita por TUSS/nome (mesma lista usada em `validate-payment`: 10102019, 10102027, 10103015, 10103082 + nomes visita/parecer/interconsulta/consultoria).
+3. Junta com `doctors` + `doctor_specialties` para resolver especialidades (fallback: `doctor_document` → `doctor_name`).
+4. Agrupa por `(paciente_normalizado, procedure_date::date)`.
+5. Retorna 3 result sets via JSONB: `by_specialty_combo`, `by_patient`, `by_attendance` — cada linha já com contagens, sample_ids e valores agregados.
+
+Cache client-side com React Query (staleTime 5 min); ação de refresh manual.
+
+### Arquivos a criar
+
+- `supabase/migrations/<ts>_overlap_audit_rpc.sql` — cria função `public.get_overlap_audit(...)` `SECURITY DEFINER`, `GRANT EXECUTE ... TO authenticated`. Reusa `normSpec`/`normName` inline.
+- `src/pages/OverlapAudit.tsx` — layout com filtros + 3 cards + export.
+- `src/lib/overlapAuditReport.ts` — export Excel (mesmo padrão de `interventionReport.ts`).
+- `src/hooks/useOverlapAudit.ts` — React Query wrapper da RPC.
+
+### Arquivos a alterar (mínimo)
+
+- `src/App.tsx` — registrar rota `/auditoria/sobreposicao-assistencial`.
+- `src/components/layout/Sidebar.tsx` (ou equivalente) — adicionar item "Sobreposição assistencial" em Auditoria/Relatórios.
+
+Nenhum outro arquivo compartilhado é tocado. A regra `sobreposicao_assistencial` e a edge function `validate-payment` permanecem intactas.
 
 ### Fora do escopo
-- Nenhuma mudança em `materialize_intervention_ledger`, no export (Excel/PDF já usam `itemsToCsv`/`role`), em `payment_observations`, no fluxo de edição do analista, nem no cálculo de delta.
 
-## Como o usuário passa a usar
+- Criar/editar regra a partir do painel
+- Notificações automáticas
+- Cruzamento com Aurum/CBHPM
+- Ajuste de valores ou glosa direto pelo painel
 
-No relatório único de Ajustes por Intervenção:
-- Filtro **"Tipo de intervenção"** (existente) = ajuste manual / cancelamento / glosa etc.
-- Filtro **"Papel do autor"** (novo) = analista / validador / diretor / sistema.
-- Para reproduzir a antiga tela: `Tipo = Ajuste manual` + `Papel = Analista`.
+### Riscos
 
-## Riscos e mitigação
+- Volume de dados: janela grande em hospital grande pode ficar lenta. Mitigação: janela default 90d + índice já existente em `payment_items(hospital_id, procedure_date)` (a verificar; se faltar, criar na mesma migration).
+- Pacientes sem nome normalizado consistente: usa `normName` (lower + sem acento); casos de digitação divergente ficam em grupos separados (documentado como limitação).
 
-- **RPC sem breaking change**: `role` continua vindo como `fonte`. `papel_autor` é campo aditivo.
-- **Performance**: lookup em `user_roles` é 1 JOIN por linha do ledger. Volume é pequeno (drill-down de ~90 dias por hospital); usarei subquery lateral com `LIMIT 1` e ordenação por precedência.
-- **Consumidores da RPC**: `InterventionReports.tsx`, `AnalystProductivity.tsx`, `LoteInterventionReport.tsx` — todos permanecem funcionais sem alteração. Só o arquivo deletado deixa de consumir.
+### Ordem de execução
 
-## Aprovação necessária
+1. Criar migration da RPC (aguardar aprovação da DB).
+2. Criar `useOverlapAudit`, `overlapAuditReport`, `OverlapAudit.tsx`.
+3. Registrar rota e menu.
+4. Testar com HDF Neuro maio + janela 30d.
 
-1. Confirmar que a solução unificada (com dois eixos de filtro) atende — ou se prefere que `ajuste_manual` seja **subdividido em `fonte`** distinta por papel (opção mais invasiva: mexe no ledger e exige backfill; não recomendo).
-2. Autorizar a migração da RPC + deleção da tela.
+Confirma que sigo?
