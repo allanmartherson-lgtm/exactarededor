@@ -363,6 +363,12 @@ export function SimuladorCenario() {
   const [multiplicador, setMultiplicador] = useState<number>(1);
   const [deflator, setDeflator] = useState<number>(0);
   const [acrescimo, setAcrescimo] = useState<number>(0);
+  // Percentuais dos auxiliares aplicados pelo motor. Defaults refletem o
+  // padrão histórico da controladoria (1º Aux 30%, 2º Aux 20%, Instrumentador 20%).
+  // Sem esses valores o motor paga 100% para auxiliares (bug reportado).
+  const [auxFirstPct, setAuxFirstPct] = useState<number>(30);
+  const [auxSecondPct, setAuxSecondPct] = useState<number>(20);
+  const [instrumentadorPct, setInstrumentadorPct] = useState<number>(20);
   const [carater, setCarater] = useState<"todos" | "Eletiva" | "Urgência">("todos");
   // Aurum só contempla pacientes INTERNADOS (cirúrgicos). Filtro default-on
   // limita o Exacta a itens de Centro Cirúrgico / Hemodinâmica para evitar
@@ -801,7 +807,15 @@ export function SimuladorCenario() {
         motorErro = "Selecione uma tabela de referência.";
       } else {
         const scenario = modelo === "percentual"
-          ? { calculation_type: "percentual_sobre_convenio" as const, convenio_percentage: pctNovo }
+          ? {
+              calculation_type: "percentual_sobre_convenio" as const,
+              convenio_percentage: pctNovo,
+              apply_access_route: true,
+              include_auxiliaries: true,
+              aux_first_pct: auxFirstPct,
+              aux_second_pct: auxSecondPct,
+              instrumentador_pct: instrumentadorPct,
+            }
           : {
               calculation_type: "tabela_diferenciada" as const,
               reference_table_id: refTableId,
@@ -810,6 +824,9 @@ export function SimuladorCenario() {
               acrescimo_pct: acrescimo,
               apply_access_route: true,
               include_auxiliaries: true,
+              aux_first_pct: auxFirstPct,
+              aux_second_pct: auxSecondPct,
+              instrumentador_pct: instrumentadorPct,
             };
         const { data: simResp, error: simErr } = await supabase.functions.invoke("simulate-scenario", {
           body: {
@@ -907,7 +924,7 @@ export function SimuladorCenario() {
     } finally {
       setSimulando(false);
     }
-  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, refTableId, tabelaAurum, nomeCampo, carater, apenasInternados]);
+  }, [hospitalId, nomeSelecionado, ano, modo, modelo, pctNovo, multiplicador, deflator, acrescimo, auxFirstPct, auxSecondPct, instrumentadorPct, refTableId, tabelaAurum, nomeCampo, carater, apenasInternados]);
 
   const salvarCenario = useCallback(async () => {
     if (!resultado || !hospitalId) return;
@@ -1236,6 +1253,21 @@ export function SimuladorCenario() {
                 </div>
               </>
             )}
+
+            {/* Percentuais de auxiliares — aplicados pelo motor real.
+                Sem esses valores auxiliares eram pagos como 100% (bug). */}
+            <div className="max-w-[7rem]">
+              <Label className="text-xs">1º Aux (%)</Label>
+              <DecimalInput value={auxFirstPct} onChange={setAuxFirstPct} />
+            </div>
+            <div className="max-w-[7rem]">
+              <Label className="text-xs">2º Aux (%)</Label>
+              <DecimalInput value={auxSecondPct} onChange={setAuxSecondPct} />
+            </div>
+            <div className="max-w-[7rem]">
+              <Label className="text-xs">Instrumentador (%)</Label>
+              <DecimalInput value={instrumentadorPct} onChange={setInstrumentadorPct} />
+            </div>
           </div>
 
           {/* Linha 3 — ação */}
