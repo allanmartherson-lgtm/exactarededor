@@ -126,21 +126,22 @@ const PARECER_VISITA_TUSS = new Set([
 const isVisitaOuParecer = (
   name: string | null,
   code?: string | null,
-  paymentType?: string | null,
+  _paymentType?: string | null,
 ): boolean => {
+  // Eligibilidade estrita por item (TUSS ou nome).
+  // Tipo de lançamento do LOTE não entra aqui — lotes de parecer/visita já
+  // embutem o TUSS automaticamente na importação, então o filtro por código
+  // cobre esses casos sem inflar eligibilidade de itens não-assistenciais
+  // (ex.: EEG num lote misto).
+  if (code) {
+    const c = code.replace(/\D/g, "");
+    if (PARECER_VISITA_TUSS.has(c)) return true;
+  }
   if (name) {
     const n = normName(name);
     if (n.includes("visita") || n.includes("parecer") || n.includes("interconsulta") || n.includes("consultoria")) {
       return true;
     }
-  }
-  if (code) {
-    const c = code.replace(/\D/g, "");
-    if (PARECER_VISITA_TUSS.has(c)) return true;
-  }
-  if (paymentType) {
-    const pt = paymentType.toLowerCase();
-    if (pt.includes("parecer") || pt.includes("visita")) return true;
   }
   return false;
 };
