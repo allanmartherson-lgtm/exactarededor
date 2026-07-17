@@ -710,12 +710,16 @@ Deno.serve(async (req) => {
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
-    const { payment_id } = await req.json();
+    const body = await req.json();
+    const payment_id = body?.payment_id;
+    // scope: "batch" (default, só o lote) | "cross" (varre outros lotes na janela)
+    const scope: "batch" | "cross" = body?.scope === "cross" ? "cross" : "batch";
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
