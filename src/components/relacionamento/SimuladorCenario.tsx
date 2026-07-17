@@ -267,26 +267,6 @@ function DreLine({
   op, label, aurum, exacta, simulado, indent, bold, highlight, tooltip,
   simuladoTone, denomAurum, denomExacta, denomSim, base,
   denomLabelAurum = "cir", denomLabelExacta = "atend", denomLabelSim = "cir",
-}: {
-  op: string;
-  label: string;
-  aurum: number | null;
-  exacta: number | null;
-  simulado: number | null;
-  indent?: boolean;
-  bold?: boolean;
-  highlight?: "amber" | "success" | "danger";
-  tooltip?: string;
-  simuladoTone?: "positive" | "negative" | "neutral";
-  // Denominadores para média por cirurgia/atendimento em cada coluna.
-  denomAurum?: number | null;
-  denomExacta?: number | null;
-  denomSim?: number | null;
-  // Base para % (tipicamente Receita Bruta) — comum a todas as colunas.
-  base?: number | null;
-  denomLabelAurum?: string;
-  denomLabelExacta?: string;
-  denomLabelSim?: string;
   viewMode = "media",
 }: {
   op: string;
