@@ -1617,16 +1617,16 @@ const Payments = () => {
                         type="button"
                         className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
                         onClick={() => {
-                          setAnalystFilter("all");
-                          setTypeFilter("all");
-                          setItemTypeFilter("all");
-                          setTrackFilter("all");
+                          setAnalystFilter([]);
+                          setTypeFilter([]);
+                          setItemTypeFilter([]);
+                          setTrackFilter([]);
                           setCompetenceFilter("all");
                           setOwnerGroup("all");
                           setDivergenceFilter("all");
                           setQuestionedFilter("all");
-                          setPoolFilter("all");
-                          setImportModeFilter("all");
+                          setPoolFilter([]);
+                          setImportModeFilter([]);
                           setEmptyOnly(false);
                           setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
                           const next = new URLSearchParams(searchParams);
