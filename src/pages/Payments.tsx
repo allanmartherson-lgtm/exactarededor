@@ -1450,24 +1450,30 @@ const Payments = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Pool (rateio)</label>
-                <Select value={poolFilter} onValueChange={setPoolFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Pool" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os pools</SelectItem>
-                    {poolOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os pools"
+                  allLabel="Todos os pools"
+                  values={poolFilter}
+                  onChange={setPoolFilter}
+                  options={poolOptions.map((p) => ({ value: p.id, label: p.nome }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Modo de importação</label>
-                <Select value={importModeFilter} onValueChange={(v) => setImportModeFilter(v as typeof importModeFilter)}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Modo" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os modos</SelectItem>
-                    <SelectItem value="normal">Normal (corrente)</SelectItem>
-                    <SelectItem value="historico">Histórico (retroativo)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os modos"
+                  allLabel="Todos os modos"
+                  values={importModeFilter}
+                  onChange={(v) => setImportModeFilter(v as Array<"normal" | "historico">)}
+                  options={[
+                    { value: "normal", label: "Normal (corrente)" },
+                    { value: "historico", label: "Histórico (retroativo)" },
+                  ]}
+                />
               </div>
               <div className="space-y-1 flex items-end">
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
