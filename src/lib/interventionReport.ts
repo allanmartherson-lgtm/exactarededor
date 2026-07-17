@@ -277,6 +277,8 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
   const marginX = 12;
   const generatedAt = ctx.generatedAt ?? new Date();
 
+  const { loteByPayment } = await fetchEnrichment(ctx.items);
+
   const headerBottomY = await drawReportHeader(doc, {
     title: "Ajustes por intervenção",
     subtitle: `${ctx.hospitalName ?? "Hospital —"} · Últimos ${ctx.rangeDays} dias · Gerado em ${generatedAt.toLocaleString("pt-BR")}`,
@@ -313,6 +315,8 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
   });
 
   const tableStartY = kpiY + kpiH + 4;
+
+
 
   const body = ctx.items.map((it) => {
     const cls = classifyItem(it);
