@@ -320,7 +320,7 @@ function DreLine({
     const mainValue = mediaMain ? media : v;
     const mainSuffix = mediaMain && denomLabel ? `/${denomLabel}` : "";
     return (
-      <div className={cn("text-right tabular-nums flex flex-col leading-tight", extraCls)}>
+      <div className={cn("text-right tabular-nums flex flex-col leading-tight justify-center h-full", extraCls)}>
         <span className={cn(
           emphasize ? "text-base font-semibold" : "text-sm",
           bold && "font-semibold",
@@ -340,7 +340,7 @@ function DreLine({
   return (
     <div
       className={cn(
-        "grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-start gap-2 py-1 border-b border-dashed border-muted/40 last:border-0",
+        "grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] items-stretch gap-2 py-1 border-b border-dashed border-muted/40 last:border-0",
         indent && "pl-3",
         emphasize && "py-2 border-b-0 border-t border-border/60 bg-muted/20 -mx-2 px-2 rounded",
         bg && !emphasize && `${bg} -mx-2 px-2 rounded`,
@@ -350,7 +350,7 @@ function DreLine({
     >
       <span className="text-xs text-muted-foreground pt-0.5">{op}</span>
       <span className={cn(
-        "truncate pt-0.5",
+        "truncate self-center",
         emphasize ? "text-base font-semibold" : "text-sm",
         bold && "font-semibold",
       )}>{label}</span>
@@ -360,7 +360,7 @@ function DreLine({
         v={simulado}
         denom={denomSim}
         denomLabel={denomLabelSim}
-        extraCls="bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r"
+        extraCls="bg-primary/[0.06] dark:bg-primary/10 border-l border-primary/15 -mr-2 pr-3 pl-3 rounded-r"
         corTotal={simCor}
       />
     </div>
