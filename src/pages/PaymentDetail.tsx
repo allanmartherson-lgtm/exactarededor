@@ -4279,40 +4279,40 @@ const PaymentDetail = () => {
                 role={totalRuleAlerts > 0 ? "button" : undefined}
                 title={totalRuleAlerts > 0 ? "Ver detalhamento e exportar" : undefined}
               >
-                <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
+                <CardContent className="p-4 text-sm space-y-2 min-w-0">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alertas assistenciais</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Alertas assistenciais</p>
                     {totalRuleAlerts > 0 && (
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-medium text-warning">{totalRuleAlerts} total</span>
+                        <span className="text-sm font-semibold text-warning">{totalRuleAlerts} total</span>
                         {totalRuleValue > 0 && (
-                          <span className="text-[10px] font-semibold text-red-600">· {formatCurrency(totalRuleValue)} em risco</span>
+                          <span className="text-sm font-bold text-red-600">· {formatCurrency(totalRuleValue)} em risco</span>
                         )}
                       </div>
                     )}
                   </div>
                   {totalRuleAlerts > 0 && totalRiskWithConflicts > totalRuleValue && (
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      incluindo outros lotes: <span className="text-red-600 font-medium">{formatCurrency(totalRiskWithConflicts)}</span>
+                    <div className="text-xs text-muted-foreground">
+                      incluindo outros lotes: <span className="text-red-600 font-semibold text-sm">{formatCurrency(totalRiskWithConflicts)}</span>
                     </div>
                   )}
                   {sortedRules.length === 0 ? (
                     <p className="italic text-muted-foreground">Nenhum alerta</p>
                   ) : (
-                    <ul className="space-y-1 max-h-40 overflow-y-auto">
+                    <ul className="space-y-1.5 max-h-48 overflow-y-auto">
                       {sortedRules.slice(0, 6).map(([name, n]) => (
                         <li key={name} className="flex items-center justify-between gap-2">
-                          <span className="truncate flex-1" title={name}>{name}</span>
+                          <span className="truncate flex-1 text-sm" title={name}>{name}</span>
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="font-medium text-warning">{n}</span>
+                            <span className="text-sm font-semibold text-warning">{n}</span>
                             {ruleValues.get(name) != null && (
-                              <span className="text-[10px] text-red-600 font-medium">{formatCurrency(ruleValues.get(name)!)}</span>
+                              <span className="text-sm text-red-600 font-semibold">{formatCurrency(ruleValues.get(name)!)}</span>
                             )}
                           </div>
                         </li>
                       ))}
                       {sortedRules.length > 6 && (
-                        <li className="text-[10px] text-muted-foreground italic">+ {sortedRules.length - 6} regra(s)</li>
+                        <li className="text-xs text-muted-foreground italic">+ {sortedRules.length - 6} regra(s)</li>
                       )}
                     </ul>
                   )}
