@@ -379,6 +379,12 @@ export function SimuladorCenario() {
   // setores cirúrgicos internados. Ampliar quando novas unidades entrarem.
   const SURGICAL_SECTORS = ["centro_cirurgico", "hemodinamica", "1556", "1574"];
 
+  // Filtro (B): quando ligado, itens sem regra sintética compatível são
+  // removidos tanto do Exacta Real quanto do Simulado — cenário puro só do
+  // que casou. Default OFF: usamos o fallback "manter pago" (A) para não
+  // distorcer casos de pacote/sem_acordo.
+  const [excluirSemMatch, setExcluirSemMatch] = useState<boolean>(false);
+
   const [simulando, setSimulando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<null | {
