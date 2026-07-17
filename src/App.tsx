@@ -75,6 +75,7 @@ const loadKpis = () => import("./pages/Kpis.tsx");
 const loadInterventionAdjustments = () => import("./pages/InterventionAdjustments.tsx");
 
 const loadInterventionAudit = () => import("./pages/InterventionAudit.tsx");
+const loadOverlapAudit = () => import("./pages/OverlapAudit.tsx");
 const loadCancelledPayments = () => import("./pages/CancelledPayments.tsx");
 const loadInterventionReports = () => import("./pages/InterventionReports.tsx");
 const loadLoteInterventionReport = () => import("./pages/LoteInterventionReport.tsx");
