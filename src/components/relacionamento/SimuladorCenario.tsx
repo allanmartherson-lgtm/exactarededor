@@ -809,9 +809,6 @@ export function SimuladorCenario() {
               convenio_percentage: pctNovo,
               apply_access_route: true,
               include_auxiliaries: true,
-              aux_first_pct: auxFirstPct,
-              aux_second_pct: auxSecondPct,
-              instrumentador_pct: instrumentadorPct,
             }
           : {
               calculation_type: "tabela_diferenciada" as const,
@@ -821,9 +818,6 @@ export function SimuladorCenario() {
               acrescimo_pct: acrescimo,
               apply_access_route: true,
               include_auxiliaries: true,
-              aux_first_pct: auxFirstPct,
-              aux_second_pct: auxSecondPct,
-              instrumentador_pct: instrumentadorPct,
             };
         const { data: simResp, error: simErr } = await supabase.functions.invoke("simulate-scenario", {
           body: {
