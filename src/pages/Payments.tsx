@@ -1349,44 +1349,54 @@ const Payments = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Analista</label>
-                <Select value={analystFilter} onValueChange={setAnalystFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Analista" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos analistas</SelectItem>
-                    {analystOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos analistas"
+                  allLabel="Todos analistas"
+                  values={analystFilter}
+                  onChange={setAnalystFilter}
+                  options={analystOptions.map((a) => ({ value: a.id, label: a.name }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo (lote)</label>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos tipos</SelectItem>
-                    {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos tipos"
+                  allLabel="Todos tipos"
+                  values={typeFilter}
+                  onChange={setTypeFilter}
+                  options={Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v as string }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo de item</label>
-                <Select value={itemTypeFilter} onValueChange={setItemTypeFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Tipo de item" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os itens</SelectItem>
-                    {itemTypesList.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os itens"
+                  allLabel="Todos os itens"
+                  values={itemTypeFilter}
+                  onChange={setItemTypeFilter}
+                  options={itemTypesList.map((t) => ({ value: t.id, label: t.label }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Trilha</label>
-                <Select value={trackFilter} onValueChange={setTrackFilter}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Trilha" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as trilhas</SelectItem>
-                    <SelectItem value="habitual">{PAYMENT_TRACK_SHORT_LABELS.habitual}</SelectItem>
-                    <SelectItem value="prioritario">{PAYMENT_TRACK_SHORT_LABELS.prioritario}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todas as trilhas"
+                  allLabel="Todas as trilhas"
+                  values={trackFilter}
+                  onChange={setTrackFilter}
+                  options={[
+                    { value: "habitual", label: PAYMENT_TRACK_SHORT_LABELS.habitual },
+                    { value: "prioritario", label: PAYMENT_TRACK_SHORT_LABELS.prioritario },
+                  ]}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Competência</label>
