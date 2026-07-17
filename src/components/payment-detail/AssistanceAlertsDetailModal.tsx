@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, Search, List, Users } from "lucide-react";
+import { Download, Search, List, Users, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type ConflictingSnap = {
@@ -236,8 +236,9 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
     return Array.from(m.entries()).sort((a, b) => b[1].n - a[1].n);
   }, [filtered]);
 
-  // Agrupa alertas por (paciente + data) e monta uma timeline com itens do lote
-  // atual e itens conflitantes (de outros lotes) lado a lado.
+  // Agrupa alertas por PACIENTE (todas as datas juntas). Mostra a timeline
+  // completa das visitas/pareceres do paciente no período, tanto do lote
+  // atual quanto dos itens conflitantes de outros lotes.
   type TimelineEntry = {
     procedure_name: string;
     procedure_code: string;
@@ -246,30 +247,33 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
     payment_ref: string;
     rule_name: string;
     gross_amount: number;
+    procedure_date: string;
     isConflict: boolean;
   };
+  type SortKey = "date" | "doctor" | "procedure" | "attendance" | "value";
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
   const grouped = useMemo(() => {
     const map = new Map<string, {
       key: string;
       patient: string;
-      date: string;
+      dates: Set<string>;
       rows: AssistanceAlertRow[];
       timeline: TimelineEntry[];
       total: number;
     }>();
     const seen = new Set<string>();
     for (const r of filtered) {
-      const dateKey = (r.procedure_date || "").slice(0, 10);
-      const patientKey = (r.patient || "").toLowerCase().trim();
-      const key = `${patientKey}|${dateKey}`;
-      let g = map.get(key);
+      const patientKey = (r.patient || "").toLowerCase().trim() || "__sem_paciente__";
+      let g = map.get(patientKey);
       if (!g) {
-        g = { key, patient: r.patient, date: r.procedure_date, rows: [], timeline: [], total: 0 };
-        map.set(key, g);
+        g = { key: patientKey, patient: r.patient, dates: new Set(), rows: [], timeline: [], total: 0 };
+        map.set(patientKey, g);
       }
       g.rows.push(r);
       g.total += r.gross_amount;
-      // item atual
+      if (r.procedure_date) g.dates.add((r.procedure_date || "").slice(0, 10));
       const curId = `cur|${r.itemId}`;
       if (!seen.has(curId)) {
         seen.add(curId);
@@ -281,10 +285,10 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
           payment_ref: paymentReference ?? "",
           rule_name: r.rule_name,
           gross_amount: r.gross_amount,
+          procedure_date: r.procedure_date,
           isConflict: false,
         });
       }
-      // item em conflito
       if (r.conflicting_procedure || r.conflicting_doctor || r.conflicting_attendance) {
         const cid = r.conflicting_item_id
           ? `confid|${r.conflicting_item_id}`
@@ -292,6 +296,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
         if (!seen.has(cid)) {
           seen.add(cid);
           g.total += r.conflicting_gross_amount;
+          if (r.conflicting_date) g.dates.add((r.conflicting_date || "").slice(0, 10));
           g.timeline.push({
             procedure_name: r.conflicting_procedure,
             procedure_code: "",
@@ -300,13 +305,34 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
             payment_ref: r.conflicting_payment_ref,
             rule_name: r.rule_name,
             gross_amount: r.conflicting_gross_amount,
+            procedure_date: r.conflicting_date,
             isConflict: true,
           });
         }
       }
     }
+    // ordena timeline de cada grupo
+    const dirMul = sortDir === "asc" ? 1 : -1;
+    const cmp = (a: TimelineEntry, b: TimelineEntry): number => {
+      switch (sortKey) {
+        case "date": return ((a.procedure_date || "").localeCompare(b.procedure_date || "")) * dirMul;
+        case "doctor": return a.doctor.localeCompare(b.doctor, "pt-BR") * dirMul;
+        case "procedure": return a.procedure_name.localeCompare(b.procedure_name, "pt-BR") * dirMul;
+        case "attendance": return a.attendance.localeCompare(b.attendance) * dirMul;
+        case "value": return (a.gross_amount - b.gross_amount) * dirMul;
+      }
+    };
+    for (const g of map.values()) g.timeline.sort(cmp);
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [filtered, paymentReference]);
+  }, [filtered, paymentReference, sortKey, sortDir]);
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir(k === "value" ? "desc" : "asc"); }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) => sortKey !== k
+    ? <span className="inline-block w-3" />
+    : (sortDir === "asc" ? <ArrowUp className="inline h-3 w-3" /> : <ArrowDown className="inline h-3 w-3" />);
 
   function exportCsv() {
     const headers = [
@@ -488,33 +514,42 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
             ) : grouped.map((g) => {
               const lotes = Array.from(new Set([paymentReference ?? "Lote atual", ...g.rows.map((r) => r.conflicting_payment_ref).filter(Boolean)]));
               const crossBatch = g.rows.some((r) => r.conflicting_payment_ref && r.conflicting_payment_ref !== paymentReference);
+              const datesArr = Array.from(g.dates).sort();
+              const datesLabel = datesArr.length === 0
+                ? "—"
+                : datesArr.length <= 3
+                  ? datesArr.map(fmtDate).join(", ")
+                  : `${datesArr.length} datas: ${fmtDate(datesArr[0])} → ${fmtDate(datesArr[datesArr.length - 1])}`;
               return (
                 <div key={g.key} className="border rounded-lg overflow-hidden">
                   <div className="bg-gradient-to-r from-warning/20 to-warning/5 px-3 py-2 border-b flex items-center gap-3 flex-wrap">
                     <div className="font-semibold text-sm">{g.patient || "Paciente não informado"}</div>
-                    <Badge variant="outline" className="text-[10px]">{fmtDate(g.date)}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{g.rows.length} lançamento(s)</Badge>
+                    <Badge variant="outline" className="text-[10px]" title={datesArr.map(fmtDate).join(", ")}>
+                      {datesArr.length} dia(s): {datesLabel}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">{g.timeline.length} lançamento(s)</Badge>
                     {crossBatch && <Badge className="bg-red-600 text-white text-[10px]">Entre lotes</Badge>}
                     <div className="text-[10px] text-muted-foreground ml-auto">
                       Lotes: <span className="font-medium">{lotes.join(" · ")}</span>
                     </div>
                     <div className="text-xs text-red-600 font-semibold">{fmtCurrency(g.total)}</div>
                   </div>
-                  {/* Timeline simples */}
                   <table className="w-full text-xs">
                     <thead className="bg-muted/40 text-[10px] uppercase">
                       <tr>
-                        <th className="text-left p-2">Procedimento</th>
-                        <th className="text-left p-2">Médico</th>
-                        <th className="text-left p-2">Atend.</th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("date")}>Data <SortIcon k="date" /></th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("procedure")}>Procedimento <SortIcon k="procedure" /></th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("doctor")}>Médico <SortIcon k="doctor" /></th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("attendance")}>Atend. <SortIcon k="attendance" /></th>
                         <th className="text-left p-2">Lote</th>
                         <th className="text-left p-2">Regra</th>
-                        <th className="text-right p-2">Valor</th>
+                        <th className="text-right p-2 cursor-pointer select-none" onClick={() => toggleSort("value")}>Valor <SortIcon k="value" /></th>
                       </tr>
                     </thead>
                     <tbody>
                       {g.timeline.map((e, i) => (
                         <tr key={i} className={`border-t ${e.isConflict ? "bg-red-50/40" : ""}`}>
+                          <td className="p-2 whitespace-nowrap">{fmtDate(e.procedure_date)}</td>
                           <td className="p-2">
                             <div>{e.procedure_name || "—"}</div>
                             <div className="text-[10px] text-muted-foreground font-mono">{e.procedure_code}</div>
