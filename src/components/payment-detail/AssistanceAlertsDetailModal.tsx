@@ -514,33 +514,42 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
             ) : grouped.map((g) => {
               const lotes = Array.from(new Set([paymentReference ?? "Lote atual", ...g.rows.map((r) => r.conflicting_payment_ref).filter(Boolean)]));
               const crossBatch = g.rows.some((r) => r.conflicting_payment_ref && r.conflicting_payment_ref !== paymentReference);
+              const datesArr = Array.from(g.dates).sort();
+              const datesLabel = datesArr.length === 0
+                ? "—"
+                : datesArr.length <= 3
+                  ? datesArr.map(fmtDate).join(", ")
+                  : `${datesArr.length} datas: ${fmtDate(datesArr[0])} → ${fmtDate(datesArr[datesArr.length - 1])}`;
               return (
                 <div key={g.key} className="border rounded-lg overflow-hidden">
                   <div className="bg-gradient-to-r from-warning/20 to-warning/5 px-3 py-2 border-b flex items-center gap-3 flex-wrap">
                     <div className="font-semibold text-sm">{g.patient || "Paciente não informado"}</div>
-                    <Badge variant="outline" className="text-[10px]">{fmtDate(g.date)}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{g.rows.length} lançamento(s)</Badge>
+                    <Badge variant="outline" className="text-[10px]" title={datesArr.map(fmtDate).join(", ")}>
+                      {datesArr.length} dia(s): {datesLabel}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">{g.timeline.length} lançamento(s)</Badge>
                     {crossBatch && <Badge className="bg-red-600 text-white text-[10px]">Entre lotes</Badge>}
                     <div className="text-[10px] text-muted-foreground ml-auto">
                       Lotes: <span className="font-medium">{lotes.join(" · ")}</span>
                     </div>
                     <div className="text-xs text-red-600 font-semibold">{fmtCurrency(g.total)}</div>
                   </div>
-                  {/* Timeline simples */}
                   <table className="w-full text-xs">
                     <thead className="bg-muted/40 text-[10px] uppercase">
                       <tr>
-                        <th className="text-left p-2">Procedimento</th>
-                        <th className="text-left p-2">Médico</th>
-                        <th className="text-left p-2">Atend.</th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("date")}>Data <SortIcon k="date" /></th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("procedure")}>Procedimento <SortIcon k="procedure" /></th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("doctor")}>Médico <SortIcon k="doctor" /></th>
+                        <th className="text-left p-2 cursor-pointer select-none" onClick={() => toggleSort("attendance")}>Atend. <SortIcon k="attendance" /></th>
                         <th className="text-left p-2">Lote</th>
                         <th className="text-left p-2">Regra</th>
-                        <th className="text-right p-2">Valor</th>
+                        <th className="text-right p-2 cursor-pointer select-none" onClick={() => toggleSort("value")}>Valor <SortIcon k="value" /></th>
                       </tr>
                     </thead>
                     <tbody>
                       {g.timeline.map((e, i) => (
                         <tr key={i} className={`border-t ${e.isConflict ? "bg-red-50/40" : ""}`}>
+                          <td className="p-2 whitespace-nowrap">{fmtDate(e.procedure_date)}</td>
                           <td className="p-2">
                             <div>{e.procedure_name || "—"}</div>
                             <div className="text-[10px] text-muted-foreground font-mono">{e.procedure_code}</div>
