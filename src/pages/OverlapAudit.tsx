@@ -139,7 +139,7 @@ export default function OverlapAudit() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Mín. especialidades distintas</Label>
+              <Label>Mín. médicos distintos</Label>
               <Input
                 type="number"
                 min={2}
