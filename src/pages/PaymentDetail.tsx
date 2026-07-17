@@ -418,6 +418,7 @@ const PaymentDetail = () => {
   const [isBatchReconReportOpen, setIsBatchReconReportOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAssistanceAlertsOpen, setIsAssistanceAlertsOpen] = useState(false);
+  const [conflictGrossForCard, setConflictGrossForCard] = useState<Record<string, number>>({});
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
   // isTestModalOpen removido — teste de regras foi para /regras?tab=teste-motor
   // O modal de conciliação só abre por ação explícita do usuário (botão/menu).
