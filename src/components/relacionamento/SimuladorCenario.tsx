@@ -507,75 +507,21 @@ export function SimuladorCenario() {
     setLoadingMatched(true);
     void (async () => {
       try {
-        const dateFrom = `${ano}-01-01`;
-        const dateTo = `${ano + 1}-01-01`;
-        const itemField = modo === "medico" ? "doctor_name" : "procedure_name";
-        const rows = await fetchAllPaginated<Record<string, unknown>>((from, to) =>
-          supabase
-            .from("payment_items")
-            .select(itemField)
-            .eq("hospital_id", hospitalId)
-            .gte("procedure_date", dateFrom)
-            .lt("procedure_date", dateTo)
-            .range(from, to) as never,
+        // RPC única no banco: resolve match direto + aliases num único round-trip.
+        // Evita paginar dezenas de milhares de payment_items no cliente.
+        const { data, error } = await supabase.rpc(
+          "get_simulator_matched_names" as never,
+          {
+            p_hospital_id: hospitalId,
+            p_ano: ano,
+            p_mode: modo,
+            p_candidates: nomes,
+          } as never,
         );
         if (cancelled) return;
-        const itemNorm = new Set<string>();
-        for (const r of rows) {
-          const v = r[itemField] as string | null | undefined;
-          if (v) itemNorm.add(norm(v));
-        }
-
-        // Expansão por alias: se o alias_normalized do nome do Aurum aponta
-        // para algo presente nos itens, considera match. Usamos os nomes do
-        // Aurum como filtro para reduzir payload.
-        const nomesNormArr = nomes.map(norm);
-        const nomesNormSet = new Set(nomesNormArr);
-        const matched = new Set<string>();
-        for (const n of nomes) {
-          if (itemNorm.has(norm(n))) matched.add(n);
-        }
-
-        if (modo === "procedimento") {
-          // procedure_aliases: alias_normalized (nome do Aurum) → canonical_name
-          const { data: pa } = await supabase
-            .from("procedure_aliases" as never)
-            .select("alias_normalized,canonical_name")
-            .eq("hospital_id", hospitalId)
-            .in("alias_normalized", nomesNormArr);
-          for (const r of (pa ?? []) as Array<{ alias_normalized: string | null; canonical_name: string | null }>) {
-            if (r.canonical_name && itemNorm.has(norm(r.canonical_name))) {
-              for (const n of nomes) {
-                if (norm(n) === r.alias_normalized) matched.add(n);
-              }
-            }
-          }
-        } else {
-          // doctor_aliases: alias_normalized → doctor_id → full_name em itens
-          const { data: da } = await supabase
-            .from("doctor_aliases")
-            .select("alias_normalized,doctor_id")
-            .in("alias_normalized", nomesNormArr);
-          const aliasRows = (da ?? []) as Array<{ alias_normalized: string | null; doctor_id: string | null }>;
-          const docIds = Array.from(new Set(aliasRows.map((r) => r.doctor_id).filter(Boolean) as string[]));
-          if (docIds.length) {
-            const { data: docs } = await supabase.from("doctors").select("id,full_name").in("id", docIds);
-            const docMap = new Map<string, string>();
-            for (const d of (docs ?? []) as Array<{ id: string; full_name: string | null }>) {
-              if (d.full_name) docMap.set(d.id, norm(d.full_name));
-            }
-            for (const r of aliasRows) {
-              const canonicalNorm = r.doctor_id ? docMap.get(r.doctor_id) : undefined;
-              if (canonicalNorm && itemNorm.has(canonicalNorm)) {
-                for (const n of nomes) {
-                  if (norm(n) === r.alias_normalized) matched.add(n);
-                }
-              }
-            }
-          }
-        }
-        void nomesNormSet;
-        if (!cancelled) setMatchedNames(matched);
+        if (error) throw error;
+        const arr = (data ?? []) as string[];
+        setMatchedNames(new Set(arr));
       } catch (e) {
         if (!cancelled) {
           console.error("[simulador] falha ao calcular matches", e);

@@ -12726,6 +12726,15 @@ export type Database = {
           total_in_stage: number
         }[]
       }
+      get_simulator_matched_names: {
+        Args: {
+          p_ano: number
+          p_candidates: string[]
+          p_hospital_id: string
+          p_mode: string
+        }
+        Returns: string[]
+      }
       get_spend_trend:
         | {
             Args: {
