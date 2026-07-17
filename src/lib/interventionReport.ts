@@ -322,6 +322,7 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
     const cls = classifyItem(it);
     return [
       fmtDatePt(it.obs_at),
+      loteByPayment.get(it.payment_id) ?? "—",
       it.autor ?? "—",
       roleLabel(it.role),
       it.company_name ?? "—",
@@ -336,8 +337,8 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
 
   autoTable(doc, {
     head: [[
-      "Data", "Autor", "Papel", "Empresa", "Médico", "Procedimento",
-      "Valor regra", "Pago final", "Δ", "Classif.",
+      "Data", "Lote", "Autor", "Papel", "Empresa", "Médico", "Procedimento",
+      "Valor regra", "Pago final", "Diferença", "Classif.",
     ]],
     body,
     startY: tableStartY,
@@ -351,25 +352,27 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
     },
     alternateRowStyles: { fillColor: [249, 250, 251] },
     columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 32 },
-      2: { cellWidth: 26 },
-      3: { cellWidth: 38 },
+      0: { cellWidth: 18 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 28 },
+      3: { cellWidth: 22 },
       4: { cellWidth: 34 },
-      5: { cellWidth: "auto" as any },
-      6: { cellWidth: 22, halign: "right" },
-      7: { cellWidth: 22, halign: "right" },
-      8: { cellWidth: 22, halign: "right", fontStyle: "bold" },
-      9: { cellWidth: 20, halign: "center" },
+      5: { cellWidth: 30 },
+      6: { cellWidth: "auto" as any },
+      7: { cellWidth: 20, halign: "right" },
+      8: { cellWidth: 20, halign: "right" },
+      9: { cellWidth: 22, halign: "right", fontStyle: "bold" },
+      10: { cellWidth: 18, halign: "center" },
     },
     didParseCell: (data) => {
       if (data.section !== "body") return;
       const cls = classifyItem(ctx.items[data.row.index]);
-      if (data.column.index === 9 || data.column.index === 8) {
+      if (data.column.index === 10 || data.column.index === 9) {
         if (cls === "economia") data.cell.styles.textColor = [22, 101, 52];
         else if (cls === "aumento") data.cell.styles.textColor = [153, 27, 27];
       }
     },
+
     didDrawPage: () => {
       const pageHeight = doc.internal.pageSize.getHeight();
       const pageNum = doc.getNumberOfPages();
