@@ -1,7 +1,8 @@
 // Gerenciador de aliases de procedimento — vincula nomes do Aurum
 // (ds_procedimento) a nomes canônicos do Exacta (procedure_name do item
 // principal), para que o Simulador consiga casar mesmo com grafias distintas.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
