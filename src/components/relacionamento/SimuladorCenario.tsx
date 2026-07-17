@@ -1580,28 +1580,28 @@ export function SimuladorCenario() {
                         denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
                       <DreLine op="(−)" label="Laboratório" aurum={-A.custo_laboratorio} exacta={-A.custo_laboratorio} simulado={-A.custo_laboratorio} indent
                         denomAurum={qc} denomExacta={qc} denomSim={qc} base={A.receita} viewMode={dreView} denomLabelExacta="cir" />
-                      <div className="mt-2 pt-2 border-t space-y-1">
+                      <div className="mt-3 pt-3 border-t space-y-1">
                         {(() => {
-                          // Margem usa HM projetado do Exacta, mesma escala do Aurum.
+                          // Margem usa HM projetado (Exacta e Simulado) na mesma escala do Aurum.
                           const aMarg = A.margem;
                           const eMarg = margemExactaProj;
-                          const sMarg = sim.nova_margem;
+                          const sMarg = novaMargemProj;
                           const useMedia = dreView === "media";
                           const showA = useMedia && qc > 0 ? aMarg / qc : aMarg;
                           const showE = useMedia && qc > 0 && eMarg != null ? eMarg / qc : eMarg;
                           const showS = useMedia && qc > 0 ? sMarg / qc : sMarg;
                           const suf = useMedia ? "/cir" : "";
                           return (
-                            <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-start">
-                              <span className="text-xs text-muted-foreground">(=)</span>
-                              <span className="text-sm font-semibold">Margem de Contribuição</span>
+                            <div className="grid grid-cols-[2rem_1fr_repeat(3,minmax(6rem,1fr))] gap-2 items-start py-2 bg-emerald-50/40 border border-emerald-100 -mx-2 px-2 rounded">
+                              <span className="text-xs text-muted-foreground pt-1">(=)</span>
+                              <span className="text-base font-semibold pt-1">Margem de Contribuição</span>
                               <div className="text-right flex flex-col leading-tight">
-                                <span className={cn("text-sm tabular-nums font-semibold", aMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showA)}{suf}</span>
+                                <span className={cn("text-base tabular-nums font-bold", aMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showA)}{suf}</span>
                               </div>
                               <div className="text-right flex flex-col leading-tight">
-                                <span className={cn("text-sm tabular-nums font-semibold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf : ""}</span>
+                                <span className={cn("text-base tabular-nums font-bold", (eMarg ?? 0) >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showE)}{eMarg != null ? suf : ""}</span>
                               </div>
-                              <div className="text-right flex flex-col leading-tight bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r">
+                              <div className="text-right flex flex-col leading-tight bg-blue-100/70 dark:bg-blue-950/30 -my-2 -mr-2 py-2 pr-2 pl-2 rounded-r">
                                 <span className={cn("text-xl tabular-nums font-bold", sMarg >= 0 ? "text-emerald-700" : "text-red-700")}>{BRL(showS)}{suf}</span>
                               </div>
                             </div>
@@ -1612,7 +1612,7 @@ export function SimuladorCenario() {
                           <span>% Margem</span>
                           <span className="text-right tabular-nums">{PCT(A.pct_margem)}</span>
                           <span className="text-right tabular-nums">{PCT(pctExactaProj)}</span>
-                          <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(sim.nova_pct_margem)}</span>
+                          <span className="text-right tabular-nums bg-blue-50 dark:bg-blue-950/30 -my-1 -mr-2 py-1 pr-2 pl-2 rounded-r font-semibold text-primary">{PCT(pctMargemSimProj)}</span>
                         </div>
                       </div>
                     </>
