@@ -202,13 +202,35 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
     });
   }, [rows, query, ruleFilter]);
 
-  const totalValor = filtered.reduce((acc, r) => acc + r.gross_amount, 0);
+  // "Valor em risco" = lote atual + valores dos itens conflitantes (outros
+  // lotes), contando cada conflicting_item_id só uma vez para não inflar.
+  const totalValor = useMemo(() => {
+    let total = 0;
+    const seenConf = new Set<string>();
+    for (const r of filtered) {
+      total += r.gross_amount;
+      if (r.conflicting_item_id && !seenConf.has(r.conflicting_item_id)) {
+        seenConf.add(r.conflicting_item_id);
+        total += r.conflicting_gross_amount;
+      }
+    }
+    return total;
+  }, [filtered]);
   const byRule = useMemo(() => {
     const m = new Map<string, { n: number; v: number }>();
+    const seenPerRule = new Map<string, Set<string>>();
     filtered.forEach((r) => {
       const cur = m.get(r.rule_name) ?? { n: 0, v: 0 };
       cur.n += 1;
       cur.v += r.gross_amount;
+      if (r.conflicting_item_id) {
+        let seen = seenPerRule.get(r.rule_name);
+        if (!seen) { seen = new Set(); seenPerRule.set(r.rule_name, seen); }
+        if (!seen.has(r.conflicting_item_id)) {
+          seen.add(r.conflicting_item_id);
+          cur.v += r.conflicting_gross_amount;
+        }
+      }
       m.set(r.rule_name, cur);
     });
     return Array.from(m.entries()).sort((a, b) => b[1].n - a[1].n);
