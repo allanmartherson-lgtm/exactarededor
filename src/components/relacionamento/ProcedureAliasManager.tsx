@@ -210,6 +210,8 @@ export function ProcedureAliasManager() {
         for (const r of aurumRows) {
           const nome = (r.ds_procedimento ?? "").trim();
           if (!nome) continue;
+          // Ignora linhas de rodapé do export Aurum ("Applied filters: ...").
+          if (/^applied\s+filters?\b/i.test(nome)) continue;
           const n = norm(nome);
           if (!n) continue;
           if (!aurumSet.has(n)) aurumSet.set(n, nome);
