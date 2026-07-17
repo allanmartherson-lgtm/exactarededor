@@ -1406,15 +1406,55 @@ export function SimuladorCenario() {
           {/* DRE 3 colunas */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                DRE comparativa — {resultado.nome} <span className="text-xs text-muted-foreground">({resultado.ano})</span>
-              </CardTitle>
-              <div className="text-xs text-muted-foreground mt-1">
-                Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
-                {" | "}
-                Exacta: {disp.exacta ? `${disp.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${disp.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
-                {" | "}
-                Filtro: {carater === "todos" ? "Todos" : carater}
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base">
+                    DRE comparativa — {resultado.nome} <span className="text-xs text-muted-foreground">({resultado.ano})</span>
+                  </CardTitle>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
+                    {" | "}
+                    Exacta: {disp.exacta ? `${disp.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${disp.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
+                    {" | "}
+                    Filtro: {carater === "todos" ? "Todos" : carater}
+                  </div>
+                </div>
+                {/* Toggle média/soma — default média para normalizar escala. */}
+                <div className="inline-flex rounded-md border bg-background p-0.5 self-start shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setDreView("media")}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium rounded",
+                      dreView === "media" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                    aria-pressed={dreView === "media"}
+                  >
+                    Média
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDreView("soma")}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium rounded",
+                      dreView === "soma" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                    aria-pressed={dreView === "soma"}
+                  >
+                    Soma
+                  </button>
+                </div>
+              </div>
+              {/* Nota de contexto: as linhas não-HM do Exacta Real reutilizam
+                  os totais contábeis do Aurum (não há custo item-a-item no
+                  Exacta) — sem isso a coluna parece "igual" ao Aurum por
+                  acidente. E o denominador de Exacta (atendimentos) difere
+                  do de Aurum (cirurgias). */}
+              <div className="text-[11px] text-muted-foreground/90 bg-muted/40 border border-border rounded px-2 py-1 mt-2 leading-snug">
+                <b>Como ler:</b> só <b>Honorários Médicos</b> difere entre Aurum e Exacta Real —
+                as demais linhas do Exacta Real reutilizam os valores do Aurum (não temos custo
+                item-a-item no Exacta). Escalas também diferem: Aurum conta <b>cirurgias</b> e
+                Exacta conta <b>atendimentos</b>; por isso a média é o default.
               </div>
               {carater === "todos" && disp.exacta && disp.exacta.sem_carater > 0 && (
                 <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1">
