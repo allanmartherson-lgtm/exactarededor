@@ -1300,21 +1300,6 @@ export function SimuladorCenario() {
                 </div>
               </>
             )}
-
-            {/* Percentuais de auxiliares — aplicados pelo motor real.
-                Sem esses valores auxiliares eram pagos como 100% (bug). */}
-            <div className="max-w-[7rem]">
-              <Label className="text-xs">1º Aux (%)</Label>
-              <DecimalInput value={auxFirstPct} onChange={setAuxFirstPct} />
-            </div>
-            <div className="max-w-[7rem]">
-              <Label className="text-xs">2º Aux (%)</Label>
-              <DecimalInput value={auxSecondPct} onChange={setAuxSecondPct} />
-            </div>
-            <div className="max-w-[7rem]">
-              <Label className="text-xs">Instrumentador (%)</Label>
-              <DecimalInput value={instrumentadorPct} onChange={setInstrumentadorPct} />
-            </div>
           </div>
 
           {/* Linha 3 — ação */}
