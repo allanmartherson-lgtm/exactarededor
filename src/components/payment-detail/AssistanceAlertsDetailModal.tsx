@@ -103,6 +103,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
   const [query, setQuery] = useState("");
   const [ruleFilter, setRuleFilter] = useState<string>("__all__");
   const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
+  const [conflictGross, setConflictGross] = useState<Record<string, number>>({});
 
   const rows: AssistanceAlertRow[] = useMemo(() => {
     const out: AssistanceAlertRow[] = [];
