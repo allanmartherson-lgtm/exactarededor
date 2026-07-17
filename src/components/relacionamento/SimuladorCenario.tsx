@@ -549,8 +549,12 @@ export function SimuladorCenario() {
           const idsArr = Array.from(doctorIds);
 
           // Passo 2: descobre os attendance_number onde o médico-alvo
-          // participou (como principal OU auxiliar). Isso define o escopo
-          // da cirurgia — tem que casar com o Aurum, que agrega por atendimento.
+          // atuou como CIRURGIÃO PRINCIPAL. O Aurum (controladoria) só
+          // atribui a cirurgia ao principal — nunca ao auxiliar. Então o
+          // escopo do Exacta tem que espelhar isso: se o médico foi apenas
+          // auxiliar em um atendimento, esse atendimento NÃO entra.
+          // Depois, no passo 3, puxamos todos os itens (aux/anestesista/etc)
+          // desses atendimentos para bater com o custo total do Aurum.
           const attsAlvo = new Set<string>();
           const attsRows = await fetchAllPaginated<{ attendance_number: string | null }>((from, to) => {
             let q = supabase
@@ -561,7 +565,9 @@ export function SimuladorCenario() {
               .in("doctor_id", idsArr)
               .gte("procedure_date", dateFrom)
               .lt("procedure_date", dateTo)
-              .not("attendance_number", "is", null);
+              .not("attendance_number", "is", null)
+              // Só atendimentos em que o médico foi principal/único (nunca aux).
+              .or("doctor_role.ilike.%principal%,doctor_role.ilike.%unico%,doctor_role.ilike.%único%,doctor_role.eq.Cirurgião,doctor_role.eq.CIRURGIAO,doctor_role.eq.Cirurgiao");
             if (apenasInternados) {
               q = q.in("sector", SURGICAL_SECTORS);
             }
