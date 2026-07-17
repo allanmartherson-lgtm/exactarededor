@@ -329,6 +329,7 @@ export function ProcedureAliasManager() {
                       <TableCell className="align-top">
                         <CanonicalPicker
                           candidates={exactaNames}
+                          originMap={exactaOriginMap}
                           disabled={saving === r.nome}
                           onPick={(nomeExacta) => void salvarAlias(r.nome, nomeExacta)}
                         />
