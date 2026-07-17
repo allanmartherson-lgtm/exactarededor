@@ -22,7 +22,7 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { MultiSelectPopover, type MultiSelectOption } from "@/components/ui/MultiSelectPopover";
 import { toast } from "sonner";
 import {
-  Download, PlayCircle, Users, CalendarDays, ClipboardList, Layers, ExternalLink,
+  Download, PlayCircle, ExternalLink,
 } from "lucide-react";
 import {
   useOverlapAudit,
