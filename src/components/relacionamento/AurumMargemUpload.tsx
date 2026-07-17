@@ -70,6 +70,9 @@ function mapRow(
   const out: Record<string, unknown> = { hospital_id: hospitalId };
   const keyVal = String(row[keyLabel] ?? "").trim();
   if (!keyVal) return null;
+  // Descarta linhas de rodapé do export Aurum ("Applied filters: ...")
+  // que aparecem no fim da planilha e poluem os cadastros.
+  if (/^applied\s+filters?\b/i.test(keyVal)) return null;
   out[keyField] = keyVal;
 
   for (const [label, field] of Object.entries(COMMON_MAP)) {
