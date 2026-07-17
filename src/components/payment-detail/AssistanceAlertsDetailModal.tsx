@@ -7,12 +7,13 @@
  * Independente do relatório geral (aprovados/reprovados): este foca apenas
  * em assistencial (sobreposição, parecer→cirurgia, duplicidade, etc.).
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Download, Search, List, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type ConflictingSnap = {
   attendance_number?: string | null;
@@ -70,6 +71,8 @@ export type AssistanceAlertRow = {
   conflicting_date: string;
   conflicting_attendance: string;
   conflicting_payment_ref: string;
+  conflicting_item_id: string;
+  conflicting_gross_amount: number;
 };
 
 interface Props {
@@ -102,6 +105,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
   const [query, setQuery] = useState("");
   const [ruleFilter, setRuleFilter] = useState<string>("__all__");
   const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
+  const [conflictGross, setConflictGross] = useState<Record<string, number>>({});
 
   const rows: AssistanceAlertRow[] = useMemo(() => {
     const out: AssistanceAlertRow[] = [];
@@ -111,6 +115,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
       for (const fRaw of findings as Finding[]) {
         const f = fRaw ?? {};
         const c = f.conflicting_item ?? {};
+        const cid = f.conflicting_item_id ?? "";
         out.push({
           itemId: it.id,
           rule_name: f.rule_name ?? "Regra sem nome",
@@ -130,11 +135,50 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
           conflicting_date: c.procedure_date ?? "",
           conflicting_attendance: c.attendance_number ?? "",
           conflicting_payment_ref: c.payment_reference ?? "",
+          conflicting_item_id: cid,
+          conflicting_gross_amount: cid ? Number(conflictGross[cid] ?? 0) : 0,
         });
       }
     }
     return out;
-  }, [items]);
+  }, [items, conflictGross]);
+
+  // Busca gross_amount dos itens conflitantes (podem estar em outros lotes),
+  // pois o snapshot em validation_findings não persiste valor. Sem isso, o
+  // "valor em risco" só refletia o lote atual.
+  useEffect(() => {
+    if (!open) return;
+    const ids = new Set<string>();
+    for (const it of items) {
+      const findings = it.validation_findings;
+      if (!Array.isArray(findings)) continue;
+      for (const f of findings as Finding[]) {
+        const cid = f?.conflicting_item_id;
+        if (cid) ids.add(cid);
+      }
+    }
+    const missing = Array.from(ids).filter((id) => !(id in conflictGross));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const chunkSize = 200;
+      const acc: Record<string, number> = {};
+      for (let i = 0; i < missing.length; i += chunkSize) {
+        const slice = missing.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("payment_items")
+          .select("id, gross_amount")
+          .in("id", slice);
+        if (error) continue;
+        for (const r of data ?? []) acc[r.id as string] = Number(r.gross_amount ?? 0);
+      }
+      if (!cancelled) setConflictGross((prev) => ({ ...prev, ...acc }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, items, conflictGross]);
+
 
   const rules = useMemo(() => {
     const set = new Set<string>();
@@ -158,13 +202,35 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
     });
   }, [rows, query, ruleFilter]);
 
-  const totalValor = filtered.reduce((acc, r) => acc + r.gross_amount, 0);
+  // "Valor em risco" = lote atual + valores dos itens conflitantes (outros
+  // lotes), contando cada conflicting_item_id só uma vez para não inflar.
+  const totalValor = useMemo(() => {
+    let total = 0;
+    const seenConf = new Set<string>();
+    for (const r of filtered) {
+      total += r.gross_amount;
+      if (r.conflicting_item_id && !seenConf.has(r.conflicting_item_id)) {
+        seenConf.add(r.conflicting_item_id);
+        total += r.conflicting_gross_amount;
+      }
+    }
+    return total;
+  }, [filtered]);
   const byRule = useMemo(() => {
     const m = new Map<string, { n: number; v: number }>();
+    const seenPerRule = new Map<string, Set<string>>();
     filtered.forEach((r) => {
       const cur = m.get(r.rule_name) ?? { n: 0, v: 0 };
       cur.n += 1;
       cur.v += r.gross_amount;
+      if (r.conflicting_item_id) {
+        let seen = seenPerRule.get(r.rule_name);
+        if (!seen) { seen = new Set(); seenPerRule.set(r.rule_name, seen); }
+        if (!seen.has(r.conflicting_item_id)) {
+          seen.add(r.conflicting_item_id);
+          cur.v += r.conflicting_gross_amount;
+        }
+      }
       m.set(r.rule_name, cur);
     });
     return Array.from(m.entries()).sort((a, b) => b[1].n - a[1].n);
@@ -220,9 +286,12 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
       }
       // item em conflito
       if (r.conflicting_procedure || r.conflicting_doctor || r.conflicting_attendance) {
-        const cid = `conf|${r.itemId}|${r.conflicting_attendance}|${r.conflicting_procedure}|${r.conflicting_payment_ref}`;
+        const cid = r.conflicting_item_id
+          ? `confid|${r.conflicting_item_id}`
+          : `conf|${r.itemId}|${r.conflicting_attendance}|${r.conflicting_procedure}|${r.conflicting_payment_ref}`;
         if (!seen.has(cid)) {
           seen.add(cid);
+          g.total += r.conflicting_gross_amount;
           g.timeline.push({
             procedure_name: r.conflicting_procedure,
             procedure_code: "",
@@ -230,7 +299,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
             attendance: r.conflicting_attendance,
             payment_ref: r.conflicting_payment_ref,
             rule_name: r.rule_name,
-            gross_amount: 0,
+            gross_amount: r.conflicting_gross_amount,
             isConflict: true,
           });
         }
@@ -281,7 +350,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
           <p className="text-xs text-foreground/70">
             {paymentReference ? <span className="font-medium">{paymentReference}</span> : null}
             {paymentReference ? " · " : ""}
-            Cruzamentos detectados pelo motor assistencial dentro deste lote.
+            Cruzamentos detectados pelo motor assistencial. Valor em risco inclui itens conflitantes de outros lotes.
           </p>
         </DialogHeader>
 
