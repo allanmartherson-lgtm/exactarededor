@@ -287,6 +287,26 @@ function DreLine({
   denomLabelAurum?: string;
   denomLabelExacta?: string;
   denomLabelSim?: string;
+  viewMode = "media",
+}: {
+  op: string;
+  label: string;
+  aurum: number | null;
+  exacta: number | null;
+  simulado: number | null;
+  indent?: boolean;
+  bold?: boolean;
+  highlight?: "amber" | "success" | "danger";
+  tooltip?: string;
+  simuladoTone?: "positive" | "negative" | "neutral";
+  denomAurum?: number | null;
+  denomExacta?: number | null;
+  denomSim?: number | null;
+  base?: number | null;
+  denomLabelAurum?: string;
+  denomLabelExacta?: string;
+  denomLabelSim?: string;
+  viewMode?: "media" | "soma";
 }) {
   const bg =
     highlight === "amber" ? "bg-amber-50" :
@@ -296,7 +316,9 @@ function DreLine({
     simuladoTone === "positive" ? "text-emerald-700" :
     simuladoTone === "negative" ? "text-red-700" : "text-foreground";
 
-  // Renderiza célula com Total (destaque) + linha discreta "média (pct%)".
+  // Em modo "media", o valor principal é a média por denom (evita comparar
+  // 4 cirurgias do Aurum contra 2 atendimentos do Exacta como se fossem a
+  // mesma escala) e a sublinha mostra o total. Em "soma" é o inverso.
   const Cell = ({
     v, denom, denomLabel, extraCls, corTotal,
   }: {
@@ -312,13 +334,21 @@ function DreLine({
       pct == null || !Number.isFinite(pct)
         ? null
         : `${(pct * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    const mediaMain = viewMode === "media" && media != null;
+    const mainValue = mediaMain ? media : v;
+    const mainSuffix = mediaMain && denomLabel ? `/${denomLabel}` : "";
+    const subValue = mediaMain ? v : media;
+    const subSuffix = !mediaMain && denomLabel ? `/${denomLabel}` : "";
+    const subPrefix = mediaMain ? "total " : "";
     return (
       <div className={cn("text-right tabular-nums flex flex-col leading-tight", extraCls)}>
-        <span className={cn("text-sm", bold && "font-semibold", corTotal)}>{BRL(v)}</span>
-        {(media != null || pctStr) && (
+        <span className={cn("text-sm", bold && "font-semibold", corTotal)}>
+          {BRL(mainValue)}{mainSuffix}
+        </span>
+        {(subValue != null || pctStr) && (
           <span className="text-[10px] text-muted-foreground font-normal">
-            {media != null ? `${BRL(media)}${denomLabel ? `/${denomLabel}` : ""}` : ""}
-            {media != null && pctStr ? " " : ""}
+            {subValue != null ? `${subPrefix}${BRL(subValue)}${subSuffix}` : ""}
+            {subValue != null && pctStr ? " " : ""}
             {pctStr ? `(${pctStr})` : ""}
           </span>
         )}
