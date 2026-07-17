@@ -456,6 +456,39 @@ const PaymentDetail = () => {
   const [onlyRegIssues, setOnlyRegIssues] = useState(false);
   const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
   const tussAuditOpenCount = useTussAuditOpenCount(id);
+  // Busca gross_amount de itens conflitantes (possivelmente em outros lotes)
+  // para exibir "valor total em risco" no card de Alertas Assistenciais.
+  // Mesmo padrão do AssistanceAlertsDetailModal.
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const it of items) {
+      const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
+      if (!Array.isArray(findings)) continue;
+      for (const f of findings as Array<{ conflicting_item_id?: string }>) {
+        const cid = f?.conflicting_item_id;
+        if (cid) ids.add(cid);
+      }
+    }
+    const missing = Array.from(ids).filter((cid) => !(cid in conflictGrossForCard));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const chunkSize = 200;
+      const acc: Record<string, number> = {};
+      for (let i = 0; i < missing.length; i += chunkSize) {
+        const slice = missing.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("payment_items")
+          .select("id, gross_amount")
+          .in("id", slice);
+        if (error) continue;
+        for (const r of data ?? []) acc[r.id as string] = Number(r.gross_amount ?? 0);
+      }
+      if (!cancelled) setConflictGrossForCard((prev) => ({ ...prev, ...acc }));
+    })();
+    return () => { cancelled = true; };
+  }, [items, conflictGrossForCard]);
+
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
