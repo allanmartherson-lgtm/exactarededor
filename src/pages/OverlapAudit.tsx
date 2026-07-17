@@ -199,10 +199,10 @@ export default function OverlapAudit() {
       )}
       {data && !audit.isPending && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Pacientes" value={String(data.totals.patients)} icon={Users} />
-          <KpiCard label="Dias" value={String(data.totals.days)} icon={CalendarDays} />
-          <KpiCard label="Atendimentos" value={String(data.totals.attendances)} icon={ClipboardList} />
-          <KpiCard label="Lançamentos" value={String(data.totals.items)} icon={Layers} />
+          <KpiCard label="Pacientes" value={String(data.totals.patients)} />
+          <KpiCard label="Dias" value={String(data.totals.days)} />
+          <KpiCard label="Atendimentos" value={String(data.totals.attendances)} />
+          <KpiCard label="Lançamentos" value={String(data.totals.items)} />
         </div>
       )}
 
