@@ -838,7 +838,10 @@ Deno.serve(async (req) => {
 
         if (otherIds.length > 0) {
           // Paginação defensiva — outros lotes podem somar muitos itens.
-          const PAGE = 5000;
+          // PostgREST corta em 1000 linhas por request; PAGE precisa ser <=1000
+          // senão chunk.length < PAGE encerra o loop na primeira página e
+          // silenciosamente perde os itens seguintes.
+          const PAGE = 1000;
           for (let from = 0; ; from += PAGE) {
             const { data: chunk, error: extErr } = await supabase
               .from("payment_items")
@@ -851,7 +854,7 @@ Deno.serve(async (req) => {
             if (!chunk || chunk.length === 0) break;
             externalItems.push(...(chunk as Item[]));
             if (chunk.length < PAGE) break;
-            if (externalItems.length > 100000) break; // hard cap defensivo
+            if (externalItems.length > 200000) break; // hard cap defensivo
           }
         }
       }
