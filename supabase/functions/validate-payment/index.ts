@@ -345,7 +345,11 @@ function applySobreposicaoAssistencial(
   findingsByItem: Map<string, Finding[]>,
   paymentReference: string | null,
   paymentTypeForElig: string | null,
+  externalItems: Item[] = [],
+  externalRefById: Map<string, string | null> = new Map(),
+  currentPaymentId: string | null = null,
 ): { hits: number; unresolvedDoctors: Set<string> } {
+
   const params = (rule.params ?? {}) as Json;
   const unresolvedDoctors = new Set<string>();
 
@@ -383,10 +387,10 @@ function applySobreposicaoAssistencial(
     return picked.filter((s) => !excludedSet.has(s));
   };
 
-  type Elig = { item: Item; doctor: Doctor; specialty: string; specialties: string[] };
+  type Elig = { item: Item; doctor: Doctor; specialty: string; specialties: string[]; external: boolean };
   const eligible: Elig[] = [];
-  for (const it of items) {
-    if (!isVisitaOuParecer(it.procedure_name, it.procedure_code, paymentTypeForElig)) continue;
+  const collectEligible = (it: Item, external: boolean) => {
+    if (!isVisitaOuParecer(it.procedure_name, it.procedure_code, paymentTypeForElig)) return;
     let doc: Doctor | undefined;
     if (it.doctor_document && it.doctor_document.trim()) {
       doc = doctorByCrm.get(it.doctor_document.trim());
@@ -395,14 +399,17 @@ function applySobreposicaoAssistencial(
       doc = doctorByName.get(normName(it.doctor_name));
     }
     if (!doc) {
-      if (it.doctor_name) unresolvedDoctors.add(it.doctor_name);
-      continue;
+      if (!external && it.doctor_name) unresolvedDoctors.add(it.doctor_name);
+      return;
     }
-    if (!isAfim(doc)) continue;
+    if (!isAfim(doc)) return;
     const specs = groupSpecSet ? (doc.specialties ?? []).map(normSpecialty).filter(Boolean) : docSpecialties(doc);
-    if (!groupSpecSet && specs.length === 0) continue;
-    eligible.push({ item: it, doctor: doc, specialty: specs[0] ?? "", specialties: specs });
-  }
+    if (!groupSpecSet && specs.length === 0) return;
+    eligible.push({ item: it, doctor: doc, specialty: specs[0] ?? "", specialties: specs, external });
+  };
+  for (const it of items) collectEligible(it, false);
+  for (const it of externalItems) collectEligible(it, true);
+
 
 
 
@@ -432,6 +439,11 @@ function applySobreposicaoAssistencial(
       if (unionSpecs.size < minDistinct) continue;
     }
 
+    // Precisa ter pelo menos 1 item interno para emitir finding (não polui
+    // outros lotes com alertas gerados na validação deste lote).
+    const internos = grp.filter((e) => !e.external);
+    if (internos.length === 0) continue;
+
     const doctorNames = Array.from(new Set(grp.map((e) => e.doctor.full_name)));
     const specialtiesList = Array.from(unionSpecs);
 
@@ -442,11 +454,14 @@ function applySobreposicaoAssistencial(
       ? `${doctorNames.join(", ")}`
       : `${specialtiesList.join(" + ")} — ${doctorNames.join(", ")}`;
 
-    for (const e of grp) {
+    for (const e of internos) {
       const other =
         grp.find((x) => normName(x.doctor.full_name) !== normName(e.doctor.full_name)) ??
         grp.find((x) => x.specialty !== e.specialty);
       if (!other) continue;
+      const otherRef = other.external
+        ? (externalRefById.get(other.item.payment_id ?? "") ?? null)
+        : paymentReference;
       const snapshot: ConflictingItemSnapshot = {
         attendance_number: other.item.attendance_number,
         patient_name: getPatient(other.item),
@@ -456,8 +471,9 @@ function applySobreposicaoAssistencial(
         procedure_date: other.item.procedure_date,
         company_name: other.item.company_name,
         payment_id: other.item.payment_id,
-        payment_reference: paymentReference,
+        payment_reference: otherRef,
       };
+      const crossTag = other.external ? ` (lote ${otherRef ?? "externo"})` : "";
       const list = findingsByItem.get(e.item.id) ?? [];
       list.push({
         rule_id: rule.id,
@@ -465,7 +481,7 @@ function applySobreposicaoAssistencial(
         kind: rule.kind,
         severity: rule.severity,
         action: rule.action,
-        message: `Sobreposição assistencial: ${patientName} foi atendido em ${dateStr} por médicos ${contextLabel} (${detailLabel}).`,
+        message: `Sobreposição assistencial: ${patientName} foi atendido em ${dateStr} por médicos ${contextLabel} (${detailLabel})${crossTag}.`,
         conflicting_item_id: other.item.id,
         conflicting_item: snapshot,
         detected_at: now,
@@ -474,6 +490,7 @@ function applySobreposicaoAssistencial(
       hits++;
     }
   }
+
 
   return { hits, unresolvedDoctors };
 }
@@ -693,12 +710,16 @@ Deno.serve(async (req) => {
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
-    const { payment_id } = await req.json();
+    const body = await req.json();
+    const payment_id = body?.payment_id;
+    // scope: "batch" (default, só o lote) | "cross" (varre outros lotes na janela)
+    const scope: "batch" | "cross" = body?.scope === "cross" ? "cross" : "batch";
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -792,7 +813,10 @@ Deno.serve(async (req) => {
     );
     let externalItems: Item[] = [];
     const externalRefById = new Map<string, string | null>();
-    if (dupRules.length > 0 && items.length > 0) {
+    const hasSobreposicao = rules.some((r) => r.kind === "sobreposicao_assistencial");
+    const loadExternals = items.length > 0 && (dupRules.length > 0 || (scope === "cross" && hasSobreposicao));
+    if (loadExternals) {
+
       const dates = items.map((i) => i.procedure_date).filter((d): d is string => !!d);
       if (dates.length > 0) {
         const dayMs = 86400000;
@@ -869,7 +893,13 @@ Deno.serve(async (req) => {
           }
           group = g;
         }
-        const result = applySobreposicaoAssistencial(rule, items, allDoctors, group, findingsByItem, paymentReference, (payment as any).payment_type ?? null);
+        const extForOverlap = scope === "cross" ? externalItems : [];
+        const result = applySobreposicaoAssistencial(
+          rule, items, allDoctors, group, findingsByItem, paymentReference,
+          (payment as any).payment_type ?? null,
+          extForOverlap, externalRefById, payment_id,
+        );
+
         totalHits += result.hits;
         if (result.unresolvedDoctors.size > 0) {
           unresolvedByRule[rule.name] = Array.from(result.unresolvedDoctors);
@@ -913,7 +943,10 @@ Deno.serve(async (req) => {
         rules_skipped: skippedRules,
         items_flagged: updates.length,
         total_findings: totalHits,
+        scope,
+        external_items_scanned: externalItems.length,
         unresolved_doctors_by_rule: unresolvedByRule,
+
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
