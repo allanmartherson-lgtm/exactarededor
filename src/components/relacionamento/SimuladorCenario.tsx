@@ -402,6 +402,30 @@ export function SimuladorCenario() {
   // setores cirúrgicos internados. Ampliar quando novas unidades entrarem.
   const SURGICAL_SECTORS = ["centro_cirurgico", "hemodinamica", "1556", "1574"];
 
+  // Exclusão de convênios (ex: Particular, Seguradora Internacional — casos
+  // onde não há acordo com Exacta e a comparação distorce). Slugs canônicos
+  // resolvidos via `convenios`/aliases; texto legado sem match no cadastro
+  // não pode ser excluído aqui (aparece bruto no relatório).
+  const [convenioOptions, setConvenioOptions] = useState<Array<{ slug: string; name: string }>>([]);
+  const [conveniosExcluidos, setConveniosExcluidos] = useState<string[]>([]);
+  const [convenioPickerOpen, setConvenioPickerOpen] = useState(false);
+  useEffect(() => {
+    if (!hospitalId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("convenios")
+        .select("slug,name,active,hospital_id")
+        .or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+        .order("name");
+      if (cancelled) return;
+      setConvenioOptions(((data ?? []) as Array<{ slug: string; name: string; active: boolean }>)
+        .filter((r) => r.active !== false)
+        .map((r) => ({ slug: r.slug, name: r.name })));
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
   // Filtro (B): quando ligado, itens sem regra sintética compatível são
   // removidos tanto do Exacta Real quanto do Simulado — cenário puro só do
   // que casou. Default OFF: usamos o fallback "manter pago" (A) para não
