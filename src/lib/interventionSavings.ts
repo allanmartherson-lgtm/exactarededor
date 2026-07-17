@@ -79,6 +79,8 @@ export interface InterventionItem {
   author_id: string;
   autor: string;
   role: IntervenorRole;
+  /** Papel cadastrado do autor no momento da leitura: analista | validador | diretor | admin | sistema. */
+  papel_autor?: string | null;
   obs_at: string;
   acatado_at: string;
   doctor_name: string | null;
