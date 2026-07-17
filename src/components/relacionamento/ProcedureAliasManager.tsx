@@ -42,13 +42,17 @@ interface SemMatchRow {
   normalizado: string;
 }
 
-// Combobox simples: input filtra a lista, click seleciona.
+// Combobox simples: input filtra a lista, click seleciona. Cada candidato
+// carrega uma marca de origem (pagamento vs. catálogo CBHPM) para o usuário
+// entender de onde vem a sugestão.
 function CanonicalPicker({
   candidates,
+  originMap,
   onPick,
   disabled,
 }: {
   candidates: string[];
+  originMap: Map<string, Set<string>>;
   onPick: (name: string) => void;
   disabled?: boolean;
 }) {
@@ -66,7 +70,7 @@ function CanonicalPicker({
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           className="h-8 pl-7 text-xs"
-          placeholder="Digite para buscar procedimento Exacta..."
+          placeholder="Digite para buscar procedimento Exacta ou CBHPM..."
           value={q}
           disabled={disabled}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
@@ -76,32 +80,43 @@ function CanonicalPicker({
       </div>
       {open && filtered.length > 0 && (
         <div className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-md border border-border bg-popover shadow-lg">
-          {filtered.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent focus:bg-accent focus:outline-none"
-              onMouseDown={(e) => {
-                // onMouseDown para não perder o clique via onBlur.
-                e.preventDefault();
-                onPick(c);
-                setQ("");
-                setOpen(false);
-              }}
-            >
-              {c}
-            </button>
-          ))}
+          {filtered.map((c) => {
+            const origens = originMap.get(norm(c)) ?? new Set<string>();
+            return (
+              <button
+                key={c}
+                type="button"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent focus:bg-accent focus:outline-none flex items-center justify-between gap-2"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onPick(c);
+                  setQ("");
+                  setOpen(false);
+                }}
+              >
+                <span className="truncate">{c}</span>
+                <span className="shrink-0 flex gap-1">
+                  {origens.has("pagamento") && (
+                    <Badge variant="secondary" className="text-[10px] py-0 h-4">pago</Badge>
+                  )}
+                  {origens.has("cbhpm") && (
+                    <Badge variant="outline" className="text-[10px] py-0 h-4">CBHPM</Badge>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
       {open && q && filtered.length === 0 && (
         <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-popover shadow-lg px-3 py-2 text-xs text-muted-foreground">
-          Nenhum procedimento Exacta encontrado.
+          Nenhum procedimento Exacta/CBHPM encontrado.
         </div>
       )}
     </div>
   );
 }
+
 
 export function ProcedureAliasManager() {
   const hospitalId = useEnforcedHospitalId();
@@ -110,6 +125,7 @@ export function ProcedureAliasManager() {
   const [saving, setSaving] = useState<string | null>(null);
   const [aurumNames, setAurumNames] = useState<string[]>([]);
   const [exactaNames, setExactaNames] = useState<string[]>([]);
+  const [exactaOriginMap, setExactaOriginMap] = useState<Map<string, Set<string>>>(new Map());
   const [aliases, setAliases] = useState<AliasRow[]>([]);
 
   // Carrega tudo em paralelo.
@@ -148,7 +164,7 @@ export function ProcedureAliasManager() {
             .catch((error) => ({ rows: [] as AliasRow[], error })),
         ]);
         const aurumRows = aurumRes.rows;
-        const exactaRows = (exactaRes.data ?? []) as { procedure_name: string | null }[];
+        const exactaRows = (exactaRes.data ?? []) as { procedure_name: string | null; origem: string | null }[];
         const aliasRows = aliasRes.rows;
         const firstError =
           (aurumRes as { error: unknown }).error ??
@@ -174,16 +190,21 @@ export function ProcedureAliasManager() {
           if (!aurumSet.has(n)) aurumSet.set(n, nome);
         }
         const exactaSet = new Map<string, string>();
+        const originMap = new Map<string, Set<string>>();
         for (const r of exactaRows) {
           const nome = (r.procedure_name ?? "").trim();
           if (!nome) continue;
           const n = norm(nome);
           if (!n) continue;
           if (!exactaSet.has(n)) exactaSet.set(n, nome);
+          const set = originMap.get(n) ?? new Set<string>();
+          if (r.origem) set.add(r.origem);
+          originMap.set(n, set);
         }
 
         setAurumNames(Array.from(aurumSet.values()).sort((a, b) => a.localeCompare(b, "pt-BR")));
         setExactaNames(Array.from(exactaSet.values()).sort((a, b) => a.localeCompare(b, "pt-BR")));
+        setExactaOriginMap(originMap);
         setAliases(aliasRows);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -308,6 +329,7 @@ export function ProcedureAliasManager() {
                       <TableCell className="align-top">
                         <CanonicalPicker
                           candidates={exactaNames}
+                          originMap={exactaOriginMap}
                           disabled={saving === r.nome}
                           onPick={(nomeExacta) => void salvarAlias(r.nome, nomeExacta)}
                         />
