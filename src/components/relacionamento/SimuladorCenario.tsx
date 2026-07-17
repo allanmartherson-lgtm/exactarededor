@@ -1353,7 +1353,7 @@ export function SimuladorCenario() {
       </Card>
 
       {/* SEÇÃO 2 — Resultado */}
-      {resultado && (
+      {resultado && disp && (
         <>
           {resultado.aviso && (
             <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
@@ -1371,14 +1371,14 @@ export function SimuladorCenario() {
               <div className="text-xs text-muted-foreground mt-1">
                 Aurum: {resultado.aurum.qtd_cirurgias.toLocaleString("pt-BR")} cirurgia(s)
                 {" | "}
-                Exacta: {resultado.exacta ? `${resultado.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${resultado.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
+                Exacta: {disp.exacta ? `${disp.exacta.itens.toLocaleString("pt-BR")} item(ns) em ${disp.exacta.atendimentos.toLocaleString("pt-BR")} atendimento(s)` : "sem match"}
                 {" | "}
                 Filtro: {carater === "todos" ? "Todos" : carater}
               </div>
-              {carater === "todos" && resultado.exacta && resultado.exacta.sem_carater > 0 && (
+              {carater === "todos" && disp.exacta && disp.exacta.sem_carater > 0 && (
                 <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
-                  {resultado.exacta.sem_carater} de {resultado.exacta.itens} itens do Exacta não têm caráter preenchido e foram incluídos no total.
+                  {disp.exacta.sem_carater} de {disp.exacta.itens} itens do Exacta não têm caráter preenchido e foram incluídos no total.
                 </div>
               )}
             </CardHeader>
@@ -1398,8 +1398,8 @@ export function SimuladorCenario() {
 
                 {(() => {
                   const A = resultado.aurum;
-                  const exGross = resultado.exacta?.gross ?? null;
-                  const sim = resultado.simulado;
+                  const exGross = disp.exacta?.gross ?? null;
+                  const sim = disp.simulado;
                   const receitaLiqExacta = A.receita_liquida;
                   const margemExacta = exGross != null ? A.receita_liquida + A.outros_custos - exGross : null;
                   const pctExacta = margemExacta != null && A.receita_liquida > 0 ? margemExacta / A.receita_liquida : null;
@@ -1411,7 +1411,7 @@ export function SimuladorCenario() {
 
                   // Médias por cirurgia / atendimento — usadas nas sub-linhas dentro de cada célula da DRE.
                   const qc = A.qtd_cirurgias;
-                  const atd = resultado.exacta?.atendimentos ?? 0;
+                  const atd = disp.exacta?.atendimentos ?? 0;
 
                   // % HM sobre receita líquida
                   const rl = A.receita_liquida;
@@ -1494,23 +1494,23 @@ export function SimuladorCenario() {
             />
             <SummaryCard
               title="HM Exacta (real pago)"
-              valor={resultado.exacta?.gross ?? null}
-              pct={resultado.exacta && resultado.aurum.receita_liquida > 0 ? resultado.exacta.gross / resultado.aurum.receita_liquida : null}
-              extra={resultado.exacta ? `${resultado.exacta.itens} item(s) · ${resultado.exacta.atendimentos} atend.` : "sem match"}
+              valor={disp.exacta?.gross ?? null}
+              pct={disp.exacta && resultado.aurum.receita_liquida > 0 ? disp.exacta.gross / resultado.aurum.receita_liquida : null}
+              extra={disp.exacta ? `${disp.exacta.itens} item(s) · ${disp.exacta.atendimentos} atend.` : "sem match"}
               tone="neutral"
             />
             <SummaryCard
               title="HM Simulado (cenário)"
-              valor={resultado.simulado.novo_hm}
-              pct={resultado.aurum.receita_liquida > 0 ? resultado.simulado.novo_hm / resultado.aurum.receita_liquida : null}
+              valor={disp.simulado.novo_hm}
+              pct={resultado.aurum.receita_liquida > 0 ? disp.simulado.novo_hm / resultado.aurum.receita_liquida : null}
               extra={
-                resultado.exacta
-                  ? `Δ vs Exacta: ${BRL(resultado.simulado.novo_hm - resultado.exacta.gross)}`
+                disp.exacta
+                  ? `Δ vs Exacta: ${BRL(disp.simulado.novo_hm - disp.exacta.gross)}`
                   : undefined
               }
               tone={
-                resultado.exacta == null ? "neutral" :
-                resultado.simulado.novo_hm > resultado.exacta.gross ? "negative" : "positive"
+                disp.exacta == null ? "neutral" :
+                disp.simulado.novo_hm > disp.exacta.gross ? "negative" : "positive"
               }
               highlight
             />
@@ -1522,10 +1522,10 @@ export function SimuladorCenario() {
               <div className="text-sm">
                 {(() => {
                   const A = resultado.aurum;
-                  const exGross = resultado.exacta?.gross ?? null;
+                  const exGross = disp.exacta?.gross ?? null;
                   const margemAtual = exGross != null ? A.receita_liquida + A.outros_custos - exGross : A.margem;
                   const pctAtual = A.receita_liquida > 0 ? margemAtual / A.receita_liquida : 0;
-                  const delta = resultado.simulado.nova_margem - margemAtual;
+                  const delta = disp.simulado.nova_margem - margemAtual;
                   const deltaCor = delta > 0 ? "text-emerald-700" : delta < 0 ? "text-red-700" : "";
                   return (
                     <>
@@ -1533,7 +1533,7 @@ export function SimuladorCenario() {
                       <span className="font-semibold">{BRL(margemAtual)} ({PCT(pctAtual)})</span>
                       <span className="mx-2 text-muted-foreground">→</span>
                       <span className="text-muted-foreground">Simulada: </span>
-                      <span className="font-semibold">{BRL(resultado.simulado.nova_margem)} ({PCT(resultado.simulado.nova_pct_margem)})</span>
+                      <span className="font-semibold">{BRL(disp.simulado.nova_margem)} ({PCT(disp.simulado.nova_pct_margem)})</span>
                       <span className="mx-2 text-muted-foreground">|</span>
                       <span className="text-muted-foreground">Δ </span>
                       <span className={cn("font-semibold", deltaCor)}>{BRL(delta)}</span>
@@ -1542,7 +1542,7 @@ export function SimuladorCenario() {
                 })()}
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Button type="button" variant="outline" onClick={exportarDetalhado} disabled={!resultado.exacta}>
+                <Button type="button" variant="outline" onClick={exportarDetalhado} disabled={!disp.exacta}>
                   Exportar Excel detalhado
                 </Button>
                 <Button type="button" onClick={salvarCenario} disabled={salvando}>
