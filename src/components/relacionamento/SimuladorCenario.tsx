@@ -861,51 +861,20 @@ export function SimuladorCenario() {
             };
           }
 
-          // Override histórico para auxiliares: aplica o mesmo percentual que
-          // de fato foi pago à época (aux.gross_amount / principal.gross_amount
-          // dentro do mesmo atendimento+TUSS) sobre o valor SIMULADO do
-          // principal. Motivo: a regra sintética do simulador não conhece a
-          // tabela de funções da regra original, então sem esse override os
-          // auxiliares receberiam 100% (mesmo valor do cirurgião).
-          const grupos = new Map<string, typeof detalhes>();
-          for (const d of detalhes) {
-            const k = `${d.attendance_number ?? ""}|${(d.procedure_code ?? "").trim()}`;
-            if (!grupos.has(k)) grupos.set(k, []);
-            grupos.get(k)!.push(d);
-          }
-          const roleNorm = (r?: string | null) =>
-            (r ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-          const isPrincipal = (r?: string | null) => {
-            const n = roleNorm(r);
-            if (!n) return false;
-            if (/auxili|instrument/.test(n)) return false;
-            return /cirurgiao/.test(n) || /principal|unico/.test(n);
-          };
-          const isAux = (r?: string | null) => /auxili|instrument/.test(roleNorm(r));
-          for (const [, grupo] of grupos) {
-            const principal = grupo.find((g) => isPrincipal(g.doctor_role));
-            if (!principal) continue;
-            const principalSim = perItem[principal.id]?.expected_amount ?? 0;
-            const principalReal = Number(principal.gross_amount ?? 0);
-            if (principalSim <= 0 || principalReal <= 0) continue;
-            for (const g of grupo) {
-              if (g.id === principal.id || !isAux(g.doctor_role)) continue;
-              const auxReal = Number(g.gross_amount ?? 0);
-              if (auxReal <= 0) continue;
-              const ratio = auxReal / principalReal;
-              if (ratio > 1.001) continue; // ratio implausível, mantém motor
-              const cur = perItem[g.id];
-              perItem[g.id] = {
-                expected_amount: principalSim * ratio,
-                matched: cur?.matched ?? true,
-                calculation_type_used: cur?.calculation_type_used ?? "aux_historical_override",
-                alerts: [
-                  ...(cur?.alerts ?? []),
-                  `Aux ajustado ao histórico: ${(ratio * 100).toFixed(1)}% do principal`,
-                ],
-              };
-            }
-          }
+          // Override histórico para auxiliares — extraído para módulo puro
+          // testável (src/lib/simulatorAuxOverride.ts). Bug regressão coberto:
+          // regex antiga `/auxili/` NÃO reconhecia "Primeiro Aux" (forma curta
+          // do Tasy), então o simulado ficava igual ao do cirurgião principal.
+          applyHistoricalAuxOverride(
+            detalhes.map((d) => ({
+              id: d.id,
+              attendance_number: d.attendance_number,
+              procedure_code: d.procedure_code,
+              doctor_role: d.doctor_role,
+              gross_amount: Number(d.gross_amount ?? 0),
+            })),
+            perItem,
+          );
           novoHm = Object.values(perItem).reduce((s, p) => s + (p.expected_amount ?? 0), 0);
         }
       }
