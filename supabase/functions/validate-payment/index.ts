@@ -813,7 +813,10 @@ Deno.serve(async (req) => {
     );
     let externalItems: Item[] = [];
     const externalRefById = new Map<string, string | null>();
-    if (dupRules.length > 0 && items.length > 0) {
+    const hasSobreposicao = rules.some((r) => r.kind === "sobreposicao_assistencial");
+    const loadExternals = items.length > 0 && (dupRules.length > 0 || (scope === "cross" && hasSobreposicao));
+    if (loadExternals) {
+
       const dates = items.map((i) => i.procedure_date).filter((d): d is string => !!d);
       if (dates.length > 0) {
         const dayMs = 86400000;
