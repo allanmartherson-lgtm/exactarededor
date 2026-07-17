@@ -332,6 +332,7 @@ export default function InterventionAdjustments() {
     (filters.paymentIds?.length ?? 0) > 0 ||
     (filters.companyNames?.length ?? 0) > 0 ||
     (filters.doctorNames?.length ?? 0) > 0 ||
+    (filters.papeisAutor?.length ?? 0) > 0 ||
     // Considera "padrão" quando classifications = [economia, aumento].
     (() => {
       const c = filters.classifications ?? [];
