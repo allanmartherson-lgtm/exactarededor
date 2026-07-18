@@ -110,9 +110,15 @@ export const DoctorConcentrationTab = ({ track = "all" }: { track?: TrackFilterV
         subtitle="Distribuição de concentração por médico nos lotes — últimos 6 meses"
       />
       <div className="p-4 space-y-4">
-        {!rows ? (
+        {error && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+        {!concentrations ? (
           <Skeleton className="h-40 w-full" />
         ) : (
+
           <>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="rounded-md border p-3">
