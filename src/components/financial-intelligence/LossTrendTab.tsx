@@ -240,10 +240,10 @@ export const LossTrendTab = ({ track = "all" }: { track?: TrackFilterValue } = {
               </div>
             )}
 
-            {/* Gráfico: área azul (total consolidado) + linhas finas dos top 6 grupos */}
-            <div className="h-96 w-full">
+            {/* Gráfico 1 — TOTAL consolidado (área com gradiente azul) */}
+            <div className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 32, right: 24, left: 0, bottom: 8 }}>
+                <AreaChart data={chartData} margin={{ top: 32, right: 24, left: 0, bottom: 8 }}>
                   <defs>
                     <linearGradient id="lossTrendTotalArea" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="rgba(0, 61, 165, 0.15)" />
@@ -260,67 +260,20 @@ export const LossTrendTab = ({ track = "all" }: { track?: TrackFilterValue } = {
                   />
                   <Tooltip
                     contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-                    formatter={(v: number, name: string) => [formatBRL(v), name === "total" ? "Total" : name]}
+                    formatter={(v: number) => [formatBRL(v), "Total"]}
                     labelFormatter={(label, payload) => {
                       const partial = payload?.[0]?.payload?.partial;
                       return partial ? `${label} (parcial)` : String(label);
                     }}
-                    itemSorter={(item) => -Number(item.value ?? 0)}
                   />
-                  <Legend
-                    wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-                    formatter={(value) => (value === "total" ? "Total consolidado" : value)}
-                  />
-
-                  {/* Área com gradiente da linha TOTAL — pintada primeiro para ficar atrás */}
                   <Area
-                    type="monotone"
-                    dataKey="total"
-                    stroke="none"
-                    fill="url(#lossTrendTotalArea)"
-                    isAnimationActive={false}
-                    legendType="none"
-                  />
-
-                  {/* Linhas finas das top 6 séries — referência secundária */}
-                  {series.map((k, i) => (
-                    <Line
-                      key={k}
-                      type="monotone"
-                      dataKey={k}
-                      stroke={secondaryColors[i % secondaryColors.length]}
-                      strokeWidth={1.5}
-                      dot={{ r: 2 }}
-                      activeDot={{ r: 4 }}
-                      strokeOpacity={0.75}
-                    />
-                  ))}
-
-                  {/* Linha TOTAL — protagonista, mais grossa, na cor primary do Exacta */}
-                  <Line
                     type="monotone"
                     dataKey="total"
                     stroke="#003DA5"
                     strokeWidth={3}
-                    dot={(props: Record<string, unknown>) => {
-                      const payload = props.payload as { partial?: boolean } | undefined;
-                      const cx = props.cx as number;
-                      const cy = props.cy as number;
-                      const key = String((props as { key?: string }).key ?? `${cx}-${cy}`);
-                      // Ponto do mês parcial fica com borda tracejada (anel) para sinalizar dado incompleto
-                      if (payload?.partial) {
-                        return (
-                          <g key={key}>
-                            <circle cx={cx} cy={cy} r={6} fill="hsl(var(--card))" stroke="#003DA5" strokeWidth={2} strokeDasharray="3 2" />
-                            <circle cx={cx} cy={cy} r={2.5} fill="#003DA5" />
-                          </g>
-                        );
-                      }
-                      return <circle key={key} cx={cx} cy={cy} r={4} fill="#003DA5" />;
-                    }}
-                    activeDot={{ r: 6, fill: "#003DA5" }}
+                    fill="url(#lossTrendTotalArea)"
+                    isAnimationActive={false}
                   >
-                    {/* Data label em TODOS os pontos da linha total */}
                     <LabelList
                       dataKey="total"
                       position="top"
@@ -335,7 +288,7 @@ export const LossTrendTab = ({ track = "all" }: { track?: TrackFilterValue } = {
                           <text
                             key={`total-label-${idx}`}
                             x={x}
-                            y={y - 12}
+                            y={y - 8}
                             fontSize={11}
                             fontWeight={600}
                             textAnchor="middle"
@@ -347,10 +300,84 @@ export const LossTrendTab = ({ track = "all" }: { track?: TrackFilterValue } = {
                         );
                       }}
                     />
-                  </Line>
-                </ComposedChart>
+                  </Area>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
+
+            <Separator className="my-2" />
+
+            {/* Gráfico 2 — Top 6 grupos (escala própria, sem a linha total) */}
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                Evolução por {grouping === "especialidade" ? "especialidade" : "empresa"} — top 6
+              </p>
+              <div className="h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 16, right: 56, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="monthLabel" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickFormatter={(v) => formatShortBRL(v as number)}
+                      width={70}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+                      formatter={(v: number, name: string) => [formatBRL(v), name]}
+                      labelFormatter={(label, payload) => {
+                        const partial = payload?.[0]?.payload?.partial;
+                        return partial ? `${label} (parcial)` : String(label);
+                      }}
+                      itemSorter={(item) => -Number(item.value ?? 0)}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                    {series.map((k, i) => {
+                      const color = secondaryColors[i % secondaryColors.length];
+                      const lastIdx = chartData.length - 1;
+                      return (
+                        <Line
+                          key={k}
+                          type="monotone"
+                          dataKey={k}
+                          stroke={color}
+                          strokeWidth={2}
+                          dot={{ r: 2 }}
+                          activeDot={{ r: 4 }}
+                        >
+                          {/* Rótulo apenas no último ponto para não poluir */}
+                          <LabelList
+                            dataKey={k}
+                            content={(props: Record<string, unknown>) => {
+                              const idx = props.index as number;
+                              const value = props.value as number | undefined;
+                              const x = props.x as number;
+                              const y = props.y as number;
+                              if (idx !== lastIdx || value == null) return null;
+                              return (
+                                <text
+                                  key={`${k}-lbl-${idx}`}
+                                  x={x + 6}
+                                  y={y + 4}
+                                  fontSize={10}
+                                  fontWeight={600}
+                                  textAnchor="start"
+                                  fill={color}
+                                >
+                                  {formatShortBRL(Number(value))}
+                                </text>
+                              );
+                            }}
+                          />
+                        </Line>
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
 
             {chartData.some((d) => (d as { partial?: boolean }).partial) && (
               <p className="text-xs text-muted-foreground italic">
