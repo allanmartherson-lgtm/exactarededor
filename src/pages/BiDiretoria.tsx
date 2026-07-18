@@ -826,41 +826,54 @@ export default function BiDiretoria() {
               </span>
             </div>
           </div>
-          <EvolutionChart data={display.spark} />
+          <EvolutionChart
+            data={(monthly.length ? monthly.map((m) => m.valor) : display.spark) as number[]}
+            riskData={monthly.length ? monthly.map((m) => m.risco) : undefined}
+            months={monthly.length ? monthly.map((m) => m.month) : undefined}
+          />
         </div>
 
         <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
           <div>
             <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Por analista</div>
-            <div className="mt-1 text-sm text-muted-foreground">valor revisado · junho</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              valor revisado · {competenciaLabel.toLowerCase()}
+            </div>
           </div>
           <div className="mt-5 space-y-4">
-            {[
-              { name: "Allan Araújo", initials: "AA", color: "bg-primary/15 text-primary", valor: "R$ 684k", pct: 92 },
-              { name: "Diego Burgardt", initials: "DB", color: "bg-success/15 text-success", valor: "R$ 548k", pct: 74 },
-              { name: "Marina Rocha", initials: "MR", color: "bg-violet-500/15 text-violet-500", valor: "R$ 431k", pct: 58 },
-              { name: "Caio Lima", initials: "CL", color: "bg-amber-500/15 text-amber-600", valor: "R$ 254k", pct: 34 },
-            ].map((a) => (
-              <div key={a.name} className="flex items-center gap-3">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${a.color}`}>
-                  {a.initials}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate">{a.name}</div>
-                  <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${a.pct}%` }} />
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-foreground tabular-nums">{a.valor}</div>
-                  <div className="text-[10px] text-muted-foreground tabular-nums">{a.pct}%</div>
-                </div>
+            {analysts.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">
+                Sem lotes criados por analistas no período.
               </div>
-            ))}
+            ) : (
+              (() => {
+                const max = Math.max(...analysts.map((a) => a.valor), 1);
+                return analysts.map((a) => {
+                  const pct = Math.round((a.valor / max) * 100);
+                  return (
+                    <div key={a.user_id} className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-primary/15 text-primary">
+                        {a.initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{a.name}</div>
+                        <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-foreground tabular-nums">{fmtMi(a.valor)}</div>
+                        <div className="text-[10px] text-muted-foreground tabular-nums">{pct}%</div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()
+            )}
           </div>
-          <div className="mt-5 text-[11px] text-muted-foreground">Atualizado há 4 min · base Hospital DF Star</div>
         </div>
       </div>
+
 
       {/* ===== Top empresas + Alertas assistenciais ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
