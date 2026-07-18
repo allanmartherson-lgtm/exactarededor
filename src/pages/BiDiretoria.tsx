@@ -229,11 +229,58 @@ function EvolutionChart({
   );
 }
 
+type AnalystRow = { user_id: string; name: string; initials: string; valor: number };
+type CompanyRow = { id: string; name: string; itens: number; valor: number; status: string; tone: "success" | "warning" | "destructive" };
+type AlertRow = { id: string; kind: string; title: string; meta: string; time: string; tone: "amber" | "muted" };
+
+const STATUS_TONE: Record<string, { label: string; tone: "success" | "warning" | "destructive" }> = {
+  pago: { label: "Pago", tone: "success" },
+  aprovado: { label: "Aprovado", tone: "success" },
+  aprovado_em_revisao: { label: "Aprovado", tone: "success" },
+  nf_recebida: { label: "NF recebida", tone: "success" },
+  nf_conciliada: { label: "NF conciliada", tone: "success" },
+  aguardando_validacao: { label: "Em análise", tone: "warning" },
+  aguardando_aprovacao: { label: "Em análise", tone: "warning" },
+  em_analise_ia: { label: "Em análise", tone: "warning" },
+  revisao_analista: { label: "Em análise", tone: "warning" },
+  devolvido_analista: { label: "Risco", tone: "destructive" },
+  nf_questionada: { label: "Risco", tone: "destructive" },
+  rejeitado: { label: "Risco", tone: "destructive" },
+};
+
+const ALERT_KIND_TITLE: Record<string, string> = {
+  duplicidade_exata: "Duplicidade de atendimento",
+  sobreposicao_assistencial: "Sobreposição assistencial",
+  duplicidade_tuss_paciente: "Duplicidade TUSS/paciente",
+};
+
+const initialsOf = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "—";
+  const first = parts[0][0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? "" : "";
+  return (first + last).toUpperCase();
+};
+
+const relativeTime = (iso: string): string => {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return "agora";
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+};
+
 export default function BiDiretoria() {
   const [period, setPeriod] = useState<Period>("mes");
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<any[]>([]);
-  const [monthly, setMonthly] = useState<{ month: string; valor: number }[]>([]);
+  const [monthly, setMonthly] = useState<{ month: string; valor: number; risco: number }[]>([]);
+  const [analysts, setAnalysts] = useState<AnalystRow[]>([]);
+  const [topCompanies, setTopCompanies] = useState<CompanyRow[]>([]);
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
 
   const now = new Date();
   const competenciaLabel = `${MONTHS_PT_FULL[now.getMonth()]} ${now.getFullYear()}`;
@@ -246,29 +293,37 @@ export default function BiDiretoria() {
         since.setMonth(since.getMonth() - 12);
         const { data } = await supabase
           .from("payments")
-          .select("id, status, total_amount, liquido_total, items_count, competence_month, created_at")
+          .select("id, status, total_amount, liquido_total, items_count, competence_month, created_at, created_by")
           .gte("created_at", since.toISOString())
           .not("status", "in", '("cancelado","rascunho")')
           .order("created_at", { ascending: false });
-        setPayments(data ?? []);
+        const paymentsList = data ?? [];
+        setPayments(paymentsList);
 
-        const map: Record<string, number> = {};
-        for (const p of data ?? []) {
+        // Série mensal: processado × em risco (por competência)
+        const map: Record<string, { valor: number; risco: number }> = {};
+        for (const p of paymentsList) {
           const m = (p.competence_month ?? "").slice(0, 7);
           if (!m) continue;
-          map[m] = (map[m] ?? 0) + Number(p.liquido_total ?? p.total_amount ?? 0);
+          if (!map[m]) map[m] = { valor: 0, risco: 0 };
+          const v = Number(p.liquido_total ?? p.total_amount ?? 0);
+          map[m].valor += v;
+          if (["devolvido_analista", "nf_questionada", "rejeitado", "revisao_analista"].includes(p.status)) {
+            map[m].risco += v;
+          }
         }
         setMonthly(
           Object.entries(map)
             .sort(([a], [b]) => a.localeCompare(b))
             .slice(-6)
-            .map(([month, valor]) => ({ month, valor })),
+            .map(([month, agg]) => ({ month, valor: agg.valor, risco: agg.risco })),
         );
       } finally {
         setLoading(false);
       }
     })();
   }, []);
+
 
   // ---- Métricas derivadas ----
   const monthsBack = PERIOD_MONTHS[period];
