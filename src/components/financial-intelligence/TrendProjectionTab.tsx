@@ -92,9 +92,12 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Janela de 12 meses ancorada no PRIMEIRO DIA do mês para não cortar
+      // lotes do mês-limite (bug anterior: cutoff era ISO do meio do mês).
       const cutoff = new Date();
-      cutoff.setMonth(cutoff.getMonth() - 7);
-      const cutoffDate = cutoff.toISOString().slice(0, 10);
+      cutoff.setDate(1);
+      cutoff.setMonth(cutoff.getMonth() - 11);
+      const cutoffDate = ymOf(cutoff) + "-01";
       let pq = supabase
         .from("payments")
         .select("competence_month,total_amount,status,payment_track")
