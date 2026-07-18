@@ -488,7 +488,6 @@ export default function BiDiretoria() {
     };
   }, [inPeriod]);
 
-
   const totalEmAprovacao = useMemo(
     () =>
       inPeriod
@@ -513,6 +512,146 @@ export default function BiDiretoria() {
   const totalLotes = inPeriod.length || 1;
   const taxaAprov = Math.round((lotesEncerrados / totalLotes) * 100);
 
+  // ---- Métricas reais (KPIs / funil / lote crítico / glosas) ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (inPeriod.length === 0) {
+        if (!cancelled) setMetrics(null);
+        return;
+      }
+      const ids = inPeriod.map((p) => p.id);
+
+      // Comparação com período anterior (mesmo comprimento)
+      const prevSince = new Date(periodFloor);
+      prevSince.setMonth(prevSince.getMonth() - monthsBack);
+      const prevUntil = new Date(periodFloor);
+      const { data: prevPays } = await supabase
+        .from("payments")
+        .select("liquido_total, total_amount, status")
+        .gte("created_at", prevSince.toISOString())
+        .lt("created_at", prevUntil.toISOString())
+        .not("status", "in", '("cancelado","rascunho")');
+      const prevTotal = (prevPays ?? [])
+        .filter((p: any) =>
+          ["em_analise_ia", "revisao_analista", "aguardando_validacao", "aguardando_aprovacao", "devolvido_analista"].includes(p.status),
+        )
+        .reduce((a: number, p: any) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
+      const deltaPct = prevTotal > 0 ? ((totalEmAprovacao - prevTotal) / prevTotal) * 100 : null;
+
+      // Valor em risco: lotes precisam de intervenção humana ou têm bloqueio
+      const RISCO = ["devolvido_analista", "rejeitado", "nf_questionada", "revisao_analista"];
+      const valorRisco = inPeriod
+        .filter((p) => RISCO.includes(p.status))
+        .reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
+      const lotesCriticos = inPeriod.filter((p) => RISCO.includes(p.status)).length;
+      const totalLiquido = inPeriod.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
+      const riscoPctDoTotal = totalLiquido > 0 ? (valorRisco / totalLiquido) * 100 : null;
+
+      // Aprovação automática (Motor de Regras): lotes que NÃO passaram por
+      // devolvido_analista no histórico de status
+      const { data: history } = await supabase
+        .from("payment_status_history")
+        .select("payment_id, new_status")
+        .in("payment_id", ids)
+        .in("new_status", ["devolvido_analista", "revisao_analista"] as any);
+      const touched = new Set((history ?? []).map((r: any) => r.payment_id));
+      const finalizados = inPeriod.filter((p) =>
+        ["pago", "aprovado", "nf_recebida", "nf_conciliada", "aguardando_validacao", "aguardando_aprovacao"].includes(p.status),
+      );
+      const auto = finalizados.filter((p) => !touched.has(p.id)).length;
+      const autoPct = finalizados.length > 0 ? Math.round((auto / finalizados.length) * 100) : null;
+
+      // Ciclo médio: created_at → approved_at nos lotes aprovados/pagos do período
+      const { data: cycleRows } = await supabase
+        .from("payments")
+        .select("created_at, approved_at, status")
+        .in("id", ids)
+        .not("approved_at", "is", null);
+      const durs = (cycleRows ?? []).map(
+        (r: any) => (new Date(r.approved_at).getTime() - new Date(r.created_at).getTime()) / 86_400_000,
+      );
+      const cicloDias = durs.length > 0 ? durs.reduce((a, b) => a + b, 0) / durs.length : null;
+
+      // Ciclo período anterior (para delta)
+      const { data: prevCycle } = await supabase
+        .from("payments")
+        .select("created_at, approved_at")
+        .gte("created_at", prevSince.toISOString())
+        .lt("created_at", prevUntil.toISOString())
+        .not("approved_at", "is", null);
+      const prevDurs = (prevCycle ?? []).map(
+        (r: any) => (new Date(r.approved_at).getTime() - new Date(r.created_at).getTime()) / 86_400_000,
+      );
+      const prevCiclo = prevDurs.length > 0 ? prevDurs.reduce((a, b) => a + b, 0) / prevDurs.length : null;
+      const cicloDeltaDias = cicloDias !== null && prevCiclo !== null ? prevCiclo - cicloDias : null;
+
+      // Itens aprovados: último lote encerrado do período
+      const ultimo = [...finalizados].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )[0];
+      let itensAprovPct: number | null = null;
+      let itensAprovTexto = "";
+      if (ultimo) {
+        const { data: itens } = await supabase
+          .from("payment_items")
+          .select("is_cancelled")
+          .eq("payment_id", ultimo.id);
+        const total = itens?.length ?? 0;
+        const aprov = (itens ?? []).filter((i: any) => !i.is_cancelled).length;
+        if (total > 0) {
+          itensAprovPct = (aprov / total) * 100;
+          itensAprovTexto = `${aprov} de ${total} itens · último lote`;
+        }
+      }
+
+      // Glosas registradas no período
+      const { data: glosas } = await supabase
+        .from("glosa_debts")
+        .select("total_debt")
+        .gte("created_at", periodFloor.toISOString());
+      const glosasTotal = (glosas ?? []).reduce((a: number, g: any) => a + Number(g.total_debt ?? 0), 0);
+      const glosasCount = glosas?.length ?? 0;
+
+      // Funil de aprovação (valor por etapa)
+      const bucket = (statuses: string[]) => {
+        const rows = inPeriod.filter((p) => statuses.includes(p.status));
+        return {
+          key: statuses[0],
+          count: rows.length,
+          valor: rows.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0),
+        };
+      };
+      const funil = {
+        validacao: bucket(["aguardando_validacao"]),
+        em_analise: bucket(["em_analise_ia", "revisao_analista", "devolvido_analista"]),
+        aprovacao_dir: bucket(["aguardando_aprovacao"]),
+        pos_nf: bucket(["aprovado", "aprovado_em_revisao", "nf_recebida", "nf_conciliada"]),
+        pago: bucket(["pago"]),
+      };
+
+      if (cancelled) return;
+      setMetrics({
+        autoPct,
+        autoLabel: autoPct === null ? "—" : `${autoPct}%`,
+        valorRisco,
+        lotesCriticos,
+        riscoPctDoTotal,
+        deltaPct,
+        cicloDias,
+        cicloDeltaDias,
+        itensAprovPct,
+        itensAprovTexto,
+        glosasTotal,
+        glosasCount,
+        funil,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod, periodFloor, monthsBack, totalEmAprovacao]);
+
   // Fallback estático quando ainda carregando ou base vazia (mantém o visual do mockup)
   const useFallback = loading || inPeriod.length === 0;
   const display = useFallback
@@ -535,9 +674,9 @@ export default function BiDiretoria() {
         pago: pagoNoMes,
         encerrados: lotesEncerrados,
         taxa: taxaAprov,
-        autoPct: 87,
-        valorRisco: 7619,
-        deltaPct: 8.2,
+        autoPct: metrics?.autoPct ?? 0,
+        valorRisco: metrics?.valorRisco ?? 0,
+        deltaPct: metrics?.deltaPct ?? 0,
         spark: monthly.map((m) => m.valor),
       };
 
