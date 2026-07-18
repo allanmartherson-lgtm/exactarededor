@@ -988,13 +988,20 @@ export default function BiDiretoria() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-stretch">
-          {[
-            { label: "Validação", count: 1, valor: "R$ 431.478", pct: 25, tone: "info" },
-            { label: "Em análise", count: 2, valor: "R$ 612.040", pct: 50, tone: "info" },
-            { label: "Aprovação dir.", count: 3, valor: "R$ 874.314", pct: 70, tone: "info" },
-            { label: "Pós-aprov. NF", count: 0, valor: "aguardando", pct: 10, tone: "muted" },
-            { label: "Pago", count: "R$ 1,2mi", valor: `${display.encerrados} lotes no mês`, pct: 100, tone: "success" },
-          ].map((step, i, arr) => {
+          {(() => {
+            const f = metrics?.funil;
+            const maxValor = f
+              ? Math.max(f.validacao.valor, f.em_analise.valor, f.aprovacao_dir.valor, f.pos_nf.valor, f.pago.valor, 1)
+              : 1;
+            const pctOf = (v: number) => (maxValor > 0 ? Math.max(4, Math.round((v / maxValor) * 100)) : 0);
+            return [
+              { label: "Validação", count: f?.validacao.count ?? 0, valor: fmtFull(f?.validacao.valor ?? 0), pct: pctOf(f?.validacao.valor ?? 0), tone: "info" },
+              { label: "Em análise", count: f?.em_analise.count ?? 0, valor: fmtFull(f?.em_analise.valor ?? 0), pct: pctOf(f?.em_analise.valor ?? 0), tone: "info" },
+              { label: "Aprovação dir.", count: f?.aprovacao_dir.count ?? 0, valor: fmtFull(f?.aprovacao_dir.valor ?? 0), pct: pctOf(f?.aprovacao_dir.valor ?? 0), tone: "info" },
+              { label: "Pós-aprov. NF", count: f?.pos_nf.count ?? 0, valor: fmtFull(f?.pos_nf.valor ?? 0), pct: pctOf(f?.pos_nf.valor ?? 0), tone: (f?.pos_nf.count ?? 0) === 0 ? "muted" : "info" },
+              { label: "Pago", count: f?.pago.count ?? 0, valor: fmtFull(f?.pago.valor ?? 0), pct: 100, tone: "success" },
+            ];
+          })().map((step, i, arr) => {
             const isPago = step.tone === "success";
             const isMuted = step.tone === "muted";
             const accent = isPago
