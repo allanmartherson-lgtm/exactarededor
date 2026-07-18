@@ -270,7 +270,7 @@ export const MovimentacaoTab = ({ track = "all" }: { track?: TrackFilterValue } 
         icon={Activity}
         iconColor="red"
         subtitle={`Quem representa mais, quem subiu e quem caiu — comparando ${lastLabel} vs média dos 3 meses anteriores`}
-        actions={
+        rightAction={
           <div className="inline-flex rounded-md border p-1 bg-muted/40">
             {(["empresa", "especialidade"] as Grouping[]).map((g) => (
               <button
