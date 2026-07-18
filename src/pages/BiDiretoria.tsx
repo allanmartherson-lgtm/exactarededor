@@ -232,6 +232,22 @@ function EvolutionChart({
 type AnalystRow = { user_id: string; name: string; initials: string; valor: number };
 type CompanyRow = { id: string; name: string; itens: number; valor: number; status: string; tone: "success" | "warning" | "destructive" };
 type AlertRow = { id: string; kind: string; title: string; meta: string; time: string; tone: "amber" | "muted" };
+type FunnelStep = { key: string; count: number; valor: number };
+type Metrics = {
+  autoPct: number | null;
+  autoLabel: string;
+  valorRisco: number;
+  lotesCriticos: number;
+  riscoPctDoTotal: number | null;
+  deltaPct: number | null;
+  cicloDias: number | null;
+  cicloDeltaDias: number | null;
+  itensAprovPct: number | null;
+  itensAprovTexto: string;
+  glosasTotal: number;
+  glosasCount: number;
+  funil: Record<"validacao" | "em_analise" | "aprovacao_dir" | "pos_nf" | "pago", FunnelStep>;
+};
 
 const STATUS_TONE: Record<string, { label: string; tone: "success" | "warning" | "destructive" }> = {
   pago: { label: "Pago", tone: "success" },
