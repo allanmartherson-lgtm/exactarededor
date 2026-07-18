@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { TrendingUp } from "lucide-react";
 import { TrendProjectionTab } from "@/components/financial-intelligence/TrendProjectionTab";
-import { DoctorConcentrationTab } from "@/components/financial-intelligence/DoctorConcentrationTab";
+import { MovimentacaoTab } from "@/components/financial-intelligence/MovimentacaoTab";
 import { ValidationRiskSection } from "@/components/financial-intelligence/ValidationRiskSection";
 import {
   useDreData,
@@ -29,7 +29,7 @@ const GROUPS: { label: string; items: { value: TabValue; label: string }[] }[] =
     label: "Análise",
     items: [
       { value: "tendencia-projecao", label: "Tendência e Projeção" },
-      { value: "concentracao", label: "Concentração" },
+      { value: "concentracao", label: "Movimentação" },
       { value: "em-risco", label: "Em risco" },
     ],
   },
@@ -99,7 +99,7 @@ export default function FinancialIntelligence() {
         {active === "dre-consolidado" && <DreConsolidadoSection dre={dreData.dre} track={dreData.track} />}
         {active === "posicao-aberto" && <PosicaoAbertoSection open={dreData.open} />}
         {active === "tendencia-projecao" && <TrendProjectionTab track={dreData.track} />}
-        {active === "concentracao" && <DoctorConcentrationTab track={dreData.track} />}
+        {active === "concentracao" && <MovimentacaoTab track={dreData.track} />}
         {active === "em-risco" && <ValidationRiskSection track={dreData.track} />}
       </div>
     </div>
