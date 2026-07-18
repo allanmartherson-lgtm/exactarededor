@@ -1,6 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldAlert, ArrowRight, AlertTriangle, DollarSign, Layers, CheckCircle2 } from "lucide-react";
+import {
+  ShieldAlert,
+  ArrowRight,
+  AlertTriangle,
+  DollarSign,
+  Layers,
+  CheckCircle2,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  ListFilter,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
@@ -13,26 +24,57 @@ type RuleAgg = {
   lotes: Set<string>;
 };
 
+type ItemDetail = {
+  id: string;
+  payment_id: string;
+  payment_ref: string;
+  company_name: string;
+  doctor_name: string;
+  procedure_name: string;
+  gross: number;
+  divergPct: number | null;
+  ai_status: string;
+  rule_names: string[];
+};
+
+type CompanyAgg = {
+  company_name: string;
+  alertas: number;
+  valor: number;
+};
+
+
 type Totals = {
   alertas: number;
   valor: number;
   acatados: number;
   lotes: number;
   byRule: Map<string, RuleAgg>;
+  items: ItemDetail[];
+  byCompany: CompanyAgg[];
 };
 
-const EMPTY: Totals = { alertas: 0, valor: 0, acatados: 0, lotes: 0, byRule: new Map() };
+const EMPTY: Totals = {
+  alertas: 0,
+  valor: 0,
+  acatados: 0,
+  lotes: 0,
+  byRule: new Map(),
+  items: [],
+  byCompany: [],
+};
 
 export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterValue } = {}) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Totals>(EMPTY);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     (async () => {
       const baseSelect =
-        "id, gross_amount, expected_amount, payment_id, validation_findings, ai_status, payments!inner(payment_track)";
+        "id, gross_amount, expected_amount, payment_id, validation_findings, ai_status, company_name, doctor_name, procedure_name, procedure_code, payments!inner(payment_track, reference, title)";
 
       let qFindings = supabase
         .from("payment_items")
@@ -60,10 +102,51 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
       let totalAlertas = 0;
       let totalValor = 0;
       let totalAcatados = 0;
-      // dedupe do valor total por item (para não contar 2x quando aparece em várias fontes)
       const valuedItems = new Set<string>();
+      const itemMap = new Map<string, ItemDetail>();
 
-      const bump = (key: string, ruleName: string, item: { id: string; gross_amount: number | null; payment_id?: string; ai_status?: string }) => {
+      type Row = {
+        id: string;
+        gross_amount: number | null;
+        expected_amount: number | null;
+        payment_id?: string;
+        validation_findings?: unknown;
+        ai_status?: string;
+        company_name?: string | null;
+        doctor_name?: string | null;
+        procedure_name?: string | null;
+        procedure_code?: string | null;
+        payments?: { payment_track?: string | null; reference?: string | null; title?: string | null } | null;
+      };
+
+      const paymentRefFrom = (it: Row) =>
+        it.payments?.reference || it.payments?.title || "Sem referência";
+
+      const registerItem = (it: Row, ruleName: string) => {
+        const exp = Number(it.expected_amount ?? 0);
+        const gross = Number(it.gross_amount ?? 0);
+        const divergPct = exp > 0 ? ((gross - exp) / exp) * 100 : null;
+        const cur = itemMap.get(it.id);
+        if (cur) {
+          if (!cur.rule_names.includes(ruleName)) cur.rule_names.push(ruleName);
+          return;
+        }
+        itemMap.set(it.id, {
+          id: it.id,
+          payment_id: it.payment_id ?? "",
+          payment_ref: paymentRefFrom(it),
+          company_name: it.company_name?.trim() || "— Sem PJ —",
+          doctor_name: it.doctor_name?.trim() || "—",
+          procedure_name:
+            it.procedure_name?.trim() || (it.procedure_code ? `TUSS ${it.procedure_code}` : "—"),
+          gross,
+          divergPct,
+          ai_status: it.ai_status || "—",
+          rule_names: [ruleName],
+        });
+      };
+
+      const bump = (key: string, ruleName: string, item: Row) => {
         const cur = byRule.get(key) ?? {
           rule_name: ruleName,
           alertas: 0,
@@ -84,15 +167,7 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
           totalValor += v;
           valuedItems.add(item.id);
         }
-      };
-
-      type Row = {
-        id: string;
-        gross_amount: number | null;
-        expected_amount: number | null;
-        payment_id?: string;
-        validation_findings?: unknown;
-        ai_status?: string;
+        registerItem(item, ruleName);
       };
 
       // Fonte 1: validation_findings
@@ -123,12 +198,38 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
         bump("__divergencia_valor", "Divergência de valor > 10%", it);
       }
 
+      // Ordenar itens por magnitude da divergência (desc) e, fallback, por valor bruto
+      const items = Array.from(itemMap.values()).sort((a, b) => {
+        const ad = a.divergPct == null ? -1 : Math.abs(a.divergPct);
+        const bd = b.divergPct == null ? -1 : Math.abs(b.divergPct);
+        if (bd !== ad) return bd - ad;
+        return b.gross - a.gross;
+      });
+
+      // Breakdown por empresa
+      const companyMap = new Map<string, CompanyAgg>();
+      for (const it of items) {
+        const cur = companyMap.get(it.company_name) ?? {
+          company_name: it.company_name,
+          alertas: 0,
+          valor: 0,
+        };
+        cur.alertas += 1;
+        cur.valor += it.gross;
+        companyMap.set(it.company_name, cur);
+      }
+      const byCompany = Array.from(companyMap.values())
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 5);
+
       setData({
         alertas: totalAlertas,
         valor: totalValor,
         acatados: totalAcatados,
         lotes: allLotes.size,
         byRule,
+        items,
+        byCompany,
       });
       setLoading(false);
     })();
@@ -136,6 +237,8 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
       cancelled = true;
     };
   }, [track]);
+
+
 
   if (loading) {
     return (
@@ -344,6 +447,156 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
           </div>
         </div>
       )}
+
+      {data.byCompany.length > 0 && (
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Building2 size={14} className="text-muted-foreground" />
+            <h3 className="text-sm font-semibold tracking-tight">Top 5 empresas com alertas</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+            {data.byCompany.map((c) => (
+              <div
+                key={c.company_name}
+                className="rounded-lg border p-3 min-w-0"
+                style={{ borderColor: "hsl(var(--border))" }}
+              >
+                <div
+                  className="text-xs font-medium truncate"
+                  title={c.company_name}
+                  style={{ color: "hsl(var(--foreground))" }}
+                >
+                  {c.company_name}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {c.alertas} alerta{c.alertas !== 1 ? "s" : ""}
+                </div>
+                <div
+                  className="text-sm font-semibold tabular-nums mt-1"
+                  style={{ color: "hsl(var(--accent))" }}
+                >
+                  {formatCurrency(c.valor)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.items.length > 0 && (
+        <div className="rounded-xl border bg-card">
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-muted/40 transition-colors rounded-xl"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {detailsOpen ? (
+                <ChevronDown size={16} className="text-muted-foreground" />
+              ) : (
+                <ChevronRight size={16} className="text-muted-foreground" />
+              )}
+              <ListFilter size={14} className="text-muted-foreground" />
+              <h3 className="text-sm font-semibold tracking-tight">
+                Detalhes dos alertas
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                ({data.items.length.toLocaleString("pt-BR")} itens)
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {detailsOpen ? "Ocultar" : "Expandir"}
+            </span>
+          </button>
+          {detailsOpen && (
+            <div className="border-t" style={{ borderColor: "hsl(var(--border))" }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b" style={{ borderColor: "hsl(var(--border))" }}>
+                      <th className="px-4 py-2 font-medium">Lote</th>
+                      <th className="px-4 py-2 font-medium">Empresa</th>
+                      <th className="px-4 py-2 font-medium">Médico</th>
+                      <th className="px-4 py-2 font-medium">Procedimento</th>
+                      <th className="px-4 py-2 font-medium text-right">Valor bruto</th>
+                      <th className="px-4 py-2 font-medium text-right">Divergência</th>
+                      <th className="px-4 py-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.slice(0, 20).map((it, idx) => (
+                      <tr
+                        key={it.id}
+                        className="border-b last:border-b-0"
+                        style={{
+                          borderColor: "hsl(var(--border))",
+                          background: idx % 2 === 0 ? "transparent" : "hsl(var(--muted) / 0.3)",
+                        }}
+                      >
+                        <td className="px-4 py-2">
+                          {it.payment_id ? (
+                            <Link
+                              to={`/pagamentos/${it.payment_id}`}
+                              className="hover:underline font-medium"
+                              style={{ color: "hsl(var(--accent))" }}
+                            >
+                              {it.payment_ref}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">{it.payment_ref}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 max-w-[180px] truncate" title={it.company_name}>
+                          {it.company_name}
+                        </td>
+                        <td className="px-4 py-2 max-w-[180px] truncate" title={it.doctor_name}>
+                          {it.doctor_name}
+                        </td>
+                        <td className="px-4 py-2 max-w-[220px] truncate" title={`${it.procedure_name} — ${it.rule_names.join(", ")}`}>
+                          {it.procedure_name}
+                        </td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(it.gross)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">
+                          {it.divergPct == null ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span
+                              style={{
+                                color:
+                                  Math.abs(it.divergPct) > 10
+                                    ? "hsl(var(--accent))"
+                                    : "hsl(var(--muted-foreground))",
+                                fontWeight: Math.abs(it.divergPct) > 10 ? 600 : 400,
+                              }}
+                            >
+                              {it.divergPct > 0 ? "+" : ""}
+                              {it.divergPct.toFixed(1)}%
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="text-[11px] text-muted-foreground capitalize">
+                            {it.ai_status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {data.items.length > 20 && (
+                <div
+                  className="px-4 py-3 text-xs text-muted-foreground text-center border-t"
+                  style={{ borderColor: "hsl(var(--border))" }}
+                >
+                  Exibindo os 20 alertas com maior divergência de {data.items.length.toLocaleString("pt-BR")} — abra cada lote para ver os demais.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
+
