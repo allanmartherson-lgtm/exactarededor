@@ -123,26 +123,36 @@ function HeroSparkline({ data, height = 180 }: { data: number[]; height?: number
 }
 
 // ---------- Evolution chart (area + dashed line) ----------
-function EvolutionChart({ data, height = 260 }: { data: number[]; height?: number }) {
+function EvolutionChart({
+  data,
+  riskData,
+  months,
+  height = 260,
+}: {
+  data: number[];
+  riskData?: number[];
+  months?: string[];
+  height?: number;
+}) {
   const width = 720;
   const pad = 36;
   if (data.length < 2) return null;
-  const max = Math.max(...data);
+  // Se não veio série real de risco, usa fração determinística (fallback do mock)
+  const risk = riskData && riskData.length === data.length
+    ? riskData
+    : data.map((v, i) => v * (0.08 + (i % 3) * 0.015));
+  const max = Math.max(...data, ...risk);
   const min = 0;
   const range = Math.max(1, max - min);
   const stepX = (width - pad * 2) / (data.length - 1);
-  const points = data.map((v, i) => {
-    const x = pad + i * stepX;
-    const y = height - pad - ((v - min) / range) * (height - pad * 2);
-    return [x, y] as const;
-  });
-  // "Em risco" line: small fraction of processed, with some noise
-  const riskPoints = data.map((v, i) => {
-    const x = pad + i * stepX;
-    const r = v * (0.08 + (i % 3) * 0.015);
-    const y = height - pad - ((r - min) / range) * (height - pad * 2);
-    return [x, y] as const;
-  });
+  const toPoints = (arr: number[]) =>
+    arr.map((v, i) => {
+      const x = pad + i * stepX;
+      const y = height - pad - ((v - min) / range) * (height - pad * 2);
+      return [x, y] as const;
+    });
+  const points = toPoints(data);
+  const riskPoints = toPoints(risk);
   const linePath = (pts: readonly (readonly [number, number])[]) =>
     pts.reduce((acc, [x, y], i) => acc + (i === 0 ? `M${x},${y}` : ` L${x},${y}`), "");
   const areaPath =
@@ -150,6 +160,12 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
     ` L${points[points.length - 1][0]},${height - pad} L${points[0][0]},${height - pad} Z`;
   const last = points[points.length - 1];
   const ymarks = [0, 0.5, 1, 1.5, 2].map((v) => v * 1_000_000).filter((v) => v <= max * 1.05);
+
+  const compact = (v: number) => {
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(".", ",")}M`;
+    if (v >= 1_000) return `${Math.round(v / 1_000)}k`;
+    return String(Math.round(v));
+  };
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ width: "100%", height, display: "block" }} aria-hidden>
@@ -159,7 +175,6 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
           <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
         </linearGradient>
       </defs>
-      {/* grid lines */}
       {ymarks.map((v) => {
         const y = height - pad - ((v - min) / range) * (height - pad * 2);
         return (
@@ -174,15 +189,39 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
       <path d={areaPath} fill="url(#bi-area-grad)" />
       <path d={linePath(points)} fill="none" stroke="hsl(var(--primary))" strokeWidth={2.5} strokeLinejoin="round" />
       <path d={linePath(riskPoints)} fill="none" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="6 4" />
-      <circle cx={last[0]} cy={last[1]} r={5} fill="hsl(var(--primary))" />
+      {/* Rótulos série "Processado" (acima do ponto) */}
+      {points.map(([x, y], i) => (
+        <g key={`p-${i}`}>
+          <circle cx={x} cy={y} r={i === points.length - 1 ? 5 : 3} fill="hsl(var(--primary))" />
+          <text x={x} y={y - 8} textAnchor="middle" fontSize={10} fontWeight={600} fill="hsl(var(--foreground))" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {compact(data[i])}
+          </text>
+        </g>
+      ))}
+      {/* Rótulos série "Em risco" (abaixo do ponto) */}
+      {riskPoints.map(([x, y], i) => (
+        <g key={`r-${i}`}>
+          <circle cx={x} cy={y} r={2.5} fill="hsl(var(--destructive))" />
+          <text x={x} y={y + 14} textAnchor="middle" fontSize={9} fontWeight={600} fill="hsl(var(--destructive))" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {compact(risk[i])}
+          </text>
+        </g>
+      ))}
       {/* x labels */}
       {data.map((_, i) => {
         const x = pad + i * stepX;
-        const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-        const idx = (new Date().getMonth() - (data.length - 1 - i) + 12) % 12;
+        const monthsPt = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        let label: string;
+        if (months && months[i]) {
+          const mo = parseInt(months[i].split("-")[1] ?? "1", 10);
+          label = monthsPt[mo - 1] ?? "";
+        } else {
+          const idx = (new Date().getMonth() - (data.length - 1 - i) + 12) % 12;
+          label = monthsPt[idx];
+        }
         return (
           <text key={i} x={x} y={height - 8} textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">
-            {months[idx]}
+            {label}
           </text>
         );
       })}
