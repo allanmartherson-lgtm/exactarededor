@@ -548,14 +548,31 @@ export default function BiDiretoria() {
       const totalLiquido = inPeriod.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
       const riscoPctDoTotal = totalLiquido > 0 ? (valorRisco / totalLiquido) * 100 : null;
 
-      // Aprovação automática (Motor de Regras): lotes que NÃO passaram por
-      // devolvido_analista no histórico de status
-      const { data: history } = await (supabase as any)
-        .from("payment_status_history")
-        .select("payment_id, new_status")
-        .in("payment_id", ids)
-        .in("new_status", ["devolvido_analista", "revisao_analista"]);
-      const touched = new Set((history ?? []).map((r: any) => r.payment_id));
+      // Aprovação automática (Motor de Regras): considera manual QUALQUER lote com sinais
+      // de intervenção humana — não só devolução de status. Motivo: intervenções em massa
+      // (ajustes financeiros, glosas acatadas, marcações de caso especial, edição de itens)
+      // acontecem sem trocar o status para devolvido_analista, então usar só o histórico
+      // superestima o "automático".
+      const touched = new Set<string>();
+      const [histRes, itemsRes, marksRes, adjRes] = await Promise.all([
+        (supabase as any)
+          .from("payment_status_history")
+          .select("payment_id")
+          .in("payment_id", ids)
+          .in("new_status", ["devolvido_analista", "revisao_analista"]),
+        supabase
+          .from("payment_items")
+          .select("payment_id")
+          .in("payment_id", ids)
+          .in("ai_status", ["acatado", "rejeitado", "alerta"]),
+        supabase.from("special_case_marks").select("payment_id").in("payment_id", ids),
+        supabase.from("company_financial_adjustments").select("payment_id").in("payment_id", ids),
+      ]);
+      for (const src of [histRes.data, itemsRes.data, marksRes.data, adjRes.data]) {
+        for (const r of (src ?? []) as Array<{ payment_id?: string | null }>) {
+          if (r.payment_id) touched.add(r.payment_id);
+        }
+      }
       const finalizados = inPeriod.filter((p) =>
         ["pago", "aprovado", "nf_recebida", "nf_conciliada", "aguardando_validacao", "aguardando_aprovacao"].includes(p.status),
       );
