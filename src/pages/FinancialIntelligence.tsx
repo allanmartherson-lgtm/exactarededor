@@ -98,8 +98,7 @@ export default function FinancialIntelligence() {
 
         {active === "dre-consolidado" && <DreConsolidadoSection dre={dreData.dre} track={dreData.track} />}
         {active === "posicao-aberto" && <PosicaoAbertoSection open={dreData.open} />}
-        {active === "tendencia" && <LossTrendTab track={dreData.track} />}
-        {active === "projecao" && <ProjectionTab track={dreData.track} />}
+        {active === "tendencia-projecao" && <TrendProjectionTab track={dreData.track} />}
         {active === "concentracao" && <DoctorConcentrationTab track={dreData.track} />}
         {active === "em-risco" && <ValidationRiskSection track={dreData.track} />}
       </div>
