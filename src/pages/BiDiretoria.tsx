@@ -560,13 +560,13 @@ export default function BiDiretoria() {
           .select("payment_id")
           .in("payment_id", ids)
           .in("new_status", ["devolvido_analista", "revisao_analista"]),
-        supabase
+        (supabase as any)
           .from("payment_items")
           .select("payment_id")
           .in("payment_id", ids)
-          .in("ai_status", ["acatado", "rejeitado", "alerta"]),
-        supabase.from("special_case_marks").select("payment_id").in("payment_id", ids),
-        supabase.from("company_financial_adjustments").select("payment_id").in("payment_id", ids),
+          .in("ai_status", ["acatado", "reprovado", "alerta"]),
+        (supabase as any).from("special_case_marks").select("payment_id").in("payment_id", ids),
+        (supabase as any).from("company_financial_adjustments").select("payment_id").in("payment_id", ids),
       ]);
       for (const src of [histRes.data, itemsRes.data, marksRes.data, adjRes.data]) {
         for (const r of (src ?? []) as Array<{ payment_id?: string | null }>) {
