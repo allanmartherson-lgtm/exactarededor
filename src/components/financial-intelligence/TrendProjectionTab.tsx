@@ -92,9 +92,12 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Janela de 12 meses ancorada no PRIMEIRO DIA do mês para não cortar
+      // lotes do mês-limite (bug anterior: cutoff era ISO do meio do mês).
       const cutoff = new Date();
-      cutoff.setMonth(cutoff.getMonth() - 7);
-      const cutoffDate = cutoff.toISOString().slice(0, 10);
+      cutoff.setDate(1);
+      cutoff.setMonth(cutoff.getMonth() - 11);
+      const cutoffDate = ymOf(cutoff) + "-01";
       let pq = supabase
         .from("payments")
         .select("competence_month,total_amount,status,payment_track")
@@ -123,7 +126,7 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
           .slice(0, 10);
         const { data, error } = await supabase.rpc("get_spend_trend", {
           p_current_month: current,
-          p_months_back: 6,
+          p_months_back: 12,
           p_grouping: grouping,
           p_track: toRpcTrack(track),
         } as never);
@@ -743,16 +746,29 @@ const GroupDetailSheet = ({
       const endD = new Date(y, m, 1);
       const endDate = endD.toISOString().slice(0, 10);
 
+      // payment_items NÃO tem competence_month — está em payments.
+      // Buscamos os IDs de payments da competência e filtramos os itens por payment_id.
+      const { data: pays } = await supabase
+        .from("payments")
+        .select("id")
+        .gte("competence_month", startDate)
+        .lt("competence_month", endDate);
+      if (cancelled) return;
+      const paymentIds = (pays ?? []).map((p: { id: string }) => p.id);
+      if (paymentIds.length === 0) {
+        setTopDoctors([]);
+        return;
+      }
+
       let q = supabase
         .from("payment_items")
         .select("doctor_name,gross_amount,specialty,company_name")
-        .gte("competence_month", startDate)
-        .lt("competence_month", endDate);
+        .in("payment_id", paymentIds);
 
       if (grouping === "especialidade") q = q.eq("specialty", group);
       else q = q.eq("company_name", group);
 
-      const { data } = await q.limit(5000);
+      const { data } = await q.limit(10000);
       if (cancelled) return;
       const agg = new Map<string, number>();
       for (const it of (data ?? []) as unknown as Array<{ doctor_name: string | null; gross_amount: number | null }>) {
