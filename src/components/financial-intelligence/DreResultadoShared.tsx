@@ -13,6 +13,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { PaymentTrackFilter, toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 import type { PaymentStatus } from "@/lib/status";
 
+function fmtCompetencia(raw: string): string {
+  const parts = raw.slice(0, 7).split("-");
+  if (parts.length < 2) return raw;
+  return `${parts[1]}/${parts[0]}`;
+}
+
 export type DreRow = {
   competencia: string;
   company_id: string;
@@ -216,7 +222,7 @@ export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; t
     setDrillOpen(true);
     setDrillLoading(true);
     const label = [
-      new Date(row.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }),
+      fmtCompetencia(row.competencia),
       row.company_name ?? "—",
       row.doctor_name ?? null,
     ].filter(Boolean).join(" · ");
@@ -267,7 +273,7 @@ export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; t
                 <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sem dados no período.</TableCell></TableRow>
               ) : sortedDre.map((r, i) => (
                 <TableRow key={i} onClick={() => openDrill(r)} className="cursor-pointer hover:bg-muted/40">
-                  <TableCell className="text-xs">{new Date(r.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}</TableCell>
+                  <TableCell className="text-xs">{fmtCompetencia(r.competencia)}</TableCell>
                   <TableCell>{r.company_name ?? "—"}</TableCell>
                   <TableCell>{r.doctor_name ?? "—"}</TableCell>
                   <TableCell className="text-right">{fmt(r.bruto)}</TableCell>
@@ -414,7 +420,7 @@ export function PosicaoAbertoSection({ open }: { open: OpenRow[] }) {
                   <TableCell className="font-mono text-xs">{r.reference}</TableCell>
                   <TableCell><StatusBadge status={r.status as PaymentStatus} /></TableCell>
                   <TableCell>{r.company_name ?? "—"}</TableCell>
-                  <TableCell className="text-xs">{new Date(r.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}</TableCell>
+                  <TableCell className="text-xs">{fmtCompetencia(r.competencia)}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(r.liquido)}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-0.5 rounded text-xs ${bucketColor[r.aging_bucket]}`}>{r.age_days}d</span>
