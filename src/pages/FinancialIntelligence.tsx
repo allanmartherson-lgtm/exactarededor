@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { TrendingUp } from "lucide-react";
-import { LossTrendTab } from "@/components/financial-intelligence/LossTrendTab";
-import { ProjectionTab } from "@/components/financial-intelligence/ProjectionTab";
+import { TrendProjectionTab } from "@/components/financial-intelligence/TrendProjectionTab";
 import { DoctorConcentrationTab } from "@/components/financial-intelligence/DoctorConcentrationTab";
 import { ValidationRiskSection } from "@/components/financial-intelligence/ValidationRiskSection";
 import {
@@ -14,7 +13,7 @@ import {
 } from "@/components/financial-intelligence/DreResultadoShared";
 import { cn } from "@/lib/utils";
 
-type TabValue = "dre-consolidado" | "posicao-aberto" | "tendencia" | "projecao" | "concentracao" | "em-risco";
+type TabValue = "dre-consolidado" | "posicao-aberto" | "tendencia-projecao" | "concentracao" | "em-risco";
 
 const RESULT_TABS: TabValue[] = ["dre-consolidado", "posicao-aberto"];
 
@@ -29,8 +28,7 @@ const GROUPS: { label: string; items: { value: TabValue; label: string }[] }[] =
   {
     label: "Análise",
     items: [
-      { value: "tendencia", label: "Tendência" },
-      { value: "projecao", label: "Projeção" },
+      { value: "tendencia-projecao", label: "Tendência e Projeção" },
       { value: "concentracao", label: "Concentração" },
       { value: "em-risco", label: "Em risco" },
     ],
@@ -100,8 +98,7 @@ export default function FinancialIntelligence() {
 
         {active === "dre-consolidado" && <DreConsolidadoSection dre={dreData.dre} track={dreData.track} />}
         {active === "posicao-aberto" && <PosicaoAbertoSection open={dreData.open} />}
-        {active === "tendencia" && <LossTrendTab track={dreData.track} />}
-        {active === "projecao" && <ProjectionTab track={dreData.track} />}
+        {active === "tendencia-projecao" && <TrendProjectionTab track={dreData.track} />}
         {active === "concentracao" && <DoctorConcentrationTab track={dreData.track} />}
         {active === "em-risco" && <ValidationRiskSection track={dreData.track} />}
       </div>
