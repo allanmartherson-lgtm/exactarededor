@@ -31,31 +31,26 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const applyTrack = <T extends { eq: (col: string, v: string) => T; is: (col: string, v: null) => T }>(qq: T) => {
-        if (track === "habitual" || track === "prioritario") return qq.eq("payments.payment_track", track);
-        if (track === "nao_classificado") return qq.is("payments.payment_track", null);
-        return qq;
-      };
-
       const baseSelect =
         "id, gross_amount, expected_amount, payment_id, validation_findings, ai_status, payments!inner(payment_track)";
 
-      // 1) Items com validation_findings
-      const qFindings = applyTrack(
-        supabase
-          .from("payment_items")
-          .select(baseSelect)
-          .not("validation_findings", "is", null)
-          .neq("validation_findings", "[]"),
-      );
-      // 2) Items marcados como alerta pelo motor de regras
-      const qAlerta = applyTrack(
-        supabase.from("payment_items").select(baseSelect).eq("ai_status", "alerta"),
-      );
-      // 3) Items com valor esperado > 0 (para checar divergência em memória)
-      const qDiverg = applyTrack(
-        supabase.from("payment_items").select(baseSelect).gt("expected_amount", 0),
-      );
+      let qFindings = supabase
+        .from("payment_items")
+        .select(baseSelect)
+        .not("validation_findings", "is", null)
+        .neq("validation_findings", "[]");
+      let qAlerta = supabase.from("payment_items").select(baseSelect).eq("ai_status", "alerta");
+      let qDiverg = supabase.from("payment_items").select(baseSelect).gt("expected_amount", 0);
+
+      if (track === "habitual" || track === "prioritario") {
+        qFindings = qFindings.eq("payments.payment_track", track);
+        qAlerta = qAlerta.eq("payments.payment_track", track);
+        qDiverg = qDiverg.eq("payments.payment_track", track);
+      } else if (track === "nao_classificado") {
+        qFindings = qFindings.is("payments.payment_track", null);
+        qAlerta = qAlerta.is("payments.payment_track", null);
+        qDiverg = qDiverg.is("payments.payment_track", null);
+      }
 
       const [rFindings, rAlerta, rDiverg] = await Promise.all([qFindings, qAlerta, qDiverg]);
       if (cancelled) return;
