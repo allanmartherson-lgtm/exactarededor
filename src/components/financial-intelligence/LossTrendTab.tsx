@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ComposedChart,
+  AreaChart,
+  LineChart,
   Line,
   Area,
   XAxis,
@@ -15,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { SurfaceCard, SurfaceCardHeader } from "@/components/shared/SurfacePrimitives";
 import { TrendingUp, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatBRL, mean } from "@/lib/financialStats";
