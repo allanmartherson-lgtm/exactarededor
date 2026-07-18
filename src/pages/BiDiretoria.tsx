@@ -815,7 +815,7 @@ export default function BiDiretoria() {
         <div className="lg:col-span-4 flex flex-col gap-4">
           <div className="rounded-2xl bg-card border border-border p-6 shadow-sm flex flex-col items-center">
             <div className="w-full text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">
-              Aprovação automática · IA
+              Aprovação automática · Motor de Regras
             </div>
             <div className="my-4">
               <Donut pct={display.autoPct} />
@@ -824,7 +824,7 @@ export default function BiDiretoria() {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                  Automático (IA)
+                  Automático (Motor de Regras)
                 </span>
                 <span className="font-semibold tabular-nums">{display.autoPct}%</span>
               </div>
@@ -838,23 +838,40 @@ export default function BiDiretoria() {
             </div>
           </div>
 
-          <Link
-            to="/pagamentos?filter=risco"
-            className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 flex items-center gap-3 hover:bg-destructive/15 transition-colors"
-          >
-            <div className="h-10 w-10 rounded-xl bg-destructive/15 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+          {metrics && metrics.lotesCriticos > 0 ? (
+            <Link
+              to="/pagamentos?filter=risco"
+              className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 flex items-center gap-3 hover:bg-destructive/15 transition-colors"
+            >
+              <div className="h-10 w-10 rounded-xl bg-destructive/15 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-destructive">
+                  {metrics.lotesCriticos} {metrics.lotesCriticos === 1 ? "lote crítico" : "lotes críticos"}
+                </div>
+                <div className="text-xs text-destructive/80 mt-0.5">
+                  {fmtFull(metrics.valorRisco)} aguardando revisão
+                </div>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-destructive text-destructive-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
+                Urgente
+              </span>
+            </Link>
+          ) : (
+            <div className="rounded-2xl border border-success/30 bg-success/10 p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-success/15 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-5 w-5 text-success" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-success">Nenhum lote em risco</div>
+                <div className="text-xs text-success/80 mt-0.5">Fluxo em dia neste período</div>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-destructive">1 lote crítico</div>
-              <div className="text-xs text-destructive/80 mt-0.5">{fmtFull(display.valorRisco)} aguardando revisão</div>
-            </div>
-            <span className="inline-flex items-center rounded-full bg-destructive text-destructive-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
-              Urgente
-            </span>
-          </Link>
+          )}
         </div>
       </div>
+
 
       {/* ===== Linha de 4 KPIs ===== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
