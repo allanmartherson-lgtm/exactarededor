@@ -340,6 +340,137 @@ export default function BiDiretoria() {
     [payments, periodFloor],
   );
 
+  // Analistas: soma liquido dos lotes por created_by no período + full_name via profiles.
+  // Restringe a usuários com role 'analista' ou 'admin' para não classificar
+  // médicos/validadores/diretores como analistas.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const byUser = new Map<string, number>();
+      for (const p of inPeriod) {
+        if (!p.created_by) continue;
+        const v = Number(p.liquido_total ?? p.total_amount ?? 0);
+        byUser.set(p.created_by, (byUser.get(p.created_by) ?? 0) + v);
+      }
+      if (byUser.size === 0) {
+        if (!cancelled) setAnalysts([]);
+        return;
+      }
+      const ids = Array.from(byUser.keys());
+      const [{ data: profs }, { data: roleRows }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, email").in("id", ids),
+        supabase.from("user_roles").select("user_id, role").in("user_id", ids),
+      ]);
+      const allowedRoles = new Set(["analista", "admin"]);
+      const allowed = new Set(
+        (roleRows ?? []).filter((r: any) => allowedRoles.has(r.role)).map((r: any) => r.user_id),
+      );
+      const nameById = new Map<string, string>(
+        (profs ?? []).map((p: any) => [p.id, p.full_name || p.email || "Usuário"]),
+      );
+      const rows: AnalystRow[] = ids
+        .filter((id) => allowed.has(id))
+        .map((id) => {
+          const name = nameById.get(id) ?? "Usuário";
+          return { user_id: id, name, initials: initialsOf(name), valor: byUser.get(id) ?? 0 };
+        })
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 4);
+      if (!cancelled) setAnalysts(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod]);
+
+  // Top empresas: agrega gross_amount por empresa nos lotes do período.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = inPeriod.map((p) => p.id);
+      if (!ids.length) {
+        if (!cancelled) setTopCompanies([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("payment_items")
+        .select("company_id, company_name, gross_amount, payment_id")
+        .in("payment_id", ids)
+        .neq("is_cancelled", true)
+        .limit(50000);
+      const statusByPayment = new Map<string, string>(inPeriod.map((p) => [p.id, p.status]));
+      const agg = new Map<string, { name: string; itens: number; valor: number; statuses: Record<string, number> }>();
+      for (const it of (data as any[]) ?? []) {
+        const key = it.company_id || it.company_name || "—";
+        const name = it.company_name || "Sem empresa";
+        const entry = agg.get(key) ?? { name, itens: 0, valor: 0, statuses: {} };
+        entry.itens += 1;
+        entry.valor += Number(it.gross_amount ?? 0);
+        const s = statusByPayment.get(it.payment_id) ?? "—";
+        entry.statuses[s] = (entry.statuses[s] ?? 0) + 1;
+        agg.set(key, entry);
+      }
+      const rows: CompanyRow[] = Array.from(agg.entries())
+        .map(([id, e]) => {
+          // Status dominante entre os itens da empresa
+          const dominant = Object.entries(e.statuses).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "—";
+          const meta = STATUS_TONE[dominant] ?? { label: "—", tone: "warning" as const };
+          return { id, name: e.name, itens: e.itens, valor: e.valor, status: meta.label, tone: meta.tone };
+        })
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 5);
+      if (!cancelled) setTopCompanies(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod]);
+
+  // Alertas assistenciais: últimas ocorrências reais em validation_findings.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = inPeriod.map((p) => p.id);
+      if (!ids.length) {
+        if (!cancelled) setAlerts([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("payment_items")
+        .select("id, validation_findings, sector, company_name, created_at")
+        .in("payment_id", ids)
+        .not("validation_findings", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      const out: AlertRow[] = [];
+      for (const row of (data as any[]) ?? []) {
+        const findings = Array.isArray(row.validation_findings) ? row.validation_findings : [];
+        for (const f of findings) {
+          const kind: string = f?.kind ?? "";
+          if (!["duplicidade_exata", "sobreposicao_assistencial", "duplicidade_tuss_paciente"].includes(kind)) continue;
+          out.push({
+            id: `${row.id}-${kind}`,
+            kind,
+            title: ALERT_KIND_TITLE[kind] ?? f?.rule_name ?? "Alerta",
+            meta: [row.sector || row.company_name, f?.message]
+              .filter(Boolean)
+              .join(" · ")
+              .slice(0, 140),
+            time: relativeTime(f?.detected_at ?? row.created_at),
+            tone: kind === "sobreposicao_assistencial" ? "amber" : "muted",
+          });
+          if (out.length >= 6) break;
+        }
+        if (out.length >= 6) break;
+      }
+      if (!cancelled) setAlerts(out);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod]);
+
+
   const totalEmAprovacao = useMemo(
     () =>
       inPeriod
