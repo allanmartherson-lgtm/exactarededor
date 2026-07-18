@@ -550,11 +550,11 @@ export default function BiDiretoria() {
 
       // Aprovação automática (Motor de Regras): lotes que NÃO passaram por
       // devolvido_analista no histórico de status
-      const { data: history } = await supabase
+      const { data: history } = await (supabase as any)
         .from("payment_status_history")
         .select("payment_id, new_status")
         .in("payment_id", ids)
-        .in("new_status", ["devolvido_analista", "revisao_analista"] as any);
+        .in("new_status", ["devolvido_analista", "revisao_analista"]);
       const touched = new Set((history ?? []).map((r: any) => r.payment_id));
       const finalizados = inPeriod.filter((p) =>
         ["pago", "aprovado", "nf_recebida", "nf_conciliada", "aguardando_validacao", "aguardando_aprovacao"].includes(p.status),
