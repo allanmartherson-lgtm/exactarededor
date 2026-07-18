@@ -126,7 +126,7 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
           .slice(0, 10);
         const { data, error } = await supabase.rpc("get_spend_trend", {
           p_current_month: current,
-          p_months_back: 6,
+          p_months_back: 12,
           p_grouping: grouping,
           p_track: toRpcTrack(track),
         } as never);
