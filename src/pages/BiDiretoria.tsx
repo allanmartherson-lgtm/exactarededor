@@ -443,31 +443,36 @@ export default function BiDiretoria() {
     };
   }, [inPeriod]);
 
-  // Alertas assistenciais: últimas ocorrências reais em validation_findings.
+  // Alertas assistenciais: busca direto em payment_items no período (RLS filtra por hospital ativo).
+  // Não depende da lista de payments (que pode não ter carregado ainda ou ser truncada).
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const ids = inPeriod.map((p) => p.id);
-      if (!ids.length) {
+      const { data, error } = await supabase
+        .from("payment_items")
+        .select("id, validation_findings, sector, company_name, created_at, payment_id")
+        .not("validation_findings", "is", null)
+        .neq("validation_findings", "[]")
+        .gte("created_at", periodFloor.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (error) {
+        console.error("[BI] alertas assistenciais falhou:", error);
         if (!cancelled) setAlerts([]);
         return;
       }
-      const { data } = await supabase
-        .from("payment_items")
-        .select("id, validation_findings, sector, company_name, created_at")
-        .in("payment_id", ids)
-        .not("validation_findings", "is", null)
-        .neq("validation_findings", "[]")
-        .order("created_at", { ascending: false })
-        .limit(500);
       const out: AlertRow[] = [];
+      const seen = new Set<string>();
       for (const row of (data as any[]) ?? []) {
         const findings = Array.isArray(row.validation_findings) ? row.validation_findings : [];
         for (const f of findings) {
-          const kind: string = f?.kind ?? "";
+          const kind: string = f?.kind ?? f?.type ?? "";
           if (!["duplicidade_exata", "sobreposicao_assistencial", "duplicidade_tuss_paciente"].includes(kind)) continue;
+          const key = `${row.id}-${kind}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
           out.push({
-            id: `${row.id}-${kind}`,
+            id: key,
             kind,
             title: ALERT_KIND_TITLE[kind] ?? f?.rule_name ?? "Alerta",
             meta: [row.sector || row.company_name, f?.message]
@@ -486,7 +491,7 @@ export default function BiDiretoria() {
     return () => {
       cancelled = true;
     };
-  }, [inPeriod]);
+  }, [periodFloor]);
 
   const totalEmAprovacao = useMemo(
     () =>
