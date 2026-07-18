@@ -764,9 +764,12 @@ export default function BiDiretoria() {
                 {display.lotesAtivos} lotes ativos · {display.periodoLabel}
               </div>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold backdrop-blur-sm whitespace-nowrap">
-              <TrendingUp className="h-3.5 w-3.5" />+{display.deltaPct}% vs período anterior
-            </span>
+            {metrics?.deltaPct !== null && metrics?.deltaPct !== undefined ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold backdrop-blur-sm whitespace-nowrap">
+                <TrendingUp className="h-3.5 w-3.5" />
+                {metrics.deltaPct >= 0 ? "+" : ""}{metrics.deltaPct.toFixed(1).replace(".", ",")}% vs período anterior
+              </span>
+            ) : null}
           </div>
 
           {/* mini-tiles */}
