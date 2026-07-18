@@ -457,6 +457,7 @@ export default function BiDiretoria() {
         .select("id, validation_findings, sector, company_name, created_at")
         .in("payment_id", ids)
         .not("validation_findings", "is", null)
+        .neq("validation_findings", "[]")
         .order("created_at", { ascending: false })
         .limit(500);
       const out: AlertRow[] = [];
