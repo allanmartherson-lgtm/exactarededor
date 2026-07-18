@@ -169,6 +169,9 @@ export function DreKpis({ dre, open }: { dre: DreRow[]; open: OpenRow[] }) {
   );
 }
 
+type SortKey = "competencia" | "company_name" | "doctor_name" | "bruto" | "debitos" | "creditos" | "glosas" | "pool" | "liquido";
+type SortDir = "asc" | "desc";
+
 export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; track?: TrackFilterValue }) {
   const [drillOpen, setDrillOpen] = useState(false);
   const [drillLoading, setDrillLoading] = useState(false);
@@ -177,6 +180,37 @@ export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; t
     payment_id: string; reference: string; status: string; created_at: string;
     bruto: number; debitos: number; creditos: number; glosas: number; pool: number; liquido: number; items_count: number;
   }>>([]);
+
+  // Ordenação default: líquido decrescente — traz os maiores impactos primeiro
+  const [sortKey, setSortKey] = useState<SortKey>("liquido");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      // Colunas numéricas iniciam desc (maior→menor); textuais iniciam asc
+      const isNumeric = key !== "competencia" && key !== "company_name" && key !== "doctor_name";
+      setSortDir(isNumeric ? "desc" : "asc");
+    }
+  };
+
+  const sortedDre = [...dre].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    const va = a[sortKey] as string | number | null;
+    const vb = b[sortKey] as string | number | null;
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+    return String(va).localeCompare(String(vb), "pt-BR") * dir;
+  });
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
 
   const openDrill = async (row: DreRow) => {
     setDrillOpen(true);
@@ -199,6 +233,17 @@ export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; t
     setDrillLoading(false);
   };
 
+  const headerBtn = (label: string, col: SortKey, align: "left" | "right" = "left") => (
+    <button
+      type="button"
+      onClick={() => toggleSort(col)}
+      className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${align === "right" ? "flex-row-reverse w-full justify-start" : ""}`}
+    >
+      <span>{label}</span>
+      <SortIcon col={col} />
+    </button>
+  );
+
   return (
     <>
       <Card>
@@ -206,21 +251,21 @@ export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; t
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Competência</TableHead>
-                <TableHead>PJ</TableHead>
-                <TableHead>Médico</TableHead>
-                <TableHead className="text-right">Bruto</TableHead>
-                <TableHead className="text-right">Débitos</TableHead>
-                <TableHead className="text-right">Créditos</TableHead>
-                <TableHead className="text-right">Glosas</TableHead>
-                <TableHead className="text-right">Pool</TableHead>
-                <TableHead className="text-right">Líquido</TableHead>
+                <TableHead>{headerBtn("Competência", "competencia")}</TableHead>
+                <TableHead>{headerBtn("PJ", "company_name")}</TableHead>
+                <TableHead>{headerBtn("Médico", "doctor_name")}</TableHead>
+                <TableHead className="text-right">{headerBtn("Bruto", "bruto", "right")}</TableHead>
+                <TableHead className="text-right">{headerBtn("Débitos", "debitos", "right")}</TableHead>
+                <TableHead className="text-right">{headerBtn("Créditos", "creditos", "right")}</TableHead>
+                <TableHead className="text-right">{headerBtn("Glosas", "glosas", "right")}</TableHead>
+                <TableHead className="text-right">{headerBtn("Pool", "pool", "right")}</TableHead>
+                <TableHead className="text-right">{headerBtn("Líquido", "liquido", "right")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dre.length === 0 ? (
+              {sortedDre.length === 0 ? (
                 <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sem dados no período.</TableCell></TableRow>
-              ) : dre.map((r, i) => (
+              ) : sortedDre.map((r, i) => (
                 <TableRow key={i} onClick={() => openDrill(r)} className="cursor-pointer hover:bg-muted/40">
                   <TableCell className="text-xs">{new Date(r.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}</TableCell>
                   <TableCell>{r.company_name ?? "—"}</TableCell>
@@ -239,6 +284,7 @@ export function DreConsolidadoSection({ dre, track = "all" }: { dre: DreRow[]; t
           </Table>
         </CardContent>
       </Card>
+
 
       <Dialog open={drillOpen} onOpenChange={setDrillOpen}>
         <DialogContent className="max-w-[min(96vw,1200px)] max-h-[90vh] p-0 overflow-hidden flex flex-col">
