@@ -714,13 +714,32 @@ export default function BiDiretoria() {
       <div className="rounded-2xl bg-card border border-border px-5 sm:px-8 py-5 sm:py-6 shadow-sm">
         <p className="text-center text-[14px] sm:text-[15px] leading-relaxed text-foreground">
           Em {MONTHS_PT_FULL[now.getMonth()].toLowerCase()},{" "}
-          <strong className="font-semibold">{fmtMi(display.totalAprov)}</strong> passaram pelo Exacta —{" "}
-          <span className="text-primary font-medium">{display.autoPct}% aprovados automaticamente pela IA</span>. Ciclo médio de{" "}
-          <strong className="font-semibold">1,8 dia</strong>, o{" "}
-          <span className="text-success font-medium">mais rápido do trimestre</span>.{" "}
-          <span className="text-destructive font-medium">{fmtFull(display.valorRisco)} em risco</span> aguardam revisão manual.
+          <strong className="font-semibold">{fmtMi(display.totalAprov)}</strong> passaram pelo Exacta
+          {metrics?.autoPct !== null && metrics?.autoPct !== undefined ? (
+            <>
+              {" "}—{" "}
+              <span className="text-primary font-medium">
+                {metrics.autoPct}% aprovados automaticamente pelo Motor de Regras
+              </span>
+            </>
+          ) : null}
+          {metrics?.cicloDias !== null && metrics?.cicloDias !== undefined ? (
+            <>
+              . Ciclo médio de{" "}
+              <strong className="font-semibold">
+                {metrics.cicloDias.toFixed(1).replace(".", ",")} {metrics.cicloDias >= 2 ? "dias" : "dia"}
+              </strong>
+            </>
+          ) : null}
+          .{" "}
+          {metrics && metrics.valorRisco > 0 ? (
+            <span className="text-destructive font-medium">
+              {fmtFull(metrics.valorRisco)} em risco aguardam revisão manual.
+            </span>
+          ) : null}
         </p>
       </div>
+
 
       {/* ===== Hero grid: card azul + donut IA ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
