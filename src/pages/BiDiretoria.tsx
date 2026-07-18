@@ -526,7 +526,7 @@ export default function BiDiretoria() {
       const prevSince = new Date(periodFloor);
       prevSince.setMonth(prevSince.getMonth() - monthsBack);
       const prevUntil = new Date(periodFloor);
-      const { data: prevPays } = await supabase
+      const { data: prevPays } = await (supabase as any)
         .from("payments")
         .select("liquido_total, total_amount, status")
         .gte("created_at", prevSince.toISOString())
