@@ -878,72 +878,101 @@ export default function BiDiretoria() {
         {/* Valor em risco */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Valor em risco</div>
-          <div className="mt-3 text-4xl font-light tracking-tight text-destructive tabular-nums">{fmtFull(display.valorRisco)}</div>
-          <div className="mt-4 flex items-end gap-1 h-8">
-            {[40, 55, 50, 70, 95, 45].map((h, i) => (
-              <div
-                key={i}
-                className="flex-1 rounded-sm"
-                style={{
-                  height: `${h}%`,
-                  background: i === 4 ? "hsl(var(--destructive))" : "hsl(var(--destructive) / 0.35)",
-                }}
-              />
-            ))}
+          <div className="mt-3 text-4xl font-light tracking-tight text-destructive tabular-nums">
+            {fmtFull(metrics?.valorRisco ?? 0)}
           </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">1,7%</span> do total ·{" "}
-            <span className="font-semibold text-foreground">1 lote crítico</span>
+          <div className="mt-4 text-xs text-muted-foreground min-h-[1.25rem]">
+            {metrics && metrics.riscoPctDoTotal !== null ? (
+              <>
+                <span className="font-semibold text-foreground">
+                  {metrics.riscoPctDoTotal.toFixed(1).replace(".", ",")}%
+                </span>{" "}
+                do total ·{" "}
+                <span className="font-semibold text-foreground">
+                  {metrics.lotesCriticos} {metrics.lotesCriticos === 1 ? "lote crítico" : "lotes críticos"}
+                </span>
+              </>
+            ) : (
+              "Sem dados no período"
+            )}
           </div>
         </div>
 
         {/* Ciclo médio */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Ciclo médio</div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-4xl font-light tracking-tight text-foreground tabular-nums">1,8</span>
-            <span className="text-base text-muted-foreground">dia</span>
-          </div>
-          <div className="mt-4">
-            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
-              <TrendingUp className="h-3 w-3" /> 0,4d mais rápido
-            </span>
-          </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            Da validação ao <span className="font-semibold text-foreground">pagamento</span>
-          </div>
+          {metrics?.cicloDias !== null && metrics?.cicloDias !== undefined ? (
+            <>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-4xl font-light tracking-tight text-foreground tabular-nums">
+                  {metrics.cicloDias.toFixed(1).replace(".", ",")}
+                </span>
+                <span className="text-base text-muted-foreground">
+                  {metrics.cicloDias >= 2 ? "dias" : "dia"}
+                </span>
+              </div>
+              {metrics.cicloDeltaDias !== null && metrics.cicloDeltaDias !== undefined ? (
+                <div className="mt-4">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                      metrics.cicloDeltaDias >= 0
+                        ? "bg-success/15 text-success"
+                        : "bg-destructive/15 text-destructive"
+                    }`}
+                  >
+                    <TrendingUp className="h-3 w-3" />
+                    {Math.abs(metrics.cicloDeltaDias).toFixed(1).replace(".", ",")}d{" "}
+                    {metrics.cicloDeltaDias >= 0 ? "mais rápido" : "mais lento"}
+                  </span>
+                </div>
+              ) : null}
+              <div className="mt-3 text-xs text-muted-foreground">
+                Da criação à <span className="font-semibold text-foreground">aprovação</span>
+              </div>
+            </>
+          ) : (
+            <div className="mt-3 text-sm text-muted-foreground">Sem lotes aprovados no período</div>
+          )}
         </div>
 
         {/* Itens aprovados */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Itens aprovados</div>
-          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">95,5%</div>
-          <div className="mt-4 flex items-center gap-1.5 h-6">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex-1 h-full rounded"
-                style={{ background: i === 5 ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.15)" }}
-              />
-            ))}
-          </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">21 de 22</span> itens · último lote
-          </div>
+          {metrics?.itensAprovPct !== null && metrics?.itensAprovPct !== undefined ? (
+            <>
+              <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">
+                {metrics.itensAprovPct.toFixed(1).replace(".", ",")}%
+              </div>
+              <div className="mt-3 text-xs text-muted-foreground">{metrics.itensAprovTexto}</div>
+            </>
+          ) : (
+            <div className="mt-3 text-sm text-muted-foreground">Sem itens no período</div>
+          )}
         </div>
 
         {/* Glosas */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Glosas registradas</div>
-          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">R$ 0</div>
-          <div className="mt-4">
-            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
-              Zero glosas
-            </span>
+          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">
+            {fmtFull(metrics?.glosasTotal ?? 0)}
           </div>
-          <div className="mt-3 text-xs text-muted-foreground">0 divergências de conciliação neste mês</div>
+          <div className="mt-4">
+            {metrics && metrics.glosasCount === 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
+                Zero glosas
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 text-warning px-2.5 py-1 text-xs font-medium">
+                {metrics?.glosasCount ?? 0} {metrics?.glosasCount === 1 ? "glosa" : "glosas"}
+              </span>
+            )}
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            {metrics?.glosasCount ?? 0} divergências de conciliação neste período
+          </div>
         </div>
       </div>
+
 
       {/* ===== Funil de aprovação ===== */}
       <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
