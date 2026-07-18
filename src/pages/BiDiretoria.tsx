@@ -123,26 +123,36 @@ function HeroSparkline({ data, height = 180 }: { data: number[]; height?: number
 }
 
 // ---------- Evolution chart (area + dashed line) ----------
-function EvolutionChart({ data, height = 260 }: { data: number[]; height?: number }) {
+function EvolutionChart({
+  data,
+  riskData,
+  months,
+  height = 260,
+}: {
+  data: number[];
+  riskData?: number[];
+  months?: string[];
+  height?: number;
+}) {
   const width = 720;
   const pad = 36;
   if (data.length < 2) return null;
-  const max = Math.max(...data);
+  // Se não veio série real de risco, usa fração determinística (fallback do mock)
+  const risk = riskData && riskData.length === data.length
+    ? riskData
+    : data.map((v, i) => v * (0.08 + (i % 3) * 0.015));
+  const max = Math.max(...data, ...risk);
   const min = 0;
   const range = Math.max(1, max - min);
   const stepX = (width - pad * 2) / (data.length - 1);
-  const points = data.map((v, i) => {
-    const x = pad + i * stepX;
-    const y = height - pad - ((v - min) / range) * (height - pad * 2);
-    return [x, y] as const;
-  });
-  // "Em risco" line: small fraction of processed, with some noise
-  const riskPoints = data.map((v, i) => {
-    const x = pad + i * stepX;
-    const r = v * (0.08 + (i % 3) * 0.015);
-    const y = height - pad - ((r - min) / range) * (height - pad * 2);
-    return [x, y] as const;
-  });
+  const toPoints = (arr: number[]) =>
+    arr.map((v, i) => {
+      const x = pad + i * stepX;
+      const y = height - pad - ((v - min) / range) * (height - pad * 2);
+      return [x, y] as const;
+    });
+  const points = toPoints(data);
+  const riskPoints = toPoints(risk);
   const linePath = (pts: readonly (readonly [number, number])[]) =>
     pts.reduce((acc, [x, y], i) => acc + (i === 0 ? `M${x},${y}` : ` L${x},${y}`), "");
   const areaPath =
@@ -150,6 +160,12 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
     ` L${points[points.length - 1][0]},${height - pad} L${points[0][0]},${height - pad} Z`;
   const last = points[points.length - 1];
   const ymarks = [0, 0.5, 1, 1.5, 2].map((v) => v * 1_000_000).filter((v) => v <= max * 1.05);
+
+  const compact = (v: number) => {
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(".", ",")}M`;
+    if (v >= 1_000) return `${Math.round(v / 1_000)}k`;
+    return String(Math.round(v));
+  };
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ width: "100%", height, display: "block" }} aria-hidden>
@@ -159,7 +175,6 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
           <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
         </linearGradient>
       </defs>
-      {/* grid lines */}
       {ymarks.map((v) => {
         const y = height - pad - ((v - min) / range) * (height - pad * 2);
         return (
@@ -174,15 +189,39 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
       <path d={areaPath} fill="url(#bi-area-grad)" />
       <path d={linePath(points)} fill="none" stroke="hsl(var(--primary))" strokeWidth={2.5} strokeLinejoin="round" />
       <path d={linePath(riskPoints)} fill="none" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="6 4" />
-      <circle cx={last[0]} cy={last[1]} r={5} fill="hsl(var(--primary))" />
+      {/* Rótulos série "Processado" (acima do ponto) */}
+      {points.map(([x, y], i) => (
+        <g key={`p-${i}`}>
+          <circle cx={x} cy={y} r={i === points.length - 1 ? 5 : 3} fill="hsl(var(--primary))" />
+          <text x={x} y={y - 8} textAnchor="middle" fontSize={10} fontWeight={600} fill="hsl(var(--foreground))" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {compact(data[i])}
+          </text>
+        </g>
+      ))}
+      {/* Rótulos série "Em risco" (abaixo do ponto) */}
+      {riskPoints.map(([x, y], i) => (
+        <g key={`r-${i}`}>
+          <circle cx={x} cy={y} r={2.5} fill="hsl(var(--destructive))" />
+          <text x={x} y={y + 14} textAnchor="middle" fontSize={9} fontWeight={600} fill="hsl(var(--destructive))" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {compact(risk[i])}
+          </text>
+        </g>
+      ))}
       {/* x labels */}
       {data.map((_, i) => {
         const x = pad + i * stepX;
-        const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-        const idx = (new Date().getMonth() - (data.length - 1 - i) + 12) % 12;
+        const monthsPt = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        let label: string;
+        if (months && months[i]) {
+          const mo = parseInt(months[i].split("-")[1] ?? "1", 10);
+          label = monthsPt[mo - 1] ?? "";
+        } else {
+          const idx = (new Date().getMonth() - (data.length - 1 - i) + 12) % 12;
+          label = monthsPt[idx];
+        }
         return (
           <text key={i} x={x} y={height - 8} textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">
-            {months[idx]}
+            {label}
           </text>
         );
       })}
@@ -190,11 +229,58 @@ function EvolutionChart({ data, height = 260 }: { data: number[]; height?: numbe
   );
 }
 
+type AnalystRow = { user_id: string; name: string; initials: string; valor: number };
+type CompanyRow = { id: string; name: string; itens: number; valor: number; status: string; tone: "success" | "warning" | "destructive" };
+type AlertRow = { id: string; kind: string; title: string; meta: string; time: string; tone: "amber" | "muted" };
+
+const STATUS_TONE: Record<string, { label: string; tone: "success" | "warning" | "destructive" }> = {
+  pago: { label: "Pago", tone: "success" },
+  aprovado: { label: "Aprovado", tone: "success" },
+  aprovado_em_revisao: { label: "Aprovado", tone: "success" },
+  nf_recebida: { label: "NF recebida", tone: "success" },
+  nf_conciliada: { label: "NF conciliada", tone: "success" },
+  aguardando_validacao: { label: "Em análise", tone: "warning" },
+  aguardando_aprovacao: { label: "Em análise", tone: "warning" },
+  em_analise_ia: { label: "Em análise", tone: "warning" },
+  revisao_analista: { label: "Em análise", tone: "warning" },
+  devolvido_analista: { label: "Risco", tone: "destructive" },
+  nf_questionada: { label: "Risco", tone: "destructive" },
+  rejeitado: { label: "Risco", tone: "destructive" },
+};
+
+const ALERT_KIND_TITLE: Record<string, string> = {
+  duplicidade_exata: "Duplicidade de atendimento",
+  sobreposicao_assistencial: "Sobreposição assistencial",
+  duplicidade_tuss_paciente: "Duplicidade TUSS/paciente",
+};
+
+const initialsOf = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "—";
+  const first = parts[0][0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? "" : "";
+  return (first + last).toUpperCase();
+};
+
+const relativeTime = (iso: string): string => {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return "agora";
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+};
+
 export default function BiDiretoria() {
   const [period, setPeriod] = useState<Period>("mes");
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<any[]>([]);
-  const [monthly, setMonthly] = useState<{ month: string; valor: number }[]>([]);
+  const [monthly, setMonthly] = useState<{ month: string; valor: number; risco: number }[]>([]);
+  const [analysts, setAnalysts] = useState<AnalystRow[]>([]);
+  const [topCompanies, setTopCompanies] = useState<CompanyRow[]>([]);
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
 
   const now = new Date();
   const competenciaLabel = `${MONTHS_PT_FULL[now.getMonth()]} ${now.getFullYear()}`;
@@ -207,29 +293,37 @@ export default function BiDiretoria() {
         since.setMonth(since.getMonth() - 12);
         const { data } = await supabase
           .from("payments")
-          .select("id, status, total_amount, liquido_total, items_count, competence_month, created_at")
+          .select("id, status, total_amount, liquido_total, items_count, competence_month, created_at, created_by")
           .gte("created_at", since.toISOString())
           .not("status", "in", '("cancelado","rascunho")')
           .order("created_at", { ascending: false });
-        setPayments(data ?? []);
+        const paymentsList = data ?? [];
+        setPayments(paymentsList);
 
-        const map: Record<string, number> = {};
-        for (const p of data ?? []) {
+        // Série mensal: processado × em risco (por competência)
+        const map: Record<string, { valor: number; risco: number }> = {};
+        for (const p of paymentsList) {
           const m = (p.competence_month ?? "").slice(0, 7);
           if (!m) continue;
-          map[m] = (map[m] ?? 0) + Number(p.liquido_total ?? p.total_amount ?? 0);
+          if (!map[m]) map[m] = { valor: 0, risco: 0 };
+          const v = Number(p.liquido_total ?? p.total_amount ?? 0);
+          map[m].valor += v;
+          if (["devolvido_analista", "nf_questionada", "rejeitado", "revisao_analista"].includes(p.status)) {
+            map[m].risco += v;
+          }
         }
         setMonthly(
           Object.entries(map)
             .sort(([a], [b]) => a.localeCompare(b))
             .slice(-6)
-            .map(([month, valor]) => ({ month, valor })),
+            .map(([month, agg]) => ({ month, valor: agg.valor, risco: agg.risco })),
         );
       } finally {
         setLoading(false);
       }
     })();
   }, []);
+
 
   // ---- Métricas derivadas ----
   const monthsBack = PERIOD_MONTHS[period];
@@ -245,6 +339,137 @@ export default function BiDiretoria() {
     () => payments.filter((p) => new Date(p.created_at) >= periodFloor),
     [payments, periodFloor],
   );
+
+  // Analistas: soma liquido dos lotes por created_by no período + full_name via profiles.
+  // Restringe a usuários com role 'analista' ou 'admin' para não classificar
+  // médicos/validadores/diretores como analistas.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const byUser = new Map<string, number>();
+      for (const p of inPeriod) {
+        if (!p.created_by) continue;
+        const v = Number(p.liquido_total ?? p.total_amount ?? 0);
+        byUser.set(p.created_by, (byUser.get(p.created_by) ?? 0) + v);
+      }
+      if (byUser.size === 0) {
+        if (!cancelled) setAnalysts([]);
+        return;
+      }
+      const ids = Array.from(byUser.keys());
+      const [{ data: profs }, { data: roleRows }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, email").in("id", ids),
+        supabase.from("user_roles").select("user_id, role").in("user_id", ids),
+      ]);
+      const allowedRoles = new Set(["analista", "admin"]);
+      const allowed = new Set(
+        (roleRows ?? []).filter((r: any) => allowedRoles.has(r.role)).map((r: any) => r.user_id),
+      );
+      const nameById = new Map<string, string>(
+        (profs ?? []).map((p: any) => [p.id, p.full_name || p.email || "Usuário"]),
+      );
+      const rows: AnalystRow[] = ids
+        .filter((id) => allowed.has(id))
+        .map((id) => {
+          const name = nameById.get(id) ?? "Usuário";
+          return { user_id: id, name, initials: initialsOf(name), valor: byUser.get(id) ?? 0 };
+        })
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 4);
+      if (!cancelled) setAnalysts(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod]);
+
+  // Top empresas: agrega gross_amount por empresa nos lotes do período.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = inPeriod.map((p) => p.id);
+      if (!ids.length) {
+        if (!cancelled) setTopCompanies([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("payment_items")
+        .select("company_id, company_name, gross_amount, payment_id")
+        .in("payment_id", ids)
+        .neq("is_cancelled", true)
+        .limit(50000);
+      const statusByPayment = new Map<string, string>(inPeriod.map((p) => [p.id, p.status]));
+      const agg = new Map<string, { name: string; itens: number; valor: number; statuses: Record<string, number> }>();
+      for (const it of (data as any[]) ?? []) {
+        const key = it.company_id || it.company_name || "—";
+        const name = it.company_name || "Sem empresa";
+        const entry = agg.get(key) ?? { name, itens: 0, valor: 0, statuses: {} };
+        entry.itens += 1;
+        entry.valor += Number(it.gross_amount ?? 0);
+        const s = statusByPayment.get(it.payment_id) ?? "—";
+        entry.statuses[s] = (entry.statuses[s] ?? 0) + 1;
+        agg.set(key, entry);
+      }
+      const rows: CompanyRow[] = Array.from(agg.entries())
+        .map(([id, e]) => {
+          // Status dominante entre os itens da empresa
+          const dominant = Object.entries(e.statuses).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "—";
+          const meta = STATUS_TONE[dominant] ?? { label: "—", tone: "warning" as const };
+          return { id, name: e.name, itens: e.itens, valor: e.valor, status: meta.label, tone: meta.tone };
+        })
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 5);
+      if (!cancelled) setTopCompanies(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod]);
+
+  // Alertas assistenciais: últimas ocorrências reais em validation_findings.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = inPeriod.map((p) => p.id);
+      if (!ids.length) {
+        if (!cancelled) setAlerts([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("payment_items")
+        .select("id, validation_findings, sector, company_name, created_at")
+        .in("payment_id", ids)
+        .not("validation_findings", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      const out: AlertRow[] = [];
+      for (const row of (data as any[]) ?? []) {
+        const findings = Array.isArray(row.validation_findings) ? row.validation_findings : [];
+        for (const f of findings) {
+          const kind: string = f?.kind ?? "";
+          if (!["duplicidade_exata", "sobreposicao_assistencial", "duplicidade_tuss_paciente"].includes(kind)) continue;
+          out.push({
+            id: `${row.id}-${kind}`,
+            kind,
+            title: ALERT_KIND_TITLE[kind] ?? f?.rule_name ?? "Alerta",
+            meta: [row.sector || row.company_name, f?.message]
+              .filter(Boolean)
+              .join(" · ")
+              .slice(0, 140),
+            time: relativeTime(f?.detected_at ?? row.created_at),
+            tone: kind === "sobreposicao_assistencial" ? "amber" : "muted",
+          });
+          if (out.length >= 6) break;
+        }
+        if (out.length >= 6) break;
+      }
+      if (!cancelled) setAlerts(out);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod]);
+
 
   const totalEmAprovacao = useMemo(
     () =>
@@ -601,41 +826,54 @@ export default function BiDiretoria() {
               </span>
             </div>
           </div>
-          <EvolutionChart data={display.spark} />
+          <EvolutionChart
+            data={(monthly.length ? monthly.map((m) => m.valor) : display.spark) as number[]}
+            riskData={monthly.length ? monthly.map((m) => m.risco) : undefined}
+            months={monthly.length ? monthly.map((m) => m.month) : undefined}
+          />
         </div>
 
         <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
           <div>
             <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Por analista</div>
-            <div className="mt-1 text-sm text-muted-foreground">valor revisado · junho</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              valor revisado · {competenciaLabel.toLowerCase()}
+            </div>
           </div>
           <div className="mt-5 space-y-4">
-            {[
-              { name: "Allan Araújo", initials: "AA", color: "bg-primary/15 text-primary", valor: "R$ 684k", pct: 92 },
-              { name: "Diego Burgardt", initials: "DB", color: "bg-success/15 text-success", valor: "R$ 548k", pct: 74 },
-              { name: "Marina Rocha", initials: "MR", color: "bg-violet-500/15 text-violet-500", valor: "R$ 431k", pct: 58 },
-              { name: "Caio Lima", initials: "CL", color: "bg-amber-500/15 text-amber-600", valor: "R$ 254k", pct: 34 },
-            ].map((a) => (
-              <div key={a.name} className="flex items-center gap-3">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${a.color}`}>
-                  {a.initials}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate">{a.name}</div>
-                  <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${a.pct}%` }} />
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-foreground tabular-nums">{a.valor}</div>
-                  <div className="text-[10px] text-muted-foreground tabular-nums">{a.pct}%</div>
-                </div>
+            {analysts.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">
+                Sem lotes criados por analistas no período.
               </div>
-            ))}
+            ) : (
+              (() => {
+                const max = Math.max(...analysts.map((a) => a.valor), 1);
+                return analysts.map((a) => {
+                  const pct = Math.round((a.valor / max) * 100);
+                  return (
+                    <div key={a.user_id} className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-primary/15 text-primary">
+                        {a.initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{a.name}</div>
+                        <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-foreground tabular-nums">{fmtMi(a.valor)}</div>
+                        <div className="text-[10px] text-muted-foreground tabular-nums">{pct}%</div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()
+            )}
           </div>
-          <div className="mt-5 text-[11px] text-muted-foreground">Atualizado há 4 min · base Hospital DF Star</div>
         </div>
       </div>
+
 
       {/* ===== Top empresas + Alertas assistenciais ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -653,100 +891,80 @@ export default function BiDiretoria() {
             <div className="col-span-2 text-right">Valor líq.</div>
             <div className="col-span-2 text-right">Status</div>
           </div>
-          {[
-            { name: "Cirurgia Cardíaca SA", itens: 142, valor: "R$ 412.880", pct: 90, status: "Aprovado", tone: "success" },
-            { name: "Ortopedia Avançada", itens: 98, valor: "R$ 284.320", pct: 65, status: "Aprovado", tone: "success" },
-            { name: "Hemodinâmica DF", itens: 74, valor: "R$ 215.400", pct: 48, status: "Em análise", tone: "warning" },
-            { name: "Oncologia Central", itens: 56, valor: "R$ 162.960", pct: 35, status: "Aprovado", tone: "success" },
-            { name: "UTI Neonatal Esp.", itens: 57, valor: "R$ 7.619", pct: 2, status: "Risco", tone: "destructive" },
-          ].map((row) => {
-            const toneClass =
-              row.tone === "success"
-                ? "bg-success/15 text-success"
-                : row.tone === "warning"
-                ? "bg-amber-500/15 text-amber-600"
-                : "bg-destructive/15 text-destructive";
-            return (
-              <div key={row.name} className="grid grid-cols-12 gap-2 items-center py-3 border-b border-border last:border-0 text-sm">
-                <div className="col-span-4 text-foreground">{row.name}</div>
-                <div className="col-span-1 text-right text-foreground tabular-nums">{row.itens}</div>
-                <div className="col-span-3">
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${row.pct}%` }} />
+          {topCompanies.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-8 text-center">
+              Sem empresas com itens processados no período.
+            </div>
+          ) : (
+            (() => {
+              const maxValor = Math.max(...topCompanies.map((r) => r.valor), 1);
+              return topCompanies.map((row) => {
+                const pct = Math.round((row.valor / maxValor) * 100);
+                const toneClass =
+                  row.tone === "success"
+                    ? "bg-success/15 text-success"
+                    : row.tone === "warning"
+                    ? "bg-amber-500/15 text-amber-600"
+                    : "bg-destructive/15 text-destructive";
+                return (
+                  <div key={row.id} className="grid grid-cols-12 gap-2 items-center py-3 border-b border-border last:border-0 text-sm">
+                    <div className="col-span-4 text-foreground truncate" title={row.name}>{row.name}</div>
+                    <div className="col-span-1 text-right text-foreground tabular-nums">{row.itens}</div>
+                    <div className="col-span-3">
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-right text-foreground tabular-nums">
+                      {row.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="col-span-2 text-right">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>{row.status}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="col-span-2 text-right text-foreground tabular-nums">{row.valor}</div>
-                <div className="col-span-2 text-right">
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>{row.status}</span>
-                </div>
-              </div>
-            );
-          })}
+                );
+              });
+            })()
+          )}
         </div>
+
 
         <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Alertas assistenciais</div>
             <span className="inline-flex items-center rounded-full bg-destructive/15 text-destructive px-2.5 py-1 text-xs font-semibold">
-              2 abertos
+              {alerts.length} {alerts.length === 1 ? "aberto" : "abertos"}
             </span>
           </div>
           <div className="space-y-3">
-            {[
-              {
-                icon: AlertCircle,
-                tone: "amber",
-                title: "Duplicidade de Atendimento",
-                meta: "UTI Neonatal · 2 ocorrências · R$ 2.030,54",
-                time: "agora",
-              },
-              {
-                icon: Search,
-                tone: "muted",
-                title: "Anomalia comportamental detectada",
-                meta: "Hemodinâmica DF · padrão incomum de cobrança",
-                time: "2h",
-              },
-              {
-                icon: null,
-                tone: "success",
-                title: "Cirurgia Cardíaca SA aprovada",
-                meta: "142 itens · R$ 412.880 · sem divergências",
-                time: "3h",
-                check: true,
-              },
-              {
-                icon: null,
-                tone: "success",
-                title: "Oncologia Central aprovada",
-                meta: "56 itens · R$ 162.960 · automático pela IA",
-                time: "5h",
-                check: true,
-              },
-            ].map((a, i) => {
-              const Icon = a.icon;
-              const bubble =
-                a.tone === "amber"
+            {alerts.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">
+                Nenhum alerta assistencial no período.
+              </div>
+            ) : (
+              alerts.map((a) => {
+                const Icon = a.kind === "sobreposicao_assistencial" ? AlertCircle : Search;
+                const bubble = a.tone === "amber"
                   ? "bg-amber-500/15 text-amber-600"
-                  : a.tone === "success"
-                  ? "bg-success/15 text-success"
                   : "bg-muted text-muted-foreground";
-              return (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bubble}`}>
-                    {Icon ? <Icon className="h-4 w-4" /> : a.check ? <span className="text-sm">✓</span> : null}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="text-sm font-semibold text-foreground">{a.title}</div>
-                      <div className="text-[11px] text-muted-foreground flex-shrink-0">{a.time}</div>
+                return (
+                  <div key={a.id} className="flex items-start gap-3">
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bubble}`}>
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{a.meta}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-sm font-semibold text-foreground">{a.title}</div>
+                        <div className="text-[11px] text-muted-foreground flex-shrink-0">{a.time}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5 truncate" title={a.meta}>{a.meta}</div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
+
         </div>
       </div>
     </div>
