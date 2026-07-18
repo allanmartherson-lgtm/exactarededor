@@ -206,7 +206,7 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
             color: "hsl(var(--muted-foreground))",
           }}
         >
-          Nenhum alerta de validação em aberto.
+          Nenhum alerta identificado — motor de regras e validações não detectaram divergências nos lotes ativos.
         </div>
       ) : (
         <div
