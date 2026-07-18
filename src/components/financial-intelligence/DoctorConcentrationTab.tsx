@@ -9,13 +9,6 @@ import { Users } from "lucide-react";
 import { formatBRL } from "@/lib/financialStats";
 import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
-interface ItemRow {
-  payment_id: string;
-  doctor_name: string;
-  gross_amount: number;
-  payments?: { reference: string | null; title: string | null; status: string } | null;
-}
-
 interface Concentration {
   payment_id: string;
   reference: string;
@@ -45,79 +38,66 @@ const badgeFor = (level: Level) => {
 };
 
 export const DoctorConcentrationTab = ({ track = "all" }: { track?: TrackFilterValue } = {}) => {
-  const [rows, setRows] = useState<ItemRow[] | null>(null);
+  const [concentrations, setConcentrations] = useState<Concentration[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setRows(null);
+    setConcentrations(null);
+    setError(null);
     (async () => {
-      const cutoff = new Date();
-      cutoff.setMonth(cutoff.getMonth() - 6);
-      const cutoffDate = cutoff.toISOString().slice(0, 10);
-      let q = supabase
-        .from("payment_items")
-        .select("payment_id,doctor_name,gross_amount,payments!inner(reference,title,status,payment_track,competence_month)")
-        .gt("gross_amount", 0)
-        .gte("payments.competence_month", cutoffDate)
-        .not("payments.status", "in", '("rascunho","cancelado","rejeitado")');
-      if (track === "habitual" || track === "prioritario") {
-        q = q.eq("payments.payment_track", track);
-      } else if (track === "nao_classificado") {
-        q = q.is("payments.payment_track", null);
+      try {
+        const p_track =
+          track === "habitual" || track === "prioritario" || track === "nao_classificado" ? track : null;
+        const { data, error } = await supabase.rpc("get_doctor_concentration", {
+          p_months_back: 6,
+          p_track,
+        });
+        if (cancelled) return;
+        if (error) throw error;
+        const mapped: Concentration[] = (data ?? []).map((r: {
+          payment_id: string;
+          reference: string | null;
+          doctor_name: string;
+          amount: number | string;
+          total_lote: number | string;
+          pct: number | string;
+        }) => ({
+          payment_id: r.payment_id,
+          reference: r.reference ?? "Sem referência",
+          doctor_name: r.doctor_name,
+          amount: Number(r.amount) || 0,
+          total: Number(r.total_lote) || 0,
+          pct: Number(r.pct) || 0,
+        }));
+        setConcentrations(mapped);
+      } catch (e) {
+        if (cancelled) return;
+        console.error("[DoctorConcentrationTab] rpc error", e);
+        setError((e as Error)?.message ?? "Falha ao carregar concentração");
+        setConcentrations([]);
       }
-      const { data, error } = await q;
-      if (cancelled) return;
-      if (error) {
-        console.error("[DoctorConcentrationTab] load error", error);
-        setRows([]);
-        return;
-      }
-      setRows((data as unknown as ItemRow[]) ?? []);
     })();
     return () => {
       cancelled = true;
     };
   }, [track]);
 
-  const { concentrations, summary } = useMemo(() => {
-    if (!rows) return { concentrations: [] as Concentration[], summary: null as null | { alta: number; avgTopPct: number; lotes: number } };
-    const totals = new Map<string, number>();
-    const refMap = new Map<string, string>();
-    const perDoctor = new Map<string, number>();
-    for (const r of rows) {
-      const v = Number(r.gross_amount);
-      totals.set(r.payment_id, (totals.get(r.payment_id) ?? 0) + v);
-      refMap.set(r.payment_id, r.payments?.reference ?? r.payments?.title ?? "Sem referência");
-      const k = `${r.payment_id}|||${r.doctor_name}`;
-      perDoctor.set(k, (perDoctor.get(k) ?? 0) + v);
-    }
-    const all: Concentration[] = [];
+  const summary = useMemo(() => {
+    if (!concentrations) return null;
     const topPerPayment = new Map<string, number>();
-    for (const [k, amount] of perDoctor) {
-      const [paymentId, doctor] = k.split("|||");
-      const total = totals.get(paymentId) ?? 0;
-      if (total <= 0) continue;
-      const pct = (amount / total) * 100;
-      all.push({
-        payment_id: paymentId,
-        reference: refMap.get(paymentId) ?? "Sem referência",
-        doctor_name: doctor,
-        amount,
-        total,
-        pct,
-      });
-      const prev = topPerPayment.get(paymentId) ?? 0;
-      if (pct > prev) topPerPayment.set(paymentId, pct);
+    const lotes = new Set<string>();
+    for (const c of concentrations) {
+      lotes.add(c.payment_id);
+      const prev = topPerPayment.get(c.payment_id) ?? 0;
+      if (c.pct > prev) topPerPayment.set(c.payment_id, c.pct);
     }
-    all.sort((a, b) => b.pct - a.pct);
     const topPcts = Array.from(topPerPayment.values());
     const avgTopPct = topPcts.length ? topPcts.reduce((a, b) => a + b, 0) / topPcts.length : 0;
-    const alta = all.filter((c) => c.pct > 30).length;
-    return {
-      concentrations: all,
-      summary: { alta, avgTopPct, lotes: totals.size },
-    };
-  }, [rows]);
+    const alta = concentrations.filter((c) => c.pct > 30).length;
+    return { alta, avgTopPct, lotes: lotes.size };
+  }, [concentrations]);
+
 
   const topList = concentrations.slice(0, 20);
 
