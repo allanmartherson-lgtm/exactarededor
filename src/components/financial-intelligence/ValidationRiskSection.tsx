@@ -322,19 +322,19 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "14px 22px",
-                background: "#fdf5ec",
+                background: "hsl(var(--accent) / 0.08)",
                 borderTop: "1px solid hsl(var(--border))",
                 borderRadius: "0 0 12px 12px",
               }}
             >
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#9A6B3A" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--accent))" }}>
                 Total em risco — {data.alertas} alertas · {data.lotes} lotes · acate {taxaAcate.toFixed(0)}%
               </span>
               <span
                 style={{
                   fontSize: 18,
                   fontWeight: 600,
-                  color: "#9A6B3A",
+                  color: "hsl(var(--accent))",
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
