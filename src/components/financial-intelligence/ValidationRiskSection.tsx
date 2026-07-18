@@ -250,7 +250,7 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
               to="/regras/validacao"
               style={{
                 fontSize: 12,
-                color: "#9A6B3A",
+                color: "hsl(var(--accent))",
                 fontWeight: 500,
                 textDecoration: "none",
                 display: "inline-flex",
