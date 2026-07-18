@@ -28,51 +28,99 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
   const [data, setData] = useState<Totals>(EMPTY);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     (async () => {
-      let q = supabase
+      const baseSelect =
+        "id, gross_amount, expected_amount, payment_id, validation_findings, ai_status, payments!inner(payment_track)";
+
+      let qFindings = supabase
         .from("payment_items")
-        .select("gross_amount, payment_id, validation_findings, ai_status, payments!inner(payment_track)")
+        .select(baseSelect)
         .not("validation_findings", "is", null)
         .neq("validation_findings", "[]");
+      let qAlerta = supabase.from("payment_items").select(baseSelect).eq("ai_status", "alerta");
+      let qDiverg = supabase.from("payment_items").select(baseSelect).gt("expected_amount", 0);
+
       if (track === "habitual" || track === "prioritario") {
-        q = q.eq("payments.payment_track", track);
+        qFindings = qFindings.eq("payments.payment_track", track);
+        qAlerta = qAlerta.eq("payments.payment_track", track);
+        qDiverg = qDiverg.eq("payments.payment_track", track);
       } else if (track === "nao_classificado") {
-        q = q.is("payments.payment_track", null);
+        qFindings = qFindings.is("payments.payment_track", null);
+        qAlerta = qAlerta.is("payments.payment_track", null);
+        qDiverg = qDiverg.is("payments.payment_track", null);
       }
-      const { data: items } = await q;
+
+      const [rFindings, rAlerta, rDiverg] = await Promise.all([qFindings, qAlerta, qDiverg]);
+      if (cancelled) return;
 
       const byRule = new Map<string, RuleAgg>();
       const allLotes = new Set<string>();
       let totalAlertas = 0;
       let totalValor = 0;
       let totalAcatados = 0;
+      // dedupe do valor total por item (para não contar 2x quando aparece em várias fontes)
+      const valuedItems = new Set<string>();
 
-      for (const it of items ?? []) {
-        const findings = (it as { validation_findings: unknown }).validation_findings as unknown[];
+      const bump = (key: string, ruleName: string, item: { id: string; gross_amount: number | null; payment_id?: string; ai_status?: string }) => {
+        const cur = byRule.get(key) ?? {
+          rule_name: ruleName,
+          alertas: 0,
+          valor: 0,
+          acatados: 0,
+          lotes: new Set<string>(),
+        };
+        const v = Number(item.gross_amount ?? 0);
+        cur.alertas += 1;
+        cur.valor += v;
+        if (item.ai_status === "acatado") cur.acatados += 1;
+        if (item.payment_id) cur.lotes.add(item.payment_id);
+        byRule.set(key, cur);
+        totalAlertas += 1;
+        if (item.ai_status === "acatado") totalAcatados += 1;
+        if (item.payment_id) allLotes.add(item.payment_id);
+        if (!valuedItems.has(item.id)) {
+          totalValor += v;
+          valuedItems.add(item.id);
+        }
+      };
+
+      type Row = {
+        id: string;
+        gross_amount: number | null;
+        expected_amount: number | null;
+        payment_id?: string;
+        validation_findings?: unknown;
+        ai_status?: string;
+      };
+
+      // Fonte 1: validation_findings
+      for (const it of ((rFindings.data as unknown as Row[]) ?? [])) {
+        const findings = it.validation_findings;
         if (!Array.isArray(findings)) continue;
-        const isAcatado = (it as { ai_status?: string }).ai_status === "acatado";
         for (const f of findings as Array<{ rule_id?: string; rule_name?: string }>) {
           const key = f.rule_id || f.rule_name;
           if (!key) continue;
-          const cur = byRule.get(key) ?? {
-            rule_name: f.rule_name || key,
-            alertas: 0,
-            valor: 0,
-            acatados: 0,
-            lotes: new Set<string>(),
-          };
-          cur.alertas += 1;
-          cur.valor += Number((it as { gross_amount: number | null }).gross_amount ?? 0);
-          if (isAcatado) cur.acatados += 1;
-          const pid = (it as { payment_id?: string }).payment_id;
-          if (pid) cur.lotes.add(pid);
-          byRule.set(key, cur);
-          totalAlertas += 1;
-          totalValor += Number((it as { gross_amount: number | null }).gross_amount ?? 0);
-          if (isAcatado) totalAcatados += 1;
-          if (pid) allLotes.add(pid);
+          bump(key, f.rule_name || key, it);
         }
+      }
+
+      // Fonte 2: ai_status = 'alerta' — evita dupla contagem se já entrou por findings
+      const findingIds = new Set(((rFindings.data as unknown as Row[]) ?? []).map((r) => r.id));
+      for (const it of ((rAlerta.data as unknown as Row[]) ?? [])) {
+        if (findingIds.has(it.id)) continue;
+        bump("__motor_regras_alerta", "Motor de regras — alerta", it);
+      }
+
+      // Fonte 3: divergência > 10%
+      for (const it of ((rDiverg.data as unknown as Row[]) ?? [])) {
+        const exp = Number(it.expected_amount ?? 0);
+        const gross = Number(it.gross_amount ?? 0);
+        if (exp <= 0) continue;
+        const diffPct = Math.abs(gross - exp) / exp;
+        if (diffPct <= 0.1) continue;
+        bump("__divergencia_valor", "Divergência de valor > 10%", it);
       }
 
       setData({
@@ -84,6 +132,9 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
       });
       setLoading(false);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [track]);
 
   if (loading) {
@@ -155,7 +206,7 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
             color: "hsl(var(--muted-foreground))",
           }}
         >
-          Nenhum alerta de validação em aberto.
+          Nenhum alerta identificado — motor de regras e validações não detectaram divergências nos lotes ativos.
         </div>
       ) : (
         <div
@@ -199,7 +250,7 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
               to="/regras/validacao"
               style={{
                 fontSize: 12,
-                color: "#9A6B3A",
+                color: "hsl(var(--accent))",
                 fontWeight: 500,
                 textDecoration: "none",
                 display: "inline-flex",
@@ -271,19 +322,19 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "14px 22px",
-                background: "#fdf5ec",
+                background: "hsl(var(--accent) / 0.08)",
                 borderTop: "1px solid hsl(var(--border))",
                 borderRadius: "0 0 12px 12px",
               }}
             >
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#9A6B3A" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--accent))" }}>
                 Total em risco — {data.alertas} alertas · {data.lotes} lotes · acate {taxaAcate.toFixed(0)}%
               </span>
               <span
                 style={{
                   fontSize: 18,
                   fontWeight: 600,
-                  color: "#9A6B3A",
+                  color: "hsl(var(--accent))",
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
