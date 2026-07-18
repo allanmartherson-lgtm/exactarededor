@@ -99,7 +99,7 @@ export const DoctorConcentrationTab = ({ track = "all" }: { track?: TrackFilterV
   }, [concentrations]);
 
 
-  const topList = concentrations.slice(0, 20);
+  const topList = (concentrations ?? []).slice(0, 20);
 
   return (
     <SurfaceCard>
