@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { RefreshCw, AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
+import { RefreshCw, AlertCircle, ChevronRight, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PaymentTrackFilter, toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 import type { PaymentStatus } from "@/lib/status";
