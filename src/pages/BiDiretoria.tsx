@@ -232,6 +232,22 @@ function EvolutionChart({
 type AnalystRow = { user_id: string; name: string; initials: string; valor: number };
 type CompanyRow = { id: string; name: string; itens: number; valor: number; status: string; tone: "success" | "warning" | "destructive" };
 type AlertRow = { id: string; kind: string; title: string; meta: string; time: string; tone: "amber" | "muted" };
+type FunnelStep = { key: string; count: number; valor: number };
+type Metrics = {
+  autoPct: number | null;
+  autoLabel: string;
+  valorRisco: number;
+  lotesCriticos: number;
+  riscoPctDoTotal: number | null;
+  deltaPct: number | null;
+  cicloDias: number | null;
+  cicloDeltaDias: number | null;
+  itensAprovPct: number | null;
+  itensAprovTexto: string;
+  glosasTotal: number;
+  glosasCount: number;
+  funil: Record<"validacao" | "em_analise" | "aprovacao_dir" | "pos_nf" | "pago", FunnelStep>;
+};
 
 const STATUS_TONE: Record<string, { label: string; tone: "success" | "warning" | "destructive" }> = {
   pago: { label: "Pago", tone: "success" },
@@ -281,6 +297,7 @@ export default function BiDiretoria() {
   const [analysts, setAnalysts] = useState<AnalystRow[]>([]);
   const [topCompanies, setTopCompanies] = useState<CompanyRow[]>([]);
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   const now = new Date();
   const competenciaLabel = `${MONTHS_PT_FULL[now.getMonth()]} ${now.getFullYear()}`;
@@ -440,6 +457,7 @@ export default function BiDiretoria() {
         .select("id, validation_findings, sector, company_name, created_at")
         .in("payment_id", ids)
         .not("validation_findings", "is", null)
+        .neq("validation_findings", "[]")
         .order("created_at", { ascending: false })
         .limit(500);
       const out: AlertRow[] = [];
@@ -470,7 +488,6 @@ export default function BiDiretoria() {
     };
   }, [inPeriod]);
 
-
   const totalEmAprovacao = useMemo(
     () =>
       inPeriod
@@ -495,6 +512,146 @@ export default function BiDiretoria() {
   const totalLotes = inPeriod.length || 1;
   const taxaAprov = Math.round((lotesEncerrados / totalLotes) * 100);
 
+  // ---- Métricas reais (KPIs / funil / lote crítico / glosas) ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (inPeriod.length === 0) {
+        if (!cancelled) setMetrics(null);
+        return;
+      }
+      const ids = inPeriod.map((p) => p.id);
+
+      // Comparação com período anterior (mesmo comprimento)
+      const prevSince = new Date(periodFloor);
+      prevSince.setMonth(prevSince.getMonth() - monthsBack);
+      const prevUntil = new Date(periodFloor);
+      const { data: prevPays } = await (supabase as any)
+        .from("payments")
+        .select("liquido_total, total_amount, status")
+        .gte("created_at", prevSince.toISOString())
+        .lt("created_at", prevUntil.toISOString())
+        .not("status", "in", '("cancelado","rascunho")');
+      const prevTotal = (prevPays ?? [])
+        .filter((p: any) =>
+          ["em_analise_ia", "revisao_analista", "aguardando_validacao", "aguardando_aprovacao", "devolvido_analista"].includes(p.status),
+        )
+        .reduce((a: number, p: any) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
+      const deltaPct = prevTotal > 0 ? ((totalEmAprovacao - prevTotal) / prevTotal) * 100 : null;
+
+      // Valor em risco: lotes precisam de intervenção humana ou têm bloqueio
+      const RISCO = ["devolvido_analista", "rejeitado", "nf_questionada", "revisao_analista"];
+      const valorRisco = inPeriod
+        .filter((p) => RISCO.includes(p.status))
+        .reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
+      const lotesCriticos = inPeriod.filter((p) => RISCO.includes(p.status)).length;
+      const totalLiquido = inPeriod.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
+      const riscoPctDoTotal = totalLiquido > 0 ? (valorRisco / totalLiquido) * 100 : null;
+
+      // Aprovação automática (Motor de Regras): lotes que NÃO passaram por
+      // devolvido_analista no histórico de status
+      const { data: history } = await (supabase as any)
+        .from("payment_status_history")
+        .select("payment_id, new_status")
+        .in("payment_id", ids)
+        .in("new_status", ["devolvido_analista", "revisao_analista"]);
+      const touched = new Set((history ?? []).map((r: any) => r.payment_id));
+      const finalizados = inPeriod.filter((p) =>
+        ["pago", "aprovado", "nf_recebida", "nf_conciliada", "aguardando_validacao", "aguardando_aprovacao"].includes(p.status),
+      );
+      const auto = finalizados.filter((p) => !touched.has(p.id)).length;
+      const autoPct = finalizados.length > 0 ? Math.round((auto / finalizados.length) * 100) : null;
+
+      // Ciclo médio: created_at → approved_at nos lotes aprovados/pagos do período
+      const { data: cycleRows } = await supabase
+        .from("payments")
+        .select("created_at, approved_at, status")
+        .in("id", ids)
+        .not("approved_at", "is", null);
+      const durs = (cycleRows ?? []).map(
+        (r: any) => (new Date(r.approved_at).getTime() - new Date(r.created_at).getTime()) / 86_400_000,
+      );
+      const cicloDias = durs.length > 0 ? durs.reduce((a, b) => a + b, 0) / durs.length : null;
+
+      // Ciclo período anterior (para delta)
+      const { data: prevCycle } = await supabase
+        .from("payments")
+        .select("created_at, approved_at")
+        .gte("created_at", prevSince.toISOString())
+        .lt("created_at", prevUntil.toISOString())
+        .not("approved_at", "is", null);
+      const prevDurs = (prevCycle ?? []).map(
+        (r: any) => (new Date(r.approved_at).getTime() - new Date(r.created_at).getTime()) / 86_400_000,
+      );
+      const prevCiclo = prevDurs.length > 0 ? prevDurs.reduce((a, b) => a + b, 0) / prevDurs.length : null;
+      const cicloDeltaDias = cicloDias !== null && prevCiclo !== null ? prevCiclo - cicloDias : null;
+
+      // Itens aprovados: último lote encerrado do período
+      const ultimo = [...finalizados].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )[0];
+      let itensAprovPct: number | null = null;
+      let itensAprovTexto = "";
+      if (ultimo) {
+        const { data: itens } = await supabase
+          .from("payment_items")
+          .select("is_cancelled")
+          .eq("payment_id", ultimo.id);
+        const total = itens?.length ?? 0;
+        const aprov = (itens ?? []).filter((i: any) => !i.is_cancelled).length;
+        if (total > 0) {
+          itensAprovPct = (aprov / total) * 100;
+          itensAprovTexto = `${aprov} de ${total} itens · último lote`;
+        }
+      }
+
+      // Glosas registradas no período
+      const { data: glosas } = await supabase
+        .from("glosa_debts")
+        .select("total_debt")
+        .gte("created_at", periodFloor.toISOString());
+      const glosasTotal = (glosas ?? []).reduce((a: number, g: any) => a + Number(g.total_debt ?? 0), 0);
+      const glosasCount = glosas?.length ?? 0;
+
+      // Funil de aprovação (valor por etapa)
+      const bucket = (statuses: string[]) => {
+        const rows = inPeriod.filter((p) => statuses.includes(p.status));
+        return {
+          key: statuses[0],
+          count: rows.length,
+          valor: rows.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0),
+        };
+      };
+      const funil = {
+        validacao: bucket(["aguardando_validacao"]),
+        em_analise: bucket(["em_analise_ia", "revisao_analista", "devolvido_analista"]),
+        aprovacao_dir: bucket(["aguardando_aprovacao"]),
+        pos_nf: bucket(["aprovado", "aprovado_em_revisao", "nf_recebida", "nf_conciliada"]),
+        pago: bucket(["pago"]),
+      };
+
+      if (cancelled) return;
+      setMetrics({
+        autoPct,
+        autoLabel: autoPct === null ? "—" : `${autoPct}%`,
+        valorRisco,
+        lotesCriticos,
+        riscoPctDoTotal,
+        deltaPct,
+        cicloDias,
+        cicloDeltaDias,
+        itensAprovPct,
+        itensAprovTexto,
+        glosasTotal,
+        glosasCount,
+        funil,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inPeriod, periodFloor, monthsBack, totalEmAprovacao]);
+
   // Fallback estático quando ainda carregando ou base vazia (mantém o visual do mockup)
   const useFallback = loading || inPeriod.length === 0;
   const display = useFallback
@@ -517,9 +674,9 @@ export default function BiDiretoria() {
         pago: pagoNoMes,
         encerrados: lotesEncerrados,
         taxa: taxaAprov,
-        autoPct: 87,
-        valorRisco: 7619,
-        deltaPct: 8.2,
+        autoPct: metrics?.autoPct ?? 0,
+        valorRisco: metrics?.valorRisco ?? 0,
+        deltaPct: metrics?.deltaPct ?? 0,
         spark: monthly.map((m) => m.valor),
       };
 
@@ -557,13 +714,32 @@ export default function BiDiretoria() {
       <div className="rounded-2xl bg-card border border-border px-5 sm:px-8 py-5 sm:py-6 shadow-sm">
         <p className="text-center text-[14px] sm:text-[15px] leading-relaxed text-foreground">
           Em {MONTHS_PT_FULL[now.getMonth()].toLowerCase()},{" "}
-          <strong className="font-semibold">{fmtMi(display.totalAprov)}</strong> passaram pelo Exacta —{" "}
-          <span className="text-primary font-medium">{display.autoPct}% aprovados automaticamente pela IA</span>. Ciclo médio de{" "}
-          <strong className="font-semibold">1,8 dia</strong>, o{" "}
-          <span className="text-success font-medium">mais rápido do trimestre</span>.{" "}
-          <span className="text-destructive font-medium">{fmtFull(display.valorRisco)} em risco</span> aguardam revisão manual.
+          <strong className="font-semibold">{fmtMi(display.totalAprov)}</strong> passaram pelo Exacta
+          {metrics?.autoPct !== null && metrics?.autoPct !== undefined ? (
+            <>
+              {" "}—{" "}
+              <span className="text-primary font-medium">
+                {metrics.autoPct}% aprovados automaticamente pelo Motor de Regras
+              </span>
+            </>
+          ) : null}
+          {metrics?.cicloDias !== null && metrics?.cicloDias !== undefined ? (
+            <>
+              . Ciclo médio de{" "}
+              <strong className="font-semibold">
+                {metrics.cicloDias.toFixed(1).replace(".", ",")} {metrics.cicloDias >= 2 ? "dias" : "dia"}
+              </strong>
+            </>
+          ) : null}
+          .{" "}
+          {metrics && metrics.valorRisco > 0 ? (
+            <span className="text-destructive font-medium">
+              {fmtFull(metrics.valorRisco)} em risco aguardam revisão manual.
+            </span>
+          ) : null}
         </p>
       </div>
+
 
       {/* ===== Hero grid: card azul + donut IA ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -588,9 +764,12 @@ export default function BiDiretoria() {
                 {display.lotesAtivos} lotes ativos · {display.periodoLabel}
               </div>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold backdrop-blur-sm whitespace-nowrap">
-              <TrendingUp className="h-3.5 w-3.5" />+{display.deltaPct}% vs período anterior
-            </span>
+            {metrics?.deltaPct !== null && metrics?.deltaPct !== undefined ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold backdrop-blur-sm whitespace-nowrap">
+                <TrendingUp className="h-3.5 w-3.5" />
+                {metrics.deltaPct >= 0 ? "+" : ""}{metrics.deltaPct.toFixed(1).replace(".", ",")}% vs período anterior
+              </span>
+            ) : null}
           </div>
 
           {/* mini-tiles */}
@@ -636,7 +815,7 @@ export default function BiDiretoria() {
         <div className="lg:col-span-4 flex flex-col gap-4">
           <div className="rounded-2xl bg-card border border-border p-6 shadow-sm flex flex-col items-center">
             <div className="w-full text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">
-              Aprovação automática · IA
+              Aprovação automática · Motor de Regras
             </div>
             <div className="my-4">
               <Donut pct={display.autoPct} />
@@ -645,7 +824,7 @@ export default function BiDiretoria() {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                  Automático (IA)
+                  Automático (Motor de Regras)
                 </span>
                 <span className="font-semibold tabular-nums">{display.autoPct}%</span>
               </div>
@@ -659,95 +838,141 @@ export default function BiDiretoria() {
             </div>
           </div>
 
-          <Link
-            to="/pagamentos?filter=risco"
-            className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 flex items-center gap-3 hover:bg-destructive/15 transition-colors"
-          >
-            <div className="h-10 w-10 rounded-xl bg-destructive/15 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+          {metrics && metrics.lotesCriticos > 0 ? (
+            <Link
+              to="/pagamentos?filter=risco"
+              className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 flex items-center gap-3 hover:bg-destructive/15 transition-colors"
+            >
+              <div className="h-10 w-10 rounded-xl bg-destructive/15 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-destructive">
+                  {metrics.lotesCriticos} {metrics.lotesCriticos === 1 ? "lote crítico" : "lotes críticos"}
+                </div>
+                <div className="text-xs text-destructive/80 mt-0.5">
+                  {fmtFull(metrics.valorRisco)} aguardando revisão
+                </div>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-destructive text-destructive-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
+                Urgente
+              </span>
+            </Link>
+          ) : (
+            <div className="rounded-2xl border border-success/30 bg-success/10 p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-success/15 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-5 w-5 text-success" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-success">Nenhum lote em risco</div>
+                <div className="text-xs text-success/80 mt-0.5">Fluxo em dia neste período</div>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-destructive">1 lote crítico</div>
-              <div className="text-xs text-destructive/80 mt-0.5">{fmtFull(display.valorRisco)} aguardando revisão</div>
-            </div>
-            <span className="inline-flex items-center rounded-full bg-destructive text-destructive-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
-              Urgente
-            </span>
-          </Link>
+          )}
         </div>
       </div>
+
 
       {/* ===== Linha de 4 KPIs ===== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Valor em risco */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Valor em risco</div>
-          <div className="mt-3 text-4xl font-light tracking-tight text-destructive tabular-nums">{fmtFull(display.valorRisco)}</div>
-          <div className="mt-4 flex items-end gap-1 h-8">
-            {[40, 55, 50, 70, 95, 45].map((h, i) => (
-              <div
-                key={i}
-                className="flex-1 rounded-sm"
-                style={{
-                  height: `${h}%`,
-                  background: i === 4 ? "hsl(var(--destructive))" : "hsl(var(--destructive) / 0.35)",
-                }}
-              />
-            ))}
+          <div className="mt-3 text-4xl font-light tracking-tight text-destructive tabular-nums">
+            {fmtFull(metrics?.valorRisco ?? 0)}
           </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">1,7%</span> do total ·{" "}
-            <span className="font-semibold text-foreground">1 lote crítico</span>
+          <div className="mt-4 text-xs text-muted-foreground min-h-[1.25rem]">
+            {metrics && metrics.riscoPctDoTotal !== null ? (
+              <>
+                <span className="font-semibold text-foreground">
+                  {metrics.riscoPctDoTotal.toFixed(1).replace(".", ",")}%
+                </span>{" "}
+                do total ·{" "}
+                <span className="font-semibold text-foreground">
+                  {metrics.lotesCriticos} {metrics.lotesCriticos === 1 ? "lote crítico" : "lotes críticos"}
+                </span>
+              </>
+            ) : (
+              "Sem dados no período"
+            )}
           </div>
         </div>
 
         {/* Ciclo médio */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Ciclo médio</div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-4xl font-light tracking-tight text-foreground tabular-nums">1,8</span>
-            <span className="text-base text-muted-foreground">dia</span>
-          </div>
-          <div className="mt-4">
-            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
-              <TrendingUp className="h-3 w-3" /> 0,4d mais rápido
-            </span>
-          </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            Da validação ao <span className="font-semibold text-foreground">pagamento</span>
-          </div>
+          {metrics?.cicloDias !== null && metrics?.cicloDias !== undefined ? (
+            <>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-4xl font-light tracking-tight text-foreground tabular-nums">
+                  {metrics.cicloDias.toFixed(1).replace(".", ",")}
+                </span>
+                <span className="text-base text-muted-foreground">
+                  {metrics.cicloDias >= 2 ? "dias" : "dia"}
+                </span>
+              </div>
+              {metrics.cicloDeltaDias !== null && metrics.cicloDeltaDias !== undefined ? (
+                <div className="mt-4">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                      metrics.cicloDeltaDias >= 0
+                        ? "bg-success/15 text-success"
+                        : "bg-destructive/15 text-destructive"
+                    }`}
+                  >
+                    <TrendingUp className="h-3 w-3" />
+                    {Math.abs(metrics.cicloDeltaDias).toFixed(1).replace(".", ",")}d{" "}
+                    {metrics.cicloDeltaDias >= 0 ? "mais rápido" : "mais lento"}
+                  </span>
+                </div>
+              ) : null}
+              <div className="mt-3 text-xs text-muted-foreground">
+                Da criação à <span className="font-semibold text-foreground">aprovação</span>
+              </div>
+            </>
+          ) : (
+            <div className="mt-3 text-sm text-muted-foreground">Sem lotes aprovados no período</div>
+          )}
         </div>
 
         {/* Itens aprovados */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Itens aprovados</div>
-          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">95,5%</div>
-          <div className="mt-4 flex items-center gap-1.5 h-6">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex-1 h-full rounded"
-                style={{ background: i === 5 ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.15)" }}
-              />
-            ))}
-          </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">21 de 22</span> itens · último lote
-          </div>
+          {metrics?.itensAprovPct !== null && metrics?.itensAprovPct !== undefined ? (
+            <>
+              <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">
+                {metrics.itensAprovPct.toFixed(1).replace(".", ",")}%
+              </div>
+              <div className="mt-3 text-xs text-muted-foreground">{metrics.itensAprovTexto}</div>
+            </>
+          ) : (
+            <div className="mt-3 text-sm text-muted-foreground">Sem itens no período</div>
+          )}
         </div>
 
         {/* Glosas */}
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Glosas registradas</div>
-          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">R$ 0</div>
-          <div className="mt-4">
-            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
-              Zero glosas
-            </span>
+          <div className="mt-3 text-4xl font-light tracking-tight text-foreground tabular-nums">
+            {fmtFull(metrics?.glosasTotal ?? 0)}
           </div>
-          <div className="mt-3 text-xs text-muted-foreground">0 divergências de conciliação neste mês</div>
+          <div className="mt-4">
+            {metrics && metrics.glosasCount === 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2.5 py-1 text-xs font-medium">
+                Zero glosas
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 text-warning px-2.5 py-1 text-xs font-medium">
+                {metrics?.glosasCount ?? 0} {metrics?.glosasCount === 1 ? "glosa" : "glosas"}
+              </span>
+            )}
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            {metrics?.glosasCount ?? 0} divergências de conciliação neste período
+          </div>
         </div>
       </div>
+
 
       {/* ===== Funil de aprovação ===== */}
       <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
@@ -763,13 +988,20 @@ export default function BiDiretoria() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-stretch">
-          {[
-            { label: "Validação", count: 1, valor: "R$ 431.478", pct: 25, tone: "info" },
-            { label: "Em análise", count: 2, valor: "R$ 612.040", pct: 50, tone: "info" },
-            { label: "Aprovação dir.", count: 3, valor: "R$ 874.314", pct: 70, tone: "info" },
-            { label: "Pós-aprov. NF", count: 0, valor: "aguardando", pct: 10, tone: "muted" },
-            { label: "Pago", count: "R$ 1,2mi", valor: `${display.encerrados} lotes no mês`, pct: 100, tone: "success" },
-          ].map((step, i, arr) => {
+          {(() => {
+            const f = metrics?.funil;
+            const maxValor = f
+              ? Math.max(f.validacao.valor, f.em_analise.valor, f.aprovacao_dir.valor, f.pos_nf.valor, f.pago.valor, 1)
+              : 1;
+            const pctOf = (v: number) => (maxValor > 0 ? Math.max(4, Math.round((v / maxValor) * 100)) : 0);
+            return [
+              { label: "Validação", count: f?.validacao.count ?? 0, valor: fmtFull(f?.validacao.valor ?? 0), pct: pctOf(f?.validacao.valor ?? 0), tone: "info" },
+              { label: "Em análise", count: f?.em_analise.count ?? 0, valor: fmtFull(f?.em_analise.valor ?? 0), pct: pctOf(f?.em_analise.valor ?? 0), tone: "info" },
+              { label: "Aprovação dir.", count: f?.aprovacao_dir.count ?? 0, valor: fmtFull(f?.aprovacao_dir.valor ?? 0), pct: pctOf(f?.aprovacao_dir.valor ?? 0), tone: "info" },
+              { label: "Pós-aprov. NF", count: f?.pos_nf.count ?? 0, valor: fmtFull(f?.pos_nf.valor ?? 0), pct: pctOf(f?.pos_nf.valor ?? 0), tone: (f?.pos_nf.count ?? 0) === 0 ? "muted" : "info" },
+              { label: "Pago", count: f?.pago.count ?? 0, valor: fmtFull(f?.pago.valor ?? 0), pct: 100, tone: "success" },
+            ];
+          })().map((step, i, arr) => {
             const isPago = step.tone === "success";
             const isMuted = step.tone === "muted";
             const accent = isPago
