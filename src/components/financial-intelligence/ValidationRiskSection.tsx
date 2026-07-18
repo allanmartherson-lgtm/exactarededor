@@ -447,6 +447,156 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
           </div>
         </div>
       )}
+
+      {data.byCompany.length > 0 && (
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Building2 size={14} className="text-muted-foreground" />
+            <h3 className="text-sm font-semibold tracking-tight">Top 5 empresas com alertas</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+            {data.byCompany.map((c) => (
+              <div
+                key={c.company_name}
+                className="rounded-lg border p-3 min-w-0"
+                style={{ borderColor: "hsl(var(--border))" }}
+              >
+                <div
+                  className="text-xs font-medium truncate"
+                  title={c.company_name}
+                  style={{ color: "hsl(var(--foreground))" }}
+                >
+                  {c.company_name}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {c.alertas} alerta{c.alertas !== 1 ? "s" : ""}
+                </div>
+                <div
+                  className="text-sm font-semibold tabular-nums mt-1"
+                  style={{ color: "hsl(var(--accent))" }}
+                >
+                  {formatCurrency(c.valor)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.items.length > 0 && (
+        <div className="rounded-xl border bg-card">
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-muted/40 transition-colors rounded-xl"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {detailsOpen ? (
+                <ChevronDown size={16} className="text-muted-foreground" />
+              ) : (
+                <ChevronRight size={16} className="text-muted-foreground" />
+              )}
+              <ListFilter size={14} className="text-muted-foreground" />
+              <h3 className="text-sm font-semibold tracking-tight">
+                Detalhes dos alertas
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                ({data.items.length.toLocaleString("pt-BR")} itens)
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {detailsOpen ? "Ocultar" : "Expandir"}
+            </span>
+          </button>
+          {detailsOpen && (
+            <div className="border-t" style={{ borderColor: "hsl(var(--border))" }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b" style={{ borderColor: "hsl(var(--border))" }}>
+                      <th className="px-4 py-2 font-medium">Lote</th>
+                      <th className="px-4 py-2 font-medium">Empresa</th>
+                      <th className="px-4 py-2 font-medium">Médico</th>
+                      <th className="px-4 py-2 font-medium">Procedimento</th>
+                      <th className="px-4 py-2 font-medium text-right">Valor bruto</th>
+                      <th className="px-4 py-2 font-medium text-right">Divergência</th>
+                      <th className="px-4 py-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.slice(0, 20).map((it, idx) => (
+                      <tr
+                        key={it.id}
+                        className="border-b last:border-b-0"
+                        style={{
+                          borderColor: "hsl(var(--border))",
+                          background: idx % 2 === 0 ? "transparent" : "hsl(var(--muted) / 0.3)",
+                        }}
+                      >
+                        <td className="px-4 py-2">
+                          {it.payment_id ? (
+                            <Link
+                              to={`/pagamentos/${it.payment_id}`}
+                              className="hover:underline font-medium"
+                              style={{ color: "hsl(var(--accent))" }}
+                            >
+                              {it.payment_ref}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">{it.payment_ref}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 max-w-[180px] truncate" title={it.company_name}>
+                          {it.company_name}
+                        </td>
+                        <td className="px-4 py-2 max-w-[180px] truncate" title={it.doctor_name}>
+                          {it.doctor_name}
+                        </td>
+                        <td className="px-4 py-2 max-w-[220px] truncate" title={`${it.procedure_name} — ${it.rule_names.join(", ")}`}>
+                          {it.procedure_name}
+                        </td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(it.gross)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">
+                          {it.divergPct == null ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span
+                              style={{
+                                color:
+                                  Math.abs(it.divergPct) > 10
+                                    ? "hsl(var(--accent))"
+                                    : "hsl(var(--muted-foreground))",
+                                fontWeight: Math.abs(it.divergPct) > 10 ? 600 : 400,
+                              }}
+                            >
+                              {it.divergPct > 0 ? "+" : ""}
+                              {it.divergPct.toFixed(1)}%
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="text-[11px] text-muted-foreground capitalize">
+                            {it.ai_status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {data.items.length > 20 && (
+                <div
+                  className="px-4 py-3 text-xs text-muted-foreground text-center border-t"
+                  style={{ borderColor: "hsl(var(--border))" }}
+                >
+                  Exibindo os 20 alertas com maior divergência de {data.items.length.toLocaleString("pt-BR")} — abra cada lote para ver os demais.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
+
