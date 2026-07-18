@@ -105,7 +105,9 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
       if (track === "habitual" || track === "prioritario") pq = pq.eq("payment_track", track);
       else if (track === "nao_classificado") pq = pq.is("payment_track", null);
 
-      const { data } = await pq;
+      // Sem .range() o PostgREST corta em 1000 linhas — com 12 meses de lotes
+      // isso zerava competências inteiras no Termômetro/gráfico principal.
+      const { data } = await pq.range(0, 49999);
       if (cancelled) return;
       setPayments((data as unknown as PaymentRow[]) ?? []);
     })();
