@@ -1,6 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldAlert, ArrowRight, AlertTriangle, DollarSign, Layers, CheckCircle2 } from "lucide-react";
+import {
+  ShieldAlert,
+  ArrowRight,
+  AlertTriangle,
+  DollarSign,
+  Layers,
+  CheckCircle2,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  ListFilter,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
@@ -12,6 +23,26 @@ type RuleAgg = {
   acatados: number;
   lotes: Set<string>;
 };
+
+type ItemDetail = {
+  id: string;
+  payment_id: string;
+  payment_ref: string;
+  company_name: string;
+  doctor_name: string;
+  procedure_name: string;
+  gross: number;
+  divergPct: number | null;
+  ai_status: string;
+  rule_names: string[];
+};
+
+type CompanyAgg = {
+  company_name: string;
+  alertas: number;
+  valor: number;
+};
+
 
 type Totals = {
   alertas: number;
