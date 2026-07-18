@@ -50,20 +50,31 @@ type Totals = {
   acatados: number;
   lotes: number;
   byRule: Map<string, RuleAgg>;
+  items: ItemDetail[];
+  byCompany: CompanyAgg[];
 };
 
-const EMPTY: Totals = { alertas: 0, valor: 0, acatados: 0, lotes: 0, byRule: new Map() };
+const EMPTY: Totals = {
+  alertas: 0,
+  valor: 0,
+  acatados: 0,
+  lotes: 0,
+  byRule: new Map(),
+  items: [],
+  byCompany: [],
+};
 
 export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterValue } = {}) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Totals>(EMPTY);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     (async () => {
       const baseSelect =
-        "id, gross_amount, expected_amount, payment_id, validation_findings, ai_status, payments!inner(payment_track)";
+        "id, gross_amount, expected_amount, payment_id, validation_findings, ai_status, company_name, doctor_name, procedure_name, procedure_code, payments!inner(payment_track, reference, title)";
 
       let qFindings = supabase
         .from("payment_items")
@@ -91,10 +102,51 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
       let totalAlertas = 0;
       let totalValor = 0;
       let totalAcatados = 0;
-      // dedupe do valor total por item (para não contar 2x quando aparece em várias fontes)
       const valuedItems = new Set<string>();
+      const itemMap = new Map<string, ItemDetail>();
 
-      const bump = (key: string, ruleName: string, item: { id: string; gross_amount: number | null; payment_id?: string; ai_status?: string }) => {
+      type Row = {
+        id: string;
+        gross_amount: number | null;
+        expected_amount: number | null;
+        payment_id?: string;
+        validation_findings?: unknown;
+        ai_status?: string;
+        company_name?: string | null;
+        doctor_name?: string | null;
+        procedure_name?: string | null;
+        procedure_code?: string | null;
+        payments?: { payment_track?: string | null; reference?: string | null; title?: string | null } | null;
+      };
+
+      const paymentRefFrom = (it: Row) =>
+        it.payments?.reference || it.payments?.title || "Sem referência";
+
+      const registerItem = (it: Row, ruleName: string) => {
+        const exp = Number(it.expected_amount ?? 0);
+        const gross = Number(it.gross_amount ?? 0);
+        const divergPct = exp > 0 ? ((gross - exp) / exp) * 100 : null;
+        const cur = itemMap.get(it.id);
+        if (cur) {
+          if (!cur.rule_names.includes(ruleName)) cur.rule_names.push(ruleName);
+          return;
+        }
+        itemMap.set(it.id, {
+          id: it.id,
+          payment_id: it.payment_id ?? "",
+          payment_ref: paymentRefFrom(it),
+          company_name: it.company_name?.trim() || "— Sem PJ —",
+          doctor_name: it.doctor_name?.trim() || "—",
+          procedure_name:
+            it.procedure_name?.trim() || (it.procedure_code ? `TUSS ${it.procedure_code}` : "—"),
+          gross,
+          divergPct,
+          ai_status: it.ai_status || "—",
+          rule_names: [ruleName],
+        });
+      };
+
+      const bump = (key: string, ruleName: string, item: Row) => {
         const cur = byRule.get(key) ?? {
           rule_name: ruleName,
           alertas: 0,
@@ -115,15 +167,7 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
           totalValor += v;
           valuedItems.add(item.id);
         }
-      };
-
-      type Row = {
-        id: string;
-        gross_amount: number | null;
-        expected_amount: number | null;
-        payment_id?: string;
-        validation_findings?: unknown;
-        ai_status?: string;
+        registerItem(item, ruleName);
       };
 
       // Fonte 1: validation_findings
@@ -154,12 +198,38 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
         bump("__divergencia_valor", "Divergência de valor > 10%", it);
       }
 
+      // Ordenar itens por magnitude da divergência (desc) e, fallback, por valor bruto
+      const items = Array.from(itemMap.values()).sort((a, b) => {
+        const ad = a.divergPct == null ? -1 : Math.abs(a.divergPct);
+        const bd = b.divergPct == null ? -1 : Math.abs(b.divergPct);
+        if (bd !== ad) return bd - ad;
+        return b.gross - a.gross;
+      });
+
+      // Breakdown por empresa
+      const companyMap = new Map<string, CompanyAgg>();
+      for (const it of items) {
+        const cur = companyMap.get(it.company_name) ?? {
+          company_name: it.company_name,
+          alertas: 0,
+          valor: 0,
+        };
+        cur.alertas += 1;
+        cur.valor += it.gross;
+        companyMap.set(it.company_name, cur);
+      }
+      const byCompany = Array.from(companyMap.values())
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 5);
+
       setData({
         alertas: totalAlertas,
         valor: totalValor,
         acatados: totalAcatados,
         lotes: allLotes.size,
         byRule,
+        items,
+        byCompany,
       });
       setLoading(false);
     })();
@@ -167,6 +237,8 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
       cancelled = true;
     };
   }, [track]);
+
+
 
   if (loading) {
     return (
