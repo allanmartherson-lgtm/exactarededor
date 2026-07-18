@@ -297,6 +297,7 @@ export default function BiDiretoria() {
   const [analysts, setAnalysts] = useState<AnalystRow[]>([]);
   const [topCompanies, setTopCompanies] = useState<CompanyRow[]>([]);
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   const now = new Date();
   const competenciaLabel = `${MONTHS_PT_FULL[now.getMonth()]} ${now.getFullYear()}`;
