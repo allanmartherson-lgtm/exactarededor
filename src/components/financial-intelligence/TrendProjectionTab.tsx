@@ -745,20 +745,17 @@ const GroupDetailSheet = ({
 
       let q = supabase
         .from("payment_items")
-        .select("doctor_name,gross_amount,specialty,company_name,payment_track")
+        .select("doctor_name,gross_amount,specialty,company_name")
         .gte("competence_month", startDate)
         .lt("competence_month", endDate);
 
       if (grouping === "especialidade") q = q.eq("specialty", group);
       else q = q.eq("company_name", group);
 
-      if (track === "habitual" || track === "prioritario") q = q.eq("payment_track", track);
-      else if (track === "nao_classificado") q = q.is("payment_track", null);
-
       const { data } = await q.limit(5000);
       if (cancelled) return;
       const agg = new Map<string, number>();
-      for (const it of (data ?? []) as Array<{ doctor_name: string | null; gross_amount: number | null }>) {
+      for (const it of (data ?? []) as unknown as Array<{ doctor_name: string | null; gross_amount: number | null }>) {
         const name = it.doctor_name?.trim() || "(sem médico)";
         agg.set(name, (agg.get(name) ?? 0) + Number(it.gross_amount ?? 0));
       }
