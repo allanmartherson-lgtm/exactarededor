@@ -12247,6 +12247,17 @@ export type Database = {
         Args: { p_doctor_id: string; p_limit?: number }
         Returns: Json
       }
+      get_doctor_concentration: {
+        Args: { p_months_back?: number; p_track?: string }
+        Returns: {
+          amount: number
+          doctor_name: string
+          payment_id: string
+          pct: number
+          reference: string
+          total_lote: number
+        }[]
+      }
       get_doctor_debt_summary: { Args: { p_doctor_id: string }; Returns: Json }
       get_doctor_glosas: {
         Args: {
