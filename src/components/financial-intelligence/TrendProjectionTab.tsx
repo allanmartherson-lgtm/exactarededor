@@ -141,22 +141,41 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
           .slice(0, 10);
         // Sem .range() o PostgREST corta em 1000 linhas — com 12 meses × N empresas
         // isso trunca grupos inteiros (bug: FISIO STAR aparecia com Fev/Abr zerados).
-        const rpcBuilder = supabase.rpc("get_spend_trend", {
-          p_current_month: current,
-          p_months_back: 12,
-          p_grouping: grouping,
-          p_track: toRpcTrack(track),
-        } as never) as unknown as {
-          range: (a: number, b: number) => Promise<{ data: TrendRow[] | null; error: { message: string } | null }>;
-        };
-        const { data, error } = await rpcBuilder.range(0, 49999);
+        // Paginação client-side em blocos de 1000 — teto server-side do PostgREST
+        // não é sobrescrito por .range() alto no client. Sem isso, empresas do meio
+        // do resultado perdiam meses (FISIO STAR Fev/Abr zerados).
+        const PAGE = 1000;
+        const all: TrendRow[] = [];
+        let offset = 0;
+        let rpcError: { message: string } | null = null;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const rpcBuilder = supabase.rpc("get_spend_trend", {
+            p_current_month: current,
+            p_months_back: 12,
+            p_grouping: grouping,
+            p_track: toRpcTrack(track),
+          } as never) as unknown as {
+            range: (a: number, b: number) => Promise<{ data: TrendRow[] | null; error: { message: string } | null }>;
+          };
+          const { data, error } = await rpcBuilder.range(offset, offset + PAGE - 1);
+          if (error) {
+            rpcError = error;
+            break;
+          }
+          const batch = (data as TrendRow[]) ?? [];
+          all.push(...batch);
+          if (batch.length < PAGE) break;
+          offset += PAGE;
+        }
         if (cancelled) return;
-        if (error) {
-          setTrendError(error.message);
+        if (rpcError) {
+          setTrendError(rpcError.message);
           setTrendRows([]);
           return;
         }
-        const rows = ((data as TrendRow[]) ?? []).map((r) => ({
+        const rows = all.map((r) => ({
+
           ...r,
           group_key:
             r.group_key && r.group_key.trim()
