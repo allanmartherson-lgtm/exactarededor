@@ -891,36 +891,43 @@ export default function BiDiretoria() {
             <div className="col-span-2 text-right">Valor líq.</div>
             <div className="col-span-2 text-right">Status</div>
           </div>
-          {[
-            { name: "Cirurgia Cardíaca SA", itens: 142, valor: "R$ 412.880", pct: 90, status: "Aprovado", tone: "success" },
-            { name: "Ortopedia Avançada", itens: 98, valor: "R$ 284.320", pct: 65, status: "Aprovado", tone: "success" },
-            { name: "Hemodinâmica DF", itens: 74, valor: "R$ 215.400", pct: 48, status: "Em análise", tone: "warning" },
-            { name: "Oncologia Central", itens: 56, valor: "R$ 162.960", pct: 35, status: "Aprovado", tone: "success" },
-            { name: "UTI Neonatal Esp.", itens: 57, valor: "R$ 7.619", pct: 2, status: "Risco", tone: "destructive" },
-          ].map((row) => {
-            const toneClass =
-              row.tone === "success"
-                ? "bg-success/15 text-success"
-                : row.tone === "warning"
-                ? "bg-amber-500/15 text-amber-600"
-                : "bg-destructive/15 text-destructive";
-            return (
-              <div key={row.name} className="grid grid-cols-12 gap-2 items-center py-3 border-b border-border last:border-0 text-sm">
-                <div className="col-span-4 text-foreground">{row.name}</div>
-                <div className="col-span-1 text-right text-foreground tabular-nums">{row.itens}</div>
-                <div className="col-span-3">
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${row.pct}%` }} />
+          {topCompanies.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-8 text-center">
+              Sem empresas com itens processados no período.
+            </div>
+          ) : (
+            (() => {
+              const maxValor = Math.max(...topCompanies.map((r) => r.valor), 1);
+              return topCompanies.map((row) => {
+                const pct = Math.round((row.valor / maxValor) * 100);
+                const toneClass =
+                  row.tone === "success"
+                    ? "bg-success/15 text-success"
+                    : row.tone === "warning"
+                    ? "bg-amber-500/15 text-amber-600"
+                    : "bg-destructive/15 text-destructive";
+                return (
+                  <div key={row.id} className="grid grid-cols-12 gap-2 items-center py-3 border-b border-border last:border-0 text-sm">
+                    <div className="col-span-4 text-foreground truncate" title={row.name}>{row.name}</div>
+                    <div className="col-span-1 text-right text-foreground tabular-nums">{row.itens}</div>
+                    <div className="col-span-3">
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-right text-foreground tabular-nums">
+                      {row.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="col-span-2 text-right">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>{row.status}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="col-span-2 text-right text-foreground tabular-nums">{row.valor}</div>
-                <div className="col-span-2 text-right">
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>{row.status}</span>
-                </div>
-              </div>
-            );
-          })}
+                );
+              });
+            })()
+          )}
         </div>
+
 
         <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
