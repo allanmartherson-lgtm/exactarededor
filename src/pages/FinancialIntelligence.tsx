@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { TrendingUp } from "lucide-react";
-import { LossTrendTab } from "@/components/financial-intelligence/LossTrendTab";
-import { ProjectionTab } from "@/components/financial-intelligence/ProjectionTab";
+import { TrendProjectionTab } from "@/components/financial-intelligence/TrendProjectionTab";
 import { DoctorConcentrationTab } from "@/components/financial-intelligence/DoctorConcentrationTab";
 import { ValidationRiskSection } from "@/components/financial-intelligence/ValidationRiskSection";
 import {
