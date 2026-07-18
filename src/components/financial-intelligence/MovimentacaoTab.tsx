@@ -104,25 +104,36 @@ export const MovimentacaoTab = ({ track = "all" }: { track?: TrackFilterValue } 
         const current = new Date(today.getFullYear(), today.getMonth(), 1)
           .toISOString()
           .slice(0, 10);
-        const rpcBuilder = supabase.rpc("get_spend_trend", {
-          p_current_month: current,
-          p_months_back: 8,
-          p_grouping: grouping,
-          p_track: toRpcTrack(track),
-        } as never) as unknown as {
-          range: (
-            a: number,
-            b: number,
-          ) => Promise<{ data: TrendRow[] | null; error: { message: string } | null }>;
-        };
-        const { data, error } = await rpcBuilder.range(0, 49999);
-        if (cancelled) return;
-        if (error) {
-          setError(error.message);
-          setRows([]);
-          return;
+        // PostgREST tem teto de 1000 linhas por request mesmo com Range header.
+        // Para DF Star a RPC devolve ~1450 linhas (empresa × mês), então FISIO STAR
+        // perdia meses inteiros no corte. Paginamos até esgotar.
+        const PAGE = 1000;
+        const collected: TrendRow[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const rpcBuilder = supabase.rpc("get_spend_trend", {
+            p_current_month: current,
+            p_months_back: 8,
+            p_grouping: grouping,
+            p_track: toRpcTrack(track),
+          } as never) as unknown as {
+            range: (
+              a: number,
+              b: number,
+            ) => Promise<{ data: TrendRow[] | null; error: { message: string } | null }>;
+          };
+          const { data, error } = await rpcBuilder.range(from, from + PAGE - 1);
+          if (cancelled) return;
+          if (error) {
+            setError(error.message);
+            setRows([]);
+            return;
+          }
+          const chunk = (data as TrendRow[]) ?? [];
+          collected.push(...chunk);
+          if (chunk.length < PAGE) break;
+          if (from > 50_000) break; // salvaguarda
         }
-        const mapped = ((data as TrendRow[]) ?? []).map((r) => ({
+        const mapped = collected.map((r) => ({
           ...r,
           group_key:
             r.group_key && r.group_key.trim()
