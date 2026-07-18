@@ -933,65 +933,38 @@ export default function BiDiretoria() {
           <div className="flex items-center justify-between mb-4">
             <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Alertas assistenciais</div>
             <span className="inline-flex items-center rounded-full bg-destructive/15 text-destructive px-2.5 py-1 text-xs font-semibold">
-              2 abertos
+              {alerts.length} {alerts.length === 1 ? "aberto" : "abertos"}
             </span>
           </div>
           <div className="space-y-3">
-            {[
-              {
-                icon: AlertCircle,
-                tone: "amber",
-                title: "Duplicidade de Atendimento",
-                meta: "UTI Neonatal · 2 ocorrências · R$ 2.030,54",
-                time: "agora",
-              },
-              {
-                icon: Search,
-                tone: "muted",
-                title: "Anomalia comportamental detectada",
-                meta: "Hemodinâmica DF · padrão incomum de cobrança",
-                time: "2h",
-              },
-              {
-                icon: null,
-                tone: "success",
-                title: "Cirurgia Cardíaca SA aprovada",
-                meta: "142 itens · R$ 412.880 · sem divergências",
-                time: "3h",
-                check: true,
-              },
-              {
-                icon: null,
-                tone: "success",
-                title: "Oncologia Central aprovada",
-                meta: "56 itens · R$ 162.960 · automático pela IA",
-                time: "5h",
-                check: true,
-              },
-            ].map((a, i) => {
-              const Icon = a.icon;
-              const bubble =
-                a.tone === "amber"
+            {alerts.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">
+                Nenhum alerta assistencial no período.
+              </div>
+            ) : (
+              alerts.map((a) => {
+                const Icon = a.kind === "sobreposicao_assistencial" ? AlertCircle : Search;
+                const bubble = a.tone === "amber"
                   ? "bg-amber-500/15 text-amber-600"
-                  : a.tone === "success"
-                  ? "bg-success/15 text-success"
                   : "bg-muted text-muted-foreground";
-              return (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bubble}`}>
-                    {Icon ? <Icon className="h-4 w-4" /> : a.check ? <span className="text-sm">✓</span> : null}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="text-sm font-semibold text-foreground">{a.title}</div>
-                      <div className="text-[11px] text-muted-foreground flex-shrink-0">{a.time}</div>
+                return (
+                  <div key={a.id} className="flex items-start gap-3">
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bubble}`}>
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{a.meta}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-sm font-semibold text-foreground">{a.title}</div>
+                        <div className="text-[11px] text-muted-foreground flex-shrink-0">{a.time}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5 truncate" title={a.meta}>{a.meta}</div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
+
         </div>
       </div>
     </div>
