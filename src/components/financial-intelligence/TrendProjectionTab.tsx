@@ -105,11 +105,24 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
       if (track === "habitual" || track === "prioritario") pq = pq.eq("payment_track", track);
       else if (track === "nao_classificado") pq = pq.is("payment_track", null);
 
-      // Sem .range() o PostgREST corta em 1000 linhas — com 12 meses de lotes
-      // isso zerava competências inteiras no Termômetro/gráfico principal.
-      const { data } = await pq.range(0, 49999);
+      // PostgREST tem teto server-side de 1000 linhas por request que .range()
+      // do client NÃO sobrescreve. Paginamos em blocos até o servidor devolver
+      // um lote incompleto (mesmo padrão de MovimentacaoTab).
+      const PAGE = 1000;
+      const all: PaymentRow[] = [];
+      let offset = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await pq.range(offset, offset + PAGE - 1);
+        if (error) break;
+        const batch = (data as unknown as PaymentRow[]) ?? [];
+        all.push(...batch);
+        if (batch.length < PAGE) break;
+        offset += PAGE;
+      }
       if (cancelled) return;
-      setPayments((data as unknown as PaymentRow[]) ?? []);
+      setPayments(all);
+
     })();
     return () => {
       cancelled = true;
