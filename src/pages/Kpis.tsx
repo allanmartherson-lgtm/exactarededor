@@ -126,14 +126,19 @@ const Kpis = () => {
 
   const bottleneck = useMemo(() => {
     if (!myPayments.length) return null;
+    // Etapas terminais não são gargalo — representam fluxo concluído (pago) ou encerrado (rejeitado).
+    // Gargalo = maior fila nas etapas de espera/ação pendente.
+    const terminalLabels = new Set(["Pago", "NF conciliada", "Rejeitado"]);
     let best: { label: string; count: number } | null = null;
     for (const b of stageBuckets) {
+      if (terminalLabels.has(b.label)) continue;
       const c = myPayments.filter((p) => b.statuses.includes(p.status)).length;
       if (!best || c > best.count) best = { label: b.label, count: c };
     }
     if (!best || best.count === 0) return null;
     return { ...best, total: myPayments.length };
   }, [myPayments]);
+
 
   return (
     <>
