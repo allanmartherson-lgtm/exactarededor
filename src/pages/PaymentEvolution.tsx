@@ -381,17 +381,17 @@ export default function PaymentEvolution() {
   // cenários com competências em aberto.
   const currentYM = new Date().toISOString().slice(0, 7);
   const autoLastClosedIdx = (() => {
-    for (let i = months.length - 1; i >= 0; i--) {
-      if (months[i] !== currentYM) return i;
+    for (let i = displayMonths.length - 1; i >= 0; i--) {
+      if (displayMonths[i] !== currentYM) return i;
     }
-    return months.length - 1;
+    return displayMonths.length - 1;
   })();
-  const manualIdx = anchorMonth !== "auto" ? months.indexOf(anchorMonth) : -1;
+  const manualIdx = anchorMonth !== "auto" ? displayMonths.indexOf(anchorMonth) : -1;
   const lastClosedIdx = manualIdx >= 0 ? manualIdx : autoLastClosedIdx;
   const prevClosedIdx = lastClosedIdx - 1;
-  const lastMonth = months[lastClosedIdx];
-  const prevMonth = prevClosedIdx >= 0 ? months[prevClosedIdx] : undefined;
-  const isCurrentMonthInRange = months.includes(currentYM);
+  const lastMonth = displayMonths[lastClosedIdx];
+  const prevMonth = prevClosedIdx >= 0 ? displayMonths[prevClosedIdx] : undefined;
+  const isCurrentMonthInRange = displayMonths.includes(currentYM);
   const isManualAnchor = anchorMonth !== "auto" && manualIdx >= 0;
   const totalLast = matrix.reduce((s, r) => s + (r.byMonth[lastClosedIdx] ?? 0), 0);
   const totalPrev = matrix.reduce((s, r) => s + (r.byMonth[prevClosedIdx] ?? 0), 0);
@@ -400,10 +400,10 @@ export default function PaymentEvolution() {
   // Top growth CC (compare avg first half × second half)
   const growth = matrix
     .map((r) => {
-      const half = Math.floor(months.length / 2);
+      const half = Math.floor(displayMonths.length / 2);
       const first = r.byMonth.slice(0, half).reduce((s, v) => s + v, 0) / Math.max(half, 1);
       const second =
-        r.byMonth.slice(half).reduce((s, v) => s + v, 0) / Math.max(months.length - half, 1);
+        r.byMonth.slice(half).reduce((s, v) => s + v, 0) / Math.max(displayMonths.length - half, 1);
       const pct = first > 0 ? ((second - first) / first) * 100 : 0;
       return { cc: r.cc, pct, second };
     })
@@ -413,7 +413,7 @@ export default function PaymentEvolution() {
 
   // Chart data: top 5 CCs
   const top5 = matrix.slice(0, 5);
-  const chartData = months.map((mk, i) => {
+  const chartData = displayMonths.map((mk, i) => {
     const row: Record<string, any> = { month: monthLabel(mk) };
     top5.forEach((r) => {
       row[ccDisplay(r.cc).label] = r.byMonth[i];
