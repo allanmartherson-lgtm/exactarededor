@@ -12713,6 +12713,28 @@ export type Database = {
           stddev_bruto: number
         }[]
       }
+      get_pattern_volume_anomalies: {
+        Args: {
+          _lookback_months?: number
+          _min_months?: number
+          _threshold_pct?: number
+        }
+        Returns: {
+          actual_count: number
+          competence_month: string
+          deviation_pct: number
+          direction: string
+          expected_avg: number
+          months_seen: number
+          pattern_id: string
+          pattern_label: string
+          payment_id: string
+          payment_reference: string
+          severity: string
+          stddev_count: number
+          z_score: number
+        }[]
+      }
       get_payment_pivot:
         | {
             Args: {
