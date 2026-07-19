@@ -64,17 +64,19 @@ Deno.serve(async (req) => {
             .from("payment_parecer_report_rows")
             .delete()
             .eq("report_id", (existing as any).id);
-          return json({ ok: true, report_id: (existing as any).id, resumed: true });
+        return json({ ok: true, report_id: (existing as any).id, resumed: true });
         }
-        return json(
-          {
-            ok: false,
-            duplicate: true,
-            report_id: existing.id,
-            message: "Este arquivo já foi importado para este lote.",
-          },
-          409,
-        );
+        // Retorna 200 com flag `duplicate` para permitir que o client reuse o
+        // relatório existente (fluxo retroativo de "aplicar e cruzar agora"
+        // sem re-enviar linhas). O 409 anterior fazia supabase.functions.invoke
+        // lançar erro genérico "non-2xx status".
+        return json({
+          ok: true,
+          duplicate: true,
+          report_id: existing.id,
+          row_count: (existing as any).row_count ?? 0,
+          message: "Este arquivo já foi importado para este lote.",
+        });
       }
 
 
