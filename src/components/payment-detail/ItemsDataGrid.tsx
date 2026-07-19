@@ -1483,6 +1483,7 @@ export function ItemsDataGrid({
   const CUSTOM_SORT_KEY = "medpay:items-grid:custom-sort:v1";
   const CUSTOM_SORT_FIELDS: { value: CustomSortField; label: string; numeric?: boolean }[] = [
     { value: "procedure_date", label: "Data do procedimento" },
+    { value: "hora", label: "Hora do procedimento (turno)", numeric: true },
     { value: "paciente", label: "Paciente" },
     { value: "convenio", label: "Convênio" },
     { value: "medico", label: "Médico" },
