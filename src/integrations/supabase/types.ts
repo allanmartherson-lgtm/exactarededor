@@ -12949,6 +12949,7 @@ export type Database = {
           valor_risco: number
         }[]
       }
+      get_rules_signature: { Args: { _hospital_id: string }; Returns: string }
       get_simulator_matched_names: {
         Args: {
           p_ano: number
@@ -13076,6 +13077,10 @@ export type Database = {
       invalidate_engine_source: {
         Args: { _payment_id: string; _source: string }
         Returns: undefined
+      }
+      invalidate_rule_context: {
+        Args: { _hospital_id: string }
+        Returns: number
       }
       is_any_company_portal_user: { Args: { _uid: string }; Returns: boolean }
       is_any_doctor_portal_user: { Args: { _uid: string }; Returns: boolean }
