@@ -40,6 +40,9 @@ type BatchPattern = {
   aliases: string[];
   expected_setor: string | null;
   expected_convenio_group: string | null;
+  expected_day_of_month: number | null;
+  expected_grace_days: number | null;
+  alert_enabled: boolean;
   avg_bruto: number | null;
   months_seen: number;
   last_seen_month: string | null;
@@ -55,6 +58,17 @@ type OrphanPayment = {
   competence_month: string | null;
   bruto_total: number | null;
 };
+
+type MissingBatch = {
+  pattern_id: string;
+  label: string;
+  competence_month: string;
+  expected_by: string;
+  days_late: number;
+  avg_bruto: number | null;
+  last_seen_month: string | null;
+};
+
 
 const slugify = (s: string): string =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -90,6 +104,8 @@ export default function BatchPatterns({ embedded = false }: Props) {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [backfilling, setBackfilling] = useState(false);
+  const [missing, setMissing] = useState<MissingBatch[]>([]);
+
 
   const runBackfill = async () => {
     if (!hospitalId) return;
@@ -153,7 +169,7 @@ export default function BatchPatterns({ embedded = false }: Props) {
   const load = async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const [pRes, oRes] = await Promise.all([
+    const [pRes, oRes, mRes] = await Promise.all([
       supabase.from("payment_batch_patterns" as never)
         .select("*")
         .eq("hospital_id", hospitalId)
@@ -166,13 +182,17 @@ export default function BatchPatterns({ embedded = false }: Props) {
         .gte("competence_month", new Date(new Date().setMonth(new Date().getMonth() - 4)).toISOString().slice(0, 10))
         .order("competence_month", { ascending: false })
         .limit(200),
+      supabase.rpc("get_missing_batch_patterns" as never),
     ]);
     if (pRes.error) toast({ title: "Falha ao carregar padrões", description: pRes.error.message, variant: "destructive" });
     else setPatterns(((pRes.data ?? []) as unknown) as BatchPattern[]);
     if (oRes.error) toast({ title: "Falha ao carregar lotes órfãos", description: oRes.error.message, variant: "destructive" });
     else setOrphans((oRes.data ?? []) as OrphanPayment[]);
+    if (mRes.error) setMissing([]);
+    else setMissing(((mRes.data ?? []) as unknown) as MissingBatch[]);
     setLoading(false);
   };
+
 
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [hospitalId]);
 
@@ -206,8 +226,55 @@ export default function BatchPatterns({ embedded = false }: Props) {
         </div>
       </div>
 
+      {/* Lotes esperados em atraso */}
+      {missing.length > 0 && (
+        <section className="rounded-lg border bg-amber-50/60 dark:bg-amber-950/20 border-amber-300/60">
+          <header className="px-4 py-3 border-b border-amber-300/60">
+            <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+              Lotes esperados em atraso ({missing.length})
+            </h3>
+            <p className="text-xs text-amber-800/80 dark:text-amber-200/70 mt-0.5">
+              Padrões recorrentes que ainda não receberam lote na competência esperada.
+            </p>
+          </header>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-amber-900/70 dark:text-amber-200/70">
+                <tr>
+                  <th className="px-4 py-2">Padrão</th>
+                  <th className="px-4 py-2">Competência</th>
+                  <th className="px-4 py-2">Esperado até</th>
+                  <th className="px-4 py-2 text-center">Dias em atraso</th>
+                  <th className="px-4 py-2 text-right">Média histórica</th>
+                  <th className="px-4 py-2">Último lote</th>
+                </tr>
+              </thead>
+              <tbody>
+                {missing.map((m) => (
+                  <tr key={`${m.pattern_id}-${m.competence_month}`} className="border-t border-amber-300/40">
+                    <td className="px-4 py-2 font-medium">{m.label}</td>
+                    <td className="px-4 py-2">{fmtMonth(m.competence_month?.slice(0, 7) ?? null)}</td>
+                    <td className="px-4 py-2 text-xs">
+                      {m.expected_by ? new Date(m.expected_by).toLocaleDateString("pt-BR") : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <Badge variant="destructive">{m.days_late}d</Badge>
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {m.avg_bruto != null ? formatCurrency(Number(m.avg_bruto)) : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-xs">{fmtMonth(m.last_seen_month?.slice(0, 7) ?? null)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {/* Lista de padrões */}
       <section className="rounded-lg border bg-card">
+
         <header className="px-4 py-3 border-b flex items-center gap-2">
           <h3 className="text-sm font-semibold">Padrões cadastrados</h3>
         </header>
@@ -453,6 +520,9 @@ function PatternDialog({
   // Reaproveita a coluna `expected_convenio_group` para armazenar a trilha
   // padrão do lote (habitual|prioritario) — evita migração de schema.
   const [expectedTrack, setExpectedTrack] = useState("");
+  const [expectedDay, setExpectedDay] = useState<string>("");
+  const [graceDays, setGraceDays] = useState<string>("5");
+  const [alertEnabled, setAlertEnabled] = useState<boolean>(true);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [sectorOptions, setSectorOptions] = useState<{ slug: string; name: string }[]>([]);
@@ -466,8 +536,12 @@ function PatternDialog({
     setAliasInput("");
     setExpectedSetor(initial?.expected_setor ?? "");
     setExpectedTrack(initial?.expected_convenio_group ?? "");
+    setExpectedDay(initial?.expected_day_of_month != null ? String(initial.expected_day_of_month) : "");
+    setGraceDays(initial?.expected_grace_days != null ? String(initial.expected_grace_days) : "5");
+    setAlertEnabled(initial?.alert_enabled ?? true);
     setNotes(initial?.notes ?? "");
   }, [open, initial]);
+
 
   // Carrega setores do hospital ativo (RLS já filtra por hospital_scope_allows).
   useEffect(() => {
@@ -507,6 +581,8 @@ function PatternDialog({
       return;
     }
     setSaving(true);
+    const expectedDayNum = expectedDay.trim() ? Math.max(1, Math.min(31, parseInt(expectedDay, 10) || 0)) : null;
+    const graceDaysNum = Math.max(0, Math.min(60, parseInt(graceDays, 10) || 0));
     const payload = {
       hospital_id: hospitalId,
       label: finalLabel,
@@ -514,8 +590,12 @@ function PatternDialog({
       aliases,
       expected_setor: expectedSetor.trim() || null,
       expected_convenio_group: expectedTrack.trim() || null,
+      expected_day_of_month: expectedDayNum,
+      expected_grace_days: graceDaysNum,
+      alert_enabled: alertEnabled,
       notes: notes.trim() || null,
     };
+
     const { error } = initial
       ? await supabase.from("payment_batch_patterns" as never).update(payload as never).eq("id", initial.id)
       : await supabase.from("payment_batch_patterns" as never).insert(payload as never);
@@ -614,10 +694,38 @@ function PatternDialog({
               </Select>
             </div>
           </div>
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <div>
+              <Label className="text-xs">Dia esperado do mês</Label>
+              <Input
+                type="number"
+                min={1}
+                max={31}
+                value={expectedDay}
+                onChange={(e) => setExpectedDay(e.target.value)}
+                placeholder="Ex.: 10"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Tolerância (dias)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={60}
+                value={graceDays}
+                onChange={(e) => setGraceDays(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs pb-2">
+              <Switch checked={alertEnabled} onCheckedChange={setAlertEnabled} />
+              Alertar quando faltar
+            </label>
+          </div>
           <div>
             <Label className="text-xs">Notas</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
+
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
