@@ -327,6 +327,23 @@ export default function PaymentEvolution() {
     setTypeFilter([]);
   };
 
+  // Mês vigente (em andamento). Só exibimos ele nas séries/KPIs/matriz
+  // se houver pagamento efetivamente lançado nesse mês para o modo atual.
+  // Caso contrário, o mês corrente é omitido para não "sujar" o gráfico
+  // com um ponto zerado que empurra a tendência para baixo.
+  const displayMonths = useMemo(() => {
+    const cur = new Date().toISOString().slice(0, 7);
+    if (!months.includes(cur)) return months;
+    const hasData = filteredPayments.some((p) => {
+      const ds =
+        mode === "competencia"
+          ? p.competence_month
+          : p.approved_at?.slice(0, 10) ?? p.updated_at.slice(0, 10);
+      return ds?.slice(0, 7) === cur;
+    });
+    return hasData ? months : months.filter((m) => m !== cur);
+  }, [months, filteredPayments, mode]);
+
   // Bucket payments → cost center × month
   const matrix = useMemo(() => {
     const map = new Map<string, Map<string, number>>(); // cc → month → value
