@@ -65,6 +65,7 @@ import type { ObservationRow } from "@/hooks/usePaymentDetailData";
 import { supabase } from "@/integrations/supabase/client";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { formatDateBR } from "@/lib/dateUtils";
+import { useHospital } from "@/contexts/HospitalContext";
 import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
 
 
@@ -92,6 +93,7 @@ export function PaymentReportModal({
   profiles = {},
 }: PaymentReportModalProps) {
   const { toast } = useToast();
+  const { hospital } = useHospital();
   // --- Estados de Filtro ---
   const [search, setSearch] = useState("");
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
@@ -370,7 +372,9 @@ export function PaymentReportModal({
             validation_summary: validationSummary,
           };
         }),
-        fileName
+        fileName,
+        hospitalName: hospital?.name ?? null,
+        competence: formatCompetence(competence),
       };
 
       // Criar o worker

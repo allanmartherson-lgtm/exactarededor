@@ -34,6 +34,12 @@ import {
   type ItemAiStatus,
 } from "@/lib/status";
 import * as XLSX from "xlsx-js-style";
+import {
+  applyBrandTypography,
+  prependBrandHeader,
+  buildBrandSubtitle,
+} from "@/lib/excelBrandStyle";
+import { useHospital } from "@/contexts/HospitalContext";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { getAgreement } from "@/lib/itemFields";
 import type {
@@ -98,6 +104,7 @@ export function PaymentBatchExportDialog({
   profiles = {},
 }: Props) {
   const { toast } = useToast();
+  const { hospital } = useHospital();
   const [format, setFormat] = useState<ExportFormat>("xlsx");
   const [companySearch, setCompanySearch] = useState("");
   const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
@@ -305,17 +312,18 @@ export function PaymentBatchExportDialog({
       { wch: 14 }, { wch: 12 },
       { wch: 12 }, { wch: 40 }, { wch: 50 },
     ];
-    // Estilo no cabeçalho
-    headers.forEach((_, i) => {
-      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: i })];
-      if (cell) {
-        cell.s = {
-          font: { bold: true, color: { rgb: "FFFFFF" } },
-          fill: { fgColor: { rgb: "0B3D91" } },
-          alignment: { vertical: "center", horizontal: "center" },
-        };
-      }
+    // Aplica cabeçalho institucional Rede D'Or + tipografia padrão.
+    const subtitle = buildBrandSubtitle({
+      hospitalName: hospital?.name,
+      competence: formatCompetence(payment.competence_months || payment.competence_month || ""),
     });
+    const headerRow = prependBrandHeader(ws, {
+      title: "Itens do Lote",
+      subtitle,
+      columnsCount: headers.length,
+    });
+    applyBrandTypography(ws, { headerRow });
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Itens do Lote");
     XLSX.writeFile(wb, buildFileName(payment, scopeLabel, "xlsx"));

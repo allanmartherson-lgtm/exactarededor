@@ -1,48 +1,32 @@
 import * as XLSX from "xlsx-js-style";
-
-// Tipografia Exacta: corpo em DM Sans, títulos em Playfair Display.
-// Excel cai para a fonte padrão quando a família não está instalada.
-const FONT_BODY = "DM Sans";
-const FONT_HEADING = "Playfair Display";
-const FONT_BODY_STYLE = { name: FONT_BODY, sz: 10 } as const;
-const FONT_HEADER_STYLE = { name: FONT_HEADING, sz: 11, bold: true } as const;
-
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  } catch { return iso; }
-}
-
-function applyTypography(ws: XLSX.WorkSheet) {
-  if (!ws["!ref"]) return;
-  const range = XLSX.utils.decode_range(ws["!ref"]);
-  for (let R = range.s.r; R <= range.e.r; ++R) {
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const addr = XLSX.utils.encode_cell({ r: R, c: C });
-      const cell = ws[addr];
-      if (!cell) continue;
-      const isHeader = R === 0;
-      const baseFont = isHeader ? FONT_HEADER_STYLE : FONT_BODY_STYLE;
-      const prev = cell.s || {};
-      const prevFont = prev.font || {};
-      cell.s = {
-        ...prev,
-        font: { ...baseFont, ...prevFont, name: baseFont.name, sz: prevFont.sz ?? baseFont.sz },
-      };
-    }
-  }
-}
+import {
+  applyBrandTypography,
+  prependBrandHeader,
+  buildBrandSubtitle,
+  fmtDateBR,
+} from "../lib/excelBrandStyle";
 
 self.onmessage = async (e) => {
-  const { summary, companyGroups, filteredItems, fileName } = e.data;
+  const {
+    summary,
+    companyGroups,
+    filteredItems,
+    fileName,
+    hospitalName,
+    competence,
+  } = e.data;
+
+  const subtitle = buildBrandSubtitle({
+    hospitalName,
+    competence,
+  });
 
   try {
     const wb = XLSX.utils.book_new();
 
+    // -----------------------------------------------------------------
     // Aba 1: Resumo
+    // -----------------------------------------------------------------
     const summaryData = [
       ["Critério", "Itens", "Valor", "% do Total"],
       ["Aprovados", summary.approved.count, summary.approved.value, `${summary.approved.pct.toFixed(1)}%`],
@@ -53,11 +37,19 @@ self.onmessage = async (e) => {
       ["Valor em Risco", "", summary.riskValue, `${((summary.riskValue / summary.totalValue) * 100 || 0).toFixed(1)}%`],
     ];
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-    applyTypography(wsSummary);
+    wsSummary["!cols"] = [{ wch: 28 }, { wch: 12 }, { wch: 18 }, { wch: 14 }];
+    const summaryHeaderRow = prependBrandHeader(wsSummary, {
+      title: "Resumo do Lote",
+      subtitle,
+      columnsCount: 4,
+    });
+    applyBrandTypography(wsSummary, { headerRow: summaryHeaderRow });
     XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
 
-    // Aba 2: Por Empresa
-    const companyData = companyGroups.map(g => ({
+    // -----------------------------------------------------------------
+    // Aba 2: Por Empresa (mantém cores de status na coluna Status)
+    // -----------------------------------------------------------------
+    const companyData = companyGroups.map((g: any) => ({
       "Empresa": g.name,
       "Status": g.counts.reprovado > 0 ? "Com reprovações" : g.counts.alerta > 0 ? "Com alertas" : "Limpa",
       "✓ Aprovados": g.counts.aprovado,
@@ -69,9 +61,12 @@ self.onmessage = async (e) => {
       "Valor em Risco (%)": g.totalValue > 0 ? `${((g.riskValue / g.totalValue) * 100).toFixed(1)}%` : "0%",
     }));
     const wsCompanies = XLSX.utils.json_to_sheet(companyData);
-    
-    // Formatação na aba Por Empresa
-    const companyRange = XLSX.utils.decode_range(wsCompanies["!ref"] || "A1:H1");
+    wsCompanies["!cols"] = [
+      { wch: 44 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 16 },
+      { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 18 },
+    ];
+
+    const companyRange = XLSX.utils.decode_range(wsCompanies["!ref"] || "A1:I1");
     for (let R = companyRange.s.r + 1; R <= companyRange.e.r; ++R) {
       const statusCell = wsCompanies[XLSX.utils.encode_cell({ r: R, c: 1 })];
       if (statusCell && statusCell.v) {
@@ -83,21 +78,28 @@ self.onmessage = async (e) => {
         if (bgColor) statusCell.s = { fill: { fgColor: { rgb: bgColor } } };
       }
     }
-    applyTypography(wsCompanies);
+    const companyHeaderRow = prependBrandHeader(wsCompanies, {
+      title: "Consolidado por Empresa",
+      subtitle,
+      columnsCount: 9,
+    });
+    applyBrandTypography(wsCompanies, { headerRow: companyHeaderRow });
     XLSX.utils.book_append_sheet(wb, wsCompanies, "Por Empresa");
 
-    // Aba 3: Detalhe dos Itens
+    // -----------------------------------------------------------------
+    // Aba 3: Detalhe dos Itens (mantém cores por status no Status)
+    // -----------------------------------------------------------------
     const detailHeaders = [
       "Atendimento", "Data", "Empresa", "Convênio", "Paciente", "Médico", "Especialidade",
       "Código", "Procedimento", "Qtd", "Valor Repasse", "Valor Esperado",
       "Divergência (R$)", "Status", "Regra", "Motivo", "Validação Assistencial",
-      "Memória de cálculo"
+      "Memória de cálculo",
     ];
-    
-    const detailRows = filteredItems.map(it => {
+
+    const detailRows = filteredItems.map((it: any) => {
       const findings = it.ai_findings || {};
       const status = it.ai_status;
-      let statusStyle = {};
+      let statusStyle: any = {};
       if (status === "aprovado") statusStyle = { fill: { fgColor: { rgb: "D1FAE5" } } };
       else if (status === "alerta") statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } };
       else if (status === "reprovado") statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } };
@@ -150,10 +152,22 @@ self.onmessage = async (e) => {
     });
 
     const wsDetails = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows]);
-    applyTypography(wsDetails);
+    wsDetails["!cols"] = [
+      { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 28 }, { wch: 28 }, { wch: 28 },
+      { wch: 20 }, { wch: 12 }, { wch: 36 }, { wch: 6 }, { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 36 }, { wch: 40 }, { wch: 40 },
+    ];
+    const detailHeaderRow = prependBrandHeader(wsDetails, {
+      title: "Detalhe dos Itens",
+      subtitle,
+      columnsCount: detailHeaders.length,
+    });
+    applyBrandTypography(wsDetails, { headerRow: detailHeaderRow });
     XLSX.utils.book_append_sheet(wb, wsDetails, "Detalhe dos Itens");
 
+    // -----------------------------------------------------------------
     // Aba 4: Alertas Assistenciais — tabela comparativa lado a lado
+    // -----------------------------------------------------------------
     const alertItems = filteredItems.filter((it: any) =>
       Array.isArray(it.validation_findings) && it.validation_findings.length > 0
     );
@@ -180,7 +194,7 @@ self.onmessage = async (e) => {
             it.attendance_number || "",
             it.specialty || "",
             it.patient_name || "",
-            fmtDate(it.procedure_date),
+            fmtDateBR(it.procedure_date),
             Number(it.gross_amount ?? 0),
             "",
             ci?.doctor_name || "",
@@ -188,26 +202,15 @@ self.onmessage = async (e) => {
             ci?.attendance_number || "",
             ci?.specialty || "",
             ci?.patient_name || "",
-            fmtDate(ci?.procedure_date),
+            fmtDateBR(ci?.procedure_date),
             ci?.gross_amount != null ? Number(ci.gross_amount) : "",
           ]);
         }
       }
 
-
       const wsAlerts = XLSX.utils.aoa_to_sheet([alertHeaders, ...alertRows]);
 
-      const alertRange = XLSX.utils.decode_range(wsAlerts["!ref"] || "A1:P1");
-      for (let C = alertRange.s.c; C <= alertRange.e.c; ++C) {
-        const cell = wsAlerts[XLSX.utils.encode_cell({ r: 0, c: C })];
-        if (cell) {
-          cell.s = {
-            fill: { fgColor: { rgb: C < 8 ? "EFF6FF" : C === 8 ? "FFFFFF" : "FFF7ED" } },
-            font: { bold: true, sz: 9 },
-          };
-        }
-      }
-
+      // Separador visual entre bloco Original e Conflitante (coluna "↔").
       for (let R = 1; R <= alertRows.length; ++R) {
         const cell = wsAlerts[XLSX.utils.encode_cell({ r: R, c: 8 })];
         if (cell) cell.s = { alignment: { horizontal: "center" }, font: { bold: true } };
@@ -220,15 +223,18 @@ self.onmessage = async (e) => {
         { wch: 26 }, { wch: 30 }, { wch: 14 }, { wch: 16 }, { wch: 24 }, { wch: 12 }, { wch: 12 },
       ];
 
-      applyTypography(wsAlerts);
+      const alertHeaderRow = prependBrandHeader(wsAlerts, {
+        title: "Alertas Assistenciais",
+        subtitle,
+        columnsCount: alertHeaders.length,
+      });
+      applyBrandTypography(wsAlerts, { headerRow: alertHeaderRow });
       XLSX.utils.book_append_sheet(wb, wsAlerts, "Alertas Assistenciais");
     }
 
-
-
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    self.postMessage({ type: 'success', buffer: excelBuffer, fileName });
-  } catch (error) {
-    self.postMessage({ type: 'error', error: error.message });
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    self.postMessage({ type: "success", buffer: excelBuffer, fileName });
+  } catch (error: any) {
+    self.postMessage({ type: "error", error: error?.message ?? String(error) });
   }
 };

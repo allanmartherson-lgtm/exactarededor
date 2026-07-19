@@ -1,72 +1,56 @@
+# Padronização dos relatórios Excel
 
-## Objetivo
-Trocar os HTMLs de e-mail espalhados pelas edge functions pelos 13 templates entregues pelo design (a1 → e1), mantendo variáveis, remetentes, anexos e demais efeitos colaterais. Padronizar logo/wordmark Exacta (círculo azul `#003DA5` + check bronze `#C6A27C`) — os HTMLs originais que usam laranja/branco serão trocados pelo nosso padrão.
+## Diagnóstico
 
-## Arquivos a criar
+Comparando os dois arquivos enviados:
 
-- `supabase/functions/_shared/emailTemplates/brand.ts` (novo)  
-  Helpers: `escapeHtml`, `escapeAttr`, `formatBRL`, `greetingBrasilia`, SVG inline do logo Exacta (mesma arte do `ExactaIcon` — círculo `#003DA5`, check `#C6A27C`), constante do `hospital_dados_cadastrais` e `hospital_name/contact_*` (parametrizáveis).
+**F1 — `Relatorio_Lote_junhode2026_20260719-193.xlsx`** (emitido em Detalhe do Pagamento → Empresa, via `PaymentReportModal` → `excel-export.worker.ts`)
+- ✅ Dados ricos: 4 abas (Resumo, Por Empresa, Detalhe dos Itens, Alertas Assistenciais), cores por status (verde/âmbar/vermelho/azul).
+- ❌ Tipografia fora do padrão: `Playfair Display` no cabeçalho + `DM Sans` no corpo.
+- ❌ Sem cabeçalho institucional (planilha começa direto na linha de títulos das colunas, sem faixa azul, sem título do relatório, hospital, competência ou data de emissão).
 
-- `supabase/functions/_shared/emailTemplates/shell.ts` (novo)  
-  `renderShell({ preheader, title, bodyHtml, footerNote? })` que aplica header com logo, área central e rodapé — o layout que todos os 13 templates compartilham.
+**F2 — `Lote_HDF_..._20260719.xlsx`** (emitido no Lote, via `PaymentBatchExportDialog`)
+- ✅ Cabeçalho de colunas com padrão Rede D'Or: fundo `#0B3D91` (navy institucional), fonte branca em negrito, Calibri.
+- ❌ Uma aba única, sem resumo, sem cores de status por item, sem quebra por empresa.
+- ❌ Também não tem faixa de título institucional acima da tabela.
 
-- `supabase/functions/_shared/emailTemplates/templates.ts` (novo)  
-  Uma função de render por template, tipada, devolvendo `{ subject, html, text }`:
-  - `a1_sendInvoiceRequest`
-  - `a2_nfReceived` (usa em `notify-analyst-event` quando `eventType='nf_received'`)
-  - `a3_reset` (opcional; será usado só se tivermos gancho — se não houver, incluo mas não wire)
-  - `b1_returned` (returned em `notify-analyst-event`)
-  - `b2_iaConcluded` (ia_concluded em `notify-analyst-event`)
-  - `b3_forwardValidator` (assignment em `validatorAssignment.ts`)
-  - `b4_approvedFeedback` (não wire agora — nenhum caller claro; deixo registrado)
-  - `b5_internalQuestionCreated`
-  - `b6_internalQuestionResolved` (usado em `notify-internal-question` `resolved` e em `notify-question-reply`)
-  - `c1_analystChange` (opcional)
-  - `d1_massCampaign` (usado em `dispatch-broadcast`)
-  - `d2_campaignApproval` (opcional se aplicável em `notify-campaign-decision`)
-  - `e1_productionValidation` (director_approval em `notification-queue-worker/handlers/directorApproval.ts`)
-  - `passwordAction` (invite/recovery — usado em `_shared/passwordActionEmail.ts`)
+## O que muda
 
-## Arquivos a alterar (só HTMLs de e-mail)
+Criar um único helper de branding e aplicá-lo nos dois pontos de exportação. Manter todos os dados de F1 (é o "deal" segundo o usuário); só troca a "casca visual".
 
-- `supabase/functions/send-invoice-request/index.ts`  
-  Remover o bloco HTML inline (linhas ~494–599) e enviar `html`/`subject` vindos de `a1_sendInvoiceRequest(ctx)`. `templates.ts` local passa a devolver apenas texto (compat com `request_message`).
+### Arquivos alterados (3)
 
-- `supabase/functions/notify-analyst-event/index.ts`  
-  Substituir `html`/`bodyText` por `b1_returned`, `b2_iaConcluded`, `a2_nfReceived` conforme `eventType`.
+1. **`src/lib/excelBrandStyle.ts`** — novo (não compartilhado com outras telas ainda; será usado só pelos dois geradores).
+   - Constantes: `BRAND_NAVY = "0B3D91"`, `BRAND_BRONZE = "C6A27C"`, cores de status (`STATUS_FILL.aprovado/alerta/reprovado/acatado`).
+   - `FONT_BODY = "Calibri" sz 10` e `FONT_HEADER = "Calibri" sz 11 bold branco`.
+   - `prependBrandHeader(ws, { title, subtitle, columnsCount })` — insere 3 linhas mescladas no topo:
+     - Linha 1: **EXACTA · REDE D'OR** (14pt, negrito, navy, fundo claro).
+     - Linha 2: **{título do relatório}** (12pt, negrito, cinza escuro).
+     - Linha 3: subtítulo com **Hospital · Competência · Emitido em {data/hora}** (10pt, cinza médio).
+     - Linha 4 em branco (respiro).
+   - `applyBrandTypography(ws, { headerRow })` — força Calibri em tudo; na linha `headerRow` aplica faixa navy + texto branco em negrito, borda inferior fina.
+   - Preserva `cell.s` existente (mantém as cores por status do F1).
 
-- `supabase/functions/notification-queue-worker/handlers/validatorAssignment.ts`  
-  Trocar `buildHtml` inline por `b3_forwardValidator`.
+2. **`src/workers/excel-export.worker.ts`** (usado só pelo `PaymentReportModal`)
+   - Remover constantes `FONT_BODY/FONT_HEADING` locais (Playfair/DM Sans).
+   - Chamar `prependBrandHeader` + `applyBrandTypography` em cada uma das 4 abas (Resumo, Por Empresa, Detalhe dos Itens, Alertas Assistenciais).
+   - Manter integralmente a lógica de dados, cores de status e a aba Alertas.
+   - Título por aba: "Resumo do Lote", "Consolidado por Empresa", "Detalhe dos Itens", "Alertas Assistenciais".
+   - Subtítulo receberá `hospitalName`, `competence` e data de emissão — o `PaymentReportModal` já tem `payment.hospital_name` e `payment.competence_months` no contexto; adicionar esses campos ao `workerData`.
 
-- `supabase/functions/notification-queue-worker/handlers/directorApproval.ts`  
-  Trocar `buildEmailHtml` (tema bronze antigo) por `e1_productionValidation`.
+3. **`src/components/payment-detail/PaymentBatchExportDialog.tsx`** (F2)
+   - Substituir o bloco `handleExportXlsx` para usar o mesmo helper: `prependBrandHeader({ title: "Itens do Lote", subtitle: "…" })` + `applyBrandTypography(ws, { headerRow: 3 })`.
+   - Manter as colunas e larguras atuais (só troca de casca).
+   - Passa também `payment.hospital_name` e a competência do lote no subtítulo.
 
-- `supabase/functions/notify-internal-question/index.ts`  
-  Substituir o `html`/`text` genérico por `b5_internalQuestionCreated` / `b6_internalQuestionResolved`.
+## O que NÃO muda
 
-- `supabase/functions/notify-question-reply/index.ts`  
-  Substituir HTML inline por `b6_internalQuestionResolved` adaptado a resposta do analista ao recebedor da NF.
+- Nenhuma alteração em componentes de tela, PDFs, dados persistidos, edge functions, banco.
+- Aba CSV do `PaymentBatchExportDialog` fica intacta (padrão é dado bruto).
+- Cores por status no F1 são preservadas — o helper só ajusta a fonte se não houver `fill` prévio no header, e nunca sobrescreve o `fill` das células de dado.
 
-- `supabase/functions/dispatch-broadcast/index.ts`  
-  Trocar `renderHtml` por `d1_massCampaign`.
+## Observação sobre arquivos compartilhados
 
-- `supabase/functions/_shared/passwordActionEmail.ts`  
-  Trocar o HTML inline por `passwordAction({ kind })`.
+O worker `excel-export.worker.ts` só é chamado pelo `PaymentReportModal`. O `PaymentBatchExportDialog` só é usado no botão "Exportar dados do lote". O novo helper (`excelBrandStyle.ts`) é criado agora e importado só por esses dois pontos — não altera contratos existentes.
 
-## Fora de escopo neste passo
-
-- `directorReapproval.ts` (não há template correspondente entre os 13 — mantém HTML atual).
-- Outros callers de e-mail que já usam `send-email-corporate` com HTML pronto do banco (`notify-campaign-decision` etc.) — só entram se você confirmar.
-- Nenhuma mudança de fluxo/destinatários/anexos: só troca do HTML/subject.
-- Nenhuma mudança de schema, RLS, ou config.
-
-## Deploy
-
-Todas as edge functions alteradas serão redeployadas em uma leva no fim do turno. Vou listar cada `supabase functions deploy` executado no relatório final.
-
-## Riscos
-
-- Templates b4, c1, a3, d2 ficam no módulo mas sem wiring — se você quiser, aponto e ligamos depois.
-- Se algum template referencia variável que hoje não está sendo populada (ex.: `{{prazo_envio}}`), uso fallback `—` para não quebrar envio.
-
-Se aprovar, sigo direto para a implementação nessa ordem: `_shared/emailTemplates/*` → wiring → deploy.
+Confirma para eu aplicar?
