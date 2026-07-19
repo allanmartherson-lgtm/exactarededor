@@ -412,7 +412,7 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
   return (
     <div className="space-y-4">
       {/* A) Termômetro do mês */}
-      {monthly && monthly.hasProjection && (
+      {monthly && (monthly.hasProjection || (thermometer && thermometer.source === "bottom-up")) && thermometer && (
         <SurfaceCard>
           <div className="p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
@@ -425,26 +425,31 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
                 </p>
               </div>
               <p className="text-sm tabular-nums text-muted-foreground">
-                <span className="text-foreground font-semibold">{fmtShort(monthly.processed)}</span>{" "}
+                <span className="text-foreground font-semibold">{fmtShort(thermometer.processed)}</span>{" "}
                 processado de{" "}
-                <span className="text-foreground font-semibold">~{fmtShort(monthly.projection)}</span>{" "}
-                projetado
-                <span className="ml-2 text-xs">({monthly.pctProcessed.toFixed(0)}%)</span>
+                <span className="text-foreground font-semibold">~{fmtShort(thermometer.projection)}</span>{" "}
+                esperado
+                <span className="ml-2 text-xs">({thermometer.pctProcessed.toFixed(0)}%)</span>
               </p>
             </div>
             <div className="h-3 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full transition-all"
                 style={{
-                  width: `${Math.min(100, monthly.pctProcessed)}%`,
+                  width: `${Math.min(100, thermometer.pctProcessed)}%`,
                   background: COLORS.processedDark,
                 }}
               />
             </div>
-            {monthly.remaining > 0 && (
+            {thermometer.remaining > 0 && (
               <p className="text-xs text-muted-foreground mt-2">
-                Faltam ~{fmtShort(monthly.remaining)} para atingir a projeção — lotes ainda não entraram
+                Faltam ~{fmtShort(thermometer.remaining)} para atingir o esperado — lotes ainda não entraram
                 nesta competência.
+              </p>
+            )}
+            {thermometer.source === "bottom-up" && (
+              <p className="text-[11px] text-muted-foreground mt-1 italic">
+                Projeção baseada na composição histórica de lotes.
               </p>
             )}
           </div>
