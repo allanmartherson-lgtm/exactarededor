@@ -497,15 +497,16 @@ serve(async (req) => {
           recipient_label: opts.recipient_label,
           setores: setoresStr,
           competencia: competenciaStr || null,
-          total_value: totalFormatted,
+          total_formatted: totalFormatted,
           prazo_envio: prazoFormatted,
           upload_url: uploadUrl,
-          hospital_dados_cadastrais: `<strong>Hospitais Integrados da Gávea S.A — DF Star</strong><br/>CNPJ: 31.635.857/0006-16 &nbsp;&nbsp; C.C.M: 07.895.204/001-40<br/>SGAS 914 Conjunto H - Parte, Asa Sul<br/>Brasília — DF | CEP: 70.390-140`,
-          hospital_signature: "GHM DF Star",
+          hospital_dados_cadastrais: `Hospitais Integrados da Gávea S.A — DF Star\nCNPJ: 31.635.857/0006-16 · C.C.M: 07.895.204/001-40\nSGAS 914 Conjunto H - Parte, Asa Sul\nBrasília — DF | CEP: 70.390-140`,
+          hospital_name: "GHM DF Star",
           hospital_contact_email: "ghm.repassedfstar@rededor.com.br",
           hospital_contact_phone: "(11) 2142-4879",
         });
         const html = rendered.html;
+
 
         const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
           method: "POST",
