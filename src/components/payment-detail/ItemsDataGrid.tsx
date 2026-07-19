@@ -1717,6 +1717,15 @@ export function ItemsDataGrid({
       if (onlyPisoAplicado) {
         if (((it as any).piso_metodo_vencedor ?? "") !== "piso") return false;
       }
+      if (turnoFilter !== "__all__") {
+        const h = getRealHour(it);
+        if (turnoFilter === "with_time" && h === null) return false;
+        if (turnoFilter === "without_time" && h !== null) return false;
+        if (turnoFilter === "madrugada" && !(h !== null && h >= 0 && h < 6)) return false;
+        if (turnoFilter === "manha" && !(h !== null && h >= 6 && h < 12)) return false;
+        if (turnoFilter === "tarde" && !(h !== null && h >= 12 && h < 18)) return false;
+        if (turnoFilter === "noite" && !(h !== null && h >= 18 && h < 24)) return false;
+      }
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
       const paciente = getPatient(it);
