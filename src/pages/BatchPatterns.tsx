@@ -561,11 +561,30 @@ function PatternDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Setor esperado (informacional)</Label>
-              <Input value={expectedSetor} onChange={(e) => setExpectedSetor(e.target.value)} placeholder="Ex.: centro_cirurgico" />
+              <Select value={expectedSetor || "__none__"} onValueChange={(v) => setExpectedSetor(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Não informar —</SelectItem>
+                  {sectorOptions.map((s) => (
+                    <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>
+                  ))}
+                  {/* Preserva valor legado que não esteja mais na lista ativa */}
+                  {expectedSetor && !sectorOptions.some((s) => s.slug === expectedSetor) && (
+                    <SelectItem value={expectedSetor}>{expectedSetor} (inativo)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label className="text-xs">Grupo de convênio</Label>
-              <Input value={expectedGroup} onChange={(e) => setExpectedGroup(e.target.value)} placeholder="Ex.: prioridades" />
+              <Label className="text-xs">Trilha padrão</Label>
+              <Select value={expectedTrack || "__none__"} onValueChange={(v) => setExpectedTrack(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione a trilha" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Não informar —</SelectItem>
+                  <SelectItem value="habitual">Habitual</SelectItem>
+                  <SelectItem value="prioritario">Prioritário</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div>
