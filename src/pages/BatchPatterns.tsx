@@ -40,6 +40,9 @@ type BatchPattern = {
   aliases: string[];
   expected_setor: string | null;
   expected_convenio_group: string | null;
+  expected_day_of_month: number | null;
+  expected_grace_days: number | null;
+  alert_enabled: boolean;
   avg_bruto: number | null;
   months_seen: number;
   last_seen_month: string | null;
@@ -55,6 +58,17 @@ type OrphanPayment = {
   competence_month: string | null;
   bruto_total: number | null;
 };
+
+type MissingBatch = {
+  pattern_id: string;
+  label: string;
+  competence_month: string;
+  expected_by: string;
+  days_late: number;
+  avg_bruto: number | null;
+  last_seen_month: string | null;
+};
+
 
 const slugify = (s: string): string =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
