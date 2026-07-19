@@ -355,7 +355,7 @@ export default function PaymentEvolution() {
       else dateStr = p.approved_at?.slice(0, 10) ?? p.updated_at.slice(0, 10);
       if (!dateStr) return;
       const mk = dateStr.slice(0, 7);
-      if (!months.includes(mk)) return;
+      if (!displayMonths.includes(mk)) return;
       const v = p.liquido_total ?? p.bruto_total ?? p.total_amount ?? 0;
       if (!map.has(cc)) map.set(cc, new Map());
       const row = map.get(cc)!;
@@ -366,11 +366,11 @@ export default function PaymentEvolution() {
       .map(([cc, row]) => ({
         cc,
         total: ccTotals.get(cc) ?? 0,
-        byMonth: months.map((m) => row.get(m) ?? 0),
+        byMonth: displayMonths.map((m) => row.get(m) ?? 0),
       }))
       .sort((a, b) => b.total - a.total);
     return rows;
-  }, [filteredPayments, months, mode]);
+  }, [filteredPayments, displayMonths, mode]);
 
   // KPIs
   const grandTotal = matrix.reduce((s, r) => s + r.total, 0);
