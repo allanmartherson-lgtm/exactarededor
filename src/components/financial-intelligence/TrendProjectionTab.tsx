@@ -317,16 +317,22 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
     };
   }, [payments]);
 
-  // Composição bottom-up: soma dos recebidos + média histórica dos pendentes
+  // Composição bottom-up: soma dos recebidos + média histórica dos pendentes.
+  // "Recebido" usa monthly.processed (soma real de TODOS os lotes do mês em
+  // processamento), não apenas os que casam com padrões históricos.
+  // Antes: receivedSum ignorava lotes novos/sem histórico e ficava menor que
+  // o valor exibido no gráfico "processado". Agora bate com o gráfico.
   const composition = useMemo(() => {
     if (!batches || batches.length === 0) return null;
     const received = batches.filter((b) => b.status === "recebido");
     const pending = batches.filter((b) => b.status === "pendente");
-    const receivedSum = received.reduce((s, b) => s + Number(b.current_amount ?? 0), 0);
+    const patternReceivedSum = received.reduce((s, b) => s + Number(b.current_amount ?? 0), 0);
+    const receivedSum = monthly ? monthly.processed : patternReceivedSum;
     const pendingSum = pending.reduce((s, b) => s + Number(b.historical_avg ?? 0), 0);
     const total = receivedSum + pendingSum;
-    return { received, pending, receivedSum, pendingSum, total };
-  }, [batches]);
+    return { received, pending, receivedSum, patternReceivedSum, pendingSum, total };
+  }, [batches, monthly]);
+
 
   // Override do termômetro: quando temos composição bottom-up, ela é mais precisa
   // que a média simples de 3 meses. Sinalizamos com flag para a UI.
