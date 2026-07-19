@@ -141,9 +141,15 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
 
       // Composição de lotes esperados vs recebidos no mês em processamento.
       // Só afeta esta aba — sem impacto em cálculos de outras telas.
-      const { data: batchData } = await supabase.rpc("get_batch_composition" as never);
+      const { data: batchData, error: batchErr } = await supabase.rpc("get_batch_composition" as never);
       if (cancelled) return;
-      setBatches((batchData as unknown as BatchRow[]) ?? []);
+      if (batchErr) {
+        // Falha silenciosa antes escondia bugs (ex.: max(uuid) does not exist).
+        console.error("[TrendProjectionTab] get_batch_composition falhou:", batchErr);
+        setBatches([]);
+      } else {
+        setBatches((batchData as unknown as BatchRow[]) ?? []);
+      }
     })();
     return () => {
       cancelled = true;
