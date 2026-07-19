@@ -2357,6 +2357,20 @@ export function ItemsDataGrid({
               ))}
             </SelectContent>
           </Select>
+          <Select value={turnoFilter} onValueChange={(v) => setTurnoFilter(v as TurnoFilter)}>
+            <SelectTrigger className="h-8 w-36 text-xs" title="Filtrar por turno (só considera hora real da base hospitalar)">
+              <SelectValue placeholder="Turno" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os turnos</SelectItem>
+              <SelectItem value="madrugada">Madrugada (00–06h)</SelectItem>
+              <SelectItem value="manha">Manhã (06–12h)</SelectItem>
+              <SelectItem value="tarde">Tarde (12–18h)</SelectItem>
+              <SelectItem value="noite">Noite (18–24h)</SelectItem>
+              <SelectItem value="with_time">Só com hora informada</SelectItem>
+              <SelectItem value="without_time">Sem hora informada</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
