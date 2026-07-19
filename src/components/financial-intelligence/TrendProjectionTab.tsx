@@ -229,7 +229,10 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
     for (const r of payments) {
       if (!r.competence_month || EXCLUDED.has(r.status)) continue;
       const key = r.competence_month.slice(0, 7);
-      map.set(key, (map.get(key) ?? 0) + Number(r.total_amount));
+      // Preferimos bruto_total (consistente com a composição de lotes);
+      // fallback para total_amount quando bruto_total ainda não foi materializado.
+      const v = Number(r.bruto_total ?? 0) || Number(r.total_amount ?? 0);
+      map.set(key, (map.get(key) ?? 0) + v);
     }
     const all = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
 
