@@ -987,6 +987,14 @@ export function ItemsDataGrid({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  type TurnoFilter =
+    | "__all__"
+    | "madrugada"
+    | "manha"
+    | "tarde"
+    | "noite"
+    | "with_time"
+    | "without_time";
   const pf = persistedFilters as {
     filter?: string;
     patientFilter?: string;
