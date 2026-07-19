@@ -29,7 +29,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Power, Link2, LayoutList, X } from "lucide-react";
+import { Plus, Pencil, Power, Link2, LayoutList, X, Wand2 } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
 
 type BatchPattern = {
