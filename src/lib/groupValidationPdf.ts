@@ -188,11 +188,12 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     y += 3;
     autoTable(doc, {
       startY: y + 2,
-      head: [["Atend.", "Médico", "TUSS", "Qtd", "Bruto pago", "Esperado (regra)", "Δ", "Método"]],
+      head: [["Data/Hora", "Atend.", "Médico", "TUSS", "Qtd", "Bruto pago", "Esperado (regra)", "Δ", "Método"]],
       body: divergentes.slice(0, 200).map((i) => {
         const e = Number(i.expected_amount ?? 0);
         const g = Number(i.gross_amount ?? 0);
         return [
+          fmtDateHora(i.procedure_date, i.procedure_date_has_time),
           i.attendance_number ?? "—",
           i.doctor_name ?? "—",
           i.procedure_code ?? "—",
@@ -203,7 +204,7 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
           i.applied_calc_method ?? "—",
         ];
       }),
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7.5 },
       headStyles: { fillColor: [30, 64, 175] },
       margin: { left: marginX, right: marginX },
     });
