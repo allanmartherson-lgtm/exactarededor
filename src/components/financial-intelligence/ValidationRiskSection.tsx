@@ -13,6 +13,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
+import { StatusBadge } from "@/components/StatusBadge";
+import type { PaymentStatus } from "@/lib/status";
 
 // Fontes de risco consolidadas pela RPC get_risk_summary.
 // Track é ignorado nesta versão: as RPCs somam por hospital ativo.
@@ -37,6 +39,10 @@ type DetailRow = {
   status: string | null;
 };
 
+// Status considerados "encerrados" — divergências neles já foram implicitamente
+// aceitas ao concluir o pagamento; separam-se visualmente do risco acionável.
+const CLOSED_STATUSES = new Set(["pago", "arquivado"]);
+
 const fmtCompetencia = (raw: string | null | undefined): string => {
   if (!raw) return "—";
   // Formata YYYY-MM-DD sem passar por Date para evitar deslocamento UTC→BRT
@@ -46,7 +52,10 @@ const fmtCompetencia = (raw: string | null | undefined): string => {
   return `${meses[idx] ?? "?"}/${y?.slice(2)}`;
 };
 
+type Mode = "active" | "history";
+
 export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
+  const [mode, setMode] = useState<Mode>("active");
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<SummaryRow[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -55,8 +64,15 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    // Ao trocar de modo, invalida detalhes cacheados para forçar refetch
+    // com o mesmo p_only_active — evita mostrar linhas de pago no modo ativo.
+    setDetailsByTipo({});
+    setExpanded(null);
     (async () => {
-      const { data, error } = await supabase.rpc("get_risk_summary", { p_months_back: 6 });
+      const { data, error } = await supabase.rpc("get_risk_summary", {
+        p_months_back: 6,
+        p_only_active: mode === "active",
+      });
       if (cancelled) return;
       if (error) {
         setRows([]);
@@ -73,7 +89,7 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mode]);
 
   const toggle = async (tipo: string) => {
     if (expanded === tipo) {
@@ -83,11 +99,20 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
     setExpanded(tipo);
     if (detailsByTipo[tipo] && detailsByTipo[tipo] !== "loading") return;
     setDetailsByTipo((s) => ({ ...s, [tipo]: "loading" }));
-    const { data, error } = await supabase.rpc("get_risk_details", { p_tipo: tipo, p_limit: 30 });
-    setDetailsByTipo((s) => ({
-      ...s,
-      [tipo]: error ? [] : ((data ?? []) as DetailRow[]),
-    }));
+    const { data, error } = await supabase.rpc("get_risk_details", {
+      p_tipo: tipo,
+      p_limit: 30,
+      p_only_active: mode === "active",
+    });
+    const list = error ? [] : ((data ?? []) as DetailRow[]);
+    // Ordenação: lotes ativos primeiro, depois pagos/arquivados.
+    // Dentro de cada grupo mantém a ordem da RPC (já é por divergência desc).
+    const sorted = [...list].sort((a, b) => {
+      const aClosed = CLOSED_STATUSES.has(String(a.status ?? "")) ? 1 : 0;
+      const bClosed = CLOSED_STATUSES.has(String(b.status ?? "")) ? 1 : 0;
+      return aClosed - bClosed;
+    });
+    setDetailsByTipo((s) => ({ ...s, [tipo]: sorted }));
   };
 
   if (loading) {
@@ -109,12 +134,18 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
   const totalLotes = rows.reduce((s, r) => s + r.lotes_afetados, 0); // soma simples (não distinct entre fontes)
   const fontesAtivas = rows.filter((r) => r.qtd > 0).length;
 
+  const kpiSuffix = mode === "history" ? " (inclui lotes pagos)" : "";
   const kpis = [
-    { label: "Alertas ativos", value: totalAlertas.toLocaleString("pt-BR"), Icon: AlertTriangle },
-    { label: "Valor em risco", value: formatCurrency(totalValor), Icon: DollarSign },
-    { label: "Lotes afetados", value: totalLotes.toLocaleString("pt-BR"), Icon: Layers },
+    { label: `Alertas${kpiSuffix}`, value: totalAlertas.toLocaleString("pt-BR"), Icon: AlertTriangle },
+    { label: `Valor em risco${kpiSuffix}`, value: formatCurrency(totalValor), Icon: DollarSign },
+    { label: `Lotes afetados${kpiSuffix}`, value: totalLotes.toLocaleString("pt-BR"), Icon: Layers },
     { label: "Fontes ativas", value: `${fontesAtivas} de ${rows.length || 3}`, Icon: Activity },
   ];
+
+  const subtitle =
+    mode === "active"
+      ? "Considerando apenas lotes em fluxo ativo (exclui pagos e arquivados)."
+      : "Incluindo lotes pagos nos últimos 6 meses — divergências já aceitas ao concluir o pagamento.";
 
   return (
     <section className="space-y-4">
@@ -144,6 +175,7 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
           </div>
         ))}
       </div>
+      <div className="text-[11px] text-muted-foreground -mt-1 px-1">{subtitle}</div>
 
       {/* Tabela de fontes de risco */}
       {totalAlertas === 0 ? (
@@ -156,7 +188,7 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
       ) : (
         <div className="rounded-xl border bg-card" style={{ borderColor: "hsl(var(--border))" }}>
           <div
-            className="flex items-center gap-2.5 px-5 py-4"
+            className="flex items-center gap-2.5 px-5 py-4 flex-wrap"
             style={{ borderBottom: "1px solid hsl(var(--border))" }}
           >
             <div
@@ -170,7 +202,42 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
             >
               <ShieldAlert size={14} />
             </div>
-            <h3 className="text-sm font-semibold tracking-tight">Fontes de risco (últimos 6 meses)</h3>
+            <h3 className="text-sm font-semibold tracking-tight flex-1 min-w-0">
+              Fontes de risco (últimos 6 meses)
+            </h3>
+            {/* Toggle risco ativo × incluir histórico */}
+            <div
+              className="inline-flex rounded-md border overflow-hidden text-[11px]"
+              style={{ borderColor: "hsl(var(--border))" }}
+              role="group"
+              aria-label="Modo de exibição do risco"
+            >
+              <button
+                type="button"
+                onClick={() => setMode("active")}
+                className="px-2.5 py-1 font-medium transition-colors"
+                style={{
+                  background: mode === "active" ? "hsl(var(--accent) / 0.12)" : "transparent",
+                  color: mode === "active" ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))",
+                }}
+                aria-pressed={mode === "active"}
+              >
+                Risco ativo
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("history")}
+                className="px-2.5 py-1 font-medium transition-colors"
+                style={{
+                  background: mode === "history" ? "hsl(var(--accent) / 0.12)" : "transparent",
+                  color: mode === "history" ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))",
+                  borderLeft: "1px solid hsl(var(--border))",
+                }}
+                aria-pressed={mode === "history"}
+              >
+                Incluir histórico
+              </button>
+            </div>
           </div>
 
           <div>
@@ -238,6 +305,7 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
                             <thead>
                               <tr className="text-left text-muted-foreground border-b" style={{ borderColor: "hsl(var(--border))" }}>
                                 <th className="py-2 px-2 font-medium">Lote</th>
+                                <th className="py-2 px-2 font-medium">Status</th>
                                 <th className="py-2 px-2 font-medium">Empresa</th>
                                 <th className="py-2 px-2 font-medium">Médico</th>
                                 <th className="py-2 px-2 font-medium">Especialidade</th>
@@ -256,11 +324,15 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
                                     : Math.abs(div) > 30
                                       ? "hsl(var(--destructive))"
                                       : "hsl(var(--accent))";
+                                const isClosed = CLOSED_STATUSES.has(String(d.status ?? ""));
                                 return (
                                   <tr
                                     key={`${d.payment_id}-${idx}`}
                                     className="border-b hover:bg-muted/30"
-                                    style={{ borderColor: "hsl(var(--border) / 0.5)" }}
+                                    style={{
+                                      borderColor: "hsl(var(--border) / 0.5)",
+                                      opacity: isClosed ? 0.6 : 1,
+                                    }}
                                   >
                                     <td className="py-2 px-2">
                                       <Link
@@ -273,6 +345,13 @@ export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
                                         </span>
                                         <ExternalLink size={10} />
                                       </Link>
+                                    </td>
+                                    <td className="py-2 px-2">
+                                      {d.status ? (
+                                        <StatusBadge status={d.status as PaymentStatus} />
+                                      ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
                                     </td>
                                     <td className="py-2 px-2">
                                       <span className="truncate max-w-[160px] inline-block align-middle" title={d.company_name ?? ""}>

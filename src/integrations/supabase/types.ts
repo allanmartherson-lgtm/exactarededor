@@ -12927,31 +12927,58 @@ export type Database = {
           total_in_stage: number
         }[]
       }
-      get_risk_details: {
-        Args: { p_limit?: number; p_tipo: string }
-        Returns: {
-          company_name: string
-          competencia: string
-          divergencia_pct: number
-          doctor_name: string
-          expected_amount: number
-          gross_amount: number
-          payment_id: string
-          procedure_code: string
-          reference: string
-          specialty: string
-          status: string
-        }[]
-      }
-      get_risk_summary: {
-        Args: { p_months_back?: number }
-        Returns: {
-          lotes_afetados: number
-          qtd: number
-          tipo: string
-          valor_risco: number
-        }[]
-      }
+      get_risk_details:
+        | {
+            Args: { p_limit?: number; p_tipo: string }
+            Returns: {
+              company_name: string
+              competencia: string
+              divergencia_pct: number
+              doctor_name: string
+              expected_amount: number
+              gross_amount: number
+              payment_id: string
+              procedure_code: string
+              reference: string
+              specialty: string
+              status: string
+            }[]
+          }
+        | {
+            Args: { p_limit?: number; p_only_active?: boolean; p_tipo: string }
+            Returns: {
+              company_name: string
+              competencia: string
+              divergencia_pct: number
+              doctor_name: string
+              expected_amount: number
+              gross_amount: number
+              payment_id: string
+              procedure_code: string
+              reference: string
+              specialty: string
+              status: string
+            }[]
+          }
+      get_risk_summary:
+        | {
+            Args: { p_months_back?: number }
+            Returns: {
+              lotes_afetados: number
+              qtd: number
+              tipo: string
+              valor_risco: number
+            }[]
+          }
+        | {
+            Args: { p_months_back?: number; p_only_active?: boolean }
+            Returns: {
+              lotes_afetados: number
+              qtd: number
+              tipo: string
+              valor_risco: number
+            }[]
+          }
       get_rules_signature: { Args: { _hospital_id: string }; Returns: string }
       get_simulator_matched_names: {
         Args: {
