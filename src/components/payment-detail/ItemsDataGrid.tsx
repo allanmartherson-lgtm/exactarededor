@@ -5381,9 +5381,17 @@ function ItemDetailsRow({
                   {it.applied_calc_method && (
                     <div className="mt-2 pt-2 border-t border-border/60">
                       <Label>Cálculo utilizado</Label>
-                      <p className="mt-1 text-[13px] font-medium flex items-center gap-1.5">
+                      <p className="mt-1 text-[13px] font-medium flex items-center gap-1.5 flex-wrap">
                         <span aria-hidden>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { emoji: "•" }).emoji}</span>
                         <span>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { label: it.applied_calc_method }).label}</span>
+                        {((it as any).ai_findings?.engine?.contagio_atendimento === true) && (
+                          <span
+                            title={`Excluído por contágio: TUSS ${(it as any).ai_findings?.engine?.contagio_source_tuss ?? "—"} disparou exclusão no mesmo atendimento+data.`}
+                            className="ml-1 inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+                          >
+                            contágio
+                          </span>
+                        )}
                       </p>
                       <PisoAppliedBadge item={it} />
                     </div>
@@ -5402,9 +5410,17 @@ function ItemDetailsRow({
                   {it.applied_calc_method && (
                     <div className="mt-2 pt-2 border-t border-border/60">
                       <Label>Cálculo utilizado</Label>
-                      <p className="mt-1 text-[13px] font-medium flex items-center gap-1.5">
+                      <p className="mt-1 text-[13px] font-medium flex items-center gap-1.5 flex-wrap">
                         <span aria-hidden>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { emoji: "•" }).emoji}</span>
                         <span>{(CALC_METHOD_LABELS[it.applied_calc_method] ?? { label: it.applied_calc_method }).label}</span>
+                        {((it as any).ai_findings?.engine?.contagio_atendimento === true) && (
+                          <span
+                            title={`Excluído por contágio: TUSS ${(it as any).ai_findings?.engine?.contagio_source_tuss ?? "—"} disparou exclusão no mesmo atendimento+data.`}
+                            className="ml-1 inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+                          >
+                            contágio
+                          </span>
+                        )}
                       </p>
                       <PisoAppliedBadge item={it} />
                     </div>
