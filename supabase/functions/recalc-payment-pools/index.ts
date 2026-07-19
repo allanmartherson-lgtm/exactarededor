@@ -713,17 +713,34 @@ Deno.serve(async (req) => {
           .in("id", elig.map((it: any) => it.id));
       }
 
-      // Remove grupos-fantasma cujos itens foram integralmente absorvidos pelo
-      // pool (ex.: razão social da planilha em rateio com itens coletivos).
-      if ((isFiltered || isExplicitPaymentPool) && elig.length) {
+      // Remove grupos-fantasma que não pertencem ao pool. Rodamos sempre
+      // (independe de elig.length) para limpar resíduos de ingestões antigas.
+      //
+      // Regra:
+      //  - Grupos de participantes pagadores: mantém.
+      //  - Grupo sintético "hospital_nao_paga" (company_id NULL + prefixo
+      //    "<pool> — hospital"): mantém.
+      //  - Explicit pool (payment.pool_id === pool.id): pool é soberano;
+      //    qualquer OUTRO grupo é fantasma vindo da razão social da planilha
+      //    e deve ser removido — o rateio real vive em payment_company_financials.
+      //  - Pool filtrado (mesmo lote, outros itens fora do pool): só remove
+      //    quando não sobrar item vivo (não absorvido por este pool).
+      if (isFiltered || isExplicitPaymentPool) {
         const participantIds = new Set(quotas.filter(q => q.paga && q.company_id).map(q => q.company_id as string));
+        const retidoPrefix = `${pool.nome} — hospital`;
         const { data: allGroups } = await supabase
           .from("payment_company_groups")
-          .select("id, company_id, company_name, items_count")
+          .select("id, company_id, company_name")
           .eq("payment_id", payment_id);
         for (const g of (allGroups ?? [])) {
           if (g.company_id && participantIds.has(g.company_id)) continue;
-          if (!g.company_id && (g.company_name ?? "").startsWith(`${pool.nome} — hospital`)) continue;
+          if (!g.company_id && (g.company_name ?? "").startsWith(retidoPrefix)) continue;
+          if (isExplicitPaymentPool) {
+            // Fantasma garantido — o lote inteiro pertence a este pool.
+            await supabase.from("payment_company_groups").delete().eq("id", g.id);
+            continue;
+          }
+          // Pool filtrado: só apaga se não sobrou item vivo do grupo.
           let q = supabase.from("payment_items")
             .select("id", { count: "exact", head: true })
             .eq("payment_id", payment_id);
