@@ -56,6 +56,32 @@ const _diffSet = (A: Set<string>, B: Set<string>): Set<string> => {
   return out;
 };
 
+// ---------- prefixo TUSS (código terminando em `*`) ----------
+// Códigos como "4100*" representam TODA a família 4100.... Para detecção de
+// sobreposição, comparamos com semântica de prefixo: dois prefixos conflitam
+// se um contém o outro; prefixo × literal conflita se literal começa com o prefixo.
+const _isPrefix = (s: string) => s.endsWith("*");
+const _prefixBody = (s: string) => s.slice(0, -1);
+function _codeSetsIntersectPrefix(A: Set<string>, B: Set<string>): Set<string> {
+  const out = new Set<string>();
+  const aArr = [...A];
+  const bArr = [...B];
+  for (const a of aArr) {
+    for (const b of bArr) {
+      if (a === b) { out.add(a); continue; }
+      if (_isPrefix(a) && _isPrefix(b)) {
+        const pa = _prefixBody(a); const pb = _prefixBody(b);
+        if (pa.startsWith(pb) || pb.startsWith(pa)) out.add(a.length >= b.length ? a : b);
+      } else if (_isPrefix(a) && b.startsWith(_prefixBody(a))) {
+        out.add(b);
+      } else if (_isPrefix(b) && a.startsWith(_prefixBody(b))) {
+        out.add(a);
+      }
+    }
+  }
+  return out;
+}
+
 // ---------- resultado da interseção em UM eixo ----------
 type AxisResult =
   | { empty: true }
