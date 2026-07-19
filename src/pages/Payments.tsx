@@ -774,6 +774,23 @@ const Payments = () => {
 
   useEffect(() => { loadPoolOptions(); }, [loadPoolOptions]);
 
+  // Padrões de lote ativos — alimentam o filtro "Padrão de lote".
+  const loadPatternOptions = useCallback(async () => {
+    if (hospitalSwitching || !activeHospitalId) { setPatternOptions([]); return; }
+    try {
+      const { data, error } = await supabase
+        .from("payment_batch_patterns")
+        .select("id,label,active")
+        .eq("active", true)
+        .order("label", { ascending: true });
+      if (error) throw error;
+      setPatternOptions(((data ?? []) as any[]).map((p) => ({ id: p.id, label: p.label })));
+    } catch (e) {
+      console.warn("load batch patterns falhou", e);
+    }
+  }, [activeHospitalId, hospitalSwitching]);
+  useEffect(() => { loadPatternOptions(); }, [loadPatternOptions]);
+
   useEffect(() => {
     document.title = "Pagamentos | Exacta Approval";
     load();
