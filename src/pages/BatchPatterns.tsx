@@ -100,7 +100,8 @@ export default function BatchPatterns({ embedded = false }: Props) {
       toast({ title: "Falha ao vincular órfãos", description: error.message, variant: "destructive" });
       return;
     }
-    const row = Array.isArray(data) ? (data[0] as { scanned?: number; linked?: number } | undefined) : undefined;
+    const rows = (data ?? []) as Array<{ scanned?: number; linked?: number }>;
+    const row = rows[0];
     const scanned = row?.scanned ?? 0;
     const linked = row?.linked ?? 0;
     toast({
