@@ -1009,6 +1009,33 @@ export default function BiDiretoria() {
         </div>
       </div>
 
+      {/* ===== Cobertura de padrões de lote ===== */}
+      {patternCoverage && patternCoverage.total > 0 && (
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+              Cobertura de padrões de lote
+            </div>
+            <div className="mt-2 flex items-baseline gap-3">
+              <span className="text-3xl font-light tracking-tight text-foreground tabular-nums">
+                {patternCoverage.pct.toFixed(1).replace(".", ",")}%
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {patternCoverage.linked} de {patternCoverage.total} lote(s) do mês vinculados a um padrão
+              </span>
+            </div>
+          </div>
+          <a
+            href="/padroes-lote"
+            className="text-xs font-medium text-primary hover:underline whitespace-nowrap"
+          >
+            Gerenciar padrões →
+          </a>
+        </div>
+      )}
+
+
+
 
       {/* ===== Funil de aprovação ===== */}
       <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
