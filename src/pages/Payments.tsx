@@ -1505,6 +1505,26 @@ const Payments = () => {
                   ]}
                 />
               </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Padrão de lote</label>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os padrões"
+                  allLabel="Todos os padrões"
+                  values={batchPatternFilter}
+                  onChange={setBatchPatternFilter}
+                  options={patternOptions.map((p) => ({ value: p.id, label: p.label }))}
+                />
+                <label className="mt-1.5 flex items-center gap-2 text-[11px] cursor-pointer select-none text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-border accent-primary"
+                    checked={onlyUnlinkedPattern}
+                    onChange={(e) => setOnlyUnlinkedPattern(e.target.checked)}
+                  />
+                  Apenas lotes sem padrão vinculado
+                </label>
               <div className="space-y-1 flex items-end">
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input
