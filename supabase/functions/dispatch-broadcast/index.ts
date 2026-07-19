@@ -363,13 +363,14 @@ async function resolveAudience(
 }
 
 function renderHtml(title: string, message: string, name: string | null) {
-  const rendered = d1_broadcast({
+  const rendered = d2_campaignBroadcast({
+    campaign_title: title,
+    campaign_message: message,
     recipient_name: name,
-    subject: title,
-    message_html: message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>"),
   });
   return rendered.html;
 }
+
 
 
 function normalizePhone(raw: string): string {
