@@ -87,6 +87,7 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     procedure_code: string | null;
     procedure_name: string | null;
     procedure_date: string | null;
+    procedure_date_has_time: boolean | null;
     quantity: number | null;
     procedure_amount: number | null;
     gross_amount: number | null;
@@ -95,6 +96,20 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     applied_calc_method: string | null;
     validation_findings: unknown;
   }>;
+
+  // Formata data + hora quando a base hospitalar trouxe hora real
+  // (procedure_date_has_time=true). Hora sintetizada (default 12h) fica
+  // oculta para não induzir aplicação indevida de adicional noturno.
+  const fmtDateHora = (iso: string | null, hasHour: boolean | null): string => {
+    if (!iso) return "—";
+    const dm = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    const base = dm ? `${dm[3]}/${dm[2]}/${dm[1]}` : iso.slice(0, 10);
+    if (hasHour === true) {
+      const hm = /T(\d{2}):(\d{2})/.exec(iso);
+      if (hm) return `${base} ${hm[1]}:${hm[2]}`;
+    }
+    return base;
+  };
 
   const semRegra = allItems.filter((i) => !i.applied_calc_id);
   const divergentes = allItems.filter((i) => {
