@@ -206,6 +206,8 @@ type PersistedPaymentsState = Partial<{
   hasAppliedDebits: boolean;
   hasAppliedCredits: boolean;
   hasAlerts: boolean;
+  batchPatternFilter: string[];
+  onlyUnlinkedPattern: boolean;
   archivedView: boolean;
   showConcluded: boolean;
 }>;
