@@ -9481,6 +9481,7 @@ export type Database = {
           bonus_pct: number | null
           calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
           code_match_mode: string
+          contagia_atendimento: boolean
           context_conditions: Json
           convenio_percentage: number | null
           created_at: string
@@ -9550,6 +9551,7 @@ export type Database = {
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
           code_match_mode?: string
+          contagia_atendimento?: boolean
           context_conditions?: Json
           convenio_percentage?: number | null
           created_at?: string
@@ -9619,6 +9621,7 @@ export type Database = {
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
           code_match_mode?: string
+          contagia_atendimento?: boolean
           context_conditions?: Json
           convenio_percentage?: number | null
           created_at?: string

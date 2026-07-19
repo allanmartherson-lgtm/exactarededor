@@ -1,58 +1,45 @@
-# Fase E — Próximas etapas
+## Objetivo
 
-Contexto: Item 1 (Card "Lotes esperados em atraso" no BI) já entregue. Restam três itens da fase.
+Adicionar, nas linhas de cálculo do tipo **exclusão**, uma flag opcional **"Contagiar demais itens do mesmo atendimento+data"**. Quando ativa e um item disparar a exclusão, **todos os demais itens do mesmo (atendimento, data)** também são excluídos (pagamento zerado). A exceção "equipe do titular" é aplicada quando existir **pelo menos 1 item no atendimento cujo médico pertença à lista de médicos da regra** — nesse caso, o atendimento inteiro é poupado do contágio.
 
-## Item 2 — Anomalia por volume de itens
+Confirmado pelo usuário:
+1. Basta 1 item do atendimento com médico da equipe para poupar todo o atendimento.
+2. Contágio zera tudo (bônus, valor fixo, percentual — nada é pago).
+3. Badge suave no grid identificando itens excluídos por contágio.
 
-**Objetivo:** detectar quando um lote vinculado a um padrão recorrente vem com volume de itens muito fora da média histórica daquele padrão (indício de base incompleta ou duplicada).
+## Arquivos alterados
 
-**Backend (1 migration):**
-- Nova RPC `get_pattern_volume_anomalies(p_hospital_id uuid)` que, para cada `payment_batch_pattern_id`:
-  - calcula média e desvio padrão de `payment_items` por lote nos últimos 6 meses vinculados ao padrão;
-  - retorna lotes do mês vigente cujo count desvia >40% da média (ou >2σ, o que for maior);
-  - devolve: `payment_id`, `payment_name`, `pattern_label`, `expected_avg`, `actual_count`, `deviation_pct`, `direction` (baixo/alto).
+### Migração de banco (schema)
+- `supabase/migrations/<timestamp>_add_contagio_exclusao.sql`
+  - `ALTER TABLE public.rule_calculations ADD COLUMN contagia_atendimento boolean NOT NULL DEFAULT false;`
+  - Comentário explicativo.
 
-**Frontend (1 arquivo):**
-- `src/pages/BiDiretoria.tsx`: adicionar card **"Anomalias de volume por padrão"** ao lado do card de "Anomalias de lote" existente, com tabela (Padrão | Lote | Esperado | Real | Δ%) e badge vermelho/âmbar.
+### Motor (edge function)
+- `supabase/functions/analyze-payment/index.ts`
+  - Ler `contagia_atendimento` no SELECT de `rule_calculations` (linha ~320).
+  - **Post-pass após o cálculo principal**, antes de gravar `payment_items`:
+    1. Identificar itens que foram excluídos por uma calc com `contagia_atendimento=true`. Agrupar por `(atendimento_norm, procedure_date::date)`.
+    2. Para cada grupo, verificar se algum item do mesmo atendimento tem `doctor_id` pertencente à lista `rule.doctors` da regra que disparou. Se sim: pular o grupo.
+    3. Caso contrário: para cada item do grupo ainda não excluído, zerar `expected_amount`, `gross_amount_calculated`, marcar `applied_calc_method='exclusao_contagio'`, `matched_rule_id` = regra origem, e gravar em `motivo_regra`/observação: `"Excluído por contágio: TUSS <origem> no mesmo atendimento"`.
+  - Manter itens com médico da equipe intactos mesmo dentro do atendimento contagiado (exceção já cobre o atendimento inteiro, mas a lógica é: se houve exceção → grupo inteiro é poupado).
 
-## Item 3 — Notificações de padrão em atraso
+### UI de regras
+- `src/components/rules/RuleCalculationsEditor.tsx` (ou equivalente onde o editor de calc mostra opções para `calculation_type='exclusao'`)
+  - Adicionar checkbox **"Contagiar demais itens do mesmo atendimento+data"** visível apenas quando `calculation_type === 'exclusao'`.
+  - Texto de ajuda: "Se marcado, todos os itens do mesmo atendimento serão excluídos. Itens de médicos listados na regra são exceção."
 
-**Objetivo:** analista recebe notificação interna quando um padrão recorrente ultrapassa o prazo esperado sem lote importado.
+### Grid de itens
+- `src/components/payment-detail/ItemsDataGrid.tsx`
+  - Adicionar badge cinza discreto **"contágio"** com tooltip explicativo quando `applied_calc_method === 'exclusao_contagio'`.
 
-**Backend:**
-- Nova Edge Function `notify-missing-batch-patterns` (cron diário 08:00):
-  - itera `get_missing_batch_patterns()` por hospital;
-  - insere em `internal_notifications` (uma por padrão em atraso, dedup por dia via chave `payment_batch_pattern_id + due_date`);
-  - severity conforme dias em atraso (≥15d = alta, ≥7d = média).
-- Adicionar `verify_jwt = false` no `config.toml` + `requireInternalOrRole` no código.
-- Registrar cron via `supabase--insert` (pg_cron/pg_net, conforme padrão do projeto).
+### Tipos gerados
+- `src/integrations/supabase/types.ts` — regerado automaticamente pela migração; não editar à mão.
 
-**Frontend:** nenhum arquivo novo — o sino de notificações existente já consome `internal_notifications`.
+## Regras respeitadas
+- Escopo fechado — apenas os 4 arquivos acima.
+- Migração descrita antes de aplicar (aguardo aprovação para rodar).
+- Sem alteração em código compartilhado sensível (motor tem post-pass isolado).
+- Ledger/auditoria: o motor já grava histórico via `applied_calc_method`; contágio fica rastreável.
 
-## Item 4 — Filtros por padrão na listagem de lotes
-
-**Objetivo:** filtrar `src/pages/Payments.tsx` por `payment_batch_pattern_id` (recorrente vs avulso, ou padrão específico).
-
-**Backend:**
-- Estender RPC `list_payments` com parâmetro `p_batch_pattern_ids uuid[]` e `p_only_unlinked boolean`.
-
-**Frontend (1 arquivo):**
-- `src/pages/Payments.tsx`: adicionar `MultiSelectPopover` "Padrão de lote" nos filtros avançados, alimentado por `payment_batch_patterns` do hospital ativo, com opção "Sem padrão vinculado".
-
-## Arquivos afetados (resumo)
-
-```text
-supabase/migrations/<novo>.sql               (item 2 + item 4 combinados)
-supabase/functions/notify-missing-batch-patterns/index.ts   (novo, item 3)
-supabase/config.toml                          (item 3, verify_jwt)
-src/pages/BiDiretoria.tsx                     (item 2)
-src/pages/Payments.tsx                        (item 4)
-```
-
-## Riscos e observações
-
-- **Compartilhado:** `Payments.tsx` e `list_payments` são usados em vários fluxos. A extensão é aditiva (novos parâmetros opcionais), sem quebrar chamadas atuais — mas confirmo antes de tocar.
-- **Cron:** requer `pg_cron` + `pg_net` habilitados. Confirmo antes do insert.
-- **Ordem sugerida:** 2 → 4 → 3 (deixar cron por último para validar RPCs antes).
-
-Confirma a ordem e o escopo? Posso ajustar (ex.: entregar só o item 2 agora, adiar cron etc.).
+## Perguntas restantes (mínimas)
+Nenhuma — os 3 pontos foram confirmados. Ao aprovar o plano, aplico migração + código + deploy da edge function `analyze-payment`.
