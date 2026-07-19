@@ -351,6 +351,10 @@ export default function CreditosDebitos() {
     if (!editingAdj?.company_id || !editingAdj.descricao || !editingAdj.valor_total) {
       toast.error("Preencha empresa, descrição e valor"); return;
     }
+    if (!editingAdj.id && !activeHospitalId) {
+      toast.error("Sem hospital ativo."); return;
+    }
+
     const recorrente = !!editingAdj.recorrente;
     // Resolve cost_center_id a partir do código informado no combobox.
     let costCenterId: string | null = null;
