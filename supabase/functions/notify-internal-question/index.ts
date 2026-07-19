@@ -221,33 +221,26 @@ Deno.serve(async (req) => {
 
     for (const r of recipients) {
       const name = firstName(r.full_name);
-      const lines = isCreated
-        ? [
-            `${greeting}, ${name}.`,
-            ``,
-            `Há uma nova pergunta no lote ${payment.reference}.`,
-            body.asker_role === "diretor"
-              ? `Observação: Esta pergunta foi feita pela diretoria. O lote continua aguardando aprovação e a resposta pode ser dada pelo analista ou pelo validador.`
-              : `Há uma nova pergunta aguardando resposta.`,
-            actorName ? `• Perguntado por: ${actorName}` : null,
-            `• Mensagem: ${(question.message ?? "").slice(0, 240)}`,
-            `• Em: ${fmtBR(sentAt)}`,
-            ``,
-            `Acessar: ${link}`,
-          ].filter(Boolean) as string[]
-        : [
-            `${greeting}, ${name}.`,
-            ``,
-            `O questionamento no lote ${payment.reference} foi resolvido e o fluxo agora pode prosseguir.`,
-            actorName ? `• Resolvido por: ${actorName}` : null,
-            `• Mensagem: ${(question.message ?? "").slice(0, 240)}`,
-            `• Em: ${fmtBR(sentAt)}`,
-            ``,
-            `Acessar: ${link}`,
-          ].filter(Boolean) as string[];
+      const previewMsg = (question.message ?? "").slice(0, 240);
+      const rendered = isCreated
+        ? b5_internalQuestion({
+            analyst_name: name,
+            payment_reference: payment.reference,
+            question_by: actorName ?? "Um usuário",
+            question_preview: previewMsg,
+            thread_link: link,
+          })
+        : b6_questionReply({
+            recipient_name: name,
+            payment_reference: payment.reference,
+            replied_by: actorName ?? "Um usuário",
+            reply_preview: previewMsg,
+            thread_link: link,
+            subject,
+          });
+      const text = rendered.text;
+      const html = rendered.html;
 
-      const text = lines.join("\n");
-      const html = `<p>${text.replace(/\n/g, "<br/>")}</p>`;
 
       // Envia Email
       if (r.email && LOVABLE_API_KEY && RESEND_API_KEY) {
