@@ -104,6 +104,7 @@ export function PaymentBatchExportDialog({
   profiles = {},
 }: Props) {
   const { toast } = useToast();
+  const { hospital } = useHospital();
   const [format, setFormat] = useState<ExportFormat>("xlsx");
   const [companySearch, setCompanySearch] = useState("");
   const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
