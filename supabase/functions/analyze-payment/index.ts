@@ -3015,15 +3015,36 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
         if (divergences.length > 0) {
           const msg =
-            `⚠️ Divergência pós-split de bônus (${bonusLinesToInsert.length} linha(s) inserida(s)): ` +
+            `⚠️ Divergência pós-split de bônus (${bonusLinesToInsert.length} linha(s) inserida(s)) — REVISÃO MANUAL OBRIGATÓRIA antes de aprovar: ` +
             divergences.join(" · ");
           console.error(`${__t} bonus_split_invariant_failed`, msg);
+          // Marca diagnóstico do lote para bloquear aprovação automática e
+          // sinalizar na UI que os valores gravados podem estar inconsistentes.
+          (diagnostics as any).bonus_split_invariant_failed = true;
+          (diagnostics as any).bonus_split_divergences = divergences;
+          (diagnostics as any).requires_manual_review = true;
           await supabase.from("payment_observations").insert({
             payment_id,
             hospital_id: __paymentHospitalId,
             author_type: "sistema",
+            observation_type: "alerta",
             message: msg,
           });
+          // Escala como pendência para o analista (mesma tabela usada por outros
+          // alertas de integridade) — usa best-effort; não deve derrubar o job.
+          try {
+            await supabase.from("pendencias").insert({
+              payment_id,
+              hospital_id: __paymentHospitalId,
+              tipo: "divergencia_bonus_split",
+              titulo: "Bônus divergente após split — revisar valores da empresa",
+              descricao: msg,
+              severidade: "alta",
+              status: "aberta",
+            });
+          } catch (pendErr) {
+            console.error(`${__t} bonus_split_pendencia_insert_failed`, pendErr);
+          }
         } else {
           console.log(
             `${__t} bonus_split_invariants_ok bonus_lines=${bonusLinesToInsert.length} companies=${compsToCheck.length}`,
