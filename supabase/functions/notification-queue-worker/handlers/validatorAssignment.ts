@@ -165,8 +165,16 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
       continue;
     }
     const name = firstName(p.full_name);
-    const html = buildHtml(greeting, name, payment.reference, uniqueGroups, companyCount, totalFormatted, senderNames, link);
-    const text = buildText(greeting, name, payment.reference, uniqueGroups, companyCount, totalFormatted, senderNames, link);
+    const rendered = b1_validatorAssignment({
+      validator_name: name,
+      payment_reference: payment.reference,
+      payment_type: null,
+      competence_month: null,
+      hospital_name: null,
+      company_count: companyCount,
+      payment_link: link,
+    });
+    const senderSuffix = senderNames.length > 0 ? ` (enviado por ${senderNames.join(", ")})` : "";
 
     try {
       const r = await fetch(`${RESEND_GATEWAY}/emails`, {
@@ -179,11 +187,12 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
         body: JSON.stringify({
           from: EMAIL_FROM,
           to: [p.email],
-          subject: `${companyCount} ${companyCount === 1 ? "empresa enviada" : "empresas enviadas"} para validação — ${payment.reference}`,
-          html,
-          text,
+          subject: `${rendered.subject}${senderSuffix}`,
+          html: rendered.html,
+          text: rendered.text + (senderSuffix ? `\n${senderSuffix.trim()}` : ""),
         }),
       });
+
       const json = await r.json().catch(() => ({}));
       results.push({ recipient_id: p.id, ok: r.ok, status: r.status, response: json });
     } catch (e) {
