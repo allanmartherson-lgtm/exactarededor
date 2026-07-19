@@ -15,7 +15,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const BodySchema = z.object({
   campaign_id: z.string().uuid(),
@@ -79,6 +79,9 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (cErr) return json({ error: cErr.message }, 500);
   if (!campaign) return json({ error: "Campanha não encontrada" }, 404);
+  if (campaign.hospital_id && !assertCallerHospital(auth, campaign.hospital_id)) {
+    return json({ error: "Campanha pertence a outro hospital" }, 403);
+  }
   if (!["rascunho", "agendada", "enviando", "falhou"].includes(campaign.status)) {
     return json({ error: `Status inválido para envio: ${campaign.status}` }, 400);
   }
