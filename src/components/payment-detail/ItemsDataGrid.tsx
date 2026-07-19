@@ -1467,6 +1467,7 @@ export function ItemsDataGrid({
   // e bônus grudado no pai. Persistida em localStorage.
   type CustomSortField =
     | "procedure_date"
+    | "hora"
     | "paciente"
     | "convenio"
     | "medico"
