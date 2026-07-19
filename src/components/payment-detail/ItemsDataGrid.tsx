@@ -4486,9 +4486,27 @@ function RowMain({
         )}
         {colVis.data && (() => {
           const pd = (it as any).procedure_date as string | null | undefined;
+          const ctx = getDayContext(pd);
+          // Sinalização suave: dia da semana ao lado + ícone/tint para feriado
+          // ou fim de semana — ajuda o analista em regras com plantão/bônus.
+          const tone = ctx?.holidayName
+            ? "text-amber-700"
+            : ctx?.isWeekend
+              ? "text-indigo-700"
+              : "";
+          const tip = ctx
+            ? `${ctx.weekdayLong}${ctx.holidayName ? ` · Feriado: ${ctx.holidayName}` : ctx.isWeekend ? " · Fim de semana" : ""}`
+            : (pd ?? "");
           return (
-            <td className={cn(cell, TEXT_META, "whitespace-nowrap")} title={pd ?? ""}>
-              {formatDateBR(pd)}
+            <td className={cn(cell, TEXT_META, "whitespace-nowrap")} title={tip}>
+              <div className="flex items-baseline gap-1">
+                <span>{formatDateBR(pd)}</span>
+                {ctx && (
+                  <span className={cn("text-[10px] font-medium", tone)}>
+                    {ctx.holidayName ? "★" : ctx.isWeekend ? "•" : ""}{ctx.weekdayShort}
+                  </span>
+                )}
+              </div>
             </td>
           );
         })()}
