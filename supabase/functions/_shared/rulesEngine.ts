@@ -247,6 +247,8 @@ export interface RuleCalculationItem {
   adicional_feriado_pct?: number | null;
   /** % adicional se hora cair na janela noturna. */
   adicional_noturno_pct?: number | null;
+  /** % adicional se atendimento for urgência OU emergência (independe de dia/horário). Entra no mesmo pool "só o maior". */
+  adicional_urgencia_pct?: number | null;
   /** Início janela noturna (HH:MM). */
   noturno_inicio?: string | null;
   /** Fim janela noturna (HH:MM). Cruza meia-noite quando fim < início. */
