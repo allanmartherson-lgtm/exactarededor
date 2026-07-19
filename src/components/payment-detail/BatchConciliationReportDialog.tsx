@@ -531,6 +531,29 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
           </p>
         </DialogHeader>
 
+        {patternInfo && (
+          <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="font-medium text-foreground">Padrão do lote:</span>
+            <span>{patternInfo.label}</span>
+            {patternInfo.avg != null && (
+              <span className="text-muted-foreground">
+                média histórica <span className="font-medium text-foreground">{formatCurrency(patternInfo.avg)}</span>
+                {" "}({patternInfo.monthsSeen} {patternInfo.monthsSeen === 1 ? "mês" : "meses"})
+              </span>
+            )}
+            {patternInfo.deltaPct != null && (
+              <Badge
+                variant={Math.abs(patternInfo.deltaPct) < 10 ? "secondary" : Math.abs(patternInfo.deltaPct) < 25 ? "outline" : "destructive"}
+              >
+                {patternInfo.deltaPct >= 0 ? "+" : ""}
+                {patternInfo.deltaPct.toFixed(1).replace(".", ",")}% vs média
+              </Badge>
+            )}
+          </div>
+        )}
+
+
+
         <div className="flex items-center gap-2 px-1">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
