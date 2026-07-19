@@ -9468,6 +9468,7 @@ export type Database = {
           adicional_fds_pct: number | null
           adicional_feriado_pct: number | null
           adicional_noturno_pct: number | null
+          adicional_urgencia_pct: number | null
           agreement_aliases: string[] | null
           agreement_match_mode: string | null
           allowed_access_routes: string[] | null
@@ -9536,6 +9537,7 @@ export type Database = {
           adicional_fds_pct?: number | null
           adicional_feriado_pct?: number | null
           adicional_noturno_pct?: number | null
+          adicional_urgencia_pct?: number | null
           agreement_aliases?: string[] | null
           agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
@@ -9604,6 +9606,7 @@ export type Database = {
           adicional_fds_pct?: number | null
           adicional_feriado_pct?: number | null
           adicional_noturno_pct?: number | null
+          adicional_urgencia_pct?: number | null
           agreement_aliases?: string[] | null
           agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
