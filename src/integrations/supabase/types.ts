@@ -12674,6 +12674,23 @@ export type Database = {
         }
         Returns: Json
       }
+      get_pattern_anomalies: {
+        Args: { p_min_months?: number; p_threshold_pct?: number }
+        Returns: {
+          avg_bruto: number
+          competence_month: string
+          current_bruto: number
+          delta_pct: number
+          months_seen: number
+          pattern_id: string
+          pattern_label: string
+          payment_id: string
+          payment_reference: string
+          severity: string
+          stddev_bruto: number
+          z_score: number
+        }[]
+      }
       get_pattern_coverage: {
         Args: { p_months?: number }
         Returns: {
