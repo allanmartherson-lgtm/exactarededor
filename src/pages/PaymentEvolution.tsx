@@ -447,12 +447,12 @@ export default function PaymentEvolution() {
       if (g.company_name !== focusedCompany.name) return;
       if (!ccPaymentIds.has(g.payment_id)) return;
       const mk = paymentMonth.get(g.payment_id);
-      if (!mk || !months.includes(mk)) return;
+      if (!mk || !displayMonths.includes(mk)) return;
       const v = g.liquido_total ?? g.bruto_total ?? g.total_amount ?? 0;
       byMonth.set(mk, (byMonth.get(mk) ?? 0) + v);
     });
-    return months.map((mk) => ({ month: monthLabel(mk), value: byMonth.get(mk) ?? 0 }));
-  }, [focusedCompany, drillCompanies, paymentMonth, months, payments]);
+    return displayMonths.map((mk) => ({ month: monthLabel(mk), value: byMonth.get(mk) ?? 0 }));
+  }, [focusedCompany, drillCompanies, paymentMonth, displayMonths, payments]);
 
 
 
