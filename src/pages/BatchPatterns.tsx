@@ -79,6 +79,56 @@ export default function BatchPatterns({ embedded = false }: Props) {
   const [creating, setCreating] = useState(false);
   const [linkOrphan, setLinkOrphan] = useState<OrphanPayment | null>(null);
 
+  type Suggestion = {
+    suggested_label: string;
+    months_seen: number;
+    avg_bruto: number | null;
+    distinct_references: string[];
+    payment_ids: string[];
+  };
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
+
+  const runSuggest = async () => {
+    if (!hospitalId) return;
+    setSuggestLoading(true);
+    setSelectedSuggestions(new Set());
+    const { data, error } = await supabase.rpc("suggest_batch_patterns" as never, { p_history_months: 6 } as never);
+    if (error) toast({ title: "Falha ao analisar histórico", description: error.message, variant: "destructive" });
+    else setSuggestions(((data ?? []) as unknown) as Suggestion[]);
+    setSuggestLoading(false);
+  };
+
+  const approveSelected = async () => {
+    if (!hospitalId || selectedSuggestions.size === 0) return;
+    const toCreate = suggestions.filter((s) => selectedSuggestions.has(s.suggested_label));
+    let ok = 0; let fail = 0;
+    for (const s of toCreate) {
+      const code = slugify(s.suggested_label);
+      const { data: created, error } = await supabase.from("payment_batch_patterns" as never)
+        .insert({
+          hospital_id: hospitalId,
+          code,
+          label: s.suggested_label,
+          aliases: Array.from(new Set(s.distinct_references)),
+          active: true,
+        } as never)
+        .select("id")
+        .single();
+      if (error || !created) { fail++; continue; }
+      const patternId = (created as { id: string }).id;
+      const { error: linkErr } = await supabase.from("payments")
+        .update({ batch_pattern_id: patternId } as never)
+        .in("id", s.payment_ids);
+      if (linkErr) fail++; else ok++;
+    }
+    toast({ title: `${ok} padrão(ões) criado(s)`, description: fail > 0 ? `${fail} falha(s)` : undefined });
+    setSuggestions([]);
+    setSelectedSuggestions(new Set());
+    void load();
+  };
+
   const load = async () => {
     if (!hospitalId) return;
     setLoading(true);
