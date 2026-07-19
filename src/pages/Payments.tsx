@@ -206,6 +206,8 @@ type PersistedPaymentsState = Partial<{
   hasAppliedDebits: boolean;
   hasAppliedCredits: boolean;
   hasAlerts: boolean;
+  batchPatternFilter: string[];
+  onlyUnlinkedPattern: boolean;
   archivedView: boolean;
   showConcluded: boolean;
 }>;
@@ -337,6 +339,9 @@ const Payments = () => {
   const [hasAppliedCredits, setHasAppliedCredits] = useState<boolean>(persisted.hasAppliedCredits ?? false);
   const [hasAlerts, setHasAlerts] = useState<boolean>(persisted.hasAlerts ?? false);
   const [poolOptions, setPoolOptions] = useState<Array<{ id: string; nome: string }>>([]);
+  const [batchPatternFilter, setBatchPatternFilter] = useState<string[]>(Array.isArray(persisted.batchPatternFilter) ? persisted.batchPatternFilter : []);
+  const [onlyUnlinkedPattern, setOnlyUnlinkedPattern] = useState<boolean>(persisted.onlyUnlinkedPattern ?? false);
+  const [patternOptions, setPatternOptions] = useState<Array<{ id: string; label: string }>>([]);
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
@@ -364,6 +369,7 @@ const Payments = () => {
       divergenceFilter, questionedFilter,
       poolFilter, importModeFilter, emptyOnly,
       hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts,
+      batchPatternFilter, onlyUnlinkedPattern,
       archivedView,
       showConcluded,
     };
@@ -380,6 +386,7 @@ const Payments = () => {
     divergenceFilter, questionedFilter,
     poolFilter, importModeFilter, emptyOnly,
     hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts,
+    batchPatternFilter, onlyUnlinkedPattern,
     archivedView,
     showConcluded,
   ]);
@@ -518,6 +525,7 @@ const Payments = () => {
     statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
     divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
     poolFilter, importModeFilter, emptyOnly,
+    batchPatternFilter, onlyUnlinkedPattern,
   ]);
 
   // Mapeia ordenação da UI para o parâmetro _sort da RPC list_payments.
@@ -590,11 +598,14 @@ const Payments = () => {
     if (hasAppliedDebits) f.has_applied_debits = true;
     if (hasAppliedCredits) f.has_applied_credits = true;
     if (hasAlerts) f.has_alerts = true;
+    if (batchPatternFilter.length > 0) f.batch_pattern_ids = batchPatternFilter;
+    if (onlyUnlinkedPattern) f.only_unlinked_pattern = true;
     return f;
   }, [serverStatuses, typeFilter, itemTypeFilter, trackFilter, analystFilter, companyFilter, doctorFilter,
       competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
       divergenceFilter, questionedFilter, poolFilter, importModeFilter, emptyOnly,
-      hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts]);
+      hasProposedGlosas, hasAppliedDebits, hasAppliedCredits, hasAlerts,
+      batchPatternFilter, onlyUnlinkedPattern]);
 
   const load = useCallback(async () => {
     // Enquanto o header ainda está sincronizando a troca de hospital, evita
@@ -762,6 +773,23 @@ const Payments = () => {
   }, [activeHospitalId, hospitalSwitching]);
 
   useEffect(() => { loadPoolOptions(); }, [loadPoolOptions]);
+
+  // Padrões de lote ativos — alimentam o filtro "Padrão de lote".
+  const loadPatternOptions = useCallback(async () => {
+    if (hospitalSwitching || !activeHospitalId) { setPatternOptions([]); return; }
+    try {
+      const { data, error } = await supabase
+        .from("payment_batch_patterns")
+        .select("id,label,active")
+        .eq("active", true)
+        .order("label", { ascending: true });
+      if (error) throw error;
+      setPatternOptions(((data ?? []) as any[]).map((p) => ({ id: p.id, label: p.label })));
+    } catch (e) {
+      console.warn("load batch patterns falhou", e);
+    }
+  }, [activeHospitalId, hospitalSwitching]);
+  useEffect(() => { loadPatternOptions(); }, [loadPatternOptions]);
 
   useEffect(() => {
     document.title = "Pagamentos | Exacta Approval";
@@ -1343,6 +1371,8 @@ const Payments = () => {
             hasAppliedDebits,
             hasAppliedCredits,
             hasAlerts,
+            batchPatternFilter.length > 0,
+            onlyUnlinkedPattern,
           ].filter(Boolean).length;
 
           const advancedFilters = (
@@ -1474,6 +1504,27 @@ const Payments = () => {
                     { value: "historico", label: "Histórico (retroativo)" },
                   ]}
                 />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Padrão de lote</label>
+                <MultiSelectPopover
+                  width="w-full"
+                  className="w-full"
+                  placeholder="Todos os padrões"
+                  allLabel="Todos os padrões"
+                  values={batchPatternFilter}
+                  onChange={setBatchPatternFilter}
+                  options={patternOptions.map((p) => ({ value: p.id, label: p.label }))}
+                />
+                <label className="mt-1.5 flex items-center gap-2 text-[11px] cursor-pointer select-none text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-border accent-primary"
+                    checked={onlyUnlinkedPattern}
+                    onChange={(e) => setOnlyUnlinkedPattern(e.target.checked)}
+                  />
+                  Apenas lotes sem padrão vinculado
+                </label>
               </div>
               <div className="space-y-1 flex items-end">
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -1629,6 +1680,7 @@ const Payments = () => {
                           setImportModeFilter([]);
                           setEmptyOnly(false);
                           setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
+                          setBatchPatternFilter([]); setOnlyUnlinkedPattern(false);
                           const next = new URLSearchParams(searchParams);
                           next.delete("status");
                           setSearchParams(next, { replace: true });
@@ -1675,6 +1727,7 @@ const Payments = () => {
                       setImportModeFilter([]);
                       setEmptyOnly(false);
                       setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
+                      setBatchPatternFilter([]); setOnlyUnlinkedPattern(false);
                       const next = new URLSearchParams(searchParams);
                       next.delete("status");
                       next.delete("delayed");
@@ -1724,7 +1777,7 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter.length > 0 || typeFilter.length > 0 || itemTypeFilter.length > 0 || trackFilter.length > 0 || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter.length > 0 || importModeFilter.length > 0 || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts) && (
+              {(companyFilter || analystFilter.length > 0 || typeFilter.length > 0 || itemTypeFilter.length > 0 || trackFilter.length > 0 || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter.length > 0 || importModeFilter.length > 0 || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts || batchPatternFilter.length > 0 || onlyUnlinkedPattern) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
                   setAnalystFilter([]); setTypeFilter([]); setItemTypeFilter([]); setTrackFilter([]); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
@@ -1732,6 +1785,7 @@ const Payments = () => {
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setPoolFilter([]); setImportModeFilter([]); setEmptyOnly(false);
                   setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
+                  setBatchPatternFilter([]); setOnlyUnlinkedPattern(false);
                   setSearchParams(new URLSearchParams(), { replace: true });
                 }}>
                   <X className="h-4 w-4 mr-1" /> Limpar

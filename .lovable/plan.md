@@ -1,77 +1,58 @@
-## Painel de padrões de sobreposição assistencial
+# Fase E — Próximas etapas
 
-Auditoria autônoma dos casos "mesmo paciente + mesmo dia + ≥2 lançamentos assistenciais". Não depende da regra ter rodado no lote — consulta direto os `payment_items` do hospital ativo por janela de datas.
+Contexto: Item 1 (Card "Lotes esperados em atraso" no BI) já entregue. Restam três itens da fase.
 
-### Onde vive
+## Item 2 — Anomalia por volume de itens
 
-Nova rota `/auditoria/sobreposicao-assistencial` (link no menu de Relatórios/Auditoria). Escopo por `current_active_hospital()` via RLS já existente.
+**Objetivo:** detectar quando um lote vinculado a um padrão recorrente vem com volume de itens muito fora da média histórica daquele padrão (indício de base incompleta ou duplicada).
 
-### O que a tela mostra
+**Backend (1 migration):**
+- Nova RPC `get_pattern_volume_anomalies(p_hospital_id uuid)` que, para cada `payment_batch_pattern_id`:
+  - calcula média e desvio padrão de `payment_items` por lote nos últimos 6 meses vinculados ao padrão;
+  - retorna lotes do mês vigente cujo count desvia >40% da média (ou >2σ, o que for maior);
+  - devolve: `payment_id`, `payment_name`, `pattern_label`, `expected_avg`, `actual_count`, `deviation_pct`, `direction` (baixo/alto).
 
-**Filtros no topo**
-- Janela (data inicial / final; default últimos 90 dias sobre `procedure_date`)
-- Tipo de item: Visita+Parecer (default) / só Visita / só Parecer
-- Mínimo de especialidades distintas por paciente/dia (default 2)
-- Modo de especialidade: Principal (1ª do médico) / Qualquer
-- Especialidades a ignorar (multi-select — default Infectologia, como na regra)
+**Frontend (1 arquivo):**
+- `src/pages/BiDiretoria.tsx`: adicionar card **"Anomalias de volume por padrão"** ao lado do card de "Anomalias de lote" existente, com tabela (Padrão | Lote | Esperado | Real | Δ%) e badge vermelho/âmbar.
 
-**Card 1 — Combinações de especialidades**
-Tabela: `Especialidades | Pacientes | Dias | Atendimentos | Ver exemplos`
-Ex.: `Neurologia + Geriatria — 47 pac / 112 dias / 189 atend.`
-Inclui combinações mesma-especialidade quando o TUSS difere (ex.: Neuro EEG + Neuro Visita) — coluna extra "Mesma especialidade" com badge.
+## Item 3 — Notificações de padrão em atraso
 
-**Card 2 — Pacientes com mais dias em sobreposição**
-Top 50: `Paciente | Dias | Especialidades envolvidas | Atendimentos`. Clique expande drill-down por dia com lote, médico, TUSS, valor.
+**Objetivo:** analista recebe notificação interna quando um padrão recorrente ultrapassa o prazo esperado sem lote importado.
 
-**Card 3 — Atendimentos com sobreposição no mesmo dia**
-Lista paginada: `Data | Paciente | Atendimento | Médicos (especialidades) | Lotes | Total pago`. Link para cada lote.
+**Backend:**
+- Nova Edge Function `notify-missing-batch-patterns` (cron diário 08:00):
+  - itera `get_missing_batch_patterns()` por hospital;
+  - insere em `internal_notifications` (uma por padrão em atraso, dedup por dia via chave `payment_batch_pattern_id + due_date`);
+  - severity conforme dias em atraso (≥15d = alta, ≥7d = média).
+- Adicionar `verify_jwt = false` no `config.toml` + `requireInternalOrRole` no código.
+- Registrar cron via `supabase--insert` (pg_cron/pg_net, conforme padrão do projeto).
 
-**Ações**
-- Exportar Excel (3 abas: Combinações, Pacientes, Atendimentos)
-- "Abrir regra de sobreposição" (link para `/regras`) — não altera regra a partir daqui
+**Frontend:** nenhum arquivo novo — o sino de notificações existente já consome `internal_notifications`.
 
-### Como o cálculo funciona
+## Item 4 — Filtros por padrão na listagem de lotes
 
-Nova RPC `get_overlap_audit(p_start, p_end, p_item_scope, p_min_distinct, p_specialty_mode, p_excluded_specs[])` que:
-1. Filtra `payment_items` do hospital ativo com `procedure_date` na janela.
-2. Elegibilidade estrita por TUSS/nome (mesma lista usada em `validate-payment`: 10102019, 10102027, 10103015, 10103082 + nomes visita/parecer/interconsulta/consultoria).
-3. Junta com `doctors` + `doctor_specialties` para resolver especialidades (fallback: `doctor_document` → `doctor_name`).
-4. Agrupa por `(paciente_normalizado, procedure_date::date)`.
-5. Retorna 3 result sets via JSONB: `by_specialty_combo`, `by_patient`, `by_attendance` — cada linha já com contagens, sample_ids e valores agregados.
+**Objetivo:** filtrar `src/pages/Payments.tsx` por `payment_batch_pattern_id` (recorrente vs avulso, ou padrão específico).
 
-Cache client-side com React Query (staleTime 5 min); ação de refresh manual.
+**Backend:**
+- Estender RPC `list_payments` com parâmetro `p_batch_pattern_ids uuid[]` e `p_only_unlinked boolean`.
 
-### Arquivos a criar
+**Frontend (1 arquivo):**
+- `src/pages/Payments.tsx`: adicionar `MultiSelectPopover` "Padrão de lote" nos filtros avançados, alimentado por `payment_batch_patterns` do hospital ativo, com opção "Sem padrão vinculado".
 
-- `supabase/migrations/<ts>_overlap_audit_rpc.sql` — cria função `public.get_overlap_audit(...)` `SECURITY DEFINER`, `GRANT EXECUTE ... TO authenticated`. Reusa `normSpec`/`normName` inline.
-- `src/pages/OverlapAudit.tsx` — layout com filtros + 3 cards + export.
-- `src/lib/overlapAuditReport.ts` — export Excel (mesmo padrão de `interventionReport.ts`).
-- `src/hooks/useOverlapAudit.ts` — React Query wrapper da RPC.
+## Arquivos afetados (resumo)
 
-### Arquivos a alterar (mínimo)
+```text
+supabase/migrations/<novo>.sql               (item 2 + item 4 combinados)
+supabase/functions/notify-missing-batch-patterns/index.ts   (novo, item 3)
+supabase/config.toml                          (item 3, verify_jwt)
+src/pages/BiDiretoria.tsx                     (item 2)
+src/pages/Payments.tsx                        (item 4)
+```
 
-- `src/App.tsx` — registrar rota `/auditoria/sobreposicao-assistencial`.
-- `src/components/layout/Sidebar.tsx` (ou equivalente) — adicionar item "Sobreposição assistencial" em Auditoria/Relatórios.
+## Riscos e observações
 
-Nenhum outro arquivo compartilhado é tocado. A regra `sobreposicao_assistencial` e a edge function `validate-payment` permanecem intactas.
+- **Compartilhado:** `Payments.tsx` e `list_payments` são usados em vários fluxos. A extensão é aditiva (novos parâmetros opcionais), sem quebrar chamadas atuais — mas confirmo antes de tocar.
+- **Cron:** requer `pg_cron` + `pg_net` habilitados. Confirmo antes do insert.
+- **Ordem sugerida:** 2 → 4 → 3 (deixar cron por último para validar RPCs antes).
 
-### Fora do escopo
-
-- Criar/editar regra a partir do painel
-- Notificações automáticas
-- Cruzamento com Aurum/CBHPM
-- Ajuste de valores ou glosa direto pelo painel
-
-### Riscos
-
-- Volume de dados: janela grande em hospital grande pode ficar lenta. Mitigação: janela default 90d + índice já existente em `payment_items(hospital_id, procedure_date)` (a verificar; se faltar, criar na mesma migration).
-- Pacientes sem nome normalizado consistente: usa `normName` (lower + sem acento); casos de digitação divergente ficam em grupos separados (documentado como limitação).
-
-### Ordem de execução
-
-1. Criar migration da RPC (aguardar aprovação da DB).
-2. Criar `useOverlapAudit`, `overlapAuditReport`, `OverlapAudit.tsx`.
-3. Registrar rota e menu.
-4. Testar com HDF Neuro maio + janela 30d.
-
-Confirma que sigo?
+Confirma a ordem e o escopo? Posso ajustar (ex.: entregar só o item 2 agora, adiar cron etc.).
