@@ -99,9 +99,11 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
   const [trendRows, setTrendRows] = useState<TrendRow[] | null>(null);
   const [trendError, setTrendError] = useState<string | null>(null);
+  const [batches, setBatches] = useState<BatchRow[] | null>(null);
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [showReceived, setShowReceived] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
