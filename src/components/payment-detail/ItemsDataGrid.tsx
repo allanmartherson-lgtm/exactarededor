@@ -1646,6 +1646,18 @@ export function ItemsDataGrid({
     return Array.from(s).sort();
   }, [items]);
 
+  // Hora real da base hospitalar (0-23). Retorna null quando não há hora
+  // confiável — evita agrupar itens sintetizados (default 12h) nos turnos.
+  const getRealHour = (it: PaymentItem): number | null => {
+    if ((it as any).procedure_date_has_time !== true) return null;
+    const iso = it.procedure_date;
+    if (!iso) return null;
+    const m = /T(\d{2}):/.exec(iso);
+    if (!m) return null;
+    const h = Number(m[1]);
+    return Number.isFinite(h) ? h : null;
+  };
+
   const filtered = useMemo(() => {
     const term = filter.trim().toLowerCase();
     const pat = patientFilter.trim().toLowerCase();
