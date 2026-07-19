@@ -15,7 +15,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const BodySchema = z.object({
   campaign_id: z.string().uuid(),
