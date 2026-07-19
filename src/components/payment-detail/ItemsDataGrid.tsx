@@ -1002,6 +1002,7 @@ export function ItemsDataGrid({
     onlyZero?: boolean;
     onlySemRegra?: boolean;
     onlyPisoAplicado?: boolean;
+    turnoFilter?: TurnoFilter;
   };
 
   const [activeId, setActiveId] = useState<string | null>(null);
