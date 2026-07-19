@@ -2601,7 +2601,7 @@ const NewPayment = () => {
     else if (ratioPast >= 0.95) kind = competenceRegime === "remessa" ? "atual" : "pendencia";
     else if (current > 0 && past > 0) kind = "misto";
     return { kind, current, past, dated };
-  }, [allRows, competenceMonths]);
+  }, [allRows, competenceMonths, competenceRegime]);
 
   // Aplica a categoria detectada quando o modo automático está ativo.
   useEffect(() => {
