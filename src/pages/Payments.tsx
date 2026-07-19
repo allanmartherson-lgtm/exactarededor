@@ -1727,6 +1727,7 @@ const Payments = () => {
                       setImportModeFilter([]);
                       setEmptyOnly(false);
                       setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
+                      setBatchPatternFilter([]); setOnlyUnlinkedPattern(false);
                       const next = new URLSearchParams(searchParams);
                       next.delete("status");
                       next.delete("delayed");
