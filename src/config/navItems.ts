@@ -194,6 +194,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Regras (Pagamento, Validação, Simuladores)", iconName: "BadgeDollarSign" },
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Cadastros", iconName: "FolderKanban" },
+  { label: "Padrões de Lote", iconName: "FolderKanban" },
   { label: "Hospitais", iconName: "Building2" },
   { label: "Pools de rateio", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
