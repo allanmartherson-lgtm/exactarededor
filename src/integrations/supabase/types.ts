@@ -4818,12 +4818,15 @@ export type Database = {
       payment_batch_patterns: {
         Row: {
           active: boolean
+          alert_enabled: boolean
           aliases: string[]
           avg_bruto: number | null
           code: string
           created_at: string
           created_by: string | null
           expected_convenio_group: string | null
+          expected_day_of_month: number | null
+          expected_grace_days: number
           expected_setor: string | null
           hospital_id: string
           id: string
@@ -4835,12 +4838,15 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          alert_enabled?: boolean
           aliases?: string[]
           avg_bruto?: number | null
           code: string
           created_at?: string
           created_by?: string | null
           expected_convenio_group?: string | null
+          expected_day_of_month?: number | null
+          expected_grace_days?: number
           expected_setor?: string | null
           hospital_id: string
           id?: string
@@ -4852,12 +4858,15 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          alert_enabled?: boolean
           aliases?: string[]
           avg_bruto?: number | null
           code?: string
           created_at?: string
           created_by?: string | null
           expected_convenio_group?: string | null
+          expected_day_of_month?: number | null
+          expected_grace_days?: number
           expected_setor?: string | null
           hospital_id?: string
           id?: string
@@ -12571,6 +12580,18 @@ export type Database = {
           procedure_name: string
           valor_pago_final: number
           valor_regra: number
+        }[]
+      }
+      get_missing_batch_patterns: {
+        Args: never
+        Returns: {
+          avg_bruto: number
+          competence_month: string
+          days_late: number
+          expected_by: string
+          label: string
+          last_seen_month: string
+          pattern_id: string
         }[]
       }
       get_money_anomalies: {
