@@ -581,6 +581,8 @@ function PatternDialog({
       return;
     }
     setSaving(true);
+    const expectedDayNum = expectedDay.trim() ? Math.max(1, Math.min(31, parseInt(expectedDay, 10) || 0)) : null;
+    const graceDaysNum = Math.max(0, Math.min(60, parseInt(graceDays, 10) || 0));
     const payload = {
       hospital_id: hospitalId,
       label: finalLabel,
@@ -588,8 +590,12 @@ function PatternDialog({
       aliases,
       expected_setor: expectedSetor.trim() || null,
       expected_convenio_group: expectedTrack.trim() || null,
+      expected_day_of_month: expectedDayNum,
+      expected_grace_days: graceDaysNum,
+      alert_enabled: alertEnabled,
       notes: notes.trim() || null,
     };
+
     const { error } = initial
       ? await supabase.from("payment_batch_patterns" as never).update(payload as never).eq("id", initial.id)
       : await supabase.from("payment_batch_patterns" as never).insert(payload as never);
