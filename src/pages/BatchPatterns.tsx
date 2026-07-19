@@ -253,6 +253,84 @@ export default function BatchPatterns({ embedded = false }: Props) {
         )}
       </section>
 
+      {/* Sugestões automáticas */}
+      <section className="rounded-lg border bg-card">
+        <header className="px-4 py-3 border-b flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold">Sugestões a partir do histórico</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Varre os lotes dos últimos 6 meses e propõe padrões recorrentes (≥ 2 meses) ainda não cadastrados.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {suggestions.length > 0 && (
+              <Button size="sm" onClick={approveSelected} disabled={selectedSuggestions.size === 0}>
+                Aprovar {selectedSuggestions.size} selecionado(s)
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={runSuggest} disabled={suggestLoading || !hospitalId}>
+              {suggestLoading ? "Analisando…" : "Analisar histórico"}
+            </Button>
+          </div>
+        </header>
+        {suggestions.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">
+            {suggestLoading ? "Analisando lotes…" : "Nenhuma sugestão carregada. Clique em \"Analisar histórico\"."}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground bg-muted/40">
+                <tr>
+                  <th className="px-3 py-2 w-8"></th>
+                  <th className="px-3 py-2">Rótulo sugerido</th>
+                  <th className="px-3 py-2">Variações vistas</th>
+                  <th className="px-3 py-2 text-center">Meses</th>
+                  <th className="px-3 py-2 text-right">Média bruto</th>
+                  <th className="px-3 py-2 text-center">Lotes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suggestions.map((s) => {
+                  const checked = selectedSuggestions.has(s.suggested_label);
+                  return (
+                    <tr key={s.suggested_label} className="border-t">
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = new Set(selectedSuggestions);
+                            if (e.target.checked) next.add(s.suggested_label); else next.delete(s.suggested_label);
+                            setSelectedSuggestions(next);
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-2 font-medium">{s.suggested_label}</td>
+                      <td className="px-3 py-2 text-xs">
+                        <div className="flex flex-wrap gap-1 max-w-[420px]">
+                          {s.distinct_references.slice(0, 3).map((r, i) => (
+                            <span key={i} className="rounded bg-muted px-1.5 py-0.5 text-[10px] truncate max-w-[220px]">{r}</span>
+                          ))}
+                          {s.distinct_references.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">+{s.distinct_references.length - 3}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-center">{s.months_seen}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {s.avg_bruto != null ? formatCurrency(Number(s.avg_bruto)) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center">{s.payment_ids.length}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {/* Órfãos */}
       <section className="rounded-lg border bg-card">
         <header className="px-4 py-3 border-b">
