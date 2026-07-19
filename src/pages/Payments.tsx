@@ -525,6 +525,7 @@ const Payments = () => {
     statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
     divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
     poolFilter, importModeFilter, emptyOnly,
+    batchPatternFilter, onlyUnlinkedPattern,
   ]);
 
   // Mapeia ordenação da UI para o parâmetro _sort da RPC list_payments.
