@@ -500,7 +500,22 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
             }
             const calcsByRule: Record<string, any[]> = {};
             for (const c of allCalcs) (calcsByRule[c.rule_id as string] ||= []).push(c);
-            const snapshot = { rules: allRules ?? [], calcs_by_rule: calcsByRule, configs };
+            // Assinatura preferencialmente já obtida no início; se veio null
+            // (força-fresh, hospital nulo, RPC falhou), computa aqui — sem
+            // deixar snapshot sem assinatura, senão o próximo HIT quebra.
+            let sigForWrite = currentRulesSignature;
+            if (!sigForWrite && paymentHospitalId) {
+              const { data: sig } = await supabase.rpc("get_rules_signature", {
+                _hospital_id: paymentHospitalId,
+              });
+              if (typeof sig === "string") sigForWrite = sig;
+            }
+            const snapshot = {
+              rules: allRules ?? [],
+              calcs_by_rule: calcsByRule,
+              configs,
+              rules_signature: sigForWrite ?? null,
+            };
             const sizeBytes = JSON.stringify(snapshot).length;
             await supabase.from("payment_job_context").upsert({
               job_id: __job_id,
@@ -508,9 +523,9 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
               context: snapshot,
               built_at: new Date().toISOString(),
               size_bytes: sizeBytes,
-              meta: { rules_count: (allRules ?? []).length, calcs_count: allCalcs.length },
+              meta: { rules_count: (allRules ?? []).length, calcs_count: allCalcs.length, rules_signature: sigForWrite ?? null },
             }, { onConflict: "job_id" });
-            console.log(`${__t} ctx_cache WRITE (rules=${(allRules ?? []).length}, ${Math.round(sizeBytes / 1024)}KB)`);
+            console.log(`${__t} ctx_cache WRITE (rules=${(allRules ?? []).length}, ${Math.round(sizeBytes / 1024)}KB, sig=${sigForWrite ? "ok" : "null"})`);
           } catch (e) {
             console.warn(`${__t} ctx_cache write falhou`, (e as any)?.message ?? e);
           }
