@@ -3047,10 +3047,11 @@ export function ItemsDataGrid({
                         </PopoverContent>
                       </Popover>
                     </div>
+                    <ResizeHandle colKey="atendimento" defaultWidth={160} />
                   </th>
                 )}
                 {colVis.data && (
-                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Data</th>
+                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Data<ResizeHandle colKey="data" defaultWidth={108} /></th>
                 )}
                 <th
 
@@ -3071,7 +3072,8 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
-                </th>
+                    <ResizeHandle colKey="convenio" defaultWidth={120} />
+                  </th>
                 {colVis.convenio && (
                   <th
                     scope="col"
@@ -3093,7 +3095,7 @@ export function ItemsDataGrid({
                     </button>
                   </th>
                 )}
-                {colVis.via && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
+                {colVis.via && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via<ResizeHandle colKey="via" defaultWidth={110} /></th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "tuss" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -3112,6 +3114,7 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="tuss" defaultWidth={88} />
                 </th>
                 <th
                   scope="col"
@@ -3131,12 +3134,13 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="qtd" defaultWidth={56} />
                 </th>
-                {colVis.procedimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>}
-                {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
-                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor</th>}
-                {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter</th>}
-                {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)">Subtipo</th>}
+                {colVis.procedimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento<ResizeHandle colKey="procedimento" defaultWidth={200} /></th>}
+                {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)<ResizeHandle colKey="setor_lido" defaultWidth={110} /></th>}
+                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor<ResizeHandle colKey="setor_inferido" defaultWidth={110} /></th>}
+                {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter<ResizeHandle colKey="tipo_entrada" defaultWidth={110} /></th>}
+                {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)">Subtipo<ResizeHandle colKey="subtipo" defaultWidth={80} /></th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "medico" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -3155,9 +3159,10 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="medico" defaultWidth={150} />
                 </th>
-                {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
-                {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
+                {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função<ResizeHandle colKey="funcao" defaultWidth={100} /></th>}
+                {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra<ResizeHandle colKey="regra" defaultWidth={150} /></th>}
                 {showGrossColumn && (
                   <th
                     scope="col"
@@ -3177,6 +3182,7 @@ export function ItemsDataGrid({
                             : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                         : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                     </button>
+                    <ResizeHandle colKey="gross" defaultWidth={110} />
                   </th>
                 )}
                 {showProcedureColumn && (
@@ -3185,6 +3191,7 @@ export function ItemsDataGrid({
                     className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
                   >
                     Valor Faturamento
+                    <ResizeHandle colKey="faturamento" defaultWidth={130} />
                   </th>
                 )}
                 <th
@@ -3205,6 +3212,7 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="esperado" defaultWidth={expectedColWidth} />
                 </th>
                 {showDiferencaCol && (
                   <th
@@ -3225,6 +3233,7 @@ export function ItemsDataGrid({
                             : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                         : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                     </button>
+                    <ResizeHandle colKey="diferenca" defaultWidth={110} />
                   </th>
                 )}
                 <th
@@ -3245,8 +3254,9 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="status" defaultWidth={110} />
                 </th>
-                {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
+                {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.<ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
                 {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap pr-4 sticky right-0 z-30 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
               </tr>
             </thead>
