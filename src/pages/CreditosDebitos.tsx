@@ -383,6 +383,8 @@ export default function CreditosDebitos() {
       data_fim: recorrente ? (editingAdj.data_fim || null) : null,
       cost_center_id: costCenterId,
     };
+    if (!editingAdj.id) payload.hospital_id = activeHospitalId;
+
     setSavingAdj(true);
     const result = editingAdj.id
       ? await supabase.from("company_financial_adjustments").update(payload).eq("id", editingAdj.id).select("*, cost_center:cost_centers(id, code_p12, level4, level5)").single()
