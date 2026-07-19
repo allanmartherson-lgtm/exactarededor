@@ -3647,7 +3647,75 @@ const PaymentDetail = () => {
             { label: "Previsão", value: formatDateOnly(payment.payment_due_date) },
           ];
           if (payment.payment_type) cells.push({ label: "Tipo", value: PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS] });
-          if (payment.payment_kind) cells.push({ label: "Categoria", value: PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS] });
+          {
+            const currentKind = payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS | null | undefined;
+            cells.push({
+              label: "Categoria",
+              value: (
+                <Select
+                  value={currentKind ?? "__none__"}
+                  onValueChange={async (v) => {
+                    const newVal = v === "__none__" ? null : v;
+                    const prev = currentKind ?? null;
+                    if (newVal === prev) return;
+                    // Confirmação quando muda a categoria — impacta classificação
+                    // de linhas (reprocessamento vs procedimento) e o motor de regras.
+                    const goingOutOfPendencia = prev === "pendencia" && newVal !== "pendencia";
+                    const goingIntoPendencia = prev !== "pendencia" && newVal === "pendencia";
+                    const msg = goingOutOfPendencia
+                      ? "Ao sair de Pendência, os itens marcados como 'reprocessamento' voltam a ser tratados como procedimento e serão reanalisados pelo motor. Confirmar?"
+                      : goingIntoPendencia
+                      ? "Ao marcar como Pendência, o motor deixa de aplicar regras (itens tratados como lançamento financeiro). Confirmar?"
+                      : "Trocar a categoria do lote?";
+                    if (!window.confirm(msg)) return;
+                    const { error } = await supabase
+                      .from("payments")
+                      .update({ payment_kind: newVal as any })
+                      .eq("id", payment.id);
+                    if (error) {
+                      toast({ title: "Erro ao atualizar categoria", description: error.message, variant: "destructive" });
+                      return;
+                    }
+                    // Se saiu de pendência, reclassifica linhas com TUSS que estavam
+                    // travadas como reprocessamento e re-dispara a análise.
+                    if (goingOutOfPendencia) {
+                      const { error: reclassErr, count } = await supabase
+                        .from("payment_items")
+                        .update({ tipo_linha: "procedimento" } as any, { count: "exact" })
+                        .eq("payment_id", payment.id)
+                        .eq("tipo_linha", "reprocessamento")
+                        .not("procedure_code", "is", null);
+                      if (reclassErr) {
+                        toast({ title: "Categoria atualizada, mas falhou reclassificar itens", description: reclassErr.message, variant: "destructive" });
+                      } else {
+                        toast({ title: "Categoria atualizada", description: `${count ?? 0} itens reclassificados. Disparando reanálise…` });
+                        try {
+                          await supabase.functions.invoke("dispatch-payment-analysis", {
+                            body: { payment_id: payment.id, force_fresh_rules: true, skip_ai: true },
+                          });
+                        } catch (e) {
+                          console.warn("[payment_kind] reanalysis dispatch falhou", e);
+                        }
+                      }
+                    } else {
+                      toast({ title: "Categoria atualizada", description: newVal ? PAYMENT_KIND_LABELS[newVal as keyof typeof PAYMENT_KIND_LABELS] : "Sem categoria" });
+                    }
+                    load();
+                  }}
+                >
+                  <SelectTrigger className="h-6 px-2 text-xs w-auto min-w-[140px] border-dashed">
+                    <SelectValue placeholder="Definir" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">— Sem categoria</SelectItem>
+                    <SelectItem value="atual" className="text-xs">{PAYMENT_KIND_LABELS.atual}</SelectItem>
+                    <SelectItem value="pendencia" className="text-xs">{PAYMENT_KIND_LABELS.pendencia}</SelectItem>
+                    <SelectItem value="misto" className="text-xs">{PAYMENT_KIND_LABELS.misto}</SelectItem>
+                  </SelectContent>
+                </Select>
+              ),
+            });
+          }
           {
             const currentTrack = (payment as any).payment_track as PaymentTrack | null | undefined;
             cells.push({
