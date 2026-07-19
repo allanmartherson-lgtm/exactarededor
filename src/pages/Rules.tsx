@@ -1019,6 +1019,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
     setFBlockInherit(r.limiar_bloqueio_valor == null);
     setFPreventExternalFallback(!!(r as any).prevent_external_fallback);
+    setFCalculationMode(((r as any).calculation_mode === "cascade") ? "cascade" : "exclusive");
+
 
 
     // Todas as seções iniciam fechadas ao abrir uma regra para edição.
