@@ -5643,7 +5643,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           const { data } = await supabase
             .from("rule_calculations")
             .select(
-              "id, rule_id, sort_order, label, calculation_type, application_unit, fixed_amount, target_amount, multiplier, deflator_pct, bonus_amount, bonus_pct, repasse_pct, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct, include_auxiliaries, package_amount, package_subtype, package_main_code, reference_table_id, acrescimo_pct, adicional_fds_pct, adicional_feriado_pct, adicional_noturno_pct",
+              "id, rule_id, sort_order, label, calculation_type, application_unit, fixed_amount, target_amount, multiplier, deflator_pct, bonus_amount, bonus_pct, repasse_pct, convenio_percentage, auxiliary_pct, aux_first_pct, aux_second_pct, instrumentador_pct, include_auxiliaries, package_amount, package_subtype, package_main_code, reference_table_id, acrescimo_pct, adicional_fds_pct, adicional_feriado_pct, adicional_noturno_pct, adicional_urgencia_pct",
             )
             .in("id", slice);
           for (const row of (data ?? []) as Array<Record<string, unknown>>) {
@@ -5691,6 +5691,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         { header: "Ad. FDS %",             get: (c) => Number(c?.adicional_fds_pct ?? 0) },
         { header: "Ad. Feriado %",         get: (c) => Number(c?.adicional_feriado_pct ?? 0) },
         { header: "Ad. Noturno %",         get: (c) => Number(c?.adicional_noturno_pct ?? 0) },
+        { header: "Ad. Urgência %",        get: (c) => Number(c?.adicional_urgencia_pct ?? 0) },
         { header: "Pacote (subtype)",      get: (c) => (c?.package_subtype as string) ?? "" },
         { header: "Pacote (main code)",    get: (c) => (c?.package_main_code as string) ?? "" },
         { header: "Ref. table id",         get: (c) => (c?.reference_table_id as string) ?? "" },

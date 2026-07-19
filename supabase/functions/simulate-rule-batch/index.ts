@@ -87,7 +87,7 @@ const CALC_SELECT = `
   force_totalized,application_unit,sectors,specialties,special_case_filter,item_type_id,
   procedure_codes,code_match_mode,doctor_roles,
   agreement_match_mode,agreement_aliases,context_conditions,
-  adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,noturno_inicio,noturno_fim,
+  adicional_fds_pct,adicional_feriado_pct,adicional_noturno_pct,adicional_urgencia_pct,noturno_inicio,noturno_fim,
   is_catch_all
 `;
 
