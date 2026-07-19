@@ -25,16 +25,17 @@ export function buildPasswordActionLink(params: {
 
 export async function sendPasswordActionEmail(params: SendPasswordActionEmailParams) {
   const rendered = params.kind === "invite"
-    ? c1_userInvite({
-        user_name: params.fullName ?? null,
-        action_link: params.actionLink,
-        expires_in: "72 horas",
+    ? c2_newUserInvite({
+        user_name: params.fullName?.trim() || params.to,
+        user_email: params.to,
+        activation_link: params.actionLink,
       })
-    : c2_passwordRecovery({
-        user_name: params.fullName ?? null,
-        action_link: params.actionLink,
-        expires_in: "72 horas",
+    : c1_passwordRecovery({
+        user_name: params.fullName?.trim() || params.to,
+        reset_link: params.actionLink,
+        expiry_hours: 72,
       });
+
 
   try {
     const response = await fetch(`${params.supabaseUrl}/functions/v1/send-email-corporate`, {
