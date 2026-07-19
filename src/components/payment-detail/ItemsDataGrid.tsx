@@ -1649,8 +1649,9 @@ export function ItemsDataGrid({
   // Hora real da base hospitalar (0-23). Retorna null quando não há hora
   // confiável — evita agrupar itens sintetizados (default 12h) nos turnos.
   const getRealHour = (it: unknown): number | null => {
-    if ((it as any).procedure_date_has_time !== true) return null;
-    const iso = (it as any).procedure_date as string | null | undefined;
+    const row = it as { procedure_date_has_time?: boolean | null; procedure_date?: string | null };
+    if (row.procedure_date_has_time !== true) return null;
+    const iso = row.procedure_date;
     if (!iso) return null;
     const m = /T(\d{2}):/.exec(iso);
     if (!m) return null;
