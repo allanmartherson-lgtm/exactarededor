@@ -1494,7 +1494,9 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
           valid_from: payload.valid_from,
           valid_until: payload.valid_until,
           calculations: calcsForRpc,
+          calculation_mode: fCalculationMode,
           hospital_id: resolvedHospitalId,
+
         },
       },
     );
