@@ -105,23 +105,30 @@ export function MixedParecerRetroAction({
         },
       });
       if (initRes.error) throw initRes.error;
-      const reportId = (initRes.data as any)?.report_id;
+      const initData = (initRes.data as any) ?? {};
+      const reportId = initData.report_id;
       if (!reportId) throw new Error("Falha ao criar cabeçalho do relatório");
 
-      const CHUNK = 300;
-      let inserted = 0;
-      for (let i = 0; i < parecerPayload.rows.length; i += CHUNK) {
-        const chunk = parecerPayload.rows.slice(i, i + CHUNK);
-        const { error: appErr } = await supabase.functions.invoke("import-parecer-report", {
-          body: { mode: "append", report_id: reportId, rows: chunk },
-        });
-        if (appErr) throw appErr;
-        inserted += chunk.length;
-      }
+      // Se o arquivo já foi importado antes (mesmo hash), pula append/finalize
+      // e vai direto para o cruzamento — não faz sentido re-enviar 2800 linhas.
+      const isDuplicate = !!initData.duplicate;
 
-      await supabase.functions.invoke("import-parecer-report", {
-        body: { mode: "finalize", report_id: reportId, row_count: inserted },
-      });
+      if (!isDuplicate) {
+        const CHUNK = 300;
+        let inserted = 0;
+        for (let i = 0; i < parecerPayload.rows.length; i += CHUNK) {
+          const chunk = parecerPayload.rows.slice(i, i + CHUNK);
+          const { error: appErr } = await supabase.functions.invoke("import-parecer-report", {
+            body: { mode: "append", report_id: reportId, rows: chunk },
+          });
+          if (appErr) throw appErr;
+          inserted += chunk.length;
+        }
+
+        await supabase.functions.invoke("import-parecer-report", {
+          body: { mode: "finalize", report_id: reportId, row_count: inserted },
+        });
+      }
 
       // finalize já dispara cross-reference-parecer; chamamos novamente com
       // trigger_reanalysis=true para forçar reanálise das regras pós-classificação.
