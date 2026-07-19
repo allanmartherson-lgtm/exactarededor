@@ -1585,6 +1585,14 @@ export function ItemsDataGrid({
     const valueFor = (it: PaymentItemRowData, field: CustomSortField): string | number => {
       switch (field) {
         case "procedure_date": return ((it as any).procedure_date ?? "") as string;
+        case "hora": {
+          // Hora sem hora real (sintetizada) vai para o final (-1).
+          const row = it as { procedure_date_has_time?: boolean | null; procedure_date?: string | null };
+          if (row.procedure_date_has_time !== true || !row.procedure_date) return -1;
+          const m = /T(\d{2}):(\d{2})/.exec(row.procedure_date);
+          if (!m) return -1;
+          return Number(m[1]) * 60 + Number(m[2]);
+        }
         case "paciente": return (getPatient(it) ?? "").toLowerCase();
         case "convenio": return (getConvenio(it) ?? "").toLowerCase();
         case "medico": return (it.doctor_name ?? "").toLowerCase();
