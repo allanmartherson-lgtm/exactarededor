@@ -4492,6 +4492,7 @@ function RowMain({
         )}
         {colVis.data && (() => {
           const pd = (it as any).procedure_date as string | null | undefined;
+          const hasHour = (it as any).procedure_date_has_time === true;
           const ctx = getDayContext(pd);
           // Sinalização suave: dia da semana ao lado + ícone/tint para feriado
           // ou fim de semana — ajuda o analista em regras com plantão/bônus.
@@ -4500,8 +4501,16 @@ function RowMain({
             : ctx?.isWeekend
               ? "text-indigo-700"
               : "";
+          // Hora só aparece quando a base hospitalar trouxe hora real
+          // (procedure_date_has_time=true). Sintetizada (default 12h) fica oculta
+          // para não induzir aplicação indevida de adicional noturno.
+          let hhmm = "";
+          if (hasHour && pd) {
+            const m = /T(\d{2}):(\d{2})/.exec(pd);
+            if (m) hhmm = `${m[1]}:${m[2]}`;
+          }
           const tip = ctx
-            ? `${ctx.weekdayLong}${ctx.holidayName ? ` · Feriado: ${ctx.holidayName}` : ctx.isWeekend ? " · Fim de semana" : ""}`
+            ? `${ctx.weekdayLong}${hhmm ? ` · ${hhmm}` : ""}${ctx.holidayName ? ` · Feriado: ${ctx.holidayName}` : ctx.isWeekend ? " · Fim de semana" : ""}`
             : (pd ?? "");
           return (
             <td className={cn(cell, TEXT_META, "whitespace-nowrap")} title={tip}>
@@ -4510,6 +4519,14 @@ function RowMain({
                 {ctx && (
                   <span className={cn("text-[10px] font-medium", tone)}>
                     {ctx.holidayName ? "★" : ctx.isWeekend ? "•" : ""}{ctx.weekdayShort}
+                  </span>
+                )}
+                {hhmm && (
+                  <span
+                    className="text-[10px] font-semibold text-primary tabular-nums"
+                    title="Hora extraída da base hospitalar"
+                  >
+                    {hhmm}
                   </span>
                 )}
               </div>
