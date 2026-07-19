@@ -423,9 +423,12 @@ function PatternDialog({
   const [aliases, setAliases] = useState<string[]>([]);
   const [aliasInput, setAliasInput] = useState("");
   const [expectedSetor, setExpectedSetor] = useState("");
-  const [expectedGroup, setExpectedGroup] = useState("");
+  // Reaproveita a coluna `expected_convenio_group` para armazenar a trilha
+  // padrão do lote (habitual|prioritario) — evita migração de schema.
+  const [expectedTrack, setExpectedTrack] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [sectorOptions, setSectorOptions] = useState<{ slug: string; name: string }[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -435,9 +438,30 @@ function PatternDialog({
     setAliases(initial?.aliases ?? []);
     setAliasInput("");
     setExpectedSetor(initial?.expected_setor ?? "");
-    setExpectedGroup(initial?.expected_convenio_group ?? "");
+    setExpectedTrack(initial?.expected_convenio_group ?? "");
     setNotes(initial?.notes ?? "");
   }, [open, initial]);
+
+  // Carrega setores do hospital ativo (RLS já filtra por hospital_scope_allows).
+  useEffect(() => {
+    if (!open || !hospitalId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("sectors")
+        .select("slug,name,hospital_id,active")
+        .eq("active", true)
+        .or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
+        .order("name", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        setSectorOptions([]);
+        return;
+      }
+      setSectorOptions((data ?? []).map((r) => ({ slug: r.slug as string, name: r.name as string })));
+    })();
+    return () => { cancelled = true; };
+  }, [open, hospitalId]);
 
   const addAlias = () => {
     const v = aliasInput.trim();
