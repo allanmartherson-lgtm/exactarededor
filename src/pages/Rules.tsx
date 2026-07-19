@@ -1407,6 +1407,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       limiar_bloqueio_tipo: fBlockInherit ? null : fBlockThresholdType,
       limiar_bloqueio_valor: fBlockInherit ? null : num(fBlockThresholdValue),
       prevent_external_fallback: fPreventExternalFallback,
+      calculation_mode: fCalculationMode,
+
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
