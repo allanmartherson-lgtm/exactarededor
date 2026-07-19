@@ -61,7 +61,7 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     supabase
       .from("payment_items")
       .select(
-        "id,doctor_name,patient_name,attendance_number,procedure_code,procedure_name,procedure_date,quantity,procedure_amount,gross_amount,expected_amount,applied_calc_id,applied_calc_method,validation_findings,specialty,manual_note,manual_source_attachment_path,is_manual_entry",
+        "id,doctor_name,patient_name,attendance_number,procedure_code,procedure_name,procedure_date,procedure_date_has_time,quantity,procedure_amount,gross_amount,expected_amount,applied_calc_id,applied_calc_method,validation_findings,specialty,manual_note,manual_source_attachment_path,is_manual_entry",
       )
       .eq("payment_id", t.payment_id ?? "")
       .eq("company_id", t.company_id ?? "")
