@@ -987,6 +987,14 @@ export function ItemsDataGrid({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  type TurnoFilter =
+    | "__all__"
+    | "madrugada"
+    | "manha"
+    | "tarde"
+    | "noite"
+    | "with_time"
+    | "without_time";
   const pf = persistedFilters as {
     filter?: string;
     patientFilter?: string;
@@ -1002,6 +1010,7 @@ export function ItemsDataGrid({
     onlyZero?: boolean;
     onlySemRegra?: boolean;
     onlyPisoAplicado?: boolean;
+    turnoFilter?: TurnoFilter;
   };
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -1031,6 +1040,10 @@ export function ItemsDataGrid({
   const [onlyZero, setOnlyZero] = useState(pf.onlyZero ?? false);
   const [onlySemRegra, setOnlySemRegra] = useState(pf.onlySemRegra ?? false);
   const [onlyPisoAplicado, setOnlyPisoAplicado] = useState(pf.onlyPisoAplicado ?? false);
+  // Filtro por turno/hora do procedimento. Só considera hora REAL da base
+  // hospitalar (procedure_date_has_time=true) para não induzir aplicação
+  // indevida de adicional noturno com hora sintetizada (default 12h).
+  const [turnoFilter, setTurnoFilter] = useState<TurnoFilter>(pf.turnoFilter ?? "__all__");
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
@@ -1055,6 +1068,7 @@ export function ItemsDataGrid({
           onlyZero,
           onlySemRegra,
           onlyPisoAplicado,
+          turnoFilter,
         }),
       );
     } catch {
@@ -1076,6 +1090,7 @@ export function ItemsDataGrid({
     onlyZero,
     onlySemRegra,
     onlyPisoAplicado,
+    turnoFilter,
   ]);
 
   // Tipos de pagamento usados pela reclassificação Visita × Parecer dentro do lote.
@@ -1452,6 +1467,7 @@ export function ItemsDataGrid({
   // e bônus grudado no pai. Persistida em localStorage.
   type CustomSortField =
     | "procedure_date"
+    | "hora"
     | "paciente"
     | "convenio"
     | "medico"
@@ -1467,6 +1483,7 @@ export function ItemsDataGrid({
   const CUSTOM_SORT_KEY = "medpay:items-grid:custom-sort:v1";
   const CUSTOM_SORT_FIELDS: { value: CustomSortField; label: string; numeric?: boolean }[] = [
     { value: "procedure_date", label: "Data do procedimento" },
+    { value: "hora", label: "Hora do procedimento (turno)", numeric: true },
     { value: "paciente", label: "Paciente" },
     { value: "convenio", label: "Convênio" },
     { value: "medico", label: "Médico" },
@@ -1568,6 +1585,14 @@ export function ItemsDataGrid({
     const valueFor = (it: PaymentItemRowData, field: CustomSortField): string | number => {
       switch (field) {
         case "procedure_date": return ((it as any).procedure_date ?? "") as string;
+        case "hora": {
+          // Hora sem hora real (sintetizada) vai para o final (-1).
+          const row = it as { procedure_date_has_time?: boolean | null; procedure_date?: string | null };
+          if (row.procedure_date_has_time !== true || !row.procedure_date) return -1;
+          const m = /T(\d{2}):(\d{2})/.exec(row.procedure_date);
+          if (!m) return -1;
+          return Number(m[1]) * 60 + Number(m[2]);
+        }
         case "paciente": return (getPatient(it) ?? "").toLowerCase();
         case "convenio": return (getConvenio(it) ?? "").toLowerCase();
         case "medico": return (it.doctor_name ?? "").toLowerCase();
@@ -1631,6 +1656,19 @@ export function ItemsDataGrid({
     return Array.from(s).sort();
   }, [items]);
 
+  // Hora real da base hospitalar (0-23). Retorna null quando não há hora
+  // confiável — evita agrupar itens sintetizados (default 12h) nos turnos.
+  const getRealHour = (it: unknown): number | null => {
+    const row = it as { procedure_date_has_time?: boolean | null; procedure_date?: string | null };
+    if (row.procedure_date_has_time !== true) return null;
+    const iso = row.procedure_date;
+    if (!iso) return null;
+    const m = /T(\d{2}):/.exec(iso);
+    if (!m) return null;
+    const h = Number(m[1]);
+    return Number.isFinite(h) ? h : null;
+  };
+
   const filtered = useMemo(() => {
     const term = filter.trim().toLowerCase();
     const pat = patientFilter.trim().toLowerCase();
@@ -1689,6 +1727,15 @@ export function ItemsDataGrid({
       }
       if (onlyPisoAplicado) {
         if (((it as any).piso_metodo_vencedor ?? "") !== "piso") return false;
+      }
+      if (turnoFilter !== "__all__") {
+        const h = getRealHour(it);
+        if (turnoFilter === "with_time" && h === null) return false;
+        if (turnoFilter === "without_time" && h !== null) return false;
+        if (turnoFilter === "madrugada" && !(h !== null && h >= 0 && h < 6)) return false;
+        if (turnoFilter === "manha" && !(h !== null && h >= 6 && h < 12)) return false;
+        if (turnoFilter === "tarde" && !(h !== null && h >= 12 && h < 18)) return false;
+        if (turnoFilter === "noite" && !(h !== null && h >= 18 && h < 24)) return false;
       }
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
@@ -1812,7 +1859,7 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, turnoFilter, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
 
   // Bridge global do Zeev → aplica filtro pedido via chat ("me leva pros zerados", etc.).
   // Limpa os filtros anteriores e marca apenas o requerido para evitar combinações esquisitas.
@@ -2310,6 +2357,20 @@ export function ItemsDataGrid({
               ))}
             </SelectContent>
           </Select>
+          <Select value={turnoFilter} onValueChange={(v) => setTurnoFilter(v as TurnoFilter)}>
+            <SelectTrigger className="h-8 w-36 text-xs" title="Filtrar por turno (só considera hora real da base hospitalar)">
+              <SelectValue placeholder="Turno" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os turnos</SelectItem>
+              <SelectItem value="madrugada">Madrugada (00–06h)</SelectItem>
+              <SelectItem value="manha">Manhã (06–12h)</SelectItem>
+              <SelectItem value="tarde">Tarde (12–18h)</SelectItem>
+              <SelectItem value="noite">Noite (18–24h)</SelectItem>
+              <SelectItem value="with_time">Só com hora informada</SelectItem>
+              <SelectItem value="without_time">Sem hora informada</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
@@ -2508,7 +2569,7 @@ export function ItemsDataGrid({
               )}
             </div>
           )}
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || onlyPisoAplicado || (isParecerPayment && parecerFilter !== "__all__")) && (
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || onlyPisoAplicado || turnoFilter !== "__all__" || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
               size="sm"
               variant="ghost"
@@ -2519,6 +2580,7 @@ export function ItemsDataGrid({
                 setOnlyAlerts(false); setOnlyManualBonus(false); setOnlyNeedsReview(false);
                 setOnlyValidationAlerts(false); setOnlyAdjusted(false); setParecerFilter("__all__");
                 setOnlyZero(false); setOnlySemRegra(false); setOnlyPisoAplicado(false);
+                setTurnoFilter("__all__");
               }}
             >
               Limpar
