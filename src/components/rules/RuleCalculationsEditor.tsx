@@ -133,6 +133,14 @@ export type CalcItem = {
    */
   is_catch_all: boolean;
 
+  /**
+   * Só em `calculation_type === "exclusao"`: quando true, se um item disparar
+   * a exclusão, TODOS os demais itens do mesmo (atendimento, data) também são
+   * excluídos (pagamento zerado). Exceção: se pelo menos 1 item do atendimento
+   * pertencer a médico listado na regra, o atendimento inteiro é poupado.
+   */
+  contagia_atendimento: boolean;
+
   // ---- Piso por procedimento (mínimo garantido) ----
   // Só faz sentido em percentual_sobre_convenio. Aplica MAX(convênio, piso).
   piso_habilitado: boolean;
@@ -202,6 +210,7 @@ export function makeEmptyCalc(): CalcItem {
     noturno_inicio: "",
     noturno_fim: "",
     is_catch_all: false,
+    contagia_atendimento: false,
     piso_habilitado: false,
     piso_escopo: "por_item",
     piso_valor_padrao: "",
@@ -1822,6 +1831,29 @@ function CalcCard({
             </div>
           )}
 
+          {c.calculation_type === "exclusao" && (
+            <div className="space-y-2 border border-amber-200 bg-amber-50/50 rounded-md p-3">
+              <label data-checkbox-wrapper style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                <Checkbox
+                  checked={!!c.contagia_atendimento}
+                  onCheckedChange={(v) => onChange({ contagia_atendimento: !!v })}
+                />
+                <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.35 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>
+                    Contagiar demais itens do mesmo atendimento + data
+                  </span>
+                  <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                    Quando um item disparar esta exclusão, todos os demais itens do mesmo atendimento
+                    (na mesma data) também serão excluídos — nada será pago.
+                    <br />
+                    Exceção: se pelo menos 1 item do atendimento pertencer a um médico listado na regra
+                    (médicos do escopo/grupo), o atendimento inteiro é poupado do contágio.
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
+
           <WhenApplySection c={c} onChange={onChange} isPacote={isPacote} specialCaseTypes={specialCaseTypes} paymentTypes={paymentTypes} />
 
           {c.calculation_type === "valor_fixo" && (
@@ -1927,6 +1959,7 @@ export function calcFromDb(r: any): CalcItem {
     noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
     noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
     is_catch_all: !!r.is_catch_all,
+    contagia_atendimento: !!(r as any).contagia_atendimento,
     piso_habilitado: !!(r as any).piso_habilitado,
     piso_escopo: ((r as any).piso_escopo === "por_atendimento" ? "por_atendimento" : "por_item") as "por_item" | "por_atendimento",
     piso_valor_padrao: (r as any).piso_valor_padrao != null ? String((r as any).piso_valor_padrao) : "",
@@ -2070,6 +2103,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
     noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
     is_catch_all: !!c.is_catch_all,
+    contagia_atendimento: c.calculation_type === "exclusao" ? !!c.contagia_atendimento : false,
     // ---- Piso por procedimento (mínimo garantido) — só percentual_sobre_convenio ----
     piso_habilitado: c.calculation_type === "percentual_sobre_convenio" ? !!c.piso_habilitado : false,
     piso_escopo: c.calculation_type === "percentual_sobre_convenio" && c.piso_habilitado ? c.piso_escopo : null,

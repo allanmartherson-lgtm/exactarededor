@@ -63,6 +63,7 @@ export function mapCalculationTypeToMethod(
     case "complemento":
       return "complemento";
     case "exclusao":
+    case "exclusao_contagio":
       return "exclusao";
     // 'informativo', 'default_geral', 'default_hemodinamica', e qualquer outro:
     default:
