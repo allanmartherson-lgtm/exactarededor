@@ -116,18 +116,29 @@ export function CompanyHistoryPanel({
     // Observações (manuais e do sistema/IA) — escopo do grupo:
     //  - associadas a itens do grupo (item_id ∈ itemIds), ou
     //  - sem item_id → comentários gerais do pagamento.
-    // No modo empresa (scopedToCompany), observações sem item_id só entram se
-    // começarem com o prefixo "[<companyName>]" (padrão dos eventos por PJ:
-    // envio para validação, devolução, reanálise etc.). Gerais sem prefixo
-    // ou de OUTRA empresa são descartados — matching frágil por texto, deve
-    // virar coluna company_id no futuro.
+    // No modo empresa (scopedToCompany): observações sem item_id que começam
+    // com "[<companyName>]" entram sempre (evento específico daquela PJ).
+    // Observações gerais SEM prefixo (comentários do lote inteiro) também
+    // aparecem, mas apenas quando o usuário liga "Mostrar eventos do lote" —
+    // assim o analista não perde contexto deixado por outro colega, mas
+    // continua com a timeline focada na PJ por padrão.
+    // Observações com prefixo de OUTRA empresa continuam descartadas.
     const companyPrefix = scopedToCompany && companyName ? `[${companyName}]` : null;
+    const otherCompanyPrefixRegex = /^\[[^\]]+\]/;
     for (const o of observations) {
       const itemBelongs = o.item_id ? itemIds.has(o.item_id) : true;
       if (!itemBelongs) continue;
+      let isBatchWide = false;
       if (scopedToCompany && !o.item_id) {
         const msg = (o.message ?? "").trimStart();
-        if (!companyPrefix || !msg.startsWith(companyPrefix)) continue;
+        const matchesThisCompany = companyPrefix && msg.startsWith(companyPrefix);
+        if (!matchesThisCompany) {
+          // Se começa com "[Outra empresa]", pertence a outra PJ — descarta.
+          if (otherCompanyPrefixRegex.test(msg)) continue;
+          // Comentário geral do lote: só entra se o toggle estiver ligado.
+          if (!showLoteEvents) continue;
+          isBatchWide = true;
+        }
       }
       const it = o.item_id ? itemMap.get(o.item_id) : undefined;
       out.push({
@@ -140,12 +151,19 @@ export function CompanyHistoryPanel({
           ? (profiles[o.author_id] ?? `Usuário ${o.author_id.slice(0, 8)}`)
           : (o.author_type === "sistema" || o.author_type === "ia" ? "Sistema" : "Usuário desconhecido"),
         itemId: o.item_id ?? null,
-        itemLabel: itemLabelOf(it),
+        itemLabel: isBatchWide ? "Lote inteiro" : itemLabelOf(it),
         bodyText: o.message ?? "",
         body: (
-          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-            {o.message}
-          </p>
+          <div className="space-y-1">
+            {isBatchWide && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                Comentário do lote inteiro
+              </span>
+            )}
+            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+              {o.message}
+            </p>
+          </div>
         ),
       });
     }

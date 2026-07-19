@@ -843,7 +843,12 @@ Deno.serve(async (req) => {
     let externalItems: Item[] = [];
     const externalRefById = new Map<string, string | null>();
     const hasSobreposicao = rules.some((r) => r.kind === "sobreposicao_assistencial");
-    const loadExternals = items.length > 0 && (dupRules.length > 0 || hasSobreposicao);
+    // scope="batch" (default) NUNCA carrega itens de outros lotes — o usuário
+    // pediu explicitamente varredura limitada ao lote atual. Só scope="cross"
+    // ativa a busca cross-batch (mais pesada e que gera findings entre lotes).
+    const loadExternals = items.length > 0
+      && (dupRules.length > 0 || hasSobreposicao)
+      && scope === "cross";
     if (loadExternals) {
 
       const dates = items.map((i) => i.procedure_date).filter((d): d is string => !!d);

@@ -3015,15 +3015,26 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
         if (divergences.length > 0) {
           const msg =
-            `⚠️ Divergência pós-split de bônus (${bonusLinesToInsert.length} linha(s) inserida(s)): ` +
+            `⚠️ Divergência pós-split de bônus (${bonusLinesToInsert.length} linha(s) inserida(s)) — REVISÃO MANUAL OBRIGATÓRIA antes de aprovar: ` +
             divergences.join(" · ");
           console.error(`${__t} bonus_split_invariant_failed`, msg);
+          // Marca diagnóstico do lote para bloquear aprovação automática e
+          // sinalizar na UI que os valores gravados podem estar inconsistentes.
+          (diagnostics as any).bonus_split_invariant_failed = true;
+          (diagnostics as any).bonus_split_divergences = divergences;
+          (diagnostics as any).requires_manual_review = true;
           await supabase.from("payment_observations").insert({
             payment_id,
             hospital_id: __paymentHospitalId,
             author_type: "sistema",
+            observation_type: "alerta",
             message: msg,
           });
+          // Observação com observation_type="alerta" já é suficiente para o
+          // Card de "Alertas do sistema" da UI destacar o lote — não criamos
+          // pendência aqui porque a tabela `pendencias` é paciente-cêntrica
+          // (event_date, patient_name, agreement_name obrigatórios) e não
+          // aceita registros de integridade sem esses campos.
         } else {
           console.log(
             `${__t} bonus_split_invariants_ok bonus_lines=${bonusLinesToInsert.length} companies=${compsToCheck.length}`,
