@@ -12235,6 +12235,20 @@ export type Database = {
           total_analyzed: number
         }[]
       }
+      get_batch_composition: {
+        Args: { p_history_months?: number; p_processing_month?: string }
+        Returns: {
+          current_amount: number
+          current_payment_id: string
+          current_reference: string
+          historical_avg: number
+          historical_max: number
+          historical_min: number
+          months_present: number
+          pattern_name: string
+          status: string
+        }[]
+      }
       get_cancellation_report_detailed: {
         Args: { p_end?: string; p_hospital_id?: string; p_start?: string }
         Returns: Json
