@@ -104,6 +104,8 @@ export type CalcItem = {
   adicional_fds_pct: string;
   adicional_feriado_pct: string;
   adicional_noturno_pct: string;
+  /** % adicional para urgência/emergência (independe de dia/horário). */
+  adicional_urgencia_pct: string;
   noturno_inicio: string;   // 'HH:MM'
   noturno_fim: string;      // 'HH:MM'
 
@@ -196,6 +198,7 @@ export function makeEmptyCalc(): CalcItem {
     adicional_fds_pct: "",
     adicional_feriado_pct: "",
     adicional_noturno_pct: "",
+    adicional_urgencia_pct: "",
     noturno_inicio: "",
     noturno_fim: "",
     is_catch_all: false,
@@ -913,7 +916,7 @@ function WhenApplySection({
   const hasFuncaoFilter = c.doctor_roles.length > 0;
   const hasSpecialCaseFilter = c.special_case_filter.length > 0;
   const hasPaymentTypeFilter = !!c.item_type_id;
-  const hasTemporalSurcharge = !!(c.adicional_fds_pct || c.adicional_feriado_pct || c.adicional_noturno_pct || c.noturno_inicio || c.noturno_fim);
+  const hasTemporalSurcharge = !!(c.adicional_fds_pct || c.adicional_feriado_pct || c.adicional_noturno_pct || c.adicional_urgencia_pct || c.noturno_inicio || c.noturno_fim);
   const hasPeriodoFilter = (c.has_conditions && (
     c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
     c.allowed_access_routes.length > 0 || c.sectors.length > 0 || c.specialties.length > 0
@@ -1138,9 +1141,9 @@ function WhenApplySection({
             <div style={{ marginTop: 4, padding: 10, border: "1px dashed hsl(var(--border))", borderRadius: 6, background: "hsl(var(--muted) / 0.3)" }}>
               <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Adicionais sobre o valor calculado</div>
               <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginBottom: 8 }}>
-                Acrescenta % ao valor calculado quando o atendimento ocorrer nessas condições. <strong>Aplica-se apenas o maior</strong> dos adicionais elegíveis (ex: noturno em feriado = só o maior dos dois). Deixe vazio = sem adicional.
+                Acrescenta % ao valor calculado quando o atendimento ocorrer nessas condições. <strong>Aplica-se apenas o maior</strong> dos adicionais elegíveis (ex: urgência em feriado = só o maior dos dois). Deixe vazio = sem adicional.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
                 <div>
                   <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Fim de semana (%)</Label>
                   <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_fds_pct}
@@ -1158,6 +1161,12 @@ function WhenApplySection({
                   <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_noturno_pct}
                     onKeyDown={preventEnterSubmit}
                     onChange={e => onChange({ adicional_noturno_pct: sanitizeDecimalDraft(e.target.value) })} />
+                </div>
+                <div>
+                  <Label className="text-xs" style={{ marginBottom: 4, display: "block" }} title="Urgência ou emergência — qualquer dia/horário">Urgência/Emerg. (%)</Label>
+                  <Input type="text" inputMode="decimal" placeholder="ex: 30" value={c.adicional_urgencia_pct}
+                    onKeyDown={preventEnterSubmit}
+                    onChange={e => onChange({ adicional_urgencia_pct: sanitizeDecimalDraft(e.target.value) })} />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8, opacity: hasNoturnoPct ? 1 : 0.65 }}>
@@ -1852,6 +1861,7 @@ export function calcFromDb(r: any): CalcItem {
     adicional_fds_pct: r.adicional_fds_pct != null ? String(r.adicional_fds_pct) : "",
     adicional_feriado_pct: r.adicional_feriado_pct != null ? String(r.adicional_feriado_pct) : "",
     adicional_noturno_pct: r.adicional_noturno_pct != null ? String(r.adicional_noturno_pct) : "",
+    adicional_urgencia_pct: (r as any).adicional_urgencia_pct != null ? String((r as any).adicional_urgencia_pct) : "",
     noturno_inicio: r.noturno_inicio ? String(r.noturno_inicio).slice(0, 5) : "",
     noturno_fim: r.noturno_fim ? String(r.noturno_fim).slice(0, 5) : "",
     is_catch_all: !!r.is_catch_all,
@@ -1994,6 +2004,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     adicional_fds_pct: numOrNull(c.adicional_fds_pct),
     adicional_feriado_pct: numOrNull(c.adicional_feriado_pct),
     adicional_noturno_pct: numOrNull(c.adicional_noturno_pct),
+    adicional_urgencia_pct: numOrNull(c.adicional_urgencia_pct),
     noturno_inicio: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_inicio || null) : null,
     noturno_fim: (numOrNull(c.adicional_noturno_pct) ?? 0) > 0 ? (c.noturno_fim || null) : null,
     is_catch_all: !!c.is_catch_all,
