@@ -1068,6 +1068,7 @@ export function ItemsDataGrid({
           onlyZero,
           onlySemRegra,
           onlyPisoAplicado,
+          turnoFilter,
         }),
       );
     } catch {
