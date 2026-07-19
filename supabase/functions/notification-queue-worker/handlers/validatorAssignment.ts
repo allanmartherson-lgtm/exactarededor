@@ -2,12 +2,15 @@
 // Consolida múltiplas notificações de envio para validação em um único e-mail
 // e registra observação no histórico do pagamento.
 
+import { b1_validatorAssignment } from "../../_shared/emailTemplates/templates.ts";
+
 const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
 const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
+
 
 const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
 
@@ -91,110 +94,8 @@ Acessar: ${link}
 Exacta · Hospital DF Star · Rede D'Or`;
 }
 
-function buildHtml(
-  greeting: string,
-  name: string,
-  paymentRef: string,
-  groups: CompanyGroup[],
-  companyCount: number,
-  totalFormatted: string,
-  senderNames: string[],
-  link: string,
-): string {
-  const top5 = groups.slice(0, 5);
-  const extra = Math.max(0, companyCount - 5);
+// (HTML antigo removido — agora usa b1_validatorAssignment do módulo compartilhado)
 
-  const empresasRows = top5.map((g) => `
-    <tr>
-      <td style="padding:8px 0;border-bottom:0.5px solid #E0DED5;">
-        <p style="font-size:14px;color:#2C2C2A;margin:0 0 2px;">${escapeHtml(g.company_name)}</p>
-        <p style="font-size:12px;color:#888780;margin:0;">${g.items_count} itens</p>
-      </td>
-      <td style="padding:8px 0;border-bottom:0.5px solid #E0DED5;text-align:right;">
-        <p style="font-size:14px;color:#2C2C2A;margin:0;font-weight:500;">${brl(g.total_amount)}</p>
-      </td>
-    </tr>`).join("");
-
-  const extraRow = extra > 0 ? `
-    <tr><td colspan="2" style="padding:12px 0 0;text-align:center;">
-      <p style="font-size:12px;color:#888780;margin:0;font-style:italic;">e mais ${extra} empresa(s)</p>
-    </td></tr>` : "";
-
-  const senderBlock = senderNames.length > 0 ? `
-    <p style="font-size:12px;color:#888780;margin:16px 0 0;">
-      Enviado por: ${senderNames.map(escapeHtml).join(", ")}
-    </p>` : "";
-
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${companyCount} empresa(s) para validação — Exacta</title>
-</head>
-<body style="margin:0;padding:0;background:#F1EFE8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2C2C2A;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;padding:32px 16px;">
-    <tr><td align="center">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;border:0.5px solid #D3D1C7;">
-        <tr><td style="background:#9A6B3A;padding:24px 32px;">
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr>
-              <td style="font-size:18px;font-weight:500;color:#FFFFFF;letter-spacing:0.3px;">Exacta</td>
-              <td align="right" style="font-size:12px;color:rgba(255,255,255,0.75);">Hospital DF Star</td>
-            </tr>
-          </table>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          <p style="font-size:16px;color:#2C2C2A;margin:0 0 8px;">${greeting}, Prezado(a) ${escapeHtml(name)}.</p>
-          <p style="font-size:14px;color:#5F5E5A;margin:0 0 24px;line-height:1.6;">
-            ${companyCount} ${companyCount === 1 ? "empresa foi enviada" : "empresas foram enviadas"} para validação no Exacta, totalizando <strong style="color:#2C2C2A;">${totalFormatted}</strong>.
-          </p>
-
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;border-radius:10px;margin:0 0 28px;">
-            <tr><td style="padding:20px;">
-              <p style="font-size:11px;color:#888780;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Pagamento</p>
-              <p style="font-size:16px;color:#2C2C2A;margin:0 0 18px;font-weight:500;">${escapeHtml(paymentRef)}</p>
-
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                  <td width="50%" style="vertical-align:top;padding-right:8px;">
-                    <p style="font-size:11px;color:#888780;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Valor total</p>
-                    <p style="font-size:18px;color:#2C2C2A;margin:0;font-weight:500;">${totalFormatted}</p>
-                  </td>
-                  <td width="50%" style="vertical-align:top;">
-                    <p style="font-size:11px;color:#888780;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Empresas</p>
-                    <p style="font-size:18px;color:#2C2C2A;margin:0;font-weight:500;">${companyCount}</p>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="font-size:11px;color:#888780;margin:20px 0 8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Empresas enviadas</p>
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                ${empresasRows}
-                ${extraRow}
-              </table>
-
-              ${senderBlock}
-            </td></tr>
-          </table>
-
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr><td align="center" style="padding:0 0 28px;">
-              <a href="${link}" style="display:inline-block;background:#9A6B3A;color:#FFFFFF;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;">Acessar no Exacta</a>
-            </td></tr>
-          </table>
-
-          <p style="font-size:12px;color:#888780;margin:0;text-align:center;line-height:1.6;">Qualquer validador pode assumir. Você está recebendo este e-mail porque é um validador no Exacta.</p>
-        </td></tr>
-        <tr><td style="background:#F1EFE8;padding:16px 32px;text-align:center;border-top:0.5px solid #D3D1C7;">
-          <p style="font-size:11px;color:#888780;margin:0;">Exacta · Hospital DF Star · Rede D'Or</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
 
 // deno-lint-ignore no-explicit-any
 export async function processValidatorAssignment(supabase: any, row: any): Promise<{ ok: boolean; meta: unknown }> {
@@ -264,8 +165,16 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
       continue;
     }
     const name = firstName(p.full_name);
-    const html = buildHtml(greeting, name, payment.reference, uniqueGroups, companyCount, totalFormatted, senderNames, link);
-    const text = buildText(greeting, name, payment.reference, uniqueGroups, companyCount, totalFormatted, senderNames, link);
+    const rendered = b1_validatorAssignment({
+      validator_name: name,
+      payment_reference: payment.reference,
+      payment_type: null,
+      competence_month: null,
+      hospital_name: null,
+      company_count: companyCount,
+      payment_link: link,
+    });
+    const senderSuffix = senderNames.length > 0 ? ` (enviado por ${senderNames.join(", ")})` : "";
 
     try {
       const r = await fetch(`${RESEND_GATEWAY}/emails`, {
@@ -278,11 +187,12 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
         body: JSON.stringify({
           from: EMAIL_FROM,
           to: [p.email],
-          subject: `${companyCount} ${companyCount === 1 ? "empresa enviada" : "empresas enviadas"} para validação — ${payment.reference}`,
-          html,
-          text,
+          subject: `${rendered.subject}${senderSuffix}`,
+          html: rendered.html,
+          text: rendered.text + (senderSuffix ? `\n${senderSuffix.trim()}` : ""),
         }),
       });
+
       const json = await r.json().catch(() => ({}));
       results.push({ recipient_id: p.id, ok: r.ok, status: r.status, response: json });
     } catch (e) {

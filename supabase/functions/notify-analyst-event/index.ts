@@ -2,6 +2,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import {
+  a2_nfReceived,
+  b2_iaConcluded,
+  b3_returned,
+} from "../_shared/emailTemplates/templates.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -103,24 +109,49 @@ Deno.serve(async (req) => {
 
     let subject = "";
     let bodyText = "";
+    let html = "";
 
     switch (eventType) {
-      case "returned":
-        subject = `Lote ${reference} devolvido/rejeitado`;
-        bodyText = `${greeting}, ${name}.\n\nO lote ${reference} foi devolvido para sua fila ${actorName ? `por ${actorName}` : "pelo validador/diretor"}.\n${reason ? `\nMotivo: ${reason}\n` : ""}\nAcesse para realizar os ajustes necessários: ${link}`;
+      case "returned": {
+        const r = b3_returned({
+          analyst_name: name,
+          payment_reference: reference,
+          returned_by: actorName ?? null,
+          returned_at: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+          return_reason: reason ?? null,
+          payment_link: link,
+        });
+        subject = r.subject; html = r.html; bodyText = r.text;
         break;
-      case "ia_concluded":
-        subject = `Análise IA concluída - Lote ${reference}`;
-        const summary = reason ? `\nResumo: ${reason}\n` : "";
-        bodyText = `${greeting}, ${name}.\n\nA análise da IA para o lote ${reference} foi concluída e o lote aguarda sua revisão.${summary}\n\nAcessar: ${link}`;
+      }
+      case "ia_concluded": {
+        const r = b2_iaConcluded({
+          analyst_name: name,
+          payment_reference: reference,
+          items_count: "—",
+          alerts_count: "—",
+          divergences_count: "—",
+          analysis_duration: reason ?? null,
+          payment_link: link,
+        });
+        subject = r.subject; html = r.html; bodyText = r.text;
         break;
-      case "nf_received":
-        subject = `Nota Fiscal recebida - Lote ${reference}`;
-        bodyText = `${greeting}, ${name}.\n\nA nota fiscal da empresa ${actorName || "clínica/empresa"} (Lote ${reference}) foi recebida e aguarda sua ação.\n\nAcessar: ${link}`;
+      }
+      case "nf_received": {
+        const r = a2_nfReceived({
+          analyst_name: name,
+          company_name: actorName || "empresa",
+          company_cnpj: null,
+          invoice_value: "—",
+          competence_month: null,
+          payment_reference: reference,
+          invoice_link: link,
+        });
+        subject = r.subject; html = r.html; bodyText = r.text;
         break;
+      }
     }
 
-    const html = `<p>${bodyText.replace(/\n/g, "<br/>")}</p>`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
