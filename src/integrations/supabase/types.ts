@@ -9872,6 +9872,7 @@ export type Database = {
           auxiliary_pct: number | null
           bonus_amount: number | null
           bonus_pct: number | null
+          calculation_mode: string
           calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
           code: string
           convenio_percentage: number | null
@@ -9949,6 +9950,7 @@ export type Database = {
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
+          calculation_mode?: string
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
           code: string
           convenio_percentage?: number | null
@@ -10026,6 +10028,7 @@ export type Database = {
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
+          calculation_mode?: string
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
           code?: string
           convenio_percentage?: number | null

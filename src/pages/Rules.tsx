@@ -352,6 +352,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   // Bloqueia fallback para a regra geral master quando a regra venceu mas nenhum cálculo bateu.
   // Default true para regras específicas/grupo; false para master.
   const [fPreventExternalFallback, setFPreventExternalFallback] = useState(false);
+  const [fCalculationMode, setFCalculationMode] = useState<"exclusive" | "cascade">("exclusive");
+
   
   
   // Global Thresholds Form
@@ -887,6 +889,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFAlertThresholdType("percentual"); setFAlertThresholdValue(""); setFAlertInherit(true);
     setFBlockThresholdType("percentual"); setFBlockThresholdValue(""); setFBlockInherit(true);
     setFPreventExternalFallback(false);
+    setFCalculationMode("exclusive");
+
   };
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
@@ -1015,6 +1019,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
     setFBlockInherit(r.limiar_bloqueio_valor == null);
     setFPreventExternalFallback(!!(r as any).prevent_external_fallback);
+    setFCalculationMode(((r as any).calculation_mode === "cascade") ? "cascade" : "exclusive");
+
 
 
     // Todas as seções iniciam fechadas ao abrir uma regra para edição.
@@ -1093,6 +1099,10 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       if (typeof (ruleData as any).prevent_external_fallback === "boolean") {
         rulePatch.prevent_external_fallback = (ruleData as any).prevent_external_fallback;
       }
+      if (typeof (ruleData as any).calculation_mode === "string") {
+        rulePatch.calculation_mode = (ruleData as any).calculation_mode;
+      }
+
       if (typeof (ruleData as any).minimo_garantido_ativo === "boolean") {
         rulePatch.minimo_garantido_ativo = (ruleData as any).minimo_garantido_ativo;
         rulePatch.minimo_garantido_valor = (ruleData as any).minimo_garantido_valor ?? null;
@@ -1401,6 +1411,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       limiar_bloqueio_tipo: fBlockInherit ? null : fBlockThresholdType,
       limiar_bloqueio_valor: fBlockInherit ? null : num(fBlockThresholdValue),
       prevent_external_fallback: fPreventExternalFallback,
+      calculation_mode: fCalculationMode,
+
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
@@ -1486,7 +1498,9 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
           valid_from: payload.valid_from,
           valid_until: payload.valid_until,
           calculations: calcsForRpc,
+          calculation_mode: fCalculationMode,
           hospital_id: resolvedHospitalId,
+
         },
       },
     );
@@ -2918,6 +2932,31 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
                                 </div>
                               </label>
                             </div>
+
+                            {/* Modo de cálculo: exclusivo × cascata */}
+                            <div className="rounded-md border border-border bg-card p-3 space-y-2">
+                              <label className="flex items-start gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={fCalculationMode === "cascade"}
+                                  onCheckedChange={(v) => setFCalculationMode(v ? "cascade" : "exclusive")}
+                                />
+                                <div className="space-y-1">
+                                  <div className="text-sm font-semibold leading-tight">
+                                    Cálculos em cascata por prioridade
+                                  </div>
+                                  <p className="text-xs text-muted-foreground leading-snug">
+                                    Quando ligado, os cálculos são avaliados na ordem definida
+                                    (<strong>menor ordem primeiro</strong>) e o <strong>primeiro que casar
+                                    vence</strong>. Sobreposição entre filtros é intencional e não bloqueia
+                                    o salvamento. Use em regras escalonadas — por exemplo:
+                                    cateteres → noturno → FDS/feriado → tomografia 4100* → base 100%.
+                                    Deixe desligado (padrão) para exigir que cada cálculo tenha filtros
+                                    disjuntos.
+                                  </p>
+                                </div>
+                              </label>
+                            </div>
+
 
                             <div>
                               <div className="flex items-center text-sm font-semibold mb-3">
