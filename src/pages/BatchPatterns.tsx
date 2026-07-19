@@ -29,7 +29,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Power, Link2, LayoutList, X } from "lucide-react";
+import { Plus, Pencil, Power, Link2, LayoutList, X, Wand2 } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
 
 type BatchPattern = {
@@ -89,6 +89,27 @@ export default function BatchPatterns({ embedded = false }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
+  const [backfilling, setBackfilling] = useState(false);
+
+  const runBackfill = async () => {
+    if (!hospitalId) return;
+    setBackfilling(true);
+    const { data, error } = await supabase.rpc("backfill_batch_pattern_links" as never);
+    setBackfilling(false);
+    if (error) {
+      toast({ title: "Falha ao vincular órfãos", description: error.message, variant: "destructive" });
+      return;
+    }
+    const rows = (data ?? []) as Array<{ scanned?: number; linked?: number }>;
+    const row = rows[0];
+    const scanned = row?.scanned ?? 0;
+    const linked = row?.linked ?? 0;
+    toast({
+      title: linked > 0 ? `${linked} lote(s) vinculado(s)` : "Nenhum lote novo vinculado",
+      description: `Analisados ${scanned} lote(s) sem padrão nos últimos 12 meses.`,
+    });
+    void load();
+  };
 
   const runSuggest = async () => {
     if (!hospitalId) return;
@@ -174,9 +195,15 @@ export default function BatchPatterns({ embedded = false }: Props) {
             Mostrar inativos
           </label>
         </div>
-        <Button onClick={() => setCreating(true)} disabled={!hospitalId}>
-          <Plus className="h-4 w-4 mr-1" /> Novo padrão
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={runBackfill} disabled={!hospitalId || backfilling}>
+            <Wand2 className="h-4 w-4 mr-1" />
+            {backfilling ? "Vinculando…" : "Vincular órfãos automaticamente"}
+          </Button>
+          <Button onClick={() => setCreating(true)} disabled={!hospitalId}>
+            <Plus className="h-4 w-4 mr-1" /> Novo padrão
+          </Button>
+        </div>
       </div>
 
       {/* Lista de padrões */}

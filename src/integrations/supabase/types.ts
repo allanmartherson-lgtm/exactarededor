@@ -11966,6 +11966,13 @@ export type Database = {
           proname: string
         }[]
       }
+      backfill_batch_pattern_links: {
+        Args: never
+        Returns: {
+          linked: number
+          scanned: number
+        }[]
+      }
       backfill_payment_items_engine_columns: {
         Args: { _dry_run?: boolean }
         Returns: Json
@@ -13074,6 +13081,10 @@ export type Database = {
       mark_portal_thread_read: {
         Args: { p_payment_id: string; p_payment_item_id?: string }
         Returns: number
+      }
+      match_batch_pattern: {
+        Args: { p_hospital_id: string; p_reference: string }
+        Returns: string
       }
       materialize_intervention_ledger: {
         Args: { p_payment_id: string }
