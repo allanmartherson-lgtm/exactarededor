@@ -423,9 +423,12 @@ function PatternDialog({
   const [aliases, setAliases] = useState<string[]>([]);
   const [aliasInput, setAliasInput] = useState("");
   const [expectedSetor, setExpectedSetor] = useState("");
-  const [expectedGroup, setExpectedGroup] = useState("");
+  // Reaproveita a coluna `expected_convenio_group` para armazenar a trilha
+  // padrão do lote (habitual|prioritario) — evita migração de schema.
+  const [expectedTrack, setExpectedTrack] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [sectorOptions, setSectorOptions] = useState<{ slug: string; name: string }[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -435,9 +438,30 @@ function PatternDialog({
     setAliases(initial?.aliases ?? []);
     setAliasInput("");
     setExpectedSetor(initial?.expected_setor ?? "");
-    setExpectedGroup(initial?.expected_convenio_group ?? "");
+    setExpectedTrack(initial?.expected_convenio_group ?? "");
     setNotes(initial?.notes ?? "");
   }, [open, initial]);
+
+  // Carrega setores do hospital ativo (RLS já filtra por hospital_scope_allows).
+  useEffect(() => {
+    if (!open || !hospitalId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("sectors")
+        .select("slug,name,hospital_id,active")
+        .eq("active", true)
+        .or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
+        .order("name", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        setSectorOptions([]);
+        return;
+      }
+      setSectorOptions((data ?? []).map((r) => ({ slug: r.slug as string, name: r.name as string })));
+    })();
+    return () => { cancelled = true; };
+  }, [open, hospitalId]);
 
   const addAlias = () => {
     const v = aliasInput.trim();
@@ -462,7 +486,7 @@ function PatternDialog({
       code: finalCode,
       aliases,
       expected_setor: expectedSetor.trim() || null,
-      expected_convenio_group: expectedGroup.trim() || null,
+      expected_convenio_group: expectedTrack.trim() || null,
       notes: notes.trim() || null,
     };
     const { error } = initial
@@ -537,11 +561,30 @@ function PatternDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Setor esperado (informacional)</Label>
-              <Input value={expectedSetor} onChange={(e) => setExpectedSetor(e.target.value)} placeholder="Ex.: centro_cirurgico" />
+              <Select value={expectedSetor || "__none__"} onValueChange={(v) => setExpectedSetor(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Não informar —</SelectItem>
+                  {sectorOptions.map((s) => (
+                    <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>
+                  ))}
+                  {/* Preserva valor legado que não esteja mais na lista ativa */}
+                  {expectedSetor && !sectorOptions.some((s) => s.slug === expectedSetor) && (
+                    <SelectItem value={expectedSetor}>{expectedSetor} (inativo)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label className="text-xs">Grupo de convênio</Label>
-              <Input value={expectedGroup} onChange={(e) => setExpectedGroup(e.target.value)} placeholder="Ex.: prioridades" />
+              <Label className="text-xs">Trilha padrão</Label>
+              <Select value={expectedTrack || "__none__"} onValueChange={(v) => setExpectedTrack(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione a trilha" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Não informar —</SelectItem>
+                  <SelectItem value="habitual">Habitual</SelectItem>
+                  <SelectItem value="prioritario">Prioritário</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div>
