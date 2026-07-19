@@ -298,6 +298,20 @@ export default function BiDiretoria() {
   const [topCompanies, setTopCompanies] = useState<CompanyRow[]>([]);
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [patternCoverage, setPatternCoverage] = useState<{ total: number; linked: number; pct: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc("get_pattern_coverage" as never, { p_months: 1 } as never);
+      if (error) { setPatternCoverage(null); return; }
+      const rows = ((data ?? []) as Array<{ total_batches: number; linked_batches: number; coverage_pct: number }>);
+      const row = rows[rows.length - 1];
+      if (!row) { setPatternCoverage({ total: 0, linked: 0, pct: 0 }); return; }
+      setPatternCoverage({ total: Number(row.total_batches), linked: Number(row.linked_batches), pct: Number(row.coverage_pct) });
+    })();
+  }, []);
+
+
 
   const now = new Date();
   const competenciaLabel = `${MONTHS_PT_FULL[now.getMonth()]} ${now.getFullYear()}`;
