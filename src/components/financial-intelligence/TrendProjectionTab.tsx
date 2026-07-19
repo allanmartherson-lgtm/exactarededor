@@ -70,7 +70,20 @@ function previousYm(): string {
 interface PaymentRow {
   competence_month: string | null;
   total_amount: number;
+  bruto_total: number | null;
   status: string;
+}
+
+interface BatchRow {
+  pattern_name: string;
+  historical_avg: number;
+  historical_min: number;
+  historical_max: number;
+  months_present: number;
+  current_amount: number | null;
+  current_payment_id: string | null;
+  current_reference: string | null;
+  status: "recebido" | "pendente";
 }
 
 interface TrendRow {
