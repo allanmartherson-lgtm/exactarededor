@@ -61,74 +61,9 @@ Exacta · Hospital DF Star · Rede D'Or
 Você está recebendo este e-mail porque é um diretor aprovador no Exacta.`;
 }
 
-function buildEmailHtml(
-  greeting: string,
-  name: string,
-  paymentRef: string,
-  totalFormatted: string,
-  companyCount: number,
-  link: string,
-): string {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pagamento aguardando aprovação — Exacta</title>
-</head>
-<body style="margin:0;padding:0;background:#F1EFE8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2C2C2A;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;padding:32px 16px;">
-    <tr><td align="center">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;border:0.5px solid #D3D1C7;">
-        <tr><td style="background:#9A6B3A;padding:24px 32px;">
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr>
-              <td style="font-size:18px;font-weight:500;color:#FFFFFF;letter-spacing:0.3px;">Exacta</td>
-              <td align="right" style="font-size:12px;color:rgba(255,255,255,0.75);">Hospital DF Star</td>
-            </tr>
-          </table>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          <p style="font-size:16px;color:#2C2C2A;margin:0 0 8px;">${greeting}, Prezado(a) ${escapeHtml(name)}.</p>
-          <p style="font-size:14px;color:#5F5E5A;margin:0 0 24px;line-height:1.6;">Há um pagamento aguardando sua aprovação no Exacta.</p>
+// (HTML antigo removido — usa e1_productionValidation do módulo compartilhado)
 
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;border-radius:10px;margin:0 0 28px;">
-            <tr><td style="padding:20px;">
-              <p style="font-size:11px;color:#888780;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Pagamento</p>
-              <p style="font-size:16px;color:#2C2C2A;margin:0 0 18px;font-weight:500;">${escapeHtml(paymentRef)}</p>
 
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                  <td width="50%" style="vertical-align:top;">
-                    <p style="font-size:11px;color:#888780;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Valor total</p>
-                    <p style="font-size:18px;color:#2C2C2A;margin:0;font-weight:500;">${totalFormatted}</p>
-                  </td>
-                  <td width="50%" style="vertical-align:top;">
-                    <p style="font-size:11px;color:#888780;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Empresas</p>
-                    <p style="font-size:18px;color:#2C2C2A;margin:0;font-weight:500;">${companyCount}</p>
-                  </td>
-                </tr>
-              </table>
-            </td></tr>
-          </table>
-
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr><td align="center" style="padding:0 0 28px;">
-              <a href="${link}" style="display:inline-block;background:#9A6B3A;color:#FFFFFF;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;">Acessar no Exacta</a>
-            </td></tr>
-          </table>
-
-          <p style="font-size:12px;color:#888780;margin:0;text-align:center;line-height:1.6;">Você está recebendo este e-mail porque é um diretor aprovador no Exacta.</p>
-        </td></tr>
-        <tr><td style="background:#F1EFE8;padding:16px 32px;text-align:center;border-top:0.5px solid #D3D1C7;">
-          <p style="font-size:11px;color:#888780;margin:0;">Exacta · Hospital DF Star · Rede D'Or</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
 
 function buildWhatsappDirector(
   greeting: string,
