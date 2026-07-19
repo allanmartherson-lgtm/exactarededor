@@ -924,6 +924,13 @@ function WhenApplySection({
   const hasNoturnoPct = Number(c.adicional_noturno_pct || 0) > 0;
 
   const [openSection, setOpenSection] = useState<string | null>(null);
+  // Toggle UI-only: como interpretar códigos digitados/importados neste cálculo.
+  // "exato" mantém comportamento legado (8 dígitos = código completo).
+  // "grupo" armazena o valor com sufixo `*`, que o motor já reconhece como prefixo
+  // (rulesEngine.ts calcItemMatches trata `4100*` como startsWith "4100").
+  // Se qualquer chip existente já é prefixo, iniciamos em "grupo" para preservar contexto.
+  const anyPrefix = (c.procedure_codes || []).some((x) => String(x).endsWith("*"));
+  const [codeInputType, setCodeInputType] = useState<"exato" | "grupo">(anyPrefix ? "grupo" : "exato");
 
   const toggle = (key: string) => setOpenSection(prev => prev === key ? null : key);
 
