@@ -90,101 +90,21 @@ serve(async (req) => {
     const publicBase = Deno.env.get("PUBLIC_PORTAL_URL");
     const link = publicBase ? `${publicBase.replace(/\/$/, "")}/portal/nf/${invoice.upload_token}` : portalUrl;
 
-    const subject = `Resposta sobre o pedido de NF — ${payment?.reference ?? invoice.company_name ?? ""}`.trim();
-    const body = [
-      `Olá,`,
-      ``,
-      `O analista${author_name ? ` ${author_name}` : ""} respondeu sua dúvida sobre o pedido de NF${payment?.reference ? ` "${payment.reference}"` : ""}:`,
-      ``,
-      `"${message.trim()}"`,
-      ``,
-      emailAttachments.length > 0
-        ? `Anexos (${emailAttachments.length}): ${emailAttachments.map((a) => a.filename).join(", ")}${attachedAll ? "" : " — alguns anexos eram grandes demais para o e-mail; veja todos no portal."}`
-        : "",
-      `Para responder ou enviar a NF, acesse o link abaixo:`,
-      link,
-    ].filter(Boolean).join("\n");
+    const rendered = b6_questionReply({
+      recipient_name: invoice.company_name ?? "prezado(a)",
+      payment_reference: payment?.reference ?? invoice.company_name ?? "",
+      replied_by: author_name ?? "Analista",
+      reply_preview: message.trim().slice(0, 400),
+      thread_link: link,
+      subject: `Resposta sobre o pedido de NF — ${payment?.reference ?? invoice.company_name ?? ""}`.trim(),
+    });
+    const attachmentsNote = emailAttachments.length > 0
+      ? `\n\nAnexos (${emailAttachments.length}): ${emailAttachments.map((a) => a.filename).join(", ")}${attachedAll ? "" : " — alguns anexos eram grandes demais para o e-mail; veja todos no portal."}`
+      : "";
+    const subject = rendered.subject;
+    const html = rendered.html;
+    const body = rendered.text + attachmentsNote;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-    if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY ou RESEND_API_KEY ausente" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const toList = [invoice.recipient_email].filter(Boolean) as string[];
-    const ccList = Array.isArray(invoice.recipient_cc) ? invoice.recipient_cc.filter(Boolean) : [];
-
-    const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"/></head>
-<body style="margin:0;padding:0;background:#f4f6f8">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:32px 0">
-  <tr><td align="center">
-  <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-    <tr>
-      <td style="background:#1E3A5F;padding:28px 40px">
-        <div style="font-family:Arial,sans-serif;color:#ffffff;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;opacity:0.7">Hospital DF Star</div>
-        <div style="font-family:Arial,sans-serif;color:#ffffff;font-size:20px;font-weight:700">Resposta ao seu questionamento</div>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:36px 40px 0 40px;font-family:Arial,sans-serif">
-        <p style="margin:0 0 20px 0;font-size:14px;color:#1a1a2e">Ol\u00e1,</p>
-        <p style="margin:0 0 24px 0;font-size:14px;color:#444;line-height:1.6">
-          O analista${author_name ? ` <strong>${author_name}</strong>` : ""} respondeu sua d\u00favida referente ao pedido de NF${payment?.reference ? ` — <strong>${payment.reference}</strong>` : ""}:
-        </p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;border-left:4px solid #1E3A5F;border-radius:6px;margin-bottom:28px">
-          <tr>
-            <td style="padding:20px 24px;font-family:Arial,sans-serif;font-size:14px;color:#1a1a2e;line-height:1.7;font-style:italic">
-              "${message.trim()}"
-            </td>
-          </tr>
-        </table>
-        ${emailAttachments.length > 0 ? `
-        <p style="margin:0 0 20px 0;font-family:Arial,sans-serif;font-size:13px;color:#555">
-          ${emailAttachments.length} anexo(s) inclu\u00eddo(s)${!attachedAll ? " — alguns arquivos eram grandes demais para o e-mail; acesse o portal para ver todos." : "."}
-        </p>` : ""}
-        <p style="margin:0 0 20px 0;font-family:Arial,sans-serif;font-size:13px;color:#555;line-height:1.6">
-          Para responder ou enviar a Nota Fiscal, acesse o portal abaixo:
-        </p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
-          <tr>
-            <td align="center">
-              <a href="${link}" style="display:inline-block;background:#1E3A5F;color:#ffffff;padding:14px 36px;border-radius:6px;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:700">
-                Acessar Portal →
-              </a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td style="background:#f0f4f8;padding:20px 40px;border-top:1px solid #e2e8f0">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="font-family:Arial,sans-serif;font-size:12px;color:#666">
-              Atenciosamente,<br/>
-              <strong style="color:#1E3A5F">GHM DF Star</strong>
-            </td>
-            <td align="right" style="font-family:Arial,sans-serif;font-size:12px;color:#888;line-height:1.7">
-              ghm.repassedfstar@rededor.com.br<br/>
-              (11) 2142-4879
-            </td>
-          </tr>
-        </table>
-        <div style="font-family:Arial,sans-serif;font-size:11px;color:#aaa;margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0">
-          Este link \u00e9 \u00fanico e intransfer\u00edvel. Em caso de d\u00favidas, responda este e-mail.
-        </div>
-      </td>
-    </tr>
-  </table>
-  </td></tr>
-</table>
-</body>
-</html>`;
 
     try {
       const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
