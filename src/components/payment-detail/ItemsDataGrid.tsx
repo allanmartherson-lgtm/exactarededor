@@ -79,6 +79,8 @@ import type {
 import { cn } from "@/lib/utils";
 import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
+import { getDayContext } from "@/lib/holidaysBR";
+import { useResizableColumns } from "@/components/payment-detail/useResizableColumns";
 import { formatSectorName } from "@/lib/sectorDisplay";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
 import { detectTussMismatch, REASON_LABELS as TUSS_REASON_LABELS } from "@/lib/tussPrincipalAudit";
