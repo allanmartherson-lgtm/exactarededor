@@ -1763,7 +1763,20 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   const remove = async (id: string) => {
     if (!confirm("Excluir esta regra?")) return;
+    // Captura hospital_id antes do delete para invalidar cache do motor.
+    const ruleBeingRemoved = rules.find((r) => r.id === id) as any;
+    const hidToInvalidate: string | null =
+      (ruleBeingRemoved?.hospital_id as string | undefined) ?? activeHospitalId ?? null;
     await supabase.from("rules").delete().eq("id", id);
+    // Correção B (2026-07-19): mesma justificativa do save — sem isso, jobs
+    // ainda enxergam a regra removida via snapshot cached por até 1h.
+    if (hidToInvalidate) {
+      try {
+        await supabase.rpc("invalidate_rule_context", { _hospital_id: hidToInvalidate });
+      } catch (e) {
+        console.warn("[Rules] invalidate_rule_context (delete) falhou:", (e as any)?.message ?? e);
+      }
+    }
     await recomputeDoctorSpecificExclusions();
     setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
     load();
