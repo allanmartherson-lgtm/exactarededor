@@ -34,6 +34,12 @@ import {
   type ItemAiStatus,
 } from "@/lib/status";
 import * as XLSX from "xlsx-js-style";
+import {
+  applyBrandTypography,
+  prependBrandHeader,
+  buildBrandSubtitle,
+} from "@/lib/excelBrandStyle";
+import { useHospital } from "@/contexts/HospitalContext";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { getAgreement } from "@/lib/itemFields";
 import type {
