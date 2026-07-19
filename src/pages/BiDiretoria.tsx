@@ -325,6 +325,22 @@ export default function BiDiretoria() {
     last_seen_month: string | null;
   };
   const [missingPatterns, setMissingPatterns] = useState<MissingPattern[]>([]);
+  type VolumeAnomaly = {
+    pattern_id: string;
+    pattern_label: string;
+    payment_id: string;
+    payment_reference: string;
+    competence_month: string;
+    actual_count: number;
+    expected_avg: number;
+    stddev_count: number | null;
+    months_seen: number;
+    deviation_pct: number | null;
+    z_score: number | null;
+    direction: "alto" | "baixo";
+    severity: "alta" | "media" | "baixa";
+  };
+  const [volumeAnomalies, setVolumeAnomalies] = useState<VolumeAnomaly[]>([]);
 
   useEffect(() => {
     (async () => {
