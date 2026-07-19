@@ -311,6 +311,48 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
     };
   }, [payments]);
 
+  // Composição bottom-up: soma dos recebidos + média histórica dos pendentes
+  const composition = useMemo(() => {
+    if (!batches || batches.length === 0) return null;
+    const received = batches.filter((b) => b.status === "recebido");
+    const pending = batches.filter((b) => b.status === "pendente");
+    const receivedSum = received.reduce((s, b) => s + Number(b.current_amount ?? 0), 0);
+    const pendingSum = pending.reduce((s, b) => s + Number(b.historical_avg ?? 0), 0);
+    const total = receivedSum + pendingSum;
+    return { received, pending, receivedSum, pendingSum, total };
+  }, [batches]);
+
+  // Override do termômetro: quando temos composição bottom-up, ela é mais precisa
+  // que a média simples de 3 meses. Sinalizamos com flag para a UI.
+  const thermometer = useMemo(() => {
+    if (!monthly) return null;
+    if (composition && composition.total > 0) {
+      const pct = composition.total > 0 ? (composition.received.reduce((s, b) => s + Number(b.current_amount ?? 0), 0) / composition.total) * 100 : 0;
+      const remaining = Math.max(0, composition.total - monthly.processed);
+      const bottomUpDelta =
+        monthly.projection > 0
+          ? Math.abs(composition.total - monthly.projection) / monthly.projection
+          : 0;
+      return {
+        projection: composition.total,
+        processed: monthly.processed,
+        remaining,
+        pctProcessed: pct,
+        source: "bottom-up" as const,
+        moreAccurate: bottomUpDelta > 0.1,
+      };
+    }
+    return {
+      projection: monthly.projection,
+      processed: monthly.processed,
+      remaining: monthly.remaining,
+      pctProcessed: monthly.pctProcessed,
+      source: "media3m" as const,
+      moreAccurate: false,
+    };
+  }, [monthly, composition]);
+
+
   const insight = useMemo(() => {
     if (!monthly?.hasProjection) return null;
     const procLabel = fmtMonth(monthly.procYm);
