@@ -169,7 +169,7 @@ export default function BatchPatterns({ embedded = false }: Props) {
   const load = async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const [pRes, oRes] = await Promise.all([
+    const [pRes, oRes, mRes] = await Promise.all([
       supabase.from("payment_batch_patterns" as never)
         .select("*")
         .eq("hospital_id", hospitalId)
@@ -182,13 +182,17 @@ export default function BatchPatterns({ embedded = false }: Props) {
         .gte("competence_month", new Date(new Date().setMonth(new Date().getMonth() - 4)).toISOString().slice(0, 10))
         .order("competence_month", { ascending: false })
         .limit(200),
+      supabase.rpc("get_missing_batch_patterns" as never),
     ]);
     if (pRes.error) toast({ title: "Falha ao carregar padrões", description: pRes.error.message, variant: "destructive" });
     else setPatterns(((pRes.data ?? []) as unknown) as BatchPattern[]);
     if (oRes.error) toast({ title: "Falha ao carregar lotes órfãos", description: oRes.error.message, variant: "destructive" });
     else setOrphans((oRes.data ?? []) as OrphanPayment[]);
+    if (mRes.error) setMissing([]);
+    else setMissing(((mRes.data ?? []) as unknown) as MissingBatch[]);
     setLoading(false);
   };
+
 
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [hospitalId]);
 
