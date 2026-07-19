@@ -1546,7 +1546,10 @@ export function ItemsDataGrid({
     }
   }, [density, DENSITY_PREFS_KEY]);
   const isCompact = density === "compact";
-  const headPad = isCompact ? "px-1 py-0" : "px-2.5 py-2.5";
+  const headPad = isCompact ? "px-1 py-0 relative" : "px-2.5 py-2.5 relative";
+  // Colunas redimensionáveis (drag-to-resize estilo Excel).
+  // Persistido por usuário via localStorage; duplo clique restaura o default.
+  const { getWidth, colStyle, ResizeHandle } = useResizableColumns("items-grid-widths-v1");
   const tableTextSize = isCompact
     ? "text-[10px] leading-[1.1] tracking-tight"
     : "text-[13px] leading-snug tracking-normal";
