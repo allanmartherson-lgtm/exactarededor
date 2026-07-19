@@ -89,6 +89,26 @@ export default function BatchPatterns({ embedded = false }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
+  const [backfilling, setBackfilling] = useState(false);
+
+  const runBackfill = async () => {
+    if (!hospitalId) return;
+    setBackfilling(true);
+    const { data, error } = await supabase.rpc("backfill_batch_pattern_links" as never);
+    setBackfilling(false);
+    if (error) {
+      toast({ title: "Falha ao vincular órfãos", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = Array.isArray(data) ? (data[0] as { scanned?: number; linked?: number } | undefined) : undefined;
+    const scanned = row?.scanned ?? 0;
+    const linked = row?.linked ?? 0;
+    toast({
+      title: linked > 0 ? `${linked} lote(s) vinculado(s)` : "Nenhum lote novo vinculado",
+      description: `Analisados ${scanned} lote(s) sem padrão nos últimos 12 meses.`,
+    });
+    void load();
+  };
 
   const runSuggest = async () => {
     if (!hospitalId) return;
