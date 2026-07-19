@@ -12594,6 +12594,18 @@ export type Database = {
           pattern_id: string
         }[]
       }
+      get_missing_batch_patterns_for: {
+        Args: { _hospital: string }
+        Returns: {
+          avg_bruto: number
+          competence_month: string
+          days_late: number
+          expected_by: string
+          label: string
+          last_seen_month: string
+          pattern_id: string
+        }[]
+      }
       get_money_anomalies: {
         Args: { p_days?: number }
         Returns: {
