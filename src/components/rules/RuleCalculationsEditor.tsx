@@ -977,36 +977,91 @@ function WhenApplySection({
               <Select value={c.code_match_mode} onValueChange={(v) => onChange({ code_match_mode: v as CalcItem["code_match_mode"] })}>
                 <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="whitelist">Apenas estes códigos</SelectItem>
-                  <SelectItem value="blacklist">Todos exceto estes</SelectItem>
+                  <SelectItem value="whitelist">Apenas estes códigos/grupos</SelectItem>
+                  <SelectItem value="blacklist">Todos exceto estes códigos/grupos</SelectItem>
                   <SelectItem value="any">Qualquer código</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {c.code_match_mode !== "any" && (
               <>
+                {/* Toggle: interpretar entrada como código exato (8 dígitos) ou grupo/prefixo TUSS. */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <Label className="text-xs" style={{ marginRight: "auto" }}>Interpretar entrada como</Label>
+                  {([
+                    { v: "exato", label: "Código exato", hint: "8 dígitos completos (ex: 41001010)" },
+                    { v: "grupo", label: "Grupo (prefixo TUSS)", hint: "Casa qualquer código que comece com o prefixo (ex: 4100 = todas as tomografias)" },
+                  ] as const).map((opt) => {
+                    const sel = codeInputType === opt.v;
+                    return (
+                      <button key={opt.v} type="button" onClick={() => setCodeInputType(opt.v)} title={opt.hint}
+                        style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 500,
+                          border: `1px solid ${sel ? "hsl(var(--primary))" : "hsl(var(--border))"}`,
+                          background: sel ? "hsl(var(--accent))" : "hsl(var(--card))",
+                          color: sel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginBottom: 6, marginTop: -2 }}>
+                  {codeInputType === "grupo"
+                    ? "Modo grupo: use 3 a 7 dígitos. O motor aplica a regra a qualquer TUSS que comece com esses dígitos."
+                    : "Modo código: use 8 dígitos completos. A regra aplica só ao TUSS exato."}
+                </p>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <Input placeholder="Digite um código e pressione Enter (ex: 31005497)" className="h-8 text-xs flex-1"
+                  <Input placeholder={codeInputType === "grupo" ? "Digite um prefixo e pressione Enter (ex: 4100)" : "Digite um código e pressione Enter (ex: 31005497)"} className="h-8 text-xs flex-1"
                     inputMode="numeric" pattern="[0-9]*"
                     onInput={(e) => { const t = e.target as HTMLInputElement; const cleaned = t.value.replace(/\D+/g, ""); if (t.value !== cleaned) t.value = cleaned; }}
-                    onPaste={(e) => { e.preventDefault(); const text = e.clipboardData.getData("text"); const vals = text.split(/[,;\s]+/).map(s => s.replace(/\D+/g, "")).filter(v => v.length > 0); if (vals.length === 0) return; const merged = Array.from(new Set([...c.procedure_codes, ...vals])); if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged }); (e.target as HTMLInputElement).value = ""; }}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); const t = e.target as HTMLInputElement; const vals = t.value.split(/[,;\s]+/).map(s => s.replace(/\D+/g, "")).filter(v => v.length > 0); const merged = Array.from(new Set([...c.procedure_codes, ...vals])); if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged }); t.value = ""; } }} />
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const text = e.clipboardData.getData("text");
+                      const raw = text.split(/[,;\s]+/).map(s => s.replace(/\D+/g, "")).filter(Boolean);
+                      const vals = raw.filter(v => codeInputType === "grupo" ? (v.length >= 3 && v.length <= 7) : v.length === 8)
+                        .map(v => codeInputType === "grupo" ? `${v}*` : v);
+                      if (vals.length === 0) return;
+                      const merged = Array.from(new Set([...c.procedure_codes, ...vals]));
+                      if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged });
+                      (e.target as HTMLInputElement).value = "";
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ",") {
+                        e.preventDefault();
+                        const t = e.target as HTMLInputElement;
+                        const raw = t.value.split(/[,;\s]+/).map(s => s.replace(/\D+/g, "")).filter(Boolean);
+                        const vals = raw.filter(v => codeInputType === "grupo" ? (v.length >= 3 && v.length <= 7) : v.length === 8)
+                          .map(v => codeInputType === "grupo" ? `${v}*` : v);
+                        if (vals.length === 0) { toast.error(codeInputType === "grupo" ? "Prefixo inválido (3 a 7 dígitos)" : "Código inválido (8 dígitos)"); return; }
+                        const merged = Array.from(new Set([...c.procedure_codes, ...vals]));
+                        if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged });
+                        t.value = "";
+                      }
+                    }} />
                   <input type="file" accept=".xlsx,.xls,.csv" id={`import-codes-${c.id ?? c.label}`} className="hidden" onChange={async (e) => {
                     const file = e.target.files?.[0]; if (!file) return;
                     try { const XLSX = await import("xlsx"); const buf = await file.arrayBuffer(); const wb = XLSX.read(buf, { type: "array" }); const found = new Set<string>(); for (const sn of wb.SheetNames) { const sh = wb.Sheets[sn]; const rows = XLSX.utils.sheet_to_json<any>(sh, { header: 1, raw: false, defval: "" }); for (const row of rows as any[][]) { for (const cell of row) { const s = String(cell ?? "").trim(); const m = s.match(/\b\d{8}\b/g); if (m) m.forEach(x => found.add(x)); } } }
                     if (found.size === 0) { toast.error("Nenhum código TUSS encontrado"); } else { const merged = Array.from(new Set([...c.procedure_codes, ...found])); onChange({ procedure_codes: merged }); toast.success(`${found.size} códigos importados`); }
                     } catch (err) { toast.error("Erro: " + (err as Error).message); } finally { (e.target as HTMLInputElement).value = ""; }
                   }} />
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs whitespace-nowrap" onClick={() => document.getElementById(`import-codes-${c.id ?? c.label}`)?.click()}>📎 Importar</Button>
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs whitespace-nowrap" onClick={() => document.getElementById(`import-codes-${c.id ?? c.label}`)?.click()} title="Importa códigos exatos (8 dígitos) de planilha">📎 Importar</Button>
                 </div>
                 {c.procedure_codes.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {c.procedure_codes.map(code => (
-                      <button key={code} type="button" onClick={() => onChange({ procedure_codes: c.procedure_codes.filter(x => x !== code) })}
-                        style={{ fontSize: 10, borderRadius: 20, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))", padding: "2px 8px", cursor: "pointer", fontFamily: "monospace" }}>
-                        {code} ✕
-                      </button>
-                    ))}
+                    {c.procedure_codes.map(code => {
+                      const isPrefix = String(code).endsWith("*");
+                      const display = isPrefix ? String(code).slice(0, -1) : code;
+                      return (
+                        <button key={code} type="button" onClick={() => onChange({ procedure_codes: c.procedure_codes.filter(x => x !== code) })}
+                          title={isPrefix ? `Grupo: todos os TUSS começando com ${display}` : `Código exato ${display}`}
+                          style={{ fontSize: 10, borderRadius: 20,
+                            border: `1px solid ${isPrefix ? "hsl(var(--primary))" : "hsl(var(--border))"}`,
+                            background: isPrefix ? "hsl(var(--accent))" : "hsl(var(--background))",
+                            color: isPrefix ? "hsl(var(--primary))" : "inherit",
+                            padding: "2px 8px", cursor: "pointer", fontFamily: "monospace", fontWeight: isPrefix ? 700 : 400 }}>
+                          {isPrefix ? `grupo ${display}•` : display} ✕
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </>
