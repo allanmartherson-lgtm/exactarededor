@@ -225,8 +225,9 @@ export async function generateGroupValidationPdf(groupId: string): Promise<jsPDF
     y += 3;
     autoTable(doc, {
       startY: y + 2,
-      head: [["Atend.", "Médico", "TUSS", "Qtd", "Bruto pago"]],
+      head: [["Data/Hora", "Atend.", "Médico", "TUSS", "Qtd", "Bruto pago"]],
       body: semRegra.slice(0, 200).map((i) => [
+        fmtDateHora(i.procedure_date, i.procedure_date_has_time),
         i.attendance_number ?? "—",
         i.doctor_name ?? "—",
         i.procedure_code ?? "—",
