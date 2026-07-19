@@ -3030,21 +3030,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
             observation_type: "alerta",
             message: msg,
           });
-          // Escala como pendência para o analista (mesma tabela usada por outros
-          // alertas de integridade) — usa best-effort; não deve derrubar o job.
-          try {
-            await supabase.from("pendencias").insert({
-              payment_id,
-              hospital_id: __paymentHospitalId,
-              tipo: "divergencia_bonus_split",
-              titulo: "Bônus divergente após split — revisar valores da empresa",
-              descricao: msg,
-              severidade: "alta",
-              status: "aberta",
-            });
-          } catch (pendErr) {
-            console.error(`${__t} bonus_split_pendencia_insert_failed`, pendErr);
-          }
+          // Observação com observation_type="alerta" já é suficiente para o
+          // Card de "Alertas do sistema" da UI destacar o lote — não criamos
+          // pendência aqui porque a tabela `pendencias` é paciente-cêntrica
+          // (event_date, patient_name, agreement_name obrigatórios) e não
+          // aceita registros de integridade sem esses campos.
         } else {
           console.log(
             `${__t} bonus_split_invariants_ok bonus_lines=${bonusLinesToInsert.length} companies=${compsToCheck.length}`,
