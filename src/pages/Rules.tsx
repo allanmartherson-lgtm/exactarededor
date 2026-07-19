@@ -352,6 +352,8 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
   // Bloqueia fallback para a regra geral master quando a regra venceu mas nenhum cálculo bateu.
   // Default true para regras específicas/grupo; false para master.
   const [fPreventExternalFallback, setFPreventExternalFallback] = useState(false);
+  const [fCalculationMode, setFCalculationMode] = useState<"exclusive" | "cascade">("exclusive");
+
   
   
   // Global Thresholds Form
