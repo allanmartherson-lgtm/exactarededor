@@ -1111,6 +1111,18 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       }
       }
     }
+    // Correção B (2026-07-19): invalida snapshot de contexto do motor para
+    // este hospital. Sem isso, jobs em andamento reusam o snapshot cached
+    // (TTL 1h) e ignoram a edição da regra até o TTL expirar — foi o que
+    // causava o bug do "prevent_external_fallback" só valer após 2 reanálises.
+    try {
+      const hid = (ruleData as any).hospital_id as string | undefined;
+      if (hid) {
+        await supabase.rpc("invalidate_rule_context", { _hospital_id: hid });
+      }
+    } catch (e) {
+      console.warn("[Rules] invalidate_rule_context falhou (não bloqueia save):", (e as any)?.message ?? e);
+    }
     // special_case_filter no nível da regra foi descontinuado — o filtro
     // agora vive em cada cálculo (rule_calculations.special_case_filter).
     if (savedId) {
