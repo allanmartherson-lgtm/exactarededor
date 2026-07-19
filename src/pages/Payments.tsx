@@ -1777,7 +1777,7 @@ const Payments = () => {
                   </button>
                 </Badge>
               )}
-              {(companyFilter || analystFilter.length > 0 || typeFilter.length > 0 || itemTypeFilter.length > 0 || trackFilter.length > 0 || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter.length > 0 || importModeFilter.length > 0 || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts) && (
+              {(companyFilter || analystFilter.length > 0 || typeFilter.length > 0 || itemTypeFilter.length > 0 || trackFilter.length > 0 || statusFilter.length > 0 || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all" || poolFilter.length > 0 || importModeFilter.length > 0 || emptyOnly || hasProposedGlosas || hasAppliedDebits || hasAppliedCredits || hasAlerts || batchPatternFilter.length > 0 || onlyUnlinkedPattern) && (
                 <Button variant="ghost" size="sm" onClick={() => {
                   setCompanyFilter(null);
                   setAnalystFilter([]); setTypeFilter([]); setItemTypeFilter([]); setTrackFilter([]); setStatusFilter([]); setCompetenceFilter("all"); setDelayedOnly(false);
@@ -1785,6 +1785,7 @@ const Payments = () => {
                   setDivergenceFilter("all"); setQuestionedFilter("all");
                   setPoolFilter([]); setImportModeFilter([]); setEmptyOnly(false);
                   setHasProposedGlosas(false); setHasAppliedDebits(false); setHasAppliedCredits(false); setHasAlerts(false);
+                  setBatchPatternFilter([]); setOnlyUnlinkedPattern(false);
                   setSearchParams(new URLSearchParams(), { replace: true });
                 }}>
                   <X className="h-4 w-4 mr-1" /> Limpar
