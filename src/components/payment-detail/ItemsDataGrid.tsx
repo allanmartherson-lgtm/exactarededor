@@ -2132,28 +2132,28 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   const tableMinWidth = 24 +
-    (colVis.atendimento ? 160 : 0) +
-    (colVis.data ? 90 : 0) +
-    160 +
+    (colVis.atendimento ? getWidth("atendimento", 160) : 0) +
+    (colVis.data ? getWidth("data", 108) : 0) +
+    getWidth("paciente", 160) +
 
-    (colVis.convenio ? 120 : 0) +
-    (colVis.via ? 110 : 0) +
-    88 +
-    56 +
-    (colVis.procedimento ? 200 : 0) +
-    (colVis.setor_lido ? 110 : 0) +
-    (colVis.setor_inferido ? 110 : 0) +
-    (colVis.tipo_entrada ? 110 : 0) +
-    (colVis.subtipo && isParecerPayment ? 80 : 0) +
-    150 +
-    (colVis.funcao ? 100 : 0) +
-    (colVis.regra ? 150 : 0) +
-    (showGrossColumn ? 110 : 0) +
-    (showProcedureColumn ? 130 : 0) +
-    expectedColWidth +
-    (showDiferencaCol ? 110 : 0) +
-    110 +
-    (colVis.observacao ? 70 : 0) +
+    (colVis.convenio ? getWidth("convenio", 120) : 0) +
+    (colVis.via ? getWidth("via", 110) : 0) +
+    getWidth("tuss", 88) +
+    getWidth("qtd", 56) +
+    (colVis.procedimento ? getWidth("procedimento", 200) : 0) +
+    (colVis.setor_lido ? getWidth("setor_lido", 110) : 0) +
+    (colVis.setor_inferido ? getWidth("setor_inferido", 110) : 0) +
+    (colVis.tipo_entrada ? getWidth("tipo_entrada", 110) : 0) +
+    (colVis.subtipo && isParecerPayment ? getWidth("subtipo", 80) : 0) +
+    getWidth("medico", 150) +
+    (colVis.funcao ? getWidth("funcao", 100) : 0) +
+    (colVis.regra ? getWidth("regra", 150) : 0) +
+    (showGrossColumn ? getWidth("gross", 110) : 0) +
+    (showProcedureColumn ? getWidth("faturamento", 130) : 0) +
+    getWidth("esperado", expectedColWidth) +
+    (showDiferencaCol ? getWidth("diferenca", 110) : 0) +
+    getWidth("status", 110) +
+    (colVis.observacao ? getWidth("observacao", 70) : 0) +
     (canEdit ? 120 : 0);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
