@@ -378,6 +378,7 @@ const App = () => (
                   <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
                   
                   <Route path="/cadastros" element={<ProtectedRoute roles={["diretor", "admin"]}><CadastrosHub /></ProtectedRoute>} />
+                  <Route path="/padroes-lote" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><BatchPatterns /></ProtectedRoute>} />
                   <Route path="/empresas" element={<Navigate to="/cadastros?tab=empresas" replace />} />
                   <Route path="/empresas/apelidos" element={<ProtectedRoute roles={["diretor", "admin"]}><CompanyAliases /></ProtectedRoute>} />
                   <Route path="/aprendizado/padroes" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><LearnedPatterns /></ProtectedRoute>} />
