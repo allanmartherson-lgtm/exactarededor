@@ -117,6 +117,7 @@ const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
 const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
 const loadDirectors = () => import("./pages/Directors.tsx");
 const loadCadastrosHub = () => import("./pages/CadastrosHub.tsx");
+const loadBatchPatterns = () => import("./pages/BatchPatterns.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 const loadPaymentEvolution = () => import("./pages/PaymentEvolution.tsx");
