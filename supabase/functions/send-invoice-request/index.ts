@@ -23,6 +23,8 @@ import { buildEmail } from "./templates.ts";
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
+import { a1_sendInvoiceRequest } from "../_shared/emailTemplates/templates.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
