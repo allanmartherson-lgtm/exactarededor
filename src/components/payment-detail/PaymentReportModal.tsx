@@ -93,6 +93,7 @@ export function PaymentReportModal({
   profiles = {},
 }: PaymentReportModalProps) {
   const { toast } = useToast();
+  const { hospital } = useHospital();
   // --- Estados de Filtro ---
   const [search, setSearch] = useState("");
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
