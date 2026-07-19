@@ -79,6 +79,8 @@ import type {
 import { cn } from "@/lib/utils";
 import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
+import { getDayContext } from "@/lib/holidaysBR";
+import { useResizableColumns } from "@/components/payment-detail/useResizableColumns";
 import { formatSectorName } from "@/lib/sectorDisplay";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
 import { detectTussMismatch, REASON_LABELS as TUSS_REASON_LABELS } from "@/lib/tussPrincipalAudit";
@@ -1544,7 +1546,10 @@ export function ItemsDataGrid({
     }
   }, [density, DENSITY_PREFS_KEY]);
   const isCompact = density === "compact";
-  const headPad = isCompact ? "px-1 py-0" : "px-2.5 py-2.5";
+  const headPad = isCompact ? "px-1 py-0 relative" : "px-2.5 py-2.5 relative";
+  // Colunas redimensionáveis (drag-to-resize estilo Excel).
+  // Persistido por usuário via localStorage; duplo clique restaura o default.
+  const { getWidth, colStyle, ResizeHandle } = useResizableColumns("items-grid-widths-v1");
   const tableTextSize = isCompact
     ? "text-[10px] leading-[1.1] tracking-tight"
     : "text-[13px] leading-snug tracking-normal";
@@ -2127,28 +2132,28 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   const tableMinWidth = 24 +
-    (colVis.atendimento ? 160 : 0) +
-    (colVis.data ? 90 : 0) +
-    160 +
+    (colVis.atendimento ? getWidth("atendimento", 160) : 0) +
+    (colVis.data ? getWidth("data", 108) : 0) +
+    getWidth("paciente", 160) +
 
-    (colVis.convenio ? 120 : 0) +
-    (colVis.via ? 110 : 0) +
-    88 +
-    56 +
-    (colVis.procedimento ? 200 : 0) +
-    (colVis.setor_lido ? 110 : 0) +
-    (colVis.setor_inferido ? 110 : 0) +
-    (colVis.tipo_entrada ? 110 : 0) +
-    (colVis.subtipo && isParecerPayment ? 80 : 0) +
-    150 +
-    (colVis.funcao ? 100 : 0) +
-    (colVis.regra ? 150 : 0) +
-    (showGrossColumn ? 110 : 0) +
-    (showProcedureColumn ? 130 : 0) +
-    expectedColWidth +
-    (showDiferencaCol ? 110 : 0) +
-    110 +
-    (colVis.observacao ? 70 : 0) +
+    (colVis.convenio ? getWidth("convenio", 120) : 0) +
+    (colVis.via ? getWidth("via", 110) : 0) +
+    getWidth("tuss", 88) +
+    getWidth("qtd", 56) +
+    (colVis.procedimento ? getWidth("procedimento", 200) : 0) +
+    (colVis.setor_lido ? getWidth("setor_lido", 110) : 0) +
+    (colVis.setor_inferido ? getWidth("setor_inferido", 110) : 0) +
+    (colVis.tipo_entrada ? getWidth("tipo_entrada", 110) : 0) +
+    (colVis.subtipo && isParecerPayment ? getWidth("subtipo", 80) : 0) +
+    getWidth("medico", 150) +
+    (colVis.funcao ? getWidth("funcao", 100) : 0) +
+    (colVis.regra ? getWidth("regra", 150) : 0) +
+    (showGrossColumn ? getWidth("gross", 110) : 0) +
+    (showProcedureColumn ? getWidth("faturamento", 130) : 0) +
+    getWidth("esperado", expectedColWidth) +
+    (showDiferencaCol ? getWidth("diferenca", 110) : 0) +
+    getWidth("status", 110) +
+    (colVis.observacao ? getWidth("observacao", 70) : 0) +
     (canEdit ? 120 : 0);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
@@ -2964,28 +2969,28 @@ export function ItemsDataGrid({
             style={{ width: tableMinWidth, minWidth: tableMinWidth }}
           >
             <colgroup>
-              {colVis.atendimento && <col style={{ width: 160 }} />}
-              {colVis.data && <col style={{ width: 90 }} />}
-              <col style={{ width: 160 }} />
+              {colVis.atendimento && <col style={colStyle("atendimento", 160)} />}
+              {colVis.data && <col style={colStyle("data", 108)} />}
+              <col style={colStyle("paciente", 160)} />
 
-              {colVis.convenio && <col style={{ width: 120 }} />}
-              {colVis.via && <col style={{ width: 110 }} />}
-              <col style={{ width: 88 }} />
-              <col style={{ width: 56 }} />
-              {colVis.procedimento && <col style={{ width: 200 }} />}
-              {colVis.setor_lido && <col style={{ width: 110 }} />}
-              {colVis.setor_inferido && <col style={{ width: 110 }} />}
-              {colVis.tipo_entrada && <col style={{ width: 110 }} />}
-              {colVis.subtipo && isParecerPayment && <col style={{ width: 80 }} />}
-              <col style={{ width: 150 }} />
-              {colVis.funcao && <col style={{ width: 100 }} />}
-              {colVis.regra && <col style={{ width: 150 }} />}
-              {showGrossColumn && <col style={{ width: 110 }} />}
-              {showProcedureColumn && <col style={{ width: 130 }} />}
-              <col style={{ width: expectedColWidth }} />
-              {showDiferencaCol && <col style={{ width: 110 }} />}
-              <col style={{ width: 110 }} />
-              {colVis.observacao && <col style={{ width: 70 }} />}
+              {colVis.convenio && <col style={colStyle("convenio", 120)} />}
+              {colVis.via && <col style={colStyle("via", 110)} />}
+              <col style={colStyle("tuss", 88)} />
+              <col style={colStyle("qtd", 56)} />
+              {colVis.procedimento && <col style={colStyle("procedimento", 200)} />}
+              {colVis.setor_lido && <col style={colStyle("setor_lido", 110)} />}
+              {colVis.setor_inferido && <col style={colStyle("setor_inferido", 110)} />}
+              {colVis.tipo_entrada && <col style={colStyle("tipo_entrada", 110)} />}
+              {colVis.subtipo && isParecerPayment && <col style={colStyle("subtipo", 80)} />}
+              <col style={colStyle("medico", 150)} />
+              {colVis.funcao && <col style={colStyle("funcao", 100)} />}
+              {colVis.regra && <col style={colStyle("regra", 150)} />}
+              {showGrossColumn && <col style={colStyle("gross", 110)} />}
+              {showProcedureColumn && <col style={colStyle("faturamento", 130)} />}
+              <col style={colStyle("esperado", expectedColWidth)} />
+              {showDiferencaCol && <col style={colStyle("diferenca", 110)} />}
+              <col style={colStyle("status", 110)} />
+              {colVis.observacao && <col style={colStyle("observacao", 70)} />}
               {canEdit && <col style={{ width: 120 }} />}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
@@ -3042,10 +3047,11 @@ export function ItemsDataGrid({
                         </PopoverContent>
                       </Popover>
                     </div>
+                    <ResizeHandle colKey="atendimento" defaultWidth={160} />
                   </th>
                 )}
                 {colVis.data && (
-                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Data</th>
+                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Data<ResizeHandle colKey="data" defaultWidth={108} /></th>
                 )}
                 <th
 
@@ -3066,7 +3072,8 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
-                </th>
+                    <ResizeHandle colKey="convenio" defaultWidth={120} />
+                  </th>
                 {colVis.convenio && (
                   <th
                     scope="col"
@@ -3088,7 +3095,7 @@ export function ItemsDataGrid({
                     </button>
                   </th>
                 )}
-                {colVis.via && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
+                {colVis.via && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via<ResizeHandle colKey="via" defaultWidth={110} /></th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "tuss" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -3107,6 +3114,7 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="tuss" defaultWidth={88} />
                 </th>
                 <th
                   scope="col"
@@ -3126,12 +3134,13 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="qtd" defaultWidth={56} />
                 </th>
-                {colVis.procedimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>}
-                {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
-                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor</th>}
-                {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter</th>}
-                {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)">Subtipo</th>}
+                {colVis.procedimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento<ResizeHandle colKey="procedimento" defaultWidth={200} /></th>}
+                {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)<ResizeHandle colKey="setor_lido" defaultWidth={110} /></th>}
+                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor<ResizeHandle colKey="setor_inferido" defaultWidth={110} /></th>}
+                {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Caráter<ResizeHandle colKey="tipo_entrada" defaultWidth={110} /></th>}
+                {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)">Subtipo<ResizeHandle colKey="subtipo" defaultWidth={80} /></th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "medico" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -3150,9 +3159,10 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="medico" defaultWidth={150} />
                 </th>
-                {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
-                {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
+                {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função<ResizeHandle colKey="funcao" defaultWidth={100} /></th>}
+                {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra<ResizeHandle colKey="regra" defaultWidth={150} /></th>}
                 {showGrossColumn && (
                   <th
                     scope="col"
@@ -3172,6 +3182,7 @@ export function ItemsDataGrid({
                             : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                         : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                     </button>
+                    <ResizeHandle colKey="gross" defaultWidth={110} />
                   </th>
                 )}
                 {showProcedureColumn && (
@@ -3180,6 +3191,7 @@ export function ItemsDataGrid({
                     className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
                   >
                     Valor Faturamento
+                    <ResizeHandle colKey="faturamento" defaultWidth={130} />
                   </th>
                 )}
                 <th
@@ -3200,6 +3212,7 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="esperado" defaultWidth={expectedColWidth} />
                 </th>
                 {showDiferencaCol && (
                   <th
@@ -3220,6 +3233,7 @@ export function ItemsDataGrid({
                             : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                         : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                     </button>
+                    <ResizeHandle colKey="diferenca" defaultWidth={110} />
                   </th>
                 )}
                 <th
@@ -3240,8 +3254,9 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
+                  <ResizeHandle colKey="status" defaultWidth={110} />
                 </th>
-                {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
+                {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.<ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
                 {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap pr-4 sticky right-0 z-30 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
               </tr>
             </thead>
@@ -4471,9 +4486,27 @@ function RowMain({
         )}
         {colVis.data && (() => {
           const pd = (it as any).procedure_date as string | null | undefined;
+          const ctx = getDayContext(pd);
+          // Sinalização suave: dia da semana ao lado + ícone/tint para feriado
+          // ou fim de semana — ajuda o analista em regras com plantão/bônus.
+          const tone = ctx?.holidayName
+            ? "text-amber-700"
+            : ctx?.isWeekend
+              ? "text-indigo-700"
+              : "";
+          const tip = ctx
+            ? `${ctx.weekdayLong}${ctx.holidayName ? ` · Feriado: ${ctx.holidayName}` : ctx.isWeekend ? " · Fim de semana" : ""}`
+            : (pd ?? "");
           return (
-            <td className={cn(cell, TEXT_META, "whitespace-nowrap")} title={pd ?? ""}>
-              {formatDateBR(pd)}
+            <td className={cn(cell, TEXT_META, "whitespace-nowrap")} title={tip}>
+              <div className="flex items-baseline gap-1">
+                <span>{formatDateBR(pd)}</span>
+                {ctx && (
+                  <span className={cn("text-[10px] font-medium", tone)}>
+                    {ctx.holidayName ? "★" : ctx.isWeekend ? "•" : ""}{ctx.weekdayShort}
+                  </span>
+                )}
+              </div>
             </td>
           );
         })()}
