@@ -2011,6 +2011,129 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     }
     // ===== fim 2B =====
 
+    // ===== Post-pass CONTÁGIO DE EXCLUSÃO =====
+    // Quando uma linha de cálculo de exclusão está marcada com
+    // `contagia_atendimento`, ao disparar exclusão para 1 item, todos os
+    // demais itens do mesmo (attendance_number, procedure_date::date) são
+    // zerados. Exceção: se pelo menos 1 item do atendimento pertencer a
+    // médico listado na regra (target_doctor_id em regra específica de médico,
+    // ou group_doctors em regra de grupo), o atendimento inteiro é poupado.
+    try {
+      const __contagiaByCalcId: Record<string, boolean> = {};
+      const __rulesById: Record<string, any> = {};
+      for (const rule of rules as any[]) {
+        if (rule?.id) __rulesById[rule.id] = rule;
+        const cs = Array.isArray(rule?.calculations) ? rule.calculations : [];
+        for (const c of cs) {
+          if (c?.id && c.contagia_atendimento === true) __contagiaByCalcId[c.id] = true;
+        }
+      }
+
+      const __attKeyFor = (it: any): string | null => {
+        const att = (it?.attendance_number ?? "").toString().trim();
+        const d = it?.procedure_date ? String(it.procedure_date).slice(0, 10) : "";
+        if (!att || !d) return null;
+        return `${att}||${d}`;
+      };
+
+      type __Contagion = { ruleId: string; sourceTuss: string };
+      const __contagionByKey = new Map<string, __Contagion>();
+
+      for (const r of results) {
+        if (r.calculation_type_used !== "exclusao") continue;
+        if (!r.matched_rule_id) continue;
+        const bd = Array.isArray((r as any).calculation_breakdown) ? (r as any).calculation_breakdown : [];
+        const matched = bd.find((b: any) => b?.matched && b.calc_id);
+        const calcId = matched?.calc_id ?? null;
+        if (!calcId || !__contagiaByCalcId[calcId]) continue;
+        const it = itemsById[r.item_id];
+        const key = __attKeyFor(it);
+        if (!key) continue;
+        if (!__contagionByKey.has(key)) {
+          __contagionByKey.set(key, {
+            ruleId: r.matched_rule_id,
+            sourceTuss: (it?.procedure_code ?? "").toString(),
+          });
+        }
+      }
+
+      if (__contagionByKey.size > 0) {
+        const __itemsByKey = new Map<string, any[]>();
+        for (const it of items) {
+          const k = __attKeyFor(it);
+          if (!k || !__contagionByKey.has(k)) continue;
+          const arr = __itemsByKey.get(k);
+          if (arr) arr.push(it); else __itemsByKey.set(k, [it]);
+        }
+
+        const __normDoc = (s: any) => String(s ?? "").replace(/\D/g, "");
+        const __normNm = (s: any) => String(s ?? "")
+          .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+        const __doctorInTeam = (it: any, rule: any): boolean => {
+          if (!rule) return false;
+          if (rule.target_type === "medico" && rule.target_doctor_id && it?.doctor_id
+              && String(rule.target_doctor_id) === String(it.doctor_id)) return true;
+          const list: any[] = Array.isArray(rule.group_doctors) ? rule.group_doctors : [];
+          if (list.length === 0) return false;
+          const itDoc = __normDoc(it?.doctor_document);
+          const itNm = __normNm(it?.doctor_name);
+          const itId = it?.doctor_id ? String(it.doctor_id) : null;
+          for (const d of list) {
+            if (!d) continue;
+            if ((d as any).id && itId && String((d as any).id) === itId) return true;
+            const dDoc = __normDoc((d as any).document ?? (d as any).crm);
+            if (dDoc && itDoc && dDoc === itDoc) return true;
+            const dNm = __normNm((d as any).name ?? (d as any).full_name);
+            if (dNm && itNm && dNm === itNm) return true;
+          }
+          return false;
+        };
+
+        for (const [key, cg] of __contagionByKey.entries()) {
+          const bucket = __itemsByKey.get(key) ?? [];
+          const rule = __rulesById[cg.ruleId];
+          const hasTeam = bucket.some((it) => __doctorInTeam(it, rule));
+          if (hasTeam) continue;
+
+          for (const it of bucket) {
+            const r = resultById[it.id];
+            if (!r) continue;
+            // O próprio item que disparou a exclusão fica com método "exclusao"
+            // (fonte original); apenas os DEMAIS itens do atendimento são
+            // marcados como "exclusao_contagio" para distinguir na auditoria.
+            const isSource = r.calculation_type_used === "exclusao"
+              && r.matched_rule_id === cg.ruleId;
+            if (isSource) continue;
+            r.expected_amount = 0;
+            r.calculation_type_used = "exclusao_contagio" as any;
+            r.matched_rule_id = cg.ruleId;
+            r.matched_rule_name = rule?.name
+              ? `${rule.name} (contágio)`
+              : "Exclusão por contágio";
+            r.matched_priority = "conflito" as any;
+            r.calculation_explanation =
+              `Excluído por contágio: TUSS ${cg.sourceTuss || "—"} no mesmo atendimento`
+              + ` disparou exclusão que contamina todos os itens do atendimento+data.`;
+            r.status = "reprovado" as any;
+            r.alerts = [
+              `Item excluído por contágio da regra "${rule?.name ?? "—"}"`
+              + ` (TUSS origem ${cg.sourceTuss || "—"} no mesmo atendimento).`,
+              ...((r.alerts ?? []) as string[]),
+            ];
+            r.needs_ai_review = false;
+            (r as any).contagio_atendimento = true;
+            (r as any).contagio_source_tuss = cg.sourceTuss || null;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[contagio_exclusao] falha:", e);
+    }
+    // ===== fim contágio =====
+
+
+
 
     type ItemUpdate = {
       id: string;
