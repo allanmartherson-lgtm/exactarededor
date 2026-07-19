@@ -520,6 +520,9 @@ function PatternDialog({
   // Reaproveita a coluna `expected_convenio_group` para armazenar a trilha
   // padrão do lote (habitual|prioritario) — evita migração de schema.
   const [expectedTrack, setExpectedTrack] = useState("");
+  const [expectedDay, setExpectedDay] = useState<string>("");
+  const [graceDays, setGraceDays] = useState<string>("5");
+  const [alertEnabled, setAlertEnabled] = useState<boolean>(true);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [sectorOptions, setSectorOptions] = useState<{ slug: string; name: string }[]>([]);
@@ -533,8 +536,12 @@ function PatternDialog({
     setAliasInput("");
     setExpectedSetor(initial?.expected_setor ?? "");
     setExpectedTrack(initial?.expected_convenio_group ?? "");
+    setExpectedDay(initial?.expected_day_of_month != null ? String(initial.expected_day_of_month) : "");
+    setGraceDays(initial?.expected_grace_days != null ? String(initial.expected_grace_days) : "5");
+    setAlertEnabled(initial?.alert_enabled ?? true);
     setNotes(initial?.notes ?? "");
   }, [open, initial]);
+
 
   // Carrega setores do hospital ativo (RLS já filtra por hospital_scope_allows).
   useEffect(() => {
