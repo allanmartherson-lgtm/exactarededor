@@ -195,9 +195,15 @@ export default function BatchPatterns({ embedded = false }: Props) {
             Mostrar inativos
           </label>
         </div>
-        <Button onClick={() => setCreating(true)} disabled={!hospitalId}>
-          <Plus className="h-4 w-4 mr-1" /> Novo padrão
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={runBackfill} disabled={!hospitalId || backfilling}>
+            <Wand2 className="h-4 w-4 mr-1" />
+            {backfilling ? "Vinculando…" : "Vincular órfãos automaticamente"}
+          </Button>
+          <Button onClick={() => setCreating(true)} disabled={!hospitalId}>
+            <Plus className="h-4 w-4 mr-1" /> Novo padrão
+          </Button>
+        </div>
       </div>
 
       {/* Lista de padrões */}
