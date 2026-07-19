@@ -361,18 +361,14 @@ async function resolveAudience(
 }
 
 function renderHtml(title: string, message: string, name: string | null) {
-  const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const greeting = name ? `Olá, ${esc(name)}` : "Olá";
-  const body = esc(message).replace(/\n/g, "<br/>");
-  return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;line-height:1.5;color:#111">
-  <h2 style="margin:0 0 12px">${esc(title)}</h2>
-  <p>${greeting},</p>
-  <div>${body}</div>
-  <hr style="margin-top:24px;border:none;border-top:1px solid #eee"/>
-  <p style="color:#888;font-size:12px">Mensagem enviada pelo sistema Exacta.</p>
-  </body></html>`;
+  const rendered = d1_broadcast({
+    recipient_name: name,
+    subject: title,
+    message_html: message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>"),
+  });
+  return rendered.html;
 }
+
 
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D+/g, "");
