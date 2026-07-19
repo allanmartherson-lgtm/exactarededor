@@ -1099,6 +1099,10 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       if (typeof (ruleData as any).prevent_external_fallback === "boolean") {
         rulePatch.prevent_external_fallback = (ruleData as any).prevent_external_fallback;
       }
+      if (typeof (ruleData as any).calculation_mode === "string") {
+        rulePatch.calculation_mode = (ruleData as any).calculation_mode;
+      }
+
       if (typeof (ruleData as any).minimo_garantido_ativo === "boolean") {
         rulePatch.minimo_garantido_ativo = (ruleData as any).minimo_garantido_ativo;
         rulePatch.minimo_garantido_valor = (ruleData as any).minimo_garantido_valor ?? null;
