@@ -117,6 +117,7 @@ const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
 const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
 const loadDirectors = () => import("./pages/Directors.tsx");
 const loadCadastrosHub = () => import("./pages/CadastrosHub.tsx");
+const loadBatchPatterns = () => import("./pages/BatchPatterns.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 const loadPaymentEvolution = () => import("./pages/PaymentEvolution.tsx");
@@ -153,6 +154,7 @@ const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
 const MedicosHub = lazy(loadMedicosHub);
 const Directors = lazy(loadDirectors);
 const CadastrosHub = lazy(loadCadastrosHub);
+const BatchPatterns = lazy(loadBatchPatterns);
 const Sectors = lazy(loadSectors);
 const Convenios = lazy(loadConvenios);
 const CostCenters = lazy(loadCostCenters);
@@ -376,6 +378,7 @@ const App = () => (
                   <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
                   
                   <Route path="/cadastros" element={<ProtectedRoute roles={["diretor", "admin"]}><CadastrosHub /></ProtectedRoute>} />
+                  <Route path="/padroes-lote" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><BatchPatterns /></ProtectedRoute>} />
                   <Route path="/empresas" element={<Navigate to="/cadastros?tab=empresas" replace />} />
                   <Route path="/empresas/apelidos" element={<ProtectedRoute roles={["diretor", "admin"]}><CompanyAliases /></ProtectedRoute>} />
                   <Route path="/aprendizado/padroes" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><LearnedPatterns /></ProtectedRoute>} />
