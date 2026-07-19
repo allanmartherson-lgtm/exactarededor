@@ -154,6 +154,7 @@ const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
 const MedicosHub = lazy(loadMedicosHub);
 const Directors = lazy(loadDirectors);
 const CadastrosHub = lazy(loadCadastrosHub);
+const BatchPatterns = lazy(loadBatchPatterns);
 const Sectors = lazy(loadSectors);
 const Convenios = lazy(loadConvenios);
 const CostCenters = lazy(loadCostCenters);
