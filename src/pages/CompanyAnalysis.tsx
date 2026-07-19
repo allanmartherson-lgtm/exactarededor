@@ -596,11 +596,13 @@ export default function CompanyAnalysis() {
       // e não devem inflar o contador do card.
       if (eff === "acatado" || eff === "aprovado" || eff === "seguido") continue;
 
-      const alerts = (it.ai_findings?.alerts ?? []) as string[];
-      if (alerts.length > 0) {
-        if (it.ai_status === "reprovado") c.criticosTotal += 1;
-        else c.alertasTotal += 1;
-      }
+      // Alinhado com o filtro "Alerta" do ItemsDataGrid: só conta quando o
+      // ai_status é efetivamente "reprovado" ou "alerta". Itens com
+      // ai_findings.alerts residuais mas ai_status "pendente"/"aprovado" NÃO
+      // aparecem no filtro do grid — contá-los aqui deixaria o card com
+      // número (ex.: "2") e a lista filtrada vazia.
+      if (it.ai_status === "reprovado") c.criticosTotal += 1;
+      else if (it.ai_status === "alerta") c.alertasTotal += 1;
 
     }
     return c;
