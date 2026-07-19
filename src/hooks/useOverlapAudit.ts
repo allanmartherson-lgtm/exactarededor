@@ -76,7 +76,17 @@ export function useOverlapAudit() {
         p_specialty_mode: params.specialtyMode,
         p_excluded_specs: params.excludedSpecs,
       });
-      if (error) throw error;
+      if (error) {
+        // Supabase devolve PostgrestError com { message, details, hint, code }.
+        // Sem isso a UI cai em "[object Object]".
+        const msg =
+          (error as { message?: string })?.message ||
+          (error as { details?: string })?.details ||
+          "Erro desconhecido ao consultar auditoria.";
+        const err = new Error(msg);
+        (err as Error & { cause?: unknown }).cause = error;
+        throw err;
+      }
       if (!data) return EMPTY;
       return {
         by_specialty_combo: data.by_specialty_combo ?? [],
