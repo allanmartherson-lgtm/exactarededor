@@ -104,6 +104,8 @@ export default function BatchPatterns({ embedded = false }: Props) {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [backfilling, setBackfilling] = useState(false);
+  const [missing, setMissing] = useState<MissingBatch[]>([]);
+
 
   const runBackfill = async () => {
     if (!hospitalId) return;
