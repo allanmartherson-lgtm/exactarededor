@@ -130,8 +130,17 @@ export async function processDirectorApproval(supabase: any, row: any): Promise<
 
     // Email
     if (d.email && LOVABLE_API_KEY && RESEND_API_KEY) {
-      const html = buildEmailHtml(greeting, name, payment.reference, totalFormatted, companies, link);
-      const text = buildEmailText(greeting, name, payment.reference, totalFormatted, companies, link);
+      const rendered = e1_productionValidation({
+        director_name: name,
+        payment_reference: payment.reference,
+        payment_type: null,
+        competence_month: null,
+        hospital_name: null,
+        company_count: companies,
+        total_value: totalFormatted,
+        approve_link: link,
+        reject_link: null,
+      });
       try {
         const r = await fetch(`${RESEND_GATEWAY}/emails`, {
           method: "POST",
@@ -143,11 +152,12 @@ export async function processDirectorApproval(supabase: any, row: any): Promise<
           body: JSON.stringify({
             from: EMAIL_FROM,
             to: [d.email],
-            subject: `Pagamento "${payment.reference}" aguarda sua aprovação — Exacta`,
-            html,
-            text,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
           }),
         });
+
         const json = await r.json().catch(() => ({}));
         emailResults.push({ director_id: d.id, ok: r.ok, status: r.status, response: json });
       } catch (e) {
