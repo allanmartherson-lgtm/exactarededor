@@ -226,8 +226,55 @@ export default function BatchPatterns({ embedded = false }: Props) {
         </div>
       </div>
 
+      {/* Lotes esperados em atraso */}
+      {missing.length > 0 && (
+        <section className="rounded-lg border bg-amber-50/60 dark:bg-amber-950/20 border-amber-300/60">
+          <header className="px-4 py-3 border-b border-amber-300/60">
+            <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+              Lotes esperados em atraso ({missing.length})
+            </h3>
+            <p className="text-xs text-amber-800/80 dark:text-amber-200/70 mt-0.5">
+              Padrões recorrentes que ainda não receberam lote na competência esperada.
+            </p>
+          </header>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-amber-900/70 dark:text-amber-200/70">
+                <tr>
+                  <th className="px-4 py-2">Padrão</th>
+                  <th className="px-4 py-2">Competência</th>
+                  <th className="px-4 py-2">Esperado até</th>
+                  <th className="px-4 py-2 text-center">Dias em atraso</th>
+                  <th className="px-4 py-2 text-right">Média histórica</th>
+                  <th className="px-4 py-2">Último lote</th>
+                </tr>
+              </thead>
+              <tbody>
+                {missing.map((m) => (
+                  <tr key={`${m.pattern_id}-${m.competence_month}`} className="border-t border-amber-300/40">
+                    <td className="px-4 py-2 font-medium">{m.label}</td>
+                    <td className="px-4 py-2">{fmtMonth(m.competence_month?.slice(0, 7) ?? null)}</td>
+                    <td className="px-4 py-2 text-xs">
+                      {m.expected_by ? new Date(m.expected_by).toLocaleDateString("pt-BR") : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <Badge variant="destructive">{m.days_late}d</Badge>
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {m.avg_bruto != null ? formatCurrency(Number(m.avg_bruto)) : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-xs">{fmtMonth(m.last_seen_month?.slice(0, 7) ?? null)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {/* Lista de padrões */}
       <section className="rounded-lg border bg-card">
+
         <header className="px-4 py-3 border-b flex items-center gap-2">
           <h3 className="text-sm font-semibold">Padrões cadastrados</h3>
         </header>
