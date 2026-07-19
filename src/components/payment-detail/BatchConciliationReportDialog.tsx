@@ -77,7 +77,7 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
       if (!patternId) { if (!cancelled) setPatternInfo(null); return; }
       const { data } = await supabase.rpc("get_pattern_stats" as never, { p_pattern_id: patternId } as never);
       if (cancelled) return;
-      const row = (((data ?? []) as Array<{ label: string; avg_bruto: number | null; months_seen: number }>) ?? [])[0];
+      const row = ((data ?? []) as Array<{ label: string; avg_bruto: number | null; months_seen: number }>)[0];
       if (!row) { setPatternInfo(null); return; }
       const avg = row.avg_bruto != null ? Number(row.avg_bruto) : null;
       const deltaPct = avg && avg > 0 ? ((currentBruto - avg) / avg) * 100 : null;
