@@ -1,4 +1,4 @@
-import { c1_userInvite, c2_passwordRecovery } from "./emailTemplates/templates.ts";
+import { c1_passwordRecovery, c2_newUserInvite } from "./emailTemplates/templates.ts";
 
 type PasswordActionKind = "invite" | "recovery";
 
