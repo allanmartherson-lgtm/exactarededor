@@ -2155,6 +2155,7 @@ export interface ExpectedCalc {
     fds_pct: number | null;
     feriado_pct: number | null;
     noturno_pct: number | null;
+    urgencia_pct: number | null;
     noturno_inicio: string | null;
     noturno_fim: string | null;
   } | null;
@@ -2429,6 +2430,7 @@ export function applyCalculation(
             fds_pct: c.adicional_fds_pct ?? null,
             feriado_pct: c.adicional_feriado_pct ?? null,
             noturno_pct: c.adicional_noturno_pct ?? null,
+            urgencia_pct: c.adicional_urgencia_pct ?? null,
             noturno_inicio: c.noturno_inicio ?? null,
             noturno_fim: c.noturno_fim ?? null,
           },
@@ -3630,7 +3632,8 @@ export function pickTemporalSurcharge(
   cfg: NonNullable<ExpectedCalc["temporal_surcharge_config"]>,
   procedureDateIso: string,
   procedureDateHasTime: boolean = false,
-): { pct: number; reason: "fim de semana" | "feriado" | "noturno" } | null {
+  attendanceCharacter: string | null = null,
+): { pct: number; reason: "fim de semana" | "feriado" | "noturno" | "urgência/emergência" } | null {
   if (!cfg || !procedureDateIso) return null;
 
   // Mantém o dia exato registrado (igual à lógica de calcItemMatches).
@@ -3641,7 +3644,7 @@ export function pickTemporalSurcharge(
   if (isNaN(dParts.getTime())) return null;
   const dayOfWeek = dParts.getDay(); // 0=Dom, 6=Sáb
 
-  const candidates: Array<{ pct: number; reason: "fim de semana" | "feriado" | "noturno" }> = [];
+  const candidates: Array<{ pct: number; reason: "fim de semana" | "feriado" | "noturno" | "urgência/emergência" }> = [];
 
   // Feriado (nacional BR)
   const feriadoPct = Number(cfg.feriado_pct ?? 0);
@@ -3671,8 +3674,21 @@ export function pickTemporalSurcharge(
     }
   }
 
+  // Urgência/Emergência — independe de dia e horário. Detecta pelo campo estruturado
+  // attendance_character (normalizado: remove acentos, minúsculas). Aceita tanto
+  // "urgência" quanto "emergência" (ambas caracterizam atendimento não-eletivo).
+  const urgenciaPct = Number(cfg.urgencia_pct ?? 0);
+  if (urgenciaPct > 0 && attendanceCharacter) {
+    const norm = String(attendanceCharacter)
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().trim();
+    if (/\b(urgen|emerg)/.test(norm)) {
+      candidates.push({ pct: urgenciaPct, reason: "urgência/emergência" });
+    }
+  }
+
   if (candidates.length === 0) return null;
-  // "Só o maior" — empate desempata pela ordem (feriado > fds > noturno) por ser estabilidade visual.
+  // "Só o maior" — empate desempata pela ordem de inserção (feriado > fds > noturno > urgência).
   candidates.sort((a, b) => b.pct - a.pct);
   return candidates[0];
 }
@@ -3781,7 +3797,7 @@ function finalizeAnalysis(
   // % incide sobre o valor calculado (expected) — para regras percentuais isso é
   // matematicamente equivalente a aplicar sobre a tabela base.
   if (calc.expected != null && calc.expected > 0 && calc.temporal_surcharge_config && item.procedure_date) {
-    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date, item.procedure_date_has_time === true);
+    const sur = pickTemporalSurcharge(calc.temporal_surcharge_config, item.procedure_date, item.procedure_date_has_time === true, item.attendance_character ?? null);
     if (sur && sur.pct > 0) {
       const base = calc.expected;
       const addValue = round2(base * (sur.pct / 100));
