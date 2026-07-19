@@ -1511,7 +1511,14 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     const allProblems = (validation?.problems ?? []) as Array<ConflictProblem | { type: string; doctor_label?: string; rule_names?: string[]; message?: string }>;
     // doctor_multi_rule é aviso de cadastro — não bloqueia, exibe toast persistente.
     const doctorWarnings = allProblems.filter((p) => p.type === "doctor_multi_rule") as Array<{ doctor_label?: string; rule_names?: string[]; message?: string }>;
-    const problems = allProblems.filter((p) => p.type !== "doctor_multi_rule") as ConflictProblem[];
+    // Em cascata, sobreposição de filtros é intencional (primeiro match vence
+    // por sort_order). Filtramos calc_overlap client-side como belt-and-suspenders,
+    // caso a edge function esteja em versão anterior sem suporte a `calculation_mode`.
+    const problems = allProblems.filter((p) => {
+      if (p.type === "doctor_multi_rule") return false;
+      if (fCalculationMode === "cascade" && p.type === "calc_overlap") return false;
+      return true;
+    }) as ConflictProblem[];
     if (doctorWarnings.length > 0) {
       for (const w of doctorWarnings) {
         toast({
