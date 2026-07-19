@@ -372,7 +372,9 @@ export function PaymentReportModal({
             validation_summary: validationSummary,
           };
         }),
-        fileName
+        fileName,
+        hospitalName: hospital?.name ?? null,
+        competence: formatCompetence(competence),
       };
 
       // Criar o worker
