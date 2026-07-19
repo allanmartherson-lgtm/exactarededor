@@ -361,6 +361,11 @@ export default function BiDiretoria() {
       if (error) { setMissingPatterns([]); return; }
       setMissingPatterns((data ?? []) as MissingPattern[]);
     })();
+    (async () => {
+      const { data, error } = await supabase.rpc("get_pattern_volume_anomalies" as never, { _threshold_pct: 40, _min_months: 3, _lookback_months: 6 } as never);
+      if (error) { setVolumeAnomalies([]); return; }
+      setVolumeAnomalies((data ?? []) as VolumeAnomaly[]);
+    })();
   }, []);
 
 
