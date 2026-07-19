@@ -1525,6 +1525,7 @@ const Payments = () => {
                   />
                   Apenas lotes sem padrão vinculado
                 </label>
+              </div>
               <div className="space-y-1 flex items-end">
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input
