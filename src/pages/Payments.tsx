@@ -1371,6 +1371,8 @@ const Payments = () => {
             hasAppliedDebits,
             hasAppliedCredits,
             hasAlerts,
+            batchPatternFilter.length > 0,
+            onlyUnlinkedPattern,
           ].filter(Boolean).length;
 
           const advancedFilters = (
