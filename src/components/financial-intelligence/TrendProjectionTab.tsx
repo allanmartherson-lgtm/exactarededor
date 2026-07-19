@@ -116,7 +116,7 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
       const cutoffDate = ymOf(cutoff) + "-01";
       let pq = supabase
         .from("payments")
-        .select("competence_month,total_amount,status,payment_track")
+        .select("competence_month,total_amount,bruto_total,status,payment_track")
         .gte("competence_month", cutoffDate);
       if (track === "habitual" || track === "prioritario") pq = pq.eq("payment_track", track);
       else if (track === "nao_classificado") pq = pq.is("payment_track", null);
@@ -139,6 +139,11 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
       if (cancelled) return;
       setPayments(all);
 
+      // Composição de lotes esperados vs recebidos no mês em processamento.
+      // Só afeta esta aba — sem impacto em cálculos de outras telas.
+      const { data: batchData } = await supabase.rpc("get_batch_composition" as never);
+      if (cancelled) return;
+      setBatches((batchData as unknown as BatchRow[]) ?? []);
     })();
     return () => {
       cancelled = true;
