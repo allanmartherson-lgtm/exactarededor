@@ -1650,7 +1650,7 @@ export function ItemsDataGrid({
   // confiável — evita agrupar itens sintetizados (default 12h) nos turnos.
   const getRealHour = (it: PaymentItem): number | null => {
     if ((it as any).procedure_date_has_time !== true) return null;
-    const iso = it.procedure_date;
+    const iso = (it as any).procedure_date as string | null | undefined;
     if (!iso) return null;
     const m = /T(\d{2}):/.exec(iso);
     if (!m) return null;
