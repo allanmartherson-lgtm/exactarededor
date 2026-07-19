@@ -957,7 +957,46 @@ export default function CompanyAnalysis() {
 
       // Etapa 4 — Atualizar a UI (recarrega o detalhe da empresa).
       setReapplyStep("carregar_ui");
+
+      // Refetch imediato dos itens da empresa com SELECT completo e injeta no
+      // estado via setItems ANTES do load() paginado. Sem isto, o grid ficava
+      // exibindo ai_status/expected/ai_findings antigos até o load() completar
+      // (que pode enfileirar atrás de outro em-voo do realtime debounce).
+      try {
+        if (group?.company_name) {
+          const { data: freshItems } = await supabase
+            .from("payment_items")
+            .select("*")
+            .eq("payment_id", id)
+            .eq("company_name", group.company_name);
+          if (Array.isArray(freshItems) && freshItems.length > 0) {
+            const sanitized = (freshItems as unknown as PaymentItemRow[]).map((row) => {
+              if (!(row as any).is_cancelled) return row;
+              return {
+                ...row,
+                ai_findings: row.ai_findings
+                  ? { ...(row.ai_findings as any), alerts: [], needs_human_review: false }
+                  : row.ai_findings,
+                validation_findings: [],
+              } as PaymentItemRow;
+            });
+            // Merge por id: preserva itens de outras empresas que o hook
+            // possa ter no estado (allItems é global do lote).
+            const byId = new Map(sanitized.map((r) => [r.id, r] as const));
+            setItems((prev) => prev.map((it) => byId.get(it.id) ?? it));
+          }
+        }
+      } catch (refetchErr) {
+        console.warn("[reanalyze] refetch imediato falhou; seguindo com load()", refetchErr);
+      }
+
       await load();
+
+      // Follow-up: finalize-payment-engine (deduções/glosa/garantia mínima/
+      // retroatividade) roda fire-and-forget e pode gravar depois do load().
+      // Um segundo load() curto captura essas escritas tardias sem exigir F5.
+      window.setTimeout(() => { void load(); }, 2500);
+
 
       if (!done) {
         // Motor não confirmou conclusão no tempo — ainda assim mostramos o diff
