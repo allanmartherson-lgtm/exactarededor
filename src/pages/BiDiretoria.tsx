@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { Calendar, AlertTriangle, TrendingUp, ChevronRight, AlertCircle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
+import { cn } from "@/lib/utils";
+
 
 /**
  * BI · Diretoria — visão consolidada (Apple-style)
