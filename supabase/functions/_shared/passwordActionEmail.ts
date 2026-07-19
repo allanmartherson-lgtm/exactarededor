@@ -1,4 +1,4 @@
-type PasswordActionKind = "invite" | "recovery";
+import { c1_userInvite, c2_passwordRecovery } from "./emailTemplates/templates.ts";
 
 type SendPasswordActionEmailParams = {
   supabaseUrl: string;
