@@ -1250,6 +1250,84 @@ export default function BiDiretoria() {
         </div>
       )}
 
+      {volumeAnomalies.length > 0 && (
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+                Anomalias de volume por padrão
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Lotes cujo número de itens fugiu ≥ 40% da média histórica do padrão (últimos 6 meses).
+              </div>
+            </div>
+            <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground tabular-nums">
+              {volumeAnomalies.length} {volumeAnomalies.length === 1 ? "caso" : "casos"}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b">
+                  <th className="py-2 pr-3 font-medium">Padrão</th>
+                  <th className="py-2 pr-3 font-medium">Lote</th>
+                  <th className="py-2 pr-3 font-medium text-right">Itens</th>
+                  <th className="py-2 pr-3 font-medium text-right">Média histórica</th>
+                  <th className="py-2 pr-3 font-medium text-right">Variação</th>
+                  <th className="py-2 pr-3 font-medium text-center">Severidade</th>
+                  <th className="py-2 pr-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {volumeAnomalies.slice(0, 15).map((a) => {
+                  const dev = a.deviation_pct ?? 0;
+                  const isHigh = a.direction === "alto";
+                  const sevColor =
+                    a.severity === "alta" ? "bg-red-100 text-red-800 border-red-200"
+                      : a.severity === "media" ? "bg-amber-100 text-amber-800 border-amber-200"
+                      : "bg-muted text-muted-foreground border-border";
+                  return (
+                    <tr key={a.payment_id} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="py-2 pr-3 font-medium text-foreground">{a.pattern_label}</td>
+                      <td className="py-2 pr-3 text-muted-foreground truncate max-w-[280px]">{a.payment_reference}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums font-medium">
+                        {Number(a.actual_count).toLocaleString("pt-BR")}
+                      </td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">
+                        {Number(a.expected_avg).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                        <span className="ml-1 text-[10px]">({a.months_seen}m)</span>
+                      </td>
+                      <td className={cn("py-2 pr-3 text-right tabular-nums font-medium", isHigh ? "text-red-600" : "text-amber-600")}>
+                        {isHigh ? "▲" : "▼"} {Math.abs(Number(dev)).toFixed(1).replace(".", ",")}%
+                      </td>
+                      <td className="py-2 pr-3 text-center">
+                        <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wide", sevColor)}>
+                          {a.severity}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 text-right">
+                        <a
+                          href={`/lote/${a.payment_id}`}
+                          className="text-xs font-medium text-primary hover:underline whitespace-nowrap"
+                        >
+                          abrir →
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {volumeAnomalies.length > 15 && (
+            <div className="mt-3 text-[11px] text-muted-foreground text-center">
+              exibindo 15 de {volumeAnomalies.length} — priorizando maiores desvios
+            </div>
+          )}
+        </div>
+      )}
+
+
 
 
 
