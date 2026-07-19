@@ -1,276 +1,124 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ShieldAlert,
-  ArrowRight,
   AlertTriangle,
   DollarSign,
   Layers,
-  CheckCircle2,
-  Building2,
+  Activity,
   ChevronDown,
   ChevronRight,
-  ListFilter,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/status";
 import type { TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
-type RuleAgg = {
-  rule_name: string;
-  alertas: number;
-  valor: number;
-  acatados: number;
-  lotes: Set<string>;
+// Fontes de risco consolidadas pela RPC get_risk_summary.
+// Track é ignorado nesta versão: as RPCs somam por hospital ativo.
+type SummaryRow = {
+  tipo: string;
+  qtd: number;
+  valor_risco: number;
+  lotes_afetados: number;
 };
 
-type ItemDetail = {
-  id: string;
+type DetailRow = {
   payment_id: string;
-  payment_ref: string;
-  company_name: string;
-  doctor_name: string;
-  procedure_name: string;
-  gross: number;
-  divergPct: number | null;
-  ai_status: string;
-  rule_names: string[];
+  reference: string | null;
+  company_name: string | null;
+  doctor_name: string | null;
+  specialty: string | null;
+  procedure_code: string | null;
+  gross_amount: number | null;
+  expected_amount: number | null;
+  divergencia_pct: number | null;
+  competencia: string | null;
+  status: string | null;
 };
 
-type CompanyAgg = {
-  company_name: string;
-  alertas: number;
-  valor: number;
+const fmtCompetencia = (raw: string | null | undefined): string => {
+  if (!raw) return "—";
+  // Formata YYYY-MM-DD sem passar por Date para evitar deslocamento UTC→BRT
+  const [y, m] = raw.slice(0, 10).split("-");
+  const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const idx = Number(m) - 1;
+  return `${meses[idx] ?? "?"}/${y?.slice(2)}`;
 };
 
-
-type Totals = {
-  alertas: number;
-  valor: number;
-  acatados: number;
-  lotes: number;
-  byRule: Map<string, RuleAgg>;
-  items: ItemDetail[];
-  byCompany: CompanyAgg[];
-};
-
-const EMPTY: Totals = {
-  alertas: 0,
-  valor: 0,
-  acatados: 0,
-  lotes: 0,
-  byRule: new Map(),
-  items: [],
-  byCompany: [],
-};
-
-export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterValue } = {}) {
+export function ValidationRiskSection(_: { track?: TrackFilterValue } = {}) {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<Totals>(EMPTY);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [rows, setRows] = useState<SummaryRow[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [detailsByTipo, setDetailsByTipo] = useState<Record<string, DetailRow[] | "loading">>({});
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const baseSelect =
-        "id, gross_amount, expected_amount, payment_id, validation_findings, ai_status, company_name, doctor_name, procedure_name, procedure_code, payments!inner(payment_track, reference, title)";
-
-      let qFindings = supabase
-        .from("payment_items")
-        .select(baseSelect)
-        .not("validation_findings", "is", null)
-        .neq("validation_findings", "[]");
-      let qAlerta = supabase.from("payment_items").select(baseSelect).eq("ai_status", "alerta");
-      let qDiverg = supabase.from("payment_items").select(baseSelect).gt("expected_amount", 0);
-
-      if (track === "habitual" || track === "prioritario") {
-        qFindings = qFindings.eq("payments.payment_track", track);
-        qAlerta = qAlerta.eq("payments.payment_track", track);
-        qDiverg = qDiverg.eq("payments.payment_track", track);
-      } else if (track === "nao_classificado") {
-        qFindings = qFindings.is("payments.payment_track", null);
-        qAlerta = qAlerta.is("payments.payment_track", null);
-        qDiverg = qDiverg.is("payments.payment_track", null);
-      }
-
-      const [rFindings, rAlerta, rDiverg] = await Promise.all([qFindings, qAlerta, qDiverg]);
+      const { data, error } = await supabase.rpc("get_risk_summary", { p_months_back: 6 });
       if (cancelled) return;
-
-      const byRule = new Map<string, RuleAgg>();
-      const allLotes = new Set<string>();
-      let totalAlertas = 0;
-      let totalValor = 0;
-      let totalAcatados = 0;
-      const valuedItems = new Set<string>();
-      const itemMap = new Map<string, ItemDetail>();
-
-      type Row = {
-        id: string;
-        gross_amount: number | null;
-        expected_amount: number | null;
-        payment_id?: string;
-        validation_findings?: unknown;
-        ai_status?: string;
-        company_name?: string | null;
-        doctor_name?: string | null;
-        procedure_name?: string | null;
-        procedure_code?: string | null;
-        payments?: { payment_track?: string | null; reference?: string | null; title?: string | null } | null;
-      };
-
-      const paymentRefFrom = (it: Row) =>
-        it.payments?.reference || it.payments?.title || "Sem referência";
-
-      const registerItem = (it: Row, ruleName: string) => {
-        const exp = Number(it.expected_amount ?? 0);
-        const gross = Number(it.gross_amount ?? 0);
-        const divergPct = exp > 0 ? ((gross - exp) / exp) * 100 : null;
-        const cur = itemMap.get(it.id);
-        if (cur) {
-          if (!cur.rule_names.includes(ruleName)) cur.rule_names.push(ruleName);
-          return;
-        }
-        itemMap.set(it.id, {
-          id: it.id,
-          payment_id: it.payment_id ?? "",
-          payment_ref: paymentRefFrom(it),
-          company_name: it.company_name?.trim() || "— Sem PJ —",
-          doctor_name: it.doctor_name?.trim() || "—",
-          procedure_name:
-            it.procedure_name?.trim() || (it.procedure_code ? `TUSS ${it.procedure_code}` : "—"),
-          gross,
-          divergPct,
-          ai_status: it.ai_status || "—",
-          rule_names: [ruleName],
-        });
-      };
-
-      const bump = (key: string, ruleName: string, item: Row) => {
-        const cur = byRule.get(key) ?? {
-          rule_name: ruleName,
-          alertas: 0,
-          valor: 0,
-          acatados: 0,
-          lotes: new Set<string>(),
-        };
-        const v = Number(item.gross_amount ?? 0);
-        cur.alertas += 1;
-        cur.valor += v;
-        if (item.ai_status === "acatado") cur.acatados += 1;
-        if (item.payment_id) cur.lotes.add(item.payment_id);
-        byRule.set(key, cur);
-        totalAlertas += 1;
-        if (item.ai_status === "acatado") totalAcatados += 1;
-        if (item.payment_id) allLotes.add(item.payment_id);
-        if (!valuedItems.has(item.id)) {
-          totalValor += v;
-          valuedItems.add(item.id);
-        }
-        registerItem(item, ruleName);
-      };
-
-      // Fonte 1: validation_findings
-      for (const it of ((rFindings.data as unknown as Row[]) ?? [])) {
-        const findings = it.validation_findings;
-        if (!Array.isArray(findings)) continue;
-        for (const f of findings as Array<{ rule_id?: string; rule_name?: string }>) {
-          const key = f.rule_id || f.rule_name;
-          if (!key) continue;
-          bump(key, f.rule_name || key, it);
-        }
+      if (error) {
+        setRows([]);
+      } else {
+        setRows(((data ?? []) as SummaryRow[]).map((r) => ({
+          ...r,
+          qtd: Number(r.qtd ?? 0),
+          valor_risco: Number(r.valor_risco ?? 0),
+          lotes_afetados: Number(r.lotes_afetados ?? 0),
+        })));
       }
-
-      // Fonte 2: ai_status = 'alerta' — evita dupla contagem se já entrou por findings
-      const findingIds = new Set(((rFindings.data as unknown as Row[]) ?? []).map((r) => r.id));
-      for (const it of ((rAlerta.data as unknown as Row[]) ?? [])) {
-        if (findingIds.has(it.id)) continue;
-        bump("__motor_regras_alerta", "Motor de regras — alerta", it);
-      }
-
-      // Fonte 3: divergência > 10%
-      for (const it of ((rDiverg.data as unknown as Row[]) ?? [])) {
-        const exp = Number(it.expected_amount ?? 0);
-        const gross = Number(it.gross_amount ?? 0);
-        if (exp <= 0) continue;
-        const diffPct = Math.abs(gross - exp) / exp;
-        if (diffPct <= 0.1) continue;
-        bump("__divergencia_valor", "Divergência de valor > 10%", it);
-      }
-
-      // Ordenar itens por magnitude da divergência (desc) e, fallback, por valor bruto
-      const items = Array.from(itemMap.values()).sort((a, b) => {
-        const ad = a.divergPct == null ? -1 : Math.abs(a.divergPct);
-        const bd = b.divergPct == null ? -1 : Math.abs(b.divergPct);
-        if (bd !== ad) return bd - ad;
-        return b.gross - a.gross;
-      });
-
-      // Breakdown por empresa
-      const companyMap = new Map<string, CompanyAgg>();
-      for (const it of items) {
-        const cur = companyMap.get(it.company_name) ?? {
-          company_name: it.company_name,
-          alertas: 0,
-          valor: 0,
-        };
-        cur.alertas += 1;
-        cur.valor += it.gross;
-        companyMap.set(it.company_name, cur);
-      }
-      const byCompany = Array.from(companyMap.values())
-        .sort((a, b) => b.valor - a.valor)
-        .slice(0, 5);
-
-      setData({
-        alertas: totalAlertas,
-        valor: totalValor,
-        acatados: totalAcatados,
-        lotes: allLotes.size,
-        byRule,
-        items,
-        byCompany,
-      });
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [track]);
+  }, []);
 
-
+  const toggle = async (tipo: string) => {
+    if (expanded === tipo) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(tipo);
+    if (detailsByTipo[tipo] && detailsByTipo[tipo] !== "loading") return;
+    setDetailsByTipo((s) => ({ ...s, [tipo]: "loading" }));
+    const { data, error } = await supabase.rpc("get_risk_details", { p_tipo: tipo, p_limit: 30 });
+    setDetailsByTipo((s) => ({
+      ...s,
+      [tipo]: error ? [] : ((data ?? []) as DetailRow[]),
+    }));
+  };
 
   if (loading) {
     return (
-      <div
-        style={{
-          background: "hsl(var(--card))",
-          border: "1px solid hsl(var(--border))",
-          borderRadius: 12,
-          padding: 22,
-        }}
-      >
+      <div className="rounded-xl border bg-card p-6">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            style={{ height: 40, background: "hsl(var(--muted))", borderRadius: 6, marginBottom: 8, opacity: 0.3 }}
+            className="h-10 rounded mb-2 opacity-30"
+            style={{ background: "hsl(var(--muted))" }}
           />
         ))}
       </div>
     );
   }
 
-  const taxaAcate = data.alertas > 0 ? (data.acatados / data.alertas) * 100 : 0;
+  const totalAlertas = rows.reduce((s, r) => s + r.qtd, 0);
+  const totalValor = rows.reduce((s, r) => s + r.valor_risco, 0);
+  const totalLotes = rows.reduce((s, r) => s + r.lotes_afetados, 0); // soma simples (não distinct entre fontes)
+  const fontesAtivas = rows.filter((r) => r.qtd > 0).length;
 
   const kpis = [
-    { label: "Alertas ativos", value: data.alertas.toLocaleString("pt-BR"), Icon: AlertTriangle },
-    { label: "Valor em risco", value: formatCurrency(data.valor), Icon: DollarSign },
-    { label: "Lotes afetados", value: data.lotes.toLocaleString("pt-BR"), Icon: Layers },
-    { label: "Taxa de acate", value: `${taxaAcate.toFixed(0)}%`, Icon: CheckCircle2 },
+    { label: "Alertas ativos", value: totalAlertas.toLocaleString("pt-BR"), Icon: AlertTriangle },
+    { label: "Valor em risco", value: formatCurrency(totalValor), Icon: DollarSign },
+    { label: "Lotes afetados", value: totalLotes.toLocaleString("pt-BR"), Icon: Layers },
+    { label: "Fontes ativas", value: `${fontesAtivas} de ${rows.length || 3}`, Icon: Activity },
   ];
 
   return (
     <section className="space-y-4">
+      {/* KPIs no topo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map(({ label, value, Icon }) => (
           <div
@@ -297,306 +145,187 @@ export function ValidationRiskSection({ track = "all" }: { track?: TrackFilterVa
         ))}
       </div>
 
-      {data.byRule.size === 0 ? (
+      {/* Tabela de fontes de risco */}
+      {totalAlertas === 0 ? (
         <div
-          style={{
-            background: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 12,
-            padding: 22,
-            textAlign: "center",
-            fontSize: 13,
-            color: "hsl(var(--muted-foreground))",
-          }}
+          className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground"
+          style={{ borderColor: "hsl(var(--border))" }}
         >
-          Nenhum alerta identificado — motor de regras e validações não detectaram divergências nos lotes ativos.
+          Nenhum alerta identificado nos últimos 6 meses.
         </div>
       ) : (
-        <div
-          style={{
-            background: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 12,
-          }}
-        >
+        <div className="rounded-xl border bg-card" style={{ borderColor: "hsl(var(--border))" }}>
           <div
-            className="flex items-center justify-between gap-3"
-            style={{ padding: "18px 22px", borderBottom: "1px solid hsl(var(--border))" }}
+            className="flex items-center gap-2.5 px-5 py-4"
+            style={{ borderBottom: "1px solid hsl(var(--border))" }}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "hsl(var(--bubble-yellow-bg))",
-                  color: "hsl(var(--bubble-yellow-fg))",
-                }}
-              >
-                <ShieldAlert size={14} />
-              </div>
-              <h3
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "hsl(var(--foreground))",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Impacto financeiro por regra de validação
-              </h3>
-            </div>
-            <Link
-              to="/regras/validacao"
+            <div
+              className="flex items-center justify-center rounded-lg"
               style={{
-                fontSize: 12,
+                width: 28,
+                height: 28,
+                background: "hsl(var(--accent) / 0.08)",
                 color: "hsl(var(--accent))",
-                fontWeight: 500,
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
               }}
             >
-              Gerenciar regras <ArrowRight size={13} />
-            </Link>
+              <ShieldAlert size={14} />
+            </div>
+            <h3 className="text-sm font-semibold tracking-tight">Fontes de risco (últimos 6 meses)</h3>
           </div>
+
           <div>
-            {Array.from(data.byRule.entries()).map(([key, d], i, arr) => {
-              const taxa = d.alertas > 0 ? (d.acatados / d.alertas) * 100 : 0;
+            {rows.map((r, i) => {
+              const isOpen = expanded === r.tipo;
+              const details = detailsByTipo[r.tipo];
               return (
-                <div
-                  key={key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "14px 22px",
-                    borderBottom: i < arr.length - 1 ? "1px solid hsl(var(--border))" : "none",
-                    background: i % 2 === 0 ? "transparent" : "hsl(var(--muted) / 0.3)",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>
-                      {d.rule_name}
-                    </div>
-                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                      {d.alertas} alerta{d.alertas !== 1 ? "s" : ""} · {d.lotes.size} lote
-                      {d.lotes.size !== 1 ? "s" : ""}
-                    </div>
-                  </div>
+                <div key={r.tipo}>
                   <div
+                    className="flex items-center gap-3 px-5 py-3.5"
                     style={{
-                      fontSize: 12,
-                      color: "hsl(var(--muted-foreground))",
-                      fontVariantNumeric: "tabular-nums",
-                      width: 110,
-                      textAlign: "right",
-                      flexShrink: 0,
-                    }}
-                    title={`${d.acatados} de ${d.alertas} acatados`}
-                  >
-                    Acate: {taxa.toFixed(0)}%
-                  </div>
-                  <div
-                    style={{
-                      background: "hsl(var(--bubble-yellow-bg))",
-                      border: "1px solid hsl(var(--bubble-yellow-fg) / 0.3)",
-                      borderRadius: 8,
-                      padding: "4px 12px",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "hsl(var(--bubble-yellow-fg))",
-                      fontVariantNumeric: "tabular-nums",
-                      flexShrink: 0,
+                      borderBottom: i < rows.length - 1 || isOpen ? "1px solid hsl(var(--border))" : "none",
+                      background: i % 2 === 0 ? "transparent" : "hsl(var(--muted) / 0.25)",
                     }}
                   >
-                    {formatCurrency(d.valor)}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">{r.tipo}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {r.qtd.toLocaleString("pt-BR")} item{r.qtd !== 1 ? "s" : ""} ·{" "}
+                        {r.lotes_afetados.toLocaleString("pt-BR")} lote
+                        {r.lotes_afetados !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                    <div
+                      className="rounded-lg px-3 py-1 text-sm font-semibold tabular-nums flex-shrink-0"
+                      style={{
+                        background: "hsl(var(--accent) / 0.08)",
+                        color: "hsl(var(--accent))",
+                        border: "1px solid hsl(var(--accent) / 0.2)",
+                      }}
+                    >
+                      {formatCurrency(r.valor_risco)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggle(r.tipo)}
+                      disabled={r.qtd === 0}
+                      className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md hover:bg-muted/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ color: "hsl(var(--accent))" }}
+                    >
+                      {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      Ver detalhes
+                    </button>
                   </div>
+
+                  {isOpen && (
+                    <div
+                      className="px-5 py-4"
+                      style={{
+                        background: "hsl(var(--muted) / 0.15)",
+                        borderBottom: i < rows.length - 1 ? "1px solid hsl(var(--border))" : "none",
+                      }}
+                    >
+                      {details === "loading" || details === undefined ? (
+                        <div className="text-xs text-muted-foreground py-4 text-center">
+                          Carregando detalhes…
+                        </div>
+                      ) : details.length === 0 ? (
+                        <div className="text-xs text-muted-foreground py-4 text-center">
+                          Nenhum detalhe disponível.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto -mx-1">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-left text-muted-foreground border-b" style={{ borderColor: "hsl(var(--border))" }}>
+                                <th className="py-2 px-2 font-medium">Lote</th>
+                                <th className="py-2 px-2 font-medium">Empresa</th>
+                                <th className="py-2 px-2 font-medium">Médico</th>
+                                <th className="py-2 px-2 font-medium">Especialidade</th>
+                                <th className="py-2 px-2 font-medium text-right">Bruto</th>
+                                <th className="py-2 px-2 font-medium text-right">Esperado</th>
+                                <th className="py-2 px-2 font-medium text-right">Diverg.</th>
+                                <th className="py-2 px-2 font-medium">Comp.</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {details.map((d, idx) => {
+                                const div = d.divergencia_pct == null ? null : Number(d.divergencia_pct);
+                                const divColor =
+                                  div == null
+                                    ? "hsl(var(--muted-foreground))"
+                                    : Math.abs(div) > 30
+                                      ? "hsl(var(--destructive))"
+                                      : "hsl(var(--accent))";
+                                return (
+                                  <tr
+                                    key={`${d.payment_id}-${idx}`}
+                                    className="border-b hover:bg-muted/30"
+                                    style={{ borderColor: "hsl(var(--border) / 0.5)" }}
+                                  >
+                                    <td className="py-2 px-2">
+                                      <Link
+                                        to={`/pagamentos/${d.payment_id}`}
+                                        className="inline-flex items-center gap-1 hover:underline"
+                                        style={{ color: "hsl(var(--accent))" }}
+                                      >
+                                        <span className="truncate max-w-[180px]" title={d.reference ?? ""}>
+                                          {d.reference ?? "—"}
+                                        </span>
+                                        <ExternalLink size={10} />
+                                      </Link>
+                                    </td>
+                                    <td className="py-2 px-2">
+                                      <span className="truncate max-w-[160px] inline-block align-middle" title={d.company_name ?? ""}>
+                                        {d.company_name ?? "—"}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 px-2">
+                                      <span className="truncate max-w-[140px] inline-block align-middle" title={d.doctor_name ?? ""}>
+                                        {d.doctor_name ?? "—"}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 px-2">
+                                      <span className="truncate max-w-[120px] inline-block align-middle" title={d.specialty ?? ""}>
+                                        {d.specialty ?? "—"}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 px-2 text-right tabular-nums">
+                                      {formatCurrency(Number(d.gross_amount ?? 0))}
+                                    </td>
+                                    <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">
+                                      {d.expected_amount == null || Number(d.expected_amount) === 0
+                                        ? "—"
+                                        : formatCurrency(Number(d.expected_amount))}
+                                    </td>
+                                    <td
+                                      className="py-2 px-2 text-right tabular-nums font-medium"
+                                      style={{ color: divColor }}
+                                    >
+                                      {div == null ? "—" : `${div > 0 ? "+" : ""}${div.toFixed(1)}%`}
+                                    </td>
+                                    <td className="py-2 px-2 text-muted-foreground">
+                                      {fmtCompetencia(d.competencia)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                          {details.length >= 30 && (
+                            <div className="text-[11px] text-muted-foreground pt-2 text-right">
+                              Mostrando os 30 itens de maior impacto.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "14px 22px",
-                background: "hsl(var(--accent) / 0.08)",
-                borderTop: "1px solid hsl(var(--border))",
-                borderRadius: "0 0 12px 12px",
-              }}
-            >
-              <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--accent))" }}>
-                Total em risco — {data.alertas} alertas · {data.lotes} lotes · acate {taxaAcate.toFixed(0)}%
-              </span>
-              <span
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  color: "hsl(var(--accent))",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {formatCurrency(data.valor)}
-              </span>
-            </div>
           </div>
-        </div>
-      )}
-
-      {data.byCompany.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Building2 size={14} className="text-muted-foreground" />
-            <h3 className="text-sm font-semibold tracking-tight">Top 5 empresas com alertas</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-            {data.byCompany.map((c) => (
-              <div
-                key={c.company_name}
-                className="rounded-lg border p-3 min-w-0"
-                style={{ borderColor: "hsl(var(--border))" }}
-              >
-                <div
-                  className="text-xs font-medium truncate"
-                  title={c.company_name}
-                  style={{ color: "hsl(var(--foreground))" }}
-                >
-                  {c.company_name}
-                </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  {c.alertas} alerta{c.alertas !== 1 ? "s" : ""}
-                </div>
-                <div
-                  className="text-sm font-semibold tabular-nums mt-1"
-                  style={{ color: "hsl(var(--accent))" }}
-                >
-                  {formatCurrency(c.valor)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.items.length > 0 && (
-        <div className="rounded-xl border bg-card">
-          <button
-            type="button"
-            onClick={() => setDetailsOpen((v) => !v)}
-            className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-muted/40 transition-colors rounded-xl"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              {detailsOpen ? (
-                <ChevronDown size={16} className="text-muted-foreground" />
-              ) : (
-                <ChevronRight size={16} className="text-muted-foreground" />
-              )}
-              <ListFilter size={14} className="text-muted-foreground" />
-              <h3 className="text-sm font-semibold tracking-tight">
-                Detalhes dos alertas
-              </h3>
-              <span className="text-xs text-muted-foreground">
-                ({data.items.length.toLocaleString("pt-BR")} itens)
-              </span>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {detailsOpen ? "Ocultar" : "Expandir"}
-            </span>
-          </button>
-          {detailsOpen && (
-            <div className="border-t" style={{ borderColor: "hsl(var(--border))" }}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-left text-muted-foreground border-b" style={{ borderColor: "hsl(var(--border))" }}>
-                      <th className="px-4 py-2 font-medium">Lote</th>
-                      <th className="px-4 py-2 font-medium">Empresa</th>
-                      <th className="px-4 py-2 font-medium">Médico</th>
-                      <th className="px-4 py-2 font-medium">Procedimento</th>
-                      <th className="px-4 py-2 font-medium text-right">Valor bruto</th>
-                      <th className="px-4 py-2 font-medium text-right">Divergência</th>
-                      <th className="px-4 py-2 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.items.slice(0, 20).map((it, idx) => (
-                      <tr
-                        key={it.id}
-                        className="border-b last:border-b-0"
-                        style={{
-                          borderColor: "hsl(var(--border))",
-                          background: idx % 2 === 0 ? "transparent" : "hsl(var(--muted) / 0.3)",
-                        }}
-                      >
-                        <td className="px-4 py-2">
-                          {it.payment_id ? (
-                            <Link
-                              to={`/pagamentos/${it.payment_id}`}
-                              className="hover:underline font-medium"
-                              style={{ color: "hsl(var(--accent))" }}
-                            >
-                              {it.payment_ref}
-                            </Link>
-                          ) : (
-                            <span className="text-muted-foreground">{it.payment_ref}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 max-w-[180px] truncate" title={it.company_name}>
-                          {it.company_name}
-                        </td>
-                        <td className="px-4 py-2 max-w-[180px] truncate" title={it.doctor_name}>
-                          {it.doctor_name}
-                        </td>
-                        <td className="px-4 py-2 max-w-[220px] truncate" title={`${it.procedure_name} — ${it.rule_names.join(", ")}`}>
-                          {it.procedure_name}
-                        </td>
-                        <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(it.gross)}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">
-                          {it.divergPct == null ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            <span
-                              style={{
-                                color:
-                                  Math.abs(it.divergPct) > 10
-                                    ? "hsl(var(--accent))"
-                                    : "hsl(var(--muted-foreground))",
-                                fontWeight: Math.abs(it.divergPct) > 10 ? 600 : 400,
-                              }}
-                            >
-                              {it.divergPct > 0 ? "+" : ""}
-                              {it.divergPct.toFixed(1)}%
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">
-                          <span className="text-[11px] text-muted-foreground capitalize">
-                            {it.ai_status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {data.items.length > 20 && (
-                <div
-                  className="px-4 py-3 text-xs text-muted-foreground text-center border-t"
-                  style={{ borderColor: "hsl(var(--border))" }}
-                >
-                  Exibindo os 20 alertas com maior divergência de {data.items.length.toLocaleString("pt-BR")} — abra cada lote para ver os demais.
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </section>
   );
 }
-
