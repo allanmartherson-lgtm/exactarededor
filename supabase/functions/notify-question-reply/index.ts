@@ -120,6 +120,8 @@ serve(async (req) => {
           cc: ccList.length > 0 ? ccList : undefined,
           subject,
           html,
+          text: body,
+
           attachments: emailAttachments.length > 0
             ? emailAttachments.map((a) => ({ filename: a.filename, content: a.content }))
             : undefined,
