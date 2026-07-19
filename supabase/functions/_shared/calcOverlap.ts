@@ -143,7 +143,7 @@ function axisCodes(a: RuleCalculationItem, b: RuleCalculationItem): AxisResult {
   if (!aRestricts && bRestricts) return { empty: false, shared: false };
   // ambos restringem
   if (modeA === "whitelist" && modeB === "whitelist") {
-    const inter = _interSet(A, B);
+    const inter = _codeSetsIntersectPrefix(A, B);
     if (inter.size === 0) return { empty: true };
     return { empty: false, shared: true, description: `Códigos {${[...inter].sort().join(", ")}}` };
   }
