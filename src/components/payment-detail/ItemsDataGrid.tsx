@@ -1040,6 +1040,10 @@ export function ItemsDataGrid({
   const [onlyZero, setOnlyZero] = useState(pf.onlyZero ?? false);
   const [onlySemRegra, setOnlySemRegra] = useState(pf.onlySemRegra ?? false);
   const [onlyPisoAplicado, setOnlyPisoAplicado] = useState(pf.onlyPisoAplicado ?? false);
+  // Filtro por turno/hora do procedimento. Só considera hora REAL da base
+  // hospitalar (procedure_date_has_time=true) para não induzir aplicação
+  // indevida de adicional noturno com hora sintetizada (default 12h).
+  const [turnoFilter, setTurnoFilter] = useState<TurnoFilter>(pf.turnoFilter ?? "__all__");
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
