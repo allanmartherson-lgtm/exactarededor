@@ -486,7 +486,7 @@ function PatternDialog({
       code: finalCode,
       aliases,
       expected_setor: expectedSetor.trim() || null,
-      expected_convenio_group: expectedGroup.trim() || null,
+      expected_convenio_group: expectedTrack.trim() || null,
       notes: notes.trim() || null,
     };
     const { error } = initial
