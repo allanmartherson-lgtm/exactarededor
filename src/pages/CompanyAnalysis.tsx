@@ -858,9 +858,17 @@ export default function CompanyAnalysis() {
       });
       if (error) throw error;
 
+      // Lotes de Parecer disparam cross-reference-parecer ANTES da análise para
+      // reclassificar Parecer/Visita. Nesse caso o dispatch retorna 202 com
+      // deferred_to="cross-reference-parecer" e sem total_companies/job_id — a
+      // reanálise real vem em cascata quando o cross-ref redispara. Tratar como
+      // sucesso e seguir para o polling do job pelo payment_id.
+      const deferredTo = (data as any)?.deferred_to as string | undefined;
+      const isDeferredParecer = deferredTo === "cross-reference-parecer";
+
       const dispatched = Number((data as any)?.total_companies ?? 0);
       const alreadyRunning = (data as any)?.already_running === true;
-      if (!alreadyRunning && dispatched === 0) {
+      if (!isDeferredParecer && !alreadyRunning && dispatched === 0) {
         const skipped = Array.isArray((data as any)?.skipped_companies) ? (data as any).skipped_companies : [];
         const sample = skipped.length
           ? ` Status: ${Array.from(new Set(skipped.map((s: any) => s.status))).slice(0, 3).join(", ")}.`
