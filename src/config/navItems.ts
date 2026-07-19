@@ -141,7 +141,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/regras", label: "Regras (Pagamento, Validação, Simuladores)", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["admin"] },
       { to: "/cadastros", label: "Cadastros", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor"] },
-      { to: "/padroes-lote", label: "Padrões de Lote", icon: LayoutList, iconName: "LayoutList", roles: ["admin", "diretor", "analista"] },
+      { to: "/padroes-lote", label: "Padrões de Lote", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor", "analista"] },
       { to: "/hospitais", label: "Hospitais", icon: Building2, iconName: "Building2", roles: ["admin", "diretor"] },
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["admin"] },
