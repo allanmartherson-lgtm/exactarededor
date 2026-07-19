@@ -315,6 +315,16 @@ export default function BiDiretoria() {
     severity: "alta" | "media" | "baixa";
   };
   const [patternAnomalies, setPatternAnomalies] = useState<PatternAnomaly[]>([]);
+  type MissingPattern = {
+    pattern_id: string;
+    label: string;
+    competence_month: string;
+    expected_by: string;
+    days_late: number;
+    avg_bruto: number | null;
+    last_seen_month: string | null;
+  };
+  const [missingPatterns, setMissingPatterns] = useState<MissingPattern[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -329,6 +339,11 @@ export default function BiDiretoria() {
       const { data, error } = await supabase.rpc("get_pattern_anomalies" as never, { p_threshold_pct: 25, p_min_months: 3 } as never);
       if (error) { setPatternAnomalies([]); return; }
       setPatternAnomalies((data ?? []) as PatternAnomaly[]);
+    })();
+    (async () => {
+      const { data, error } = await supabase.rpc("get_missing_batch_patterns" as never, {} as never);
+      if (error) { setMissingPatterns([]); return; }
+      setMissingPatterns((data ?? []) as MissingPattern[]);
     })();
   }, []);
 
@@ -1056,7 +1071,87 @@ export default function BiDiretoria() {
         </div>
       )}
 
-      {/* ===== Anomalias por padrão de lote ===== */}
+      {/* ===== Lotes esperados em atraso ===== */}
+      {missingPatterns.length > 0 && (
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+                Lotes esperados em atraso
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Padrões recorrentes sem lote recebido na competência após o prazo esperado.
+              </div>
+            </div>
+            <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800 tabular-nums">
+              {missingPatterns.length} {missingPatterns.length === 1 ? "atraso" : "atrasos"}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b">
+                  <th className="py-2 pr-3 font-medium">Padrão</th>
+                  <th className="py-2 pr-3 font-medium">Competência</th>
+                  <th className="py-2 pr-3 font-medium">Esperado até</th>
+                  <th className="py-2 pr-3 font-medium text-right">Atraso</th>
+                  <th className="py-2 pr-3 font-medium text-right">Bruto médio</th>
+                  <th className="py-2 pr-3 font-medium">Último recebido</th>
+                  <th className="py-2 pr-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {missingPatterns.slice(0, 15).map((m) => {
+                  const dias = Number(m.days_late) || 0;
+                  const sev = dias >= 15 ? "bg-red-100 text-red-800" : dias >= 7 ? "bg-amber-100 text-amber-800" : "bg-muted text-muted-foreground";
+                  const fmtDia = (iso: string | null) => {
+                    if (!iso) return "—";
+                    const [y, mo, d] = iso.slice(0, 10).split("-");
+                    return `${d}/${mo}/${y}`;
+                  };
+                  const fmtMes = (iso: string | null) => {
+                    if (!iso) return "—";
+                    const [y, mo] = iso.slice(0, 7).split("-");
+                    return `${MONTHS_PT_FULL[Number(mo) - 1]} ${y}`;
+                  };
+                  return (
+                    <tr key={`${m.pattern_id}-${m.competence_month}`} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="py-2 pr-3 font-medium text-foreground">{m.label}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{fmtMes(m.competence_month)}</td>
+                      <td className="py-2 pr-3 text-muted-foreground tabular-nums">{fmtDia(m.expected_by)}</td>
+                      <td className="py-2 pr-3 text-right">
+                        <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium tabular-nums", sev)}>
+                          {dias}d
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">
+                        {m.avg_bruto != null
+                          ? Number(m.avg_bruto).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+                          : "—"}
+                      </td>
+                      <td className="py-2 pr-3 text-muted-foreground">{fmtMes(m.last_seen_month)}</td>
+                      <td className="py-2 pr-3 text-right">
+                        <a
+                          href="/padroes-lote"
+                          className="text-xs font-medium text-primary hover:underline whitespace-nowrap"
+                        >
+                          padrão →
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {missingPatterns.length > 15 && (
+            <div className="mt-3 text-[11px] text-muted-foreground text-center">
+              exibindo 15 de {missingPatterns.length} — priorizando maiores atrasos
+            </div>
+          )}
+        </div>
+      )}
+
       {patternAnomalies.length > 0 && (
         <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
           <div className="flex items-start justify-between mb-4">
