@@ -694,10 +694,38 @@ function PatternDialog({
               </Select>
             </div>
           </div>
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <div>
+              <Label className="text-xs">Dia esperado do mês</Label>
+              <Input
+                type="number"
+                min={1}
+                max={31}
+                value={expectedDay}
+                onChange={(e) => setExpectedDay(e.target.value)}
+                placeholder="Ex.: 10"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Tolerância (dias)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={60}
+                value={graceDays}
+                onChange={(e) => setGraceDays(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs pb-2">
+              <Switch checked={alertEnabled} onCheckedChange={setAlertEnabled} />
+              Alertar quando faltar
+            </label>
+          </div>
           <div>
             <Label className="text-xs">Notas</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
+
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
