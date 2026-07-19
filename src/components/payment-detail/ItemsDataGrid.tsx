@@ -2969,28 +2969,28 @@ export function ItemsDataGrid({
             style={{ width: tableMinWidth, minWidth: tableMinWidth }}
           >
             <colgroup>
-              {colVis.atendimento && <col style={{ width: 160 }} />}
-              {colVis.data && <col style={{ width: 90 }} />}
-              <col style={{ width: 160 }} />
+              {colVis.atendimento && <col style={colStyle("atendimento", 160)} />}
+              {colVis.data && <col style={colStyle("data", 108)} />}
+              <col style={colStyle("paciente", 160)} />
 
-              {colVis.convenio && <col style={{ width: 120 }} />}
-              {colVis.via && <col style={{ width: 110 }} />}
-              <col style={{ width: 88 }} />
-              <col style={{ width: 56 }} />
-              {colVis.procedimento && <col style={{ width: 200 }} />}
-              {colVis.setor_lido && <col style={{ width: 110 }} />}
-              {colVis.setor_inferido && <col style={{ width: 110 }} />}
-              {colVis.tipo_entrada && <col style={{ width: 110 }} />}
-              {colVis.subtipo && isParecerPayment && <col style={{ width: 80 }} />}
-              <col style={{ width: 150 }} />
-              {colVis.funcao && <col style={{ width: 100 }} />}
-              {colVis.regra && <col style={{ width: 150 }} />}
-              {showGrossColumn && <col style={{ width: 110 }} />}
-              {showProcedureColumn && <col style={{ width: 130 }} />}
-              <col style={{ width: expectedColWidth }} />
-              {showDiferencaCol && <col style={{ width: 110 }} />}
-              <col style={{ width: 110 }} />
-              {colVis.observacao && <col style={{ width: 70 }} />}
+              {colVis.convenio && <col style={colStyle("convenio", 120)} />}
+              {colVis.via && <col style={colStyle("via", 110)} />}
+              <col style={colStyle("tuss", 88)} />
+              <col style={colStyle("qtd", 56)} />
+              {colVis.procedimento && <col style={colStyle("procedimento", 200)} />}
+              {colVis.setor_lido && <col style={colStyle("setor_lido", 110)} />}
+              {colVis.setor_inferido && <col style={colStyle("setor_inferido", 110)} />}
+              {colVis.tipo_entrada && <col style={colStyle("tipo_entrada", 110)} />}
+              {colVis.subtipo && isParecerPayment && <col style={colStyle("subtipo", 80)} />}
+              <col style={colStyle("medico", 150)} />
+              {colVis.funcao && <col style={colStyle("funcao", 100)} />}
+              {colVis.regra && <col style={colStyle("regra", 150)} />}
+              {showGrossColumn && <col style={colStyle("gross", 110)} />}
+              {showProcedureColumn && <col style={colStyle("faturamento", 130)} />}
+              <col style={colStyle("esperado", expectedColWidth)} />
+              {showDiferencaCol && <col style={colStyle("diferenca", 110)} />}
+              <col style={colStyle("status", 110)} />
+              {colVis.observacao && <col style={colStyle("observacao", 70)} />}
               {canEdit && <col style={{ width: 120 }} />}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
