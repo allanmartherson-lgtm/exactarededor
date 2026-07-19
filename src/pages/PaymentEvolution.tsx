@@ -498,7 +498,7 @@ export default function PaymentEvolution() {
   };
 
   const exportCsv = () => {
-    const head = ["Centro de custo", ...months.map(monthLabel), "Total"];
+    const head = ["Centro de custo", ...displayMonths.map(monthLabel), "Total"];
     const rows = matrix.map((r) => {
       const { label } = ccDisplay(r.cc);
       return [label, ...r.byMonth.map((v) => v.toFixed(2)), r.total.toFixed(2)];
@@ -645,7 +645,7 @@ export default function PaymentEvolution() {
               <SelectTrigger className="w-[200px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto (último fechado)</SelectItem>
-                {[...months].reverse().map((m) => (
+                {[...displayMonths].reverse().map((m) => (
                   <SelectItem key={m} value={m}>
                     {monthLabel(m)}{m === currentYM ? " (em andamento)" : ""}
                   </SelectItem>
@@ -667,7 +667,7 @@ export default function PaymentEvolution() {
             label="Total no período"
             tone="primary"
             value={loading ? <Skeleton className="h-8 w-32 bg-primary-foreground/20" /> : BRL(grandTotal)}
-            hint={`${months.length} meses · ${ccCount} centros de custo`}
+            hint={`${displayMonths.length} meses · ${ccCount} centros de custo`}
           />
           <KpiCard
             label={`${isManualAnchor ? "Mês ancorador" : "Último mês fechado"} (${monthLabel(lastMonth)})`}
@@ -910,7 +910,7 @@ export default function PaymentEvolution() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[260px]">Centro de custo</TableHead>
-                  {months.map((m) => (
+                  {displayMonths.map((m) => (
                     <TableHead key={m} className="text-right whitespace-nowrap">
                       {monthLabel(m)}
                     </TableHead>
@@ -923,14 +923,14 @@ export default function PaymentEvolution() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={months.length + 3}>
+                      <TableCell colSpan={displayMonths.length + 3}>
                         <Skeleton className="h-6 w-full" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : matrix.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={months.length + 3} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell colSpan={displayMonths.length + 3} className="text-center text-sm text-muted-foreground py-8">
                       Sem dados no período selecionado.
                     </TableCell>
                   </TableRow>
@@ -963,7 +963,7 @@ export default function PaymentEvolution() {
                               onClick={(e) => {
                                 if (v > 0) {
                                   e.stopPropagation();
-                                  setDialogCc({ code: r.cc, month: months[i] });
+                                  setDialogCc({ code: r.cc, month: displayMonths[i] });
                                 }
                               }}
                             >
@@ -979,7 +979,7 @@ export default function PaymentEvolution() {
                         </TableRow>
                         {open && (
                           <TableRow className="bg-muted/30">
-                            <TableCell colSpan={months.length + 3} className="p-0">
+                            <TableCell colSpan={displayMonths.length + 3} className="p-0">
                               <div className="px-6 py-4">
                                 {drillLoading && !drillCompanies[r.cc] ? (
                                   <Skeleton className="h-20 w-full" />
@@ -1004,7 +1004,7 @@ export default function PaymentEvolution() {
                 )}
               </TableBody>
               {!loading && matrix.length > 0 && (() => {
-                const monthTotals = months.map((_, i) => matrix.reduce((s, r) => s + (r.byMonth[i] ?? 0), 0));
+                const monthTotals = displayMonths.map((_, i) => matrix.reduce((s, r) => s + (r.byMonth[i] ?? 0), 0));
                 const grand = monthTotals.reduce((s, v) => s + v, 0);
                 const lastT = monthTotals[lastClosedIdx] ?? 0;
                 const prevT = prevClosedIdx >= 0 ? (monthTotals[prevClosedIdx] ?? 0) : 0;
