@@ -299,6 +299,20 @@ export default function BiDiretoria() {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [patternCoverage, setPatternCoverage] = useState<{ total: number; linked: number; pct: number } | null>(null);
+  type PatternAnomaly = {
+    pattern_id: string;
+    pattern_label: string;
+    payment_id: string;
+    payment_reference: string;
+    competence_month: string;
+    current_bruto: number;
+    avg_bruto: number;
+    months_seen: number;
+    delta_pct: number | null;
+    z_score: number | null;
+    severity: "alta" | "media" | "baixa";
+  };
+  const [patternAnomalies, setPatternAnomalies] = useState<PatternAnomaly[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -309,7 +323,13 @@ export default function BiDiretoria() {
       if (!row) { setPatternCoverage({ total: 0, linked: 0, pct: 0 }); return; }
       setPatternCoverage({ total: Number(row.total_batches), linked: Number(row.linked_batches), pct: Number(row.coverage_pct) });
     })();
+    (async () => {
+      const { data, error } = await supabase.rpc("get_pattern_anomalies" as never, { p_threshold_pct: 25, p_min_months: 3 } as never);
+      if (error) { setPatternAnomalies([]); return; }
+      setPatternAnomalies((data ?? []) as PatternAnomaly[]);
+    })();
   }, []);
+
 
 
 
