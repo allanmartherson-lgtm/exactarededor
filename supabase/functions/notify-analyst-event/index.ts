@@ -2,6 +2,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import {
+  a2_nfReceived,
+  b2_iaConcluded,
+  b3_returned,
+} from "../_shared/emailTemplates/templates.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
