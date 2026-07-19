@@ -327,6 +327,23 @@ export default function PaymentEvolution() {
     setTypeFilter([]);
   };
 
+  // Mês vigente (em andamento). Só exibimos ele nas séries/KPIs/matriz
+  // se houver pagamento efetivamente lançado nesse mês para o modo atual.
+  // Caso contrário, o mês corrente é omitido para não "sujar" o gráfico
+  // com um ponto zerado que empurra a tendência para baixo.
+  const displayMonths = useMemo(() => {
+    const cur = new Date().toISOString().slice(0, 7);
+    if (!months.includes(cur)) return months;
+    const hasData = filteredPayments.some((p) => {
+      const ds =
+        mode === "competencia"
+          ? p.competence_month
+          : p.approved_at?.slice(0, 10) ?? p.updated_at.slice(0, 10);
+      return ds?.slice(0, 7) === cur;
+    });
+    return hasData ? months : months.filter((m) => m !== cur);
+  }, [months, filteredPayments, mode]);
+
   // Bucket payments → cost center × month
   const matrix = useMemo(() => {
     const map = new Map<string, Map<string, number>>(); // cc → month → value
@@ -338,7 +355,7 @@ export default function PaymentEvolution() {
       else dateStr = p.approved_at?.slice(0, 10) ?? p.updated_at.slice(0, 10);
       if (!dateStr) return;
       const mk = dateStr.slice(0, 7);
-      if (!months.includes(mk)) return;
+      if (!displayMonths.includes(mk)) return;
       const v = p.liquido_total ?? p.bruto_total ?? p.total_amount ?? 0;
       if (!map.has(cc)) map.set(cc, new Map());
       const row = map.get(cc)!;
@@ -349,11 +366,11 @@ export default function PaymentEvolution() {
       .map(([cc, row]) => ({
         cc,
         total: ccTotals.get(cc) ?? 0,
-        byMonth: months.map((m) => row.get(m) ?? 0),
+        byMonth: displayMonths.map((m) => row.get(m) ?? 0),
       }))
       .sort((a, b) => b.total - a.total);
     return rows;
-  }, [filteredPayments, months, mode]);
+  }, [filteredPayments, displayMonths, mode]);
 
   // KPIs
   const grandTotal = matrix.reduce((s, r) => s + r.total, 0);
@@ -364,17 +381,17 @@ export default function PaymentEvolution() {
   // cenários com competências em aberto.
   const currentYM = new Date().toISOString().slice(0, 7);
   const autoLastClosedIdx = (() => {
-    for (let i = months.length - 1; i >= 0; i--) {
-      if (months[i] !== currentYM) return i;
+    for (let i = displayMonths.length - 1; i >= 0; i--) {
+      if (displayMonths[i] !== currentYM) return i;
     }
-    return months.length - 1;
+    return displayMonths.length - 1;
   })();
-  const manualIdx = anchorMonth !== "auto" ? months.indexOf(anchorMonth) : -1;
+  const manualIdx = anchorMonth !== "auto" ? displayMonths.indexOf(anchorMonth) : -1;
   const lastClosedIdx = manualIdx >= 0 ? manualIdx : autoLastClosedIdx;
   const prevClosedIdx = lastClosedIdx - 1;
-  const lastMonth = months[lastClosedIdx];
-  const prevMonth = prevClosedIdx >= 0 ? months[prevClosedIdx] : undefined;
-  const isCurrentMonthInRange = months.includes(currentYM);
+  const lastMonth = displayMonths[lastClosedIdx];
+  const prevMonth = prevClosedIdx >= 0 ? displayMonths[prevClosedIdx] : undefined;
+  const isCurrentMonthInRange = displayMonths.includes(currentYM);
   const isManualAnchor = anchorMonth !== "auto" && manualIdx >= 0;
   const totalLast = matrix.reduce((s, r) => s + (r.byMonth[lastClosedIdx] ?? 0), 0);
   const totalPrev = matrix.reduce((s, r) => s + (r.byMonth[prevClosedIdx] ?? 0), 0);
@@ -383,10 +400,10 @@ export default function PaymentEvolution() {
   // Top growth CC (compare avg first half × second half)
   const growth = matrix
     .map((r) => {
-      const half = Math.floor(months.length / 2);
+      const half = Math.floor(displayMonths.length / 2);
       const first = r.byMonth.slice(0, half).reduce((s, v) => s + v, 0) / Math.max(half, 1);
       const second =
-        r.byMonth.slice(half).reduce((s, v) => s + v, 0) / Math.max(months.length - half, 1);
+        r.byMonth.slice(half).reduce((s, v) => s + v, 0) / Math.max(displayMonths.length - half, 1);
       const pct = first > 0 ? ((second - first) / first) * 100 : 0;
       return { cc: r.cc, pct, second };
     })
@@ -396,7 +413,7 @@ export default function PaymentEvolution() {
 
   // Chart data: top 5 CCs
   const top5 = matrix.slice(0, 5);
-  const chartData = months.map((mk, i) => {
+  const chartData = displayMonths.map((mk, i) => {
     const row: Record<string, any> = { month: monthLabel(mk) };
     top5.forEach((r) => {
       row[ccDisplay(r.cc).label] = r.byMonth[i];
@@ -430,12 +447,12 @@ export default function PaymentEvolution() {
       if (g.company_name !== focusedCompany.name) return;
       if (!ccPaymentIds.has(g.payment_id)) return;
       const mk = paymentMonth.get(g.payment_id);
-      if (!mk || !months.includes(mk)) return;
+      if (!mk || !displayMonths.includes(mk)) return;
       const v = g.liquido_total ?? g.bruto_total ?? g.total_amount ?? 0;
       byMonth.set(mk, (byMonth.get(mk) ?? 0) + v);
     });
-    return months.map((mk) => ({ month: monthLabel(mk), value: byMonth.get(mk) ?? 0 }));
-  }, [focusedCompany, drillCompanies, paymentMonth, months, payments]);
+    return displayMonths.map((mk) => ({ month: monthLabel(mk), value: byMonth.get(mk) ?? 0 }));
+  }, [focusedCompany, drillCompanies, paymentMonth, displayMonths, payments]);
 
 
 
@@ -481,7 +498,7 @@ export default function PaymentEvolution() {
   };
 
   const exportCsv = () => {
-    const head = ["Centro de custo", ...months.map(monthLabel), "Total"];
+    const head = ["Centro de custo", ...displayMonths.map(monthLabel), "Total"];
     const rows = matrix.map((r) => {
       const { label } = ccDisplay(r.cc);
       return [label, ...r.byMonth.map((v) => v.toFixed(2)), r.total.toFixed(2)];
@@ -628,7 +645,7 @@ export default function PaymentEvolution() {
               <SelectTrigger className="w-[200px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto (último fechado)</SelectItem>
-                {[...months].reverse().map((m) => (
+                {[...displayMonths].reverse().map((m) => (
                   <SelectItem key={m} value={m}>
                     {monthLabel(m)}{m === currentYM ? " (em andamento)" : ""}
                   </SelectItem>
@@ -650,7 +667,7 @@ export default function PaymentEvolution() {
             label="Total no período"
             tone="primary"
             value={loading ? <Skeleton className="h-8 w-32 bg-primary-foreground/20" /> : BRL(grandTotal)}
-            hint={`${months.length} meses · ${ccCount} centros de custo`}
+            hint={`${displayMonths.length} meses · ${ccCount} centros de custo`}
           />
           <KpiCard
             label={`${isManualAnchor ? "Mês ancorador" : "Último mês fechado"} (${monthLabel(lastMonth)})`}
@@ -893,7 +910,7 @@ export default function PaymentEvolution() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[260px]">Centro de custo</TableHead>
-                  {months.map((m) => (
+                  {displayMonths.map((m) => (
                     <TableHead key={m} className="text-right whitespace-nowrap">
                       {monthLabel(m)}
                     </TableHead>
@@ -906,14 +923,14 @@ export default function PaymentEvolution() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={months.length + 3}>
+                      <TableCell colSpan={displayMonths.length + 3}>
                         <Skeleton className="h-6 w-full" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : matrix.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={months.length + 3} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell colSpan={displayMonths.length + 3} className="text-center text-sm text-muted-foreground py-8">
                       Sem dados no período selecionado.
                     </TableCell>
                   </TableRow>
@@ -946,7 +963,7 @@ export default function PaymentEvolution() {
                               onClick={(e) => {
                                 if (v > 0) {
                                   e.stopPropagation();
-                                  setDialogCc({ code: r.cc, month: months[i] });
+                                  setDialogCc({ code: r.cc, month: displayMonths[i] });
                                 }
                               }}
                             >
@@ -962,7 +979,7 @@ export default function PaymentEvolution() {
                         </TableRow>
                         {open && (
                           <TableRow className="bg-muted/30">
-                            <TableCell colSpan={months.length + 3} className="p-0">
+                            <TableCell colSpan={displayMonths.length + 3} className="p-0">
                               <div className="px-6 py-4">
                                 {drillLoading && !drillCompanies[r.cc] ? (
                                   <Skeleton className="h-20 w-full" />
@@ -987,7 +1004,7 @@ export default function PaymentEvolution() {
                 )}
               </TableBody>
               {!loading && matrix.length > 0 && (() => {
-                const monthTotals = months.map((_, i) => matrix.reduce((s, r) => s + (r.byMonth[i] ?? 0), 0));
+                const monthTotals = displayMonths.map((_, i) => matrix.reduce((s, r) => s + (r.byMonth[i] ?? 0), 0));
                 const grand = monthTotals.reduce((s, v) => s + v, 0);
                 const lastT = monthTotals[lastClosedIdx] ?? 0;
                 const prevT = prevClosedIdx >= 0 ? (monthTotals[prevClosedIdx] ?? 0) : 0;
