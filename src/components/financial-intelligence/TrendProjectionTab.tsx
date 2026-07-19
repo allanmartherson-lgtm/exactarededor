@@ -25,7 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TrendingUp, ArrowUp, ArrowDown, Minus, Search } from "lucide-react";
+import { TrendingUp, ArrowUp, ArrowDown, Minus, Search, ClipboardList, ChevronDown, ChevronRight, CheckCircle2, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 import { formatBRL, mean } from "@/lib/financialStats";
 import { toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
