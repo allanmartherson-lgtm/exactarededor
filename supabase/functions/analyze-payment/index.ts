@@ -347,6 +347,24 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
     let cachedCalcsByRule: Record<string, any[]> | null = null;
     let cachedConfigs: any[] | null = null;
 
+    // Correção A (2026-07-19): antes de aceitar o snapshot, comparamos com a
+    // assinatura atual de regras+cálculos do hospital. Qualquer edição bumpa
+    // `updated_at`, o md5 muda, e o snapshot é rejeitado — invalidação
+    // automática por conteúdo. Substitui os guards por campo (item_type_id,
+    // special_case_filter, etc.), que só cobriam mudança de schema.
+    const _paymentHospitalIdForSig: string | null = (payment as any)?.hospital_id ?? null;
+    let currentRulesSignature: string | null = null;
+    if (__job_id && !__force_fresh && _paymentHospitalIdForSig) {
+      try {
+        const { data: sig } = await supabase.rpc("get_rules_signature", {
+          _hospital_id: _paymentHospitalIdForSig,
+        });
+        if (typeof sig === "string") currentRulesSignature = sig;
+      } catch (e) {
+        console.warn(`${__t} get_rules_signature falhou`, (e as any)?.message ?? e);
+      }
+    }
+
     if (__job_id && !__force_fresh) {
       try {
         const { data: cacheRow } = await supabase
@@ -358,25 +376,19 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           const ageMs = Date.now() - new Date(cacheRow.built_at as string).getTime();
           if (ageMs < CONTEXT_TTL_MS) {
             const ctxJ = cacheRow.context as any;
-            // Bust cache se snapshot foi gerado antes de incluirmos item_type_id
-            // nas regras (caso contrário, filtro por tipo não funciona até TTL expirar).
-            const snapshotHasTypeField = !ctxJ.rules.length || ("item_type_id" in ctxJ.rules[0]);
-            const cachedCalcLists = Object.values(ctxJ.calcs_by_rule ?? {}) as any[];
-            const snapshotHasCalcSpecialCaseField = cachedCalcLists.every((list: any) =>
-              !Array.isArray(list) || list.every((c: any) => "special_case_filter" in c),
-            );
-            const snapshotHasCalcPaymentTypeField = cachedCalcLists.every((list: any) =>
-              !Array.isArray(list) || list.every((c: any) => "item_type_id" in c),
-            );
-            const snapshotHasCalcSpecialtyToggle = cachedCalcLists.every((list: any) =>
-              !Array.isArray(list) || list.every((c: any) => "match_by_specialty" in c),
-            );
-            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && snapshotHasTypeField && snapshotHasCalcSpecialCaseField && snapshotHasCalcPaymentTypeField && snapshotHasCalcSpecialtyToggle) {
+            const snapshotSig = typeof ctxJ.rules_signature === "string" ? ctxJ.rules_signature : null;
+            const signatureMatches =
+              currentRulesSignature != null &&
+              snapshotSig != null &&
+              snapshotSig === currentRulesSignature;
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs) && signatureMatches) {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
               __telemetry.cache_hit = true;
-              console.log(`${__t} ctx_cache HIT (age=${Math.round(ageMs / 1000)}s, rules=${cachedRulesAll.length})`);
+              console.log(`${__t} ctx_cache HIT (age=${Math.round(ageMs / 1000)}s, rules=${cachedRulesAll.length}, sig=match)`);
+            } else if (!signatureMatches) {
+              console.log(`${__t} ctx_cache BUST (sig mismatch — regras/cálculos foram alterados desde o snapshot)`);
             }
           }
         }
