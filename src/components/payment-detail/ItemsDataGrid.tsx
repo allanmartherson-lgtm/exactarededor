@@ -1672,7 +1672,13 @@ export function ItemsDataGrid({
         if (parecerFilter === "missing" && evidence !== "not_found") return false;
         if (parecerFilter === "weak" && !(evidence === "confirmed" && isWeak)) return false;
       }
-      if (statusFilter !== "__all__" && eff !== statusFilter) return false;
+      if (statusFilter !== "__all__") {
+        // "seguido" no filtro agrupa itens acatados pelo analista e seguidos pelo validador
+        const matches = statusFilter === "seguido"
+          ? (eff === "seguido" || eff === "acatado")
+          : eff === statusFilter;
+        if (!matches) return false;
+      }
       if (onlyZero) {
         const g = Number(it.gross_amount ?? 0);
         const e = Number((it as any).expected_amount ?? it.ai_findings?.expected_amount ?? 0);
