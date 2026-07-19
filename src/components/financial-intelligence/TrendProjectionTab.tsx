@@ -25,7 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TrendingUp, ArrowUp, ArrowDown, Minus, Search } from "lucide-react";
+import { TrendingUp, ArrowUp, ArrowDown, Minus, Search, ClipboardList, ChevronDown, ChevronRight, CheckCircle2, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 import { formatBRL, mean } from "@/lib/financialStats";
 import { toRpcTrack, type TrackFilterValue } from "@/components/shared/PaymentTrackFilter";
 
@@ -69,7 +70,20 @@ function previousYm(): string {
 interface PaymentRow {
   competence_month: string | null;
   total_amount: number;
+  bruto_total: number | null;
   status: string;
+}
+
+interface BatchRow {
+  pattern_name: string;
+  historical_avg: number;
+  historical_min: number;
+  historical_max: number;
+  months_present: number;
+  current_amount: number | null;
+  current_payment_id: string | null;
+  current_reference: string | null;
+  status: "recebido" | "pendente";
 }
 
 interface TrendRow {
@@ -85,9 +99,11 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
   const [trendRows, setTrendRows] = useState<TrendRow[] | null>(null);
   const [trendError, setTrendError] = useState<string | null>(null);
+  const [batches, setBatches] = useState<BatchRow[] | null>(null);
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [showReceived, setShowReceived] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +116,7 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
       const cutoffDate = ymOf(cutoff) + "-01";
       let pq = supabase
         .from("payments")
-        .select("competence_month,total_amount,status,payment_track")
+        .select("competence_month,total_amount,bruto_total,status,payment_track")
         .gte("competence_month", cutoffDate);
       if (track === "habitual" || track === "prioritario") pq = pq.eq("payment_track", track);
       else if (track === "nao_classificado") pq = pq.is("payment_track", null);
@@ -123,6 +139,11 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
       if (cancelled) return;
       setPayments(all);
 
+      // Composição de lotes esperados vs recebidos no mês em processamento.
+      // Só afeta esta aba — sem impacto em cálculos de outras telas.
+      const { data: batchData } = await supabase.rpc("get_batch_composition" as never);
+      if (cancelled) return;
+      setBatches((batchData as unknown as BatchRow[]) ?? []);
     })();
     return () => {
       cancelled = true;
@@ -208,7 +229,10 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
     for (const r of payments) {
       if (!r.competence_month || EXCLUDED.has(r.status)) continue;
       const key = r.competence_month.slice(0, 7);
-      map.set(key, (map.get(key) ?? 0) + Number(r.total_amount));
+      // Preferimos bruto_total (consistente com a composição de lotes);
+      // fallback para total_amount quando bruto_total ainda não foi materializado.
+      const v = Number(r.bruto_total ?? 0) || Number(r.total_amount ?? 0);
+      map.set(key, (map.get(key) ?? 0) + v);
     }
     const all = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
 
@@ -287,6 +311,48 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
     };
   }, [payments]);
 
+  // Composição bottom-up: soma dos recebidos + média histórica dos pendentes
+  const composition = useMemo(() => {
+    if (!batches || batches.length === 0) return null;
+    const received = batches.filter((b) => b.status === "recebido");
+    const pending = batches.filter((b) => b.status === "pendente");
+    const receivedSum = received.reduce((s, b) => s + Number(b.current_amount ?? 0), 0);
+    const pendingSum = pending.reduce((s, b) => s + Number(b.historical_avg ?? 0), 0);
+    const total = receivedSum + pendingSum;
+    return { received, pending, receivedSum, pendingSum, total };
+  }, [batches]);
+
+  // Override do termômetro: quando temos composição bottom-up, ela é mais precisa
+  // que a média simples de 3 meses. Sinalizamos com flag para a UI.
+  const thermometer = useMemo(() => {
+    if (!monthly) return null;
+    if (composition && composition.total > 0) {
+      const pct = composition.total > 0 ? (composition.received.reduce((s, b) => s + Number(b.current_amount ?? 0), 0) / composition.total) * 100 : 0;
+      const remaining = Math.max(0, composition.total - monthly.processed);
+      const bottomUpDelta =
+        monthly.projection > 0
+          ? Math.abs(composition.total - monthly.projection) / monthly.projection
+          : 0;
+      return {
+        projection: composition.total,
+        processed: monthly.processed,
+        remaining,
+        pctProcessed: pct,
+        source: "bottom-up" as const,
+        moreAccurate: bottomUpDelta > 0.1,
+      };
+    }
+    return {
+      projection: monthly.projection,
+      processed: monthly.processed,
+      remaining: monthly.remaining,
+      pctProcessed: monthly.pctProcessed,
+      source: "media3m" as const,
+      moreAccurate: false,
+    };
+  }, [monthly, composition]);
+
+
   const insight = useMemo(() => {
     if (!monthly?.hasProjection) return null;
     const procLabel = fmtMonth(monthly.procYm);
@@ -346,7 +412,7 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
   return (
     <div className="space-y-4">
       {/* A) Termômetro do mês */}
-      {monthly && monthly.hasProjection && (
+      {monthly && (monthly.hasProjection || (thermometer && thermometer.source === "bottom-up")) && thermometer && (
         <SurfaceCard>
           <div className="p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
@@ -359,26 +425,31 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
                 </p>
               </div>
               <p className="text-sm tabular-nums text-muted-foreground">
-                <span className="text-foreground font-semibold">{fmtShort(monthly.processed)}</span>{" "}
+                <span className="text-foreground font-semibold">{fmtShort(thermometer.processed)}</span>{" "}
                 processado de{" "}
-                <span className="text-foreground font-semibold">~{fmtShort(monthly.projection)}</span>{" "}
-                projetado
-                <span className="ml-2 text-xs">({monthly.pctProcessed.toFixed(0)}%)</span>
+                <span className="text-foreground font-semibold">~{fmtShort(thermometer.projection)}</span>{" "}
+                esperado
+                <span className="ml-2 text-xs">({thermometer.pctProcessed.toFixed(0)}%)</span>
               </p>
             </div>
             <div className="h-3 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full transition-all"
                 style={{
-                  width: `${Math.min(100, monthly.pctProcessed)}%`,
+                  width: `${Math.min(100, thermometer.pctProcessed)}%`,
                   background: COLORS.processedDark,
                 }}
               />
             </div>
-            {monthly.remaining > 0 && (
+            {thermometer.remaining > 0 && (
               <p className="text-xs text-muted-foreground mt-2">
-                Faltam ~{fmtShort(monthly.remaining)} para atingir a projeção — lotes ainda não entraram
+                Faltam ~{fmtShort(thermometer.remaining)} para atingir o esperado — lotes ainda não entraram
                 nesta competência.
+              </p>
+            )}
+            {thermometer.source === "bottom-up" && (
+              <p className="text-[11px] text-muted-foreground mt-1 italic">
+                Projeção baseada na composição histórica de lotes.
               </p>
             )}
           </div>
@@ -576,6 +647,170 @@ export const TrendProjectionTab = ({ track = "all" }: { track?: TrackFilterValue
           )}
         </div>
       </SurfaceCard>
+
+      {/* Composição do mês — lotes esperados vs recebidos */}
+      {composition && monthly && (
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title={`Composição do mês — ${fmtMonth(monthly.procYm)}`}
+            icon={ClipboardList}
+            iconColor="blue"
+            subtitle={`Lotes esperados com base nos últimos meses`}
+            rightAction={
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                  <span className="tabular-nums">
+                    {composition.received.length} recebidos · {fmtShort(composition.receivedSum)}
+                  </span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-destructive" />
+                  <span className="tabular-nums">
+                    {composition.pending.length} pendentes · ~{fmtShort(composition.pendingSum)}
+                  </span>
+                </span>
+              </div>
+            }
+          />
+          <div className="p-6 space-y-6">
+            {/* Cards de resumo */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-lg border p-5">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Recebido
+                </p>
+                <p className="text-2xl font-light tabular-nums">{formatBRL(composition.receivedSum)}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {composition.received.length} de {composition.received.length + composition.pending.length} lotes
+                </p>
+              </div>
+              <div className="rounded-lg border p-5">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Pendente estimado
+                </p>
+                <p className="text-2xl font-light tabular-nums text-destructive">
+                  ~{formatBRL(composition.pendingSum)}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {composition.pending.length} lote(s) ainda não recebido(s)
+                </p>
+              </div>
+              <div className="rounded-lg border p-5">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-2">
+                  Projeção bottom-up
+                  {thermometer?.moreAccurate && (
+                    <Badge className="bg-[hsl(45,60%,55%)] text-white border-0 text-[9px] px-1.5 py-0">
+                      mais precisa
+                    </Badge>
+                  )}
+                </p>
+                <p className="text-2xl font-light tabular-nums">{formatBRL(composition.total)}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Recebido + estimativa dos pendentes</p>
+              </div>
+            </div>
+
+            {/* Pendentes (abertos por default) */}
+            {composition.pending.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-destructive" />
+                  <p className="text-sm font-semibold">Pendentes ({composition.pending.length})</p>
+                </div>
+                <div className="rounded-md border divide-y">
+                  {composition.pending.map((b) => (
+                    <div
+                      key={b.pattern_name}
+                      className="flex items-center justify-between px-4 py-2.5 text-sm"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate" title={b.pattern_name}>
+                          {b.pattern_name}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Média {fmtShort(b.historical_avg)} — mín {fmtShort(b.historical_min)}, máx{" "}
+                          {fmtShort(b.historical_max)} nos últimos {b.months_present} meses
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-3">
+                        <span className="tabular-nums text-sm text-muted-foreground">
+                          ~{fmtShort(b.historical_avg)}
+                        </span>
+                        <Badge variant="outline" className="text-destructive border-destructive/40">
+                          pendente
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recebidos (colapsado por default) */}
+            {composition.received.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowReceived((v) => !v)}
+                  className="flex items-center gap-2 mb-2 text-sm font-semibold hover:text-primary transition-colors"
+                >
+                  {showReceived ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  Recebidos ({composition.received.length})
+                </button>
+                {showReceived && (
+                  <div className="rounded-md border divide-y">
+                    {composition.received.map((b) => {
+                      const cur = Number(b.current_amount ?? 0);
+                      const acima = cur > b.historical_max;
+                      const abaixo = cur < b.historical_min;
+                      const content = (
+                        <div className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/40 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate" title={b.current_reference ?? b.pattern_name}>
+                              {b.pattern_name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Média histórica {fmtShort(b.historical_avg)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-3">
+                            <span className="tabular-nums text-sm font-medium">{fmtShort(cur)}</span>
+                            {acima && (
+                              <Badge variant="outline" className="text-[hsl(45,60%,45%)] border-[hsl(45,60%,55%)]/40">
+                                acima do esperado
+                              </Badge>
+                            )}
+                            {abaixo && (
+                              <Badge variant="outline" className="text-[hsl(45,60%,45%)] border-[hsl(45,60%,55%)]/40">
+                                abaixo do esperado
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-success border-success/40">
+                              recebido
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                      return b.current_payment_id ? (
+                        <Link key={b.pattern_name} to={`/pagamentos/${b.current_payment_id}`} className="block">
+                          {content}
+                        </Link>
+                      ) : (
+                        <div key={b.pattern_name}>{content}</div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </SurfaceCard>
+      )}
 
       {/* D) Tabela com mini bar charts e busca */}
       <SurfaceCard>
