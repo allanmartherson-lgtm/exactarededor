@@ -339,6 +339,9 @@ const Payments = () => {
   const [hasAppliedCredits, setHasAppliedCredits] = useState<boolean>(persisted.hasAppliedCredits ?? false);
   const [hasAlerts, setHasAlerts] = useState<boolean>(persisted.hasAlerts ?? false);
   const [poolOptions, setPoolOptions] = useState<Array<{ id: string; nome: string }>>([]);
+  const [batchPatternFilter, setBatchPatternFilter] = useState<string[]>(Array.isArray(persisted.batchPatternFilter) ? persisted.batchPatternFilter : []);
+  const [onlyUnlinkedPattern, setOnlyUnlinkedPattern] = useState<boolean>(persisted.onlyUnlinkedPattern ?? false);
+  const [patternOptions, setPatternOptions] = useState<Array<{ id: string; label: string }>>([]);
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
