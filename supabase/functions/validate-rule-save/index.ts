@@ -387,7 +387,10 @@ Deno.serve(async (req) => {
   });
 
   // 3) Helper TS — Verificação D (calc_overlap intra-regra)
-  const calcProblems = detectCalcOverlap(newCalcs);
+  const calcProblems = detectCalcOverlap(newCalcs, {
+    calculationMode: typeof body.calculation_mode === "string" ? body.calculation_mode : null,
+  });
+
 
   // 4) Verificação E — médico em múltiplas regras sem restrições diferenciadoras
   const doctorProblems = await (async () => {
