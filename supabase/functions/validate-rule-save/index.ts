@@ -154,9 +154,6 @@ interface ValidateRuleSaveRequest {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-
-  const _auth = await requireInternalOrRole(req);
-  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
     return new Response("ok", { headers: corsHeaders });
   }
   if (req.method !== "POST") {
