@@ -274,7 +274,12 @@ function evaluatePair(
 
 export function detectCalcOverlap(
   calculations: RuleCalculationItem[] | null | undefined,
+  opts?: { calculationMode?: string | null },
 ): CalcOverlapProblem[] {
+  // Regras em modo "cascade" avaliam cálculos por sort_order (primeiro match
+  // vence). Sobreposição de filtros é intencional (ex.: cateteres > noturno >
+  // FDS > tomografia > base) e não deve bloquear o salvamento.
+  if (opts?.calculationMode === "cascade") return [];
   const all = Array.isArray(calculations) ? calculations : [];
   if (all.length < 2) return [];
   // Restritivos apenas (mesmo critério da 2C).
@@ -283,6 +288,7 @@ export function detectCalcOverlap(
     .filter(({ c }) => isRestrictiveCalculation(c, all))
     .sort((x, y) => x.so - y.so || x.i - y.i)
     .map(({ c }) => c);
+
 
   const out: CalcOverlapProblem[] = [];
   for (let i = 0; i < restrictive.length; i++) {
