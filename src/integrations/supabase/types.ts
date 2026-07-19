@@ -13400,6 +13400,16 @@ export type Database = {
         Args: { _bucket: string; _name: string }
         Returns: boolean
       }
+      suggest_batch_patterns: {
+        Args: { p_history_months?: number }
+        Returns: {
+          avg_bruto: number
+          distinct_references: string[]
+          months_seen: number
+          payment_ids: string[]
+          suggested_label: string
+        }[]
+      }
       sync_payment_company_group: {
         Args: { p_company_id: string; p_payment_id: string }
         Returns: undefined
