@@ -12674,6 +12674,28 @@ export type Database = {
         }
         Returns: Json
       }
+      get_pattern_coverage: {
+        Args: { p_months?: number }
+        Returns: {
+          coverage_pct: number
+          linked_batches: number
+          month_bucket: string
+          total_batches: number
+        }[]
+      }
+      get_pattern_stats: {
+        Args: { p_pattern_id: string }
+        Returns: {
+          avg_bruto: number
+          label: string
+          last_seen_month: string
+          max_bruto: number
+          min_bruto: number
+          months_seen: number
+          pattern_id: string
+          stddev_bruto: number
+        }[]
+      }
       get_payment_pivot:
         | {
             Args: {

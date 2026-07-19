@@ -58,6 +58,34 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
   type SortKey = "company_name" | "nf_expected" | "nf_received" | "grp_bruto" | "grp_liquido" | "snap_bruto" | "snap_glosas" | "snap_liquido" | "app_confirmado" | "app_proposto" | "app_pending" | "app_postponed";
   const [sortKey, setSortKey] = useState<SortKey>("company_name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [patternInfo, setPatternInfo] = useState<
+    | { label: string; avg: number | null; monthsSeen: number; currentBruto: number; deltaPct: number | null }
+    | null
+  >(null);
+
+  useEffect(() => {
+    if (!open || !paymentId) { setPatternInfo(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data: py } = await supabase
+        .from("payments")
+        .select("batch_pattern_id, bruto_total")
+        .eq("id", paymentId)
+        .maybeSingle();
+      const patternId = (py as { batch_pattern_id?: string | null } | null)?.batch_pattern_id ?? null;
+      const currentBruto = Number((py as { bruto_total?: number | null } | null)?.bruto_total ?? 0);
+      if (!patternId) { if (!cancelled) setPatternInfo(null); return; }
+      const { data } = await supabase.rpc("get_pattern_stats" as never, { p_pattern_id: patternId } as never);
+      if (cancelled) return;
+      const row = ((data ?? []) as Array<{ label: string; avg_bruto: number | null; months_seen: number }>)[0];
+      if (!row) { setPatternInfo(null); return; }
+      const avg = row.avg_bruto != null ? Number(row.avg_bruto) : null;
+      const deltaPct = avg && avg > 0 ? ((currentBruto - avg) / avg) * 100 : null;
+      setPatternInfo({ label: row.label, avg, monthsSeen: Number(row.months_seen), currentBruto, deltaPct });
+    })();
+    return () => { cancelled = true; };
+  }, [open, paymentId]);
+
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -502,6 +530,29 @@ export function BatchConciliationReportDialog({ open, onOpenChange, paymentId, p
             é o que o sistema calcula que a PJ deve receber. <strong>Grupo</strong> = totais brutos vindos da produção antes de glosas.
           </p>
         </DialogHeader>
+
+        {patternInfo && (
+          <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="font-medium text-foreground">Padrão do lote:</span>
+            <span>{patternInfo.label}</span>
+            {patternInfo.avg != null && (
+              <span className="text-muted-foreground">
+                média histórica <span className="font-medium text-foreground">{formatCurrency(patternInfo.avg)}</span>
+                {" "}({patternInfo.monthsSeen} {patternInfo.monthsSeen === 1 ? "mês" : "meses"})
+              </span>
+            )}
+            {patternInfo.deltaPct != null && (
+              <Badge
+                variant={Math.abs(patternInfo.deltaPct) < 10 ? "secondary" : Math.abs(patternInfo.deltaPct) < 25 ? "outline" : "destructive"}
+              >
+                {patternInfo.deltaPct >= 0 ? "+" : ""}
+                {patternInfo.deltaPct.toFixed(1).replace(".", ",")}% vs média
+              </Badge>
+            )}
+          </div>
+        )}
+
+
 
         <div className="flex items-center gap-2 px-1">
           <div className="relative flex-1 max-w-md">

@@ -298,6 +298,20 @@ export default function BiDiretoria() {
   const [topCompanies, setTopCompanies] = useState<CompanyRow[]>([]);
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [patternCoverage, setPatternCoverage] = useState<{ total: number; linked: number; pct: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc("get_pattern_coverage" as never, { p_months: 1 } as never);
+      if (error) { setPatternCoverage(null); return; }
+      const rows = ((data ?? []) as Array<{ total_batches: number; linked_batches: number; coverage_pct: number }>);
+      const row = rows[rows.length - 1];
+      if (!row) { setPatternCoverage({ total: 0, linked: 0, pct: 0 }); return; }
+      setPatternCoverage({ total: Number(row.total_batches), linked: Number(row.linked_batches), pct: Number(row.coverage_pct) });
+    })();
+  }, []);
+
+
 
   const now = new Date();
   const competenciaLabel = `${MONTHS_PT_FULL[now.getMonth()]} ${now.getFullYear()}`;
@@ -994,6 +1008,33 @@ export default function BiDiretoria() {
           </div>
         </div>
       </div>
+
+      {/* ===== Cobertura de padrões de lote ===== */}
+      {patternCoverage && patternCoverage.total > 0 && (
+        <div className="rounded-2xl bg-card border border-border p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+              Cobertura de padrões de lote
+            </div>
+            <div className="mt-2 flex items-baseline gap-3">
+              <span className="text-3xl font-light tracking-tight text-foreground tabular-nums">
+                {patternCoverage.pct.toFixed(1).replace(".", ",")}%
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {patternCoverage.linked} de {patternCoverage.total} lote(s) do mês vinculados a um padrão
+              </span>
+            </div>
+          </div>
+          <a
+            href="/padroes-lote"
+            className="text-xs font-medium text-primary hover:underline whitespace-nowrap"
+          >
+            Gerenciar padrões →
+          </a>
+        </div>
+      )}
+
+
 
 
       {/* ===== Funil de aprovação ===== */}
