@@ -65,6 +65,7 @@ import type { ObservationRow } from "@/hooks/usePaymentDetailData";
 import { supabase } from "@/integrations/supabase/client";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { formatDateBR } from "@/lib/dateUtils";
+import { useHospital } from "@/contexts/HospitalContext";
 import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
 
 
