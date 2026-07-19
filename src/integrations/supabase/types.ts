@@ -4815,6 +4815,68 @@ export type Database = {
           },
         ]
       }
+      payment_batch_patterns: {
+        Row: {
+          active: boolean
+          aliases: string[]
+          avg_bruto: number | null
+          code: string
+          created_at: string
+          created_by: string | null
+          expected_convenio_group: string | null
+          expected_setor: string | null
+          hospital_id: string
+          id: string
+          label: string
+          last_seen_month: string | null
+          months_seen: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          aliases?: string[]
+          avg_bruto?: number | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expected_convenio_group?: string | null
+          expected_setor?: string | null
+          hospital_id: string
+          id?: string
+          label: string
+          last_seen_month?: string | null
+          months_seen?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          aliases?: string[]
+          avg_bruto?: number | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expected_convenio_group?: string | null
+          expected_setor?: string | null
+          hospital_id?: string
+          id?: string
+          label?: string
+          last_seen_month?: string | null
+          months_seen?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_batch_patterns_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_company_financials: {
         Row: {
           bruto: number
@@ -7050,6 +7112,7 @@ export type Database = {
           approval_pdf_path: string | null
           approved_at: string | null
           approved_by: string | null
+          batch_pattern_id: string | null
           bruto_total: number
           competence_month: string | null
           competence_months: string[]
@@ -7108,6 +7171,7 @@ export type Database = {
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          batch_pattern_id?: string | null
           bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
@@ -7166,6 +7230,7 @@ export type Database = {
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          batch_pattern_id?: string | null
           bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
@@ -7219,6 +7284,13 @@ export type Database = {
           validated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_batch_pattern_id_fkey"
+            columns: ["batch_pattern_id"]
+            isOneToOne: false
+            referencedRelation: "payment_batch_patterns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_hospital_id_fkey"
             columns: ["hospital_id"]
