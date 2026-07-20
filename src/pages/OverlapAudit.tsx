@@ -716,8 +716,18 @@ export default function OverlapAudit() {
               </ResponsiveContainer>
             </div>
 
-            {/* Mini-tabela Top 8 sem drill-down. */}
+            {/* Mini-tabela Top 8 — respeita drill-down do gráfico. */}
             <div className="overflow-x-auto">
+              {selectedPatientKey && (
+                <div className="mb-2 flex items-center gap-2 text-xs">
+                  <Badge variant="secondary">
+                    Filtro: {topPatients.find((p) => p.patient_key === selectedPatientKey)?.patient_name ?? selectedPatientKey}
+                  </Badge>
+                  <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPatientKey(null)}>
+                    Limpar ✕
+                  </Button>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -729,7 +739,9 @@ export default function OverlapAudit() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {topPatients.map((p) => {
+                  {topPatients
+                    .filter((p) => !selectedPatientKey || p.patient_key === selectedPatientKey)
+                    .map((p) => {
                     const valor = patientFinancials.get((p.patient_name ?? "").trim()) ?? 0;
                     return (
                       <TableRow key={p.patient_key}>
