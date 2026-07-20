@@ -11529,6 +11529,62 @@ export type Database = {
         }
         Relationships: []
       }
+      zeev_knowledge: {
+        Row: {
+          active: boolean | null
+          body: string
+          category: string
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          roles: string[] | null
+          route_pattern: string | null
+          search_vector: unknown
+          sort_order: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          body: string
+          category: string
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          roles?: string[] | null
+          route_pattern?: string | null
+          search_vector?: unknown
+          sort_order?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          body?: string
+          category?: string
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          roles?: string[] | null
+          route_pattern?: string | null
+          search_vector?: unknown
+          sort_order?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zeev_knowledge_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       communication_threads_v: {
@@ -13656,6 +13712,23 @@ export type Database = {
           _valid_until: string
         }
         Returns: Json
+      }
+      zeev_search_knowledge: {
+        Args: {
+          p_limit?: number
+          p_query: string
+          p_role?: string
+          p_route?: string
+        }
+        Returns: {
+          body: string
+          category: string
+          id: string
+          rank: number
+          route_pattern: string
+          tags: string[]
+          title: string
+        }[]
       }
     }
     Enums: {
