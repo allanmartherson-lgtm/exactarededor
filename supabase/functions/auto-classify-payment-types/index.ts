@@ -364,7 +364,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} forced_visita_parecer=${forcedVisitParecer} forced_non_visita_parecer=${forcedNonVisitParecer} predominance(visita=${countVisita},parecer=${countParecer}) unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -376,13 +376,16 @@ Deno.serve(async (req) => {
         auto_heuristic: autoHeuristic,
         auto_default: autoDefault,
         ambiguous_tuss: ambiguousTuss,
+        forced_visita_parecer: forcedVisitParecer,
+        forced_non_visita_parecer: forcedNonVisitParecer,
+        predominance: { visita: countVisita, parecer: countParecer },
         unchanged,
         default_item_type: defaultItemTypeCode,
         dynamic_fallback_item_type: dynamicFallbackItemTypeCode,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-
     );
+
   } catch (e: any) {
     console.error("[auto-classify-payment-types] error", e);
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
