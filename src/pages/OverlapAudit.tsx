@@ -4,7 +4,7 @@
  * Duplicidade pura: mesmo atendimento + mesmo dia + mesmo tipo (visita/parecer)
  * com ≥ N médicos distintos lançando. Não depende da regra ter rodado no lote.
  */
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,12 +112,20 @@ export default function OverlapAudit() {
     setSelectedPatientKey((prev) => (prev === key ? null : key));
     setShowAllPatients(true);
   };
+  const attendancesSectionRef = useRef<HTMLDivElement | null>(null);
   const handlePairBarClick = (payload: unknown) => {
     const pair = (payload as { pair?: string } | null)?.pair ?? null;
     if (!pair) return;
     setSelectedPair((prev) => (prev === pair ? null : pair));
     setShowPairsTable(true);
+    // Abre e rola até a seção de atendimentos para o usuário rastrear os pacientes.
+    setShowAttendances(true);
+    setAttPageSize(50);
+    setTimeout(() => {
+      attendancesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
+
 
   const audit = useOverlapAudit();
 
@@ -959,25 +967,52 @@ export default function OverlapAudit() {
         </Card>
       )}
 
-      {/* Atendimentos — colapsado + paginado */}
-      {data && data.by_attendance.length > 0 && (
-        <Card>
+      {/* Atendimentos — colapsado + paginado. Se um par foi selecionado no
+          gráfico acima, esta seção filtra automaticamente para os atendimentos
+          em que os dois médicos aparecem juntos — permite rastrear pacientes. */}
+      {data && data.by_attendance.length > 0 && (() => {
+        const pairKeys = selectedPair
+          ? selectedPair.split("||").length === 2
+            ? selectedPair.split("||")
+            : (() => {
+                // topPairs usa pair label; recuperar keys a partir do doctorPairs
+                const found = doctorPairs.find((p) => p.pair === selectedPair);
+                if (!found) return null;
+                return selectedPair.split(" × ").map((s) => normDoctor(s));
+              })()
+          : null;
+        const filteredAttendances = pairKeys && pairKeys.length === 2
+          ? data.by_attendance.filter((r) => {
+              const keys = new Set((r.doctors ?? []).map((d) => normDoctor(d)));
+              return keys.has(pairKeys[0]) && keys.has(pairKeys[1]);
+            })
+          : data.by_attendance;
+        return (
+        <Card ref={attendancesSectionRef}>
           <CardHeader>
             <CardTitle className="text-base">Atendimentos com sobreposição no mesmo dia</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <p className="text-sm text-muted-foreground">
-                <strong>{data.by_attendance.length}</strong> atendimentos com sobreposição no período.
+                <strong>{filteredAttendances.length}</strong> atendimentos com sobreposição
+                {selectedPair ? ` para o par ${cleanPairLabel(selectedPair)}` : " no período"}.
               </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={() => setShowAttendances(!showAttendances)}
-              >
-                {showAttendances ? "Ocultar detalhes ▲" : "Ver detalhes ▼"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {selectedPair && (
+                  <Button variant="ghost" size="sm" className="h-7" onClick={() => setSelectedPair(null)}>
+                    Limpar filtro do par ✕
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => setShowAttendances(!showAttendances)}
+                >
+                  {showAttendances ? "Ocultar detalhes ▲" : "Ver detalhes ▼"}
+                </Button>
+              </div>
             </div>
 
             {showAttendances && (
@@ -997,7 +1032,14 @@ export default function OverlapAudit() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data.by_attendance.slice(0, attPageSize).map((r, i) => {
+                      {filteredAttendances.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-6">
+                            Nenhum atendimento encontrado para este par no período.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {filteredAttendances.slice(0, attPageSize).map((r, i) => {
                         const doctors = (r.doctors ?? []).map(cleanDoctorName);
                         const doctorsFull = doctors.join(", ");
                         const specialtiesFull = (r.specialties ?? []).join(" + ");
@@ -1045,14 +1087,14 @@ export default function OverlapAudit() {
                   </Table>
                 </div>
 
-                {attPageSize < data.by_attendance.length && (
+                {attPageSize < filteredAttendances.length && (
                   <div className="flex justify-center">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setAttPageSize(attPageSize + 50)}
                     >
-                      Carregar mais (mostrando {Math.min(attPageSize, data.by_attendance.length)} de {data.by_attendance.length})
+                      Carregar mais (mostrando {Math.min(attPageSize, filteredAttendances.length)} de {filteredAttendances.length})
                     </Button>
                   </div>
                 )}
@@ -1060,7 +1102,9 @@ export default function OverlapAudit() {
             )}
           </CardContent>
         </Card>
-      )}
+        );
+      })()}
+
 
       {!data && !audit.isPending && (
         <Card>
