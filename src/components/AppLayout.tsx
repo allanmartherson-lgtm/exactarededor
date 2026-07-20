@@ -765,6 +765,41 @@ export const AppLayout = () => {
     } catch {}
   }, [sidebarCollapsed]);
 
+  // Fluxo "expandir ao clicar, recolher após selecionar" (modo recolhido).
+  // - Clique em ícone (leaf ou grupo) enquanto recolhido → expande + foca o item.
+  // - Ao navegar para uma rota logo em seguida → recolhe automaticamente.
+  const autoCollapseAfterNavRef = useRef(false);
+  const [pendingFocusKey, setPendingFocusKey] = useState<string | null>(null);
+  const [expandedGroupSignal, setExpandedGroupSignal] = useState<string | null>(null);
+  const lastPathRef = useRef(location.pathname);
+  useEffect(() => {
+    if (lastPathRef.current === location.pathname) return;
+    lastPathRef.current = location.pathname;
+    if (autoCollapseAfterNavRef.current) {
+      autoCollapseAfterNavRef.current = false;
+      setExpandedGroupSignal(null);
+      setSidebarCollapsed(true);
+    }
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!pendingFocusKey || sidebarCollapsed) return;
+    const id = window.requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-nav-key="${pendingFocusKey.replace(/"/g, '\\"')}"]`,
+      );
+      el?.focus({ preventScroll: false });
+      el?.scrollIntoView({ block: "nearest" });
+      setPendingFocusKey(null);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [pendingFocusKey, sidebarCollapsed]);
+  const expandFromCollapsedIcon = (key: string, groupLabel?: string) => {
+    autoCollapseAfterNavRef.current = true;
+    setSidebarCollapsed(false);
+    if (groupLabel) setExpandedGroupSignal(groupLabel);
+    setPendingFocusKey(key);
+  };
+
   // Detect mobile (<768px) to force topbar layout on small screens regardless of saved preference.
   const [isMobile, setIsMobile] = useState<boolean>(
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
