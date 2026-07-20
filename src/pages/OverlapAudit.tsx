@@ -734,8 +734,12 @@ export default function OverlapAudit() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Par</TableHead>
-                      <TableHead className="text-right">Sobreposições</TableHead>
-                      <TableHead className="text-right">Pacientes únicos</TableHead>
+                      <TableHead className="text-right" title="Nº de atendimentos (internações) em que a dupla apareceu junta">
+                        Atendimentos em comum
+                      </TableHead>
+                      <TableHead className="text-right" title="Soma de visitas/pareceres lançados nesses atendimentos">
+                        Visitas em comum
+                      </TableHead>
                       <TableHead className="text-right">Valor estimado</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -746,7 +750,7 @@ export default function OverlapAudit() {
                       <TableRow key={p.pair}>
                         <TableCell className="font-medium">{cleanPairLabel(p.pair)}</TableCell>
                         <TableCell className="text-right">{p.count}</TableCell>
-                        <TableCell className="text-right">{p.uniquePatients}</TableCell>
+                        <TableCell className="text-right">{p.visits}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.value)}</TableCell>
                       </TableRow>
                     ))}
