@@ -117,6 +117,7 @@ const loadProcessHealth = () => import("./pages/ProcessHealth.tsx");
 const loadMedicosHub = () => import("./pages/MedicosHub.tsx");
 const loadDirectors = () => import("./pages/Directors.tsx");
 const loadCadastrosHub = () => import("./pages/CadastrosHub.tsx");
+const loadTussTable = () => import("./pages/TussTable.tsx");
 const loadBatchPatterns = () => import("./pages/BatchPatterns.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
@@ -154,6 +155,7 @@ const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
 const MedicosHub = lazy(loadMedicosHub);
 const Directors = lazy(loadDirectors);
 const CadastrosHub = lazy(loadCadastrosHub);
+const TussTable = lazy(loadTussTable);
 const BatchPatterns = lazy(loadBatchPatterns);
 const Sectors = lazy(loadSectors);
 const Convenios = lazy(loadConvenios);
@@ -399,6 +401,7 @@ const App = () => (
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
                   <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
+                  <Route path="/configuracoes/tabela-tuss" element={<ProtectedRoute roles={["diretor", "admin"]}><TussTable /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
                   <Route path="/hospitals" element={<Navigate to="/hospitais" replace />} />
