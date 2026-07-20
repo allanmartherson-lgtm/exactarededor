@@ -701,7 +701,15 @@ export default function OverlapAudit() {
                     tick={{ fontSize: 11 }}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
-                  <Bar dataKey="days" fill="#e87ba4" radius={[0, 4, 4, 0]}>
+                  <Bar
+                    dataKey="days"
+                    radius={[0, 4, 4, 0]}
+                    onClick={handlePatientBarClick}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {topPatientsChart.map((p) => (
+                      <Cell key={p.key} fill={selectedPatientKey === p.key ? "#be185d" : "#e87ba4"} />
+                    ))}
                     <LabelList dataKey="days" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
                   </Bar>
                 </BarChart>
