@@ -722,7 +722,7 @@ export default function OverlapAudit() {
               <div className="overflow-x-auto">
                 {selectedPair && (
                   <div className="mb-2 flex items-center gap-2 text-xs">
-                    <Badge variant="secondary">Filtro: {selectedPair}</Badge>
+                    <Badge variant="secondary">Filtro: {cleanPairLabel(selectedPair)}</Badge>
                     <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPair(null)}>
                       Limpar ✕
                     </Button>
