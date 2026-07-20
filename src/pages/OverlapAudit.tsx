@@ -346,6 +346,36 @@ export default function OverlapAudit() {
       .sort((a, b) => (b.pdate ?? "").localeCompare(a.pdate ?? ""));
   }, [data, expandedComboKey]);
 
+  // Intervalo (min/máx) em que CADA especialidade visitou o paciente dentro do
+  // mesmo atendimento — ajuda a localizar o registro no prontuário eletrônico.
+  // Chave: primeiro atendimento (ou paciente, quando não houver). Valor: mapa
+  // especialidade → { min, max } em ISO date.
+  const specialtyIntervalsByAttendance = useMemo(() => {
+    const out = new Map<string, Map<string, { min: string; max: string }>>();
+    for (const d of comboDrill) {
+      const attKey =
+        (d.attendances ?? [])[0] ?? `PAC:${(d.patient_name ?? "").trim()}`;
+      if (!attKey) continue;
+      let bySpec = out.get(attKey);
+      if (!bySpec) {
+        bySpec = new Map();
+        out.set(attKey, bySpec);
+      }
+      const date = d.pdate ?? "";
+      if (!date) continue;
+      for (const s of d.specialties ?? []) {
+        const prev = bySpec.get(s);
+        if (!prev) {
+          bySpec.set(s, { min: date, max: date });
+        } else {
+          if (date < prev.min) prev.min = date;
+          if (date > prev.max) prev.max = date;
+        }
+      }
+    }
+    return out;
+  }, [comboDrill]);
+
   // Valor por paciente — agregado dos atendimentos.
   const patientFinancials = useMemo(() => {
     if (!data) return new Map<string, number>();
@@ -718,7 +748,7 @@ export default function OverlapAudit() {
                         </TableRow>
                         {isOpen && (
                           <TableRow>
-                            <TableCell colSpan={8} className="bg-muted/30 p-0">
+                            <TableCell colSpan={9} className="bg-muted/30 p-0">
                               <div className="p-3 space-y-2">
                                 <div className="text-xs text-muted-foreground">
                                   <strong>{comboDrill.length}</strong> atendimento(s) em que
@@ -739,6 +769,7 @@ export default function OverlapAudit() {
                                           <TableHead className="text-xs">Atendimentos</TableHead>
                                           <TableHead className="text-xs">Médicos (com CRM)</TableHead>
                                           <TableHead className="text-xs">Especialidades</TableHead>
+                                          <TableHead className="text-xs">Intervalo por especialidade</TableHead>
                                           <TableHead className="text-xs text-right">Visitas</TableHead>
                                           <TableHead className="text-xs text-right whitespace-nowrap">Valor pago</TableHead>
                                           <TableHead className="text-xs">Lotes</TableHead>
@@ -767,6 +798,30 @@ export default function OverlapAudit() {
                                               {(d.specialties ?? []).map((s) => (
                                                 <Badge key={s} variant="outline" className="mr-1 mb-1 text-[10px]">{s}</Badge>
                                               ))}
+                                            </TableCell>
+                                            <TableCell className="text-xs align-top whitespace-normal break-words">
+                                              {(() => {
+                                                const attKey = (d.attendances ?? [])[0] ?? `PAC:${(d.patient_name ?? "").trim()}`;
+                                                const bySpec = specialtyIntervalsByAttendance.get(attKey);
+                                                const specs = d.specialties ?? [];
+                                                if (!bySpec || specs.length === 0) return "—";
+                                                return (
+                                                  <ul className="space-y-0.5">
+                                                    {specs.map((s) => {
+                                                      const iv = bySpec.get(s);
+                                                      if (!iv) return null;
+                                                      const label = iv.min === iv.max
+                                                        ? fmtDate(iv.min)
+                                                        : `${fmtDate(iv.min)} a ${fmtDate(iv.max)}`;
+                                                      return (
+                                                        <li key={s}>
+                                                          <span className="font-medium">{s}:</span> {label}
+                                                        </li>
+                                                      );
+                                                    })}
+                                                  </ul>
+                                                );
+                                              })()}
                                             </TableCell>
                                             <TableCell className="text-xs text-right align-top">{d.items}</TableCell>
                                             <TableCell className="text-xs text-right whitespace-nowrap align-top">
