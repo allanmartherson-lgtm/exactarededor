@@ -156,6 +156,34 @@ export default function OverlapAudit() {
     );
   }, [data, expandedPatient]);
 
+  // Totais recomputados a partir de by_attendance — garante que os KPIs
+  // reflitam exatamente o período/filtro aplicado. O RPC devolve totais que,
+  // em alguns cortes, misturam soma-de-dias-por-paciente com dias corridos e
+  // confundem a leitura executiva.
+  const periodTotals = useMemo(() => {
+    if (!data) return { patients: 0, days: 0, attendances: 0, items: 0 };
+    const patients = new Set<string>();
+    const days = new Set<string>();
+    const attendances = new Set<string>();
+    let items = 0;
+    for (const r of data.by_attendance) {
+      const pn = (r.patient_name ?? "").trim();
+      if (pn) patients.add(pn);
+      const d = r.pdate?.slice(0, 10);
+      if (d) days.add(d);
+      for (const a of r.attendances ?? []) {
+        if (a) attendances.add(String(a));
+      }
+      items += Number(r.items ?? 0);
+    }
+    return {
+      patients: patients.size,
+      days: days.size,
+      attendances: attendances.size || data.by_attendance.length,
+      items,
+    };
+  }, [data]);
+
   // KPIs financeiros — somatório de valor em risco e média diária.
   const financialTotals = useMemo(() => {
     if (!data) return { totalValue: 0, avgPerDay: 0 };
@@ -173,6 +201,7 @@ export default function OverlapAudit() {
       avgPerDay: distinctDays > 0 ? totalValue / distinctDays : 0,
     };
   }, [data]);
+
 
   // Distribuição diária para o gráfico de barras.
   const dailyData = useMemo(() => {
@@ -195,6 +224,19 @@ export default function OverlapAudit() {
   }, [dailyData]);
 
   // Pares de médicos mais frequentes — combinatória 2 a 2 por atendimento.
+  // Deduplicamos por chave normalizada (sem acento, sem sufixo "CRM 12345",
+  // sem pontuação) para que "Felipe Borelli" e "Felipe Borelli CRM 29367"
+  // não apareçam como dois médicos distintos formando par consigo mesmo.
+  const normDoctor = (s: string): string =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\bcrm[\s:.-]*\d+\b/gi, "")
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
   const doctorPairs = useMemo(() => {
     if (!data) return [];
     const pairMap = new Map<
@@ -202,21 +244,33 @@ export default function OverlapAudit() {
       { pair: string; count: number; value: number; patients: Set<string> }
     >();
     for (const r of data.by_attendance) {
-      const docs = r.doctors ?? [];
-      if (docs.length < 2) continue;
-      for (let i = 0; i < docs.length; i++) {
-        for (let j = i + 1; j < docs.length; j++) {
-          const pair = [docs[i], docs[j]].sort().join(" × ");
-          const cur = pairMap.get(pair) ?? {
-            pair,
+      const docsRaw = r.doctors ?? [];
+      // Dedup por médico normalizado dentro do atendimento — mantém o rótulo
+      // mais legível (mais longo) para exibir.
+      const byKey = new Map<string, string>();
+      for (const d of docsRaw) {
+        const k = normDoctor(d);
+        if (!k) continue;
+        const prev = byKey.get(k);
+        if (!prev || d.length > prev.length) byKey.set(k, d);
+      }
+      const keys = Array.from(byKey.keys());
+      const labels = keys.map((k) => byKey.get(k) as string);
+      if (keys.length < 2) continue;
+      for (let i = 0; i < keys.length; i++) {
+        for (let j = i + 1; j < keys.length; j++) {
+          const pairKey = [keys[i], keys[j]].sort().join("||");
+          const pairLabel = [labels[i], labels[j]].sort().join(" × ");
+          const cur = pairMap.get(pairKey) ?? {
+            pair: pairLabel,
             count: 0,
             value: 0,
             patients: new Set<string>(),
           };
           cur.count += 1;
-          cur.value += Number(r.total_gross ?? 0) / Math.max(1, docs.length - 1);
+          cur.value += Number(r.total_gross ?? 0) / Math.max(1, keys.length - 1);
           cur.patients.add(r.patient_name ?? "");
-          pairMap.set(pair, cur);
+          pairMap.set(pairKey, cur);
         }
       }
     }
@@ -224,6 +278,7 @@ export default function OverlapAudit() {
       .map((p) => ({ ...p, uniquePatients: p.patients.size }))
       .sort((a, b) => b.count - a.count);
   }, [data]);
+
 
   // Valor por combinação de especialidades — RPC não retorna, calculamos aqui.
   const comboFinancials = useMemo(() => {
@@ -256,7 +311,7 @@ export default function OverlapAudit() {
 
     const lines: string[] = [];
     lines.push(
-      `Em ${data.totals.days} dias analisados, ${data.totals.patients} pacientes apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco.`,
+      `Em ${periodTotals.days} dias analisados, ${periodTotals.patients} pacientes apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco.`,
     );
     if (topCombo) {
       lines.push(
@@ -395,10 +450,11 @@ export default function OverlapAudit() {
       )}
       {data && !audit.isPending && (
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          <KpiCard label="Pacientes" value={String(data.totals.patients)} />
-          <KpiCard label="Dias" value={String(data.totals.days)} />
-          <KpiCard label="Atendimentos" value={String(data.totals.attendances)} />
-          <KpiCard label="Lançamentos" value={String(data.totals.items)} />
+          <KpiCard label="Pacientes" value={String(periodTotals.patients)} />
+          <KpiCard label="Dias" value={String(periodTotals.days)} />
+          <KpiCard label="Atendimentos" value={String(periodTotals.attendances)} />
+          <KpiCard label="Lançamentos" value={String(periodTotals.items)} />
+
           <KpiCard label="Valor em risco" value={formatCurrency(financialTotals.totalValue)} />
           <KpiCard label="Média/dia" value={formatCurrency(financialTotals.avgPerDay)} />
         </div>
