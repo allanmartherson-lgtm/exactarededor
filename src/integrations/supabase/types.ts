@@ -11165,6 +11165,27 @@ export type Database = {
           },
         ]
       }
+      tuss_procedure_names: {
+        Row: {
+          canonical_name: string
+          code: string
+          created_at: string | null
+          source: string | null
+        }
+        Insert: {
+          canonical_name: string
+          code: string
+          created_at?: string | null
+          source?: string | null
+        }
+        Update: {
+          canonical_name?: string
+          code?: string
+          created_at?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       user_active_hospital: {
         Row: {
           hospital_id: string
