@@ -325,11 +325,11 @@ export default function OverlapAudit() {
 
     const lines: string[] = [];
     lines.push(
-      `Em ${periodTotals.days} dias analisados, ${periodTotals.patients} pacientes apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco.`,
+      `Em ${periodTotals.days} dias analisados, ${periodTotals.attendances} atendimentos apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco (somando apenas visitas e pareceres).`,
     );
     if (topCombo) {
       lines.push(
-        `A combinação mais frequente é ${topCombo.combo_label} (${topCombo.days} dias, ${topCombo.patients} pacientes).`,
+        `A combinação mais frequente é ${topCombo.combo_label} (${topCombo.days} dias, ${topCombo.attendances} atendimentos).`,
       );
     }
     if (topPatient) {
