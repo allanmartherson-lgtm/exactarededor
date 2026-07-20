@@ -625,11 +625,10 @@ export default function OverlapAudit() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Combinação</TableHead>
-                      <TableHead className="text-right">Pacientes</TableHead>
-                      <TableHead className="text-right">Dias</TableHead>
-                      <TableHead className="text-right">Atendimentos</TableHead>
-                      <TableHead className="text-right">Lançamentos</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-right" title="Dias corridos distintos em que a combinação apareceu.">Dias</TableHead>
+                      <TableHead className="text-right" title="Atendimentos (internações) distintos. Cada atendimento = 1 episódio do paciente.">Atendimentos</TableHead>
+                      <TableHead className="text-right" title="Soma de visitas e pareceres lançados nesses atendimentos.">Visitas</TableHead>
+                      <TableHead className="text-right" title="Somatório do bruto apenas dos itens pesquisados (visitas e pareceres). Não inclui outros procedimentos do atendimento.">Valor</TableHead>
                       <TableHead>Último dia</TableHead>
                       <TableHead>Exemplos</TableHead>
                     </TableRow>
