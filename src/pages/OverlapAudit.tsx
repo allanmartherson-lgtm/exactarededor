@@ -86,6 +86,7 @@ export default function OverlapAudit() {
   const [excludedSpecs, setExcludedSpecs] = useState<string[]>(["infectologia"]);
   const [data, setData] = useState<OverlapAuditResult | null>(null);
   const [expandedPatient, setExpandedPatient] = useState<string | null>(null);
+  const [expandedComboKey, setExpandedComboKey] = useState<string | null>(null);
 
   // Toggles de colapso — leadership vê topo/gráficos por padrão.
   const [showAllCombos, setShowAllCombos] = useState(false);
@@ -302,6 +303,16 @@ export default function OverlapAudit() {
   }, [data]);
 
 
+  // Normalização de especialidade — usada para casar combo ↔ atendimento.
+  const normSpec = (s: string): string =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
   // Valor por combinação de especialidades — RPC não retorna, calculamos aqui.
   const comboFinancials = useMemo(() => {
     if (!data) return new Map<string, number>();
@@ -312,6 +323,28 @@ export default function OverlapAudit() {
     }
     return map;
   }, [data]);
+
+  // Drill-down por combinação — filtra os atendimentos cujo conjunto de
+  // especialidades corresponde exatamente ao combo (mesma cardinalidade e
+  // mesmos rótulos normalizados). Fornece rastreabilidade auditável:
+  // paciente, atendimentos, médicos, especialidades, visitas e valor.
+  const comboDrill = useMemo(() => {
+    if (!data || !expandedComboKey) return [];
+    const combo = data.by_specialty_combo.find((c) => c.combo_key === expandedComboKey);
+    if (!combo) return [];
+    const wantedTokens = (combo.combo_label ?? "")
+      .split(" + ")
+      .map((s) => normSpec(s))
+      .filter(Boolean)
+      .sort();
+    const wantedKey = wantedTokens.join("|");
+    return data.by_attendance
+      .filter((r) => {
+        const toks = (r.specialties ?? []).map((s) => normSpec(s)).filter(Boolean).sort();
+        return toks.join("|") === wantedKey;
+      })
+      .sort((a, b) => (b.pdate ?? "").localeCompare(a.pdate ?? ""));
+  }, [data, expandedComboKey]);
 
   // Valor por paciente — agregado dos atendimentos.
   const patientFinancials = useMemo(() => {
@@ -639,6 +672,7 @@ export default function OverlapAudit() {
                       <TableHead className="text-right" title="Somatório do bruto apenas dos itens pesquisados (visitas e pareceres). Não inclui outros procedimentos do atendimento.">Valor</TableHead>
                       <TableHead>Último dia</TableHead>
                       <TableHead>Exemplos</TableHead>
+                      <TableHead className="w-[110px]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -651,8 +685,10 @@ export default function OverlapAudit() {
                           new Set(combo.split(" + ").map((s) => s.trim())).size
                         : false;
                       const valor = comboFinancials.get(combo) ?? 0;
+                      const isOpen = expandedComboKey === r.combo_key;
                       return (
-                        <TableRow key={r.combo_key}>
+                        <Fragment key={r.combo_key}>
+                        <TableRow>
                           <TableCell className="font-medium">
                             {combo}
                             {isMesma && (
@@ -670,7 +706,100 @@ export default function OverlapAudit() {
                           <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate">
                             {(r.sample_attendances ?? []).slice(0, 5).join(", ")}
                           </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedComboKey(isOpen ? null : r.combo_key)}
+                            >
+                              {isOpen ? "Ocultar" : "Ver detalhes"}
+                            </Button>
+                          </TableCell>
                         </TableRow>
+                        {isOpen && (
+                          <TableRow>
+                            <TableCell colSpan={8} className="bg-muted/30 p-0">
+                              <div className="p-3 space-y-2">
+                                <div className="text-xs text-muted-foreground">
+                                  <strong>{comboDrill.length}</strong> atendimento(s) em que
+                                  ocorreu esta combinação. Rastreamento por paciente, médicos
+                                  (com CRM) e lote.
+                                </div>
+                                {comboDrill.length === 0 ? (
+                                  <div className="text-xs text-muted-foreground italic">
+                                    Nenhum atendimento detalhado disponível para esta combinação.
+                                  </div>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
+                                          <TableHead className="text-xs">Paciente</TableHead>
+                                          <TableHead className="text-xs">Atendimentos</TableHead>
+                                          <TableHead className="text-xs">Médicos (com CRM)</TableHead>
+                                          <TableHead className="text-xs">Especialidades</TableHead>
+                                          <TableHead className="text-xs text-right">Visitas</TableHead>
+                                          <TableHead className="text-xs text-right whitespace-nowrap">Valor pago</TableHead>
+                                          <TableHead className="text-xs">Lotes</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {comboDrill.map((d, idx) => (
+                                          <TableRow key={`${r.combo_key}-drill-${idx}`}>
+                                            <TableCell className="text-xs whitespace-nowrap align-top">{fmtDate(d.pdate)}</TableCell>
+                                            <TableCell className="text-xs align-top whitespace-normal break-words">
+                                              {d.patient_name || "—"}
+                                            </TableCell>
+                                            <TableCell className="text-xs align-top whitespace-normal break-words">
+                                              {(d.attendances ?? []).join(", ") || "—"}
+                                            </TableCell>
+                                            <TableCell className="text-xs align-top whitespace-normal break-words">
+                                              {(d.doctors ?? []).length === 0 ? "—" : (
+                                                <ul className="space-y-0.5">
+                                                  {(d.doctors ?? []).map((doc, i) => (
+                                                    <li key={i}>{doc}</li>
+                                                  ))}
+                                                </ul>
+                                              )}
+                                            </TableCell>
+                                            <TableCell className="text-xs align-top">
+                                              {(d.specialties ?? []).map((s) => (
+                                                <Badge key={s} variant="outline" className="mr-1 mb-1 text-[10px]">{s}</Badge>
+                                              ))}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-right align-top">{d.items}</TableCell>
+                                            <TableCell className="text-xs text-right whitespace-nowrap align-top">
+                                              {formatCurrency(Number(d.total_gross ?? 0))}
+                                            </TableCell>
+                                            <TableCell className="text-xs align-top">
+                                              {(d.payment_ids ?? []).length === 0 ? "—" : (
+                                                <div className="flex flex-wrap gap-1">
+                                                  {(d.payment_ids ?? []).map((pid) => (
+                                                    <Link
+                                                      key={pid}
+                                                      to={`/pagamentos/${pid}`}
+                                                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                      title={pid}
+                                                    >
+                                                      <ExternalLink className="h-3 w-3" />
+                                                      {pid.slice(0, 8)}
+                                                    </Link>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        </Fragment>
                       );
                     })}
                   </TableBody>
