@@ -613,9 +613,14 @@ export default function OverlapAudit() {
                     formatter={(value: number) => [value, "Sobreposições"]}
                     labelFormatter={(label: string) => label}
                   />
-                  <Bar dataKey="count" fill="#e87ba4" radius={[0, 4, 4, 0]}>
-                    {topPairs.map((_, i) => (
-                      <Cell key={i} fill="#e87ba4" />
+                  <Bar
+                    dataKey="count"
+                    radius={[0, 4, 4, 0]}
+                    onClick={handlePairBarClick}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {topPairs.map((p) => (
+                      <Cell key={p.pair} fill={selectedPair === p.pair ? "#be185d" : "#e87ba4"} />
                     ))}
                     <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
                   </Bar>
