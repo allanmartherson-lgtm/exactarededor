@@ -799,6 +799,30 @@ export default function OverlapAudit() {
                                                 <Badge key={s} variant="outline" className="mr-1 mb-1 text-[10px]">{s}</Badge>
                                               ))}
                                             </TableCell>
+                                            <TableCell className="text-xs align-top whitespace-normal break-words">
+                                              {(() => {
+                                                const attKey = (d.attendances ?? [])[0] ?? `PAC:${(d.patient_name ?? "").trim()}`;
+                                                const bySpec = specialtyIntervalsByAttendance.get(attKey);
+                                                const specs = d.specialties ?? [];
+                                                if (!bySpec || specs.length === 0) return "—";
+                                                return (
+                                                  <ul className="space-y-0.5">
+                                                    {specs.map((s) => {
+                                                      const iv = bySpec.get(s);
+                                                      if (!iv) return null;
+                                                      const label = iv.min === iv.max
+                                                        ? fmtDate(iv.min)
+                                                        : `${fmtDate(iv.min)} a ${fmtDate(iv.max)}`;
+                                                      return (
+                                                        <li key={s}>
+                                                          <span className="font-medium">{s}:</span> {label}
+                                                        </li>
+                                                      );
+                                                    })}
+                                                  </ul>
+                                                );
+                                              })()}
+                                            </TableCell>
                                             <TableCell className="text-xs text-right align-top">{d.items}</TableCell>
                                             <TableCell className="text-xs text-right whitespace-nowrap align-top">
                                               {formatCurrency(Number(d.total_gross ?? 0))}
