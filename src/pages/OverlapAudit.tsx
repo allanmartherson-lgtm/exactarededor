@@ -653,7 +653,7 @@ export default function OverlapAudit() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">{r.patients}</TableCell>
+                          
                           <TableCell className="text-right">{r.days}</TableCell>
                           <TableCell className="text-right">{r.attendances}</TableCell>
                           <TableCell className="text-right">{r.items}</TableCell>
