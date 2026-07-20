@@ -691,7 +691,7 @@ export default function OverlapAudit() {
                     interval={0}
                   />
                   <Tooltip
-                    formatter={(value: number) => [value, "Sobreposições"]}
+                    formatter={(value: number) => [value, "Atendimentos em comum"]}
                     labelFormatter={(label: string) => label}
                   />
                   <Bar
