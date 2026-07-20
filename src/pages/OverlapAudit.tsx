@@ -325,11 +325,11 @@ export default function OverlapAudit() {
 
     const lines: string[] = [];
     lines.push(
-      `Em ${periodTotals.days} dias analisados, ${periodTotals.patients} pacientes apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco.`,
+      `Em ${periodTotals.days} dias analisados, ${periodTotals.attendances} atendimentos apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco (somando apenas visitas e pareceres).`,
     );
     if (topCombo) {
       lines.push(
-        `A combinação mais frequente é ${topCombo.combo_label} (${topCombo.days} dias, ${topCombo.patients} pacientes).`,
+        `A combinação mais frequente é ${topCombo.combo_label} (${topCombo.days} dias, ${topCombo.attendances} atendimentos).`,
       );
     }
     if (topPatient) {
@@ -467,14 +467,22 @@ export default function OverlapAudit() {
         </div>
       )}
       {data && !audit.isPending && (
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          <KpiCard label="Pacientes" value={String(periodTotals.patients)} />
-          <KpiCard label="Dias" value={String(periodTotals.days)} />
-          <KpiCard label="Atendimentos" value={String(periodTotals.attendances)} />
-          <KpiCard label="Lançamentos" value={String(periodTotals.items)} />
-
-          <KpiCard label="Valor em risco" value={formatCurrency(financialTotals.totalValue)} />
-          <KpiCard label="Média/dia" value={formatCurrency(financialTotals.avgPerDay)} />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div title="Cada atendimento = uma internação/episódio do paciente. Reinternações contam separadas.">
+            <KpiCard label="Atendimentos" value={String(periodTotals.attendances)} />
+          </div>
+          <div title="Dias corridos distintos em que houve sobreposição.">
+            <KpiCard label="Dias" value={String(periodTotals.days)} />
+          </div>
+          <div title="Soma de visitas e pareceres lançados nos atendimentos com sobreposição.">
+            <KpiCard label="Visitas" value={String(periodTotals.items)} />
+          </div>
+          <div title="Somatório do bruto apenas dos itens pesquisados (visitas e pareceres). Não inclui outros procedimentos do atendimento.">
+            <KpiCard label="Valor em risco" value={formatCurrency(financialTotals.totalValue)} />
+          </div>
+          <div title="Valor em risco dividido pelos dias com sobreposição no período.">
+            <KpiCard label="Média/dia" value={formatCurrency(financialTotals.avgPerDay)} />
+          </div>
         </div>
       )}
 
@@ -617,11 +625,10 @@ export default function OverlapAudit() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Combinação</TableHead>
-                      <TableHead className="text-right">Pacientes</TableHead>
-                      <TableHead className="text-right">Dias</TableHead>
-                      <TableHead className="text-right">Atendimentos</TableHead>
-                      <TableHead className="text-right">Lançamentos</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-right" title="Dias corridos distintos em que a combinação apareceu.">Dias</TableHead>
+                      <TableHead className="text-right" title="Atendimentos (internações) distintos. Cada atendimento = 1 episódio do paciente.">Atendimentos</TableHead>
+                      <TableHead className="text-right" title="Soma de visitas e pareceres lançados nesses atendimentos.">Visitas</TableHead>
+                      <TableHead className="text-right" title="Somatório do bruto apenas dos itens pesquisados (visitas e pareceres). Não inclui outros procedimentos do atendimento.">Valor</TableHead>
                       <TableHead>Último dia</TableHead>
                       <TableHead>Exemplos</TableHead>
                     </TableRow>
@@ -646,7 +653,7 @@ export default function OverlapAudit() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">{r.patients}</TableCell>
+                          
                           <TableCell className="text-right">{r.days}</TableCell>
                           <TableCell className="text-right">{r.attendances}</TableCell>
                           <TableCell className="text-right">{r.items}</TableCell>
@@ -984,8 +991,8 @@ export default function OverlapAudit() {
                         <TableHead className="w-[110px] text-xs px-2 py-1.5 align-top">Atendimentos</TableHead>
                         <TableHead className="w-[240px] text-xs px-2 py-1.5 align-top">Médicos</TableHead>
                         <TableHead className="w-[220px] text-xs px-2 py-1.5 align-top">Especialidades</TableHead>
-                        <TableHead className="w-[50px] text-center text-xs px-2 py-1.5 align-top">Lançamentos</TableHead>
-                        <TableHead className="w-[90px] text-right whitespace-nowrap text-xs px-2 py-1.5 align-top">Valor pago</TableHead>
+                        <TableHead className="w-[50px] text-center text-xs px-2 py-1.5 align-top" title="Visitas/pareceres lançados neste atendimento.">Visitas</TableHead>
+                        <TableHead className="w-[90px] text-right whitespace-nowrap text-xs px-2 py-1.5 align-top" title="Somatório do bruto apenas dos itens pesquisados (visitas e pareceres).">Valor pago</TableHead>
                         <TableHead className="text-xs px-2 py-1.5 align-top">Lotes</TableHead>
                       </TableRow>
                     </TableHeader>
