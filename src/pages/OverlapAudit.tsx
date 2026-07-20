@@ -4,7 +4,7 @@
  * Duplicidade pura: mesmo atendimento + mesmo dia + mesmo tipo (visita/parecer)
  * com ≥ N médicos distintos lançando. Não depende da regra ter rodado no lote.
  */
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
