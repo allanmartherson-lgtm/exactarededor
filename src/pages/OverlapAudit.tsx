@@ -761,7 +761,7 @@ export default function OverlapAudit() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Pacientes com mais dias em sobreposição — Top {topPatients.length}
+              Pacientes com mais dias de sobreposição
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
