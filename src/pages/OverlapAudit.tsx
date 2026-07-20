@@ -467,14 +467,22 @@ export default function OverlapAudit() {
         </div>
       )}
       {data && !audit.isPending && (
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          <KpiCard label="Pacientes" value={String(periodTotals.patients)} />
-          <KpiCard label="Dias" value={String(periodTotals.days)} />
-          <KpiCard label="Atendimentos" value={String(periodTotals.attendances)} />
-          <KpiCard label="Lançamentos" value={String(periodTotals.items)} />
-
-          <KpiCard label="Valor em risco" value={formatCurrency(financialTotals.totalValue)} />
-          <KpiCard label="Média/dia" value={formatCurrency(financialTotals.avgPerDay)} />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div title="Cada atendimento = uma internação/episódio do paciente. Reinternações contam separadas.">
+            <KpiCard label="Atendimentos" value={String(periodTotals.attendances)} />
+          </div>
+          <div title="Dias corridos distintos em que houve sobreposição.">
+            <KpiCard label="Dias" value={String(periodTotals.days)} />
+          </div>
+          <div title="Soma de visitas e pareceres lançados nos atendimentos com sobreposição.">
+            <KpiCard label="Visitas" value={String(periodTotals.items)} />
+          </div>
+          <div title="Somatório do bruto apenas dos itens pesquisados (visitas e pareceres). Não inclui outros procedimentos do atendimento.">
+            <KpiCard label="Valor em risco" value={formatCurrency(financialTotals.totalValue)} />
+          </div>
+          <div title="Valor em risco dividido pelos dias com sobreposição no período.">
+            <KpiCard label="Média/dia" value={formatCurrency(financialTotals.avgPerDay)} />
+          </div>
         </div>
       )}
 
