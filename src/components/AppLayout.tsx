@@ -507,6 +507,8 @@ function SidebarGroupItem({
   collapsed,
   renderSideLink,
   isFirst,
+  onCollapsedIconClick,
+  forceOpenSignal,
 }: {
   group: Extract<NavItem, { children: unknown }>;
   collapsed: boolean;
@@ -518,6 +520,8 @@ function SidebarGroupItem({
     collapsed?: boolean,
   ) => React.ReactNode;
   isFirst: boolean;
+  onCollapsedIconClick?: (groupLabel: string) => void;
+  forceOpenSignal?: string | null;
 }) {
   const location = useLocation();
   const groupActive = group.children.some((c) =>
