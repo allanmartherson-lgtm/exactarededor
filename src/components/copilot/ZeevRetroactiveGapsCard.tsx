@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, CalendarClock, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospital } from "@/contexts/HospitalContext";
@@ -10,7 +10,6 @@ type PayRow = {
   reference: string | null;
   competence_month: string | null;
   payment_type: string | null;
-  // Fonte canônica única (D3.e.4 — coluna legada removida).
   payment_model_id: string | null;
 };
 
@@ -22,19 +21,22 @@ type Gap = {
   monthLabel: string;
 };
 
+type GroupedGap = {
+  payment_type: string;
+  payment_model_id: string | null;
+  gaps: Gap[]; // ordenados por mês asc
+};
+
 interface Props {
   onActed?: () => void;
 }
 
-/**
- * Detecta gaps de competência por tipo de pagamento no hospital ativo
- * e propõe criar o lote faltante (Fase 3.2 leve — leva pro NewManualPayment com prefill).
- */
 export function ZeevRetroactiveGapsCard({ onActed }: Props) {
   const { hospital } = useHospital();
   const navigate = useNavigate();
   const [rows, setRows] = useState<PayRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (!hospital?.id) {
@@ -45,7 +47,6 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      // últimos 12 meses; ignora pagamentos cancelados
       const cutoff = new Date();
       cutoff.setMonth(cutoff.getMonth() - 12);
       cutoff.setDate(1);
@@ -71,7 +72,6 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
 
   const gaps: Gap[] = useMemo(() => {
     if (!rows || rows.length === 0) return [];
-    // agrupa por payment_type (string legível). Só considera tipos com ≥2 lotes históricos.
     const byType = new Map<string, { model_id: string | null; months: Set<string> }>();
     for (const r of rows) {
       const t = (r.payment_type ?? "").trim();
@@ -90,31 +90,55 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
       const [y, m] = k.split("-");
       return `${m}/${y}`;
     };
-    const today = new Date();
-    today.setDate(1);
     for (const [type, entry] of byType.entries()) {
-      if (entry.months.size < 2) continue;
+      // Exige ≥3 meses de histórico para considerar padrão
+      if (entry.months.size < 3) continue;
       const sorted = [...entry.months].sort();
       const first = new Date(sorted[0]);
-      const last = today; // detecta gaps até o mês atual
+      // Limite = último mês com dado real (não extrapola até hoje)
+      const last = new Date(sorted[sorted.length - 1]);
       const cursor = new Date(first);
       while (cursor <= last) {
         const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-01`;
         if (!entry.months.has(key)) {
-          out.push({
-            key: `${type}::${key}`,
-            payment_type: type,
-            payment_model_id: entry.model_id,
-            month: key,
-            monthLabel: fmt(key),
-          });
+          // Garante buraco genuíno: existe mês com dado antes E depois
+          const hasBefore = sorted.some((m) => m < key);
+          const hasAfter = sorted.some((m) => m > key);
+          if (hasBefore && hasAfter) {
+            out.push({
+              key: `${type}::${key}`,
+              payment_type: type,
+              payment_model_id: entry.model_id,
+              month: key,
+              monthLabel: fmt(key),
+            });
+          }
         }
         cursor.setMonth(cursor.getMonth() + 1);
       }
     }
-    // ordena: mais antigos primeiro (mais urgentes pra retroativo)
-    return out.sort((a, b) => a.month.localeCompare(b.month)).slice(0, 8);
+    return out.sort((a, b) => a.month.localeCompare(b.month));
   }, [rows]);
+
+  const grouped: GroupedGap[] = useMemo(() => {
+    const map = new Map<string, GroupedGap>();
+    for (const g of gaps) {
+      const existing = map.get(g.payment_type);
+      if (existing) {
+        existing.gaps.push(g);
+      } else {
+        map.set(g.payment_type, {
+          payment_type: g.payment_type,
+          payment_model_id: g.payment_model_id,
+          gaps: [g],
+        });
+      }
+    }
+    return [...map.values()].map((g) => ({
+      ...g,
+      gaps: g.gaps.sort((a, b) => a.month.localeCompare(b.month)),
+    }));
+  }, [gaps]);
 
   if (loading) {
     return (
@@ -137,8 +161,6 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
 
   const handleCreate = (g: Gap) => {
     const params = new URLSearchParams();
-    // NewManualPayment ainda lê `payment_type_id` da query (alias legado);
-    // passa o `payment_model_id` no mesmo slot — IDs são unificados.
     if (g.payment_model_id) params.set("payment_type_id", g.payment_model_id);
     params.set("competence_month", g.month);
     params.set("import_mode", "historico");
@@ -146,36 +168,53 @@ export function ZeevRetroactiveGapsCard({ onActed }: Props) {
     onActed?.();
   };
 
+  const totalGaps = gaps.length;
+  const totalTypes = grouped.length;
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span>Lotes faltantes detectados</span>
-        <span className="text-foreground/60">{gaps.length}</span>
-      </div>
-      <ul className="space-y-1.5">
-        {gaps.map((g) => (
-          <li
-            key={g.key}
-            className="rounded-lg border border-amber-300 bg-amber-50/40 dark:border-amber-900 dark:bg-amber-950/20 p-2.5 flex items-center gap-2.5"
-          >
-            <CalendarClock className="h-4 w-4 text-foreground/70 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-semibold leading-tight truncate" title={g.payment_type}>
-                {g.payment_type}
-              </div>
-              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                Falta competência <strong className="text-foreground">{g.monthLabel}</strong>
-              </div>
-            </div>
-            <Button size="sm" className="h-6 text-[10px] px-2 shrink-0" onClick={() => handleCreate(g)}>
-              Criar lote <ArrowRight className="h-2.5 w-2.5 ml-1" />
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <p className="text-[10px] text-muted-foreground italic leading-snug">
-        Cada botão abre o lançamento manual já pré-preenchido em modo histórico (não grava aliases auto).
-      </p>
+    <div className="rounded-lg border border-border bg-transparent">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/40 rounded-lg transition-colors"
+      >
+        <span className="text-[12px] text-foreground">
+          <strong>{totalGaps}</strong> {totalGaps === 1 ? "competência faltante" : "competências faltantes"} em{" "}
+          <strong>{totalTypes}</strong> {totalTypes === 1 ? "tipo" : "tipos"}
+        </span>
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+          Ver detalhes
+          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </span>
+      </button>
+      {expanded && (
+        <ul className="divide-y divide-border border-t border-border">
+          {grouped.map((grp) => {
+            const oldest = grp.gaps[0];
+            const label = grp.gaps.map((g) => g.monthLabel).join(", ");
+            return (
+              <li key={grp.payment_type} className="flex items-center gap-2.5 px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-medium text-foreground truncate" title={grp.payment_type}>
+                    {grp.payment_type}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                    falta {label}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[10px] px-2 shrink-0"
+                  onClick={() => handleCreate(oldest)}
+                >
+                  {grp.gaps.length > 1 ? "Criar lote (mais antigo)" : "Criar lote"}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
