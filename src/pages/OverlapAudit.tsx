@@ -251,14 +251,17 @@ export default function OverlapAudit() {
 
   const doctorPairs = useMemo(() => {
     if (!data) return [];
+    // Cada atendimento = uma internação (unidade paciente-episódio). Reinternações
+    // do mesmo paciente contam como atendimentos distintos.
+    // - count   = atendimentos em que a dupla apareceu junta
+    // - visits  = soma de lançamentos (visitas/pareceres) desses atendimentos
+    //             (proxy razoável de "visitas em comum")
     const pairMap = new Map<
       string,
-      { pair: string; count: number; value: number; patients: Set<string> }
+      { pair: string; count: number; visits: number; value: number }
     >();
     for (const r of data.by_attendance) {
       const docsRaw = r.doctors ?? [];
-      // Dedup por médico normalizado dentro do atendimento — mantém o rótulo
-      // mais legível (mais longo) para exibir.
       const byKey = new Map<string, string>();
       for (const d of docsRaw) {
         const k = normDoctor(d);
@@ -269,6 +272,7 @@ export default function OverlapAudit() {
       const keys = Array.from(byKey.keys());
       const labels = keys.map((k) => byKey.get(k) as string);
       if (keys.length < 2) continue;
+      const rowItems = Number(r.items ?? 0);
       for (let i = 0; i < keys.length; i++) {
         for (let j = i + 1; j < keys.length; j++) {
           const pairKey = [keys[i], keys[j]].sort().join("||");
@@ -276,19 +280,17 @@ export default function OverlapAudit() {
           const cur = pairMap.get(pairKey) ?? {
             pair: pairLabel,
             count: 0,
+            visits: 0,
             value: 0,
-            patients: new Set<string>(),
           };
           cur.count += 1;
+          cur.visits += rowItems;
           cur.value += Number(r.total_gross ?? 0) / Math.max(1, keys.length - 1);
-          cur.patients.add(r.patient_name ?? "");
           pairMap.set(pairKey, cur);
         }
       }
     }
-    return Array.from(pairMap.values())
-      .map((p) => ({ ...p, uniquePatients: p.patients.size }))
-      .sort((a, b) => b.count - a.count);
+    return Array.from(pairMap.values()).sort((a, b) => b.count - a.count);
   }, [data]);
 
 
