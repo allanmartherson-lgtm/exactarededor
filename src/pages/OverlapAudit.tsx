@@ -112,12 +112,20 @@ export default function OverlapAudit() {
     setSelectedPatientKey((prev) => (prev === key ? null : key));
     setShowAllPatients(true);
   };
+  const attendancesSectionRef = useRef<HTMLDivElement | null>(null);
   const handlePairBarClick = (payload: unknown) => {
     const pair = (payload as { pair?: string } | null)?.pair ?? null;
     if (!pair) return;
     setSelectedPair((prev) => (prev === pair ? null : pair));
     setShowPairsTable(true);
+    // Abre e rola até a seção de atendimentos para o usuário rastrear os pacientes.
+    setShowAttendances(true);
+    setAttPageSize(50);
+    setTimeout(() => {
+      attendancesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
+
 
   const audit = useOverlapAudit();
 
