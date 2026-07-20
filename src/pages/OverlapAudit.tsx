@@ -641,6 +641,14 @@ export default function OverlapAudit() {
 
             {showPairsTable && (
               <div className="overflow-x-auto">
+                {selectedPair && (
+                  <div className="mb-2 flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">Filtro: {selectedPair}</Badge>
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPair(null)}>
+                      Limpar ✕
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -651,7 +659,9 @@ export default function OverlapAudit() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {doctorPairs.map((p) => (
+                    {doctorPairs
+                      .filter((p) => !selectedPair || p.pair === selectedPair)
+                      .map((p) => (
                       <TableRow key={p.pair}>
                         <TableCell className="font-medium">{p.pair}</TableCell>
                         <TableCell className="text-right">{p.count}</TableCell>
