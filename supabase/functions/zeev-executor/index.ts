@@ -971,6 +971,23 @@ async function loadLearnedPreferences(sb: SB, hospitalId: string | null) {
   }));
 }
 
+// -------------------- Knowledge base (manual inteligente) --------------------
+
+async function loadKnowledgeArticles(sb: SB, prompt: string, currentPath: string | null): Promise<Array<{ title: string; body: string }>> {
+  try {
+    const { data, error } = await sb.rpc('zeev_search_knowledge', {
+      p_query: prompt,
+      p_route: currentPath ?? null,
+      p_role: null,
+      p_limit: 3,
+    });
+    if (error || !data) return [];
+    return (data as Array<{ title: string; body: string }>).map(a => ({ title: a.title, body: a.body }));
+  } catch {
+    return [];
+  }
+}
+
 // -------------------- Preview --------------------
 
 async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Action): Promise<{ count: number; samples: Proposal["sample_items"] }> {
