@@ -812,7 +812,7 @@ export default function OverlapAudit() {
                   <TableRow>
                     <TableHead>Paciente</TableHead>
                     <TableHead className="text-right">Dias</TableHead>
-                    <TableHead className="text-right">Atendimentos</TableHead>
+                    <TableHead className="text-right">Internações</TableHead>
                     <TableHead>Especialidades</TableHead>
                     <TableHead className="text-right">Valor pago</TableHead>
                   </TableRow>
