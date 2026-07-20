@@ -774,6 +774,10 @@ export default function OverlapAudit() {
             <CardTitle className="text-base">
               Pacientes com mais dias de sobreposição
             </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cada linha = um <strong>paciente-episódio</strong>. Como cada internação gera novo atendimento,
+              reinternações do mesmo paciente aparecem separadas.
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div style={{ width: "100%", height: Math.max(220, topPatientsChart.length * 40) }}>
