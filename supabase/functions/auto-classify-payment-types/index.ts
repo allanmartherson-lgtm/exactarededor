@@ -126,6 +126,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Tipos visita/parecer ativos — usados pelas travas direta/reversa.
+    // `visitParecerIds` cobre qualquer variação futura (parecer_infantil, etc.).
+    const visitParecerIds = new Set<string>();
+    const parecerTypeId: string | null =
+      itemTypes.find((it) => it.code.startsWith("parecer"))?.id ?? null;
+    const visitaTypeId: string | null =
+      itemTypes.find((it) => it.code === "visita" || it.code.startsWith("visita"))?.id ?? null;
+    for (const it of itemTypes) {
+      if (it.code === "visita" || it.code.startsWith("visita") || it.code.startsWith("parecer")) {
+        visitParecerIds.add(it.id);
+      }
+    }
+
+
     // Fallback final quando o prefixo TUSS não bate em cadastro — mantém compat: usa "procedimento".
     const dynamicFallbackItemTypeId = dynamicByCode["procedimento"]?.id ?? null;
     const dynamicFallbackItemTypeCode = dynamicByCode["procedimento"]?.code ?? null;
