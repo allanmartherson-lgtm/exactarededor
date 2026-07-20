@@ -550,23 +550,24 @@ export default function OverlapAudit() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Combinações de especialidades — Top {topCombosChart.length} por dias
+              Combinações de especialidades mais frequentes
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div style={{ width: "100%", height: Math.max(220, topCombosChart.length * 40) }}>
+            <div style={{ width: "100%", height: Math.max(240, topCombosChart.length * 44) }}>
               <ResponsiveContainer>
                 <BarChart
                   data={topCombosChart}
                   layout="vertical"
-                  margin={{ top: 8, right: 40, left: 16, bottom: 8 }}
+                  margin={{ top: 8, right: 56, left: 16, bottom: 8 }}
                 >
                   <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
                   <YAxis
                     type="category"
                     dataKey="label"
-                    width={240}
-                    tick={{ fontSize: 11 }}
+                    width={250}
+                    tick={{ fontSize: 12 }}
+                    interval={0}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
                   <Bar
