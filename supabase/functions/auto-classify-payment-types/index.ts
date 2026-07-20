@@ -37,6 +37,13 @@ const PROTECTED_SOURCES = new Set([
   "base_tipo",
 ]);
 
+// TUSS oficiais de visita/parecer (Rol ANS). Qualquer item marcado como
+// visita/parecer com TUSS fora dessa lista é reclassificado para procedimento
+// (trava reversa). Reciprocamente, item com um desses TUSS é forçado para
+// visita/parecer independentemente do que veio da importação (trava direta).
+const VISIT_PARECER_TUSS = new Set(["10102019", "10102027", "10103015", "10103082"]);
+
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -119,6 +126,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Tipos visita/parecer ativos — usados pelas travas direta/reversa.
+    // `visitParecerIds` cobre qualquer variação futura (parecer_infantil, etc.).
+    const visitParecerIds = new Set<string>();
+    const parecerTypeId: string | null =
+      itemTypes.find((it) => it.code.startsWith("parecer"))?.id ?? null;
+    const visitaTypeId: string | null =
+      itemTypes.find((it) => it.code === "visita" || it.code.startsWith("visita"))?.id ?? null;
+    for (const it of itemTypes) {
+      if (it.code === "visita" || it.code.startsWith("visita") || it.code.startsWith("parecer")) {
+        visitParecerIds.add(it.id);
+      }
+    }
+
+
     // Fallback final quando o prefixo TUSS não bate em cadastro — mantém compat: usa "procedimento".
     const dynamicFallbackItemTypeId = dynamicByCode["procedimento"]?.id ?? null;
     const dynamicFallbackItemTypeCode = dynamicByCode["procedimento"]?.code ?? null;
@@ -159,6 +180,8 @@ Deno.serve(async (req) => {
     let autoHeuristic = 0;
     let autoDefault = 0;
     let ambiguousTuss = 0;
+    let forcedVisitParecer = 0; // trava direta (TUSS 10102019 & cia)
+    let forcedNonVisitParecer = 0; // trava reversa (visita/parecer com TUSS de exame/cirurgia)
     let unchanged = 0;
     const pageSize = 1000;
 
@@ -168,6 +191,15 @@ Deno.serve(async (req) => {
     // key = `${nextItemTypeId | NULL_SENTINEL}::${nextSource}` → lista de ids
     const buckets = new Map<string, string[]>();
 
+    // Pass 1 — carrega todos os itens em memória (necessário para calcular a
+    // predominância visita×parecer antes de resolver TUSS ambíguos).
+    type ItemRow = {
+      id: string;
+      procedure_code: string | null;
+      item_type_id: string | null;
+      item_type_source: string | null;
+    };
+    const allItems: ItemRow[] = [];
     for (let from = 0; ; from += pageSize) {
       const { data: items, error: itemsErr } = await supabase
         .from("payment_items")
@@ -176,66 +208,128 @@ Deno.serve(async (req) => {
         .range(from, from + pageSize - 1);
       if (itemsErr) throw itemsErr;
       if (!items || items.length === 0) break;
-      totalScanned += items.length;
-
-      for (const it of items as any[]) {
-        const source = (it.item_type_source ?? "") as string;
-        if (PROTECTED_SOURCES.has(source)) {
-          unchanged++;
-          continue;
-        }
-
-        const code = String(it.procedure_code ?? "").trim();
-        let nextItemTypeId: string | null = null;
-        let nextSource:
-          | "auto_tuss"
-          | "auto_heuristic"
-          | "auto_default"
-          | "ambiguous_tuss"
-          | null = null;
-
-        if (code && tussToItemTypes.has(code)) {
-          const set = tussToItemTypes.get(code)!;
-          if (set.size === 1) {
-            nextItemTypeId = set.values().next().value as string;
-            nextSource = "auto_tuss";
-          } else {
-            // TUSS reivindicado por 2+ tipos ativos → deixa null e marca
-            // ambíguo. Decisão será do cross-reference-parecer ou manual.
-            nextItemTypeId = null;
-            nextSource = "ambiguous_tuss";
-          }
-        } else if (code && (classifyByTussPrefix(code) || dynamicFallbackItemTypeId)) {
-          const byPrefix = classifyByTussPrefix(code);
-          nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
-          nextSource = "auto_heuristic";
-        } else if (defaultItemTypeId) {
-          nextItemTypeId = defaultItemTypeId;
-          nextSource = "auto_default";
-        }
-
-        if (!nextSource) {
-          unchanged++;
-          continue;
-        }
-
-        // Sem mudança? pula (não gera UPDATE). Trata ambíguo->ambíguo também.
-        if (
-          it.item_type_id === nextItemTypeId &&
-          it.item_type_source === nextSource
-        ) {
-          unchanged++;
-          continue;
-        }
-
-        const bucketKey = `${nextItemTypeId ?? NULL_SENTINEL}::${nextSource}`;
-        const arr = buckets.get(bucketKey);
-        if (arr) arr.push(it.id);
-        else buckets.set(bucketKey, [it.id]);
-      }
-
+      allItems.push(...(items as ItemRow[]));
       if (items.length < pageSize) break;
     }
+    totalScanned = allItems.length;
+
+    // Predominância do lote entre visita×parecer, considerando SOMENTE itens
+    // cujo tipo atual já é inequívoco (não veio como ambíguo) e cujo TUSS não
+    // é o ambíguo 10102019 — isto é, sinais confiáveis. Empate ou ausência de
+    // sinal cai no default_item_type do lote (ou parecer_adulto como último recurso).
+    let countVisita = 0;
+    let countParecer = 0;
+    for (const it of allItems) {
+      const code = String(it.procedure_code ?? "").trim();
+      if (code === "10102019") continue; // é o próprio caso ambíguo
+      if (!it.item_type_id) continue;
+      if (it.item_type_id === visitaTypeId) countVisita++;
+      else if (parecerTypeId && it.item_type_id === parecerTypeId) countParecer++;
+    }
+    // Consulta o default do lote para desempate.
+    const { data: payMetaRow } = await supabase
+      .from("payments")
+      .select("item_type_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const batchDefaultItemTypeId = (payMetaRow as any)?.item_type_id ?? null;
+
+    const resolveAmbiguousVisitParecer = (): string | null => {
+      if (countVisita > countParecer && visitaTypeId) return visitaTypeId;
+      if (countParecer > countVisita && parecerTypeId) return parecerTypeId;
+      // Empate ou sem sinal — usa default do lote se for visita/parecer,
+      // senão parecer_adulto (mais comum em ambiente hospitalar).
+      if (batchDefaultItemTypeId && visitParecerIds.has(batchDefaultItemTypeId)) {
+        return batchDefaultItemTypeId;
+      }
+      return parecerTypeId ?? visitaTypeId ?? null;
+    };
+
+    // Pass 2 — classifica cada item.
+    for (const it of allItems) {
+      const source = (it.item_type_source ?? "") as string;
+      if (PROTECTED_SOURCES.has(source)) {
+        unchanged++;
+        continue;
+      }
+
+      const code = String(it.procedure_code ?? "").trim();
+      let nextItemTypeId: string | null = null;
+      let nextSource:
+        | "auto_tuss"
+        | "auto_heuristic"
+        | "auto_default"
+        | "ambiguous_tuss"
+        | null = null;
+
+      // TRAVA DIRETA — TUSS oficial de visita/parecer sempre vira visita/parecer,
+      // independentemente do que a importação sugeriu. Resolve ambiguidade
+      // (10102019) pela predominância do lote.
+      if (code && VISIT_PARECER_TUSS.has(code)) {
+        const set = tussToItemTypes.get(code);
+        if (set && set.size === 1) {
+          nextItemTypeId = set.values().next().value as string;
+          nextSource = "auto_tuss";
+        } else {
+          nextItemTypeId = resolveAmbiguousVisitParecer();
+          nextSource = "auto_tuss";
+        }
+        forcedVisitParecer++;
+      }
+      // TRAVA REVERSA — item marcado como visita/parecer mas com TUSS de outro
+      // tipo (exame, cirurgia, procedimento) é reclassificado para o tipo
+      // dinâmico correspondente. Corrige o bug do CBNN (EEG marcado como
+      // parecer_adulto).
+      else if (
+        it.item_type_id &&
+        visitParecerIds.has(it.item_type_id) &&
+        code &&
+        !VISIT_PARECER_TUSS.has(code)
+      ) {
+        const byPrefix = classifyByTussPrefix(code);
+        nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
+        nextSource = "auto_heuristic";
+        forcedNonVisitParecer++;
+      }
+      // Regras originais.
+      else if (code && tussToItemTypes.has(code)) {
+        const set = tussToItemTypes.get(code)!;
+        if (set.size === 1) {
+          nextItemTypeId = set.values().next().value as string;
+          nextSource = "auto_tuss";
+        } else {
+          nextItemTypeId = null;
+          nextSource = "ambiguous_tuss";
+        }
+      } else if (code && (classifyByTussPrefix(code) || dynamicFallbackItemTypeId)) {
+        const byPrefix = classifyByTussPrefix(code);
+        nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
+        nextSource = "auto_heuristic";
+      } else if (defaultItemTypeId) {
+        nextItemTypeId = defaultItemTypeId;
+        nextSource = "auto_default";
+      }
+
+      if (!nextSource) {
+        unchanged++;
+        continue;
+      }
+
+      if (
+        it.item_type_id === nextItemTypeId &&
+        it.item_type_source === nextSource
+      ) {
+        unchanged++;
+        continue;
+      }
+
+      const bucketKey = `${nextItemTypeId ?? NULL_SENTINEL}::${nextSource}`;
+      const arr = buckets.get(bucketKey);
+      if (arr) arr.push(it.id);
+      else buckets.set(bucketKey, [it.id]);
+    }
+
+
 
     // 3. Executa UPDATEs em lote por bucket. Chunks de 500 ids para manter a
     //    URL do PostgREST dentro do limite seguro.
@@ -270,7 +364,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} forced_visita_parecer=${forcedVisitParecer} forced_non_visita_parecer=${forcedNonVisitParecer} predominance(visita=${countVisita},parecer=${countParecer}) unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -282,13 +376,16 @@ Deno.serve(async (req) => {
         auto_heuristic: autoHeuristic,
         auto_default: autoDefault,
         ambiguous_tuss: ambiguousTuss,
+        forced_visita_parecer: forcedVisitParecer,
+        forced_non_visita_parecer: forcedNonVisitParecer,
+        predominance: { visita: countVisita, parecer: countParecer },
         unchanged,
         default_item_type: defaultItemTypeCode,
         dynamic_fallback_item_type: dynamicFallbackItemTypeCode,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-
     );
+
   } catch (e: any) {
     console.error("[auto-classify-payment-types] error", e);
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
