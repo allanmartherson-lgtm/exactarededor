@@ -1,3 +1,4 @@
+// v2: knowledge-base-integration
 // Zeev Executor — chat executor que propõe ações em lote no pagamento atual.
 //
 // Fluxo:
@@ -180,6 +181,10 @@ const SYSTEM_PROMPT = [
   "CONTEXTO AO VIVO DA TELA ('screen_context'): quando presente, a UI publicou o estado exato do que o usuário está editando/vendo. Use SEMPRE em prioridade ao chute. Em particular:",
   "- screen_context.regras_conflict: o usuário está olhando um modal de conflitos detectados ao tentar salvar uma regra. Cada item em .problems já traz o tipo (calc_overlap | doctor_already_bound | company_already_bound | validity_overlap | master_already_exists) e os labels reais dos cálculos/regras envolvidos. Quando o usuário perguntar 'por que está dando conflito?' ou 'como resolver?', responda com 'answer' citando os labels exatos vindos do contexto e explicando o eixo da sobreposição (calc_overlap → 11 eixos do cálculo; validity_overlap → vigência; *_already_bound → mesma chave já vinculada a outra regra). Para calc_overlap, recomende WHITELIST do convênio específico no cálculo restritivo OU BLACKLIST no cálculo geral (regra de ouro: 'exceto', não duplicar regra).",
   "",
+  "BASE DE CONHECIMENTO ('knowledge_articles'): quando presente, o servidor buscou artigos do manual do Exacta que podem responder a dúvida do analista. REGRAS:",
+  "- Se o analista pergunta 'como…?', 'onde…?', 'o que é…?', 'o que faz…?', 'como funciona…?', 'tem manual?', 'me ajuda com…', 'me explica…' → use 'answer' e baseie sua resposta INTEIRAMENTE nos artigos do knowledge_articles. Reformule em suas palavras (tom amigável, direto), mas nunca invente passos que não estejam nos artigos.",
+  "- Se knowledge_articles estiver vazio ou null e a pergunta for sobre uso do sistema → responda com 'answer' dizendo que ainda não tem essa informação no manual, mas sugira navegar para a tela relevante.",
+  "- Perguntas operacionais sobre o sistema NÃO são 'unsupported' — são 'answer'. Só use 'unsupported' para pedidos que envolvam ação que o Zeev não pode fazer.",
 ].join("\n");
 
 const RESPOND_SCHEMA = {
@@ -966,6 +971,23 @@ async function loadLearnedPreferences(sb: SB, hospitalId: string | null) {
   }));
 }
 
+// -------------------- Knowledge base (manual inteligente) --------------------
+
+async function loadKnowledgeArticles(sb: SB, prompt: string, currentPath: string | null): Promise<Array<{ title: string; body: string }>> {
+  try {
+    const { data, error } = await sb.rpc('zeev_search_knowledge', {
+      p_query: prompt,
+      p_route: currentPath ?? null,
+      p_role: null,
+      p_limit: 3,
+    });
+    if (error || !data) return [];
+    return (data as Array<{ title: string; body: string }>).map(a => ({ title: a.title, body: a.body }));
+  } catch {
+    return [];
+  }
+}
+
 // -------------------- Preview --------------------
 
 async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Action): Promise<{ count: number; samples: Proposal["sample_items"] }> {
@@ -1305,9 +1327,10 @@ Deno.serve(async (req) => {
     if (body.step === "propose") {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
 
-      const [learnedPrefs, routeContext] = await Promise.all([
+      const [learnedPrefs, routeContext, knowledgeArticles] = await Promise.all([
         loadLearnedPreferences(sb, activeHospitalId),
         buildRouteContext(sb, body.current_path ?? null, activeHospitalId),
+        loadKnowledgeArticles(sb, body.prompt!, body.current_path ?? null),
       ]);
 
       const llm = await callLLM(body.prompt, {
@@ -1327,6 +1350,7 @@ Deno.serve(async (req) => {
         learned_preferences: learnedPrefs,
         route_context: routeContext,
         screen_context: body.screen_context ?? null,
+        knowledge_articles: knowledgeArticles.length > 0 ? knowledgeArticles : null,
       });
 
       // Ações sem mutação — devolve direto pro cliente aplicar.
