@@ -1178,7 +1178,12 @@ export const AppLayout = () => {
                 collapsed={sidebarCollapsed}
                 renderSideLink={renderSideLink}
                 isFirst={idx === 0}
+                onCollapsedIconClick={(label) =>
+                  expandFromCollapsedIcon(`group:${label}`, label)
+                }
+                forceOpenSignal={expandedGroupSignal}
               />
+
             );
           })}
         </nav>
