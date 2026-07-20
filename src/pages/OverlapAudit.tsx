@@ -347,11 +347,15 @@ export default function OverlapAudit() {
   // Top-N para gráficos e mini-tabelas.
   const topCombosChart = useMemo(
     () =>
-      (data?.by_specialty_combo ?? []).slice(0, 8).map((c) => ({
-        label: truncate(c.combo_label ?? "—", 35),
-        days: c.days,
-        key: c.combo_key,
-      })),
+      (data?.by_specialty_combo ?? [])
+        .slice()
+        .sort((a, b) => b.days - a.days)
+        .slice(0, 8)
+        .map((c) => ({
+          label: c.combo_label ?? "—",
+          days: c.days,
+          key: c.combo_key,
+        })),
     [data],
   );
 
