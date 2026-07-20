@@ -492,7 +492,18 @@ export default function OverlapAudit() {
                     tick={{ fontSize: 11 }}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
-                  <Bar dataKey="days" fill="#2563eb" radius={[0, 4, 4, 0]}>
+                  <Bar
+                    dataKey="days"
+                    radius={[0, 4, 4, 0]}
+                    onClick={handleComboBarClick}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {topCombosChart.map((c) => (
+                      <Cell
+                        key={c.key}
+                        fill={selectedComboKey === c.key ? "#1e40af" : "#2563eb"}
+                      />
+                    ))}
                     <LabelList dataKey="days" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
                   </Bar>
                 </BarChart>
