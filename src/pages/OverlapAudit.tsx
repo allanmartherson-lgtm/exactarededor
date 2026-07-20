@@ -125,6 +125,9 @@ export default function OverlapAudit() {
           setShowAllPatients(false);
           setShowAttendances(false);
           setAttPageSize(50);
+          setSelectedComboKey(null);
+          setSelectedPatientKey(null);
+          setSelectedPair(null);
           if (res.totals.patients === 0) {
             toast.info("Nenhuma sobreposição encontrada na janela.");
           } else {
