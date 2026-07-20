@@ -777,7 +777,8 @@ export default function OverlapAudit() {
                     type="category"
                     dataKey="label"
                     width={220}
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 12 }}
+                    interval={0}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
                   <Bar
