@@ -884,35 +884,41 @@ export default function OverlapAudit() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Paciente</TableHead>
-                        <TableHead>Atendimentos</TableHead>
-                        <TableHead>Médicos</TableHead>
-                        <TableHead>Especialidades</TableHead>
-                        <TableHead className="text-right">Lançamentos</TableHead>
-                        <TableHead className="text-right">Valor pago</TableHead>
-                        <TableHead>Lotes</TableHead>
+                        <TableHead className="w-[85px] min-w-[85px] text-xs whitespace-nowrap px-2 py-1.5">Data</TableHead>
+                        <TableHead className="max-w-[180px] text-xs px-2 py-1.5">Paciente</TableHead>
+                        <TableHead className="w-[95px] text-xs px-2 py-1.5">Atendimentos</TableHead>
+                        <TableHead className="max-w-[220px] text-xs px-2 py-1.5">Médicos</TableHead>
+                        <TableHead className="max-w-[200px] text-xs px-2 py-1.5">Especialidades</TableHead>
+                        <TableHead className="w-[50px] text-center text-xs px-2 py-1.5">Lançamentos</TableHead>
+                        <TableHead className="w-[90px] text-right whitespace-nowrap text-xs px-2 py-1.5">Valor pago</TableHead>
+                        <TableHead className="text-xs px-2 py-1.5">Lotes</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data.by_attendance.slice(0, attPageSize).map((r, i) => (
+                      {data.by_attendance.slice(0, attPageSize).map((r, i) => {
+                        const doctors = r.doctors ?? [];
+                        const doctorsFull = doctors.join(", ");
+                        const doctorsShort = doctors.slice(0, 2).join(", ") + (doctors.length > 2 ? ` +${doctors.length - 2}` : "");
+                        const specialtiesFull = (r.specialties ?? []).join(" + ");
+                        const attendancesFull = (r.attendances ?? []).join(", ") || "—";
+                        return (
                         <TableRow key={i}>
-                          <TableCell>{fmtDate(r.pdate)}</TableCell>
-                          <TableCell className="font-medium">{r.patient_name}</TableCell>
-                          <TableCell className="text-xs">
-                            {(r.attendances ?? []).join(", ") || "—"}
+                          <TableCell className="w-[85px] min-w-[85px] text-xs whitespace-nowrap px-2 py-1.5">{fmtDate(r.pdate)}</TableCell>
+                          <TableCell className="max-w-[180px] truncate font-medium text-xs px-2 py-1.5" title={r.patient_name}>{r.patient_name}</TableCell>
+                          <TableCell className="w-[95px] text-xs px-2 py-1.5 truncate" title={attendancesFull}>
+                            {attendancesFull}
                           </TableCell>
-                          <TableCell className="text-xs">
-                            {(r.doctors ?? []).join(", ") || "—"}
+                          <TableCell className="max-w-[220px] truncate text-xs px-2 py-1.5" title={doctorsFull}>
+                            {doctorsShort || "—"}
                           </TableCell>
-                          <TableCell className="text-xs">
-                            {(r.specialties ?? []).join(" + ")}
+                          <TableCell className="max-w-[200px] truncate text-xs px-2 py-1.5" title={specialtiesFull}>
+                            {specialtiesFull}
                           </TableCell>
-                          <TableCell className="text-right">{r.items}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="w-[50px] text-center text-xs px-2 py-1.5">{r.items}</TableCell>
+                          <TableCell className="w-[90px] text-right whitespace-nowrap text-xs px-2 py-1.5">
                             {formatCurrency(Number(r.total_gross ?? 0))}
                           </TableCell>
-                          <TableCell className="text-xs">
+                          <TableCell className="text-xs px-2 py-1.5">
                             <div className="flex flex-wrap gap-1">
                               {(r.payment_ids ?? []).slice(0, 3).map((pid) => (
                                 <Link
@@ -932,7 +938,8 @@ export default function OverlapAudit() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
