@@ -82,6 +82,31 @@ export default function OverlapAudit() {
   const [showAttendances, setShowAttendances] = useState(false);
   const [attPageSize, setAttPageSize] = useState(50);
 
+  // Drill-down: clique numa barra filtra a tabela correspondente.
+  const [selectedComboKey, setSelectedComboKey] = useState<string | null>(null);
+  const [selectedPatientKey, setSelectedPatientKey] = useState<string | null>(null);
+  const [selectedPair, setSelectedPair] = useState<string | null>(null);
+
+  // Recharts entrega o payload no onClick da barra; tipamos como unknown p/ segurança.
+  const handleComboBarClick = (payload: unknown) => {
+    const key = (payload as { key?: string } | null)?.key ?? null;
+    if (!key) return;
+    setSelectedComboKey((prev) => (prev === key ? null : key));
+    setShowAllCombos(true);
+  };
+  const handlePatientBarClick = (payload: unknown) => {
+    const key = (payload as { key?: string } | null)?.key ?? null;
+    if (!key) return;
+    setSelectedPatientKey((prev) => (prev === key ? null : key));
+    setShowAllPatients(true);
+  };
+  const handlePairBarClick = (payload: unknown) => {
+    const pair = (payload as { pair?: string } | null)?.pair ?? null;
+    if (!pair) return;
+    setSelectedPair((prev) => (prev === pair ? null : pair));
+    setShowPairsTable(true);
+  };
+
   const audit = useOverlapAudit();
 
   const run = () => {
