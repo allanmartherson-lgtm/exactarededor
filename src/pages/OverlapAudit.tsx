@@ -673,6 +673,11 @@ export default function OverlapAudit() {
             <CardTitle className="text-base">
               Pares de médicos mais frequentes
             </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Barras contam <strong>atendimentos (internações)</strong> em que a dupla apareceu junta.
+              Cada internação = uma unidade; reinternações do mesmo paciente contam separadas.
+              Detalhes abrem também as <strong>visitas em comum</strong> (lançamentos dentro desses atendimentos).
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div style={{ width: "100%", height: Math.max(240, topPairs.length * 40) }}>
