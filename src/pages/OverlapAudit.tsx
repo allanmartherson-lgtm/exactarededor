@@ -338,7 +338,7 @@ export default function OverlapAudit() {
     }
     if (topPair) {
       lines.push(
-        `O par de médicos mais recorrente é ${topPair.pair} (${topPair.count} sobreposições, ${topPair.uniquePatients} pacientes).`,
+        `O par de médicos mais recorrente é ${cleanPairLabel(topPair.pair)} (${topPair.count} sobreposições, ${topPair.uniquePatients} pacientes).`,
       );
     }
     return lines;
