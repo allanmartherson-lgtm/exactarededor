@@ -769,6 +769,7 @@ export default function OverlapAudit() {
                                           <TableHead className="text-xs">Atendimentos</TableHead>
                                           <TableHead className="text-xs">Médicos (com CRM)</TableHead>
                                           <TableHead className="text-xs">Especialidades</TableHead>
+                                          <TableHead className="text-xs">Intervalo por especialidade</TableHead>
                                           <TableHead className="text-xs text-right">Visitas</TableHead>
                                           <TableHead className="text-xs text-right whitespace-nowrap">Valor pago</TableHead>
                                           <TableHead className="text-xs">Lotes</TableHead>
