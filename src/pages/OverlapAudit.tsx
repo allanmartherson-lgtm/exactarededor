@@ -251,14 +251,17 @@ export default function OverlapAudit() {
 
   const doctorPairs = useMemo(() => {
     if (!data) return [];
+    // Cada atendimento = uma internação (unidade paciente-episódio). Reinternações
+    // do mesmo paciente contam como atendimentos distintos.
+    // - count   = atendimentos em que a dupla apareceu junta
+    // - visits  = soma de lançamentos (visitas/pareceres) desses atendimentos
+    //             (proxy razoável de "visitas em comum")
     const pairMap = new Map<
       string,
-      { pair: string; count: number; value: number; patients: Set<string> }
+      { pair: string; count: number; visits: number; value: number }
     >();
     for (const r of data.by_attendance) {
       const docsRaw = r.doctors ?? [];
-      // Dedup por médico normalizado dentro do atendimento — mantém o rótulo
-      // mais legível (mais longo) para exibir.
       const byKey = new Map<string, string>();
       for (const d of docsRaw) {
         const k = normDoctor(d);
@@ -269,6 +272,7 @@ export default function OverlapAudit() {
       const keys = Array.from(byKey.keys());
       const labels = keys.map((k) => byKey.get(k) as string);
       if (keys.length < 2) continue;
+      const rowItems = Number(r.items ?? 0);
       for (let i = 0; i < keys.length; i++) {
         for (let j = i + 1; j < keys.length; j++) {
           const pairKey = [keys[i], keys[j]].sort().join("||");
@@ -276,19 +280,17 @@ export default function OverlapAudit() {
           const cur = pairMap.get(pairKey) ?? {
             pair: pairLabel,
             count: 0,
+            visits: 0,
             value: 0,
-            patients: new Set<string>(),
           };
           cur.count += 1;
+          cur.visits += rowItems;
           cur.value += Number(r.total_gross ?? 0) / Math.max(1, keys.length - 1);
-          cur.patients.add(r.patient_name ?? "");
           pairMap.set(pairKey, cur);
         }
       }
     }
-    return Array.from(pairMap.values())
-      .map((p) => ({ ...p, uniquePatients: p.patients.size }))
-      .sort((a, b) => b.count - a.count);
+    return Array.from(pairMap.values()).sort((a, b) => b.count - a.count);
   }, [data]);
 
 
@@ -338,7 +340,7 @@ export default function OverlapAudit() {
     }
     if (topPair) {
       lines.push(
-        `O par de médicos mais recorrente é ${cleanPairLabel(topPair.pair)} (${topPair.count} sobreposições, ${topPair.uniquePatients} pacientes).`,
+        `O par de médicos mais recorrente é ${cleanPairLabel(topPair.pair)} (${topPair.count} atendimentos em comum, ${topPair.visits} visitas em comum).`,
       );
     }
     return lines;
@@ -671,6 +673,11 @@ export default function OverlapAudit() {
             <CardTitle className="text-base">
               Pares de médicos mais frequentes
             </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Barras contam <strong>atendimentos (internações)</strong> em que a dupla apareceu junta.
+              Cada internação = uma unidade; reinternações do mesmo paciente contam separadas.
+              Detalhes abrem também as <strong>visitas em comum</strong> (lançamentos dentro desses atendimentos).
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div style={{ width: "100%", height: Math.max(240, topPairs.length * 40) }}>
@@ -689,7 +696,7 @@ export default function OverlapAudit() {
                     interval={0}
                   />
                   <Tooltip
-                    formatter={(value: number) => [value, "Sobreposições"]}
+                    formatter={(value: number) => [value, "Atendimentos em comum"]}
                     labelFormatter={(label: string) => label}
                   />
                   <Bar
@@ -732,8 +739,12 @@ export default function OverlapAudit() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Par</TableHead>
-                      <TableHead className="text-right">Sobreposições</TableHead>
-                      <TableHead className="text-right">Pacientes únicos</TableHead>
+                      <TableHead className="text-right" title="Nº de atendimentos (internações) em que a dupla apareceu junta">
+                        Atendimentos em comum
+                      </TableHead>
+                      <TableHead className="text-right" title="Soma de visitas/pareceres lançados nesses atendimentos">
+                        Visitas em comum
+                      </TableHead>
                       <TableHead className="text-right">Valor estimado</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -744,7 +755,7 @@ export default function OverlapAudit() {
                       <TableRow key={p.pair}>
                         <TableCell className="font-medium">{cleanPairLabel(p.pair)}</TableCell>
                         <TableCell className="text-right">{p.count}</TableCell>
-                        <TableCell className="text-right">{p.uniquePatients}</TableCell>
+                        <TableCell className="text-right">{p.visits}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.value)}</TableCell>
                       </TableRow>
                     ))}
@@ -763,6 +774,10 @@ export default function OverlapAudit() {
             <CardTitle className="text-base">
               Pacientes com mais dias de sobreposição
             </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cada linha = um <strong>paciente-episódio</strong>. Como cada internação gera novo atendimento,
+              reinternações do mesmo paciente aparecem separadas.
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div style={{ width: "100%", height: Math.max(220, topPatientsChart.length * 40) }}>
