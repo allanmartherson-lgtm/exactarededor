@@ -181,6 +181,10 @@ const SYSTEM_PROMPT = [
   "CONTEXTO AO VIVO DA TELA ('screen_context'): quando presente, a UI publicou o estado exato do que o usuário está editando/vendo. Use SEMPRE em prioridade ao chute. Em particular:",
   "- screen_context.regras_conflict: o usuário está olhando um modal de conflitos detectados ao tentar salvar uma regra. Cada item em .problems já traz o tipo (calc_overlap | doctor_already_bound | company_already_bound | validity_overlap | master_already_exists) e os labels reais dos cálculos/regras envolvidos. Quando o usuário perguntar 'por que está dando conflito?' ou 'como resolver?', responda com 'answer' citando os labels exatos vindos do contexto e explicando o eixo da sobreposição (calc_overlap → 11 eixos do cálculo; validity_overlap → vigência; *_already_bound → mesma chave já vinculada a outra regra). Para calc_overlap, recomende WHITELIST do convênio específico no cálculo restritivo OU BLACKLIST no cálculo geral (regra de ouro: 'exceto', não duplicar regra).",
   "",
+  "BASE DE CONHECIMENTO ('knowledge_articles'): quando presente, o servidor buscou artigos do manual do Exacta que podem responder a dúvida do analista. REGRAS:",
+  "- Se o analista pergunta 'como…?', 'onde…?', 'o que é…?', 'o que faz…?', 'como funciona…?', 'tem manual?', 'me ajuda com…', 'me explica…' → use 'answer' e baseie sua resposta INTEIRAMENTE nos artigos do knowledge_articles. Reformule em suas palavras (tom amigável, direto), mas nunca invente passos que não estejam nos artigos.",
+  "- Se knowledge_articles estiver vazio ou null e a pergunta for sobre uso do sistema → responda com 'answer' dizendo que ainda não tem essa informação no manual, mas sugira navegar para a tela relevante.",
+  "- Perguntas operacionais sobre o sistema NÃO são 'unsupported' — são 'answer'. Só use 'unsupported' para pedidos que envolvam ação que o Zeev não pode fazer.",
 ].join("\n");
 
 const RESPOND_SCHEMA = {
