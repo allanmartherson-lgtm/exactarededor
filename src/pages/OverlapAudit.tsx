@@ -669,23 +669,24 @@ export default function OverlapAudit() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Pares de médicos mais frequentes — Top {topPairs.length}
+              Pares de médicos mais frequentes
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div style={{ width: "100%", height: Math.max(220, topPairs.length * 36) }}>
+            <div style={{ width: "100%", height: Math.max(240, topPairs.length * 40) }}>
               <ResponsiveContainer>
                 <BarChart
-                  data={topPairs.map((p) => ({ ...p, pairShort: truncate(p.pair, 40) }))}
+                  data={topPairs.map((p) => ({ ...p, pairShort: cleanPairLabel(p.pair) }))}
                   layout="vertical"
-                  margin={{ top: 8, right: 40, left: 16, bottom: 8 }}
+                  margin={{ top: 8, right: 56, left: 16, bottom: 8 }}
                 >
                   <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
                   <YAxis
                     type="category"
                     dataKey="pairShort"
-                    width={260}
-                    tick={{ fontSize: 11 }}
+                    width={280}
+                    tick={{ fontSize: 12 }}
+                    interval={0}
                   />
                   <Tooltip
                     formatter={(value: number) => [value, "Sobreposições"]}
