@@ -156,6 +156,34 @@ export default function OverlapAudit() {
     );
   }, [data, expandedPatient]);
 
+  // Totais recomputados a partir de by_attendance — garante que os KPIs
+  // reflitam exatamente o período/filtro aplicado. O RPC devolve totais que,
+  // em alguns cortes, misturam soma-de-dias-por-paciente com dias corridos e
+  // confundem a leitura executiva.
+  const periodTotals = useMemo(() => {
+    if (!data) return { patients: 0, days: 0, attendances: 0, items: 0 };
+    const patients = new Set<string>();
+    const days = new Set<string>();
+    const attendances = new Set<string>();
+    let items = 0;
+    for (const r of data.by_attendance) {
+      const pn = (r.patient_name ?? "").trim();
+      if (pn) patients.add(pn);
+      const d = r.pdate?.slice(0, 10);
+      if (d) days.add(d);
+      for (const a of r.attendances ?? []) {
+        if (a) attendances.add(String(a));
+      }
+      items += Number(r.items ?? 0);
+    }
+    return {
+      patients: patients.size,
+      days: days.size,
+      attendances: attendances.size || data.by_attendance.length,
+      items,
+    };
+  }, [data]);
+
   // KPIs financeiros — somatório de valor em risco e média diária.
   const financialTotals = useMemo(() => {
     if (!data) return { totalValue: 0, avgPerDay: 0 };
@@ -173,6 +201,7 @@ export default function OverlapAudit() {
       avgPerDay: distinctDays > 0 ? totalValue / distinctDays : 0,
     };
   }, [data]);
+
 
   // Distribuição diária para o gráfico de barras.
   const dailyData = useMemo(() => {
