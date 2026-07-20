@@ -863,8 +863,19 @@ export const AppLayout = () => {
           <NavLink
             to={to}
             end={to === "/"}
-            onClick={onClick}
+            onClick={(e) => {
+              // Modo recolhido: primeiro clique expande + foca; a rota só troca
+              // no clique seguinte (com o rótulo visível). O auto-collapse ocorre
+              // após a navegação real, via lastPathRef effect.
+              if (collapsed) {
+                e.preventDefault();
+                expandFromCollapsedIcon(to);
+                return;
+              }
+              onClick?.();
+            }}
             aria-label={label}
+            data-nav-key={to}
             className="outline-none focus-visible:ring-2 focus-visible:ring-ring sidebar-nav-link"
             style={linkStyle}
           >
