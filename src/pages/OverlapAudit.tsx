@@ -346,6 +346,36 @@ export default function OverlapAudit() {
       .sort((a, b) => (b.pdate ?? "").localeCompare(a.pdate ?? ""));
   }, [data, expandedComboKey]);
 
+  // Intervalo (min/máx) em que CADA especialidade visitou o paciente dentro do
+  // mesmo atendimento — ajuda a localizar o registro no prontuário eletrônico.
+  // Chave: primeiro atendimento (ou paciente, quando não houver). Valor: mapa
+  // especialidade → { min, max } em ISO date.
+  const specialtyIntervalsByAttendance = useMemo(() => {
+    const out = new Map<string, Map<string, { min: string; max: string }>>();
+    for (const d of comboDrill) {
+      const attKey =
+        (d.attendances ?? [])[0] ?? `PAC:${(d.patient_name ?? "").trim()}`;
+      if (!attKey) continue;
+      let bySpec = out.get(attKey);
+      if (!bySpec) {
+        bySpec = new Map();
+        out.set(attKey, bySpec);
+      }
+      const date = d.pdate ?? "";
+      if (!date) continue;
+      for (const s of d.specialties ?? []) {
+        const prev = bySpec.get(s);
+        if (!prev) {
+          bySpec.set(s, { min: date, max: date });
+        } else {
+          if (date < prev.min) prev.min = date;
+          if (date > prev.max) prev.max = date;
+        }
+      }
+    }
+    return out;
+  }, [comboDrill]);
+
   // Valor por paciente — agregado dos atendimentos.
   const patientFinancials = useMemo(() => {
     if (!data) return new Map<string, number>();
