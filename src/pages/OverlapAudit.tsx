@@ -311,7 +311,7 @@ export default function OverlapAudit() {
 
     const lines: string[] = [];
     lines.push(
-      `Em ${data.totals.days} dias analisados, ${data.totals.patients} pacientes apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco.`,
+      `Em ${periodTotals.days} dias analisados, ${periodTotals.patients} pacientes apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco.`,
     );
     if (topCombo) {
       lines.push(
