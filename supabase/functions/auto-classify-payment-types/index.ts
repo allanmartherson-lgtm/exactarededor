@@ -37,6 +37,13 @@ const PROTECTED_SOURCES = new Set([
   "base_tipo",
 ]);
 
+// TUSS oficiais de visita/parecer (Rol ANS). Qualquer item marcado como
+// visita/parecer com TUSS fora dessa lista é reclassificado para procedimento
+// (trava reversa). Reciprocamente, item com um desses TUSS é forçado para
+// visita/parecer independentemente do que veio da importação (trava direta).
+const VISIT_PARECER_TUSS = new Set(["10102019", "10102027", "10103015", "10103082"]);
+
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
