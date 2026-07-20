@@ -507,6 +507,8 @@ function SidebarGroupItem({
   collapsed,
   renderSideLink,
   isFirst,
+  onCollapsedIconClick,
+  forceOpenSignal,
 }: {
   group: Extract<NavItem, { children: unknown }>;
   collapsed: boolean;
@@ -518,6 +520,8 @@ function SidebarGroupItem({
     collapsed?: boolean,
   ) => React.ReactNode;
   isFirst: boolean;
+  onCollapsedIconClick?: (groupLabel: string) => void;
+  forceOpenSignal?: string | null;
 }) {
   const location = useLocation();
   const groupActive = group.children.some((c) =>
@@ -539,32 +543,28 @@ function SidebarGroupItem({
     try { window.localStorage.setItem(storageKey, open ? "1" : "0"); } catch {}
   }, [open, storageKey]);
 
-  // Collapsed sidebar: render an icon button with a flyout popover on click.
-  const [flyoutOpen, setFlyoutOpen] = useState(false);
-  const flyoutRef = useRef<HTMLDivElement | null>(null);
+  // Sinal externo: quando o usuário clica no ícone do grupo em modo recolhido,
+  // a sidebar expande e este grupo abre automaticamente já focado.
   useEffect(() => {
-    if (!flyoutOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!flyoutRef.current?.contains(e.target as Node)) setFlyoutOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [flyoutOpen]);
-  useEffect(() => { setFlyoutOpen(false); }, [location.pathname]);
+    if (forceOpenSignal && forceOpenSignal === group.label) {
+      setOpen(true);
+    }
+  }, [forceOpenSignal, group.label]);
 
   const GroupIcon = group.icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties }>;
 
   if (collapsed) {
+    // Modo recolhido: clicar no ícone expande a sidebar (sem flyout). O usuário
+    // então escolhe o item filho e o auto-collapse acontece na navegação.
     return (
-      <div ref={flyoutRef} className="relative" style={{ marginTop: isFirst ? 0 : 4 }}>
+      <div style={{ marginTop: isFirst ? 0 : 4 }}>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => setFlyoutOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={flyoutOpen}
+              onClick={() => onCollapsedIconClick?.(group.label)}
               aria-label={group.label}
+              data-nav-key={`group:${group.label}`}
               className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{
                 width: "100%",
@@ -573,8 +573,8 @@ function SidebarGroupItem({
                 justifyContent: "center",
                 padding: "8px 0",
                 borderRadius: 6,
-                background: groupActive || flyoutOpen ? "hsl(var(--sidebar-accent))" : "transparent",
-                color: groupActive || flyoutOpen
+                background: groupActive ? "hsl(var(--sidebar-accent))" : "transparent",
+                color: groupActive
                   ? "hsl(var(--sidebar-accent-foreground))"
                   : "hsl(var(--sidebar-muted-foreground))",
                 border: "none",
@@ -587,69 +587,10 @@ function SidebarGroupItem({
           </TooltipTrigger>
           <TooltipContent side="right">{group.label}</TooltipContent>
         </Tooltip>
-        {flyoutOpen && (
-          <div
-            role="menu"
-            className="animate-fade-in"
-            style={{
-              position: "absolute",
-              left: "calc(100% + 6px)",
-              top: 0,
-              minWidth: 200,
-              zIndex: 200,
-              background: "hsl(var(--card))",
-              border: "0.5px solid hsl(var(--border))",
-              borderRadius: 8,
-              boxShadow: "var(--shadow-elevated)",
-              padding: 4,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-                color: "hsl(var(--muted-foreground))",
-                padding: "6px 10px 4px",
-              }}
-            >
-              {group.label}
-            </p>
-            {group.children.map((c) => {
-              const childActive =
-                c.to === "/" ? location.pathname === "/" : location.pathname === c.to || location.pathname.startsWith(c.to + "/");
-              const CIcon = c.icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties }>;
-              return (
-                <NavLink
-                  key={c.to}
-                  to={c.to}
-                  role="menuitem"
-                  onClick={() => setFlyoutOpen(false)}
-                  className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "7px 10px",
-                    borderRadius: 6,
-                    fontSize: 13.5,
-                    textDecoration: "none",
-                    fontWeight: childActive ? 500 : 400,
-                    background: childActive ? "hsl(var(--accent))" : undefined,
-                    color: childActive ? "hsl(var(--accent-foreground))" : "hsl(var(--muted-foreground))",
-                  }}
-                >
-                  <CIcon size={17} strokeWidth={1.75} style={{ color: "inherit", flexShrink: 0 }} />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</span>
-                </NavLink>
-              );
-            })}
-          </div>
-        )}
       </div>
     );
   }
+
 
   // Expanded sidebar: clickable header that toggles inline children.
   return (
@@ -765,6 +706,41 @@ export const AppLayout = () => {
     } catch {}
   }, [sidebarCollapsed]);
 
+  // Fluxo "expandir ao clicar, recolher após selecionar" (modo recolhido).
+  // - Clique em ícone (leaf ou grupo) enquanto recolhido → expande + foca o item.
+  // - Ao navegar para uma rota logo em seguida → recolhe automaticamente.
+  const autoCollapseAfterNavRef = useRef(false);
+  const [pendingFocusKey, setPendingFocusKey] = useState<string | null>(null);
+  const [expandedGroupSignal, setExpandedGroupSignal] = useState<string | null>(null);
+  const lastPathRef = useRef(location.pathname);
+  useEffect(() => {
+    if (lastPathRef.current === location.pathname) return;
+    lastPathRef.current = location.pathname;
+    if (autoCollapseAfterNavRef.current) {
+      autoCollapseAfterNavRef.current = false;
+      setExpandedGroupSignal(null);
+      setSidebarCollapsed(true);
+    }
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!pendingFocusKey || sidebarCollapsed) return;
+    const id = window.requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-nav-key="${pendingFocusKey.replace(/"/g, '\\"')}"]`,
+      );
+      el?.focus({ preventScroll: false });
+      el?.scrollIntoView({ block: "nearest" });
+      setPendingFocusKey(null);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [pendingFocusKey, sidebarCollapsed]);
+  const expandFromCollapsedIcon = (key: string, groupLabel?: string) => {
+    autoCollapseAfterNavRef.current = true;
+    setSidebarCollapsed(false);
+    if (groupLabel) setExpandedGroupSignal(groupLabel);
+    setPendingFocusKey(key);
+  };
+
   // Detect mobile (<768px) to force topbar layout on small screens regardless of saved preference.
   const [isMobile, setIsMobile] = useState<boolean>(
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
@@ -828,8 +804,19 @@ export const AppLayout = () => {
           <NavLink
             to={to}
             end={to === "/"}
-            onClick={onClick}
+            onClick={(e) => {
+              // Modo recolhido: primeiro clique expande + foca; a rota só troca
+              // no clique seguinte (com o rótulo visível). O auto-collapse ocorre
+              // após a navegação real, via lastPathRef effect.
+              if (collapsed) {
+                e.preventDefault();
+                expandFromCollapsedIcon(to);
+                return;
+              }
+              onClick?.();
+            }}
             aria-label={label}
+            data-nav-key={to}
             className="outline-none focus-visible:ring-2 focus-visible:ring-ring sidebar-nav-link"
             style={linkStyle}
           >
@@ -1191,7 +1178,12 @@ export const AppLayout = () => {
                 collapsed={sidebarCollapsed}
                 renderSideLink={renderSideLink}
                 isFirst={idx === 0}
+                onCollapsedIconClick={(label) =>
+                  expandFromCollapsedIcon(`group:${label}`, label)
+                }
+                forceOpenSignal={expandedGroupSignal}
               />
+
             );
           })}
         </nav>
