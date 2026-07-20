@@ -21,10 +21,10 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { MultiSelectPopover, type MultiSelectOption } from "@/components/ui/MultiSelectPopover";
 import { toast } from "sonner";
 import {
-  Download, PlayCircle, ExternalLink,
+  Download, PlayCircle, ExternalLink, Lightbulb,
 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from "recharts";
 import {
   useOverlapAudit,
@@ -75,6 +75,13 @@ export default function OverlapAudit() {
   const [data, setData] = useState<OverlapAuditResult | null>(null);
   const [expandedPatient, setExpandedPatient] = useState<string | null>(null);
 
+  // Toggles de colapso — leadership vê topo/gráficos por padrão.
+  const [showAllCombos, setShowAllCombos] = useState(false);
+  const [showPairsTable, setShowPairsTable] = useState(false);
+  const [showAllPatients, setShowAllPatients] = useState(false);
+  const [showAttendances, setShowAttendances] = useState(false);
+  const [attPageSize, setAttPageSize] = useState(50);
+
   const audit = useOverlapAudit();
 
   const run = () => {
@@ -87,6 +94,12 @@ export default function OverlapAudit() {
       {
         onSuccess: (res) => {
           setData(res);
+          // Reset dos toggles a cada nova consulta para não confundir.
+          setShowAllCombos(false);
+          setShowPairsTable(false);
+          setShowAllPatients(false);
+          setShowAttendances(false);
+          setAttPageSize(50);
           if (res.totals.patients === 0) {
             toast.info("Nenhuma sobreposição encontrada na janela.");
           } else {
@@ -181,8 +194,7 @@ export default function OverlapAudit() {
     }
     return Array.from(pairMap.values())
       .map((p) => ({ ...p, uniquePatients: p.patients.size }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 15);
+      .sort((a, b) => b.count - a.count);
   }, [data]);
 
   // Valor por combinação de especialidades — RPC não retorna, calculamos aqui.
@@ -206,6 +218,61 @@ export default function OverlapAudit() {
     }
     return map;
   }, [data]);
+
+  // Resumo narrativo — leitura executiva em 3-4 frases.
+  const narrativeSummary = useMemo(() => {
+    if (!data) return null;
+    const topCombo = data.by_specialty_combo[0];
+    const topPatient = data.by_patient[0];
+    const topPair = doctorPairs[0];
+
+    const lines: string[] = [];
+    lines.push(
+      `Em ${data.totals.days} dias analisados, ${data.totals.patients} pacientes apresentaram sobreposição assistencial, totalizando ${formatCurrency(financialTotals.totalValue)} em risco.`,
+    );
+    if (topCombo) {
+      lines.push(
+        `A combinação mais frequente é ${topCombo.combo_label} (${topCombo.days} dias, ${topCombo.patients} pacientes).`,
+      );
+    }
+    if (topPatient) {
+      const patVal = patientFinancials.get((topPatient.patient_name ?? "").trim()) ?? 0;
+      lines.push(
+        `O paciente com mais sobreposições é ${topPatient.patient_name} com ${topPatient.days} dias — ${formatCurrency(patVal)}.`,
+      );
+    }
+    if (topPair) {
+      lines.push(
+        `O par de médicos mais recorrente é ${topPair.pair} (${topPair.count} sobreposições, ${topPair.uniquePatients} pacientes).`,
+      );
+    }
+    return lines;
+  }, [data, doctorPairs, financialTotals, patientFinancials]);
+
+  // Top-N para gráficos e mini-tabelas.
+  const topCombosChart = useMemo(
+    () =>
+      (data?.by_specialty_combo ?? []).slice(0, 8).map((c) => ({
+        label: truncate(c.combo_label ?? "—", 35),
+        days: c.days,
+        key: c.combo_key,
+      })),
+    [data],
+  );
+
+  const topPatients = useMemo(() => (data?.by_patient ?? []).slice(0, 8), [data]);
+
+  const topPatientsChart = useMemo(
+    () =>
+      topPatients.map((p) => ({
+        label: truncate(p.patient_name ?? "—", 30),
+        days: p.days,
+        key: p.patient_key,
+      })),
+    [topPatients],
+  );
+
+  const topPairs = useMemo(() => doctorPairs.slice(0, 10), [doctorPairs]);
 
   return (
     <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
@@ -309,6 +376,25 @@ export default function OverlapAudit() {
         </div>
       )}
 
+      {/* Resumo narrativo — visão executiva */}
+      {data && narrativeSummary && narrativeSummary.length > 0 && (
+        <Card style={{ borderLeft: "4px solid #2563eb" }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-blue-600" />
+              Resumo da análise
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {narrativeSummary.map((line, i) => (
+              <p key={i} className="text-sm text-foreground/90 leading-relaxed">
+                {line}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Gráfico de distribuição diária */}
       {data && dailyData.length > 0 && (
         <Card>
@@ -354,79 +440,49 @@ export default function OverlapAudit() {
         </Card>
       )}
 
-      {/* Pares de médicos */}
-      {data && doctorPairs.length > 0 && (
+      {/* Combinações — chart + tabela colapsada */}
+      {data && data.by_specialty_combo.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Pares de médicos mais frequentes ({doctorPairs.length})
+              Combinações de especialidades — Top {topCombosChart.length} por dias
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div style={{ width: "100%", height: Math.max(200, doctorPairs.length * 36) }}>
+            <div style={{ width: "100%", height: Math.max(220, topCombosChart.length * 40) }}>
               <ResponsiveContainer>
                 <BarChart
-                  data={doctorPairs.map((p) => ({ ...p, pairShort: truncate(p.pair, 40) }))}
+                  data={topCombosChart}
                   layout="vertical"
-                  margin={{ top: 8, right: 24, left: 16, bottom: 8 }}
+                  margin={{ top: 8, right: 40, left: 16, bottom: 8 }}
                 >
                   <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
                   <YAxis
                     type="category"
-                    dataKey="pairShort"
-                    width={260}
+                    dataKey="label"
+                    width={240}
                     tick={{ fontSize: 11 }}
                   />
-                  <Tooltip
-                    formatter={(value: number) => [value, "Sobreposições"]}
-                    labelFormatter={(label: string) => label}
-                  />
-                  <Bar dataKey="count" fill="#e87ba4" radius={[0, 4, 4, 0]}>
-                    {doctorPairs.map((_, i) => (
-                      <Cell key={i} fill="#e87ba4" />
-                    ))}
+                  <Tooltip formatter={(value: number) => [value, "Dias"]} />
+                  <Bar dataKey="days" fill="#2563eb" radius={[0, 4, 4, 0]}>
+                    <LabelList dataKey="days" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Par</TableHead>
-                    <TableHead className="text-right">Sobreposições</TableHead>
-                    <TableHead className="text-right">Pacientes únicos</TableHead>
-                    <TableHead className="text-right">Valor estimado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {doctorPairs.map((p) => (
-                    <TableRow key={p.pair}>
-                      <TableCell className="font-medium">{p.pair}</TableCell>
-                      <TableCell className="text-right">{p.count}</TableCell>
-                      <TableCell className="text-right">{p.uniquePatients}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(p.value)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Card 1 — combinações */}
-      {data && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Combinações de especialidades ({data.by_specialty_combo.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.by_specialty_combo.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma combinação encontrada.</p>
-            ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground"
+              onClick={() => setShowAllCombos(!showAllCombos)}
+            >
+              {showAllCombos
+                ? "Ocultar tabela ▲"
+                : `Ver todas as ${data.by_specialty_combo.length} combinações ▼`}
+            </Button>
+
+            {showAllCombos && (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -479,18 +535,158 @@ export default function OverlapAudit() {
         </Card>
       )}
 
-      {/* Card 2 — pacientes */}
-      {data && (
+      {/* Pares de médicos — chart Top 10 + tabela colapsada */}
+      {data && topPairs.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Pacientes com mais dias em sobreposição ({data.by_patient.length})
+              Pares de médicos mais frequentes — Top {topPairs.length}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {data.by_patient.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem pacientes na janela.</p>
-            ) : (
+          <CardContent className="space-y-4">
+            <div style={{ width: "100%", height: Math.max(220, topPairs.length * 36) }}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={topPairs.map((p) => ({ ...p, pairShort: truncate(p.pair, 40) }))}
+                  layout="vertical"
+                  margin={{ top: 8, right: 40, left: 16, bottom: 8 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="pairShort"
+                    width={260}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [value, "Sobreposições"]}
+                    labelFormatter={(label: string) => label}
+                  />
+                  <Bar dataKey="count" fill="#e87ba4" radius={[0, 4, 4, 0]}>
+                    {topPairs.map((_, i) => (
+                      <Cell key={i} fill="#e87ba4" />
+                    ))}
+                    <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground"
+              onClick={() => setShowPairsTable(!showPairsTable)}
+            >
+              {showPairsTable
+                ? "Ocultar detalhes ▲"
+                : `Ver detalhes dos ${doctorPairs.length} pares ▼`}
+            </Button>
+
+            {showPairsTable && (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Par</TableHead>
+                      <TableHead className="text-right">Sobreposições</TableHead>
+                      <TableHead className="text-right">Pacientes únicos</TableHead>
+                      <TableHead className="text-right">Valor estimado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {doctorPairs.map((p) => (
+                      <TableRow key={p.pair}>
+                        <TableCell className="font-medium">{p.pair}</TableCell>
+                        <TableCell className="text-right">{p.count}</TableCell>
+                        <TableCell className="text-right">{p.uniquePatients}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(p.value)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pacientes — chart + mini-tabela Top 8 + tabela completa colapsada */}
+      {data && data.by_patient.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Pacientes com mais dias em sobreposição — Top {topPatients.length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div style={{ width: "100%", height: Math.max(220, topPatientsChart.length * 40) }}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={topPatientsChart}
+                  layout="vertical"
+                  margin={{ top: 8, right: 40, left: 16, bottom: 8 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    width={220}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip formatter={(value: number) => [value, "Dias"]} />
+                  <Bar dataKey="days" fill="#e87ba4" radius={[0, 4, 4, 0]}>
+                    <LabelList dataKey="days" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Mini-tabela Top 8 sem drill-down. */}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead className="text-right">Dias</TableHead>
+                    <TableHead className="text-right">Atendimentos</TableHead>
+                    <TableHead>Especialidades</TableHead>
+                    <TableHead className="text-right">Valor pago</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topPatients.map((p) => {
+                    const valor = patientFinancials.get((p.patient_name ?? "").trim()) ?? 0;
+                    return (
+                      <TableRow key={p.patient_key}>
+                        <TableCell className="font-medium">{p.patient_name}</TableCell>
+                        <TableCell className="text-right">{p.days}</TableCell>
+                        <TableCell className="text-right">{p.attendances}</TableCell>
+                        <TableCell className="text-xs">
+                          {(p.specialties ?? []).map((s) => (
+                            <Badge key={s} variant="outline" className="mr-1 mb-1">{s}</Badge>
+                          ))}
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(valor)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground"
+              onClick={() => setShowAllPatients(!showAllPatients)}
+            >
+              {showAllPatients
+                ? "Ocultar tabela completa ▲"
+                : `Ver todos os ${data.by_patient.length} pacientes ▼`}
+            </Button>
+
+            {showAllPatients && (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -563,74 +759,98 @@ export default function OverlapAudit() {
         </Card>
       )}
 
-      {/* Card 3 — atendimentos */}
-      {data && (
+      {/* Atendimentos — colapsado + paginado */}
+      {data && data.by_attendance.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              Atendimentos com sobreposição no mesmo dia ({data.by_attendance.length})
-            </CardTitle>
+            <CardTitle className="text-base">Atendimentos com sobreposição no mesmo dia</CardTitle>
           </CardHeader>
-          <CardContent>
-            {data.by_attendance.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum atendimento encontrado.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Paciente</TableHead>
-                      <TableHead>Atendimentos</TableHead>
-                      <TableHead>Médicos</TableHead>
-                      <TableHead>Especialidades</TableHead>
-                      <TableHead className="text-right">Lançamentos</TableHead>
-                      <TableHead className="text-right">Valor pago</TableHead>
-                      <TableHead>Lotes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.by_attendance.map((r, i) => (
-                      <TableRow key={i}>
-                        <TableCell>{fmtDate(r.pdate)}</TableCell>
-                        <TableCell className="font-medium">{r.patient_name}</TableCell>
-                        <TableCell className="text-xs">
-                          {(r.attendances ?? []).join(", ") || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {(r.doctors ?? []).join(", ") || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {(r.specialties ?? []).join(" + ")}
-                        </TableCell>
-                        <TableCell className="text-right">{r.items}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(Number(r.total_gross ?? 0))}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          <div className="flex flex-wrap gap-1">
-                            {(r.payment_ids ?? []).slice(0, 3).map((pid) => (
-                              <Link
-                                key={pid}
-                                to={`/pagamentos/${pid}`}
-                                className="inline-flex items-center gap-1 text-primary hover:underline"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                Lote
-                              </Link>
-                            ))}
-                            {(r.payment_ids ?? []).length > 3 && (
-                              <span className="text-muted-foreground">
-                                +{(r.payment_ids ?? []).length - 3}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-sm text-muted-foreground">
+                <strong>{data.by_attendance.length}</strong> atendimentos com sobreposição no período.
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => setShowAttendances(!showAttendances)}
+              >
+                {showAttendances ? "Ocultar detalhes ▲" : "Ver detalhes ▼"}
+              </Button>
+            </div>
+
+            {showAttendances && (
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Paciente</TableHead>
+                        <TableHead>Atendimentos</TableHead>
+                        <TableHead>Médicos</TableHead>
+                        <TableHead>Especialidades</TableHead>
+                        <TableHead className="text-right">Lançamentos</TableHead>
+                        <TableHead className="text-right">Valor pago</TableHead>
+                        <TableHead>Lotes</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {data.by_attendance.slice(0, attPageSize).map((r, i) => (
+                        <TableRow key={i}>
+                          <TableCell>{fmtDate(r.pdate)}</TableCell>
+                          <TableCell className="font-medium">{r.patient_name}</TableCell>
+                          <TableCell className="text-xs">
+                            {(r.attendances ?? []).join(", ") || "—"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {(r.doctors ?? []).join(", ") || "—"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {(r.specialties ?? []).join(" + ")}
+                          </TableCell>
+                          <TableCell className="text-right">{r.items}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(Number(r.total_gross ?? 0))}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex flex-wrap gap-1">
+                              {(r.payment_ids ?? []).slice(0, 3).map((pid) => (
+                                <Link
+                                  key={pid}
+                                  to={`/pagamentos/${pid}`}
+                                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  Lote
+                                </Link>
+                              ))}
+                              {(r.payment_ids ?? []).length > 3 && (
+                                <span className="text-muted-foreground">
+                                  +{(r.payment_ids ?? []).length - 3}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {attPageSize < data.by_attendance.length && (
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAttPageSize(attPageSize + 50)}
+                    >
+                      Carregar mais (mostrando {Math.min(attPageSize, data.by_attendance.length)} de {data.by_attendance.length})
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
