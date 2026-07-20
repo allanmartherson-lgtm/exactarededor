@@ -523,6 +523,16 @@ export default function OverlapAudit() {
 
             {showAllCombos && (
               <div className="overflow-x-auto">
+                {selectedComboKey && (
+                  <div className="mb-2 flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">
+                      Filtro: {data.by_specialty_combo.find((c) => c.combo_key === selectedComboKey)?.combo_label ?? selectedComboKey}
+                    </Badge>
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedComboKey(null)}>
+                      Limpar ✕
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -537,7 +547,9 @@ export default function OverlapAudit() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.by_specialty_combo.map((r) => {
+                    {data.by_specialty_combo
+                      .filter((r) => !selectedComboKey || r.combo_key === selectedComboKey)
+                      .map((r) => {
                       const combo = r.combo_label ?? "—";
                       const isMesma = combo.includes(" + ")
                         ? combo.split(" + ").length !==
