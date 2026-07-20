@@ -86,6 +86,7 @@ export default function OverlapAudit() {
   const [excludedSpecs, setExcludedSpecs] = useState<string[]>(["infectologia"]);
   const [data, setData] = useState<OverlapAuditResult | null>(null);
   const [expandedPatient, setExpandedPatient] = useState<string | null>(null);
+  const [expandedComboKey, setExpandedComboKey] = useState<string | null>(null);
 
   // Toggles de colapso — leadership vê topo/gráficos por padrão.
   const [showAllCombos, setShowAllCombos] = useState(false);
