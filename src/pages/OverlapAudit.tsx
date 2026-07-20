@@ -82,6 +82,31 @@ export default function OverlapAudit() {
   const [showAttendances, setShowAttendances] = useState(false);
   const [attPageSize, setAttPageSize] = useState(50);
 
+  // Drill-down: clique numa barra filtra a tabela correspondente.
+  const [selectedComboKey, setSelectedComboKey] = useState<string | null>(null);
+  const [selectedPatientKey, setSelectedPatientKey] = useState<string | null>(null);
+  const [selectedPair, setSelectedPair] = useState<string | null>(null);
+
+  // Recharts entrega o payload no onClick da barra; tipamos como unknown p/ segurança.
+  const handleComboBarClick = (payload: unknown) => {
+    const key = (payload as { key?: string } | null)?.key ?? null;
+    if (!key) return;
+    setSelectedComboKey((prev) => (prev === key ? null : key));
+    setShowAllCombos(true);
+  };
+  const handlePatientBarClick = (payload: unknown) => {
+    const key = (payload as { key?: string } | null)?.key ?? null;
+    if (!key) return;
+    setSelectedPatientKey((prev) => (prev === key ? null : key));
+    setShowAllPatients(true);
+  };
+  const handlePairBarClick = (payload: unknown) => {
+    const pair = (payload as { pair?: string } | null)?.pair ?? null;
+    if (!pair) return;
+    setSelectedPair((prev) => (prev === pair ? null : pair));
+    setShowPairsTable(true);
+  };
+
   const audit = useOverlapAudit();
 
   const run = () => {
@@ -100,6 +125,9 @@ export default function OverlapAudit() {
           setShowAllPatients(false);
           setShowAttendances(false);
           setAttPageSize(50);
+          setSelectedComboKey(null);
+          setSelectedPatientKey(null);
+          setSelectedPair(null);
           if (res.totals.patients === 0) {
             toast.info("Nenhuma sobreposição encontrada na janela.");
           } else {
@@ -464,7 +492,18 @@ export default function OverlapAudit() {
                     tick={{ fontSize: 11 }}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
-                  <Bar dataKey="days" fill="#2563eb" radius={[0, 4, 4, 0]}>
+                  <Bar
+                    dataKey="days"
+                    radius={[0, 4, 4, 0]}
+                    onClick={handleComboBarClick}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {topCombosChart.map((c) => (
+                      <Cell
+                        key={c.key}
+                        fill={selectedComboKey === c.key ? "#1e40af" : "#2563eb"}
+                      />
+                    ))}
                     <LabelList dataKey="days" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
                   </Bar>
                 </BarChart>
@@ -484,6 +523,16 @@ export default function OverlapAudit() {
 
             {showAllCombos && (
               <div className="overflow-x-auto">
+                {selectedComboKey && (
+                  <div className="mb-2 flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">
+                      Filtro: {data.by_specialty_combo.find((c) => c.combo_key === selectedComboKey)?.combo_label ?? selectedComboKey}
+                    </Badge>
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedComboKey(null)}>
+                      Limpar ✕
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -498,7 +547,9 @@ export default function OverlapAudit() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.by_specialty_combo.map((r) => {
+                    {data.by_specialty_combo
+                      .filter((r) => !selectedComboKey || r.combo_key === selectedComboKey)
+                      .map((r) => {
                       const combo = r.combo_label ?? "—";
                       const isMesma = combo.includes(" + ")
                         ? combo.split(" + ").length !==
@@ -562,9 +613,14 @@ export default function OverlapAudit() {
                     formatter={(value: number) => [value, "Sobreposições"]}
                     labelFormatter={(label: string) => label}
                   />
-                  <Bar dataKey="count" fill="#e87ba4" radius={[0, 4, 4, 0]}>
-                    {topPairs.map((_, i) => (
-                      <Cell key={i} fill="#e87ba4" />
+                  <Bar
+                    dataKey="count"
+                    radius={[0, 4, 4, 0]}
+                    onClick={handlePairBarClick}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {topPairs.map((p) => (
+                      <Cell key={p.pair} fill={selectedPair === p.pair ? "#be185d" : "#e87ba4"} />
                     ))}
                     <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
                   </Bar>
@@ -585,6 +641,14 @@ export default function OverlapAudit() {
 
             {showPairsTable && (
               <div className="overflow-x-auto">
+                {selectedPair && (
+                  <div className="mb-2 flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">Filtro: {selectedPair}</Badge>
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPair(null)}>
+                      Limpar ✕
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -595,7 +659,9 @@ export default function OverlapAudit() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {doctorPairs.map((p) => (
+                    {doctorPairs
+                      .filter((p) => !selectedPair || p.pair === selectedPair)
+                      .map((p) => (
                       <TableRow key={p.pair}>
                         <TableCell className="font-medium">{p.pair}</TableCell>
                         <TableCell className="text-right">{p.count}</TableCell>
@@ -635,15 +701,33 @@ export default function OverlapAudit() {
                     tick={{ fontSize: 11 }}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
-                  <Bar dataKey="days" fill="#e87ba4" radius={[0, 4, 4, 0]}>
+                  <Bar
+                    dataKey="days"
+                    radius={[0, 4, 4, 0]}
+                    onClick={handlePatientBarClick}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {topPatientsChart.map((p) => (
+                      <Cell key={p.key} fill={selectedPatientKey === p.key ? "#be185d" : "#e87ba4"} />
+                    ))}
                     <LabelList dataKey="days" position="right" style={{ fontSize: 11, fill: "#1e293b" }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Mini-tabela Top 8 sem drill-down. */}
+            {/* Mini-tabela Top 8 — respeita drill-down do gráfico. */}
             <div className="overflow-x-auto">
+              {selectedPatientKey && (
+                <div className="mb-2 flex items-center gap-2 text-xs">
+                  <Badge variant="secondary">
+                    Filtro: {topPatients.find((p) => p.patient_key === selectedPatientKey)?.patient_name ?? selectedPatientKey}
+                  </Badge>
+                  <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPatientKey(null)}>
+                    Limpar ✕
+                  </Button>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -655,7 +739,9 @@ export default function OverlapAudit() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {topPatients.map((p) => {
+                  {topPatients
+                    .filter((p) => !selectedPatientKey || p.patient_key === selectedPatientKey)
+                    .map((p) => {
                     const valor = patientFinancials.get((p.patient_name ?? "").trim()) ?? 0;
                     return (
                       <TableRow key={p.patient_key}>
@@ -688,6 +774,16 @@ export default function OverlapAudit() {
 
             {showAllPatients && (
               <div className="overflow-x-auto">
+                {selectedPatientKey && (
+                  <div className="mb-2 flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">
+                      Filtro: {data.by_patient.find((p) => p.patient_key === selectedPatientKey)?.patient_name ?? selectedPatientKey}
+                    </Badge>
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPatientKey(null)}>
+                      Limpar ✕
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -701,7 +797,9 @@ export default function OverlapAudit() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.by_patient.map((p) => {
+                    {data.by_patient
+                      .filter((p) => !selectedPatientKey || p.patient_key === selectedPatientKey)
+                      .map((p) => {
                       const isOpen = expandedPatient === p.patient_name;
                       const valor = patientFinancials.get((p.patient_name ?? "").trim()) ?? 0;
                       return (
