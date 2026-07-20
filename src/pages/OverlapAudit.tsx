@@ -748,7 +748,7 @@ export default function OverlapAudit() {
                         </TableRow>
                         {isOpen && (
                           <TableRow>
-                            <TableCell colSpan={8} className="bg-muted/30 p-0">
+                            <TableCell colSpan={9} className="bg-muted/30 p-0">
                               <div className="p-3 space-y-2">
                                 <div className="text-xs text-muted-foreground">
                                   <strong>{comboDrill.length}</strong> atendimento(s) em que
