@@ -495,18 +495,21 @@ export default function OverlapAudit() {
       {data && dailyData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Distribuição diária de sobreposições</CardTitle>
+            <CardTitle className="text-base">Pacientes com sobreposição por dia</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pacientes distintos que receberam visita de 2+ médicos no mesmo dia
+            </p>
           </CardHeader>
           <CardContent>
-            <div style={{ width: "100%", height: 280 }}>
+            <div style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
-                <BarChart data={dailyData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                <BarChart data={dailyData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
                   <XAxis
                     dataKey="date"
                     tickFormatter={fmtDayMonth}
                     tick={{ fontSize: 11 }}
                   />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                   <Tooltip
                     formatter={(value: number, name: string) => {
                       if (name === "count") return [value, "Sobreposições"];
@@ -528,7 +531,9 @@ export default function OverlapAudit() {
                       fill: "#64748b",
                     }}
                   />
-                  <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={28}>
+                    <LabelList dataKey="count" position="top" fontSize={11} fill="#1e293b" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
