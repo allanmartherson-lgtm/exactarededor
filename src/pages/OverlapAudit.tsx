@@ -991,8 +991,8 @@ export default function OverlapAudit() {
                         <TableHead className="w-[110px] text-xs px-2 py-1.5 align-top">Atendimentos</TableHead>
                         <TableHead className="w-[240px] text-xs px-2 py-1.5 align-top">Médicos</TableHead>
                         <TableHead className="w-[220px] text-xs px-2 py-1.5 align-top">Especialidades</TableHead>
-                        <TableHead className="w-[50px] text-center text-xs px-2 py-1.5 align-top">Lançamentos</TableHead>
-                        <TableHead className="w-[90px] text-right whitespace-nowrap text-xs px-2 py-1.5 align-top">Valor pago</TableHead>
+                        <TableHead className="w-[50px] text-center text-xs px-2 py-1.5 align-top" title="Visitas/pareceres lançados neste atendimento.">Visitas</TableHead>
+                        <TableHead className="w-[90px] text-right whitespace-nowrap text-xs px-2 py-1.5 align-top" title="Somatório do bruto apenas dos itens pesquisados (visitas e pareceres).">Valor pago</TableHead>
                         <TableHead className="text-xs px-2 py-1.5 align-top">Lotes</TableHead>
                       </TableRow>
                     </TableHeader>
