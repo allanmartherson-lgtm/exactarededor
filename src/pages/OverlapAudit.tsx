@@ -774,6 +774,16 @@ export default function OverlapAudit() {
 
             {showAllPatients && (
               <div className="overflow-x-auto">
+                {selectedPatientKey && (
+                  <div className="mb-2 flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">
+                      Filtro: {data.by_patient.find((p) => p.patient_key === selectedPatientKey)?.patient_name ?? selectedPatientKey}
+                    </Badge>
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPatientKey(null)}>
+                      Limpar ✕
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -787,7 +797,9 @@ export default function OverlapAudit() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.by_patient.map((p) => {
+                    {data.by_patient
+                      .filter((p) => !selectedPatientKey || p.patient_key === selectedPatientKey)
+                      .map((p) => {
                       const isOpen = expandedPatient === p.patient_name;
                       const valor = patientFinancials.get((p.patient_name ?? "").trim()) ?? 0;
                       return (
