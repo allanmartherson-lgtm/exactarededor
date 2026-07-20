@@ -65,6 +65,18 @@ const fmtDayMonth = (iso: string): string => {
 
 const truncate = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+// Limpeza APENAS para exibição — remove sufixo "CRM 12345" do rótulo.
+// Não altera dados subjacentes usados em matching/normalização.
+function cleanDoctorName(name: string): string {
+  return (name ?? "").replace(/\s+CRM\s*\d+/gi, "").trim();
+}
+function cleanPairLabel(pair: string): string {
+  return (pair ?? "")
+    .split(" × ")
+    .map((n) => cleanDoctorName(n))
+    .join(" × ");
+}
+
 export default function OverlapAudit() {
   const [start, setStart] = useState(nDaysAgo(90));
   const [end, setEnd] = useState(today());
@@ -326,7 +338,7 @@ export default function OverlapAudit() {
     }
     if (topPair) {
       lines.push(
-        `O par de médicos mais recorrente é ${topPair.pair} (${topPair.count} sobreposições, ${topPair.uniquePatients} pacientes).`,
+        `O par de médicos mais recorrente é ${cleanPairLabel(topPair.pair)} (${topPair.count} sobreposições, ${topPair.uniquePatients} pacientes).`,
       );
     }
     return lines;
@@ -335,11 +347,15 @@ export default function OverlapAudit() {
   // Top-N para gráficos e mini-tabelas.
   const topCombosChart = useMemo(
     () =>
-      (data?.by_specialty_combo ?? []).slice(0, 8).map((c) => ({
-        label: truncate(c.combo_label ?? "—", 35),
-        days: c.days,
-        key: c.combo_key,
-      })),
+      (data?.by_specialty_combo ?? [])
+        .slice()
+        .sort((a, b) => b.days - a.days)
+        .slice(0, 8)
+        .map((c) => ({
+          label: c.combo_label ?? "—",
+          days: c.days,
+          key: c.combo_key,
+        })),
     [data],
   );
 
@@ -483,18 +499,21 @@ export default function OverlapAudit() {
       {data && dailyData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Distribuição diária de sobreposições</CardTitle>
+            <CardTitle className="text-base">Pacientes com sobreposição por dia</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pacientes distintos que receberam visita de 2+ médicos no mesmo dia
+            </p>
           </CardHeader>
           <CardContent>
-            <div style={{ width: "100%", height: 280 }}>
+            <div style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
-                <BarChart data={dailyData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                <BarChart data={dailyData} margin={{ top: 24, right: 16, left: 0, bottom: 8 }}>
                   <XAxis
                     dataKey="date"
                     tickFormatter={fmtDayMonth}
                     tick={{ fontSize: 11 }}
                   />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                   <Tooltip
                     formatter={(value: number, name: string) => {
                       if (name === "count") return [value, "Sobreposições"];
@@ -516,7 +535,9 @@ export default function OverlapAudit() {
                       fill: "#64748b",
                     }}
                   />
-                  <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={28}>
+                    <LabelList dataKey="count" position="top" fontSize={11} fill="#1e293b" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -529,23 +550,24 @@ export default function OverlapAudit() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Combinações de especialidades — Top {topCombosChart.length} por dias
+              Combinações de especialidades mais frequentes
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div style={{ width: "100%", height: Math.max(220, topCombosChart.length * 40) }}>
+            <div style={{ width: "100%", height: Math.max(240, topCombosChart.length * 44) }}>
               <ResponsiveContainer>
                 <BarChart
                   data={topCombosChart}
                   layout="vertical"
-                  margin={{ top: 8, right: 40, left: 16, bottom: 8 }}
+                  margin={{ top: 8, right: 56, left: 16, bottom: 8 }}
                 >
                   <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
                   <YAxis
                     type="category"
                     dataKey="label"
-                    width={240}
-                    tick={{ fontSize: 11 }}
+                    width={250}
+                    tick={{ fontSize: 12 }}
+                    interval={0}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
                   <Bar
@@ -647,23 +669,24 @@ export default function OverlapAudit() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Pares de médicos mais frequentes — Top {topPairs.length}
+              Pares de médicos mais frequentes
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div style={{ width: "100%", height: Math.max(220, topPairs.length * 36) }}>
+            <div style={{ width: "100%", height: Math.max(240, topPairs.length * 40) }}>
               <ResponsiveContainer>
                 <BarChart
-                  data={topPairs.map((p) => ({ ...p, pairShort: truncate(p.pair, 40) }))}
+                  data={topPairs.map((p) => ({ ...p, pairShort: cleanPairLabel(p.pair) }))}
                   layout="vertical"
-                  margin={{ top: 8, right: 40, left: 16, bottom: 8 }}
+                  margin={{ top: 8, right: 56, left: 16, bottom: 8 }}
                 >
                   <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
                   <YAxis
                     type="category"
                     dataKey="pairShort"
-                    width={260}
-                    tick={{ fontSize: 11 }}
+                    width={280}
+                    tick={{ fontSize: 12 }}
+                    interval={0}
                   />
                   <Tooltip
                     formatter={(value: number) => [value, "Sobreposições"]}
@@ -699,7 +722,7 @@ export default function OverlapAudit() {
               <div className="overflow-x-auto">
                 {selectedPair && (
                   <div className="mb-2 flex items-center gap-2 text-xs">
-                    <Badge variant="secondary">Filtro: {selectedPair}</Badge>
+                    <Badge variant="secondary">Filtro: {cleanPairLabel(selectedPair)}</Badge>
                     <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setSelectedPair(null)}>
                       Limpar ✕
                     </Button>
@@ -719,7 +742,7 @@ export default function OverlapAudit() {
                       .filter((p) => !selectedPair || p.pair === selectedPair)
                       .map((p) => (
                       <TableRow key={p.pair}>
-                        <TableCell className="font-medium">{p.pair}</TableCell>
+                        <TableCell className="font-medium">{cleanPairLabel(p.pair)}</TableCell>
                         <TableCell className="text-right">{p.count}</TableCell>
                         <TableCell className="text-right">{p.uniquePatients}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.value)}</TableCell>
@@ -738,7 +761,7 @@ export default function OverlapAudit() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Pacientes com mais dias em sobreposição — Top {topPatients.length}
+              Pacientes com mais dias de sobreposição
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -754,7 +777,8 @@ export default function OverlapAudit() {
                     type="category"
                     dataKey="label"
                     width={220}
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 12 }}
+                    interval={0}
                   />
                   <Tooltip formatter={(value: number) => [value, "Dias"]} />
                   <Bar
@@ -789,7 +813,7 @@ export default function OverlapAudit() {
                   <TableRow>
                     <TableHead>Paciente</TableHead>
                     <TableHead className="text-right">Dias</TableHead>
-                    <TableHead className="text-right">Atendimentos</TableHead>
+                    <TableHead className="text-right">Internações</TableHead>
                     <TableHead>Especialidades</TableHead>
                     <TableHead className="text-right">Valor pago</TableHead>
                   </TableRow>
