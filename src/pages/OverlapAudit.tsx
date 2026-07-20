@@ -65,6 +65,18 @@ const fmtDayMonth = (iso: string): string => {
 
 const truncate = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+// Limpeza APENAS para exibição — remove sufixo "CRM 12345" do rótulo.
+// Não altera dados subjacentes usados em matching/normalização.
+function cleanDoctorName(name: string): string {
+  return (name ?? "").replace(/\s+CRM\s*\d+/gi, "").trim();
+}
+function cleanPairLabel(pair: string): string {
+  return (pair ?? "")
+    .split(" × ")
+    .map((n) => cleanDoctorName(n))
+    .join(" × ");
+}
+
 export default function OverlapAudit() {
   const [start, setStart] = useState(nDaysAgo(90));
   const [end, setEnd] = useState(today());
