@@ -1350,6 +1350,7 @@ Deno.serve(async (req) => {
         learned_preferences: learnedPrefs,
         route_context: routeContext,
         screen_context: body.screen_context ?? null,
+        knowledge_articles: knowledgeArticles.length > 0 ? knowledgeArticles : null,
       });
 
       // Ações sem mutação — devolve direto pro cliente aplicar.
