@@ -1327,9 +1327,10 @@ Deno.serve(async (req) => {
     if (body.step === "propose") {
       if (!body.prompt) return jsonResp({ error: "prompt obrigatório" }, 400);
 
-      const [learnedPrefs, routeContext] = await Promise.all([
+      const [learnedPrefs, routeContext, knowledgeArticles] = await Promise.all([
         loadLearnedPreferences(sb, activeHospitalId),
         buildRouteContext(sb, body.current_path ?? null, activeHospitalId),
+        loadKnowledgeArticles(sb, body.prompt!, body.current_path ?? null),
       ]);
 
       const llm = await callLLM(body.prompt, {
