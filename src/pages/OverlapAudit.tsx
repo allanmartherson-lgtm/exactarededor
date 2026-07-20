@@ -742,7 +742,7 @@ export default function OverlapAudit() {
                       .filter((p) => !selectedPair || p.pair === selectedPair)
                       .map((p) => (
                       <TableRow key={p.pair}>
-                        <TableCell className="font-medium">{p.pair}</TableCell>
+                        <TableCell className="font-medium">{cleanPairLabel(p.pair)}</TableCell>
                         <TableCell className="text-right">{p.count}</TableCell>
                         <TableCell className="text-right">{p.uniquePatients}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.value)}</TableCell>
