@@ -303,6 +303,16 @@ export default function OverlapAudit() {
   }, [data]);
 
 
+  // Normalização de especialidade — usada para casar combo ↔ atendimento.
+  const normSpec = (s: string): string =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
   // Valor por combinação de especialidades — RPC não retorna, calculamos aqui.
   const comboFinancials = useMemo(() => {
     if (!data) return new Map<string, number>();
@@ -313,6 +323,28 @@ export default function OverlapAudit() {
     }
     return map;
   }, [data]);
+
+  // Drill-down por combinação — filtra os atendimentos cujo conjunto de
+  // especialidades corresponde exatamente ao combo (mesma cardinalidade e
+  // mesmos rótulos normalizados). Fornece rastreabilidade auditável:
+  // paciente, atendimentos, médicos, especialidades, visitas e valor.
+  const comboDrill = useMemo(() => {
+    if (!data || !expandedComboKey) return [];
+    const combo = data.by_specialty_combo.find((c) => c.combo_key === expandedComboKey);
+    if (!combo) return [];
+    const wantedTokens = (combo.combo_label ?? "")
+      .split(" + ")
+      .map((s) => normSpec(s))
+      .filter(Boolean)
+      .sort();
+    const wantedKey = wantedTokens.join("|");
+    return data.by_attendance
+      .filter((r) => {
+        const toks = (r.specialties ?? []).map((s) => normSpec(s)).filter(Boolean).sort();
+        return toks.join("|") === wantedKey;
+      })
+      .sort((a, b) => (b.pdate ?? "").localeCompare(a.pdate ?? ""));
+  }, [data, expandedComboKey]);
 
   // Valor por paciente — agregado dos atendimentos.
   const patientFinancials = useMemo(() => {
