@@ -172,10 +172,37 @@ export default function OverlapAudit() {
 
   const patientDrill = useMemo(() => {
     if (!data || !expandedPatient) return [];
-    return data.by_attendance.filter(
-      (a) => (a.patient_name ?? "").trim() === expandedPatient.trim(),
-    );
+    return data.by_attendance
+      .filter((a) => (a.patient_name ?? "").trim() === expandedPatient.trim())
+      .sort((a, b) => (b.pdate ?? "").localeCompare(a.pdate ?? ""));
   }, [data, expandedPatient]);
+
+  // Intervalo por especialidade dentro do drill do paciente — mesma lógica
+  // usada no drill de combinações: ajuda a localizar no prontuário eletrônico.
+  const patientSpecialtyIntervals = useMemo(() => {
+    const out = new Map<string, Map<string, { min: string; max: string }>>();
+    for (const d of patientDrill) {
+      const attKey =
+        (d.attendances ?? [])[0] ?? `PAC:${(d.patient_name ?? "").trim()}`;
+      if (!attKey) continue;
+      let bySpec = out.get(attKey);
+      if (!bySpec) {
+        bySpec = new Map();
+        out.set(attKey, bySpec);
+      }
+      const date = d.pdate ?? "";
+      if (!date) continue;
+      for (const s of d.specialties ?? []) {
+        const prev = bySpec.get(s);
+        if (!prev) bySpec.set(s, { min: date, max: date });
+        else {
+          if (date < prev.min) prev.min = date;
+          if (date > prev.max) prev.max = date;
+        }
+      }
+    }
+    return out;
+  }, [patientDrill]);
 
   // Totais recomputados a partir de by_attendance — garante que os KPIs
   // reflitam exatamente o período/filtro aplicado. O RPC devolve totais que,
@@ -1123,19 +1150,73 @@ export default function OverlapAudit() {
                           </TableRow>
                           {isOpen && patientDrill.length > 0 && (
                             <TableRow key={`${p.patient_key}-drill`}>
-                              <TableCell colSpan={7} className="bg-muted/30">
-                                <div className="p-2 space-y-2">
-                                  {patientDrill.map((d, idx) => (
-                                    <div key={idx} className="flex flex-wrap gap-2 text-xs items-center">
-                                      <Badge variant="secondary">{fmtDate(d.pdate)}</Badge>
-                                      <span className="text-muted-foreground">Atendimentos:</span>
-                                      <span>{(d.attendances ?? []).join(", ") || "—"}</span>
-                                      <span className="text-muted-foreground">| Médicos:</span>
-                                      <span>{(d.doctors ?? []).join(", ")}</span>
-                                      <span className="text-muted-foreground">| Especialidades:</span>
-                                      <span>{(d.specialties ?? []).join(" + ")}</span>
-                                    </div>
-                                  ))}
+                              <TableCell colSpan={7} className="bg-muted/30 p-0">
+                                <div className="overflow-x-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
+                                        <TableHead className="text-xs">Atendimentos</TableHead>
+                                        <TableHead className="text-xs">Médicos (com CRM)</TableHead>
+                                        <TableHead className="text-xs">Especialidades</TableHead>
+                                        <TableHead className="text-xs">Intervalo por especialidade</TableHead>
+                                        <TableHead className="text-xs text-right">Visitas</TableHead>
+                                        <TableHead className="text-xs text-right whitespace-nowrap">Valor pago</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {patientDrill.map((d, idx) => (
+                                        <TableRow key={`${p.patient_key}-drill-${idx}`}>
+                                          <TableCell className="text-xs whitespace-nowrap align-top">{fmtDate(d.pdate)}</TableCell>
+                                          <TableCell className="text-xs align-top whitespace-normal break-words">
+                                            {(d.attendances ?? []).join(", ") || "—"}
+                                          </TableCell>
+                                          <TableCell className="text-xs align-top whitespace-normal break-words">
+                                            {(d.doctors ?? []).length === 0 ? "—" : (
+                                              <ul className="space-y-0.5">
+                                                {(d.doctors ?? []).map((doc, i) => (
+                                                  <li key={i}>{doc}</li>
+                                                ))}
+                                              </ul>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="text-xs align-top">
+                                            {(d.specialties ?? []).map((s) => (
+                                              <Badge key={s} variant="outline" className="mr-1 mb-1 text-[10px]">{s}</Badge>
+                                            ))}
+                                          </TableCell>
+                                          <TableCell className="text-xs align-top whitespace-normal break-words">
+                                            {(() => {
+                                              const attKey = (d.attendances ?? [])[0] ?? `PAC:${(d.patient_name ?? "").trim()}`;
+                                              const bySpec = patientSpecialtyIntervals.get(attKey);
+                                              const specs = d.specialties ?? [];
+                                              if (!bySpec || specs.length === 0) return "—";
+                                              return (
+                                                <ul className="space-y-0.5">
+                                                  {specs.map((s) => {
+                                                    const iv = bySpec.get(s);
+                                                    if (!iv) return null;
+                                                    const label = iv.min === iv.max
+                                                      ? fmtDate(iv.min)
+                                                      : `${fmtDate(iv.min)} a ${fmtDate(iv.max)}`;
+                                                    return (
+                                                      <li key={s}>
+                                                        <span className="font-medium">{s}:</span> {label}
+                                                      </li>
+                                                    );
+                                                  })}
+                                                </ul>
+                                              );
+                                            })()}
+                                          </TableCell>
+                                          <TableCell className="text-xs text-right align-top">{d.items}</TableCell>
+                                          <TableCell className="text-xs text-right whitespace-nowrap align-top">
+                                            {formatCurrency(Number(d.total_gross ?? 0))}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
                                 </div>
                               </TableCell>
                             </TableRow>
