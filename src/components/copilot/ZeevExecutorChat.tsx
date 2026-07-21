@@ -125,12 +125,12 @@ export function ZeevExecutorChat({ paymentId, companyGroupId, companyName, onApp
         if (error) throw error;
         const r = data as
           | { step: "propose"; proposal: Proposal }
-          | { step: "respond"; action: Action | "unsupported" | "clarify"; summary: string; payload?: NavPayload };
+          | { step: "respond"; action: Action | "unsupported" | "clarify"; summary: string; payload?: NavPayload; card?: ZeevCard | null };
         if (r.step === "respond") {
           if (r.action === "navigate" && r.payload && (r.payload.url || r.payload.filter)) {
             setMessages((m) => [...m, { role: "navigate", text: r.summary, payload: r.payload! }]);
           } else {
-            setMessages((m) => [...m, { role: "zeev", text: r.summary }]);
+            setMessages((m) => [...m, { role: "zeev", text: r.summary, card: r.card ?? null }]);
           }
         } else {
           setMessages((m) => [...m, { role: "proposal", proposal: r.proposal, status: "pending" }]);
