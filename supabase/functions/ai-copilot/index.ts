@@ -103,19 +103,29 @@ const PROMPT_BUILDERS: Record<Task, (ctx: Record<string, unknown>) => { system: 
       "- TUSS que cobre múltiplos atos → 'tuss_ambiguo'.",
       "- Se nenhum motivo se encaixa bem com alta confiança → use 'outro_clinico' ou 'outro_financeiro' conforme a natureza.",
       "",
+      "ESTRATÉGIA DE VALOR (suggested_value_strategy):",
+      "- 'procedure' → acatar valor do convênio/faturamento (sobrescreve gross_amount pelo procedure_amount). Use quando o hospital pagou algo divergente da regra e queremos alinhar ao faturado.",
+      "- 'expected' → manter valor da regra. Use quando o motivo é aceite financeiro sem repactuação: aprovamos o item, mas não mexemos no valor pago.",
+      "- 'custom' → só sugira se houver forte evidência de que todos os itens devem receber um mesmo valor negociado diferente das duas opções acima. Prefira 'procedure' ou 'expected' quando em dúvida.",
+      "",
       "Responda SEMPRE em JSON. PT-BR. Confidence 0-1.",
     ].join("\n"),
     user:
       `Motivos disponíveis:\n${JSON.stringify(ctx.available_reasons ?? [], null, 2)}\n\n` +
       `Itens que precisam de motivo (${(ctx.items as unknown[] | undefined)?.length ?? 0}):\n${JSON.stringify(ctx.items ?? [], null, 2)}\n\n` +
-      `Sugira o motivo mais provável para o conjunto. Se os itens forem heterogêneos, escolha o que cobre a maioria e explique no campo 'reasoning'.`,
+      `Sugira o motivo mais provável para o conjunto e a estratégia de valor. Se os itens forem heterogêneos, escolha o que cobre a maioria e explique no campo 'reasoning'.`,
     jsonSchema: {
       type: "object",
       properties: {
         reason_code: { type: "string", description: "code do motivo sugerido (ex: visita_pos_alta)" },
         confidence: { type: "number" },
         suggested_note: { type: "string", description: "Justificativa curta sugerida para preencher no campo de notas" },
-        reasoning: { type: "string", description: "Por que esse motivo se aplica" },
+        suggested_value_strategy: {
+          type: "string",
+          enum: ["procedure", "expected", "custom"],
+          description: "Estratégia de valor recomendada",
+        },
+        reasoning: { type: "string", description: "Por que esse motivo e essa estratégia se aplicam" },
       },
       required: ["reason_code", "confidence", "reasoning"],
     },
