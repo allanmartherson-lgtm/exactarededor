@@ -1,4 +1,4 @@
-// v2: knowledge-base-integration
+// v3: knowledge-card-response
 // Zeev Executor — chat executor que propõe ações em lote no pagamento atual.
 //
 // Fluxo:
