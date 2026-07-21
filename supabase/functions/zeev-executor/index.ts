@@ -1416,6 +1416,7 @@ Deno.serve(async (req) => {
           action: llm.action,
           summary: llm.summary ?? "",
           payload: llm.payload ?? {},
+          card: llm.action === "answer" ? (llm as { card?: unknown }).card ?? null : null,
         });
       }
 
