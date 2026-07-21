@@ -51,12 +51,8 @@ export type SectorRegistry = {
 export function fixMojibake(text: string | null | undefined): string {
   const s = String(text ?? "");
   if (!s) return "";
-  // Detecta a assinatura clássica: sequência "Ã" + caractere latino-1 alto,
-  // ou "Â" isolado. Evita rodar em texto já correto.
-  if (!/[ÃÂ][\x80-\xBF\u0080-\u00BF]|Ã[\u008A-\u009F]/.test(s) && !/[ÃÂ][€-Ÿ]/.test(s)) {
-    // heurística barata: pula strings sem prefixo "Ã" nem "Â"
-    if (!/[ÃÂ]/.test(s)) return s;
-  }
+  // Heurística: só tenta reparar se houver "Ã" ou "Â" (assinaturas de mojibake).
+  if (!/[ÃÂ]/.test(s)) return s;
   try {
     // Tenta re-decodificar como se fosse Latin1 sendo lido como UTF-8.
     const bytes = new Uint8Array(s.length);
