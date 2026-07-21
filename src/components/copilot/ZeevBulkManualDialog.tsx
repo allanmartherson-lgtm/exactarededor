@@ -130,7 +130,7 @@ export function ZeevBulkManualDialog({
         },
       });
       if (error) throw error;
-      const result = (data as { result?: { reason_code?: string; confidence?: number; reasoning?: string; suggested_note?: string } })?.result;
+      const result = (data as { result?: { reason_code?: string; confidence?: number; reasoning?: string; suggested_note?: string; suggested_value_strategy?: string } })?.result;
       if (!result?.reason_code) {
         toast({ title: "Zeev não conseguiu sugerir", variant: "destructive" });
         return;
@@ -144,13 +144,22 @@ export function ZeevBulkManualDialog({
         });
         return;
       }
+      const sugStrategy = (["procedure", "expected", "custom"] as const).includes(
+        result.suggested_value_strategy as never,
+      )
+        ? (result.suggested_value_strategy as "procedure" | "expected" | "custom")
+        : undefined;
       setSuggestion({
         reason_code: result.reason_code,
         confidence: Number(result.confidence ?? 0),
         reasoning: result.reasoning ?? "",
         suggested_note: result.suggested_note,
+        suggested_value_strategy: sugStrategy,
       });
       setReasonId(match.id);
+      if (sugStrategy && sugStrategy !== "custom") {
+        setValueStrategy(sugStrategy);
+      }
       if (result.suggested_note && !notes.trim()) {
         setNotes(result.suggested_note);
       }
