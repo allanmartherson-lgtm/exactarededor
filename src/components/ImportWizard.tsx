@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, AlertTriangle, CheckCircle2, ArrowLeft, X, Loader2 } from "lucide-react";
+import { Upload, AlertTriangle, CheckCircle2, ArrowLeft, X, Loader2, Search } from "lucide-react";
 import { normalizeNumericValue } from "@/lib/utils";
 
 export type ImportFieldDef = {
@@ -90,6 +90,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [replaceConfirm, setReplaceConfirm] = useState("");
   // Atribuição manual de UF por número de CRM (resolve conflitos sem reabrir o arquivo)
   const [ufOverrides, setUfOverrides] = useState<Record<string, string>>({});
+  // UX do passo de mapeamento: filtro por texto, colapso de opcionais e prévia só de colunas mapeadas
+  const [fieldFilter, setFieldFilter] = useState("");
+  const [showOptional, setShowOptional] = useState(true);
+  const [onlyMappedPreview, setOnlyMappedPreview] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
 
@@ -321,7 +325,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] w-[98vw] sm:max-w-[98vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent className={`max-w-[98vw] w-[98vw] sm:max-w-[98vw] ${step === "preview" ? "h-[95vh] max-h-[95vh] flex flex-col overflow-hidden" : "max-h-[95vh] overflow-y-auto"}`}>
         <DialogHeader>
           <DialogTitle>
             {title} · {stepLabel(step)}
@@ -361,116 +365,248 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         )}
 
 
-        {step === "preview" && sheet && (
-          <div className="space-y-4">
-            {sheets.length > 1 && (
-              <div className="space-y-1.5">
-                <Label>Aba</Label>
+        {step === "preview" && sheet && (() => {
+          // Índice reverso: header da planilha -> campo Exacta mapeado (para destacar na prévia)
+          const headerToField: Record<string, ImportFieldDef> = {};
+          for (const f of profile.fields) {
+            const col = mapping[f.key];
+            if (col) headerToField[col] = f;
+          }
+          const requiredFields = profile.fields.filter((f) => f.required);
+          const optionalFields = profile.fields.filter((f) => !f.required);
+          const requiredMapped = requiredFields.filter((f) => !!mapping[f.key]).length;
+          const optionalMapped = optionalFields.filter((f) => !!mapping[f.key]).length;
+          const filterText = fieldFilter.trim().toLowerCase();
+          const matchesFilter = (f: ImportFieldDef) =>
+            !filterText ||
+            f.label.toLowerCase().includes(filterText) ||
+            f.key.toLowerCase().includes(filterText);
+          const visibleRequired = requiredFields.filter(matchesFilter);
+          const visibleOptional = optionalFields.filter(matchesFilter);
+          const previewHeaders = onlyMappedPreview
+            ? sheet.headers.filter((h) => headerToField[h])
+            : sheet.headers;
+
+          const renderFieldRow = (f: ImportFieldDef) => {
+            const value = mapping[f.key] ?? "";
+            const isMapped = !!value;
+            return (
+              <div
+                key={f.key}
+                className={`rounded-md border px-2.5 py-2 space-y-1 transition-colors ${
+                  isMapped
+                    ? "border-primary/40 bg-primary/5"
+                    : f.required
+                    ? "border-destructive/40 bg-destructive/5"
+                    : "border-border bg-background"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs font-medium truncate" title={f.label}>
+                    {f.label}
+                    {f.required && <span className="text-destructive ml-1">*</span>}
+                  </Label>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {f.key === "amount" && autoDetectedValueColumns.length > 0 && (
+                      <span
+                        className="text-[10px] font-normal text-primary bg-primary/10 px-1 rounded border border-primary/20"
+                        title={`Detectadas: ${autoDetectedValueColumns.join(", ")}`}
+                      >
+                        auto {autoDetectedValueColumns.length > 1 ? `×${autoDetectedValueColumns.length}` : ""}
+                      </span>
+                    )}
+                    {isMapped && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
+                  </div>
+                </div>
                 <select
-                  value={activeSheet}
-                  onChange={(e) => {
-                    setActiveSheet(e.target.value);
-                    const s = sheets.find((x) => x.name === e.target.value);
-                    if (s) setMapping(suggestMapping(s.headers, profile.fields));
-                  }}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={value}
+                  onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value || null }))}
+                  className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs focus:ring-1 focus:ring-ring"
                 >
-                  {sheets.map((s) => (
-                    <option key={s.name} value={s.name}>
-                      {s.name} ({s.total} linhas)
+                  <option value="">— ignorar —</option>
+                  {sheet.headers.map((h) => (
+                    <option key={h} value={h}>
+                      {h}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
+            );
+          };
 
-            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              <strong>{sheet.total}</strong> linhas · <strong>{sheet.headers.length}</strong> colunas detectadas
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Mapeamento de colunas</Label>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,320px))] gap-x-4 gap-y-2">
-                {profile.fields.map((f) => (
-                  <div key={f.key} className="space-y-1">
-                    <Label className="text-xs flex items-center justify-between">
-                      <span>
-                        {f.label}
-                        {f.required && <span className="text-destructive ml-1">*</span>}
-                      </span>
-                      {f.key === "amount" && (
-                        <span className="text-[10px] font-normal text-primary bg-primary/10 px-1 rounded border border-primary/20">
-                          {autoDetectedValueColumns.length > 1
-                            ? `${autoDetectedValueColumns.length} colunas detectadas`
-                            : "Detecção automática ativa"}
-                        </span>
-                      )}
-                    </Label>
+          return (
+            <div className="flex-1 flex flex-col min-h-0 gap-3 overflow-hidden">
+              {/* Barra superior: aba + estatísticas */}
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                {sheets.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs whitespace-nowrap">Aba</Label>
                     <select
-                      value={mapping[f.key] ?? ""}
+                      value={activeSheet}
                       onChange={(e) => {
-                        const val = e.target.value || null;
-                        setMapping((m) => ({ ...m, [f.key]: val }));
-                        // Se o usuário selecionou uma coluna manualmente para 'amount', 
-                        // garantimos que o sistema ainda possa detectar outras, mas essa é a principal.
+                        setActiveSheet(e.target.value);
+                        const s = sheets.find((x) => x.name === e.target.value);
+                        if (s) setMapping(suggestMapping(s.headers, profile.fields));
                       }}
-                      className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:ring-1 focus:ring-ring"
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs"
                     >
-                      <option value="">— ignorar —</option>
-                      {sheet.headers.map((h) => (
-                        <option key={h} value={h}>
-                          {h}
+                      {sheets.map((s) => (
+                        <option key={s.name} value={s.name}>
+                          {s.name} ({s.total} linhas)
                         </option>
                       ))}
                     </select>
-                    {f.key === "amount" && autoDetectedValueColumns.length > 0 && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Detectadas: {autoDetectedValueColumns.join(", ")}
-                      </p>
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground">
+                  <strong>{sheet.total}</strong> linhas · <strong>{sheet.headers.length}</strong> colunas
+                </div>
+                <div className="ml-auto flex items-center gap-2 text-xs">
+                  <span
+                    className={`px-2 py-0.5 rounded-full border ${
+                      requiredMapped === requiredFields.length
+                        ? "bg-primary/10 border-primary/30 text-primary"
+                        : "bg-destructive/10 border-destructive/30 text-destructive"
+                    }`}
+                  >
+                    Obrigatórios {requiredMapped}/{requiredFields.length}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                    Opcionais {optionalMapped}/{optionalFields.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Corpo em 2 colunas: mapeamento (esquerda) + prévia (direita) */}
+              <div className="flex-1 grid lg:grid-cols-[minmax(320px,380px)_1fr] gap-3 min-h-0">
+                {/* Coluna esquerda — Mapeamento */}
+                <div className="flex flex-col min-h-0 rounded-md border border-border bg-background">
+                  <div className="border-b border-border px-2.5 py-2 space-y-2 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Mapeamento
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={fieldFilter}
+                        onChange={(e) => setFieldFilter(e.target.value)}
+                        placeholder="Filtrar campo..."
+                        className="h-8 pl-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2 space-y-3">
+                    {visibleRequired.length > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] font-semibold uppercase text-destructive/80 px-1">
+                          Obrigatórios
+                        </div>
+                        <div className="space-y-1.5">{visibleRequired.map(renderFieldRow)}</div>
+                      </div>
+                    )}
+                    {optionalFields.length > 0 && (
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowOptional((v) => !v)}
+                          className="w-full flex items-center justify-between text-[10px] font-semibold uppercase text-muted-foreground px-1 hover:text-foreground"
+                        >
+                          <span>Opcionais ({optionalFields.length})</span>
+                          <span>{showOptional ? "recolher" : "expandir"}</span>
+                        </button>
+                        {showOptional && (
+                          <div className="space-y-1.5">
+                            {visibleOptional.length > 0 ? (
+                              visibleOptional.map(renderFieldRow)
+                            ) : (
+                              <p className="text-[11px] text-muted-foreground italic px-1">
+                                Nenhum campo opcional corresponde ao filtro.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            <div>
-              <Label className="mb-2 block">Prévia (20 primeiras linhas)</Label>
-              <div className="overflow-auto max-h-72 rounded-md border border-border">
-                <table className="text-xs w-full">
-                  <thead className="bg-muted/50 sticky top-0">
-                    <tr>
-                      {sheet.headers.map((h) => (
-                        <th key={h} className="px-2 py-1.5 text-left font-medium border-b border-border whitespace-nowrap">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sheet.preview.map((row, i) => (
-                      <tr key={i} className="even:bg-muted/20">
-                        {sheet.headers.map((h) => (
-                          <td key={h} className="px-2 py-1 border-b border-border whitespace-nowrap max-w-[200px] truncate">
-                            {String(row[h] ?? "")}
-                          </td>
+                {/* Coluna direita — Prévia */}
+                <div className="flex flex-col min-h-0 rounded-md border border-border bg-background">
+                  <div className="border-b border-border px-2.5 py-2 flex items-center justify-between gap-2 shrink-0">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Prévia (20 primeiras linhas)
+                    </span>
+                    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={onlyMappedPreview}
+                        onChange={(e) => setOnlyMappedPreview(e.target.checked)}
+                        className="h-3 w-3"
+                      />
+                      Só colunas mapeadas
+                    </label>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <table className="text-xs w-full">
+                      <thead className="bg-muted/50 sticky top-0 z-10">
+                        <tr>
+                          {previewHeaders.map((h) => {
+                            const mapped = headerToField[h];
+                            return (
+                              <th
+                                key={h}
+                                className={`px-2 py-1.5 text-left font-medium border-b border-border whitespace-nowrap ${
+                                  mapped ? "bg-primary/10 text-primary" : ""
+                                }`}
+                              >
+                                <div className="flex flex-col">
+                                  <span>{h}</span>
+                                  {mapped && (
+                                    <span className="text-[9px] font-normal text-primary/80">
+                                      → {mapped.label}
+                                    </span>
+                                  )}
+                                </div>
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sheet.preview.map((row, i) => (
+                          <tr key={i} className="even:bg-muted/20">
+                            {previewHeaders.map((h) => (
+                              <td
+                                key={h}
+                                className={`px-2 py-1 border-b border-border whitespace-nowrap max-w-[200px] truncate ${
+                                  headerToField[h] ? "bg-primary/5" : ""
+                                }`}
+                              >
+                                {String(row[h] ?? "")}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep("upload")} disabled={busy}>
-                <ArrowLeft className="h-4 w-4 mr-2" /> Trocar arquivo
-              </Button>
-              <Button onClick={prepareValidation} disabled={busy}>
-                Continuar
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
+              {/* Footer fixo */}
+              <DialogFooter className="shrink-0 border-t border-border pt-3">
+                <Button variant="outline" onClick={() => setStep("upload")} disabled={busy}>
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Trocar arquivo
+                </Button>
+                <Button onClick={prepareValidation} disabled={busy}>
+                  Continuar
+                </Button>
+              </DialogFooter>
+            </div>
+          );
+        })()}
 
         {step === "role_config" && (
           <div className="space-y-4">
