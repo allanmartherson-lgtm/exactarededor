@@ -127,14 +127,14 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { mode, records: incomingRecords, totalRows, replaceBefore, profile } = body as {
-      mode: "parse" | "preview" | "commit";
+      mode: "parse" | "preview" | "commit" | "dry_run";
       records?: Record<string, any>[];
       totalRows?: number;
       replaceBefore?: boolean;
       profile?: Profile;
     };
 
-    if (mode !== "commit") {
+    if (mode !== "commit" && mode !== "dry_run") {
       return new Response(JSON.stringify({ error: "Parsing e validação agora são executados no navegador" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
