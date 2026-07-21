@@ -130,8 +130,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setImportMode(supportedModes[0] ?? "append");
       setReplaceConfirm("");
       setUfOverrides({});
+      setDryRun(null);
     }
   }, [open]);
+
 
   const callFn = async (body: any) => {
     const { data, error } = await supabase.functions.invoke("import-wizard", { body });
