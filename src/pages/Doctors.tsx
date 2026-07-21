@@ -250,12 +250,26 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     setOpen(true);
   };
 
-  const openEdit = (d: Doctor) => {
+  const openEdit = async (d: Doctor) => {
     setEditing(d);
     setEditingCompanyIds(linksByDoctor.get(d.id) ?? []);
     setSpecInput("");
     setCompanySearch("");
     setOpen(true);
+    // Dados sensíveis (CPF, nascimento, telefone, e-mail) só via RPC restrita a admin/diretor
+    try {
+      const { data: pii } = await supabase.rpc("get_doctors_pii", { doctor_ids: [d.id] });
+      const row = Array.isArray(pii) ? pii[0] : null;
+      if (row) {
+        setEditing((prev) => prev.id === d.id ? {
+          ...prev,
+          cpf: (row as any).cpf ?? prev.cpf ?? "",
+          birth_date: (row as any).birth_date ?? prev.birth_date ?? "",
+          phone: (row as any).phone ?? prev.phone ?? "",
+          email: (row as any).email ?? prev.email ?? "",
+        } : prev);
+      }
+    } catch { /* usuário sem permissão para PII — mantém campos vazios */ }
   };
 
   const save = async () => {
