@@ -981,7 +981,65 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
+            {dryRun && (
+              <Section
+                icon={<CheckCircle2 className="h-4 w-4 text-primary" />}
+                title={`Simulação da importação — modo "${dryRun.import_mode}"`}
+              >
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  Prévia sem gravar no banco. Ao confirmar, os totais abaixo é o que será aplicado.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Stat label="Serão criados" value={dryRun.would_create} tone="success" />
+                  <Stat label="Serão atualizados" value={dryRun.would_update} tone="success" />
+                  <Stat label="Já existem (ignorados)" value={dryRun.would_skip_existing} tone="warn" />
+                  <Stat label="Inválidos / duplicados" value={dryRun.validation_errors + dryRun.duplicates} tone="warn" />
+                </div>
+                {dryRun.import_mode === "append" && dryRun.would_skip_existing > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    No modo <strong>Adicionar novos</strong>, registros já cadastrados pela chave natural são ignorados. Para sobrescrevê-los, mude para <strong>Atualizar existentes</strong>.
+                  </p>
+                )}
+                {(dryRun.samples.create.length > 0 || dryRun.samples.update.length > 0 || dryRun.samples.skip.length > 0) && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-[10px]">
+                    {(["create", "update", "skip"] as const).map((cat) => {
+                      const rows = dryRun.samples[cat];
+                      if (rows.length === 0) return null;
+                      const label = cat === "create" ? "Amostra — a criar" : cat === "update" ? "Amostra — a atualizar" : "Amostra — a ignorar";
+                      const cols = Object.keys(rows[0] ?? {});
+                      return (
+                        <div key={cat} className="rounded-md border border-border overflow-hidden">
+                          <div className="bg-muted/50 px-2 py-1 font-medium">{label} ({rows.length})</div>
+                          <div className="overflow-auto max-h-40">
+                            <table className="w-full border-collapse">
+                              <thead className="bg-muted/30">
+                                <tr>
+                                  {cols.map((c) => (
+                                    <th key={c} className="px-2 py-1 text-left font-medium border-b border-border">{c}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((r, i) => (
+                                  <tr key={i} className="even:bg-muted/20">
+                                    {cols.map((c) => (
+                                      <td key={c} className="px-2 py-1 border-b border-border font-mono truncate max-w-[120px]" title={String(r[c] ?? "")}>{String(r[c] ?? "—")}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Section>
+            )}
+
             {supportedModes.length > 1 && (
+
               <Section icon={<Upload className="h-4 w-4" />} title="Modo de importação">
                 <div className="space-y-2 text-sm">
                   {supportedModes.includes("append") && (
