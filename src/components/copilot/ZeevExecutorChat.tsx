@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Send, Loader2, CheckCircle2, AlertCircle, RotateCcw, ArrowRight } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { ZeevIcon } from "./ZeevIcon";
+import { ZeevResponseCard, type ZeevCard } from "./ZeevResponseCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,7 +45,7 @@ type NavPayload = { url?: string; filter?: "zerados" | "divergentes" | "sem_regr
 
 type Msg =
   | { role: "user"; text: string }
-  | { role: "zeev"; text: string }
+  | { role: "zeev"; text: string; card?: ZeevCard | null }
   | { role: "navigate"; text: string; payload: NavPayload; done?: boolean }
   | { role: "proposal"; proposal: Proposal; status: "pending" | "confirmed" | "cancelled" | "applying"; result?: string };
 
@@ -124,12 +125,12 @@ export function ZeevExecutorChat({ paymentId, companyGroupId, companyName, onApp
         if (error) throw error;
         const r = data as
           | { step: "propose"; proposal: Proposal }
-          | { step: "respond"; action: Action | "unsupported" | "clarify"; summary: string; payload?: NavPayload };
+          | { step: "respond"; action: Action | "unsupported" | "clarify"; summary: string; payload?: NavPayload; card?: ZeevCard | null };
         if (r.step === "respond") {
           if (r.action === "navigate" && r.payload && (r.payload.url || r.payload.filter)) {
             setMessages((m) => [...m, { role: "navigate", text: r.summary, payload: r.payload! }]);
           } else {
-            setMessages((m) => [...m, { role: "zeev", text: r.summary }]);
+            setMessages((m) => [...m, { role: "zeev", text: r.summary, card: r.card ?? null }]);
           }
         } else {
           setMessages((m) => [...m, { role: "proposal", proposal: r.proposal, status: "pending" }]);
@@ -231,12 +232,20 @@ export function ZeevExecutorChat({ paymentId, companyGroupId, companyName, onApp
             );
           }
           if (m.role === "zeev") {
+            const handleCardNav = (url: string) => {
+              if (onNavigateUrl) onNavigateUrl(url);
+              else window.location.href = url;
+            };
             return (
               <div key={i} className="flex items-start gap-2">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary mt-0.5">
                   <ZeevIcon className="h-3 w-3" />
                 </div>
-                <div className="max-w-[85%] text-[13px] text-foreground leading-snug break-words whitespace-pre-wrap">{m.text}</div>
+                {m.card ? (
+                  <ZeevResponseCard card={m.card} onNavigate={handleCardNav} />
+                ) : (
+                  <div className="max-w-[85%] text-[13px] text-foreground leading-snug break-words whitespace-pre-wrap">{m.text}</div>
+                )}
               </div>
             );
           }

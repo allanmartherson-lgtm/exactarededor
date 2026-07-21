@@ -1,4 +1,4 @@
-// v2: knowledge-base-integration
+// v3: knowledge-card-response
 // Zeev Executor — chat executor que propõe ações em lote no pagamento atual.
 //
 // Fluxo:
@@ -185,7 +185,16 @@ const SYSTEM_PROMPT = [
   "- Se o analista pergunta 'como…?', 'onde…?', 'o que é…?', 'o que faz…?', 'como funciona…?', 'tem manual?', 'me ajuda com…', 'me explica…' → use 'answer' e baseie sua resposta INTEIRAMENTE nos artigos do knowledge_articles. Reformule em suas palavras (tom amigável, direto), mas nunca invente passos que não estejam nos artigos.",
   "- Se knowledge_articles estiver vazio ou null e a pergunta for sobre uso do sistema → responda com 'answer' dizendo que ainda não tem essa informação no manual, mas sugira navegar para a tela relevante.",
   "- Perguntas operacionais sobre o sistema NÃO são 'unsupported' — são 'answer'. Só use 'unsupported' para pedidos que envolvam ação que o Zeev não pode fazer.",
+  "",
+  "CARTÃO RICO ('card'): SEMPRE que 'action=answer' for uma explicação/tutorial baseado em knowledge_articles (perguntas do tipo 'como…?', 'o que é…?', 'onde…?', 'me explica…'), popule o campo 'card' junto com 'summary'. O 'summary' permanece como texto curto de 1 frase (fallback), e o 'card' traz a versão estruturada.",
+  "- card.title: nome curto do tema (ex.: 'Como criar um lote de pagamento').",
+  "- card.icon: escolha o mais próximo — 'book' (tutorial), 'wallet' (pagamento/lote), 'settings' (regras/configuração), 'users' (médicos/PJs), 'building' (empresa/convênio), 'checklist' (conciliação/validação), 'zap' (ação rápida), 'lightbulb' (dica/conceito), 'info' (definição), 'file' (relatório).",
+  "- card.intro: 1-2 frases de contexto.",
+  "- card.sections: quebre a resposta em blocos. Para procedimentos passo a passo use 'steps' (lista de passos curtos, imperativos). Para conceitos use 'body'. Adicione 'tips' quando o artigo trouxer observações/cuidados.",
+  "- card.actions (opcional, máx 3): CTAs de navegação para telas mencionadas nos artigos. SEMPRE kind='navigate' e url interna começando com '/'. Nunca invente URLs — só use rotas conhecidas (/pagamentos, /pagamentos/novo, /regras, /medicos, /empresas, /convenios, /setores, /centros-custo, /conversas, /comunicacao, /glosas, /creditos-debitos, /pendencias, /bi-diretoria, /bi-pagamentos, /auditoria-sobreposicao, /tabela-tuss).",
+  "- Perguntas simples/factuais respondidas com dados do route_context (ex.: 'quantos itens zerados?') NÃO precisam de card — devolva só summary.",
 ].join("\n");
+
 
 const RESPOND_SCHEMA = {
   type: "object",
@@ -256,6 +265,53 @@ const RESPOND_SCHEMA = {
       additionalProperties: false,
     },
     summary: { type: "string" },
+    card: {
+      type: "object",
+      description: "Opcional — cartão rico para respostas tipo tutorial/explicação. Só use quando action='answer' e a resposta se beneficia de estrutura visual (passos, atalhos, dicas). Nunca invente conteúdo — baseie-se nos knowledge_articles.",
+      properties: {
+        icon: { type: "string", enum: ["book", "zap", "info", "lightbulb", "file", "settings", "users", "building", "wallet", "checklist"] },
+        title: { type: "string" },
+        intro: { type: "string", description: "1-2 frases de contexto antes das seções." },
+        sections: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              body: { type: "string", description: "Parágrafo curto. Use quando não for lista de passos." },
+              steps: { type: "array", items: { type: "string" }, description: "Passos numerados renderizados como timeline vertical." },
+              tips: { type: "array", items: { type: "string" }, description: "Dicas/observações em bullets." },
+            },
+            additionalProperties: false,
+          },
+        },
+        shortcuts: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { label: { type: "string" }, keys: { type: "string" } },
+            required: ["label", "keys"],
+            additionalProperties: false,
+          },
+        },
+        actions: {
+          type: "array",
+          description: "CTAs no rodapé. Só use kind='navigate' com url interna (/pagamentos, /regras, etc). Máx 3.",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              kind: { type: "string", enum: ["navigate"] },
+              url: { type: "string" },
+            },
+            required: ["label", "kind", "url"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["title", "sections"],
+      additionalProperties: false,
+    },
   },
   required: ["action", "summary"],
 };
@@ -1360,6 +1416,7 @@ Deno.serve(async (req) => {
           action: llm.action,
           summary: llm.summary ?? "",
           payload: llm.payload ?? {},
+          card: llm.action === "answer" ? (llm as { card?: unknown }).card ?? null : null,
         });
       }
 
