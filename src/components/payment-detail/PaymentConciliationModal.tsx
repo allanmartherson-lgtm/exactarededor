@@ -2233,7 +2233,7 @@ export function PaymentConciliationModal({
         const routeHospN = mixedRouteHosp ? "" : normRoute(routeHosp);
         const qtyHospN = normQty(qtyHosp);
 
-        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean; routeOk: boolean; docConflict: boolean; roleConflict: boolean; routeConflict: boolean } => {
+        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean; routeOk: boolean; valueOk: boolean; docConflict: boolean; roleConflict: boolean; routeConflict: boolean; routeSoftConflict: boolean } => {
           let s = 0;
           const docMedN = normName((m as any).doctor_name);
           const roleMedN = normRole((m as any).doctor_role);
@@ -2243,6 +2243,7 @@ export function PaymentConciliationModal({
           const crmMedDigits = String((m as any).doctor_document ?? '').replace(/\D/g, '');
           let docOk = false, roleOk = false, routeOk = false;
           let docConflict = false, roleConflict = false, routeConflict = false;
+          let routeSoftConflict = false;
 
           // Resolução canônica (doctor_id): sinal mais forte que nome.
           // Quando ambos os lados resolvem ao mesmo médico cadastrado, é match
@@ -2267,15 +2268,24 @@ export function PaymentConciliationModal({
           else if (roleHospN && roleMedN) { s -= 150; roleConflict = true; }
           // Via de acesso: forte sinal quando ambos os lados informam — separa
           // linhas legítimas do mesmo código com valores distintos por via.
+          const diff = Math.abs(getConvenioValue(m) - valHosp);
+          const valueOk = diff < 0.02;
           if (routeHospN && routeMedN && routeHospN === routeMedN) { s += 500; routeOk = true; }
-          else if (routeHospN && routeMedN) { s -= 400; routeConflict = true; }
+          else if (routeHospN && routeMedN) {
+            s -= 400;
+            routeConflict = true;
+            // A via de acesso é um sinal forte, mas não pode bloquear quando
+            // a identidade principal já bate: atendimento+TUSS vêm do bucket,
+            // médico/função batem e o valor é exatamente o mesmo. Nesses casos
+            // a divergência vira alerta auditável, não falso "só no hospital".
+            routeSoftConflict = docOk && roleOk && valueOk;
+          }
           if (qtyHospN === qtyMedN) s += 50;
           // Preferir data exata quando houver múltiplos candidatos com ±1 dia.
           const dOff = dateOffsetById.get(m.id) ?? 0;
           if (dOff === 1) s -= 25;
-          const diff = Math.abs(getConvenioValue(m) - valHosp);
           s += Math.max(0, 30 - Math.min(30, (diff / Math.max(1, valHosp)) * 30));
-          return { score: s, docOk, roleOk, routeOk, docConflict, roleConflict, routeConflict };
+          return { score: s, docOk, roleOk, routeOk, valueOk, docConflict, roleConflict, routeConflict, routeSoftConflict };
         };
 
         // Conflito DURO só existe quando AMBOS os lados informam o campo e
@@ -2284,7 +2294,7 @@ export function PaymentConciliationModal({
         // NÃO como conflito — senão o único candidato é descartado e o item
         // vira falso "Só no Exacta" / "Só no hospital".
         const hasHardConflict = (sc: ReturnType<typeof scoreCandidate>) =>
-          sc.docConflict || sc.roleConflict || sc.routeConflict;
+          sc.docConflict || sc.roleConflict || (sc.routeConflict && !sc.routeSoftConflict);
 
         let match: PaymentItemRow | undefined;
         let ambiguous = false;
@@ -2305,12 +2315,12 @@ export function PaymentConciliationModal({
           // (ex.: Kleber R$ 1.457) com linha do auxiliar (ex.: Laryssa R$ 437).
           // Mesmo princípio para função e via de acesso.
           let pool = available.map((m) => ({ m, ...scoreCandidate(m) }));
-          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk, docConflict: p.docConflict, roleConflict: p.roleConflict, routeConflict: p.routeConflict } })));
+          pool.forEach((p) => evaluated.push(Object.assign({}, p.m, { __sc: { score: p.score, docOk: p.docOk, roleOk: p.roleOk, routeOk: p.routeOk, valueOk: p.valueOk, docConflict: p.docConflict, roleConflict: p.roleConflict, routeConflict: p.routeConflict, routeSoftConflict: p.routeSoftConflict } })));
           const docFiltered = pool.filter((c) => c.docOk);
           if (docHospN && docFiltered.length > 0) { pool = docFiltered; decision = "filtrado_por_medico"; }
           const roleFiltered = pool.filter((c) => c.roleOk);
           if (roleHospN && roleFiltered.length > 0) { pool = roleFiltered; if (decision === "sem_candidato") decision = "filtrado_por_funcao"; }
-          const routeFiltered = pool.filter((c) => c.routeOk);
+          const routeFiltered = pool.filter((c) => c.routeOk || c.routeSoftConflict);
           if (routeHospN && routeFiltered.length > 0) { pool = routeFiltered; if (decision === "sem_candidato") decision = "filtrado_por_via"; }
           const ranked = pool
             .filter((c) => !hasHardConflict(c))
