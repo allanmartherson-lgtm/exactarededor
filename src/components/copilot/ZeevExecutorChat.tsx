@@ -232,12 +232,20 @@ export function ZeevExecutorChat({ paymentId, companyGroupId, companyName, onApp
             );
           }
           if (m.role === "zeev") {
+            const handleCardNav = (url: string) => {
+              if (onNavigateUrl) onNavigateUrl(url);
+              else window.location.href = url;
+            };
             return (
               <div key={i} className="flex items-start gap-2">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary mt-0.5">
                   <ZeevIcon className="h-3 w-3" />
                 </div>
-                <div className="max-w-[85%] text-[13px] text-foreground leading-snug break-words whitespace-pre-wrap">{m.text}</div>
+                {m.card ? (
+                  <ZeevResponseCard card={m.card} onNavigate={handleCardNav} />
+                ) : (
+                  <div className="max-w-[85%] text-[13px] text-foreground leading-snug break-words whitespace-pre-wrap">{m.text}</div>
+                )}
               </div>
             );
           }
