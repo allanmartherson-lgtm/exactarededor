@@ -2443,10 +2443,15 @@ export function PaymentConciliationModal({
           // Sinaliza divergência de data ±1 dia — match aceito, mas analista
           // vê no card/relatório que houve deslocamento (hosp = alta/fatura,
           // Exacta = procedimento; virada de meia-noite no centro cirúrgico).
+          const _routeMedN = normRoute((match as any).access_route);
+          if (routeHospN && _routeMedN && routeHospN !== _routeMedN && Math.abs(valMed - valHosp) < 0.02) {
+            base.ia_obs = `⚠ Via de acesso divergente: hospital ${routeHosp ? String(routeHosp) : '—'} vs Exacta ${(match as any).access_route ?? '—'} · match aceito por atendimento/TUSS/médico/função/valor.`;
+          }
           const _dateOff = dateOffsetById.get(match.id) ?? 0;
           if (_dateOff === 1) {
             const _medDate = onlyDate((match as any).procedure_date);
-            base.ia_obs = `⚠ Data divergente (±1 dia): hospital ${hospDateOnly ?? '—'} vs Exacta ${_medDate ?? '—'} · match aceito`;
+            const dateObs = `⚠ Data divergente (±1 dia): hospital ${hospDateOnly ?? '—'} vs Exacta ${_medDate ?? '—'} · match aceito`;
+            base.ia_obs = base.ia_obs ? `${base.ia_obs} ${dateObs}` : dateObs;
           }
 
           const calcMethod = (match as any).applied_calc_method as string | null;
