@@ -423,6 +423,67 @@ export function ZeevBulkManualDialog({
           </div>
 
           <div className="space-y-2">
+            <Label>Valor a considerar (aplicado a todos)</Label>
+            <RadioGroup
+              value={valueStrategy}
+              onValueChange={(v) => setValueStrategy(v as "procedure" | "expected" | "custom")}
+              disabled={submitting}
+              className="grid gap-2"
+            >
+              <label className="flex items-start gap-2 rounded-md border p-2.5 cursor-pointer hover:bg-muted/40 text-xs">
+                <RadioGroupItem value="procedure" className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-medium">Acatar valor do convênio/faturamento</div>
+                  <div className="text-muted-foreground">
+                    Sobrescreve o valor pago com o valor da base do hospital. Uso típico quando o repasse deve espelhar exatamente o faturado.
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 rounded-md border p-2.5 cursor-pointer hover:bg-muted/40 text-xs">
+                <RadioGroupItem value="expected" className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-medium">Manter valor da regra (esperado)</div>
+                  <div className="text-muted-foreground">
+                    Aprova sem tocar no valor pago/esperado. Uso típico para aceite financeiro sem repactuação.
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 rounded-md border p-2.5 cursor-pointer hover:bg-muted/40 text-xs">
+                <RadioGroupItem value="custom" className="mt-0.5" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="font-medium">Valor customizado (mesmo valor para todos)</div>
+                  <div className="text-muted-foreground">
+                    Define um valor único a ser aplicado em todos os itens selecionados. Use com cautela.
+                  </div>
+                  {valueStrategy === "custom" && (
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={customValueStr}
+                      onChange={(e) => setCustomValueStr(e.target.value)}
+                      placeholder="R$ 0,00"
+                      disabled={submitting}
+                      className="h-8"
+                    />
+                  )}
+                </div>
+              </label>
+            </RadioGroup>
+            {suggestion?.suggested_value_strategy && (
+              <p className="text-[11px] text-amber-800 dark:text-amber-200">
+                Zeev sugere: {suggestion.suggested_value_strategy === "procedure"
+                  ? "acatar valor do convênio"
+                  : suggestion.suggested_value_strategy === "expected"
+                    ? "manter valor da regra"
+                    : "valor customizado"}
+              </p>
+            )}
+          </div>
+
+
+
+          <div className="space-y-2">
             <Label>Justificativa (aplicada a todos)</Label>
             <Textarea
               rows={3}
