@@ -142,14 +142,17 @@ function NewPortalUserDialog({
     if (kind === "doctor") {
       const { data: doc } = await supabase
         .from("doctors")
-        .select("full_name, email, cpf, phone")
+        .select("full_name")
         .eq("id", opt.id)
         .maybeSingle();
-      if (doc) {
-        if (doc.full_name) setFullName(doc.full_name);
-        if (doc.email) setEmail(doc.email);
-        if (doc.cpf) setCpf(formatCPF(doc.cpf));
-        if (doc.phone) setPhone(formatPhone(doc.phone));
+      // PII (CPF, telefone, e-mail) via RPC restrita a admin/diretor
+      const { data: piiRows } = await supabase.rpc("get_doctors_pii", { doctor_ids: [opt.id] });
+      const pii = Array.isArray(piiRows) ? (piiRows[0] as any) : null;
+      if (doc || pii) {
+        if (doc?.full_name) setFullName(doc.full_name);
+        if (pii?.email) setEmail(pii.email);
+        if (pii?.cpf) setCpf(formatCPF(pii.cpf));
+        if (pii?.phone) setPhone(formatPhone(pii.phone));
         setImportedFromDoctor(true);
         toast.success("Dados importados do cadastro do médico");
       }

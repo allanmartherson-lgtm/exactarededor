@@ -56,7 +56,7 @@ export function DoctorPendingReviewPanel() {
     setLoading(true);
     const { data, error } = await supabase
       .from("doctors")
-      .select("id, full_name, crm, crm_uf, cpf, created_at, created_by_user_id, pending_review_note")
+      .select("id, full_name, crm, crm_uf, created_at, created_by_user_id, pending_review_note")
       .eq("pending_admin_review", true)
       .order("created_at", { ascending: false });
     if (error) {
@@ -66,6 +66,14 @@ export function DoctorPendingReviewPanel() {
       return;
     }
     const list = (data ?? []) as Pending[];
+    // Enriquecer com CPF via RPC restrita a admin/diretor
+    if (list.length) {
+      try {
+        const { data: pii } = await supabase.rpc("get_doctors_pii", { doctor_ids: list.map((r) => r.id) });
+        const piiMap = new Map<string, any>((Array.isArray(pii) ? pii : []).map((p: any) => [p.id, p]));
+        list.forEach((r) => { (r as any).cpf = piiMap.get(r.id)?.cpf ?? null; });
+      } catch { /* usuário sem permissão para PII */ }
+    }
     setRows(list);
     const userIds = Array.from(new Set(list.map((r) => r.created_by_user_id).filter(Boolean))) as string[];
     if (userIds.length) {

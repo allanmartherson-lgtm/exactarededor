@@ -170,7 +170,7 @@ export async function loadDoctorRegistry(force = false): Promise<DoctorRegistry>
         fetchAllById<any>((afterId, limit) => {
           let q = supabase
             .from("doctors")
-            .select("id, full_name, crm, crm_uf, cpf, specialties")
+            .select("id, full_name, crm, crm_uf, specialties")
             .eq("active", true)
             .order("id", { ascending: true })
             .limit(limit);
@@ -197,7 +197,7 @@ export async function loadDoctorRegistry(force = false): Promise<DoctorRegistry>
       full_name: (d as any).full_name,
       crm: (d as any).crm ?? null,
       crm_uf: (d as any).crm_uf ?? null,
-      cpf: (d as any).cpf ?? null,
+      cpf: null, // CPF não é mais carregado em massa; use find_doctor_by_document RPC para matching por CPF
       specialties: Array.isArray((d as any).specialties) ? (d as any).specialties.filter(Boolean) : [],
     };
 
@@ -207,8 +207,6 @@ export async function loadDoctorRegistry(force = false): Promise<DoctorRegistry>
       reg.byCrm.set(crm, e);
       if (e.crm_uf) reg.byCrmUf.set(crmUfKey(crm, e.crm_uf), e);
     }
-    const cpf = onlyDigits(e.cpf);
-    if (cpf) reg.byCpf.set(cpf, e);
     const nameKey = normalize(e.full_name);
     if (nameKey) reg.byAlias.set(nameKey, e);
   }
