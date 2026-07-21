@@ -94,7 +94,20 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [fieldFilter, setFieldFilter] = useState("");
   const [showOptional, setShowOptional] = useState(true);
   const [onlyMappedPreview, setOnlyMappedPreview] = useState(false);
+  // Resultado da simulação (dry-run): quantos seriam criados/atualizados/ignorados
+  const [dryRun, setDryRun] = useState<{
+    total: number;
+    valid: number;
+    would_create: number;
+    would_update: number;
+    would_skip_existing: number;
+    validation_errors: number;
+    duplicates: number;
+    import_mode: string;
+    samples: { create: any[]; update: any[]; skip: any[] };
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
 
 
   const supportedModes = profile.supportedModes ?? ["append", "update"];
@@ -117,8 +130,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setImportMode(supportedModes[0] ?? "append");
       setReplaceConfirm("");
       setUfOverrides({});
+      setDryRun(null);
     }
   }, [open]);
+
 
   const callFn = async (body: any) => {
     const { data, error } = await supabase.functions.invoke("import-wizard", { body });
@@ -215,6 +230,82 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setBusy(false);
     }
   };
+
+  // Simulação (dry-run): chama a edge function em modo "dry_run" para descobrir
+  // quantos registros seriam criados/atualizados/ignorados por já existirem,
+  // sem gravar nada no banco. Processa em chunks e agrega totais + amostras.
+  const runDryRun = async () => {
+    if (!validation || validation.summary.valid <= 0) {
+      toast({ title: "Nada para simular", description: "Nenhuma linha válida no arquivo.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    setDryRun(null);
+    try {
+      const { records } = buildImportPayload(
+        rowsBySheet[activeSheet] ?? [],
+        mapping,
+        profile.fields,
+        profile.fixedContext,
+        profile.entity,
+        roleMapping,
+      );
+      if (profile.entity === "doctors") applyUfOverrides(records, ufOverrides);
+
+      const CHUNK = 500;
+      const agg = {
+        total: records.length,
+        valid: 0,
+        would_create: 0,
+        would_update: 0,
+        would_skip_existing: 0,
+        validation_errors: 0,
+        duplicates: 0,
+        import_mode: importMode,
+        samples: { create: [] as any[], update: [] as any[], skip: [] as any[] },
+      };
+
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const chunk = records.slice(i, i + CHUNK).map((r) => {
+          const { _meta, ...clean } = r;
+          return clean;
+        });
+        const data = await callFn({
+          mode: "dry_run",
+          records: chunk,
+          totalRows: chunk.length,
+          profile: { ...profile, importMode },
+        });
+        agg.valid += data.valid ?? 0;
+        agg.would_create += data.would_create ?? 0;
+        agg.would_update += data.would_update ?? 0;
+        agg.would_skip_existing += data.would_skip_existing ?? 0;
+        agg.validation_errors += data.validation_errors ?? 0;
+        agg.duplicates += data.duplicates ?? 0;
+        // Mantém apenas as primeiras 20 amostras de cada categoria
+        for (const cat of ["create", "update", "skip"] as const) {
+          const cur = agg.samples[cat];
+          if (cur.length < 20 && data.samples?.[cat]) {
+            for (const s of data.samples[cat]) {
+              if (cur.length >= 20) break;
+              cur.push(s);
+            }
+          }
+        }
+      }
+
+      setDryRun(agg);
+      toast({
+        title: "Simulação concluída",
+        description: `${agg.would_create} novo(s) · ${agg.would_update} atualizado(s) · ${agg.would_skip_existing} ignorado(s)`,
+      });
+    } catch (e: any) {
+      toast({ title: "Erro na simulação", description: e?.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
   const runCommit = async () => {
     // Validações de segurança antes de chamar o backend
@@ -890,24 +981,83 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
+            {dryRun && (
+              <Section
+                icon={<CheckCircle2 className="h-4 w-4 text-primary" />}
+                title={`Simulação da importação — modo "${dryRun.import_mode}"`}
+              >
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  Prévia sem gravar no banco. Ao confirmar, os totais abaixo é o que será aplicado.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Stat label="Serão criados" value={dryRun.would_create} tone="success" />
+                  <Stat label="Serão atualizados" value={dryRun.would_update} tone="success" />
+                  <Stat label="Já existem (ignorados)" value={dryRun.would_skip_existing} tone="warn" />
+                  <Stat label="Inválidos / duplicados" value={dryRun.validation_errors + dryRun.duplicates} tone="warn" />
+                </div>
+                {dryRun.import_mode === "append" && dryRun.would_skip_existing > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    No modo <strong>Adicionar novos</strong>, registros já cadastrados pela chave natural são ignorados. Para sobrescrevê-los, mude para <strong>Atualizar existentes</strong>.
+                  </p>
+                )}
+                {(dryRun.samples.create.length > 0 || dryRun.samples.update.length > 0 || dryRun.samples.skip.length > 0) && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-[10px]">
+                    {(["create", "update", "skip"] as const).map((cat) => {
+                      const rows = dryRun.samples[cat];
+                      if (rows.length === 0) return null;
+                      const label = cat === "create" ? "Amostra — a criar" : cat === "update" ? "Amostra — a atualizar" : "Amostra — a ignorar";
+                      const cols = Object.keys(rows[0] ?? {});
+                      return (
+                        <div key={cat} className="rounded-md border border-border overflow-hidden">
+                          <div className="bg-muted/50 px-2 py-1 font-medium">{label} ({rows.length})</div>
+                          <div className="overflow-auto max-h-40">
+                            <table className="w-full border-collapse">
+                              <thead className="bg-muted/30">
+                                <tr>
+                                  {cols.map((c) => (
+                                    <th key={c} className="px-2 py-1 text-left font-medium border-b border-border">{c}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((r, i) => (
+                                  <tr key={i} className="even:bg-muted/20">
+                                    {cols.map((c) => (
+                                      <td key={c} className="px-2 py-1 border-b border-border font-mono truncate max-w-[120px]" title={String(r[c] ?? "")}>{String(r[c] ?? "—")}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Section>
+            )}
+
             {supportedModes.length > 1 && (
+
               <Section icon={<Upload className="h-4 w-4" />} title="Modo de importação">
                 <div className="space-y-2 text-sm">
                   {supportedModes.includes("append") && (
                     <label className="flex items-start gap-2 cursor-pointer">
-                      <input type="radio" name="mode" checked={importMode === "append"} onChange={() => setImportMode("append")} className="mt-1" />
-                      <span><strong>Adicionar novos</strong> — insere apenas registros que ainda não existem.</span>
+                     <input type="radio" name="mode" checked={importMode === "append"} onChange={() => { setImportMode("append"); setDryRun(null); }} className="mt-1" />
+                     <span><strong>Adicionar novos</strong> — insere apenas registros que ainda não existem.</span>
                     </label>
                   )}
                   {supportedModes.includes("update") && (
                     <label className="flex items-start gap-2 cursor-pointer">
-                      <input type="radio" name="mode" checked={importMode === "update"} onChange={() => setImportMode("update")} className="mt-1" />
+                      <input type="radio" name="mode" checked={importMode === "update"} onChange={() => { setImportMode("update"); setDryRun(null); }} className="mt-1" />
                       <span><strong>Atualizar existentes</strong> — atualiza registros já cadastrados pela chave natural e insere os novos.</span>
                     </label>
                   )}
                   {supportedModes.includes("replace") && (
                     <label className="flex items-start gap-2 cursor-pointer">
-                      <input type="radio" name="mode" checked={importMode === "replace"} onChange={() => setImportMode("replace")} className="mt-1" />
+                      <input type="radio" name="mode" checked={importMode === "replace"} onChange={() => { setImportMode("replace"); setDryRun(null); }} className="mt-1" />
+
                       <span><strong className="text-destructive">Substituir lista atual</strong> — apaga os registros existentes antes de importar. Ação destrutiva.</span>
                     </label>
                   )}
@@ -943,6 +1093,16 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               <Button variant="outline" onClick={() => setStep("preview")} disabled={busy}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Corrigir mapeamento
               </Button>
+              <Button
+                variant="outline"
+                onClick={runDryRun}
+                disabled={busy || validation.summary.valid === 0 || (validation.crmConflicts && validation.crmConflicts.length > 0)}
+                title="Simula a importação sem gravar nada. Mostra quantos seriam criados, atualizados ou ignorados."
+              >
+                {busy && !dryRun ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Simular importação
+              </Button>
+
               <Button
                 onClick={runCommit}
                 disabled={
