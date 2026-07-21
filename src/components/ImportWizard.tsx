@@ -94,7 +94,20 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [fieldFilter, setFieldFilter] = useState("");
   const [showOptional, setShowOptional] = useState(true);
   const [onlyMappedPreview, setOnlyMappedPreview] = useState(false);
+  // Resultado da simulação (dry-run): quantos seriam criados/atualizados/ignorados
+  const [dryRun, setDryRun] = useState<{
+    total: number;
+    valid: number;
+    would_create: number;
+    would_update: number;
+    would_skip_existing: number;
+    validation_errors: number;
+    duplicates: number;
+    import_mode: string;
+    samples: { create: any[]; update: any[]; skip: any[] };
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
 
 
   const supportedModes = profile.supportedModes ?? ["append", "update"];
