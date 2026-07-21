@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Send, Loader2, CheckCircle2, AlertCircle, RotateCcw, ArrowRight } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { ZeevIcon } from "./ZeevIcon";
+import { ZeevResponseCard, type ZeevCard } from "./ZeevResponseCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
