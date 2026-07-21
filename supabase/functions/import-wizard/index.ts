@@ -214,26 +214,30 @@ Deno.serve(async (req) => {
         // Estratégia: para chave composta, buscamos pelo 1º campo com IN(...) e
         // depois filtramos no code os que casam a chave completa. Para chave
         // simples, IN direto.
-        const firstKey = naturalKey[0];
-        const values = [...new Set(records.map((r) => r[firstKey]).filter((v) => v != null && v !== ""))];
+        // Otimização: em vez de N consultas .in() paginadas (custosas quando a
+        // tabela alvo tem milhares de linhas), fazemos UMA leitura completa das
+        // colunas da chave natural e cruzamos em memória. Para doctors (~8k) isso
+        // é 1 query rápida vs 16+ queries pesadas.
         const existingKeys = new Set<string>();
-        // Paginação segura para não estourar limite de URL do PostgREST
-        const PAGE = 500;
-        for (let i = 0; i < values.length; i += PAGE) {
-          const slice = values.slice(i, i + PAGE);
+        const PAGE = 1000;
+        let from = 0;
+        while (true) {
           const { data, error } = await admin
             .from(profile.entity)
             .select(naturalKey.join(","))
-            .in(firstKey, slice as any);
+            .range(from, from + PAGE - 1);
           if (error) {
             return new Response(
               JSON.stringify({ error: `Falha ao consultar existentes: ${error.message}` }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
-          for (const row of (data ?? []) as any[]) {
+          const rows = (data ?? []) as any[];
+          for (const row of rows) {
             existingKeys.add(naturalKey.map((k) => String(row[k] ?? "").toLowerCase()).join("||"));
           }
+          if (rows.length < PAGE) break;
+          from += PAGE;
         }
         existingCount = existingKeys.size;
 
