@@ -286,6 +286,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (mode === "commit" && records.length > 0) {
+
+
       // Pré-carrega cadastro de empresas (por nome + alias + CNPJ) — usado quando o
       // import é de médicos com vínculo a empresas.
       let companyByKey = new Map<string, string>();
