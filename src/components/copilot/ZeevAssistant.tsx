@@ -651,6 +651,13 @@ export function ZeevAssistant({
                 })}
               </div>
 
+              <QuickAskInput
+                onSubmit={(text) => {
+                  setChatInitialPrompt({ text, nonce: Date.now() });
+                  setTab("chat");
+                }}
+              />
+
               <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
                 Zeev observa padrões — nada é alterado sem você confirmar.
               </div>
