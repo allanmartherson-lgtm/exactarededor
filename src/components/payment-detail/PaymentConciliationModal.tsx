@@ -1765,13 +1765,14 @@ export function PaymentConciliationModal({
       const normRoute = (s: unknown): string => {
         const n = normName(s);
         if (!n) return "";
-        if (n.includes("mesma")) return "mesma_via";
+        // Tasy costuma truncar os valores no export ("Mesma", "Única ou", "Via de", "Sem via").
+        // Mapeamos os prefixos truncados aos 4 canônicos para não gerar routeConflict fantasma.
+        if (n.includes("mesma")) return "mesma_via"; // "Mesma", "Mesma via de acesso"
         if (n.includes("outra") || n.includes("diferente") || /\b2a?\b/.test(n) || n.includes("segunda")) return "outra_via";
-        if (n.includes("unica") || n.includes("principal") || /\b1a?\b/.test(n) || n.includes("primeira")) return "unica_principal";
-        if (n.includes("bonus") || n.includes("complemento") || n === "sem" || n.includes("sem via") || n === "na" || n === "n a") return "sem_via";
-        // Espelha rulesEngine.normAccessRoute: quando nada bate, retorna "" (desconhecido).
-        // Devolver o texto cru cria "canônicos fantasmas" (ex.: hospital exporta "Via de " truncado
-        // → "via de" ≠ "outra_via" da Exacta → routeConflict=true → item vai pra "só no hospital").
+        if (n === "vide" || n === "viade" || n.startsWith("videac") || n.startsWith("viadeac")) return "outra_via"; // "Via de", "Via de acesso (diferente)"
+        if (n.includes("unica") || n.includes("principal") || /\b1a?\b/.test(n) || n.includes("primeira")) return "unica_principal"; // "Única ou", "Única ou principal"
+        if (n.includes("bonus") || n.includes("complemento") || n === "sem" || n.startsWith("semvia") || n === "na" || n === "n a") return "sem_via";
+        // Nada bateu — devolve "" (desconhecido) para não criar canônico fantasma.
         return "";
       };
 
