@@ -2668,6 +2668,7 @@ export type Database = {
           active: boolean
           birth_date: string | null
           cpf: string | null
+          created_at: string
           crm: string
           crm_uf: string
           email: string | null
@@ -2684,6 +2685,7 @@ export type Database = {
           active?: boolean
           birth_date?: string | null
           cpf?: string | null
+          created_at?: string
           crm: string
           crm_uf: string
           email?: string | null
@@ -2700,6 +2702,7 @@ export type Database = {
           active?: boolean
           birth_date?: string | null
           cpf?: string | null
+          created_at?: string
           crm?: string
           crm_uf?: string
           email?: string | null
@@ -12365,6 +12368,16 @@ export type Database = {
         Returns: undefined
       }
       finalize_confeccao: { Args: { _payment_id: string }; Returns: undefined }
+      find_doctor_by_document: {
+        Args: { doc: string }
+        Returns: {
+          crm: string
+          crm_uf: string
+          full_name: string
+          id: string
+          specialties: string[]
+        }[]
+      }
       find_doctor_for_login: {
         Args: { identifier: string }
         Returns: {
@@ -12499,6 +12512,16 @@ export type Database = {
           matched_doctor_name: string
           n_items: number
           total_gross: number
+        }[]
+      }
+      get_doctors_pii: {
+        Args: { doctor_ids: string[] }
+        Returns: {
+          birth_date: string
+          cpf: string
+          email: string
+          id: string
+          phone: string
         }[]
       }
       get_dre_consolidated:
