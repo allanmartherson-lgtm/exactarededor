@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, AlertTriangle, CheckCircle2, ArrowLeft, X, Loader2 } from "lucide-react";
+import { Upload, AlertTriangle, CheckCircle2, ArrowLeft, X, Loader2, Search } from "lucide-react";
 import { normalizeNumericValue } from "@/lib/utils";
 
 export type ImportFieldDef = {
