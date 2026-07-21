@@ -198,7 +198,94 @@ Deno.serve(async (req) => {
       return rest;
     };
 
-    if (mode === "commit" && records.length > 0) {
+    // =====================================================================
+    // DRY-RUN: classifica cada registro contra o banco sem gravar nada.
+    // Retorna quantos seriam criados / atualizados / ignorados por já
+    // existirem (com base no importMode) + amostras para inspeção.
+    // =====================================================================
+    if (mode === "dry_run") {
+      const wouldCreate: Record<string, any>[] = [];
+      const wouldUpdate: Record<string, any>[] = [];
+      const wouldSkip: Record<string, any>[] = [];
+      let existingCount = 0;
+
+      if (records.length > 0 && naturalKey && naturalKey.length > 0) {
+        // Busca registros existentes pela chave natural.
+        // Estratégia: para chave composta, buscamos pelo 1º campo com IN(...) e
+        // depois filtramos no code os que casam a chave completa. Para chave
+        // simples, IN direto.
+        const firstKey = naturalKey[0];
+        const values = [...new Set(records.map((r) => r[firstKey]).filter((v) => v != null && v !== ""))];
+        const existingKeys = new Set<string>();
+        // Paginação segura para não estourar limite de URL do PostgREST
+        const PAGE = 500;
+        for (let i = 0; i < values.length; i += PAGE) {
+          const slice = values.slice(i, i + PAGE);
+          const { data, error } = await admin
+            .from(profile.entity)
+            .select(naturalKey.join(","))
+            .in(firstKey, slice as any);
+          if (error) {
+            return new Response(
+              JSON.stringify({ error: `Falha ao consultar existentes: ${error.message}` }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          for (const row of (data ?? []) as any[]) {
+            existingKeys.add(naturalKey.map((k) => String(row[k] ?? "").toLowerCase()).join("||"));
+          }
+        }
+        existingCount = existingKeys.size;
+
+        for (const rec of records) {
+          const k = naturalKey.map((kk) => String(rec[kk] ?? "").toLowerCase()).join("||");
+          const exists = existingKeys.has(k);
+          if (!exists) {
+            wouldCreate.push(rec);
+          } else if (importMode === "update" || importMode === "replace") {
+            wouldUpdate.push(rec);
+          } else {
+            wouldSkip.push(rec);
+          }
+        }
+      } else {
+        // Sem chave natural, tudo seria insert
+        for (const rec of records) wouldCreate.push(rec);
+      }
+
+      const sampleFields = naturalKey && naturalKey.length > 0 ? naturalKey : Object.keys(records[0] ?? {}).slice(0, 3);
+      const sampleOf = (arr: Record<string, any>[]) =>
+        arr.slice(0, 20).map((r) => {
+          const out: Record<string, any> = {};
+          for (const k of sampleFields) out[k] = r[k];
+          return out;
+        });
+
+      return new Response(
+        JSON.stringify({
+          dry_run: true,
+          import_mode: importMode,
+          total: typeof totalRows === "number" ? totalRows : incomingRecords.length,
+          valid: records.length,
+          validation_errors: errors.length,
+          duplicates: dups.length,
+          would_create: wouldCreate.length,
+          would_update: wouldUpdate.length,
+          would_skip_existing: wouldSkip.length,
+          existing_matches: existingCount,
+          would_delete_before_replace: importMode === "replace" ? "estimado no commit" : 0,
+          samples: {
+            create: sampleOf(wouldCreate),
+            update: sampleOf(wouldUpdate),
+            skip: sampleOf(wouldSkip),
+          },
+          errors: errors.slice(0, 50),
+          duplicates_detail: dups.slice(0, 50),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
       // Pré-carrega cadastro de empresas (por nome + alias + CNPJ) — usado quando o
       // import é de médicos com vínculo a empresas.
       let companyByKey = new Map<string, string>();
