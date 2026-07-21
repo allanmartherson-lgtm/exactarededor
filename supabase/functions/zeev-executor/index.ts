@@ -256,6 +256,53 @@ const RESPOND_SCHEMA = {
       additionalProperties: false,
     },
     summary: { type: "string" },
+    card: {
+      type: "object",
+      description: "Opcional — cartão rico para respostas tipo tutorial/explicação. Só use quando action='answer' e a resposta se beneficia de estrutura visual (passos, atalhos, dicas). Nunca invente conteúdo — baseie-se nos knowledge_articles.",
+      properties: {
+        icon: { type: "string", enum: ["book", "zap", "info", "lightbulb", "file", "settings", "users", "building", "wallet", "checklist"] },
+        title: { type: "string" },
+        intro: { type: "string", description: "1-2 frases de contexto antes das seções." },
+        sections: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              body: { type: "string", description: "Parágrafo curto. Use quando não for lista de passos." },
+              steps: { type: "array", items: { type: "string" }, description: "Passos numerados renderizados como timeline vertical." },
+              tips: { type: "array", items: { type: "string" }, description: "Dicas/observações em bullets." },
+            },
+            additionalProperties: false,
+          },
+        },
+        shortcuts: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { label: { type: "string" }, keys: { type: "string" } },
+            required: ["label", "keys"],
+            additionalProperties: false,
+          },
+        },
+        actions: {
+          type: "array",
+          description: "CTAs no rodapé. Só use kind='navigate' com url interna (/pagamentos, /regras, etc). Máx 3.",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              kind: { type: "string", enum: ["navigate"] },
+              url: { type: "string" },
+            },
+            required: ["label", "kind", "url"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["title", "sections"],
+      additionalProperties: false,
+    },
   },
   required: ["action", "summary"],
 };
