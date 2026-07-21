@@ -90,6 +90,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [replaceConfirm, setReplaceConfirm] = useState("");
   // Atribuição manual de UF por número de CRM (resolve conflitos sem reabrir o arquivo)
   const [ufOverrides, setUfOverrides] = useState<Record<string, string>>({});
+  // UX do passo de mapeamento: filtro por texto, colapso de opcionais e prévia só de colunas mapeadas
+  const [fieldFilter, setFieldFilter] = useState("");
+  const [showOptional, setShowOptional] = useState(true);
+  const [onlyMappedPreview, setOnlyMappedPreview] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
 
