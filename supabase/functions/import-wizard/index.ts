@@ -255,6 +255,17 @@ Deno.serve(async (req) => {
           resErr = error;
           // não distinguimos created vs updated aqui
           if (!error) updated += affected;
+        } else if (importMode === "append" && naturalKey) {
+          // Append inteligente: ignora registros já existentes (mesma chave natural)
+          // ao invés de falhar todo o chunk por violação de unique. Assim
+          // reimportar uma planilha que já contém médicos cadastrados apenas
+          // adiciona os novos, sem erros de "duplicate key".
+          const { error, data } = await admin
+            .from(profile.entity)
+            .upsert(slice, { onConflict: naturalKey.join(","), ignoreDuplicates: true } as any)
+            .select("id");
+          resErr = error;
+          if (!error) inserted += (data?.length ?? 0);
         } else {
           const { error } = await admin.from(profile.entity).insert(slice);
           resErr = error;
