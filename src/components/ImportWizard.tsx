@@ -968,14 +968,21 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
         {step === "done" && result && (
           <div className="space-y-4">
-            <div className={`flex items-center gap-3 p-4 rounded-md border ${result.inserted > 0 ? "border-success/30 bg-success-soft text-success" : "border-destructive/30 bg-destructive/5 text-destructive"}`}>
+            <div className={`flex items-center gap-3 p-4 rounded-md border ${result.inserted > 0 ? "border-success/30 bg-success-soft text-success" : result.insert_errors.length === 0 ? "border-warning/30 bg-warning/10 text-warning-foreground" : "border-destructive/30 bg-destructive/5 text-destructive"}`}>
               {result.inserted > 0 ? <CheckCircle2 className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
               <div>
                 <div className="font-medium">
-                  {result.inserted > 0 ? "Importação concluída" : "Nenhuma linha foi salva"}
+                  {result.inserted > 0
+                    ? "Importação concluída"
+                    : result.insert_errors.length === 0
+                    ? "Nenhum registro novo"
+                    : "Nenhuma linha foi salva"}
                 </div>
                 <div className="text-sm">
                   {result.inserted} de {result.total} linha(s) processada(s).
+                  {result.inserted === 0 && result.insert_errors.length === 0 && result.total > 0
+                    ? " Todos os registros já estavam cadastrados."
+                    : ""}
                   {result.removed_before_replace ? ` ${result.removed_before_replace} apagada(s) antes da substituição.` : ""}
                 </div>
               </div>
