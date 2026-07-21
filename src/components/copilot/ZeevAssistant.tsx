@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 
-import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Loader2, Users, Lightbulb } from "lucide-react";
+import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Loader2, Users, Lightbulb, Send } from "lucide-react";
 import { ZeevIcon } from "./ZeevIcon";
 
 import { Button } from "@/components/ui/button";
