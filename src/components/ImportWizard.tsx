@@ -231,6 +231,82 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     }
   };
 
+  // Simulação (dry-run): chama a edge function em modo "dry_run" para descobrir
+  // quantos registros seriam criados/atualizados/ignorados por já existirem,
+  // sem gravar nada no banco. Processa em chunks e agrega totais + amostras.
+  const runDryRun = async () => {
+    if (!validation || validation.summary.valid <= 0) {
+      toast({ title: "Nada para simular", description: "Nenhuma linha válida no arquivo.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    setDryRun(null);
+    try {
+      const { records } = buildImportPayload(
+        rowsBySheet[activeSheet] ?? [],
+        mapping,
+        profile.fields,
+        profile.fixedContext,
+        profile.entity,
+        roleMapping,
+      );
+      if (profile.entity === "doctors") applyUfOverrides(records, ufOverrides);
+
+      const CHUNK = 500;
+      const agg = {
+        total: records.length,
+        valid: 0,
+        would_create: 0,
+        would_update: 0,
+        would_skip_existing: 0,
+        validation_errors: 0,
+        duplicates: 0,
+        import_mode: importMode,
+        samples: { create: [] as any[], update: [] as any[], skip: [] as any[] },
+      };
+
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const chunk = records.slice(i, i + CHUNK).map((r) => {
+          const { _meta, ...clean } = r;
+          return clean;
+        });
+        const data = await callFn({
+          mode: "dry_run",
+          records: chunk,
+          totalRows: chunk.length,
+          profile: { ...profile, importMode },
+        });
+        agg.valid += data.valid ?? 0;
+        agg.would_create += data.would_create ?? 0;
+        agg.would_update += data.would_update ?? 0;
+        agg.would_skip_existing += data.would_skip_existing ?? 0;
+        agg.validation_errors += data.validation_errors ?? 0;
+        agg.duplicates += data.duplicates ?? 0;
+        // Mantém apenas as primeiras 20 amostras de cada categoria
+        for (const cat of ["create", "update", "skip"] as const) {
+          const cur = agg.samples[cat];
+          if (cur.length < 20 && data.samples?.[cat]) {
+            for (const s of data.samples[cat]) {
+              if (cur.length >= 20) break;
+              cur.push(s);
+            }
+          }
+        }
+      }
+
+      setDryRun(agg);
+      toast({
+        title: "Simulação concluída",
+        description: `${agg.would_create} novo(s) · ${agg.would_update} atualizado(s) · ${agg.would_skip_existing} ignorado(s)`,
+      });
+    } catch (e: any) {
+      toast({ title: "Erro na simulação", description: e?.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+
   const runCommit = async () => {
     // Validações de segurança antes de chamar o backend
     const requiredMissing = profile.fields
