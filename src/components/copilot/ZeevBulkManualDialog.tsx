@@ -80,11 +80,14 @@ export function ZeevBulkManualDialog({
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [suggesting, setSuggesting] = useState(false);
+  const [valueStrategy, setValueStrategy] = useState<"procedure" | "expected" | "custom">("procedure");
+  const [customValueStr, setCustomValueStr] = useState<string>("");
   const [suggestion, setSuggestion] = useState<{
     reason_code: string;
     confidence: number;
     reasoning: string;
     suggested_note?: string;
+    suggested_value_strategy?: "procedure" | "expected" | "custom";
   } | null>(null);
 
 
