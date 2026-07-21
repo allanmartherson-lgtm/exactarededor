@@ -1766,7 +1766,10 @@ export function PaymentConciliationModal({
         if (n.includes("outra") || n.includes("diferente") || /\b2a?\b/.test(n) || n.includes("segunda")) return "outra_via";
         if (n.includes("unica") || n.includes("principal") || /\b1a?\b/.test(n) || n.includes("primeira")) return "unica_principal";
         if (n.includes("bonus") || n.includes("complemento") || n === "sem" || n.includes("sem via") || n === "na" || n === "n a") return "sem_via";
-        return n;
+        // Espelha rulesEngine.normAccessRoute: quando nada bate, retorna "" (desconhecido).
+        // Devolver o texto cru cria "canônicos fantasmas" (ex.: hospital exporta "Via de " truncado
+        // → "via de" ≠ "outra_via" da Exacta → routeConflict=true → item vai pra "só no hospital").
+        return "";
       };
 
       const normQty = (q: unknown): number => {
