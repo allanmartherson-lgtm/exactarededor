@@ -264,7 +264,10 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     valueRepasse: ["vl. repasse", "vlrepasse", "vl repasse", "repasse", "vl.repasse"],
     company: ["terceiro", "empresa", "prestador"],
     grupo: ["grupo cbhpm", "grupocbhpm", "grupo", "grupoproc"],
-    accessRoute: ["via", "viaacesso", "via acesso", "via de acesso", "viadeacesso", "viadeacessoproc"],
+    // Inclui variantes truncadas ("Via de ", "Via d", "Via") que o Tasy costuma exportar
+    // quando o header é cortado no export — sem isso, o lado hospital fica sem via
+    // e linhas do mesmo código/médico com vias distintas colapsam num só bucket.
+    accessRoute: ["via", "viad", "vide", "viadea", "viaacesso", "via acesso", "via de acesso", "viadeacesso", "viadeacessoproc"],
     crm: ["crm", "crmmedico", "crm medico", "crmexec", "crmprofissional", "documentomedico", "documento"],
   };
   const normKey = (s: string) =>
