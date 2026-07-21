@@ -1094,6 +1094,16 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                 <ArrowLeft className="h-4 w-4 mr-2" /> Corrigir mapeamento
               </Button>
               <Button
+                variant="outline"
+                onClick={runDryRun}
+                disabled={busy || validation.summary.valid === 0 || (validation.crmConflicts && validation.crmConflicts.length > 0)}
+                title="Simula a importação sem gravar nada. Mostra quantos seriam criados, atualizados ou ignorados."
+              >
+                {busy && !dryRun ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Simular importação
+              </Button>
+
+              <Button
                 onClick={runCommit}
                 disabled={
                   busy ||
