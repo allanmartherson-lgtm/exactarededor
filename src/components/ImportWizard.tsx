@@ -325,7 +325,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] w-[98vw] sm:max-w-[98vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent className={`max-w-[98vw] w-[98vw] sm:max-w-[98vw] ${step === "preview" ? "h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0" : "max-h-[95vh] overflow-y-auto"}`}>
         <DialogHeader>
           <DialogTitle>
             {title} · {stepLabel(step)}
