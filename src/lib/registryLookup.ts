@@ -41,9 +41,42 @@ export type SectorRegistry = {
   byAlias: Map<string, SectorRegistryEntry>;
 };
 
+/**
+ * Repara mojibake — texto UTF-8 lido como Latin1 (típico de export do Tasy).
+ * Ex.: "Ã©" → "é", "Ã§" → "ç", "Ãš" → "Ú", "Ã‡" → "Ç".
+ * Aplicado ANTES da normalização para casar com o `unaccent` do Postgres,
+ * que gera coisas como "notre dame interma(c)dica" quando o raw vem quebrado.
+ * Se o texto não contém mojibake, retorna igual.
+ */
+export function fixMojibake(text: string | null | undefined): string {
+  const s = String(text ?? "");
+  if (!s) return "";
+  // Detecta a assinatura clássica: sequência "Ã" + caractere latino-1 alto,
+  // ou "Â" isolado. Evita rodar em texto já correto.
+  if (!/[ÃÂ][\x80-\xBF\u0080-\u00BF]|Ã[\u008A-\u009F]/.test(s) && !/[ÃÂ][€-Ÿ]/.test(s)) {
+    // heurística barata: pula strings sem prefixo "Ã" nem "Â"
+    if (!/[ÃÂ]/.test(s)) return s;
+  }
+  try {
+    // Tenta re-decodificar como se fosse Latin1 sendo lido como UTF-8.
+    const bytes = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      if (c > 0xff) return s; // não é mojibake válido — desiste
+      bytes[i] = c;
+    }
+    const decoded = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    // Só aceita o resultado se ele não introduziu U+FFFD (replacement char).
+    if (decoded.indexOf("\uFFFD") >= 0) return s;
+    return decoded;
+  } catch {
+    return s;
+  }
+}
+
 export function normalize(text: string | null | undefined): string {
   if (!text) return "";
-  return String(text)
+  return fixMojibake(text)
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
