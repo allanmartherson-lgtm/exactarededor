@@ -45,7 +45,7 @@ type NavPayload = { url?: string; filter?: "zerados" | "divergentes" | "sem_regr
 
 type Msg =
   | { role: "user"; text: string }
-  | { role: "zeev"; text: string }
+  | { role: "zeev"; text: string; card?: ZeevCard | null }
   | { role: "navigate"; text: string; payload: NavPayload; done?: boolean }
   | { role: "proposal"; proposal: Proposal; status: "pending" | "confirmed" | "cancelled" | "applying"; result?: string };
 
