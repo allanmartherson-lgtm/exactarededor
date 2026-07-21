@@ -207,6 +207,16 @@ export function ZeevBulkManualDialog({
       return;
     }
 
+    let customValueNum: number | null = null;
+    if (valueStrategy === "custom") {
+      const parsed = Number(String(customValueStr).replace(",", "."));
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        toast({ title: "Informe um valor customizado válido", variant: "destructive" });
+        return;
+      }
+      customValueNum = parsed;
+    }
+
     setSubmitting(true);
     setProgress({ done: 0, total: targetItems.length });
     try {
@@ -216,6 +226,8 @@ export function ZeevBulkManualDialog({
         _notes: notes.trim() || null,
         _source: "zeev_bulk",
         _override_reason: "zeev_bulk_manual",
+        _value_strategy: valueStrategy,
+        _custom_value: customValueNum,
       } as never);
       if (error) throw error;
 
