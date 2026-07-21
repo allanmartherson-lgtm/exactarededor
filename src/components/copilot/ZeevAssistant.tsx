@@ -734,4 +734,45 @@ export function ZeevAssistant({
   );
 }
 
+function QuickAskInput({ onSubmit }: { onSubmit: (text: string) => void }) {
+  const [quickQuestion, setQuickQuestion] = useState("");
+  const submit = () => {
+    const t = quickQuestion.trim();
+    if (!t) return;
+    onSubmit(t);
+    setQuickQuestion("");
+  };
+  const hasText = quickQuestion.trim().length > 0;
+  return (
+    <div className="border-t border-border/40 bg-muted/30 px-3 py-2">
+      <div className="relative">
+        <input
+          type="text"
+          value={quickQuestion}
+          onChange={(e) => setQuickQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="Pergunte algo ao Zeev…"
+          className="h-8 w-full rounded-md border border-border/60 bg-background/80 pl-3 pr-8 text-[12px] placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/40"
+        />
+        {hasText && (
+          <button
+            type="button"
+            onClick={submit}
+            aria-label="Enviar pergunta ao Zeev"
+            className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-primary hover:bg-primary/10"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 
