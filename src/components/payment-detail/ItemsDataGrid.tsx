@@ -5282,7 +5282,7 @@ function RowMain({
         )}
         {canEdit && (
           <td
-            className={cn(cellPad, "text-center border-b whitespace-nowrap sticky right-0 z-10 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
+            className={cn(cellPad, "text-center border-b whitespace-nowrap sticky right-0 z-20 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
             onClick={(e) => e.stopPropagation()}
           >
             {/*
