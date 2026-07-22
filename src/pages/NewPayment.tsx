@@ -4486,6 +4486,56 @@ const NewPayment = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <p className="font-medium text-sm truncate flex-1 min-w-0" title={b.file.name}>{b.file.name}</p>
+                        {paymentMode !== "rateio" && (() => {
+                          // Pill compacto com score + método do match automático.
+                          // Score/via já calculados no parse — sem lógica nova.
+                          const pct = Math.round((b.matchScore ?? 0) * 100);
+                          if (b.manualOverride) {
+                            return (
+                              <span className="shrink-0 rounded-full border border-success/30 bg-success/10 text-success px-2 py-0.5 text-[10px] font-medium">
+                                manual
+                              </span>
+                            );
+                          }
+                          if (!b.matchedCompany) {
+                            return (
+                              <span
+                                className="shrink-0 rounded-full border border-destructive/30 bg-destructive/10 text-destructive px-2 py-0.5 text-[10px] font-medium"
+                                title="Nenhuma PJ vinculada automaticamente"
+                              >
+                                sem match
+                              </span>
+                            );
+                          }
+                          if (b.matchVia === "document" && b.matchScore >= 0.95) {
+                            return (
+                              <span
+                                className="shrink-0 rounded-full border border-success/30 bg-success/10 text-success px-2 py-0.5 text-[10px] font-medium"
+                                title="Match determinístico por CNPJ (chave forte)"
+                              >
+                                {pct}% · CNPJ
+                              </span>
+                            );
+                          }
+                          if (b.matchScore >= 0.90) {
+                            return (
+                              <span
+                                className="shrink-0 rounded-full border border-primary/30 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-medium"
+                                title="Match por similaridade de nome"
+                              >
+                                {pct}% · nome
+                              </span>
+                            );
+                          }
+                          return (
+                            <span
+                              className="shrink-0 rounded-full border border-amber-200 bg-amber-50 text-amber-700 px-2 py-0.5 text-[10px] font-medium"
+                              title="Match fuzzy de baixa confiança — revisar manualmente"
+                            >
+                              {pct}% · fuzzy
+                            </span>
+                          );
+                        })()}
                         <Button
                           type="button"
                           size="sm"
@@ -4498,6 +4548,7 @@ const NewPayment = () => {
                           Ver planilha
                         </Button>
                       </div>
+
                       {(() => {
                         const headerRow = (b.rawMatrix && typeof b.headerRowIndex === "number")
                           ? (b.rawMatrix[b.headerRowIndex] ?? [])
