@@ -5241,6 +5241,14 @@ const NewPayment = () => {
         stagingContext={stagingContext}
         extraInsights={zeevStagingInsights}
       />
+
+      <ExcelPreviewDialog
+        open={previewBucketIdx != null}
+        onOpenChange={(o) => { if (!o) setPreviewBucketIdx(null); }}
+        fileName={previewBucketIdx != null ? (buckets[previewBucketIdx]?.file.name ?? "") : ""}
+        matrix={previewBucketIdx != null ? buckets[previewBucketIdx]?.rawMatrix : null}
+        headerRowIndex={previewBucketIdx != null ? buckets[previewBucketIdx]?.headerRowIndex ?? 0 : 0}
+      />
     </>
   );
 };
