@@ -1096,7 +1096,7 @@ const NewPayment = () => {
         for (let attempt = 0; attempt < 4; attempt++) {
           let q = supabase
             .from("companies")
-            .select("id,name,aliases")
+            .select("id,name,aliases,document")
             .order("id", { ascending: true })
             .limit(pageSize);
           if (afterId) q = q.gt("id", afterId);
@@ -1113,7 +1113,7 @@ const NewPayment = () => {
       let afterId: string | null = null;
       for (;;) {
         const data = await fetchPage(afterId);
-        const page = (data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+        const page = (data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [], document: c.document ?? null }));
         all.push(...page);
         if (page.length < pageSize) break;
         const next = page[page.length - 1]?.id ?? null;
@@ -1476,7 +1476,17 @@ const NewPayment = () => {
       });
     }
     const rawCompanyName = extractCompanyFromFilename(f.name);
-    const { company, score } = matchCompany(rawCompanyName, companyRegistry);
+    const { company, score, via } = matchCompany(rawCompanyName, companyRegistry, {
+      fileName: f.name,
+      rawMatrix: matrix,
+      headerRowIndex: headerIdx,
+    });
+    if (via === "document") {
+      // Auditoria leve — permite ver quantos matches vieram por CNPJ vs nome
+      // ao debugar um lote específico. Não polui produção porque só dispara
+      // no primeiro parse de cada arquivo.
+      console.info("[NewPayment] match por CNPJ (chave forte)", { file: f.name, company: company?.name });
+    }
 
     // Detecta a coluna "setor" cruzando cabeçalho + valores com sectores cadastrados.
     // Só auto-aplica quando o NOME do cabeçalho bate explicitamente (ex.: "Setor",
