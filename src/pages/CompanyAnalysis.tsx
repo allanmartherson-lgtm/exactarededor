@@ -917,23 +917,29 @@ export default function CompanyAnalysis() {
       // falso positivo quando processing_diagnostics do pagamento já estava
       // "success" de um job anterior (qualquer worker sobrescreve esse campo).
       const jobId = (data as any)?.job_id as string | undefined;
+      mark("dispatch_ok");
+      // eslint-disable-next-line no-console
+      console.info(`[reapply-metrics] job_dispatched`, {
+        payment_id: id,
+        company: group.company_name,
+        job_id: jobId ?? null,
+        deferred_to: deferredTo ?? null,
+        already_running: alreadyRunning,
+      });
       // Empresas grandes (200+ itens) podem ultrapassar 120s. Aumentamos o teto
       // para 240s antes de cair no fallback informativo.
+      const POLL_TIMEOUT_MS = 240_000;
       const done = jobId
-        ? await waitForJobCompletion(jobId, 240_000, startedAt)
-        : await waitForProcessingCompletion(id, startedAt, 240_000);
+        ? await waitForJobCompletion(jobId, POLL_TIMEOUT_MS, startedAt)
+        : await waitForProcessingCompletion(id, startedAt, POLL_TIMEOUT_MS);
+      mark(done ? "motor_done" : "motor_timeout");
 
-      // Etapa 2.5 — Aguarda finalize-payment-engine (deduções, glosas, garantia
-      // mínima, retroatividade). Sem isto, o diálogo fechava antes do pipeline
-      // de ajustes tocar nos itens e a UI mostrava expected/gross antigos por
-      // mais alguns segundos — o analista percebia "esperado mudou sozinho
-      // depois". finalize é fire-and-forget após o job concluir; gravamos
-      // updated_at em payment_engine_sources a cada fonte aplicada, então
-      // basta detectar atualização recente + janela de estabilidade.
       if (done) {
         setReapplyStep("ajustes_finais");
         await waitForFinalizeStability(id, startedAt, 45_000);
+        mark("finalize_done");
       }
+
 
       // Etapa 3 — Persistir/ler de volta os itens COM janela de estabilidade.
       // Como o worker é `_async` (retorna 202 e escreve itens em background)
