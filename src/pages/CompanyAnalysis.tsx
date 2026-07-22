@@ -702,8 +702,20 @@ export default function CompanyAnalysis() {
       return;
     }
 
-    // Fluxo normal: acatar item reprovado/alerta financeiramente
-    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
+    // Fluxo normal: acatar item reprovado/alerta financeiramente.
+    // Abre o modal de justificativa (mín. 1 caractere) — evita depender de
+    // observação pré-persistida, que era a causa do erro "justificativa
+    // obrigatória" mesmo após o analista digitar no campo lateral.
+    const existing = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
+    const justif = await promptJustification({
+      title: "Acatar valor esperado",
+      description: "O valor pago será sobrescrito pelo valor esperado da regra. Registre o motivo abaixo para auditoria.",
+      confirmText: "Acatar valor esperado",
+      tone: "success",
+      minLength: 1,
+      defaultValue: existing,
+    });
+    if (!justif) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
       _item_id: it.id,
