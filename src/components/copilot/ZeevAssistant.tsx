@@ -1,19 +1,17 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect } from "react";
 
-import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Loader2, Users, Lightbulb, Send } from "lucide-react";
+import { X, AlertTriangle, GitBranch, ShieldQuestion, Users, Lightbulb, MessageCircle, ArrowLeft, MapPin, Building2 } from "lucide-react";
 import { ZeevIcon } from "./ZeevIcon";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
 import { ZeevSuggestRuleDialog } from "./ZeevSuggestRuleDialog";
 import { ZeevExecutorChat } from "./ZeevExecutorChat";
 import { ZeevStagingChat, type StagingContext } from "./ZeevStagingChat";
-import { ZeevDiagnosticCard } from "./ZeevDiagnosticCard";
 import { ZeevRetroactiveGapsCard } from "./ZeevRetroactiveGapsCard";
 
 /**
