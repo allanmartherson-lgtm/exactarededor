@@ -1736,27 +1736,91 @@ const NewPayment = () => {
 
   const onFiles = async (fileList: FileList) => {
     const files = Array.from(fileList);
-    // Parsing PARALELO com yields. Antes era sequencial (for + await), o que
-    // bloqueava o main thread e fazia o sistema "cansar" nos últimos arquivos
-    // de lotes grandes. Agora cada parse roda em paralelo (XLSX.read é pesado
-    // mas o JS engine intercala melhor) e o setTimeout(0) inicial libera o
-    // ciclo de render antes de cada parse começar.
     type ParseOk = { ok: true; bucket: FileBucket; file: File; error: null };
     type ParseErr = { ok: false; bucket: null; file: File; error: unknown };
-    const results = await Promise.all<ParseOk | ParseErr>(
-      files.map((f) =>
-        new Promise<ParseOk | ParseErr>((resolve) => {
-          setTimeout(async () => {
-            try {
-              const bucket = await parseFile(f);
-              resolve({ ok: true, bucket, file: f, error: null });
-            } catch (error) {
-              resolve({ ok: false, bucket: null, file: f, error });
-            }
-          }, 0);
-        }),
+
+    // Fase 1: leitura pesada (XLSX.read + sheet_to_json) em Web Workers,
+    // um por arquivo — libera a main thread durante o parse de lotes
+    // grandes (Ambulatório HDF chega a 3-4 mil linhas). O Dialog de
+    // progresso dá feedback visual porque antes o analista via a UI
+    // travada e não sabia se o sistema tinha morrido.
+    setParseProgress({
+      open: true,
+      phase: "lendo_arquivo",
+      current: 0,
+      total: files.length,
+      fileName: files[0]?.name ?? "",
+    });
+
+    const preloadedResults = await Promise.all(
+      files.map(
+        (f, idx) =>
+          new Promise<{ file: File; preloaded: { matrix: unknown[][]; sheetName: string } | null; error: unknown }>(
+            (resolve) => {
+              const worker = new Worker(
+                new URL("../workers/parse-payment.worker.ts", import.meta.url),
+                { type: "module" },
+              );
+              const fileId = `${idx}-${f.name}`;
+              worker.onmessage = (ev: MessageEvent<import("../workers/parse-payment.worker").ParseWorkerMessage>) => {
+                const msg = ev.data;
+                if (msg.type === "progress") {
+                  setParseProgress((prev) =>
+                    prev.open
+                      ? {
+                          ...prev,
+                          phase: msg.phase,
+                          current: msg.phase === "parseando_linhas" ? msg.current : prev.current,
+                          total: msg.phase === "parseando_linhas" ? Math.max(msg.total, prev.total) : prev.total,
+                          fileName: f.name,
+                        }
+                      : prev,
+                  );
+                } else if (msg.type === "result") {
+                  worker.terminate();
+                  resolve({
+                    file: f,
+                    preloaded: { matrix: msg.matrix as unknown[][], sheetName: msg.sheetName },
+                    error: null,
+                  });
+                } else if (msg.type === "error") {
+                  worker.terminate();
+                  resolve({ file: f, preloaded: null, error: new Error(msg.message) });
+                }
+              };
+              worker.onerror = (err) => {
+                worker.terminate();
+                resolve({ file: f, preloaded: null, error: err.error ?? new Error(err.message) });
+              };
+              f.arrayBuffer()
+                .then((buffer) => {
+                  worker.postMessage({ fileId, fileName: f.name, buffer } satisfies import("../workers/parse-payment.worker").ParseWorkerRequest, [buffer]);
+                })
+                .catch((err) => {
+                  worker.terminate();
+                  resolve({ file: f, preloaded: null, error: err });
+                });
+            },
+          ),
       ),
     );
+
+    // Fase 2: fluxo de negócio (matching PJ/convênio/setor, cadastros)
+    // continua igual — só recebe o `preloaded` para pular a leitura.
+    const results = await Promise.all<ParseOk | ParseErr>(
+      preloadedResults.map(async ({ file, preloaded, error }) => {
+        if (error || !preloaded) return { ok: false, bucket: null, file, error } as ParseErr;
+        try {
+          const bucket = await parseFile(file, preloaded);
+          return { ok: true, bucket, file, error: null } as ParseOk;
+        } catch (e) {
+          return { ok: false, bucket: null, file, error: e } as ParseErr;
+        }
+      }),
+    );
+
+    setParseProgress((prev) => ({ ...prev, open: false }));
+
     const newBuckets: FileBucket[] = [];
     for (const r of results) {
       if (r.ok && r.bucket) newBuckets.push(r.bucket);
