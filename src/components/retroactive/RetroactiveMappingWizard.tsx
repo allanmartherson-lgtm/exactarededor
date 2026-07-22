@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircleIcon, FileSpreadsheetIcon, ArrowLeftIcon } from "lucide-react";
 import { CompanyMappingList, type MappingRow } from "@/components/shared/CompanyMappingList";
-import { findCompanyMatch, type AliasMap } from "@/lib/companyMatching";
+import { findCompanyMatch, buildCompanyIndex, type AliasMap } from "@/lib/companyMatching";
 import { preserveFormattedBrazilianNumbers } from "@/lib/parsePaymentFile";
 
 export type TargetField = {
@@ -346,6 +346,13 @@ export default function RetroactiveMappingWizard({
     return m;
   }, [companyMappingConfig]);
 
+  // Índice pré-calculado: evita iterar candidateNames a cada raw name.
+  // Reconstruído apenas quando a lista de candidatos ou aliases muda.
+  const companyIndex = useMemo(
+    () => buildCompanyIndex(candidateNames, aliasMap),
+    [candidateNames, aliasMap],
+  );
+
   // Sementeia auto-match ao entrar no passo de PJs (ou quando lista muda).
   useEffect(() => {
     if (step !== "companies" || !hasCompanyStep) return;
@@ -353,7 +360,7 @@ export default function RetroactiveMappingWizard({
       const next: Record<string, string | null> = { ...prev };
       for (const raw of rawCompanyNames) {
         if (next[raw] !== undefined) continue;
-        const hit = findCompanyMatch(raw, candidateNames, aliasMap);
+        const hit = findCompanyMatch(raw, candidateNames, aliasMap, companyIndex);
         // medium = precisa confirmação → começa em null
         next[raw] = hit.level === "exact" || hit.level === "high"
           ? (hit.company ? idByName[hit.company] ?? null : null)
@@ -361,14 +368,15 @@ export default function RetroactiveMappingWizard({
       }
       return next;
     });
-  }, [step, hasCompanyStep, rawCompanyNames, candidateNames, aliasMap, idByName]);
+  }, [step, hasCompanyStep, rawCompanyNames, candidateNames, aliasMap, idByName, companyIndex]);
 
   const mappingRows: MappingRow[] = useMemo(() => {
     return rawCompanyNames.map((raw) => {
-      const hit = findCompanyMatch(raw, candidateNames, aliasMap);
+      const hit = findCompanyMatch(raw, candidateNames, aliasMap, companyIndex);
       return { key: raw, rawLabel: raw, level: hit.level };
     });
-  }, [rawCompanyNames, candidateNames, aliasMap]);
+  }, [rawCompanyNames, candidateNames, aliasMap, companyIndex]);
+
 
   const companyOptions = useMemo(
     () => (companyMappingConfig?.companies ?? []).map((c) => ({ id: c.id, label: c.name })),
