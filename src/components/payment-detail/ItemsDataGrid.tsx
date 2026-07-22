@@ -4959,7 +4959,7 @@ function RowMain({
             </td>
           );
         })()}
-        <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>
+        <td className={cn(stickyCell, CELL_TEXT)} title={paciente}>
 
           <div className="flex items-center gap-1.5 min-w-0">
             {observations.some(o => o.item_id === it.id && o.observation_type === "justificativa_override") && (
@@ -4980,7 +4980,7 @@ function RowMain({
           </td>
         )}
         {colVis.via && (
-          <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+          <td className={cn(cell, CELL_TEXT)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
         <td className={cn(cell, "font-mono", TEXT_META)}>
           {isBonus ? (
@@ -4999,7 +4999,7 @@ function RowMain({
             : (Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1)}
         </td>
         {colVis.procedimento && (
-          <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
+          <td className={cn(cell, CELL_TEXT)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
             {isBonus ? (
               <span className="inline-flex items-center gap-1.5 min-w-0">
                 <span
@@ -5047,7 +5047,7 @@ function RowMain({
             />
           </td>
         )}
-        <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
+        <td className={cn(cell, CELL_TEXT)} title={it.doctor_name ?? ""}>
           <span className={wrapClass}>{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
@@ -5057,7 +5057,7 @@ function RowMain({
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
         {showGrossColumn && (
-          <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
+          <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
             <span className="inline-flex items-center justify-end">
               {formatCurrency(grossN)}
               {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
@@ -5076,7 +5076,7 @@ function RowMain({
         {showProcedureColumn && (() => {
           const procN = Number((it as any).procedure_amount ?? 0);
           return (
-            <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-muted-foreground")}>
+            <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-muted-foreground")}>
               {isBonus ? "—" : (procN > 0 ? formatCurrency(procN) : "—")}
             </td>
           );
@@ -5087,7 +5087,7 @@ function RowMain({
         <td
           className={cn(
             cellPad,
-            TEXT_BODY,
+            CELL_TEXT,
             "text-right tabular-nums whitespace-nowrap border-b font-medium",
             isBonus ? "text-muted-foreground" : (diverges ? "text-warning-text" : "text-foreground"),
             baseCellBg,
@@ -5125,7 +5125,7 @@ function RowMain({
           <td
             className={cn(
               cellPad,
-              TEXT_BODY,
+              CELL_TEXT,
               "text-right tabular-nums whitespace-nowrap border-b",
               isBonus ? "text-muted-foreground" : (diff != null && diverges ? (diff < 0 ? "text-warning-text" : "text-success") : "text-muted-foreground"),
               baseCellBg,
