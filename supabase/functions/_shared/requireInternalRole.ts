@@ -42,11 +42,17 @@ export async function requireInternalOrRole(
   allowedRoles: InternalRole[] = DEFAULT_INTERNAL_ROLES,
 ): Promise<AuthCheckResult> {
   // Aceita header `x-cron-secret` para chamadas por pg_cron/trigger internos.
-  // Valor gerado (CRON_SECRET) só existe no ambiente do backend.
-  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  // Aceita tanto CRON_SECRET (legado) quanto INTERNAL_CRON_TOKEN (atual —
+  // usado no cron.schedule após o hardening que quebrou o Bearer anon key).
   const providedCron = req.headers.get("x-cron-secret") ?? "";
-  if (cronSecret && providedCron && providedCron === cronSecret) {
-    return { ok: true, is_internal: true, user_id: null, hospital_ids: null, active_hospital_id: null };
+  if (providedCron) {
+    const legacyCronSecret = Deno.env.get("CRON_SECRET") ?? "";
+    const internalCronToken = Deno.env.get("INTERNAL_CRON_TOKEN") ?? "";
+    const matchesLegacy = legacyCronSecret !== "" && providedCron === legacyCronSecret;
+    const matchesInternal = internalCronToken !== "" && providedCron === internalCronToken;
+    if (matchesLegacy || matchesInternal) {
+      return { ok: true, is_internal: true, user_id: null, hospital_ids: null, active_hospital_id: null };
+    }
   }
 
   const authHeader = req.headers.get("Authorization");
