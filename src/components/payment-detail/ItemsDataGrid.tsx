@@ -5224,91 +5224,16 @@ function RowMain({
               Botões maiores (h-7 w-7) e gap generoso; o "acatar valor pago"
               recebe hover azul para diferenciar do "acatar esperado" verde.
             */}
-            <div className="flex w-full min-w-max items-center justify-center gap-1">
-              {(() => {
-                const showAcceptExpected = !isBonus && onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta");
-                const showAcceptPaid = !isBonus && onAcceptItemKeepPaid && (it.ai_status === "reprovado" || it.ai_status === "alerta");
-                const showUndo = !isBonus && onUndoAcceptItem && it.ai_status === "acatado";
-                const hasAcceptGroup = showAcceptExpected || showAcceptPaid || showUndo;
-                return (
-                  <>
-                    {hasAcceptGroup && (
-                      <div className="flex items-center gap-1 pr-1.5">
-                        {showAcceptExpected && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 rounded-md text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                            title="Acatar usando o valor ESPERADO (sobrescreve o pago)"
-                            onClick={() => onAcceptItem!(it)}
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {showAcceptPaid && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 rounded-md text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-                            title="Acatar mantendo o valor PAGO (não sobrescreve)"
-                            onClick={() => onAcceptItemKeepPaid!(it)}
-                          >
-                            <HandCoins className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {showUndo && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 rounded-md hover:bg-muted"
-                            title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
-                            onClick={() => onUndoAcceptItem!(it)}
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
-
-                    {!isBonus && (
-                      <div
-                        className={cn(
-                          "flex items-center gap-1 pl-1.5 pr-1.5",
-                          hasAcceptGroup && "border-l border-border/60",
-                        )}
-                      >
-                        <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} onApplied={onRefresh} />
-                        {onEditItem && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 rounded-md hover:bg-muted"
-                            title="Editar item"
-                            onClick={() => onEditItem(it)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
-
-                    {onDeleteItem && (!isBonus || !(it as any).applied_rule_id) && (
-                      <div className="flex items-center pl-1.5 border-l border-border/60">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title={isBonus ? "Excluir bônus importado da base (o motor já gerou o bônus correspondente)" : "Excluir item"}
-                          onClick={() => onDeleteItem(it)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
+            <RowActionsSplit
+              it={it as any}
+              isBonus={isBonus}
+              onAcceptItem={onAcceptItem}
+              onAcceptItemKeepPaid={onAcceptItemKeepPaid}
+              onUndoAcceptItem={onUndoAcceptItem}
+              onEditItem={onEditItem}
+              onDeleteItem={onDeleteItem}
+              onRefresh={onRefresh}
+            />
           </td>
         )}
       </tr>
