@@ -901,9 +901,11 @@ export default function CompanyAnalysis() {
       // falso positivo quando processing_diagnostics do pagamento já estava
       // "success" de um job anterior (qualquer worker sobrescreve esse campo).
       const jobId = (data as any)?.job_id as string | undefined;
+      // Empresas grandes (200+ itens) podem ultrapassar 120s. Aumentamos o teto
+      // para 240s antes de cair no fallback informativo.
       const done = jobId
-        ? await waitForJobCompletion(jobId, 120_000, startedAt)
-        : await waitForProcessingCompletion(id, startedAt, 120_000);
+        ? await waitForJobCompletion(jobId, 240_000, startedAt)
+        : await waitForProcessingCompletion(id, startedAt, 240_000);
 
       // Etapa 2.5 — Aguarda finalize-payment-engine (deduções, glosas, garantia
       // mínima, retroatividade). Sem isto, o diálogo fechava antes do pipeline
