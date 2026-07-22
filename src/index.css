@@ -783,6 +783,16 @@ All colors MUST be HSL.
     }
   }
 
+  /* Tabelas com data-density gerenciam sua própria tipografia via inline style */
+  table[data-density] thead th {
+    font-size: inherit !important;
+  }
+  table[data-density] tbody td {
+    font-size: inherit !important;
+  }
+
+
+
   /* Hierarchy helpers — usable on td or any inline element inside td */
   table tbody td.cell-secondary,
   table tbody td .cell-secondary {
