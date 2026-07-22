@@ -32,6 +32,7 @@ import {
   CheckSquare,
   HandCoins,
   FileText,
+  Filter,
   FilterX,
   HelpCircle,
   MoreHorizontal,
@@ -1746,6 +1747,9 @@ export function ItemsDataGrid({
   }, [customSort]);
   const [customSortOpen, setCustomSortOpen] = useState(false);
   const customSortActive = customSort.length > 0 && !sortKey;
+  // Controle da segunda camada da toolbar (filtros avançados colapsáveis).
+  // Devolve ~80px verticais para a tabela na maior parte do tempo.
+  const [advOpen, setAdvOpen] = useState(false);
 
 
 
@@ -2594,10 +2598,25 @@ export function ItemsDataGrid({
       )}
 
 
-
-
-      {showToolbar && (
-        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
+      {/* Toolbar — camada 1 sempre visível + camada 2 (avançados) colapsável.
+          Compacta a barra de 3 linhas para 1, devolvendo ~80px verticais à tabela. */}
+      {showToolbar && (() => {
+        const advFlags = [
+          doctorFilter !== "__all__",
+          turnoFilter !== "__all__",
+          convenioFilter !== "__all__",
+          onlyAlerts,
+          onlyManualBonus,
+          onlyAdjusted,
+          onlyNeedsReview,
+          onlyValidationAlerts,
+          onlyPisoAplicado,
+          isParecerPayment && parecerFilter !== "__all__",
+        ];
+        const advActiveCount = advFlags.filter(Boolean).length;
+        const effectiveAdvOpen = advOpen || advActiveCount > 0;
+        return (
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-gradient-to-b from-primary/[0.05] to-primary/[0.02]">
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -2613,6 +2632,39 @@ export function ItemsDataGrid({
             placeholder="Paciente"
             className="h-8 w-36 text-xs"
           />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos status</SelectItem>
+              <SelectItem value="reprovado">Reprovado</SelectItem>
+              <SelectItem value="alerta">Alerta</SelectItem>
+              <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="seguido">Acatado / Seguido</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+            </SelectContent>
+          </Select>
+          {/* Toggle da camada 2 — mostra badge com nº de filtros avançados ativos. */}
+          <Button
+            size="sm"
+            variant={effectiveAdvOpen ? "default" : "outline"}
+            className="h-8 text-xs"
+            onClick={() => setAdvOpen((v) => !v)}
+            title="Mostrar filtros avançados (médico, turno, convênio, sem regra, etc.)"
+            aria-expanded={effectiveAdvOpen}
+          >
+            <Filter className="h-3.5 w-3.5 mr-1" />
+            Filtros
+            {advActiveCount > 0 && (
+              <span className={cn(
+                "ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-semibold",
+                effectiveAdvOpen ? "bg-primary-foreground/25 text-primary-foreground" : "bg-primary text-primary-foreground",
+              )}>
+                {advActiveCount}
+              </span>
+            )}
+          </Button>
+          {effectiveAdvOpen && (
+            <>
           <Select value={doctorFilter} onValueChange={setDoctorFilter}>
             <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Médico" /></SelectTrigger>
             <SelectContent>
@@ -2634,17 +2686,6 @@ export function ItemsDataGrid({
               <SelectItem value="noite">Noite (18–24h)</SelectItem>
               <SelectItem value="with_time">Só com hora informada</SelectItem>
               <SelectItem value="without_time">Sem hora informada</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todos status</SelectItem>
-              <SelectItem value="reprovado">Reprovado</SelectItem>
-              <SelectItem value="alerta">Alerta</SelectItem>
-              <SelectItem value="aprovado">Aprovado</SelectItem>
-              <SelectItem value="seguido">Acatado / Seguido</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
             </SelectContent>
           </Select>
           <Select value={convenioFilter} onValueChange={setConvenioFilter}>
@@ -2833,6 +2874,8 @@ export function ItemsDataGrid({
                 </Popover>
               )}
             </div>
+          )}
+            </>
           )}
           {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyManualBonus || onlyNeedsReview || onlyValidationAlerts || onlyAdjusted || onlyZero || onlySemRegra || onlyPisoAplicado || turnoFilter !== "__all__" || (isParecerPayment && parecerFilter !== "__all__")) && (
             <Button
@@ -3109,32 +3152,42 @@ export function ItemsDataGrid({
               </span>
             </div>
           )}
-          <Badge variant="secondary">
-            {filtered.length} de {counts.total}
-          </Badge>
+          {/* KPI chips inline (mesclados na toolbar em vez de linha separada). */}
+          <div className="flex items-center gap-1.5">
+            {counts.critico > 0 && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-destructive/30 bg-destructive/10 text-destructive font-medium text-[11px]"
+                title="Itens críticos (reprovados)"
+              >
+                <span aria-hidden>🔴</span>
+                <strong className="tabular-nums">{counts.critico}</strong>
+              </span>
+            )}
+            {counts.alerta > 0 && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-warning/30 bg-warning-soft text-warning-text font-medium text-[11px]"
+                title="Itens com alerta"
+              >
+                <span aria-hidden>🟡</span>
+                <strong className="tabular-nums">{counts.alerta}</strong>
+              </span>
+            )}
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-success/30 bg-success-soft/60 text-success-text font-medium text-[11px]"
+              title="Aprovados"
+            >
+              <span aria-hidden>✅</span>
+              <strong className="tabular-nums">{Math.max(0, counts.total - counts.critico - counts.alerta)}</strong>
+            </span>
+            <Badge variant="secondary" className="text-[11px]">
+              {filtered.length} de {counts.total}
+            </Badge>
+          </div>
         </div>
-      )}
+        );
+      })()}
 
-      {(counts.critico > 0 || counts.alerta > 0) && (
-        <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 text-xs border-b bg-muted/30">
-          <span className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 border">
-            Total: <strong>{counts.total}</strong>
-          </span>
-          {counts.critico > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-destructive/30 bg-destructive/10 text-destructive font-medium">
-              🔴 {counts.critico} crítico{counts.critico > 1 ? "s" : ""}
-            </span>
-          )}
-          {counts.alerta > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 font-medium">
-              🟡 {counts.alerta} alerta{counts.alerta > 1 ? "s" : ""}
-            </span>
-          )}
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-background">
-            ✅ {Math.max(0, counts.total - counts.critico - counts.alerta)} aprovado(s)
-          </span>
-        </div>
-      )}
+
 
       {/* Tabela / Lista */}
       <div className="flex-1 min-h-0 overflow-hidden bg-background isolate pb-2">
@@ -3358,7 +3411,9 @@ export function ItemsDataGrid({
               {colVis.observacao && <col style={colStyle("observacao", 70)} />}
               {canEdit && <col style={{ width: actionColumnWidth }} />}
             </colgroup>
-            <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
+            {/* Header CURA — azul primary sólido com texto branco (mesma linguagem do ExcelPreviewDialog).
+                Overrides usam bang para vencer os `bg-muted` inline de cada <th>. */}
+            <thead className="sticky top-0 z-20 [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-primary/40 [&_th]:!uppercase [&_th]:!tracking-wide [&_th_button]:!text-primary-foreground/85 [&_th_button:hover]:!text-primary-foreground [&_th_svg]:!text-primary-foreground/85">
               <tr>
                 {colVis.atendimento && (
                   <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>
@@ -3953,6 +4008,7 @@ export function ItemsDataGrid({
                         parecerPaymentTypeId={parecerPaymentTypeId}
                         onChangeCaseSubtype={changeCaseSubtype}
                         onRefresh={onRefresh}
+                        rowIdx={idx}
                       />
                     )}
                   </Fragment>
@@ -3981,35 +4037,36 @@ export function ItemsDataGrid({
                 (colVis.regra ? 1 : 0);
               const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
               const footPad = isCompact ? "px-1.5 py-3" : "px-2 py-4";
+              // Footer CURA — gradient azul → âmbar sutil e totais destacados em primary.
               return (
-                <tfoot className="sticky bottom-0 z-20 shadow-[0_-8px_10px_-4px_rgba(0,0,0,0.1)]">
+                <tfoot className="sticky bottom-0 z-20 shadow-[0_-8px_10px_-4px_rgba(0,0,0,0.1)] [&_td]:!bg-gradient-to-r [&_td]:!from-primary/[0.08] [&_td]:!to-accent/[0.05] [&_td]:backdrop-blur">
                   <tr>
                     <td
                       colSpan={leadingCols}
-                      className={cn(footPad, "text-right border-t bg-muted/95 backdrop-blur whitespace-nowrap")}
+                      className={cn(footPad, "text-right border-t-[1.5px] border-primary/25 whitespace-nowrap")}
                     >
-                      <span className={cn(TEXT_LABEL, "text-xs font-bold text-foreground")}>
+                      <span className={cn(TEXT_LABEL, "text-xs font-bold !text-primary")}>
                         Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
                       </span>
                     </td>
                     {showGrossColumn && (
-                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 text-primary whitespace-nowrap")}>
                         {formatCurrency(totals.valor)}
                       </td>
                     )}
                     {showProcedureColumn && (
-                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 text-primary whitespace-nowrap")}>
                         {totals.procedure > 0 ? formatCurrency(totals.procedure) : "—"}
                       </td>
                     )}
-                    <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
+                    <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 text-primary whitespace-nowrap")}>
                       {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
                     </td>
                     {showDiferencaCol && (
                       <td
                         className={cn(
                           footPad,
-                          "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap",
+                          "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 whitespace-nowrap",
                           totals.diferenca != null && Math.abs(totals.diferenca) > 0.01
                             ? totals.diferenca < 0 ? "text-warning-text" : "text-success"
                             : "text-muted-foreground",
@@ -4020,7 +4077,7 @@ export function ItemsDataGrid({
                           : "—"}
                       </td>
                     )}
-                    <td colSpan={trailingCols} className={cn(footPad, "border-t bg-muted/95 backdrop-blur")} />
+                    <td colSpan={trailingCols} className={cn(footPad, "border-t-[1.5px] border-primary/25")} />
                   </tr>
                 </tfoot>
               );
@@ -4677,6 +4734,7 @@ function RowMain({
   parecerPaymentTypeId = null,
   onChangeCaseSubtype,
   onRefresh,
+  rowIdx = 0,
 }: {
   it: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -4718,6 +4776,7 @@ function RowMain({
     newTypeLabel: string,
   ) => void;
   onRefresh?: () => void;
+  rowIdx?: number;
 }) {
   const convenio = getAgreement(it);
   // Itens absorvidos manualmente em pacote: zerados visualmente — o valor
@@ -4747,19 +4806,23 @@ function RowMain({
   }
 
   const isBonus = (it as any).tipo_linha === "complemento_bonus";
+  // Zebra CURA: linhas pares recebem um tint azul 3%, ímpares ficam sobre background.
+  // isExpanded/isActive/bonus vencem a zebra para preservar hierarquia visual.
+  const zebra = rowIdx % 2 === 0 ? "bg-primary/[0.03]" : "bg-background";
+  const zebraSticky = rowIdx % 2 === 0 ? "bg-primary/[0.03]" : "bg-card";
   const baseCellBg = isBonus
     ? "bg-indigo-50/60 dark:bg-indigo-950/20"
     : isExpanded
     ? "bg-primary/10"
     : isActive
     ? "bg-primary/5"
-    : "bg-background";
+    : zebra;
   const stickyBg = isExpanded
     ? "bg-primary-soft"
     : isActive
     ? "bg-primary-soft/60"
-    : "bg-card";
-  const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
+    : zebraSticky;
+  const stickyHover = !isActive && !isExpanded ? "group-hover:bg-primary/[0.06]" : "";
   const cellPad = isCompact ? "px-1 py-0" : "px-2.5 py-2";
   // Sempre permitir quebra de linha natural. Sem line-clamp (que estava clipando
   // texto em 1 linha quando o span ficava como flex item sem min-w-0).
@@ -4785,7 +4848,7 @@ function RowMain({
         tabIndex={-1}
         title="Duplo clique para expandir detalhes"
         className={cn(
-          "group cursor-pointer hover:bg-muted/40 transition-colors select-text",
+          "group cursor-pointer hover:bg-primary/[0.06] transition-colors select-text border-b border-primary/[0.08]",
           isExpanded && "ring-1 ring-inset ring-primary/40",
         )}
       >
