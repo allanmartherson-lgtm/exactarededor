@@ -5645,6 +5645,13 @@ const NewPayment = () => {
         total={parseProgress.total}
         fileName={parseProgress.fileName}
       />
+      <CommitPreviewDialog
+        open={!!commitPreviewState}
+        data={commitPreviewState}
+        submitting={submitting}
+        onConfirm={() => commitPreviewResolverRef.current?.("confirm")}
+        onCancel={() => commitPreviewResolverRef.current?.("cancel")}
+      />
     </>
   );
 };
