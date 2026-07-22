@@ -28,6 +28,9 @@ import { ProducaoDescompassoBanner } from "@/components/payment-detail/ProducaoD
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
+import { ReimportDiffDialog } from "@/components/ReimportDiffDialog";
+import { computeReimportDiff, type ReimportDiff, type ExistingItemRow } from "@/lib/reimportDiff";
+import { sha256Hex } from "@/lib/fileHash";
 import { AssistanceAlertsDetailModal } from "@/components/payment-detail/AssistanceAlertsDetailModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
 import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
@@ -289,6 +292,10 @@ const PaymentDetail = () => {
   // Progresso do reimport/addCompany por fase — evita a percepção de "nada
   // aconteceu" quando o loop está lendo/enviando dezenas de arquivos.
   const [importProgress, setImportProgress] = useState<{ stage: "parse" | "persist"; current: number; total: number } | null>(null);
+  // Preview do diff antes de gravar a reimportação. Resolver na ref para
+  // encadear await dentro de doReimport sem restruturar o fluxo assíncrono.
+  const [reimportDiffState, setReimportDiffState] = useState<{ diff: ReimportDiff; sha256Matched: boolean } | null>(null);
+  const reimportDiffResolverRef = useRef<((v: "confirm" | "cancel" | "skip") => void) | null>(null);
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
@@ -1948,6 +1955,65 @@ const PaymentDetail = () => {
         toast({ title: "Arquivos vazios", description: "Nenhuma linha válida encontrada nos arquivos selecionados.", variant: "destructive" });
         return;
       }
+
+      // === Preview de diff antes do commit ===
+      // Só faz sentido quando o lote já tem itens (reimportação de fato); na
+      // criação inicial (importingInitialPaymentBase) pula direto para o commit.
+      if (!importingInitialPaymentBase) {
+        try {
+          // 1) SHA-256 dos arquivos atuais x hashes já registrados
+          const currentHashes = await Promise.all(files.map((f) => sha256Hex(f)));
+          const { data: knownFiles } = await supabase
+            .from("payment_source_files")
+            .select("sha256")
+            .eq("payment_id", id);
+          const knownHashSet = new Set((knownFiles ?? []).map((r: any) => (r.sha256 ?? "").toLowerCase()).filter(Boolean));
+          const sha256Matched = currentHashes.length > 0 && currentHashes.every((h) => knownHashSet.has(h.toLowerCase()));
+
+          // 2) Snapshot dos payment_items atuais (paginado)
+          const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+          const existingItems = await fetchAllPaginated<ExistingItemRow>((from, to) =>
+            supabase
+              .from("payment_items")
+              .select("attendance_number,procedure_code,doctor_name,source_file_name,gross_amount")
+              .eq("payment_id", id)
+              .range(from, to),
+          );
+
+          // 3) Diff
+          const parsedForDiff = allRows.map((r: any) => ({
+            attendance_number: r.attendance_number ?? null,
+            procedure_code: r.procedure_code ?? null,
+            doctor_name: r.doctor_name ?? null,
+            source_file_name: r.source_file_name ?? null,
+            gross_amount: r.gross_amount ?? null,
+          }));
+          const diff = computeReimportDiff(existingItems, parsedForDiff);
+
+          // 4) Abre o modal e aguarda a decisão do analista
+          const decision = await new Promise<"confirm" | "cancel" | "skip">((resolve) => {
+            reimportDiffResolverRef.current = resolve;
+            setReimportDiffState({ diff, sha256Matched });
+          });
+          setReimportDiffState(null);
+          reimportDiffResolverRef.current = null;
+
+          if (decision === "cancel") {
+            toast({ title: "Reimportação cancelada" });
+            return;
+          }
+          if (decision === "skip") {
+            toast({ title: "Arquivo pulado", description: "SHA-256 idêntico ao já processado — nada foi alterado." });
+            return;
+          }
+          // decision === "confirm" → segue para o commit abaixo
+        } catch (diffErr) {
+          // Falha no preview NÃO bloqueia a reimportação — apenas avisa e segue.
+          console.warn("[reimport] falha ao montar preview do diff:", diffErr);
+        }
+      }
+
+
 
       // Limpa apenas itens; grupos serão sincronizados (não apagados em massa)
       // para que as empresas continuem visíveis na tela durante a reanálise pela IA.
@@ -4095,6 +4161,18 @@ const PaymentDetail = () => {
             </AlertDialogContent>
           </AlertDialog>
         )}
+
+        <ReimportDiffDialog
+          open={!!reimportDiffState}
+          diff={reimportDiffState?.diff ?? null}
+          sha256Matched={reimportDiffState?.sha256Matched ?? false}
+          busy={reimporting}
+          onCancel={() => reimportDiffResolverRef.current?.("cancel")}
+          onConfirm={() => reimportDiffResolverRef.current?.("confirm")}
+          onSkip={() => reimportDiffResolverRef.current?.("skip")}
+        />
+
+
 
         <input
           ref={addCompanyInputRef}
