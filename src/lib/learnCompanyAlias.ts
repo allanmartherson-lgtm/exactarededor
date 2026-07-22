@@ -35,6 +35,11 @@ export async function learnCompanyAlias(
 
   if (rpcErr) return { ok: false, aliases: [], error: rpcErr.message ?? String(rpcErr) };
 
+  // Invalida cache de PJs — próximo loadCompanies traz aliases atualizados.
+  invalidateRegistryCache("companies");
+
+
+
   const { data, error: selErr } = await client
     .from("companies")
     .select("aliases")
