@@ -2,6 +2,7 @@ import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { FileSpreadsheet, Search, Rows3, Columns3, AlertTriangle } from "lucide-react";
 
 /**
  * Visualizador rápido da planilha crua (rawMatrix já parseada pelo XLSX).
