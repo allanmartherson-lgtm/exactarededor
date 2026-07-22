@@ -67,7 +67,7 @@ export interface ParsedRow {
 }
 
 
-export interface CompanyRow { id: string; name: string; aliases: string[] }
+export interface CompanyRow { id: string; name: string; aliases: string[]; document?: string | null }
 
 export interface FileBucket {
   file: File;
