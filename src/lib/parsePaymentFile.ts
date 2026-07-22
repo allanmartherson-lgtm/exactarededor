@@ -788,16 +788,16 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
 
 // Limites de decisão. Centralizados para manter UI e parser em sincronia.
 // IMPORTANTE: auto-match APENAS quando 100% (nome exato ou alias exato após
-// normalização). Match fuzzy (ex.: 0.92) gerou vários falsos-positivos em
+// normalização). Match fuzzy (mesmo em ~90%) já gerou falsos-positivos em
 // produção — analista relatou que "muitos 90% não batiam". Qualquer coisa
-// abaixo de 1.0 entra em revisão manual; abaixo de 0.55 vai pra "sem PJ".
+// abaixo de 1.0 entra em revisão manual; abaixo de 0.90 NÃO exibe sugestão
+// (arquivo fica em stand-by como "sem PJ" — evita vínculo silencioso errado).
 export const MATCH_AUTO_THRESHOLD = 1.0;
-export const MATCH_REVIEW_THRESHOLD = 0.55;
+export const MATCH_REVIEW_THRESHOLD = 0.9;
 // Piso para permitir que o analista aceite a sugestão automática do sistema.
-// Abaixo disso, o botão "Confirmar sugestão" fica bloqueado — o analista
-// precisa escolher manualmente ou cadastrar uma nova PJ para evitar vínculos
-// incorretos (ex.: 63% de similaridade linkando empresas homônimas erradas).
-export const MATCH_CONFIRM_MIN = 0.8;
+// Alinhado ao REVIEW_THRESHOLD: se aparece sugestão, é sempre confirmável;
+// abaixo disso não há sugestão nenhuma.
+export const MATCH_CONFIRM_MIN = 0.9;
 
 // Palavras-âncora que indicam que uma linha é cabeçalho de dados de pagamento.
 // Usadas para pular metadados (empresa, CNPJ, vigência, valor da NF) que

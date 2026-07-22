@@ -20,6 +20,8 @@ import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, AlertTriangle, Pencil, Plus, RefreshCw, Calculator, History, Focus, Target, Bot } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ExcelPreviewDialog } from "@/components/shared/ExcelPreviewDialog";
+import { Eye } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
@@ -536,6 +538,7 @@ const NewPayment = () => {
     | null
   >(null);
   const [bucketFilter, setBucketFilter] = useState("");
+  const [previewBucketIdx, setPreviewBucketIdx] = useState<number | null>(null);
   // Debounce: evita refiltrar a lista a cada tecla em lotes grandes (300ms).
   const [debouncedBucketFilter, setDebouncedBucketFilter] = useState("");
   useEffect(() => {
@@ -4305,6 +4308,16 @@ const NewPayment = () => {
                       return textMatch || docMatch;
                     })
                     .sort((a, z) => {
+                      // Prioridade: buckets que exigem atenção do analista (sem PJ
+                      // ou match não confirmado) vão para o TOPO da lista. À medida
+                      // que o analista confirma/vincula a PJ, o bucket retorna à
+                      // ordenação alfabética natural. Comportamento pedido em UX:
+                      // "que apareçam no início para o analista priorizar o vínculo".
+                      const needs = (x: typeof a.b) =>
+                        !x.manualOverride && (!x.matchedCompany || x.matchScore < MATCH_AUTO_THRESHOLD);
+                      const na = needs(a.b) ? 0 : 1;
+                      const nz = needs(z.b) ? 0 : 1;
+                      if (na !== nz) return na - nz;
                       const an = norm(a.b.matchedCompany?.name ?? a.b.rawCompanyName ?? a.b.file.name);
                       const zn = norm(z.b.matchedCompany?.name ?? z.b.rawCompanyName ?? z.b.file.name);
                       return an.localeCompare(zn, "pt-BR", { sensitivity: "base" });
@@ -4320,7 +4333,20 @@ const NewPayment = () => {
                   <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate" title={b.file.name}>{b.file.name}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-medium text-sm truncate flex-1 min-w-0" title={b.file.name}>{b.file.name}</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={() => setPreviewBucketIdx(idx)}
+                          title="Abrir pré-visualização da planilha"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          Ver planilha
+                        </Button>
+                      </div>
                       {(() => {
                         const headerRow = (b.rawMatrix && typeof b.headerRowIndex === "number")
                           ? (b.rawMatrix[b.headerRowIndex] ?? [])
@@ -5214,6 +5240,14 @@ const NewPayment = () => {
         summary={{ arquivos: buckets.length, linhas: allRows.length, suspeitas_pendentes: pendingSuspiciousCount }}
         stagingContext={stagingContext}
         extraInsights={zeevStagingInsights}
+      />
+
+      <ExcelPreviewDialog
+        open={previewBucketIdx != null}
+        onOpenChange={(o) => { if (!o) setPreviewBucketIdx(null); }}
+        fileName={previewBucketIdx != null ? (buckets[previewBucketIdx]?.file.name ?? "") : ""}
+        matrix={previewBucketIdx != null ? buckets[previewBucketIdx]?.rawMatrix : null}
+        headerRowIndex={previewBucketIdx != null ? buckets[previewBucketIdx]?.headerRowIndex ?? 0 : 0}
       />
     </>
   );
