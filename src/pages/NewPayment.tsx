@@ -1604,6 +1604,7 @@ const NewPayment = () => {
       rawCompanyName,
       matchedCompany: company ? { id: company.id, name: company.name } : null,
       matchScore: score,
+      matchVia: via,
       sectorMapping: dominantMapped,
       sectorMissing,
       rawMatrix: matrix,
