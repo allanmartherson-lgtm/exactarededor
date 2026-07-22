@@ -3328,7 +3328,7 @@ export function ItemsDataGrid({
             </colgroup>
             {/* Header CURA — azul primary sólido com texto branco (mesma linguagem do ExcelPreviewDialog).
                 Overrides usam bang para vencer os `bg-muted` inline de cada <th>. */}
-            <thead className="sticky top-0 z-20 [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-primary/40 [&_th]:!uppercase [&_th]:!tracking-wide [&_th_button]:!text-primary-foreground/85 [&_th_button:hover]:!text-primary-foreground [&_th_svg]:!text-primary-foreground/85">
+            <thead className="sticky top-0 z-20 [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-primary/40 [&_th]:!uppercase [&_th]:!tracking-wide [&_th]:!text-[11px] [&_th]:!leading-tight [&_th]:!font-semibold [&_th_button]:!text-primary-foreground/85 [&_th_button:hover]:!text-primary-foreground [&_th_button]:!text-[11px] [&_th_button]:!leading-tight [&_th_button]:!font-semibold [&_th_svg]:!text-primary-foreground/85">
               <tr>
                 {colVis.atendimento && (
                   <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>
