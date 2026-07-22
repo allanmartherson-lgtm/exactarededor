@@ -858,14 +858,19 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     const autoExcludedIds = (link.auto_excluded_doctor_ids ?? []) as string[];
     const itemDoctorId = item.doctor_id ? String(item.doctor_id) : null;
     if (itemDoctorId && autoExcludedIds.some((x) => String(x) === itemDoctorId)) continue;
+    // Exclusão manual (via UI): respeitada em QUALQUER modo — inclusive quando
+    // o link vale para toda a equipe (doctors=[]). Antes ficava só no branch
+    // de auto_include e o médico continuava caindo na regra da PJ mesmo após
+    // ser removido explicitamente. Fix: 22/07/2026.
+    const excluded = (link.excluded_doctors ?? []) as any;
+    if (excluded.length > 0 && matchDoctorInList(excluded, item)) continue;
     if (ds.length === 0) return true;
     if (matchDoctorInList(ds, item)) return true;
     // Lista de médicos preenchida = allowlist por padrão.
     // auto_include_new_doctors deve ser explicitamente true para incluir quem não está na lista.
     if (link.auto_include_new_doctors !== true) continue;
-    // Auto-include explícito: respeita exclusão explícita
-    const excluded = (link.excluded_doctors ?? []) as any;
-    if (matchDoctorInList(excluded, item)) continue;
+    // Auto-include explícito: exclusão já foi checada acima.
+
     return true;
   }
 
