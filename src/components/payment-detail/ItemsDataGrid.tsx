@@ -182,7 +182,7 @@ function CalcExceptionItemAction({
     <>
       <div
         className={cn(
-          "rounded-md border border-dashed px-3 py-2 flex flex-col gap-2 min-w-0 max-w-full",
+          "rounded-md border border-dashed px-3 py-2 flex flex-col gap-2 min-w-0 max-w-full w-full overflow-hidden",
           isMarked
             ? "border-amber-400/70 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800/70"
             : "border-sky-300/70 bg-sky-50/40 dark:bg-sky-950/15 dark:border-sky-900/60",
@@ -191,7 +191,7 @@ function CalcExceptionItemAction({
 
         <p
           className={cn(
-            "text-xs min-w-0 break-words",
+            "text-xs min-w-0 max-w-full break-words [overflow-wrap:anywhere] whitespace-normal",
             isMarked
               ? "text-amber-900 dark:text-amber-200"
               : "text-sky-900/80 dark:text-sky-200/80",
