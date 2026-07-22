@@ -478,7 +478,7 @@ function RowActionsSplit({
             type="button"
             onClick={() => onAcceptItem(it)}
             className={cn(
-              "h-7 rounded-r-none border border-r-0 px-2.5",
+              "h-7 rounded-r-none border border-r-0 px-2.5 min-w-[92px] justify-center",
               "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
               "text-[11px] font-medium shadow-none",
             )}
