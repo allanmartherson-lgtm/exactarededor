@@ -4349,29 +4349,79 @@ const NewPayment = () => {
               </div>
             )}
 
-            {buckets.length > 0 && (
+            {buckets.length > 0 && (() => {
+              const needsFn = (x: FileBucket) =>
+                !x.manualOverride && (!x.matchedCompany || x.matchScore < MATCH_AUTO_THRESHOLD);
+              const pendingIdxs = buckets
+                .map((b, i) => ({ b, i }))
+                .filter(({ b }) => needsFn(b))
+                .map(({ i }) => i);
+              const pendingCount = pendingIdxs.length;
+              // Rola até o próximo bucket pendente fora da viewport; destaca com ring.
+              const jumpToNextPending = () => {
+                if (pendingIdxs.length === 0 || typeof document === "undefined") return;
+                for (const idx of pendingIdxs) {
+                  const el = document.querySelector<HTMLElement>(`[data-bucket-idx="${idx}"]`);
+                  if (!el) continue;
+                  const rect = el.getBoundingClientRect();
+                  const outOfView = rect.top < 80 || rect.top > window.innerHeight - 40;
+                  if (outOfView) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.classList.add("ring-2", "ring-amber-400");
+                    setTimeout(() => el.classList.remove("ring-2", "ring-amber-400"), 1600);
+                    return;
+                  }
+                }
+                const first = document.querySelector<HTMLElement>(`[data-bucket-idx="${pendingIdxs[0]}"]`);
+                first?.scrollIntoView({ behavior: "smooth", block: "center" });
+              };
+              return (
               <div className="space-y-2">
-                {buckets.length >= 5 && (
-                  <div className="flex items-center gap-2 sticky top-0 z-10 bg-background/95 backdrop-blur py-2 -mx-1 px-1 border-b border-border/40">
-                    <Input
-                      value={bucketFilter}
-                      onChange={(e) => setBucketFilter(e.target.value)}
-                      placeholder="Filtrar PJ por nome, CNPJ ou arquivo…"
-                      className="h-8 text-xs"
-                    />
-                    {bucketFilter && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 text-xs"
-                        onClick={() => setBucketFilter("")}
-                      >
-                        Limpar
-                      </Button>
-                    )}
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-2 sticky top-0 z-10 bg-background/95 backdrop-blur py-2 -mx-1 px-1 border-b border-border/40">
+                  {pendingCount > 0 ? (
+                    <Badge variant="outline" className="border-amber-500/60 text-amber-700 bg-amber-50 dark:bg-amber-950/30 gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      {pendingCount} {pendingCount === 1 ? "PJ pendente" : "PJs pendentes"} de vínculo
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-emerald-500/60 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 gap-1">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Todas as PJs vinculadas
+                    </Badge>
+                  )}
+                  {pendingCount > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={jumpToNextPending}
+                    >
+                      Ir para próxima pendência
+                    </Button>
+                  )}
+                  {buckets.length >= 5 && (
+                    <div className="flex items-center gap-2 ml-auto flex-1 min-w-[220px] max-w-md">
+                      <Input
+                        value={bucketFilter}
+                        onChange={(e) => setBucketFilter(e.target.value)}
+                        placeholder="Filtrar PJ por nome, CNPJ ou arquivo…"
+                        className="h-8 text-xs"
+                      />
+                      {bucketFilter && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => setBucketFilter("")}
+                        >
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {(() => {
                   // Normaliza: remove acentos (NFD + strip diacríticos), lower, trim.
                   // Aceita busca por "sao", "SÃO", "são" indiferentemente.
@@ -4425,7 +4475,8 @@ const NewPayment = () => {
                     );
                   }
                   return filtered.map(({ b, idx }) => (
-                  <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
+                  <div key={idx} data-bucket-idx={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card transition-shadow">
+
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
@@ -5051,7 +5102,9 @@ const NewPayment = () => {
                   )}
                 </div>
               </div>
-            )}
+              );
+            })()}
+
 
             {allRows.length > 0 && (
               <div className="border border-border rounded-lg overflow-hidden">
