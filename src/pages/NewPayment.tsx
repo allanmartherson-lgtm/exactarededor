@@ -5101,7 +5101,9 @@ const NewPayment = () => {
                   )}
                 </div>
               </div>
-            )}
+              );
+            })()}
+
 
             {allRows.length > 0 && (
               <div className="border border-border rounded-lg overflow-hidden">
