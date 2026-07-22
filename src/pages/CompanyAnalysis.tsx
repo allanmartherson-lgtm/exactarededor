@@ -706,7 +706,10 @@ export default function CompanyAnalysis() {
     // Abre o modal de justificativa (mín. 1 caractere) — evita depender de
     // observação pré-persistida, que era a causa do erro "justificativa
     // obrigatória" mesmo após o analista digitar no campo lateral.
-    const existing = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
+    // Só pré-preenche com observações escritas pelo analista — nunca com a
+    // trilha técnica do motor (author_type "ia"), que traz rótulos internos
+    // como "setor_master_geral" e confunde o texto de auditoria.
+    const existing = (obs.find((o) => o.item_id === it.id && o.author_type !== "ia" && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
     const justif = await promptJustification({
       title: "Acatar valor esperado",
       description: "O valor pago será sobrescrito pelo valor esperado da regra. Registre o motivo abaixo para auditoria.",
