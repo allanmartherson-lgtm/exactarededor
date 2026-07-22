@@ -28,6 +28,9 @@ import { ProducaoDescompassoBanner } from "@/components/payment-detail/ProducaoD
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
+import { ReimportDiffDialog } from "@/components/ReimportDiffDialog";
+import { computeReimportDiff, type ReimportDiff, type ExistingItemRow } from "@/lib/reimportDiff";
+import { sha256Hex } from "@/lib/fileHash";
 import { AssistanceAlertsDetailModal } from "@/components/payment-detail/AssistanceAlertsDetailModal";
 import { PaymentBatchExportDialog } from "@/components/payment-detail/PaymentBatchExportDialog";
 import { BonusPacienteDialog } from "@/components/payments/BonusPacienteDialog";
