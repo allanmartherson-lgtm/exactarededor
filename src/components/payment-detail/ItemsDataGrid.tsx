@@ -4039,30 +4039,6 @@ export function ItemsDataGrid({
             hasPrev={!!prev}
             hasNext={!!next}
             observations={itemObs}
-            fullDetailsSlot={
-              it ? (
-                <table className="w-full">
-                  <tbody>
-                    <ItemDetailsRow
-                      it={it}
-                      allItems={items}
-                      rulesIndex={rulesIndex}
-                      rulesByName={rulesByName}
-                      observations={observations}
-                      profiles={profiles}
-                      colSpan={1}
-                      showTipoEntrada={!!colVis.tipo_entrada}
-                      visitaPaymentTypeId={visitaPaymentTypeId}
-                      parecerPaymentTypeId={parecerPaymentTypeId}
-                      lotePaymentTypeId={lotePaymentTypeId}
-                      isParecerPayment={isParecerPayment}
-                      canEdit={canEdit}
-                      onChangeCaseSubtype={changeCaseSubtype}
-                    />
-                  </tbody>
-                </table>
-              ) : null
-            }
           />
         );
       })()}
