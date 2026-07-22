@@ -13685,6 +13685,10 @@ export type Database = {
       }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
+      unlearn_company_alias: {
+        Args: { _company_id: string; _raw_name: string }
+        Returns: undefined
+      }
       update_doctor_notification_preferences: {
         Args: {
           p_email_enabled: boolean
