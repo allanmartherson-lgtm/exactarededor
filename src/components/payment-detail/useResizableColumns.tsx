@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type WidthMap = Record<string, number>;
 
-export function useResizableColumns(storageKey: string) {
+export function useResizableColumns(storageKey: string, scale: number = 1) {
   const [widths, setWidths] = useState<WidthMap>(() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -27,6 +27,8 @@ export function useResizableColumns(storageKey: string) {
     }
   }, [storageKey, widths]);
 
+  // getWidth retorna a largura base (não escalada) — usado pelo handle de
+  // redimensionamento para que o usuário arraste em pixels reais.
   const getWidth = useCallback(
     (key: string, def: number) => widths[key] ?? def,
     [widths],
@@ -44,9 +46,13 @@ export function useResizableColumns(storageKey: string) {
     });
   }, []);
 
+  // colStyle já aplica o fator de escala (zoom) na largura final, para que as
+  // colunas cresçam junto com a fonte e o scroll horizontal acompanhe.
   const colStyle = useCallback(
-    (key: string, def: number): React.CSSProperties => ({ width: getWidth(key, def) }),
-    [getWidth],
+    (key: string, def: number): React.CSSProperties => ({
+      width: Math.round(getWidth(key, def) * scale),
+    }),
+    [getWidth, scale],
   );
 
   const ResizeHandle = useMemo(() => {
