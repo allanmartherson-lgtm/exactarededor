@@ -49,6 +49,7 @@ import {
   resolveConvenio,
   resolveSector,
   learnAliasesFromResolvedRows,
+  fixMojibake,
   type DoctorRegistry,
   type ConvenioRegistry,
   type SectorRegistry,
