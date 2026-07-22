@@ -4475,7 +4475,8 @@ const NewPayment = () => {
                     );
                   }
                   return filtered.map(({ b, idx }) => (
-                  <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
+                  <div key={idx} data-bucket-idx={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card transition-shadow">
+
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
