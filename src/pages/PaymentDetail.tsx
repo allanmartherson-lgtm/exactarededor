@@ -4162,6 +4162,18 @@ const PaymentDetail = () => {
           </AlertDialog>
         )}
 
+        <ReimportDiffDialog
+          open={!!reimportDiffState}
+          diff={reimportDiffState?.diff ?? null}
+          sha256Matched={reimportDiffState?.sha256Matched ?? false}
+          busy={reimporting}
+          onCancel={() => reimportDiffResolverRef.current?.("cancel")}
+          onConfirm={() => reimportDiffResolverRef.current?.("confirm")}
+          onSkip={() => reimportDiffResolverRef.current?.("skip")}
+        />
+
+
+
         <input
           ref={addCompanyInputRef}
           type="file"
