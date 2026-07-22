@@ -842,6 +842,22 @@ export default function CompanyAnalysis() {
     reapplySnapshotRef.current = snapshot;
 
     const startedAt = Date.now();
+    // Métricas estruturadas do fluxo de reaplicar regras. Todos os logs saem
+    // com prefixo [reapply-metrics] para permitir filtro no devtools/console
+    // export sem depender apenas da mensagem exibida em tela.
+    const metrics: Record<string, number> = {};
+    const mark = (phase: string) => {
+      metrics[phase] = Date.now() - startedAt;
+      // eslint-disable-next-line no-console
+      console.info(`[reapply-metrics] ${phase}`, {
+        payment_id: id,
+        company: group.company_name,
+        items: itemIds.length,
+        elapsed_ms: metrics[phase],
+      });
+    };
+    mark("start");
+
     try {
       const runAi = !!opts?.runAi;
       const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
@@ -901,23 +917,29 @@ export default function CompanyAnalysis() {
       // falso positivo quando processing_diagnostics do pagamento já estava
       // "success" de um job anterior (qualquer worker sobrescreve esse campo).
       const jobId = (data as any)?.job_id as string | undefined;
+      mark("dispatch_ok");
+      // eslint-disable-next-line no-console
+      console.info(`[reapply-metrics] job_dispatched`, {
+        payment_id: id,
+        company: group.company_name,
+        job_id: jobId ?? null,
+        deferred_to: deferredTo ?? null,
+        already_running: alreadyRunning,
+      });
       // Empresas grandes (200+ itens) podem ultrapassar 120s. Aumentamos o teto
       // para 240s antes de cair no fallback informativo.
+      const POLL_TIMEOUT_MS = 240_000;
       const done = jobId
-        ? await waitForJobCompletion(jobId, 240_000, startedAt)
-        : await waitForProcessingCompletion(id, startedAt, 240_000);
+        ? await waitForJobCompletion(jobId, POLL_TIMEOUT_MS, startedAt)
+        : await waitForProcessingCompletion(id, startedAt, POLL_TIMEOUT_MS);
+      mark(done ? "motor_done" : "motor_timeout");
 
-      // Etapa 2.5 — Aguarda finalize-payment-engine (deduções, glosas, garantia
-      // mínima, retroatividade). Sem isto, o diálogo fechava antes do pipeline
-      // de ajustes tocar nos itens e a UI mostrava expected/gross antigos por
-      // mais alguns segundos — o analista percebia "esperado mudou sozinho
-      // depois". finalize é fire-and-forget após o job concluir; gravamos
-      // updated_at em payment_engine_sources a cada fonte aplicada, então
-      // basta detectar atualização recente + janela de estabilidade.
       if (done) {
         setReapplyStep("ajustes_finais");
         await waitForFinalizeStability(id, startedAt, 45_000);
+        mark("finalize_done");
       }
+
 
       // Etapa 3 — Persistir/ler de volta os itens COM janela de estabilidade.
       // Como o worker é `_async` (retorna 202 e escreve itens em background)
@@ -1010,6 +1032,8 @@ export default function CompanyAnalysis() {
       window.setTimeout(() => { void load(); }, 2500);
 
 
+      mark("ui_reloaded");
+
       if (!done) {
         // Motor não confirmou dentro do teto de tempo, mas o job segue rodando
         // em background. Não é erro real de cálculo — é limite de espera da UI.
@@ -1019,11 +1043,32 @@ export default function CompanyAnalysis() {
           "O motor ainda está processando esta empresa em segundo plano. Os itens serão atualizados assim que concluir — acompanhe pelo status ou tente reaplicar em alguns segundos.";
         setReapplyError((prev) => prev ?? fallbackMsg);
         setReapplyPhase("erro");
+        // Log estruturado de timeout: agrega todas as métricas coletadas para
+        // diagnóstico rápido (qual etapa consumiu o tempo). Aparece como warn
+        // no console do navegador com prefixo [reapply-metrics].
+        // eslint-disable-next-line no-console
+        console.warn(`[reapply-metrics] TIMEOUT`, {
+          payment_id: id,
+          company: group.company_name,
+          job_id: jobId ?? null,
+          items: itemIds.length,
+          total_ms: Date.now() - startedAt,
+          phases_ms: metrics,
+        });
         toast.info("Motor ainda processando", {
           description: reapplyError ?? fallbackMsg,
         });
       } else {
         setReapplyPhase("concluido");
+        // eslint-disable-next-line no-console
+        console.info(`[reapply-metrics] SUCCESS`, {
+          payment_id: id,
+          company: group.company_name,
+          job_id: jobId ?? null,
+          items: itemIds.length,
+          total_ms: Date.now() - startedAt,
+          phases_ms: metrics,
+        });
         const _isConfeccao = (payment as any)?.analysis_mode === "confeccao";
         if (_isConfeccao) {
           toast.success("Cálculo do repasse concluído", {
@@ -1040,8 +1085,18 @@ export default function CompanyAnalysis() {
       const msg = e instanceof Error ? e.message : String(e);
       setReapplyError(msg);
       setReapplyPhase("erro");
+      // eslint-disable-next-line no-console
+      console.error(`[reapply-metrics] ERROR`, {
+        payment_id: id,
+        company: group.company_name,
+        items: itemIds.length,
+        total_ms: Date.now() - startedAt,
+        phases_ms: metrics,
+        error: msg,
+      });
       toast.error("Falha ao iniciar reanálise", { description: msg });
     } finally {
+
       setReanalyzing(false);
       // Cooldown de 6s: botão fica "Estabilizando..." para bloquear reclique
       // enquanto a UI termina de refletir os novos ai_status/expected.
