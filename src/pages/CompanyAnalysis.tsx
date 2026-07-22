@@ -762,12 +762,20 @@ export default function CompanyAnalysis() {
 
   const acceptItemKeepPaid = async (it: PaymentItemRow) => {
     if (!guardEditable()) return;
-    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
-    if (justif.length < 20) {
-      return toast.error("Justificativa obrigatória", {
-        description: "Adicione uma observação de ao menos 20 caracteres no item antes de acatar.",
-      });
-    }
+    // Coleta a justificativa via modal dedicado (mín. 20 caracteres, contador
+    // ao vivo, botão desabilitado até atingir o mínimo). Substitui a validação
+    // baseada em observações persistidas, que gerava o falso "justificativa
+    // obrigatória" mesmo após o analista escrever no campo lateral.
+    const existing = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
+    const justif = await promptJustification({
+      title: "Acatar mantendo o valor pago",
+      description: "O valor esperado será alinhado ao valor pago sem sobrescrita. É obrigatório registrar o motivo (mín. 20 caracteres) porque a divergência da regra permanece no histórico.",
+      confirmText: "Acatar valor pago",
+      tone: "success",
+      minLength: 20,
+      defaultValue: existing,
+    });
+    if (!justif) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item_keep_paid", {
       _item_id: it.id,
