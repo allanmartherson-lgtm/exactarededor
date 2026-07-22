@@ -1595,11 +1595,15 @@ export function ItemsDataGrid({
   };
   const headPad = isCompact ? "px-1 py-0 relative" : "px-2.5 py-2.5 relative";
   // Colunas redimensionáveis (drag-to-resize estilo Excel).
-  // Persistido por usuário via localStorage; duplo clique restaura o default.
-  const { getWidth, colStyle, ResizeHandle } = useResizableColumns("items-grid-widths-v1");
+  // O fator de zoom escala as larguras para que ao aumentar a fonte as
+  // colunas cresçam proporcionalmente (sem cortar conteúdo).
+  const zoomFactor = tableZoom / 100;
+  const { getWidth, colStyle, ResizeHandle } = useResizableColumns("items-grid-widths-v1", zoomFactor);
   const tableTextSize = isCompact
-    ? "text-[10px] leading-[1.1] tracking-tight"
-    : "text-[13px] leading-snug tracking-normal";
+    ? "leading-[1.1] tracking-tight"
+    : "leading-snug tracking-normal";
+  // Fonte base em px — multiplicada pelo zoom via inline style no <table>.
+  const baseFontPx = isCompact ? 10 : 13;
 
   const getConvenio = getAgreement;
 
