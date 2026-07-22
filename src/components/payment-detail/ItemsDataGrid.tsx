@@ -2453,33 +2453,19 @@ export function ItemsDataGrid({
   }, [items.length, expandedId]);
 
 
-  // Auto-scroll: quando o usuário expande uma linha inline, garantimos que o
-  // painel apareça visível dentro da grid (e na viewport da página).
-  useEffect(() => {
-    if (!expandedId) return;
-    const raf = requestAnimationFrame(() => {
-      const panel = gridScrollRef.current?.querySelector<HTMLElement>(
-        `[data-expanded-row="${CSS.escape(expandedId)}"]`,
-      );
-      panel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [expandedId]);
-
-
   const syncScrollLeft = (source: "top" | "grid", left: number) => {
     const target = source === "top" ? gridScrollRef.current : topScrollRef.current;
     if (target && Math.abs(target.scrollLeft - left) > 1) target.scrollLeft = left;
   };
 
-  // Estimativa de altura: rows + banners de pacote/regra + painel expandido + chrome.
-  // ~38px por linha (compacto), ~44px por banner de grupo, ~320px quando há painel
-  // expandido inline, ~140px de chrome (toolbar + header + scrollbar + footer).
+  // Estimativa de altura: rows + banners de pacote/regra + chrome.
+  // O painel de detalhes agora abre em um drawer lateral (Sheet), não empurra
+  // mais a tabela, então não somamos altura extra por linha expandida.
   const estimatedHeight =
     items.length * 38 +
     packageGroups.size * 44 +
-    (expandedId ? 320 : 0) +
     140;
+
 
   return (
     // Altura própria pra ativar o scroll interno mesmo dentro de um pai sem altura.
