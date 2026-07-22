@@ -4009,83 +4009,63 @@ export function ItemsDataGrid({
       {/* ============================================================
           Painel lateral (drawer) de detalhes do item.
           Substitui a antiga expansão inline que deslocava a tabela.
+          Conteúdo completo do ItemDetailsRow entra na seção
+          "Dados do item" via fullDetailsSlot para preservar 100%
+          da informação previamente exibida.
           ============================================================ */}
-      <Sheet
-        open={!!expandedId}
-        onOpenChange={(open) => { if (!open) setExpandedId(null); }}
-      >
-        <SheetContent
-          side="right"
-          className="sm:max-w-[520px] w-full p-0 overflow-hidden flex flex-col"
-        >
-          {(() => {
-            const it = items.find((x) => x.id === expandedId);
-            if (!it) return null;
-            const idx = items.findIndex((x) => x.id === expandedId);
-            const prev = idx > 0 ? items[idx - 1] : null;
-            const next = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
-            const statusLabel = ((it as any).ai_status ?? (it as any).status ?? "—") as string;
-            const patient = getPatient(it);
-            const proc = `${getProcedureCode(it)} — ${getProcedureName(it)}`;
-            return (
-              <>
-                <div className="flex items-start justify-between gap-2 border-b bg-primary text-primary-foreground px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] uppercase tracking-wide opacity-80">Detalhes do item</div>
-                    <div className="text-sm font-semibold truncate">{patient}</div>
-                    <div className="text-[11px] opacity-90 truncate" title={proc}>{proc}</div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost" size="icon"
-                      className="h-7 w-7 text-primary-foreground hover:bg-white/10"
-                      disabled={!prev}
-                      onClick={() => prev && setExpandedId(prev.id)}
-                      title="Item anterior"
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost" size="icon"
-                      className="h-7 w-7 text-primary-foreground hover:bg-white/10"
-                      disabled={!next}
-                      onClick={() => next && setExpandedId(next.id)}
-                      title="Próximo item"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    <span className="ml-2 text-[10px] uppercase font-semibold rounded bg-white/15 px-2 py-0.5">
-                      {statusLabel}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  <table className="w-full">
-                    <tbody>
-                      <ItemDetailsRow
-                        it={it}
-                        allItems={items}
-                        rulesIndex={rulesIndex}
-                        rulesByName={rulesByName}
-                        observations={observations}
-                        profiles={profiles}
-                        colSpan={1}
-                        showTipoEntrada={!!colVis.tipo_entrada}
-                        visitaPaymentTypeId={visitaPaymentTypeId}
-                        parecerPaymentTypeId={parecerPaymentTypeId}
-                        lotePaymentTypeId={lotePaymentTypeId}
-                        isParecerPayment={isParecerPayment}
-                        canEdit={canEdit}
-                        onChangeCaseSubtype={changeCaseSubtype}
-                      />
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            );
-          })()}
-        </SheetContent>
-      </Sheet>
+      {(() => {
+        const it = items.find((x) => x.id === expandedId) ?? null;
+        const idx = it ? items.findIndex((x) => x.id === expandedId) : -1;
+        const prev = idx > 0 ? items[idx - 1] : null;
+        const next = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
+        const itemObs = it
+          ? observations
+              .filter((o: any) => o.item_id === it.id || o.payment_item_id === it.id)
+              .map((o: any) => ({
+                id: o.id,
+                text: o.text ?? o.observation ?? o.content ?? null,
+                author_name: profiles?.[o.author_id ?? o.user_id ?? ""] ?? o.author_name ?? null,
+                created_at: o.created_at ?? null,
+              }))
+          : [];
+        return (
+          <ItemDetailsPanel
+            open={!!expandedId}
+            onOpenChange={(open) => { if (!open) setExpandedId(null); }}
+            item={it as any}
+            onPrev={prev ? () => setExpandedId(prev.id) : undefined}
+            onNext={next ? () => setExpandedId(next.id) : undefined}
+            hasPrev={!!prev}
+            hasNext={!!next}
+            observations={itemObs}
+            fullDetailsSlot={
+              it ? (
+                <table className="w-full">
+                  <tbody>
+                    <ItemDetailsRow
+                      it={it}
+                      allItems={items}
+                      rulesIndex={rulesIndex}
+                      rulesByName={rulesByName}
+                      observations={observations}
+                      profiles={profiles}
+                      colSpan={1}
+                      showTipoEntrada={!!colVis.tipo_entrada}
+                      visitaPaymentTypeId={visitaPaymentTypeId}
+                      parecerPaymentTypeId={parecerPaymentTypeId}
+                      lotePaymentTypeId={lotePaymentTypeId}
+                      isParecerPayment={isParecerPayment}
+                      canEdit={canEdit}
+                      onChangeCaseSubtype={changeCaseSubtype}
+                    />
+                  </tbody>
+                </table>
+              ) : null
+            }
+          />
+        );
+      })()}
+
     </div>
   );
 }
