@@ -2281,13 +2281,28 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           }
         } else {
           const head = dup.uncovered[0];
+          // Rebaixa para "info" quando TODOS os matches não-cobertos são de
+          // médicos diferentes: mesmo paciente/atendimento/data/TUSS/função,
+          // mas outro profissional atendeu — é sobreposição possível, não
+          // duplicidade real. Mantém o registro em duplicate_detection para
+          // auditoria, mas não empurra alerta nem muda status.
+          const normDoc = (s: string | null | undefined) =>
+            (s ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase().replace(/[^a-z0-9]+/g, "");
+          const selfDoctor = normDoc(it?.doctor_name);
+          const allDifferentDoctor = selfDoctor.length > 0 && dup.uncovered.every(
+            (m) => {
+              const other = normDoc(m.other_doctor_name);
+              return other.length > 0 && other !== selfDoctor;
+            },
+          );
           findings.duplicate_detection = {
-            status: "warned",
+            status: allDifferentDoctor ? "info_different_doctor" : "warned",
             matched_items: dup.matches,
             uncovered_matches: dup.uncovered,
             override: dup.override,
           };
-          if (!isConfeccao) {
+          if (!isConfeccao && !allDifferentDoctor) {
             findings.alerts = [
               ...findings.alerts,
               `Possível duplicidade: item também consta no lote ${head.other_payment_reference} (status ${head.other_payment_status}).`,
