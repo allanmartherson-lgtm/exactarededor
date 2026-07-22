@@ -4936,7 +4936,7 @@ function RowMain({
         {colVis.via && (
           <td className={cn(cell, CELL_TEXT)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
-        <td className={cn(cell, "font-mono", TEXT_META)}>
+        <td className={cn(cell, "tabular-nums", TEXT_META)}>
           {isBonus ? (
             <span
               role="img"
