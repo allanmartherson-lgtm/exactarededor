@@ -552,6 +552,13 @@ const NewPayment = () => {
   useEffect(() => { findMatchingTemplateRef.current = findMatchingTemplate; }, [findMatchingTemplate]);
   useEffect(() => { markTemplateUsedRef.current = markTemplateUsed; }, [markTemplateUsed]);
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
+  const [parseProgress, setParseProgress] = useState<{
+    open: boolean;
+    phase: import("@/components/ParseProgressDialog").ParseProgressPhase;
+    current: number;
+    total: number;
+    fileName: string;
+  }>({ open: false, phase: "lendo_arquivo", current: 0, total: 0, fileName: "" });
   const [submitting, setSubmitting] = useState(false);
   const [includeAiOnSubmit, setIncludeAiOnSubmit] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
