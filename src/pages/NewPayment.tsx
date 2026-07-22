@@ -49,6 +49,7 @@ import {
   resolveConvenio,
   resolveSector,
   learnAliasesFromResolvedRows,
+  fixMojibake,
   type DoctorRegistry,
   type ConvenioRegistry,
   type SectorRegistry,
@@ -2463,7 +2464,11 @@ const NewPayment = () => {
     const SAMPLE_LIMIT = 25;
     const map = new Map<string, UnresolvedGroup>();
     const bump = (kind: UnresolvedGroup["kind"], raw: string, r: any) => {
-      const text = (raw ?? "").trim();
+      // Sanitiza mojibake (Excel salvo em Latin-1 lido como UTF-8) tanto na
+      // chave de agrupamento quanto no texto exibido/persistido como alias.
+      // Sem isso, o cabeçalho no wizard mostra "Notre Dame IntermÃ©dica" e o
+      // matching automático via alias limpo do cadastro nunca casa.
+      const text = fixMojibake((raw ?? "").trim());
       if (!text) return;
       const key = `${kind}::${text.toLowerCase()}`;
       const sample = {

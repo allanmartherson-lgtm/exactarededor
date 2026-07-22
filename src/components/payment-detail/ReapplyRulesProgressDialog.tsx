@@ -241,35 +241,55 @@ export function ReapplyRulesProgressDialog({
     >
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {phase === "concluido" ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            ) : phase === "erro" ? (
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-            ) : (
-              <RefreshCcw className="h-5 w-5 text-primary animate-spin" />
-            )}
-            {phase === "concluido"
-              ? (isConfeccao ? "Cálculo do repasse concluído" : "Reaplicação concluída")
-              : phase === "erro"
-              ? (isConfeccao ? "Falha ao calcular o repasse" : "Falha ao reaplicar regras")
-              : (isConfeccao ? "Calculando repasse…" : "Reaplicando regras…")}
-          </DialogTitle>
-          <DialogDescription>
-            {companyLabel ? <span className="font-medium">{companyLabel}</span> : null}
-            {companyLabel ? " · " : null}
-            {phase === "iniciando" && "Preparando o motor de cálculo…"}
-            {phase === "processando" &&
-              (isConfeccao
-                ? `Calculando o repasse de ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`
-                : `Reanalisando ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`)}
-            {phase === "concluido" &&
-              (isConfeccao
-                ? "O motor terminou de aplicar as regras. Veja abaixo como ficou o repasse calculado."
-                : "O motor terminou. Veja abaixo o que mudou em relação ao estado anterior.")}
-            {phase === "erro" && (errorMessage ?? "Não foi possível concluir a operação.")}
-          </DialogDescription>
+          {/* Timeout do polling não é falha de cálculo — o motor segue em
+              background. Detecta pela mensagem para trocar ícone/título por
+              versão informativa (evita alarme desnecessário no analista). */}
+          {(() => {
+            const isTimeout =
+              phase === "erro" &&
+              typeof errorMessage === "string" &&
+              errorMessage.includes("processando em segundo plano");
+            return (
+              <>
+                <DialogTitle className="flex items-center gap-2">
+                  {phase === "concluido" ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  ) : phase === "erro" ? (
+                    isTimeout ? (
+                      <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                    )
+                  ) : (
+                    <RefreshCcw className="h-5 w-5 text-primary animate-spin" />
+                  )}
+                  {phase === "concluido"
+                    ? (isConfeccao ? "Cálculo do repasse concluído" : "Reaplicação concluída")
+                    : phase === "erro"
+                    ? (isTimeout
+                        ? "Motor ainda processando"
+                        : (isConfeccao ? "Falha ao calcular o repasse" : "Falha ao reaplicar regras"))
+                    : (isConfeccao ? "Calculando repasse…" : "Reaplicando regras…")}
+                </DialogTitle>
+                <DialogDescription>
+                  {companyLabel ? <span className="font-medium">{companyLabel}</span> : null}
+                  {companyLabel ? " · " : null}
+                  {phase === "iniciando" && "Preparando o motor de cálculo…"}
+                  {phase === "processando" &&
+                    (isConfeccao
+                      ? `Calculando o repasse de ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`
+                      : `Reanalisando ${totalItems} ${totalItems === 1 ? "item" : "itens"} com as regras atuais. Tempo decorrido: ${elapsedSec}s.`)}
+                  {phase === "concluido" &&
+                    (isConfeccao
+                      ? "O motor terminou de aplicar as regras. Veja abaixo como ficou o repasse calculado."
+                      : "O motor terminou. Veja abaixo o que mudou em relação ao estado anterior.")}
+                  {phase === "erro" && (errorMessage ?? "Não foi possível concluir a operação.")}
+                </DialogDescription>
+              </>
+            );
+          })()}
         </DialogHeader>
+
 
         {running && (
           <div className="space-y-4 py-2">
