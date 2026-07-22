@@ -886,6 +886,44 @@ export default function CompanyAnalysis() {
 
       const dispatched = Number((data as any)?.total_companies ?? 0);
       const alreadyRunning = (data as any)?.already_running === true;
+      const existingJobId = (data as any)?.job_id as string | undefined;
+
+      // Se o dispatch devolveu `already_running` para um job antigo, o polling
+      // subsequente ficaria esperando 4 minutos por algo que provavelmente
+      // travou. Detectamos jobs sem progresso há > 8 min e surfamos erro
+      // acionável para o analista, em vez de esperar em silêncio.
+      if (alreadyRunning && existingJobId) {
+        try {
+          const { data: staleJob } = await supabase
+            .from("payment_processing_jobs")
+            .select("updated_at, processed_companies, total_companies, status")
+            .eq("id", existingJobId)
+            .maybeSingle();
+          if (staleJob) {
+            const ageMinutes = (Date.now() - new Date(staleJob.updated_at as string).getTime()) / 60_000;
+            if (ageMinutes > 8 && staleJob.status === "em_andamento") {
+              const msg = `Existe uma análise em andamento parada há ${Math.round(ageMinutes)} min (${staleJob.processed_companies}/${staleJob.total_companies}). ` +
+                `O monitoramento automático (executa a cada 2 min) vai fechá-la em breve — aguarde alguns minutos e tente reaplicar novamente.`;
+              setReapplyError(msg);
+              setReapplyPhase("erro");
+              toast.error("Análise anterior travada", { description: msg, duration: 12_000 });
+              // eslint-disable-next-line no-console
+              console.warn("[reapply-metrics] stale_already_running_job", {
+                payment_id: id,
+                company: group.company_name,
+                job_id: existingJobId,
+                age_minutes: Math.round(ageMinutes),
+                processed: staleJob.processed_companies,
+                total: staleJob.total_companies,
+              });
+              return;
+            }
+          }
+        } catch (staleErr) {
+          console.warn("[reanalyze] verificação de job travado falhou; seguindo com polling padrão", staleErr);
+        }
+      }
+
       if (!isDeferredParecer && !alreadyRunning && dispatched === 0) {
         const skipped = Array.isArray((data as any)?.skipped_companies) ? (data as any).skipped_companies : [];
         const sample = skipped.length
