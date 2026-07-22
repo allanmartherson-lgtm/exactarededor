@@ -4307,6 +4307,16 @@ const NewPayment = () => {
                       return textMatch || docMatch;
                     })
                     .sort((a, z) => {
+                      // Prioridade: buckets que exigem atenção do analista (sem PJ
+                      // ou match não confirmado) vão para o TOPO da lista. À medida
+                      // que o analista confirma/vincula a PJ, o bucket retorna à
+                      // ordenação alfabética natural. Comportamento pedido em UX:
+                      // "que apareçam no início para o analista priorizar o vínculo".
+                      const needs = (x: typeof a.b) =>
+                        !x.manualOverride && (!x.matchedCompany || x.matchScore < MATCH_AUTO_THRESHOLD);
+                      const na = needs(a.b) ? 0 : 1;
+                      const nz = needs(z.b) ? 0 : 1;
+                      if (na !== nz) return na - nz;
                       const an = norm(a.b.matchedCompany?.name ?? a.b.rawCompanyName ?? a.b.file.name);
                       const zn = norm(z.b.matchedCompany?.name ?? z.b.rawCompanyName ?? z.b.file.name);
                       return an.localeCompare(zn, "pt-BR", { sensitivity: "base" });
