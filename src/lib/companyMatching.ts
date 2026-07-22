@@ -34,27 +34,64 @@ export const getIdentifiers = (name: string): string[] => {
 export type AliasMap = Record<string, { aliases: string[] } | undefined>;
 
 /**
+ * Índice pré-calculado de candidatos por nome normalizado (nome canônico +
+ * aliases). Permite reduzir passos 1 e 2 do matcher de O(n) para O(1) sem
+ * mudar a semântica — passos 3 (substring) e 4 (fuzzy) continuam iterando,
+ * pois exigem comparação parcial que não se resolve por hash.
+ *
+ * Reconstrua sempre que a lista de candidatos ou o cache de aliases for
+ * invalidado (ver Prompt 3 — cache de cadastros).
+ */
+export type CompanyIndex = {
+  candidates: string[];
+  byNorm: Map<string, string>;
+};
+
+export function buildCompanyIndex(candidates: string[], aliasMap: AliasMap = {}): CompanyIndex {
+  const byNorm = new Map<string, string>();
+  for (const c of candidates) {
+    const key = normFull(c);
+    if (key && !byNorm.has(key)) byNorm.set(key, c);
+    for (const alias of aliasMap[c]?.aliases ?? []) {
+      const aKey = normFull(alias);
+      // Primeiro alias registrado vence: preserva ordem de "candidates" no empate,
+      // igual ao comportamento do .find() original.
+      if (aKey && !byNorm.has(aKey)) byNorm.set(aKey, c);
+    }
+  }
+  return { candidates, byNorm };
+}
+
+/**
  * Casa um texto bruto de PJ ("terceiro" da planilha) contra uma lista de
  * candidatos (nomes canônicos das PJs do universo alvo).
+ *
+ * Passe `index` (pré-calculado com buildCompanyIndex) quando estiver dentro
+ * de um loop sobre a mesma lista de candidatos — evita reiterar `candidates`
+ * a cada linha do arquivo.
  */
 export function findCompanyMatch(
   raw: string,
   candidates: string[],
   aliasMap: AliasMap = {},
+  index?: CompanyIndex,
 ): { company: string | null; level: MatchLevel } {
   const normT = normFull(raw);
   if (!normT) return { company: null, level: null };
   const idsT = getIdentifiers(raw);
 
-  // 1) Alias persistido — vínculo já confirmado em rodada anterior.
-  const aliasHit = candidates.find((c) =>
-    (aliasMap[c]?.aliases ?? []).some((a) => normFull(a) === normT),
-  );
-  if (aliasHit) return { company: aliasHit, level: "exact" };
-
-  // 2) Normalização idêntica.
-  const exact = candidates.find((c) => normFull(c) === normT);
-  if (exact) return { company: exact, level: "exact" };
+  // 1+2) Alias persistido OU normalização idêntica — via índice O(1) quando disponível.
+  if (index) {
+    const hit = index.byNorm.get(normT);
+    if (hit) return { company: hit, level: "exact" };
+  } else {
+    const aliasHit = candidates.find((c) =>
+      (aliasMap[c]?.aliases ?? []).some((a) => normFull(a) === normT),
+    );
+    if (aliasHit) return { company: aliasHit, level: "exact" };
+    const exact = candidates.find((c) => normFull(c) === normT);
+    if (exact) return { company: exact, level: "exact" };
+  }
 
   // 3) Substring de nome.
   const substring = candidates.find((c) => {
@@ -77,3 +114,4 @@ export function findCompanyMatch(
 
   return { company: null, level: null };
 }
+
