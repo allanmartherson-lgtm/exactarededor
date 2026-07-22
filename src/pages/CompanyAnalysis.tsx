@@ -2211,7 +2211,7 @@ export default function CompanyAnalysis() {
       entityLabel="pagamento"
       fallbackHub="/pagamentos"
     >
-    <div className="space-y-4 pb-32 overflow-x-hidden max-w-full">
+    <div className="space-y-4 pb-32 max-w-full">
 
       {isConfeccao && (
         <div
