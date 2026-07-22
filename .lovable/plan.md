@@ -1,54 +1,73 @@
-## Contexto
+# Plano — Melhorar match de PJ (CNPJ + auto-aprendizado)
 
-Alinhamento de conceito: **cada internação gera um novo atendimento**, então "atendimento" e "paciente" são a mesma unidade. Reinternações do mesmo paciente = múltiplos atendimentos distintos e devem ser contadas separadamente. A coluna atual "PACIENTES ÚNICOS" (dedup por `patient_name`) está errada — colapsa reinternações.
+## Objetivo
+Reduzir o número de arquivos que caem em stand-by por falha de match de nome, sem afrouxar o limiar de 90%. Duas alavancas independentes.
 
-## Escopo
+---
 
-Só `src/pages/OverlapAudit.tsx`. Sem tocar hook, RPC ou outros arquivos.
+## Parte 1 — Vínculo por CNPJ
 
-## Mudanças
+### Comportamento novo
+Antes de tentar match por nome, o motor procura um CNPJ válido (com dígito verificador) em três lugares, nesta ordem:
+1. Nome do arquivo.
+2. Primeiras ~20 linhas do `rawMatrix` (cabeçalho do TASY costuma trazer razão social + CNPJ).
+3. Coluna "Terceiro"/"Empresa" da linha (caso a planilha traga documento junto).
 
-### 1. Tabela "Pares de médicos mais frequentes" (linha 830+)
+Se achar CNPJ válido → casa direto contra `companies.document` (normalizado, só dígitos). Match por CNPJ é **auto-aceito com score 1.0** — não passa por revisão, pois é chave forte com DV.
 
-Colunas passam a ser:
+Se não achar CNPJ → cai no fluxo atual de match por nome (≥90%).
 
-| PAR | ATENDIMENTOS | VISITAS EM COMUM | VALOR ESTIMADO |
-|---|---|---|---|
+### Arquivos alterados
+- `src/lib/parsePaymentFile.ts`: nova função `findCnpjInText(text)` reutilizando `isValidCNPJ` de `src/lib/cnpj.ts`; nova função `matchCompanyByDocument(cnpj, companies)`; `matchCompany` passa a receber matriz/nome do arquivo e tenta CNPJ primeiro.
+- `src/pages/NewPayment.tsx`: no ponto onde `matchCompany` é chamado (linhas ~1180 e ~2670), passar também `rawMatrix` e `file.name` para varredura de CNPJ.
+- `src/lib/__tests__/matchCompany.test.ts`: testes novos (CNPJ no nome do arquivo, CNPJ no cabeçalho, CNPJ inválido ignorado, colisão de nome mas CNPJ diferente).
 
-- **ATENDIMENTOS** = valor de `count` atual (nº de atendimentos em que a dupla apareceu junta).
-- **VISITAS EM COMUM** (novo) = soma de `r.items` nesses atendimentos (proxy de visitas/lançamentos coincidentes).
-- Remover coluna "PACIENTES ÚNICOS".
+### Fora de escopo
+Não alteramos telas de conciliação, retroativo, ou re-import — só a ingestão em `/pagamentos/novo`. Se der certo, replicamos depois.
 
-No `doctorPairs` (linha 252), trocar o `Set<string> patients` por acumulador `visits: number` (`cur.visits += Number(r.items ?? 0)`). Remover `uniquePatients`.
+---
 
-### 2. Seção "Pacientes com mais sobreposições" (linha 760+)
+## Parte 2 — Auto-aprendizado ampliado de aliases
 
-O RPC devolve `by_patient` já agregado por paciente — mas conceitualmente devemos falar em **atendimentos**, não pacientes. Renomear títulos/labels:
+### Comportamento novo
+Todo lugar onde o analista **explicitamente** aponta "esse texto bruto = essa PJ" passa a chamar `learnCompanyAlias` (que já existe e já respeita o guard `shouldLearnAlias`).
 
-- Título da seção: "Pacientes com mais sobreposições" → "Atendimentos com mais sobreposição"
-- Legenda do gráfico e header da tabela: "PACIENTE" → "ATENDIMENTO / PACIENTE" (mantém o nome como rótulo, mas rótulo textual esclarece que uma linha = uma internação)
-- KPI/frase "Top paciente" (linha 321) → "Top atendimento"
+Pontos que **passam a aprender**:
+1. Reimportação de base em `PaymentDetail` (quando o analista corrige a PJ no modal de re-upload).
+2. Wizard de conciliação retroativa (`RetroactiveMappingWizard`) — vinculação manual PJ ↔ texto bruto.
+3. Ação de "Aceitar com alerta" e vinculação manual dentro do `PaymentConciliationModal`.
 
-Não alteramos a agregação do `by_patient` (isso viria do RPC, fora de escopo). Se o RPC hoje deduplica por nome, aparece nota no cabeçalho da seção: _"Uma linha por internação; reinternações do mesmo paciente aparecem separadas quando o RPC devolve atendimentos distintos."_
+Pontos que **já aprendem hoje** (não mexemos): troca manual e confirmação de sugestão em `/pagamentos/novo`.
 
-### 3. KPIs do topo (linha 176)
+### Undo visível
+Após aprender, o toast passa a exibir botão **"Desfazer aprendizado"** que remove o alias recém-adicionado (nova RPC `unlearn_company_alias` — SECURITY DEFINER, remove por match exato do texto no array `aliases`). Analista tem ~10s para reverter se percebeu que errou.
 
-- Card "Pacientes" → renomear para "Atendimentos" (já usa `attendances.size`, valor não muda; label passa a refletir o conceito).
-- Remover o card duplicado se houver "Pacientes" + "Atendimentos" separados; se só houver um, apenas relabelar.
+### Arquivos alterados
+- `supabase/functions/` (migração): nova RPC `unlearn_company_alias(_company_id uuid, _raw_name text)` — remove `_raw_name` de `companies.aliases` se existir. Grants para `authenticated`.
+- `src/lib/learnCompanyAlias.ts`: exportar helper `unlearnCompanyAlias` simétrico.
+- `src/pages/PaymentDetail.tsx`: no fluxo de reimport, chamar `learnCompanyAlias` quando o analista troca a PJ.
+- `src/components/retroactive/RetroactiveMappingWizard.tsx` (ou equivalente): idem no mapeamento manual.
+- `src/components/payment-detail/PaymentConciliationModal.tsx`: idem na vinculação manual de PJ.
+- Componente compartilhado de toast: nova prop `undo?: { label: string; onClick: () => void }` no toast usado após vínculo.
 
-### 4. Tabela "Atendimentos com sobreposição no mesmo dia" (linha 941+)
+### Segurança / auditoria
+- `unlearn_company_alias` só remove o alias específico, nunca renomeia a PJ nem toca outros campos.
+- Toda escrita de alias já grava `updated_by` via RLS — mantém rastro de quem aprendeu.
 
-Sem mudança estrutural — já é por atendimento. Só confirmar que o subtítulo diz "Uma linha = uma internação".
+### Fora de escopo
+Não vamos rodar backfill retroativo aprendendo aliases de vínculos antigos — só passa a aprender a partir de agora. Backfill fica como decisão separada se quiserem depois.
 
-## Fora de escopo
+---
 
-- Não mexer em `useOverlapAudit.ts` nem na RPC `get_overlap_audit`.
-- Se `by_patient` do RPC estiver colapsando reinternações por nome (a investigar depois), fica como próxima tarefa — este plano só ajusta rótulos e a tabela de pares.
+## Ordem de execução
+1. Parte 1 (CNPJ) — isolada, sem risco em dados existentes.
+2. Migração da RPC `unlearn_company_alias`.
+3. Parte 2 (auto-aprendizado nos 3 pontos + undo).
 
-## Resultado visível
+## Migrações de banco
+Uma migração nova: `unlearn_company_alias` (função + grants). Nenhuma alteração de tabela, nenhuma alteração de RLS existente.
 
-- Tabela de pares fica: `Felipe × Maria Teresa | 10 atendimentos | 47 visitas em comum | R$ 11.424,62`.
-- Some a confusão do "10 sobreposições / 10 pacientes únicos" (que era redundante).
-- Some o "Andre × Carolina 8 / 2" que dava impressão errada de "só 2 pacientes" — vira "8 atendimentos / N visitas".
-
-Aprovar para eu implementar?
+## Riscos e mitigações
+- **CNPJ inválido no arquivo (falso positivo de regex):** validação de DV rejeita.
+- **CNPJ certo mas de outra unidade da mesma rede:** aceita — é o comportamento correto; o cadastro é a fonte de verdade.
+- **Aprendizado errado do analista:** toast com "Desfazer" por 10s + `shouldLearnAlias` bloqueando aliases contaminados por sufixo (já existe).
