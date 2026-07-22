@@ -2447,7 +2447,7 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   const statusColumnWidth = Math.max(getWidth("status", 132), 132);
-  const actionColumnWidth = 188;
+  const actionColumnWidth = 130;
 
   const tableMinWidth = 24 +
     (colVis.atendimento ? getWidth("atendimento", 160) : 0) +
