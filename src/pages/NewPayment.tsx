@@ -3800,6 +3800,87 @@ const NewPayment = () => {
     navigate(`/pagamentos/${payment.id}`, { replace: true, state: { backTo: "/pagamentos" } });
   };
 
+  // Validação em duas camadas: bloqueantes (impedem submit) x alertas (permitem submit com confirmação).
+  // Mantém intactos os gates existentes de confirm() dentro de submit(); esta camada é APENAS visual + gate do botão.
+  const submitValidation = useMemo(() => {
+    const blockers: { key: string; label: string; detail?: string }[] = [];
+    const warnings: { key: string; label: string; detail?: string }[] = [];
+
+    if (!reference.trim()) blockers.push({ key: "reference", label: "Informe a referência do lote" });
+    if (competenceMonths.length === 0) blockers.push({ key: "competence", label: "Selecione ao menos um mês de competência" });
+    if (!autoPaymentKind && !paymentKind) blockers.push({ key: "kind", label: "Selecione a categoria do pagamento" });
+    if (!paymentType) blockers.push({ key: "paymentType", label: "Selecione o tipo de pagamento" });
+    if (allRows.length === 0) blockers.push({ key: "rows", label: "Carregue pelo menos um arquivo válido" });
+    if (allRows.length > 0 && !registriesReady) blockers.push({ key: "registries", label: "Aguardando carregamento de cadastros oficiais" });
+    if (!costCenterCode) blockers.push({ key: "costCenter", label: "Selecione o centro de custos" });
+    if (requiresParecerReport && !parecerPayload) blockers.push({ key: "parecer", label: "Anexe o relatório de pareceres do Tasy" });
+    if (mixedParecer.enabled && !mixedParecer.item_type_id) blockers.push({ key: "mixedParecer", label: "Selecione o subtipo do parecer (lote misto)" });
+    if (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) {
+      blockers.push({ key: "specialty", label: `Preencha a especialidade em ${pendingSpecialtyRows.length} item(ns)` });
+    }
+    if (hasUnresolved) {
+      blockers.push({ key: "unresolved", label: `Resolva ${blockingUnresolved.length} cadastro(s) pendente(s) (PJ / TUSS obrigatório)` });
+    }
+    if (pendingSuspiciousCount > 0) {
+      blockers.push({ key: "suspicious", label: `Revise ${pendingSuspiciousCount} linha(s) marcada(s) como suspeita(s)` });
+    }
+    if (preValidation.critical > 0) {
+      blockers.push({
+        key: "critical",
+        label: `${preValidation.critical} erro(s) crítico(s) por tipo de linha`,
+        detail: "Campos obrigatórios ausentes por tipo de linha — corrija antes de enviar.",
+      });
+    }
+
+    const unmappedSectorBuckets = modoConfeccao
+      ? buckets.filter((b) => {
+          const noCompany = !b.manualOverride && (!b.matchedCompany || b.matchScore < MATCH_AUTO_THRESHOLD) && !b.rows.some((r) => !!r.company_id);
+          return !noCompany && !b.sectorMapping && (b.sectorMissing || !b.sectorColumnUsed);
+        })
+      : buckets.filter((b) => b.sectorMissing && !b.sectorMapping);
+    if (unmappedSectorBuckets.length > 0) {
+      blockers.push({
+        key: "sector",
+        label: `Setor não mapeado em ${unmappedSectorBuckets.length} arquivo(s)`,
+        detail: unmappedSectorBuckets.map((b) => b.file.name).join(" · "),
+      });
+    }
+
+    // Alertas (não bloqueiam envio — apenas exigem confirmação nos gates de submit()).
+    const unmatchedBucketFiles = buckets.filter((b) => !b.manualOverride && (!b.matchedCompany || b.matchScore < MATCH_AUTO_THRESHOLD) && !b.rows.some((r) => !!r.company_id));
+    if (unmatchedBucketFiles.length > 0) {
+      warnings.push({
+        key: "unmatchedPj",
+        label: `${unmatchedBucketFiles.length} arquivo(s) sem PJ vinculada com confiança`,
+        detail: "Os itens ficarão em 'Empresas não vinculadas' e não entrarão na análise. Vincule manualmente para incluí-los.",
+      });
+    }
+    if (preValidation.warnings > 0) {
+      warnings.push({
+        key: "warnings",
+        label: `${preValidation.warnings} alerta(s) leve(s) na base`,
+        detail: "Ex.: complementos sem atendimento, tipos não identificados.",
+      });
+    }
+    if (sectorConflicts.length > 0) {
+      warnings.push({
+        key: "sectorConflict",
+        label: `${sectorConflicts.length} conflito(s) entre setor manual e base`,
+        detail: sectorConflicts.join(" · "),
+      });
+    }
+
+    return { blockers, warnings };
+  }, [
+    reference, competenceMonths, autoPaymentKind, paymentKind, paymentType,
+    allRows.length, registriesReady, costCenterCode,
+    requiresParecerReport, parecerPayload, mixedParecer,
+    requiresSpecialtyOnAllRows, pendingSpecialtyRows.length,
+    hasUnresolved, blockingUnresolved.length, pendingSuspiciousCount,
+    preValidation, modoConfeccao, buckets, sectorConflicts,
+  ]);
+  const hasBlockingIssues = submitValidation.blockers.length > 0;
+
   return (
     <>
       <PageHeader
@@ -5294,6 +5375,43 @@ const NewPayment = () => {
         />
 
 
+        {(submitValidation.blockers.length > 0 || submitValidation.warnings.length > 0) && (
+          <div className="space-y-2 sticky bottom-[72px] z-10">
+            {submitValidation.blockers.length > 0 && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {submitValidation.blockers.length} problema(s) impedem o envio
+                </div>
+                <ul className="text-xs text-destructive space-y-1 pl-6 list-disc">
+                  {submitValidation.blockers.map((b) => (
+                    <li key={b.key}>
+                      <span className="font-medium">{b.label}</span>
+                      {b.detail && <span className="block text-destructive/80 mt-0.5">{b.detail}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {submitValidation.warnings.length > 0 && (
+              <details className="rounded-md border border-warning/40 bg-warning/10 p-3 group">
+                <summary className="flex items-center gap-2 text-sm font-semibold text-warning cursor-pointer select-none">
+                  <AlertTriangle className="h-4 w-4" />
+                  {submitValidation.warnings.length} aviso(s) — revise antes de enviar
+                </summary>
+                <ul className="text-xs text-warning space-y-1 pl-6 list-disc mt-2">
+                  {submitValidation.warnings.map((w) => (
+                    <li key={w.key}>
+                      <span className="font-medium">{w.label}</span>
+                      {w.detail && <span className="block text-warning/80 mt-0.5">{w.detail}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-end gap-3">
           {!modoConfeccao && (
             <label className="flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
@@ -5307,7 +5425,8 @@ const NewPayment = () => {
             </label>
           )}
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button onClick={submit} disabled={submitting || allRows.length === 0 || !registriesReady || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
+          <Button onClick={submit} disabled={submitting || hasBlockingIssues || allRows.length === 0 || !registriesReady || hasUnresolved || pendingSuspiciousCount > 0 || !costCenterCode || (requiresParecerReport && !parecerPayload) || (requiresSpecialtyOnAllRows && pendingSpecialtyRows.length > 0) || (mixedParecer.enabled && !mixedParecer.item_type_id)}>
+
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             {pendingSuspiciousCount > 0
 
