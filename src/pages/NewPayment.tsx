@@ -87,6 +87,7 @@ import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssist
 import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { notifyIfHidden, isPageHidden, onNextVisible } from "@/lib/backgroundNotify";
 
 interface ParsedRow {
   doctor_name: string;
@@ -1888,6 +1889,19 @@ const NewPayment = () => {
     } else if (!reference && newBuckets.length > 1) {
       const today = new Date();
       setReference(`Pagamento ${today.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`);
+    }
+
+    // Se o analista mudou de aba durante o parse (comum em lotes grandes),
+    // dispara Notification nativa + agenda um toast informativo para quando
+    // voltar. Aba visível segue com o toast padrão do fluxo (nada muda).
+    const okCount = newBuckets.length;
+    const totalRows = newBuckets.reduce((s, b) => s + (b.rows?.length ?? 0), 0);
+    if (okCount > 0 && isPageHidden()) {
+      const bodyMsg = `${totalRows.toLocaleString("pt-BR")} linhas de ${okCount} arquivo${okCount > 1 ? "s" : ""} prontas para revisão`;
+      void notifyIfHidden("Exacta — Parse concluído", bodyMsg);
+      onNextVisible(() => {
+        toast({ title: "Parse concluído enquanto você estava fora", description: bodyMsg });
+      });
     }
   };
 
