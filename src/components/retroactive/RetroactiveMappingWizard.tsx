@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircleIcon, FileSpreadsheetIcon, ArrowLeftIcon } from "lucide-react";
 import { CompanyMappingList, type MappingRow } from "@/components/shared/CompanyMappingList";
-import { findCompanyMatch, type AliasMap } from "@/lib/companyMatching";
+import { findCompanyMatch, buildCompanyIndex, type AliasMap } from "@/lib/companyMatching";
 import { preserveFormattedBrazilianNumbers } from "@/lib/parsePaymentFile";
 
 export type TargetField = {
