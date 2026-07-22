@@ -974,6 +974,7 @@ export function ItemsDataGrid({
   const expectedColWidth = isConfeccao ? 160 : 110;
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
   const DENSITY_PREFS_KEY = `${storageKey}.density.v1`;
+  const ZOOM_PREFS_KEY = `${storageKey}.zoom.v1`;
   const FILTERS_PREFS_KEY = `${storageKey}.filters.v1`;
 
   // Carrega prefs de filtros persistidas (por storageKey). Limpas via "Limpar filtros".
@@ -1563,6 +1564,35 @@ export function ItemsDataGrid({
     }
   }, [density, DENSITY_PREFS_KEY]);
   const isCompact = density === "compact";
+
+  // Zoom da tabela (estilo Excel). Aplica CSS zoom no <table>.
+  // Níveis: 90, 100, 115, 130, 150. Persistido por storageKey.
+  const ZOOM_LEVELS = [90, 100, 115, 130, 150] as const;
+  const [tableZoom, setTableZoom] = useState<number>(() => {
+    if (typeof window === "undefined") return 100;
+    try {
+      const raw = window.localStorage.getItem(ZOOM_PREFS_KEY);
+      const n = raw ? Number(raw) : 100;
+      return ZOOM_LEVELS.includes(n as typeof ZOOM_LEVELS[number]) ? n : 100;
+    } catch {
+      return 100;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ZOOM_PREFS_KEY, String(tableZoom));
+    } catch {
+      /* noop */
+    }
+  }, [tableZoom, ZOOM_PREFS_KEY]);
+  const zoomIn = () => {
+    const idx = ZOOM_LEVELS.indexOf(tableZoom as typeof ZOOM_LEVELS[number]);
+    setTableZoom(ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, idx + 1)]);
+  };
+  const zoomOut = () => {
+    const idx = ZOOM_LEVELS.indexOf(tableZoom as typeof ZOOM_LEVELS[number]);
+    setTableZoom(ZOOM_LEVELS[Math.max(0, idx - 1)]);
+  };
   const headPad = isCompact ? "px-1 py-0 relative" : "px-2.5 py-2.5 relative";
   // Colunas redimensionáveis (drag-to-resize estilo Excel).
   // Persistido por usuário via localStorage; duplo clique restaura o default.
@@ -2810,6 +2840,34 @@ export function ItemsDataGrid({
               Confortável
             </button>
           </div>
+          <div className="inline-flex items-center rounded-md border bg-background p-0.5" title="Zoom da tabela (fonte)">
+            <button
+              type="button"
+              onClick={zoomOut}
+              disabled={tableZoom <= ZOOM_LEVELS[0]}
+              className="h-7 w-6 text-[13px] rounded-sm text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Diminuir zoom"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => setTableZoom(100)}
+              className="h-7 px-1.5 text-[10px] tabular-nums text-muted-foreground hover:text-foreground"
+              title="Restaurar zoom (100%)"
+            >
+              {tableZoom}%
+            </button>
+            <button
+              type="button"
+              onClick={zoomIn}
+              disabled={tableZoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+              className="h-7 w-6 text-[13px] rounded-sm text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Aumentar zoom"
+            >
+              +
+            </button>
+          </div>
           {validationImpact.count > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
               <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
@@ -3037,7 +3095,7 @@ export function ItemsDataGrid({
           <table
             data-density={isCompact ? "compact" : "comfortable"}
             className={cn("hidden md:table border-separate border-spacing-0 table-fixed", tableTextSize)}
-            style={{ width: tableMinWidth, minWidth: tableMinWidth }}
+            style={{ width: tableMinWidth, minWidth: tableMinWidth, zoom: tableZoom / 100 }}
           >
             <colgroup>
               {colVis.atendimento && <col style={colStyle("atendimento", 160)} />}
