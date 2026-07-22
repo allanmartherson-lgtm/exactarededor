@@ -2917,7 +2917,7 @@ export function ItemsDataGrid({
           onScroll={(e) => syncScrollLeft("top", e.currentTarget.scrollLeft)}
           style={{ paddingRight: vScrollbarWidth, boxSizing: "border-box" }}
         >
-          <div style={{ width: Math.max(measuredScrollWidth, tableMinWidth), height: 1 }} />
+          <div style={{ width: Math.max(measuredScrollWidth, Math.round(tableMinWidth * zoomFactor)), height: 1 }} />
         </div>
 
         <div
