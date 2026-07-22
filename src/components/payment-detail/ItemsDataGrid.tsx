@@ -1564,6 +1564,35 @@ export function ItemsDataGrid({
     }
   }, [density, DENSITY_PREFS_KEY]);
   const isCompact = density === "compact";
+
+  // Zoom da tabela (estilo Excel). Aplica CSS zoom no <table>.
+  // Níveis: 90, 100, 115, 130, 150. Persistido por storageKey.
+  const ZOOM_LEVELS = [90, 100, 115, 130, 150] as const;
+  const [tableZoom, setTableZoom] = useState<number>(() => {
+    if (typeof window === "undefined") return 100;
+    try {
+      const raw = window.localStorage.getItem(ZOOM_PREFS_KEY);
+      const n = raw ? Number(raw) : 100;
+      return ZOOM_LEVELS.includes(n as typeof ZOOM_LEVELS[number]) ? n : 100;
+    } catch {
+      return 100;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ZOOM_PREFS_KEY, String(tableZoom));
+    } catch {
+      /* noop */
+    }
+  }, [tableZoom, ZOOM_PREFS_KEY]);
+  const zoomIn = () => {
+    const idx = ZOOM_LEVELS.indexOf(tableZoom as typeof ZOOM_LEVELS[number]);
+    setTableZoom(ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, idx + 1)]);
+  };
+  const zoomOut = () => {
+    const idx = ZOOM_LEVELS.indexOf(tableZoom as typeof ZOOM_LEVELS[number]);
+    setTableZoom(ZOOM_LEVELS[Math.max(0, idx - 1)]);
+  };
   const headPad = isCompact ? "px-1 py-0 relative" : "px-2.5 py-2.5 relative";
   // Colunas redimensionáveis (drag-to-resize estilo Excel).
   // Persistido por usuário via localStorage; duplo clique restaura o default.
