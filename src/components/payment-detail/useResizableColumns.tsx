@@ -95,7 +95,7 @@ export function useResizableColumns(storageKey: string, scale: number = 1) {
           aria-label="Redimensionar coluna (duplo clique para restaurar)"
           onMouseDown={onMouseDown}
           onDoubleClick={onDoubleClick}
-          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-primary/40 active:bg-primary/60"
+          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none bg-white/25 hover:bg-white/60 active:bg-white/80 transition-colors"
         />
       );
     };

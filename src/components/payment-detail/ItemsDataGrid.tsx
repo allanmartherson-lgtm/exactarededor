@@ -3328,7 +3328,7 @@ export function ItemsDataGrid({
             </colgroup>
             {/* Header CURA — azul primary sólido com texto branco (mesma linguagem do ExcelPreviewDialog).
                 Overrides usam bang para vencer os `bg-muted` inline de cada <th>. */}
-            <thead className="sticky top-0 z-20 [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-primary/40 [&_th]:!uppercase [&_th]:!tracking-wide [&_th_button]:!text-primary-foreground/85 [&_th_button:hover]:!text-primary-foreground [&_th_svg]:!text-primary-foreground/85">
+            <thead className="sticky top-0 z-20 [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-primary/40 [&_th]:!uppercase [&_th]:!tracking-wide [&_th]:!text-[11px] [&_th]:!leading-tight [&_th]:!font-semibold [&_th_button]:!text-primary-foreground/85 [&_th_button:hover]:!text-primary-foreground [&_th_button]:!text-[11px] [&_th_button]:!leading-tight [&_th_button]:!font-semibold [&_th_svg]:!text-primary-foreground/85">
               <tr>
                 {colVis.atendimento && (
                   <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>
@@ -3952,36 +3952,36 @@ export function ItemsDataGrid({
                 (colVis.regra ? 1 : 0);
               const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
               const footPad = isCompact ? "px-1.5 py-3" : "px-2 py-4";
-              // Footer CURA — gradient azul → âmbar sutil e totais destacados em primary.
+              // Footer CURA — fundo primary reforçado, valores em bold destacado.
               return (
-                <tfoot className="sticky bottom-0 z-20 shadow-[0_-8px_10px_-4px_rgba(0,0,0,0.1)] [&_td]:!bg-gradient-to-r [&_td]:!from-primary/[0.08] [&_td]:!to-accent/[0.05] [&_td]:backdrop-blur">
+                <tfoot className="sticky bottom-0 z-20 shadow-[0_-8px_10px_-4px_rgba(0,0,0,0.1)] [&_td]:!bg-gradient-to-r [&_td]:!from-primary/[0.12] [&_td]:!to-accent/[0.08] [&_td]:backdrop-blur">
                   <tr>
                     <td
                       colSpan={leadingCols}
-                      className={cn(footPad, "text-right border-t-[1.5px] border-primary/25 whitespace-nowrap")}
+                      className={cn(footPad, "text-right border-t-2 border-primary/30 whitespace-nowrap")}
                     >
-                      <span className={cn(TEXT_LABEL, "text-xs font-bold !text-primary")}>
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
                         Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
                       </span>
                     </td>
                     {showGrossColumn && (
-                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 text-primary whitespace-nowrap")}>
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-[14px] border-t-2 border-primary/30 text-primary whitespace-nowrap")}>
                         {formatCurrency(totals.valor)}
                       </td>
                     )}
                     {showProcedureColumn && (
-                      <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 text-primary whitespace-nowrap")}>
+                      <td className={cn(footPad, "text-right tabular-nums font-bold text-[14px] border-t-2 border-primary/30 text-primary whitespace-nowrap")}>
                         {totals.procedure > 0 ? formatCurrency(totals.procedure) : "—"}
                       </td>
                     )}
-                    <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 text-primary whitespace-nowrap")}>
+                    <td className={cn(footPad, "text-right tabular-nums font-bold text-[14px] border-t-2 border-primary/30 text-primary whitespace-nowrap")}>
                       {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
                     </td>
                     {showDiferencaCol && (
                       <td
                         className={cn(
                           footPad,
-                          "text-right tabular-nums font-bold text-sm border-t-[1.5px] border-primary/25 whitespace-nowrap",
+                          "text-right tabular-nums font-bold text-[14px] border-t-2 border-primary/30 whitespace-nowrap",
                           totals.diferenca != null && Math.abs(totals.diferenca) > 0.01
                             ? totals.diferenca < 0 ? "text-warning-text" : "text-success"
                             : "text-muted-foreground",
@@ -3992,7 +3992,7 @@ export function ItemsDataGrid({
                           : "—"}
                       </td>
                     )}
-                    <td colSpan={trailingCols} className={cn(footPad, "border-t-[1.5px] border-primary/25")} />
+                    <td colSpan={trailingCols} className={cn(footPad, "border-t-2 border-primary/30")} />
                   </tr>
                 </tfoot>
               );
