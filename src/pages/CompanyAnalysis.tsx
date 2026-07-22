@@ -1011,15 +1011,15 @@ export default function CompanyAnalysis() {
 
 
       if (!done) {
-        // Motor não confirmou conclusão no tempo — ainda assim mostramos o diff
-        // com o estado atual; o usuário pode reaplicar de novo se necessário.
-        // Garante mensagem informativa no diálogo (sem ela, cai no fallback
-        // genérico "Não foi possível concluir a operação").
+        // Motor não confirmou dentro do teto de tempo, mas o job segue rodando
+        // em background. Não é erro real de cálculo — é limite de espera da UI.
+        // Mostramos aviso informativo (não destrutivo) e o analista pode
+        // acompanhar pelo status ou tentar reaplicar em alguns segundos.
         const fallbackMsg =
-          "O motor não confirmou a conclusão dentro do tempo previsto. A tela já está com o estado atual dos itens — se algo ainda parece desatualizado, tente reaplicar em alguns segundos.";
+          "O motor ainda está processando esta empresa em segundo plano. Os itens serão atualizados assim que concluir — acompanhe pelo status ou tente reaplicar em alguns segundos.";
         setReapplyError((prev) => prev ?? fallbackMsg);
         setReapplyPhase("erro");
-        toast.warning("Reanálise concluída sem confirmação do motor", {
+        toast.info("Motor ainda processando", {
           description: reapplyError ?? fallbackMsg,
         });
       } else {
