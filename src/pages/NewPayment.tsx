@@ -4333,7 +4333,20 @@ const NewPayment = () => {
                   <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate" title={b.file.name}>{b.file.name}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-medium text-sm truncate flex-1 min-w-0" title={b.file.name}>{b.file.name}</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={() => setPreviewBucketIdx(idx)}
+                          title="Abrir pré-visualização da planilha"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          Ver planilha
+                        </Button>
+                      </div>
                       {(() => {
                         const headerRow = (b.rawMatrix && typeof b.headerRowIndex === "number")
                           ? (b.rawMatrix[b.headerRowIndex] ?? [])
