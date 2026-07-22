@@ -88,6 +88,7 @@ import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevS
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { notifyIfHidden, isPageHidden, onNextVisible } from "@/lib/backgroundNotify";
+import { CommitPreviewDialog } from "@/components/payment-wizard/CommitPreviewDialog";
 
 interface ParsedRow {
   doctor_name: string;
@@ -567,6 +568,12 @@ const NewPayment = () => {
   }>({ open: false, phase: "lendo_arquivo", current: 0, total: 0, fileName: "" });
   const [submitting, setSubmitting] = useState(false);
   const [includeAiOnSubmit, setIncludeAiOnSubmit] = useState(false);
+  // Preview de commit (dry-run visual) — resolver na ref para dar await
+  // dentro de submit() sem reestruturar o fluxo assíncrono existente.
+  const [commitPreviewState, setCommitPreviewState] = useState<
+    import("@/components/payment-wizard/CommitPreviewDialog").CommitPreviewData | null
+  >(null);
+  const commitPreviewResolverRef = useRef<((v: "confirm" | "cancel") => void) | null>(null);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
@@ -2908,6 +2915,50 @@ const NewPayment = () => {
             description: `O pagamento será gravado, mas a escala/valor para ${faltando.map((c) => c.slice(0, 7)).join(", ")} ainda não foi anexada em /pools/${poolId}/valores-mensais.`,
           });
         }
+      }
+    }
+
+    // === Preview do commit (dry-run visual) ===
+    // Última barreira antes de qualquer write. Resume o que será gravado
+    // para o analista confirmar. Cancelar aqui não gera efeito colateral.
+    {
+      const companySet = new Set<string>();
+      const doctorSet = new Set<string>();
+      const sectorSet = new Set<string>();
+      const convenioSet = new Set<string>();
+      let gross = 0;
+      for (const r of allRows as any[]) {
+        if (r.company_id) companySet.add(String(r.company_id));
+        const dn = (r.doctor_name ?? "").toString().trim().toLowerCase();
+        if (dn) doctorSet.add(dn);
+        const bIdx = r.source_bucket_index as number | undefined;
+        const bSector = typeof bIdx === "number" ? buckets[bIdx]?.sectorMapping ?? null : null;
+        const sec = (r.sector ?? bSector ?? "").toString().trim();
+        if (sec) sectorSet.add(RULE_SECTOR_LABELS[sec as RuleSector] ?? sec);
+        const conv = (r.agreement_text ?? r.convenio_slug ?? "").toString().trim();
+        if (conv) convenioSet.add(conv);
+        const g = Number(r.gross_amount ?? 0);
+        if (Number.isFinite(g)) gross += g;
+      }
+      const previewData = {
+        totalRows: allRows.length,
+        distinctCompanies: companySet.size,
+        distinctDoctors: doctorSet.size,
+        grossTotal: gross,
+        sectors: Array.from(sectorSet).sort((a, b) => a.localeCompare(b, "pt-BR")).slice(0, 60),
+        convenios: Array.from(convenioSet).sort((a, b) => a.localeCompare(b, "pt-BR")).slice(0, 60),
+        reference: reference.trim(),
+        competenceMonths: [...competenceMonths].sort(),
+      };
+      const decision = await new Promise<"confirm" | "cancel">((resolve) => {
+        commitPreviewResolverRef.current = resolve;
+        setCommitPreviewState(previewData);
+      });
+      setCommitPreviewState(null);
+      commitPreviewResolverRef.current = null;
+      if (decision === "cancel") {
+        toast({ title: "Envio cancelado", description: "Nenhum item foi gravado." });
+        return;
       }
     }
 
@@ -5593,6 +5644,13 @@ const NewPayment = () => {
         current={parseProgress.current}
         total={parseProgress.total}
         fileName={parseProgress.fileName}
+      />
+      <CommitPreviewDialog
+        open={!!commitPreviewState}
+        data={commitPreviewState}
+        submitting={submitting}
+        onConfirm={() => commitPreviewResolverRef.current?.("confirm")}
+        onCancel={() => commitPreviewResolverRef.current?.("cancel")}
       />
     </>
   );
