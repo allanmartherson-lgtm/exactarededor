@@ -1401,7 +1401,10 @@ const NewPayment = () => {
     return null;
   };
 
-  const parseFile = async (f: File): Promise<FileBucket> => {
+  const parseFile = async (
+    f: File,
+    preloaded?: { matrix: unknown[][]; sheetName: string },
+  ): Promise<FileBucket> => {
     // 1) Extensão suportada
     const ext = (f.name.split(".").pop() || "").toLowerCase();
     if (!["xlsx", "xls", "csv"].includes(ext)) {
@@ -1412,36 +1415,46 @@ const NewPayment = () => {
       );
     }
 
-    // 2) Leitura do workbook
-    let wb: XLSX.WorkBook;
-    try {
-      const buf = await f.arrayBuffer();
-      wb = readWorkbookPreservingText(buf, { cellDates: false });
-    } catch (e) {
-      throw new ParseFileError(
-        "Não foi possível ler a planilha",
-        [`O arquivo parece corrompido ou não é uma planilha válida (${String((e as Error)?.message ?? e)}).`],
-        ["Abra o arquivo no Excel/Google Sheets, salve novamente como .xlsx e tente reenviar."],
-      );
+    // 2/3) Leitura + extração da matriz.
+    // Quando `preloaded` vem preenchido, o parse pesado (XLSX.read +
+    // sheet_to_json) já aconteceu no Web Worker — evita travar a main
+    // thread em lotes grandes. Mantemos o caminho síncrono como fallback
+    // para callers legados (ex.: replaceBucketFile em substituição rápida).
+    let matrix: unknown[][];
+    let sheetName: string;
+    if (preloaded) {
+      matrix = preloaded.matrix;
+      sheetName = preloaded.sheetName;
+    } else {
+      let wb: XLSX.WorkBook;
+      try {
+        const buf = await f.arrayBuffer();
+        wb = readWorkbookPreservingText(buf, { cellDates: false });
+      } catch (e) {
+        throw new ParseFileError(
+          "Não foi possível ler a planilha",
+          [`O arquivo parece corrompido ou não é uma planilha válida (${String((e as Error)?.message ?? e)}).`],
+          ["Abra o arquivo no Excel/Google Sheets, salve novamente como .xlsx e tente reenviar."],
+        );
+      }
+      if (!wb.SheetNames?.length) {
+        throw new ParseFileError(
+          "Planilha sem abas",
+          ["O arquivo não contém nenhuma aba de dados."],
+          ["Adicione uma aba com os dados de pagamento e reenvie."],
+        );
+      }
+      sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      preserveFormattedBrazilianNumbers(sheet);
+      matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
     }
-
-    // 3) Workbook tem abas
-    if (!wb.SheetNames?.length) {
-      throw new ParseFileError(
-        "Planilha sem abas",
-        ["O arquivo não contém nenhuma aba de dados."],
-        ["Adicione uma aba com os dados de pagamento e reenvie."],
-      );
-    }
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    preserveFormattedBrazilianNumbers(sheet);
-    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
 
     // 4) Conteúdo mínimo
     if (matrix.length === 0) {
       throw new ParseFileError(
         "Planilha vazia",
-        [`A primeira aba ("${wb.SheetNames[0]}") não contém linhas.`],
+        [`A primeira aba ("${sheetName}") não contém linhas.`],
         ["Verifique se você está enviando o arquivo certo e se a aba com os dados é a primeira."],
       );
     }
