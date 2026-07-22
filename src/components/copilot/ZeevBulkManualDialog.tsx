@@ -40,6 +40,8 @@ export type ZeevBulkItem = {
   procedure_code?: string | null;
   procedure_description?: string | null;
   procedure_amount?: number | null;
+  expected_amount?: number | null;
+  gross_amount?: number | null;
   attendance_number?: string | null;
 };
 
