@@ -842,6 +842,22 @@ export default function CompanyAnalysis() {
     reapplySnapshotRef.current = snapshot;
 
     const startedAt = Date.now();
+    // Métricas estruturadas do fluxo de reaplicar regras. Todos os logs saem
+    // com prefixo [reapply-metrics] para permitir filtro no devtools/console
+    // export sem depender apenas da mensagem exibida em tela.
+    const metrics: Record<string, number> = {};
+    const mark = (phase: string) => {
+      metrics[phase] = Date.now() - startedAt;
+      // eslint-disable-next-line no-console
+      console.info(`[reapply-metrics] ${phase}`, {
+        payment_id: id,
+        company: group.company_name,
+        items: itemIds.length,
+        elapsed_ms: metrics[phase],
+      });
+    };
+    mark("start");
+
     try {
       const runAi = !!opts?.runAi;
       const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
