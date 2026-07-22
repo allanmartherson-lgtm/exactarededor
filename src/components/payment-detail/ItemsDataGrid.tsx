@@ -94,6 +94,9 @@ import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
 import { CalcExceptionDialog } from "./CalcExceptionDialog";
 import { ManualInterventionDialog } from "./ManualInterventionDialog";
 import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ChevronUp, ChevronDown } from "lucide-react";
+
 
 /** Botão "Sinalizar caso especial" para um item específico — só aparece
  * quando existe ao menos 1 regra ativa do hospital com special_case_filter. */
