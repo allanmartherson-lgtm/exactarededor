@@ -2918,6 +2918,50 @@ const NewPayment = () => {
       }
     }
 
+    // === Preview do commit (dry-run visual) ===
+    // Última barreira antes de qualquer write. Resume o que será gravado
+    // para o analista confirmar. Cancelar aqui não gera efeito colateral.
+    {
+      const companySet = new Set<string>();
+      const doctorSet = new Set<string>();
+      const sectorSet = new Set<string>();
+      const convenioSet = new Set<string>();
+      let gross = 0;
+      for (const r of allRows as any[]) {
+        if (r.company_id) companySet.add(String(r.company_id));
+        const dn = (r.doctor_name ?? "").toString().trim().toLowerCase();
+        if (dn) doctorSet.add(dn);
+        const bIdx = r.source_bucket_index as number | undefined;
+        const bSector = typeof bIdx === "number" ? buckets[bIdx]?.sectorMapping ?? null : null;
+        const sec = (r.sector ?? bSector ?? "").toString().trim();
+        if (sec) sectorSet.add(RULE_SECTOR_LABELS[sec as RuleSector] ?? sec);
+        const conv = (r.agreement_text ?? r.convenio_slug ?? "").toString().trim();
+        if (conv) convenioSet.add(conv);
+        const g = Number(r.gross_amount ?? 0);
+        if (Number.isFinite(g)) gross += g;
+      }
+      const previewData = {
+        totalRows: allRows.length,
+        distinctCompanies: companySet.size,
+        distinctDoctors: doctorSet.size,
+        grossTotal: gross,
+        sectors: Array.from(sectorSet).sort((a, b) => a.localeCompare(b, "pt-BR")).slice(0, 60),
+        convenios: Array.from(convenioSet).sort((a, b) => a.localeCompare(b, "pt-BR")).slice(0, 60),
+        reference: reference.trim(),
+        competenceMonths: [...competenceMonths].sort(),
+      };
+      const decision = await new Promise<"confirm" | "cancel">((resolve) => {
+        commitPreviewResolverRef.current = resolve;
+        setCommitPreviewState(previewData);
+      });
+      setCommitPreviewState(null);
+      commitPreviewResolverRef.current = null;
+      if (decision === "cancel") {
+        toast({ title: "Envio cancelado", description: "Nenhum item foi gravado." });
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     // Upload de TODOS os arquivos originais (auditoria).
