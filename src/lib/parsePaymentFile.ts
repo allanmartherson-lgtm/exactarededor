@@ -758,32 +758,100 @@ export const extractCompanyFromFilename = (filename: string): string => {
   return name;
 };
 
-export const matchCompany = (rawName: string, companies: CompanyRow[]): { company: CompanyRow | null; score: number } => {
+/**
+ * Varre um texto (nome de arquivo, célula, cabeçalho) procurando sequências
+ * de 14 dígitos que passem no algoritmo oficial de dígito verificador do CNPJ.
+ * Retorna a primeira ocorrência VÁLIDA (apenas dígitos) ou null.
+ */
+export const findCnpjInText = (text: string | null | undefined): string | null => {
+  if (!text) return null;
+  const s = String(text);
+  const re = /\d{2}[.\s]?\d{3}[.\s]?\d{3}[\s/]?\d{4}[-\s]?\d{2}|\d{14}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    const digits = m[0].replace(/\D+/g, "");
+    if (digits.length !== 14) continue;
+    if (isValidCNPJ(digits)) return digits;
+  }
+  return null;
+};
+
+/** Casa uma PJ pelo CNPJ contra o registro. Comparação puramente numérica. */
+export const matchCompanyByDocument = (
+  cnpj: string,
+  companies: CompanyRow[],
+): CompanyRow | null => {
+  const target = cnpj.replace(/\D+/g, "");
+  if (target.length !== 14) return null;
+  for (const c of companies) {
+    const d = String(c.document ?? "").replace(/\D+/g, "");
+    if (d && d === target) return c;
+  }
+  return null;
+};
+
+/**
+ * Tenta achar CNPJ válido no nome do arquivo e nas primeiras N linhas do
+ * rawMatrix. Nome do arquivo tem prioridade — é mais deliberado; matriz é
+ * fallback (cabeçalho do TASY costuma trazer razão social + CNPJ nas
+ * primeiras linhas antes dos dados).
+ */
+export const findCnpjInFileContext = (
+  fileName: string | null | undefined,
+  rawMatrix: unknown[][] | null | undefined,
+  headerRowIndex: number | null | undefined,
+  scanRows = 20,
+): string | null => {
+  const fromName = findCnpjInText(fileName ?? "");
+  if (fromName) return fromName;
+  if (!rawMatrix?.length) return null;
+  const limit = Math.min(
+    rawMatrix.length,
+    typeof headerRowIndex === "number" ? headerRowIndex + 1 : scanRows,
+    scanRows,
+  );
+  for (let r = 0; r < limit; r++) {
+    const row = rawMatrix[r];
+    if (!row) continue;
+    for (const cell of row) {
+      const cnpj = findCnpjInText(cell == null ? "" : String(cell));
+      if (cnpj) return cnpj;
+    }
+  }
+  return null;
+};
+
+export const matchCompany = (
+  rawName: string,
+  companies: CompanyRow[],
+  ctx?: { fileName?: string | null; rawMatrix?: unknown[][] | null; headerRowIndex?: number | null },
+): { company: CompanyRow | null; score: number; via?: "document" | "name" } => {
+  // 1) CHAVE FORTE — CNPJ com DV válido no nome do arquivo ou cabeçalho da
+  //    planilha bate direto em companies.document. Match determinístico com
+  //    score 1.0, ignora nome (protege contra colisões tipo "Clínica X do Rio"
+  //    vs "Clínica X de Brasília" — CNPJs diferentes).
+  if (ctx) {
+    const cnpj = findCnpjInFileContext(ctx.fileName, ctx.rawMatrix, ctx.headerRowIndex);
+    if (cnpj) {
+      const byDoc = matchCompanyByDocument(cnpj, companies);
+      if (byDoc) return { company: byDoc, score: 1, via: "document" };
+    }
+  }
+
   if (!companies.length || !rawName) return { company: null, score: 0 };
-  // Limpa rawName de sufixos de setor/período (vindos do nome do arquivo). Sem isso,
-  // dois arquivos com o MESMO sufixo (ex.: "- Parecer Adulto") casam 100% nesse sufixo
-  // via aliases contaminados — gera falso positivo absurdo (SINUS sugerindo R E I).
   const rawClean = extractCompanyFromFilename(rawName);
   let best: { company: CompanyRow | null; score: number } = { company: null, score: 0 };
   for (const c of companies) {
     const candidates = [c.name, ...(c.aliases || [])];
     for (const cand of candidates) {
-      // SEMPRE comparar versões limpas dos dois lados. Comparar versões "raw"
-      // permite que aliases contaminados com sufixos comuns (ex.: "- Parecer Adulto",
-      // "- Centro Cirurgico") batam 92% entre arquivos DIFERENTES só porque
-      // compartilham o mesmo sufixo de setor — gerando falso-positivo cruzado
-      // (ex.: "SILVESTRINI ... - Parecer Adulto" sugerido como "R E I ..." porque
-      // ambos têm alias terminando em "- Parecer Adulto"). extractCompanyFromFilename
-      // é idempotente para nomes já limpos, então não regride matches legítimos.
       const candClean = extractCompanyFromFilename(cand);
       const rawCleanForCand = extractCompanyFromFilename(rawName);
       const s = similarity(rawCleanForCand || rawName, candClean || cand);
       if (s > best.score) best = { company: c, score: s };
-      if (best.score >= 0.999) return best; // early exit em match exato
+      if (best.score >= 0.999) return { ...best, via: "name" };
     }
   }
-
-  return best;
+  return { ...best, via: "name" };
 };
 
 // Limites de decisão. Centralizados para manter UI e parser em sincronia.
