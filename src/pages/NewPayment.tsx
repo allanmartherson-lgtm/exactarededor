@@ -1096,7 +1096,7 @@ const NewPayment = () => {
         for (let attempt = 0; attempt < 4; attempt++) {
           let q = supabase
             .from("companies")
-            .select("id,name,aliases")
+            .select("id,name,aliases,document")
             .order("id", { ascending: true })
             .limit(pageSize);
           if (afterId) q = q.gt("id", afterId);
