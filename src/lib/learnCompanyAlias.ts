@@ -47,6 +47,31 @@ export async function learnCompanyAlias(
 }
 
 /**
+ * Simétrico ao `learnCompanyAlias` — remove o apelido exato passado do array
+ * `aliases` da PJ. Usado no botão "Desfazer aprendizado" que aparece no toast
+ * logo após o vínculo, dando janela para o analista corrigir se percebeu que
+ * apontou pra PJ errada.
+ *
+ * Nunca renomeia a empresa nem toca outros campos — a RPC no banco só chama
+ * `array_remove` com match exato.
+ */
+export async function unlearnCompanyAlias(
+  client: Pick<SupabaseClient, "rpc">,
+  params: { companyId: string; rawName: string },
+): Promise<{ ok: boolean; error: string | null }> {
+  const trimmed = params.rawName.trim();
+  if (!trimmed) return { ok: false, error: "raw_name vazio" };
+
+  const { error } = await client.rpc("unlearn_company_alias" as never, {
+    _company_id: params.companyId,
+    _raw_name: trimmed,
+  } as never);
+
+  if (error) return { ok: false, error: error.message ?? String(error) };
+  return { ok: true, error: null };
+}
+
+/**
  * Decide se vale chamar `learnCompanyAlias` para o par (rawName, empresa).
  * Evita escrita redundante quando o nome bruto já é exatamente o `name` ou
  * já está em `aliases` (comparação case-insensitive + trim). Também rejeita
