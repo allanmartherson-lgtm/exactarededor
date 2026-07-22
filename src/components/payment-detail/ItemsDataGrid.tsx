@@ -700,8 +700,8 @@ function ParecerUnverifiedActions({
     }
   };
   return (
-    <div className="rounded-md border border-dashed border-amber-300/70 bg-amber-50/40 dark:bg-amber-950/15 dark:border-amber-900/60 px-3 py-2 flex flex-col gap-2 min-w-0">
-      <p className="text-xs text-amber-900 dark:text-amber-200 break-words">
+    <div className="rounded-md border border-dashed border-amber-300/70 bg-amber-50/40 dark:bg-amber-950/15 dark:border-amber-900/60 px-3 py-2 flex flex-col gap-2 min-w-0 max-w-full w-full overflow-hidden">
+      <p className="text-xs text-amber-900 dark:text-amber-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] whitespace-normal">
         <strong>Parecer sem registro no Tasy</strong> — decida a classificação para
         este item. A decisão manual será registrada e protegida do motor automático.
       </p>
