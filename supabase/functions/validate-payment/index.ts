@@ -313,16 +313,32 @@ function applyDuplicidadeLancamento(
             ? (externalRefById.get(partner.payment_id) ?? null)
             : paymentReference,
         };
+
+        // Rebaixamento por médico diferente:
+        // Duplicidade EXATA só ocorre quando o médico também é o mesmo
+        // (SHA256 atendimento|convênio|data|TUSS|função + médico).
+        // Quando doctor_mode = "any" e os médicos do par são diferentes,
+        // rebaixa o achado para "info/alerta" — mantém visibilidade
+        // sem reprovar o item, pois é apenas possível sobreposição.
+        const sameDoctor =
+          !!normName(dupe.doctor_name ?? "")
+          && normName(dupe.doctor_name ?? "") === normName(partner.doctor_name ?? "");
+        const downgrade = params.doctor_mode === "any" && !sameDoctor;
+
         const list = findingsByItem.get(dupe.id) ?? [];
         list.push({
           rule_id: rule.id,
           rule_name: rule.name,
           kind: rule.kind,
-          severity: rule.severity,
-          action: rule.action,
-          message: crossBatch
-            ? `Duplicidade entre lotes: mesmo ${reason} (lote ${snapshot.payment_reference ?? "anterior"}).`
-            : `Duplicidade de lançamento: mesmo ${reason}.`,
+          severity: downgrade ? "info" : rule.severity,
+          action: downgrade ? "alerta" : rule.action,
+          message: downgrade
+            ? (crossBatch
+                ? `Possível sobreposição entre lotes (médicos diferentes): mesmo ${reason} (lote ${snapshot.payment_reference ?? "anterior"}).`
+                : `Possível sobreposição (médicos diferentes): mesmo ${reason}.`)
+            : (crossBatch
+                ? `Duplicidade entre lotes: mesmo ${reason} (lote ${snapshot.payment_reference ?? "anterior"}).`
+                : `Duplicidade de lançamento: mesmo ${reason}.`),
           conflicting_item_id: partner.id,
           conflicting_item: snapshot,
           detected_at: now,
