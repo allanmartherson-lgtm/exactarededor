@@ -94,6 +94,9 @@ import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
 import { CalcExceptionDialog } from "./CalcExceptionDialog";
 import { ManualInterventionDialog } from "./ManualInterventionDialog";
 import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+
+
 
 /** Botão "Sinalizar caso especial" para um item específico — só aparece
  * quando existe ao menos 1 regra ativa do hospital com special_case_filter. */
@@ -2447,21 +2450,7 @@ export function ItemsDataGrid({
     const inner = el.firstElementChild as HTMLElement | null;
     if (inner) ro.observe(inner);
     return () => ro.disconnect();
-  }, [items.length, expandedId]);
-
-
-  // Auto-scroll: quando o usuário expande uma linha inline, garantimos que o
-  // painel apareça visível dentro da grid (e na viewport da página).
-  useEffect(() => {
-    if (!expandedId) return;
-    const raf = requestAnimationFrame(() => {
-      const panel = gridScrollRef.current?.querySelector<HTMLElement>(
-        `[data-expanded-row="${CSS.escape(expandedId)}"]`,
-      );
-      panel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [expandedId]);
+  }, [items.length]);
 
 
   const syncScrollLeft = (source: "top" | "grid", left: number) => {
@@ -2469,14 +2458,14 @@ export function ItemsDataGrid({
     if (target && Math.abs(target.scrollLeft - left) > 1) target.scrollLeft = left;
   };
 
-  // Estimativa de altura: rows + banners de pacote/regra + painel expandido + chrome.
-  // ~38px por linha (compacto), ~44px por banner de grupo, ~320px quando há painel
-  // expandido inline, ~140px de chrome (toolbar + header + scrollbar + footer).
+  // Estimativa de altura: rows + banners de pacote/regra + chrome.
+  // O painel de detalhes agora abre em um drawer lateral (Sheet), não empurra
+  // mais a tabela, então não somamos altura extra por linha expandida.
   const estimatedHeight =
     items.length * 38 +
     packageGroups.size * 44 +
-    (expandedId ? 320 : 0) +
     140;
+
 
   return (
     // Altura própria pra ativar o scroll interno mesmo dentro de um pai sem altura.
@@ -3273,30 +3262,9 @@ export function ItemsDataGrid({
                     </div>
                   </li>
                   )}
-                  {expandedId === it.id && !isBonus && (
-                    <li key={`exp-${it.id}`} className="bg-muted/20 p-0">
-                      <table className="w-full">
-                        <tbody>
-                          <ItemDetailsRow
-                            it={it}
-                            allItems={items}
-                            rulesIndex={rulesIndex}
-                            rulesByName={rulesByName}
-                            observations={observations}
-                            profiles={profiles}
-                            colSpan={1}
-                            showTipoEntrada={!!colVis.tipo_entrada}
-                            visitaPaymentTypeId={visitaPaymentTypeId}
-                            parecerPaymentTypeId={parecerPaymentTypeId}
-                            lotePaymentTypeId={lotePaymentTypeId}
-                            isParecerPayment={isParecerPayment}
-                            canEdit={canEdit}
-                            onChangeCaseSubtype={changeCaseSubtype}
-                          />
-                        </tbody>
-                      </table>
-                    </li>
-                  )}
+                  {/* Painel de detalhes agora abre em drawer lateral (Sheet)
+                      no rodapé do componente — não empurra mais a lista. */}
+
                 </Fragment>
 
               );
@@ -4037,9 +4005,91 @@ export function ItemsDataGrid({
           Use ↑/↓ ou j/k para navegar · Enter para expandir/colapsar · Esc para fechar
         </div>
       )}
+
+      {/* ============================================================
+          Painel lateral (drawer) de detalhes do item.
+          Substitui a antiga expansão inline que deslocava a tabela.
+          ============================================================ */}
+      <Sheet
+        open={!!expandedId}
+        onOpenChange={(open) => { if (!open) setExpandedId(null); }}
+      >
+        <SheetContent
+          side="right"
+          className="sm:max-w-[520px] w-full p-0 overflow-hidden flex flex-col"
+        >
+          {(() => {
+            const it = items.find((x) => x.id === expandedId);
+            if (!it) return null;
+            const idx = items.findIndex((x) => x.id === expandedId);
+            const prev = idx > 0 ? items[idx - 1] : null;
+            const next = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
+            const statusLabel = ((it as any).ai_status ?? (it as any).status ?? "—") as string;
+            const patient = getPatient(it);
+            const proc = `${getProcedureCode(it)} — ${getProcedureName(it)}`;
+            return (
+              <>
+                <div className="flex items-start justify-between gap-2 border-b bg-primary text-primary-foreground px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] uppercase tracking-wide opacity-80">Detalhes do item</div>
+                    <div className="text-sm font-semibold truncate">{patient}</div>
+                    <div className="text-[11px] opacity-90 truncate" title={proc}>{proc}</div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-7 w-7 text-primary-foreground hover:bg-white/10"
+                      disabled={!prev}
+                      onClick={() => prev && setExpandedId(prev.id)}
+                      title="Item anterior"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-7 w-7 text-primary-foreground hover:bg-white/10"
+                      disabled={!next}
+                      onClick={() => next && setExpandedId(next.id)}
+                      title="Próximo item"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <span className="ml-2 text-[10px] uppercase font-semibold rounded bg-white/15 px-2 py-0.5">
+                      {statusLabel}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  <table className="w-full">
+                    <tbody>
+                      <ItemDetailsRow
+                        it={it}
+                        allItems={items}
+                        rulesIndex={rulesIndex}
+                        rulesByName={rulesByName}
+                        observations={observations}
+                        profiles={profiles}
+                        colSpan={1}
+                        showTipoEntrada={!!colVis.tipo_entrada}
+                        visitaPaymentTypeId={visitaPaymentTypeId}
+                        parecerPaymentTypeId={parecerPaymentTypeId}
+                        lotePaymentTypeId={lotePaymentTypeId}
+                        isParecerPayment={isParecerPayment}
+                        canEdit={canEdit}
+                        onChangeCaseSubtype={changeCaseSubtype}
+                      />
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
+
 
 // ============================================================
 //  PackageBannerRow — cabeçalho colapsável de grupo de pacote
@@ -4799,8 +4849,9 @@ function RowMain({
         title="Duplo clique para expandir detalhes"
         className={cn(
           "group cursor-pointer hover:bg-primary/[0.06] transition-colors select-text border-b border-primary/[0.08]",
-          isExpanded && "ring-1 ring-inset ring-primary/40",
+          isExpanded && "bg-primary/10 ring-1 ring-inset ring-primary/40",
         )}
+
       >
         {colVis.atendimento && (
           <td className={cn(cell, "font-mono", TEXT_META)} title={it.attendance_number ?? ""}>
@@ -5250,24 +5301,9 @@ function RowMain({
           </td>
         )}
       </tr>
-      {isExpanded && (
-        <ItemDetailsRow
-          it={it}
-          allItems={allItems}
-          rulesIndex={rulesIndex}
-          rulesByName={rulesByName}
-          observations={observations}
-          profiles={profiles}
-          colSpan={totalCols}
-          showTipoEntrada={!!colVis.tipo_entrada}
-          visitaPaymentTypeId={visitaPaymentTypeId}
-          parecerPaymentTypeId={parecerPaymentTypeId}
-          lotePaymentTypeId={lotePaymentTypeId}
-          isParecerPayment={isParecerPayment}
-          canEdit={canEdit}
-          onChangeCaseSubtype={onChangeCaseSubtype}
-        />
-      )}
+      {/* Detalhes agora abrem em drawer lateral (Sheet) montado no root
+          do ItemsDataGrid — não injeta mais linha extra na tabela. */}
+
     </>
   );
 }
