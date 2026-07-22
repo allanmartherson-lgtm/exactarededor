@@ -89,9 +89,12 @@ export function ExcelPreviewDialog({ open, onOpenChange, fileName, matrix, heade
   const headers = (safeMatrix[hIdx] as unknown[] | undefined) ?? [];
   const dataRows = safeMatrix.slice(hIdx + 1);
 
+  // Pré-detecta tipo por coluna para reformatar seriais Excel na exibição.
+  const colKinds = React.useMemo(() => headers.map((h) => detectColKind(String(h ?? ""))), [headers]);
+
   const q = query.trim().toLowerCase();
   const filtered = q
-    ? dataRows.filter((row) => (row ?? []).some((c) => String(c ?? "").toLowerCase().includes(q)))
+    ? dataRows.filter((row) => (row ?? []).some((c, ci) => formatCell(c, colKinds[ci] ?? "other").toLowerCase().includes(q)))
     : dataRows;
   const shown = filtered.slice(0, MAX_ROWS);
   const truncated = filtered.length > MAX_ROWS;
