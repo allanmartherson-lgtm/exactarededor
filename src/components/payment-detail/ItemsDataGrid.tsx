@@ -478,7 +478,7 @@ function RowActionsSplit({
             type="button"
             onClick={() => onAcceptItem(it)}
             className={cn(
-              "h-7 rounded-r-none border border-r-0 px-2.5",
+              "h-7 rounded-r-none border border-r-0 px-2.5 min-w-[92px] justify-center",
               "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
               "text-[11px] font-medium shadow-none",
             )}
@@ -2451,7 +2451,7 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   const statusColumnWidth = Math.max(getWidth("status", 132), 132);
-  const actionColumnWidth = 130;
+  const actionColumnWidth = 140;
 
   const tableMinWidth = 24 +
     (colVis.atendimento ? getWidth("atendimento", 160) : 0) +
@@ -4829,6 +4829,10 @@ function RowMain({
   const wrapClass = isCompact
     ? "block whitespace-normal break-words leading-[1.1] min-w-0"
     : "block whitespace-normal break-words leading-snug min-w-0";
+  // Texto das células SEM font-size fixo — herda do inline fontSize no <table>
+  // (baseFontPx * zoom). Isso faz o zoom real funcionar (13px confortável, 10px
+  // compacto a 100%) em vez de ficar preso em text-xs (12px).
+  const CELL_TEXT = "leading-snug tracking-normal";
   const cell = cn(cellPad, "border-b align-top break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
@@ -4955,7 +4959,7 @@ function RowMain({
             </td>
           );
         })()}
-        <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>
+        <td className={cn(stickyCell, CELL_TEXT)} title={paciente}>
 
           <div className="flex items-center gap-1.5 min-w-0">
             {observations.some(o => o.item_id === it.id && o.observation_type === "justificativa_override") && (
@@ -4976,7 +4980,7 @@ function RowMain({
           </td>
         )}
         {colVis.via && (
-          <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+          <td className={cn(cell, CELL_TEXT)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
         <td className={cn(cell, "font-mono", TEXT_META)}>
           {isBonus ? (
@@ -4995,7 +4999,7 @@ function RowMain({
             : (Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Number(it.quantity) : 1)}
         </td>
         {colVis.procedimento && (
-          <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
+          <td className={cn(cell, CELL_TEXT)} title={it.procedure_name ?? (it as any).applied_rule_label ?? it.description ?? ""}>
             {isBonus ? (
               <span className="inline-flex items-center gap-1.5 min-w-0">
                 <span
@@ -5043,7 +5047,7 @@ function RowMain({
             />
           </td>
         )}
-        <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
+        <td className={cn(cell, CELL_TEXT)} title={it.doctor_name ?? ""}>
           <span className={wrapClass}>{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
@@ -5053,7 +5057,7 @@ function RowMain({
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
         {showGrossColumn && (
-          <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
+          <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap overflow-hidden text-ellipsis border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
             <span className="inline-flex items-center justify-end">
               {formatCurrency(grossN)}
               {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
@@ -5072,7 +5076,7 @@ function RowMain({
         {showProcedureColumn && (() => {
           const procN = Number((it as any).procedure_amount ?? 0);
           return (
-            <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-muted-foreground")}>
+            <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap overflow-hidden text-ellipsis border-b", baseCellBg, isBonus && "text-muted-foreground")}>
               {isBonus ? "—" : (procN > 0 ? formatCurrency(procN) : "—")}
             </td>
           );
@@ -5083,8 +5087,8 @@ function RowMain({
         <td
           className={cn(
             cellPad,
-            TEXT_BODY,
-            "text-right tabular-nums whitespace-nowrap border-b font-medium",
+            CELL_TEXT,
+            "text-right tabular-nums whitespace-nowrap overflow-hidden text-ellipsis border-b font-medium",
             isBonus ? "text-muted-foreground" : (diverges ? "text-warning-text" : "text-foreground"),
             baseCellBg,
           )}
@@ -5121,8 +5125,8 @@ function RowMain({
           <td
             className={cn(
               cellPad,
-              TEXT_BODY,
-              "text-right tabular-nums whitespace-nowrap border-b",
+              CELL_TEXT,
+              "text-right tabular-nums whitespace-nowrap overflow-hidden text-ellipsis border-b",
               isBonus ? "text-muted-foreground" : (diff != null && diverges ? (diff < 0 ? "text-warning-text" : "text-success") : "text-muted-foreground"),
               baseCellBg,
             )}
@@ -5278,7 +5282,7 @@ function RowMain({
         )}
         {canEdit && (
           <td
-            className={cn(cellPad, "text-center border-b whitespace-nowrap sticky right-0 z-10 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
+            className={cn(cellPad, "text-center border-b whitespace-nowrap sticky right-0 z-20 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
             onClick={(e) => e.stopPropagation()}
           >
             {/*
