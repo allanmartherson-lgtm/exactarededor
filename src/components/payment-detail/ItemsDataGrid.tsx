@@ -1263,51 +1263,11 @@ export function ItemsDataGrid({
   const [collapsedPackages, setCollapsedPackages] = useState<Set<string>>(new Set());
   const [collapsedAttendances, setCollapsedAttendances] = useState<Set<string>>(new Set());
 
-  // Persiste filtros sempre que mudarem (debounce simples via microtask).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        FILTERS_PREFS_KEY,
-        JSON.stringify({
-          filter,
-          patientFilter,
-          doctorFilter,
-          statusFilter,
-          convenioFilter,
-          onlyAlerts,
-          onlyManualBonus,
-          onlyNeedsReview,
-          onlyValidationAlerts,
-          onlyAdjusted,
-          parecerFilter,
-          onlyZero,
-          onlySemRegra,
-          onlyPisoAplicado,
-          turnoFilter,
-        }),
-      );
-    } catch {
-      /* ignore quota */
-    }
-  }, [
-    FILTERS_PREFS_KEY,
-    filter,
-    patientFilter,
-    doctorFilter,
-    statusFilter,
-    convenioFilter,
-    onlyAlerts,
-    onlyManualBonus,
-    onlyNeedsReview,
-    onlyValidationAlerts,
-    onlyAdjusted,
-    parecerFilter,
-    onlyZero,
-    onlySemRegra,
-    onlyPisoAplicado,
-    turnoFilter,
-  ]);
+  // Filtros de dados NÃO são persistidos entre sessões/lotes — evita filtro
+  // fantasma ao trocar de pagamento. Preferências visuais (colunas, densidade,
+  // zoom, ordenação) continuam persistindo em outras chaves.
+
+
 
   // Tipos de pagamento usados pela reclassificação Visita × Parecer dentro do lote.
   // O tipo do lote (geralmente Parecer Adulto/Pediátrico) é lido do primeiro item;
