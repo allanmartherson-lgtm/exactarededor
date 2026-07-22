@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, ListChecks, Building2, Stethoscope, Wallet } from "lucide-react";
 
 export type CommitPreviewData = {
   totalRows: number;
@@ -46,10 +46,10 @@ export function CommitPreviewDialog({ open, data, submitting, onConfirm, onCance
         </DialogHeader>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Kpi label="Linhas" value={data.totalRows.toLocaleString("pt-BR")} />
-          <Kpi label="PJs" value={data.distinctCompanies.toLocaleString("pt-BR")} />
-          <Kpi label="Médicos" value={data.distinctDoctors.toLocaleString("pt-BR")} />
-          <Kpi label="Bruto total" value={brl(data.grossTotal)} highlight />
+          <Kpi label="Linhas" value={data.totalRows.toLocaleString("pt-BR")} tone="info" icon={ListChecks} />
+          <Kpi label="PJs" value={data.distinctCompanies.toLocaleString("pt-BR")} tone="brand" icon={Building2} />
+          <Kpi label="Médicos" value={data.distinctDoctors.toLocaleString("pt-BR")} tone="success" icon={Stethoscope} />
+          <Kpi label="Bruto total" value={brl(data.grossTotal)} tone="highlight" icon={Wallet} />
         </div>
 
         <div className="space-y-3 mt-2 max-h-[45vh] overflow-y-auto pr-1">
@@ -91,11 +91,37 @@ export function CommitPreviewDialog({ open, data, submitting, onConfirm, onCance
   );
 }
 
-function Kpi({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+// Tons semânticos por KPI — cada card ganha cor própria em vez de cinza uniforme.
+const kpiTone = {
+  info: { wrap: "bg-info-soft/60 border-info/30", icon: "text-info", value: "text-info-text" },
+  brand: { wrap: "bg-primary-soft/40 border-primary/30", icon: "text-primary", value: "text-primary-dark" },
+  success: { wrap: "bg-success-soft/70 border-success/30", icon: "text-success", value: "text-success-text" },
+  highlight: {
+    wrap: "bg-[image:var(--gradient-soft)] border-primary/40 ring-1 ring-primary/10",
+    icon: "text-primary",
+    value: "text-primary-dark",
+  },
+} as const;
+
+function Kpi({
+  label,
+  value,
+  tone,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  tone: keyof typeof kpiTone;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  const t = kpiTone[tone];
   return (
-    <div className={`rounded-md border p-3 ${highlight ? "bg-primary/5 border-primary/30" : "bg-muted/30"}`}>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold mt-0.5">{value}</div>
+    <div className={`rounded-md border p-3 ${t.wrap}`}>
+      <div className="flex items-center gap-1.5">
+        <Icon className={`h-3.5 w-3.5 ${t.icon}`} />
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{label}</div>
+      </div>
+      <div className={`text-lg font-semibold mt-1 ${t.value}`}>{value}</div>
     </div>
   );
 }
@@ -122,7 +148,11 @@ function Section({
           {items.map((it) => {
             const isNew = newSet.has(it.toLowerCase());
             return (
-              <Badge key={it} variant={isNew ? "default" : "outline"} className={isNew ? "bg-amber-500 hover:bg-amber-500" : ""}>
+              <Badge
+                key={it}
+                variant={isNew ? "default" : "outline"}
+                className={isNew ? "bg-warning text-warning-foreground hover:bg-warning" : ""}
+              >
                 {it}{isNew ? " · novo" : ""}
               </Badge>
             );

@@ -50,8 +50,10 @@ export const FormDialog = ({
           className,
         )}
       >
-        <DialogHeader className="p-4 sm:p-6 pb-2 sticky top-0 bg-background z-10">
-          <DialogTitle>{title}</DialogTitle>
+        {/* Header ganha fundo em gradient suave da marca CURA para tirar o
+            aspecto flat/cinza e reforçar identidade Rede D'Or. */}
+        <DialogHeader className="p-4 sm:p-6 pb-3 sm:pb-4 sticky top-0 z-10 bg-[image:var(--gradient-soft)] border-b border-primary/15">
+          <DialogTitle className="text-primary-dark">{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
@@ -60,7 +62,7 @@ export const FormDialog = ({
         </div>
 
         {footer && (
-          <DialogFooter className="p-4 sm:p-6 pt-3 sm:pt-4 border-t bg-muted/10 sticky bottom-0">
+          <DialogFooter className="p-4 sm:p-6 pt-3 sm:pt-4 border-t border-primary/10 bg-muted/30 sticky bottom-0">
             {footer}
           </DialogFooter>
         )}

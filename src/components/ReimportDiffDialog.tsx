@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, ArrowRight, ChevronDown, ChevronRight, FileCheck2 } from "lucide-react";
+import { AlertCircle, ArrowRight, ChevronDown, ChevronRight, FileCheck2, Plus, Minus, Pencil } from "lucide-react";
 import type { ReimportDiff } from "@/lib/reimportDiff";
 
 const currency = (v: number | null | undefined) =>
@@ -52,19 +52,35 @@ export function ReimportDiffDialog({ open, diff, sha256Matched, busy, onCancel, 
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* KPI cards */}
+          {/* KPI cards — cada tipo de mudança com sua cor semântica, gradient suave
+              e ícone à esquerda para leitura rápida. */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-md border border-success/30 bg-success/5 p-3">
-              <p className="text-[11px] uppercase tracking-wider text-success font-semibold">Novas linhas</p>
-              <p className="text-2xl font-bold text-success">+{diff.addedCount}</p>
+            <div className="rounded-md border border-success/40 bg-gradient-to-br from-success-soft/80 to-success-soft/40 p-3 flex items-start gap-2">
+              <div className="rounded-md bg-success/15 p-1.5">
+                <Plus className="h-4 w-4 text-success" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wider text-success-text font-semibold">Novas linhas</p>
+                <p className="text-2xl font-bold text-success-text leading-tight">+{diff.addedCount}</p>
+              </div>
             </div>
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
-              <p className="text-[11px] uppercase tracking-wider text-destructive font-semibold">Não estão mais no arquivo</p>
-              <p className="text-2xl font-bold text-destructive">−{diff.removedCount}</p>
+            <div className="rounded-md border border-destructive/40 bg-gradient-to-br from-destructive-soft to-destructive-soft/50 p-3 flex items-start gap-2">
+              <div className="rounded-md bg-destructive/15 p-1.5">
+                <Minus className="h-4 w-4 text-destructive" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wider text-destructive-text font-semibold">Não estão mais no arquivo</p>
+                <p className="text-2xl font-bold text-destructive-text leading-tight">−{diff.removedCount}</p>
+              </div>
             </div>
-            <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
-              <p className="text-[11px] uppercase tracking-wider text-warning font-semibold">Valor alterado</p>
-              <p className="text-2xl font-bold text-warning">{diff.changed.length}</p>
+            <div className="rounded-md border border-warning/40 bg-gradient-to-br from-warning-soft to-warning-soft/50 p-3 flex items-start gap-2">
+              <div className="rounded-md bg-warning/20 p-1.5">
+                <Pencil className="h-4 w-4 text-warning-text" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wider text-warning-text font-semibold">Valor alterado</p>
+                <p className="text-2xl font-bold text-warning-text leading-tight">{diff.changed.length}</p>
+              </div>
             </div>
           </div>
 
@@ -73,7 +89,16 @@ export function ReimportDiffDialog({ open, diff, sha256Matched, busy, onCancel, 
             <span>Bruto anterior: <strong className="text-foreground">{currency(diff.totalBefore)}</strong></span>
             <ArrowRight className="h-3 w-3" />
             <span>Bruto novo: <strong className="text-foreground">{currency(diff.totalAfter)}</strong></span>
-            <Badge variant={Math.abs(deltaTotal) < 0.01 ? "outline" : deltaTotal > 0 ? "default" : "secondary"} className="ml-auto">
+            <Badge
+              className={
+                "ml-auto " +
+                (Math.abs(deltaTotal) < 0.01
+                  ? "bg-muted text-muted-foreground hover:bg-muted"
+                  : deltaTotal > 0
+                    ? "bg-success text-success-foreground hover:bg-success"
+                    : "bg-destructive text-destructive-foreground hover:bg-destructive")
+              }
+            >
               Δ {currency(deltaTotal)}
             </Badge>
           </div>
