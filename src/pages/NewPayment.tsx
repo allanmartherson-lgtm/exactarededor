@@ -21,6 +21,7 @@ import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type 
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, AlertTriangle, Pencil, Plus, RefreshCw, Calculator, History, Focus, Target, Bot } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ExcelPreviewDialog } from "@/components/shared/ExcelPreviewDialog";
+import { ParseProgressDialog } from "@/components/ParseProgressDialog";
 import { Eye } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
