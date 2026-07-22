@@ -87,6 +87,7 @@ import { ZeevAssistant, type ZeevInsight } from "@/components/copilot/ZeevAssist
 import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevStagingChat";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { notifyIfHidden, isPageHidden, onNextVisible } from "@/lib/backgroundNotify";
 
 interface ParsedRow {
   doctor_name: string;
