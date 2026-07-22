@@ -57,13 +57,16 @@ describe("matchCompany — guarda de token distintivo", () => {
     expect(score).toBeGreaterThanOrEqual(MATCH_AUTO_THRESHOLD);
   });
 
-  it("variações ortográficas leves não passam mais no automático sem alias exato", () => {
-    // "Otorrino" ≈ "Otorhino" via Levenshtein em tokens ≥6 chars
+  it("variações ortográficas leves não passam mais no automático nem geram sugestão sem alias exato", () => {
+    // "Otorrino" ≈ "Otorhino" via Levenshtein em tokens ≥6 chars — score fica
+    // acima do antigo REVIEW (0.55) mas abaixo do novo (0.90). Política atual:
+    // sem alias explícito, o arquivo cai como "sem PJ" (stand-by) e o analista
+    // vincula manualmente para evitar falso-positivo silencioso.
     const s = similarity(
       "BSB Otorhino Servicos Saude",
       "BSB Otorrino Servicos de Saude LTDA",
     );
     expect(s).toBeLessThan(MATCH_AUTO_THRESHOLD);
-    expect(s).toBeGreaterThanOrEqual(MATCH_REVIEW_THRESHOLD);
+    expect(s).toBeLessThan(MATCH_REVIEW_THRESHOLD);
   });
 });
