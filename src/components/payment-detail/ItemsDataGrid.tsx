@@ -4767,8 +4767,9 @@ function RowMain({
         title="Duplo clique para expandir detalhes"
         className={cn(
           "group cursor-pointer hover:bg-primary/[0.06] transition-colors select-text border-b border-primary/[0.08]",
-          isExpanded && "ring-1 ring-inset ring-primary/40",
+          isExpanded && "bg-primary/10 ring-1 ring-inset ring-primary/40",
         )}
+
       >
         {colVis.atendimento && (
           <td className={cn(cell, "font-mono", TEXT_META)} title={it.attendance_number ?? ""}>
