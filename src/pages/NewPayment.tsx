@@ -21,6 +21,7 @@ import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type 
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, AlertTriangle, Pencil, Plus, RefreshCw, Calculator, History, Focus, Target, Bot } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ExcelPreviewDialog } from "@/components/shared/ExcelPreviewDialog";
+import { ParseProgressDialog } from "@/components/ParseProgressDialog";
 import { Eye } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
@@ -552,6 +553,13 @@ const NewPayment = () => {
   useEffect(() => { findMatchingTemplateRef.current = findMatchingTemplate; }, [findMatchingTemplate]);
   useEffect(() => { markTemplateUsedRef.current = markTemplateUsed; }, [markTemplateUsed]);
   const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
+  const [parseProgress, setParseProgress] = useState<{
+    open: boolean;
+    phase: import("@/components/ParseProgressDialog").ParseProgressPhase;
+    current: number;
+    total: number;
+    fileName: string;
+  }>({ open: false, phase: "lendo_arquivo", current: 0, total: 0, fileName: "" });
   const [submitting, setSubmitting] = useState(false);
   const [includeAiOnSubmit, setIncludeAiOnSubmit] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
@@ -1401,7 +1409,10 @@ const NewPayment = () => {
     return null;
   };
 
-  const parseFile = async (f: File): Promise<FileBucket> => {
+  const parseFile = async (
+    f: File,
+    preloaded?: { matrix: unknown[][]; sheetName: string },
+  ): Promise<FileBucket> => {
     // 1) Extensão suportada
     const ext = (f.name.split(".").pop() || "").toLowerCase();
     if (!["xlsx", "xls", "csv"].includes(ext)) {
@@ -1412,36 +1423,46 @@ const NewPayment = () => {
       );
     }
 
-    // 2) Leitura do workbook
-    let wb: XLSX.WorkBook;
-    try {
-      const buf = await f.arrayBuffer();
-      wb = readWorkbookPreservingText(buf, { cellDates: false });
-    } catch (e) {
-      throw new ParseFileError(
-        "Não foi possível ler a planilha",
-        [`O arquivo parece corrompido ou não é uma planilha válida (${String((e as Error)?.message ?? e)}).`],
-        ["Abra o arquivo no Excel/Google Sheets, salve novamente como .xlsx e tente reenviar."],
-      );
+    // 2/3) Leitura + extração da matriz.
+    // Quando `preloaded` vem preenchido, o parse pesado (XLSX.read +
+    // sheet_to_json) já aconteceu no Web Worker — evita travar a main
+    // thread em lotes grandes. Mantemos o caminho síncrono como fallback
+    // para callers legados (ex.: replaceBucketFile em substituição rápida).
+    let matrix: unknown[][];
+    let sheetName: string;
+    if (preloaded) {
+      matrix = preloaded.matrix;
+      sheetName = preloaded.sheetName;
+    } else {
+      let wb: XLSX.WorkBook;
+      try {
+        const buf = await f.arrayBuffer();
+        wb = readWorkbookPreservingText(buf, { cellDates: false });
+      } catch (e) {
+        throw new ParseFileError(
+          "Não foi possível ler a planilha",
+          [`O arquivo parece corrompido ou não é uma planilha válida (${String((e as Error)?.message ?? e)}).`],
+          ["Abra o arquivo no Excel/Google Sheets, salve novamente como .xlsx e tente reenviar."],
+        );
+      }
+      if (!wb.SheetNames?.length) {
+        throw new ParseFileError(
+          "Planilha sem abas",
+          ["O arquivo não contém nenhuma aba de dados."],
+          ["Adicione uma aba com os dados de pagamento e reenvie."],
+        );
+      }
+      sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      preserveFormattedBrazilianNumbers(sheet);
+      matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
     }
-
-    // 3) Workbook tem abas
-    if (!wb.SheetNames?.length) {
-      throw new ParseFileError(
-        "Planilha sem abas",
-        ["O arquivo não contém nenhuma aba de dados."],
-        ["Adicione uma aba com os dados de pagamento e reenvie."],
-      );
-    }
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    preserveFormattedBrazilianNumbers(sheet);
-    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
 
     // 4) Conteúdo mínimo
     if (matrix.length === 0) {
       throw new ParseFileError(
         "Planilha vazia",
-        [`A primeira aba ("${wb.SheetNames[0]}") não contém linhas.`],
+        [`A primeira aba ("${sheetName}") não contém linhas.`],
         ["Verifique se você está enviando o arquivo certo e se a aba com os dados é a primeira."],
       );
     }
@@ -1723,27 +1744,91 @@ const NewPayment = () => {
 
   const onFiles = async (fileList: FileList) => {
     const files = Array.from(fileList);
-    // Parsing PARALELO com yields. Antes era sequencial (for + await), o que
-    // bloqueava o main thread e fazia o sistema "cansar" nos últimos arquivos
-    // de lotes grandes. Agora cada parse roda em paralelo (XLSX.read é pesado
-    // mas o JS engine intercala melhor) e o setTimeout(0) inicial libera o
-    // ciclo de render antes de cada parse começar.
     type ParseOk = { ok: true; bucket: FileBucket; file: File; error: null };
     type ParseErr = { ok: false; bucket: null; file: File; error: unknown };
-    const results = await Promise.all<ParseOk | ParseErr>(
-      files.map((f) =>
-        new Promise<ParseOk | ParseErr>((resolve) => {
-          setTimeout(async () => {
-            try {
-              const bucket = await parseFile(f);
-              resolve({ ok: true, bucket, file: f, error: null });
-            } catch (error) {
-              resolve({ ok: false, bucket: null, file: f, error });
-            }
-          }, 0);
-        }),
+
+    // Fase 1: leitura pesada (XLSX.read + sheet_to_json) em Web Workers,
+    // um por arquivo — libera a main thread durante o parse de lotes
+    // grandes (Ambulatório HDF chega a 3-4 mil linhas). O Dialog de
+    // progresso dá feedback visual porque antes o analista via a UI
+    // travada e não sabia se o sistema tinha morrido.
+    setParseProgress({
+      open: true,
+      phase: "lendo_arquivo",
+      current: 0,
+      total: files.length,
+      fileName: files[0]?.name ?? "",
+    });
+
+    const preloadedResults = await Promise.all(
+      files.map(
+        (f, idx) =>
+          new Promise<{ file: File; preloaded: { matrix: unknown[][]; sheetName: string } | null; error: unknown }>(
+            (resolve) => {
+              const worker = new Worker(
+                new URL("../workers/parse-payment.worker.ts", import.meta.url),
+                { type: "module" },
+              );
+              const fileId = `${idx}-${f.name}`;
+              worker.onmessage = (ev: MessageEvent<import("../workers/parse-payment.worker").ParseWorkerMessage>) => {
+                const msg = ev.data;
+                if (msg.type === "progress") {
+                  setParseProgress((prev) =>
+                    prev.open
+                      ? {
+                          ...prev,
+                          phase: msg.phase,
+                          current: msg.phase === "parseando_linhas" ? msg.current : prev.current,
+                          total: msg.phase === "parseando_linhas" ? Math.max(msg.total, prev.total) : prev.total,
+                          fileName: f.name,
+                        }
+                      : prev,
+                  );
+                } else if (msg.type === "result") {
+                  worker.terminate();
+                  resolve({
+                    file: f,
+                    preloaded: { matrix: msg.matrix as unknown[][], sheetName: msg.sheetName },
+                    error: null,
+                  });
+                } else if (msg.type === "error") {
+                  worker.terminate();
+                  resolve({ file: f, preloaded: null, error: new Error(msg.message) });
+                }
+              };
+              worker.onerror = (err) => {
+                worker.terminate();
+                resolve({ file: f, preloaded: null, error: err.error ?? new Error(err.message) });
+              };
+              f.arrayBuffer()
+                .then((buffer) => {
+                  worker.postMessage({ fileId, fileName: f.name, buffer } satisfies import("../workers/parse-payment.worker").ParseWorkerRequest, [buffer]);
+                })
+                .catch((err) => {
+                  worker.terminate();
+                  resolve({ file: f, preloaded: null, error: err });
+                });
+            },
+          ),
       ),
     );
+
+    // Fase 2: fluxo de negócio (matching PJ/convênio/setor, cadastros)
+    // continua igual — só recebe o `preloaded` para pular a leitura.
+    const results = await Promise.all<ParseOk | ParseErr>(
+      preloadedResults.map(async ({ file, preloaded, error }) => {
+        if (error || !preloaded) return { ok: false, bucket: null, file, error } as ParseErr;
+        try {
+          const bucket = await parseFile(file, preloaded);
+          return { ok: true, bucket, file, error: null } as ParseOk;
+        } catch (e) {
+          return { ok: false, bucket: null, file, error: e } as ParseErr;
+        }
+      }),
+    );
+
+    setParseProgress((prev) => ({ ...prev, open: false }));
+
     const newBuckets: FileBucket[] = [];
     for (const r of results) {
       if (r.ok && r.bucket) newBuckets.push(r.bucket);
@@ -5258,6 +5343,14 @@ const NewPayment = () => {
         fileName={previewBucketIdx != null ? (buckets[previewBucketIdx]?.file.name ?? "") : ""}
         matrix={previewBucketIdx != null ? buckets[previewBucketIdx]?.rawMatrix : null}
         headerRowIndex={previewBucketIdx != null ? buckets[previewBucketIdx]?.headerRowIndex ?? 0 : 0}
+      />
+
+      <ParseProgressDialog
+        open={parseProgress.open}
+        phase={parseProgress.phase}
+        current={parseProgress.current}
+        total={parseProgress.total}
+        fileName={parseProgress.fileName}
       />
     </>
   );
