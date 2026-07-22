@@ -144,7 +144,7 @@ export function ExcelPreviewDialog({ open, onOpenChange, fileName, matrix, heade
                   <td className="px-2 py-1 border-b border-border/50 text-muted-foreground tabular-nums">{ri + hIdx + 2}</td>
                   {headers.map((_, ci) => {
                     const cell = (row ?? [])[ci];
-                    const text = cell == null || cell === "" ? "" : String(cell);
+                    const text = formatCell(cell, colKinds[ci] ?? "other");
                     return (
                       <td key={ci} className="px-2 py-1 border-b border-border/50 whitespace-nowrap max-w-[280px] truncate" title={text}>
                         {text}
