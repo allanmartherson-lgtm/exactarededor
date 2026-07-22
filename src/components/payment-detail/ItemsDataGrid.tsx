@@ -378,6 +378,234 @@ function ManualInterventionItemIconAction({
   );
 }
 
+/**
+ * Split button contextual da coluna AÇÕES.
+ *
+ * - Reprovado/alerta: [Acatar | ▼] verde. Botão principal executa `onAcceptItem`
+ *   (uso ~80%); dropdown expõe "Manter valor pago", "Tratar manualmente",
+ *   "Editar" e "Excluir".
+ * - Acatado: botão "Desfazer" + "⋯" com editar/excluir opcionais.
+ * - Aprovado/seguido: apenas "⋯" com tratar manualmente / editar / excluir.
+ * - Bônus: apenas "⋯" com excluir (quando permitido).
+ *
+ * Mantém os callbacks originais (`onAcceptItem`, `onAcceptItemKeepPaid`,
+ * `onUndoAcceptItem`, `onEditItem`, `onDeleteItem`) e reaproveita o
+ * `ManualInterventionDialog` — só troca o trigger de ícone por item de menu.
+ */
+function RowActionsSplit({
+  it,
+  isBonus,
+  onAcceptItem,
+  onAcceptItemKeepPaid,
+  onUndoAcceptItem,
+  onEditItem,
+  onDeleteItem,
+  onRefresh,
+}: {
+  it: PaymentItemRowData & {
+    payment_id: string;
+    company_name?: string | null;
+    manual_intervention_reason_id?: string | null;
+    manual_intervention_notes?: string | null;
+    manual_intervention_source?: string | null;
+    ai_status?: string | null;
+    acatado_status_original?: string | null;
+    applied_rule_id?: string | null;
+  };
+  isBonus: boolean;
+  onAcceptItem?: (item: PaymentItemRowData) => void;
+  onAcceptItemKeepPaid?: (item: PaymentItemRowData) => void;
+  onUndoAcceptItem?: (item: PaymentItemRowData) => void;
+  onEditItem?: (item: PaymentItemRowData) => void;
+  onDeleteItem?: (item: PaymentItemRowData) => void;
+  onRefresh?: () => void;
+}) {
+  const [manualOpen, setManualOpen] = useState(false);
+  const manualMarked = !!it.manual_intervention_reason_id;
+
+  const status = it.ai_status ?? null;
+  const canAccept = !isBonus && (status === "reprovado" || status === "alerta");
+  const isAcatado = !isBonus && status === "acatado";
+  const canDelete = !!onDeleteItem && (!isBonus || !it.applied_rule_id);
+
+  // Item de menu — "Tratar manualmente"
+  const manualMenuItem = !isBonus ? (
+    <DropdownMenuItem onClick={() => setManualOpen(true)}>
+      <Wrench className={cn("h-4 w-4 mr-2", manualMarked ? "text-violet-600" : "text-foreground")} />
+      <span className="text-[12px]">
+        {manualMarked ? "Revisar tratamento manual" : "Tratar manualmente"}
+      </span>
+    </DropdownMenuItem>
+  ) : null;
+
+  const editMenuItem = onEditItem ? (
+    <DropdownMenuItem onClick={() => onEditItem(it)}>
+      <Pencil className="h-4 w-4 mr-2 text-foreground" />
+      <span className="text-[12px]">Editar item</span>
+    </DropdownMenuItem>
+  ) : null;
+
+  const deleteMenuItem = canDelete ? (
+    <DropdownMenuItem onClick={() => onDeleteItem!(it)} className="text-destructive focus:text-destructive">
+      <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+      <span className="text-[12px]">{isBonus ? "Excluir bônus" : "Excluir item"}</span>
+    </DropdownMenuItem>
+  ) : null;
+
+  const renderDialog = () =>
+    !isBonus ? (
+      <ManualInterventionDialog
+        open={manualOpen}
+        onOpenChange={setManualOpen}
+        itemId={it.id}
+        paymentId={it.payment_id}
+        companyName={it.company_name ?? null}
+        current={{
+          manual_intervention_reason_id: it.manual_intervention_reason_id ?? null,
+          manual_intervention_notes: it.manual_intervention_notes ?? null,
+        }}
+        onApplied={onRefresh}
+      />
+    ) : null;
+
+  // Estado: reprovado / alerta → Split button verde
+  if (canAccept && onAcceptItem) {
+    return (
+      <div className="flex w-full items-center justify-center">
+        <div className="inline-flex items-stretch">
+          <Button
+            type="button"
+            onClick={() => onAcceptItem(it)}
+            className={cn(
+              "h-7 rounded-r-none border border-r-0 px-2.5",
+              "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
+              "text-[11px] font-medium shadow-none",
+            )}
+            title="Acatar usando o valor esperado"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+            Acatar
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                className={cn(
+                  "h-7 rounded-l-none border px-1.5",
+                  "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
+                  "shadow-none",
+                )}
+                title="Mais opções"
+                aria-label="Mais opções"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                Acatar como
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => onAcceptItem(it)}>
+                <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
+                <span className="text-[12px]">Usar valor esperado</span>
+              </DropdownMenuItem>
+              {onAcceptItemKeepPaid && (
+                <DropdownMenuItem onClick={() => onAcceptItemKeepPaid(it)}>
+                  <HandCoins className="h-4 w-4 mr-2 text-sky-600" />
+                  <span className="text-[12px]">Manter valor pago</span>
+                </DropdownMenuItem>
+              )}
+              {(manualMenuItem || editMenuItem) && <DropdownMenuSeparator />}
+              {manualMenuItem}
+              {editMenuItem}
+              {deleteMenuItem && <DropdownMenuSeparator />}
+              {deleteMenuItem}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {renderDialog()}
+      </div>
+    );
+  }
+
+  // Estado: acatado → Desfazer + "⋯" opcional
+  if (isAcatado && onUndoAcceptItem) {
+    const hasExtras = !!(editMenuItem || deleteMenuItem || manualMenuItem);
+    return (
+      <div className="flex w-full items-center justify-center gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onUndoAcceptItem(it)}
+          className="h-7 px-2.5 text-[11px] font-medium"
+          title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
+        >
+          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+          Desfazer
+        </Button>
+        {hasExtras && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                title="Mais ações"
+                aria-label="Mais ações"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {manualMenuItem}
+              {editMenuItem}
+              {deleteMenuItem && <DropdownMenuSeparator />}
+              {deleteMenuItem}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {renderDialog()}
+      </div>
+    );
+  }
+
+  // Estado: aprovado / seguido / bônus → apenas "⋯"
+  const hasAny = !!(manualMenuItem || editMenuItem || deleteMenuItem);
+  if (!hasAny) return null;
+  return (
+    <div className="flex w-full items-center justify-center">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className={cn("h-7 w-7 relative", manualMarked && "text-violet-600")}
+            title="Ações"
+            aria-label="Ações"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+            {manualMarked && (
+              <span
+                className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-violet-500"
+                aria-hidden="true"
+              />
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {manualMenuItem}
+          {editMenuItem}
+          {(manualMenuItem || editMenuItem) && deleteMenuItem && <DropdownMenuSeparator />}
+          {deleteMenuItem}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {renderDialog()}
+    </div>
+  );
+}
+
 /** Menu compacto "Mais ações" — agrupa Exceção de cálculo + Tratar manualmente
  *  para não poluir a coluna AÇÕES. Mostra ponto colorido quando há algo ativo. */
 function RowMoreActionsMenu({
