@@ -95,6 +95,7 @@ import { CalcExceptionDialog } from "./CalcExceptionDialog";
 import { ManualInterventionDialog } from "./ManualInterventionDialog";
 import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ItemDetailsPanel } from "@/components/payment-detail/ItemDetailsPanel";
 
 
 
