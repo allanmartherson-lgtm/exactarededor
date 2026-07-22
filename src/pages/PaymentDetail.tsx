@@ -292,6 +292,10 @@ const PaymentDetail = () => {
   // Progresso do reimport/addCompany por fase — evita a percepção de "nada
   // aconteceu" quando o loop está lendo/enviando dezenas de arquivos.
   const [importProgress, setImportProgress] = useState<{ stage: "parse" | "persist"; current: number; total: number } | null>(null);
+  // Preview do diff antes de gravar a reimportação. Resolver na ref para
+  // encadear await dentro de doReimport sem restruturar o fluxo assíncrono.
+  const [reimportDiffState, setReimportDiffState] = useState<{ diff: ReimportDiff; sha256Matched: boolean } | null>(null);
+  const reimportDiffResolverRef = useRef<((v: "confirm" | "cancel" | "skip") => void) | null>(null);
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
