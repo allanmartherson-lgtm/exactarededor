@@ -4829,6 +4829,10 @@ function RowMain({
   const wrapClass = isCompact
     ? "block whitespace-normal break-words leading-[1.1] min-w-0"
     : "block whitespace-normal break-words leading-snug min-w-0";
+  // Texto das células SEM font-size fixo — herda do inline fontSize no <table>
+  // (baseFontPx * zoom). Isso faz o zoom real funcionar (13px confortável, 10px
+  // compacto a 100%) em vez de ficar preso em text-xs (12px).
+  const CELL_TEXT = "leading-snug tracking-normal";
   const cell = cn(cellPad, "border-b align-top break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
