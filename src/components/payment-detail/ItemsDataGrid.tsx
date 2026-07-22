@@ -4918,72 +4918,99 @@ function RowMain({
         )}
         {canEdit && (
           <td
-            className={cn(cellPad, "text-center border-b whitespace-nowrap pr-4 sticky right-0 z-10 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
+            className={cn(cellPad, "text-center border-b whitespace-nowrap pr-3 sticky right-0 z-10 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-end items-center gap-1">
-              {!isBonus && onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  style={{ color: "hsl(var(--success))" }}
-                  title="Acatar usando o valor ESPERADO (sobrescreve o pago)"
-                  onClick={() => onAcceptItem(it)}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {!isBonus && onAcceptItemKeepPaid && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  style={{ color: "hsl(var(--success))" }}
-                  title="Acatar mantendo o valor PAGO (não sobrescreve)"
-                  onClick={() => onAcceptItemKeepPaid(it)}
-                >
-                  <HandCoins className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {!isBonus && onUndoAcceptItem && it.ai_status === "acatado" && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
-                  onClick={() => onUndoAcceptItem(it)}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {!isBonus && (
-                <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} onApplied={onRefresh} />
-              )}
+            {/*
+              Grupos de ação separados por divisor vertical para reduzir
+              cliques errados: [Aceitar] · [Editar/Intervenção] · [Excluir].
+              Botões maiores (h-7 w-7) e gap generoso; o "acatar valor pago"
+              recebe hover azul para diferenciar do "acatar esperado" verde.
+            */}
+            <div className="flex justify-end items-center gap-0.5">
+              {(() => {
+                const showAcceptExpected = !isBonus && onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta");
+                const showAcceptPaid = !isBonus && onAcceptItemKeepPaid && (it.ai_status === "reprovado" || it.ai_status === "alerta");
+                const showUndo = !isBonus && onUndoAcceptItem && it.ai_status === "acatado";
+                const hasAcceptGroup = showAcceptExpected || showAcceptPaid || showUndo;
+                return (
+                  <>
+                    {hasAcceptGroup && (
+                      <div className="flex items-center gap-1 pr-1.5">
+                        {showAcceptExpected && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 rounded-md text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                            title="Acatar usando o valor ESPERADO (sobrescreve o pago)"
+                            onClick={() => onAcceptItem!(it)}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {showAcceptPaid && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 rounded-md text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                            title="Acatar mantendo o valor PAGO (não sobrescreve)"
+                            onClick={() => onAcceptItemKeepPaid!(it)}
+                          >
+                            <HandCoins className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {showUndo && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 rounded-md hover:bg-muted"
+                            title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
+                            onClick={() => onUndoAcceptItem!(it)}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
+                    {!isBonus && (
+                      <div
+                        className={cn(
+                          "flex items-center gap-1 pl-1.5 pr-1.5",
+                          hasAcceptGroup && "border-l border-border/60",
+                        )}
+                      >
+                        <ManualInterventionItemIconAction paymentId={it.payment_id} item={it as any} onApplied={onRefresh} />
+                        {onEditItem && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 rounded-md hover:bg-muted"
+                            title="Editar item"
+                            onClick={() => onEditItem(it)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
-              {!isBonus && onEditItem && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  title="Editar item"
-                  onClick={() => onEditItem(it)}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {onDeleteItem && (!isBonus || !(it as any).applied_rule_id) && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 text-destructive hover:text-destructive"
-                  title={isBonus ? "Excluir bônus importado da base (o motor já gerou o bônus correspondente)" : "Excluir item"}
-                  onClick={() => onDeleteItem(it)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
+                    {onDeleteItem && (!isBonus || !(it as any).applied_rule_id) && (
+                      <div className="flex items-center pl-1.5 border-l border-border/60">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title={isBonus ? "Excluir bônus importado da base (o motor já gerou o bônus correspondente)" : "Excluir item"}
+                          onClick={() => onDeleteItem(it)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </td>
         )}
