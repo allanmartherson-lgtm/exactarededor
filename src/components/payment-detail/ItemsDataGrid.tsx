@@ -5057,7 +5057,7 @@ function RowMain({
           <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
         {showGrossColumn && (
-          <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
+          <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap overflow-hidden text-ellipsis border-b", baseCellBg, isBonus && "text-indigo-700 font-semibold")}>
             <span className="inline-flex items-center justify-end">
               {formatCurrency(grossN)}
               {!isBonus && (it as any).item_origem && (it as any).item_origem !== 'pagamento_atual' && (
@@ -5076,7 +5076,7 @@ function RowMain({
         {showProcedureColumn && (() => {
           const procN = Number((it as any).procedure_amount ?? 0);
           return (
-            <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg, isBonus && "text-muted-foreground")}>
+            <td className={cn(cellPad, CELL_TEXT, "text-right tabular-nums font-medium whitespace-nowrap overflow-hidden text-ellipsis border-b", baseCellBg, isBonus && "text-muted-foreground")}>
               {isBonus ? "—" : (procN > 0 ? formatCurrency(procN) : "—")}
             </td>
           );
@@ -5088,7 +5088,7 @@ function RowMain({
           className={cn(
             cellPad,
             CELL_TEXT,
-            "text-right tabular-nums whitespace-nowrap border-b font-medium",
+            "text-right tabular-nums whitespace-nowrap overflow-hidden text-ellipsis border-b font-medium",
             isBonus ? "text-muted-foreground" : (diverges ? "text-warning-text" : "text-foreground"),
             baseCellBg,
           )}
@@ -5126,7 +5126,7 @@ function RowMain({
             className={cn(
               cellPad,
               CELL_TEXT,
-              "text-right tabular-nums whitespace-nowrap border-b",
+              "text-right tabular-nums whitespace-nowrap overflow-hidden text-ellipsis border-b",
               isBonus ? "text-muted-foreground" : (diff != null && diverges ? (diff < 0 ? "text-warning-text" : "text-success") : "text-muted-foreground"),
               baseCellBg,
             )}
