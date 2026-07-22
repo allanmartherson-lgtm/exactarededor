@@ -4005,9 +4005,91 @@ export function ItemsDataGrid({
           Use ↑/↓ ou j/k para navegar · Enter para expandir/colapsar · Esc para fechar
         </div>
       )}
+
+      {/* ============================================================
+          Painel lateral (drawer) de detalhes do item.
+          Substitui a antiga expansão inline que deslocava a tabela.
+          ============================================================ */}
+      <Sheet
+        open={!!expandedId}
+        onOpenChange={(open) => { if (!open) setExpandedId(null); }}
+      >
+        <SheetContent
+          side="right"
+          className="sm:max-w-[520px] w-full p-0 overflow-hidden flex flex-col"
+        >
+          {(() => {
+            const it = items.find((x) => x.id === expandedId);
+            if (!it) return null;
+            const idx = items.findIndex((x) => x.id === expandedId);
+            const prev = idx > 0 ? items[idx - 1] : null;
+            const next = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
+            const statusLabel = it.approval_status ?? "—";
+            const patient = getPatient(it);
+            const proc = `${getProcedureCode(it)} — ${getProcedureName(it)}`;
+            return (
+              <>
+                <div className="flex items-start justify-between gap-2 border-b bg-primary text-primary-foreground px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] uppercase tracking-wide opacity-80">Detalhes do item</div>
+                    <div className="text-sm font-semibold truncate">{patient}</div>
+                    <div className="text-[11px] opacity-90 truncate" title={proc}>{proc}</div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-7 w-7 text-primary-foreground hover:bg-white/10"
+                      disabled={!prev}
+                      onClick={() => prev && setExpandedId(prev.id)}
+                      title="Item anterior"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-7 w-7 text-primary-foreground hover:bg-white/10"
+                      disabled={!next}
+                      onClick={() => next && setExpandedId(next.id)}
+                      title="Próximo item"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <span className="ml-2 text-[10px] uppercase font-semibold rounded bg-white/15 px-2 py-0.5">
+                      {statusLabel}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  <table className="w-full">
+                    <tbody>
+                      <ItemDetailsRow
+                        it={it}
+                        allItems={items}
+                        rulesIndex={rulesIndex}
+                        rulesByName={rulesByName}
+                        observations={observations}
+                        profiles={profiles}
+                        colSpan={1}
+                        showTipoEntrada={!!colVis.tipo_entrada}
+                        visitaPaymentTypeId={visitaPaymentTypeId}
+                        parecerPaymentTypeId={parecerPaymentTypeId}
+                        lotePaymentTypeId={lotePaymentTypeId}
+                        isParecerPayment={isParecerPayment}
+                        canEdit={canEdit}
+                        onChangeCaseSubtype={changeCaseSubtype}
+                      />
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
+
 
 // ============================================================
 //  PackageBannerRow — cabeçalho colapsável de grupo de pacote
