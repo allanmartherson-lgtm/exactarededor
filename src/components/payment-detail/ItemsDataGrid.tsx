@@ -3095,7 +3095,7 @@ export function ItemsDataGrid({
           <table
             data-density={isCompact ? "compact" : "comfortable"}
             className={cn("hidden md:table border-separate border-spacing-0 table-fixed", tableTextSize)}
-            style={{ width: tableMinWidth, minWidth: tableMinWidth }}
+            style={{ width: tableMinWidth, minWidth: tableMinWidth, zoom: tableZoom / 100 }}
           >
             <colgroup>
               {colVis.atendimento && <col style={colStyle("atendimento", 160)} />}
