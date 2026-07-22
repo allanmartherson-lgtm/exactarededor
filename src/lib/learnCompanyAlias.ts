@@ -13,6 +13,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractCompanyFromFilename } from "./parsePaymentFile";
+import { invalidateRegistryCache } from "./registryLookup";
 
 export type LearnCompanyAliasResult = {
   ok: boolean;
@@ -33,6 +34,11 @@ export async function learnCompanyAlias(
   } as never);
 
   if (rpcErr) return { ok: false, aliases: [], error: rpcErr.message ?? String(rpcErr) };
+
+  // Invalida cache de PJs — próximo loadCompanies traz aliases atualizados.
+  invalidateRegistryCache("companies");
+
+
 
   const { data, error: selErr } = await client
     .from("companies")
@@ -68,6 +74,7 @@ export async function unlearnCompanyAlias(
   } as never);
 
   if (error) return { ok: false, error: error.message ?? String(error) };
+  invalidateRegistryCache("companies");
   return { ok: true, error: null };
 }
 

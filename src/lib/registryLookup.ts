@@ -148,6 +148,39 @@ async function cachedRows<T>(key: string, force: boolean, loader: () => Promise<
 }
 
 /**
+ * Invalida o cache em sessionStorage dos cadastros. Chame após qualquer
+ * escrita de alias/cadastro que altere o resultado do resolver — próxima
+ * leitura re-buscará do banco.
+ *
+ * - 'doctors'   → chave única (global)
+ * - 'convenios' → múltiplas chaves (uma por hospital + __global__)
+ * - 'sectors'   → idem
+ * - 'companies' → limpa também o cache curto usado em /pagamentos/novo
+ * - 'all'       → remove todos os itens com prefixo "registry." + companies
+ */
+export type RegistryKind = "doctors" | "convenios" | "sectors" | "companies" | "all";
+
+export function invalidateRegistryCache(kind: RegistryKind): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    const removeByPrefix = (prefix: string) => {
+      const keys: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith(prefix)) keys.push(k);
+      }
+      for (const k of keys) sessionStorage.removeItem(k);
+    };
+    if (kind === "doctors" || kind === "all") removeByPrefix("registry.doctors.");
+    if (kind === "convenios" || kind === "all") removeByPrefix("registry.convenios.");
+    if (kind === "sectors" || kind === "all") removeByPrefix("registry.sectors.");
+    if (kind === "companies" || kind === "all") {
+      sessionStorage.removeItem("newpayment.companies.cache.v1");
+    }
+  } catch { /* ignore */ }
+}
+
+/**
  * Pagina todas as linhas de uma query Supabase ignorando o teto default
  * de 1000. Necessário para `doctors` (>4k linhas) — sem isso o resolver
  * perde médicos cadastrados e quebra o lookup estrito.
