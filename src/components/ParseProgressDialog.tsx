@@ -45,7 +45,7 @@ export function ParseProgressDialog({
   return (
     <Dialog open={open}>
       <DialogContent
-        className="sm:max-w-md"
+        className="sm:max-w-lg"
         // Sem botão de fechar: parse é curto e não deve ser interrompido no meio.
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -53,13 +53,18 @@ export function ParseProgressDialog({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
             {PHASE_LABEL[phase]}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
           {fileName ? (
-            <p className="truncate text-sm text-muted-foreground" title={fileName}>
+            // break-all + line-clamp preserva o nome inteiro em até 2 linhas,
+            // sem cortar no meio como o truncate anterior fazia com nomes longos.
+            <p
+              className="text-sm text-muted-foreground break-all line-clamp-2 leading-snug"
+              title={fileName}
+            >
               {fileName}
             </p>
           ) : null}
@@ -70,3 +75,4 @@ export function ParseProgressDialog({
     </Dialog>
   );
 }
+
