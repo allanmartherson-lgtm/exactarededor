@@ -538,6 +538,7 @@ const NewPayment = () => {
     | null
   >(null);
   const [bucketFilter, setBucketFilter] = useState("");
+  const [previewBucketIdx, setPreviewBucketIdx] = useState<number | null>(null);
   // Debounce: evita refiltrar a lista a cada tecla em lotes grandes (300ms).
   const [debouncedBucketFilter, setDebouncedBucketFilter] = useState("");
   useEffect(() => {
