@@ -954,7 +954,7 @@ export default function CompanyAnalysis() {
       // Prioriza polling do JOB específico retornado pelo dispatch — evita
       // falso positivo quando processing_diagnostics do pagamento já estava
       // "success" de um job anterior (qualquer worker sobrescreve esse campo).
-      const jobId = (data as any)?.job_id as string | undefined;
+      const jobId = existingJobId;
       mark("dispatch_ok");
       // eslint-disable-next-line no-console
       console.info(`[reapply-metrics] job_dispatched`, {
