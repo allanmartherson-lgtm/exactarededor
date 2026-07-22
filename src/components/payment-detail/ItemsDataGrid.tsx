@@ -974,6 +974,7 @@ export function ItemsDataGrid({
   const expectedColWidth = isConfeccao ? 160 : 110;
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
   const DENSITY_PREFS_KEY = `${storageKey}.density.v1`;
+  const ZOOM_PREFS_KEY = `${storageKey}.zoom.v1`;
   const FILTERS_PREFS_KEY = `${storageKey}.filters.v1`;
 
   // Carrega prefs de filtros persistidas (por storageKey). Limpas via "Limpar filtros".
