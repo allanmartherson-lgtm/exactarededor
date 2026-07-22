@@ -88,6 +88,7 @@ import type { StagingContext, StagingDecision } from "@/components/copilot/ZeevS
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { notifyIfHidden, isPageHidden, onNextVisible } from "@/lib/backgroundNotify";
+import { CommitPreviewDialog } from "@/components/payment-wizard/CommitPreviewDialog";
 
 interface ParsedRow {
   doctor_name: string;
