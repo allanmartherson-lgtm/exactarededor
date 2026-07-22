@@ -16,7 +16,8 @@ import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/status";
 import { getPatient, getProcedureCode, getProcedureName } from "@/lib/itemFields";
 
 type AnyItem = Record<string, any>;
