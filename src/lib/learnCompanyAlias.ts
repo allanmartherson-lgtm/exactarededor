@@ -74,6 +74,7 @@ export async function unlearnCompanyAlias(
   } as never);
 
   if (error) return { ok: false, error: error.message ?? String(error) };
+  invalidateRegistryCache("companies");
   return { ok: true, error: null };
 }
 
