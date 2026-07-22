@@ -4024,7 +4024,7 @@ export function ItemsDataGrid({
             const idx = items.findIndex((x) => x.id === expandedId);
             const prev = idx > 0 ? items[idx - 1] : null;
             const next = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
-            const statusLabel = it.approval_status ?? "—";
+            const statusLabel = ((it as any).ai_status ?? (it as any).status ?? "—") as string;
             const patient = getPatient(it);
             const proc = `${getProcedureCode(it)} — ${getProcedureName(it)}`;
             return (
