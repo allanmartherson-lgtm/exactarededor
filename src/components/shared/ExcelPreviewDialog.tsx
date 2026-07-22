@@ -156,11 +156,11 @@ export function ExcelPreviewDialog({ open, onOpenChange, fileName, matrix, heade
         <div className="flex-1 overflow-auto bg-muted/20">
           <table className="w-full border-collapse text-xs">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-primary text-primary-foreground">
-                <th className="text-left px-2 py-2 font-medium w-12 text-primary-foreground/70">#</th>
+              <tr className="bg-primary [&_th]:!text-white">
+                <th className="text-left px-2 py-2 font-medium w-12 !text-white/80">#</th>
                 {headers.map((h, i) => (
                   <th key={i} className="text-left px-3 py-2 font-semibold whitespace-nowrap text-[11px] uppercase tracking-wide" title={String(h ?? "")}>
-                    {String(h ?? "") || <span className="opacity-70 italic normal-case">col {i + 1}</span>}
+                    {String(h ?? "") || <span className="opacity-80 italic normal-case">col {i + 1}</span>}
                   </th>
                 ))}
               </tr>
