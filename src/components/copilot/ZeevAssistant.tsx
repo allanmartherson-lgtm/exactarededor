@@ -712,6 +712,8 @@ export function ZeevAssistant({
               procedure_description: it.procedure_description,
               attendance_number: it.attendance_number,
               procedure_amount: it.procedure_amount,
+              expected_amount: it.expected_amount,
+              gross_amount: it.gross_amount,
             }))}
           onApplied={(payload) => {
             setBulkOpen(null);

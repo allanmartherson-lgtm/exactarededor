@@ -40,6 +40,8 @@ export type ZeevBulkItem = {
   procedure_code?: string | null;
   procedure_description?: string | null;
   procedure_amount?: number | null;
+  expected_amount?: number | null;
+  gross_amount?: number | null;
   attendance_number?: string | null;
 };
 
@@ -324,37 +326,60 @@ export function ZeevBulkManualDialog({
               </Badge>
             </div>
             <div className="max-h-64 overflow-y-auto divide-y">
-              {items.map((it) => (
-                <label
-                  key={it.id}
-                  className="flex items-start gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer text-xs"
-                >
-                  <Checkbox
-                    checked={selected.has(it.id)}
-                    onCheckedChange={() => toggle(it.id)}
-                    disabled={submitting}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground truncate">
-                      {it.doctor_name ?? "—"}
+              {items.map((it) => {
+                // Preview do valor que será aplicado, alinhado à estratégia
+                // escolhida — o RPC apply_zeev_bulk_manual usa a mesma regra.
+                let previewValue: number | null = null;
+                let previewLabel = "convênio";
+                if (valueStrategy === "custom") {
+                  const parsed = Number(String(customValueStr).replace(",", "."));
+                  previewValue = Number.isFinite(parsed) ? parsed : null;
+                  previewLabel = "customizado";
+                } else if (valueStrategy === "expected") {
+                  previewValue = it.expected_amount ?? it.gross_amount ?? null;
+                  previewLabel = "regra";
+                } else {
+                  previewValue = it.procedure_amount ?? null;
+                  previewLabel = "convênio";
+                }
+                return (
+                  <label
+                    key={it.id}
+                    className="flex items-start gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer text-xs"
+                  >
+                    <Checkbox
+                      checked={selected.has(it.id)}
+                      onCheckedChange={() => toggle(it.id)}
+                      disabled={submitting}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground truncate">
+                        {it.doctor_name ?? "—"}
+                      </div>
+                      <div className="text-muted-foreground flex flex-wrap gap-x-2 gap-y-0.5">
+                        <span>TUSS {it.procedure_code ?? "—"}</span>
+                        {it.attendance_number && (
+                          <span>· Atend. {it.attendance_number}</span>
+                        )}
+                        {it.procedure_description && (
+                          <span className="truncate">· {it.procedure_description}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-muted-foreground flex flex-wrap gap-x-2 gap-y-0.5">
-                      <span>TUSS {it.procedure_code ?? "—"}</span>
-                      {it.attendance_number && (
-                        <span>· Atend. {it.attendance_number}</span>
-                      )}
-                      {it.procedure_description && (
-                        <span className="truncate">· {it.procedure_description}</span>
-                      )}
+                    <div className="text-right shrink-0">
+                      <div className="text-xs tabular-nums font-medium">
+                        {fmtBRL(previewValue)}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {previewLabel}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs tabular-nums font-medium shrink-0">
-                    {fmtBRL(it.procedure_amount ?? null)}
-                  </div>
-                </label>
-              ))}
+                  </label>
+                );
+              })}
             </div>
+
           </div>
 
           <div className="space-y-2">
