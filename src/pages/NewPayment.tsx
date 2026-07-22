@@ -1397,7 +1397,25 @@ const NewPayment = () => {
       const withType = { ...base, tipo_linha, payment_type_id_override };
       const line_issues = validateLine(withType, { modoConfeccao });
       return { ...withType, line_issues } as ParsedRow;
-    }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
+    }).filter((r) => {
+      const hasDoctor = !!r.doctor_name?.trim();
+      const hasAttendance = !!r.attendance_number?.trim();
+      const hasPatient = !!r.patient_name?.trim();
+
+      // Relatórios de Parecer/Visita podem trazer linha-soma sem palavra
+      // "TOTAL": apenas tipo/TUSS/valor/descrição e nenhum dado assistencial.
+      // Se entrar na validação, vira falso bloqueio de "Médico obrigatório".
+      if (
+        (r.tipo_linha === "parecer" || r.tipo_linha === "visita") &&
+        !hasDoctor &&
+        !hasAttendance &&
+        !hasPatient
+      ) {
+        return false;
+      }
+
+      return hasDoctor || Math.abs(r.gross_amount) > 0 || !!r.procedure_code || !!r.description;
+    });
   };
 
   const mapSectorFromRaw = (raw: string | null): RuleSector | null => {
