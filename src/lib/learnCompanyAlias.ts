@@ -13,6 +13,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractCompanyFromFilename } from "./parsePaymentFile";
+import { invalidateRegistryCache } from "./registryLookup";
 
 export type LearnCompanyAliasResult = {
   ok: boolean;
