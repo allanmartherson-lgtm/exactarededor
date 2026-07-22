@@ -1268,6 +1268,19 @@ export const parsePaymentFile = async (
     // "SUBTOTAL", "DIVIDIDO POR ...", "DESCONTO DE FINAL DE SEMANA" (é dedução, não item).
     const FOOTER_DOCTOR = /^\s*(total(\s+geral|\s+visita(s)?|\s+parecer(es)?|\s+visitas?\s+e\s+parecer(es)?)?|subtotal|soma|dividido\s+por|desconto\s+de\s+final\s+de\s+semana|valor\s+(da\s+)?nf|nota\s+fiscal)\s*$/i;
     if (r.doctor_name && FOOTER_DOCTOR.test(r.doctor_name)) return false;
+    // Totalizador de parecer/visita: relatórios de Parecer/Visita costumam
+    // fechar com uma linha-soma sem "Total" literal — apenas TUSS + Valor +
+    // descrição do tipo (ex.: "Parecer Adulto") e SEM médico/atendimento/paciente.
+    // Em cirurgia esse padrão não ocorre (totalizador vem com "TOTAL" na
+    // coluna Médico), por isso só o cenário parecer/visita passa despercebido.
+    if (
+      (r.tipo_linha === "parecer" || r.tipo_linha === "visita") &&
+      !r.doctor_name?.trim() &&
+      !r.attendance_number?.trim() &&
+      !r.patient_name?.trim()
+    ) {
+      return false;
+    }
     // Filtra linhas onde a coluna "Paciente" carrega cabeçalho de empresa
     // (ex.: "MORAIS E CARVALHO SERVICOS MEDICOS LTDA / ...") sem médico nem valor.
     if (
@@ -1282,6 +1295,7 @@ export const parsePaymentFile = async (
     }
     return r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description;
   });
+
 
   return {
     file: f,
