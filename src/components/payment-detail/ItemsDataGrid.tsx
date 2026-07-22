@@ -2450,7 +2450,7 @@ export function ItemsDataGrid({
     const inner = el.firstElementChild as HTMLElement | null;
     if (inner) ro.observe(inner);
     return () => ro.disconnect();
-  }, [items.length, expandedId]);
+  }, [items.length]);
 
 
   const syncScrollLeft = (source: "top" | "grid", left: number) => {
