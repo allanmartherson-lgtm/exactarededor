@@ -1032,6 +1032,8 @@ export default function CompanyAnalysis() {
       window.setTimeout(() => { void load(); }, 2500);
 
 
+      mark("ui_reloaded");
+
       if (!done) {
         // Motor não confirmou dentro do teto de tempo, mas o job segue rodando
         // em background. Não é erro real de cálculo — é limite de espera da UI.
@@ -1041,11 +1043,32 @@ export default function CompanyAnalysis() {
           "O motor ainda está processando esta empresa em segundo plano. Os itens serão atualizados assim que concluir — acompanhe pelo status ou tente reaplicar em alguns segundos.";
         setReapplyError((prev) => prev ?? fallbackMsg);
         setReapplyPhase("erro");
+        // Log estruturado de timeout: agrega todas as métricas coletadas para
+        // diagnóstico rápido (qual etapa consumiu o tempo). Aparece como warn
+        // no console do navegador com prefixo [reapply-metrics].
+        // eslint-disable-next-line no-console
+        console.warn(`[reapply-metrics] TIMEOUT`, {
+          payment_id: id,
+          company: group.company_name,
+          job_id: jobId ?? null,
+          items: itemIds.length,
+          total_ms: Date.now() - startedAt,
+          phases_ms: metrics,
+        });
         toast.info("Motor ainda processando", {
           description: reapplyError ?? fallbackMsg,
         });
       } else {
         setReapplyPhase("concluido");
+        // eslint-disable-next-line no-console
+        console.info(`[reapply-metrics] SUCCESS`, {
+          payment_id: id,
+          company: group.company_name,
+          job_id: jobId ?? null,
+          items: itemIds.length,
+          total_ms: Date.now() - startedAt,
+          phases_ms: metrics,
+        });
         const _isConfeccao = (payment as any)?.analysis_mode === "confeccao";
         if (_isConfeccao) {
           toast.success("Cálculo do repasse concluído", {
@@ -1062,8 +1085,18 @@ export default function CompanyAnalysis() {
       const msg = e instanceof Error ? e.message : String(e);
       setReapplyError(msg);
       setReapplyPhase("erro");
+      // eslint-disable-next-line no-console
+      console.error(`[reapply-metrics] ERROR`, {
+        payment_id: id,
+        company: group.company_name,
+        items: itemIds.length,
+        total_ms: Date.now() - startedAt,
+        phases_ms: metrics,
+        error: msg,
+      });
       toast.error("Falha ao iniciar reanálise", { description: msg });
     } finally {
+
       setReanalyzing(false);
       // Cooldown de 6s: botão fica "Estabilizando..." para bloquear reclique
       // enquanto a UI termina de refletir os novos ai_status/expected.
