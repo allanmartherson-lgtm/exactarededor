@@ -1,6 +1,7 @@
 // Parser compartilhado de arquivos Excel de base de pagamento.
 // Extraído de src/pages/NewPayment.tsx para reutilização no reimport.
 import * as XLSX from "xlsx";
+import { isValidCNPJ } from "@/lib/cnpj";
 import {
   applyManualMappingShim,
   FIELD_BY_KEY,
