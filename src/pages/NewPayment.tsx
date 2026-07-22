@@ -5344,6 +5344,14 @@ const NewPayment = () => {
         matrix={previewBucketIdx != null ? buckets[previewBucketIdx]?.rawMatrix : null}
         headerRowIndex={previewBucketIdx != null ? buckets[previewBucketIdx]?.headerRowIndex ?? 0 : 0}
       />
+
+      <ParseProgressDialog
+        open={parseProgress.open}
+        phase={parseProgress.phase}
+        current={parseProgress.current}
+        total={parseProgress.total}
+        fileName={parseProgress.fileName}
+      />
     </>
   );
 };
