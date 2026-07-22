@@ -2184,6 +2184,9 @@ export function ItemsDataGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, filtered, expandedId]);
 
+  const statusColumnWidth = Math.max(getWidth("status", 132), 132);
+  const actionColumnWidth = 188;
+
   const tableMinWidth = 24 +
     (colVis.atendimento ? getWidth("atendimento", 160) : 0) +
     (colVis.data ? getWidth("data", 108) : 0) +
@@ -2205,9 +2208,9 @@ export function ItemsDataGrid({
     (showProcedureColumn ? getWidth("faturamento", 130) : 0) +
     getWidth("esperado", expectedColWidth) +
     (showDiferencaCol ? getWidth("diferenca", 110) : 0) +
-    getWidth("status", 110) +
+    statusColumnWidth +
     (colVis.observacao ? getWidth("observacao", 70) : 0) +
-    (canEdit ? 120 : 0);
+    (canEdit ? actionColumnWidth : 0);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   // Largura real do conteúdo do grid (pode divergir do `tableMinWidth`
@@ -3057,9 +3060,9 @@ export function ItemsDataGrid({
               {showProcedureColumn && <col style={colStyle("faturamento", 130)} />}
               <col style={colStyle("esperado", expectedColWidth)} />
               {showDiferencaCol && <col style={colStyle("diferenca", 110)} />}
-              <col style={colStyle("status", 110)} />
+              <col style={{ width: statusColumnWidth }} />
               {colVis.observacao && <col style={colStyle("observacao", 70)} />}
-              {canEdit && <col style={{ width: 120 }} />}
+              {canEdit && <col style={{ width: actionColumnWidth }} />}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
@@ -3322,10 +3325,10 @@ export function ItemsDataGrid({
                           : <ChevronDown className="h-3 w-3" aria-hidden="true" />)
                       : <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />}
                   </button>
-                  <ResizeHandle colKey="status" defaultWidth={110} />
+                  <ResizeHandle colKey="status" defaultWidth={132} />
                 </th>
                 {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.<ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
-                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap pr-4 sticky right-0 z-30 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
+                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-30 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -4770,18 +4773,18 @@ function RowMain({
             {isBonus ? "—" : (diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—")}
           </td>
         )}
-        <td className={cn(cellPad, "border-b", baseCellBg)}>
+        <td className={cn(cellPad, "border-b overflow-visible", baseCellBg)}>
           {isBonus ? (
             <span
               role="status"
               aria-label="Status: bônus aplicado automaticamente"
               data-testid="bonus-status-badge"
-              className="inline-flex items-center rounded-full border border-indigo-400 bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100 dark:border-indigo-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              className="inline-flex max-w-full items-center rounded-full border border-indigo-400 bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100 dark:border-indigo-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap"
             >
               Bônus
             </span>
           ) : (
-          <div className="flex flex-row flex-wrap items-center gap-1">
+          <div className="flex min-w-0 flex-row flex-wrap items-center gap-1 overflow-visible">
           {mode === "confeccao" ? (() => {
             // Em CONFECÇÃO, status de análise não se aplica. Mostramos apenas
             // se o motor calculou (com_regra), não casou regra (sem_regra) ou
@@ -4792,7 +4795,7 @@ function RowMain({
               <span
                 data-testid={`confeccao-status-${confStatus}`}
                 className={cn(
-                  "inline-flex rounded-full border px-1 py-0.5 uppercase tracking-wide",
+                  "inline-flex max-w-full rounded-full border px-1.5 py-0.5 uppercase tracking-wide whitespace-nowrap",
                   TEXT_META,
                   TONE_CLASSES[confTone],
                 )}
@@ -4810,7 +4813,7 @@ function RowMain({
           })() : it.ai_status === "acatado" ? (
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
+                "inline-flex max-w-full items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold whitespace-nowrap",
                 TEXT_META,
                 TONE_CLASSES.success,
               )}
@@ -4832,7 +4835,7 @@ function RowMain({
             </span>
 
           ) : (
-            <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
+            <span className={cn("inline-flex max-w-full items-center rounded-full border px-1.5 py-0.5", TEXT_META, "uppercase tracking-wide whitespace-nowrap", TONE_CLASSES[tone])}>
               {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
               {eff}
             </span>
@@ -4872,7 +4875,7 @@ function RowMain({
             return (
               <span
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
+                  "inline-flex max-w-full items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold whitespace-nowrap",
                   TEXT_META,
                   TONE_CLASSES.warning,
                 )}
@@ -4918,7 +4921,7 @@ function RowMain({
         )}
         {canEdit && (
           <td
-            className={cn(cellPad, "text-center border-b whitespace-nowrap pr-3 sticky right-0 z-10 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
+            className={cn(cellPad, "text-center border-b whitespace-nowrap sticky right-0 z-10 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
             onClick={(e) => e.stopPropagation()}
           >
             {/*
@@ -4927,7 +4930,7 @@ function RowMain({
               Botões maiores (h-7 w-7) e gap generoso; o "acatar valor pago"
               recebe hover azul para diferenciar do "acatar esperado" verde.
             */}
-            <div className="flex justify-end items-center gap-0.5">
+            <div className="flex w-full min-w-max items-center justify-center gap-1">
               {(() => {
                 const showAcceptExpected = !isBonus && onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta");
                 const showAcceptPaid = !isBonus && onAcceptItemKeepPaid && (it.ai_status === "reprovado" || it.ai_status === "alerta");
