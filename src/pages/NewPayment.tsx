@@ -607,6 +607,17 @@ const NewPayment = () => {
     return null;
   })();
   const [paymentModelId, setPaymentModelId] = useState<string | null>(initialPaymentModelId);
+  // Reage a mudanças do parâmetro ?tipo= na URL (ex.: usuário reabre o
+  // PaymentModeSelectModal e escolhe outro tipo). Sem este efeito o
+  // useState acima só é lido no mount e a troca de tipo é ignorada.
+  useEffect(() => {
+    const fromUrl = searchParams.get("tipo");
+    if (fromUrl && fromUrl !== paymentModelId) {
+      setPaymentModelId(fromUrl);
+      try { sessionStorage.setItem("newPaymentTypeId", fromUrl); } catch { /* ignore */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   // Metadados do tipo escolhido — usados pelo parser para injetar TUSS padrão,
   // função padrão e marcar quando a planilha não precisa trazer TUSS.
   type SubtypePattern = { match: string; target_item_type_id: string };
