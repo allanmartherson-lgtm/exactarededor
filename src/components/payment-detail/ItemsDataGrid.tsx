@@ -2840,6 +2840,34 @@ export function ItemsDataGrid({
               Confortável
             </button>
           </div>
+          <div className="inline-flex items-center rounded-md border bg-background p-0.5" title="Zoom da tabela (fonte)">
+            <button
+              type="button"
+              onClick={zoomOut}
+              disabled={tableZoom <= ZOOM_LEVELS[0]}
+              className="h-7 w-6 text-[13px] rounded-sm text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Diminuir zoom"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => setTableZoom(100)}
+              className="h-7 px-1.5 text-[10px] tabular-nums text-muted-foreground hover:text-foreground"
+              title="Restaurar zoom (100%)"
+            >
+              {tableZoom}%
+            </button>
+            <button
+              type="button"
+              onClick={zoomIn}
+              disabled={tableZoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+              className="h-7 w-6 text-[13px] rounded-sm text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Aumentar zoom"
+            >
+              +
+            </button>
+          </div>
           {validationImpact.count > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
               <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
