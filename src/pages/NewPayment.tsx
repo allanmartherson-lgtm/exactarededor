@@ -261,6 +261,10 @@ interface FileBucket {
   rawCompanyName: string;
   matchedCompany: { id: string; name: string } | null;
   matchScore: number;
+  /** Método usado no match automático. "document" = CNPJ (chave forte);
+   *  "name" = similaridade textual (fuzzy quando score < 0.90). Persistido para
+   *  exibir no badge do card sem precisar recalcular. */
+  matchVia?: "document" | "name";
   /** true quando o usuário trocou a empresa manualmente (não foi o match automático). */
   manualOverride?: boolean;
   /** Mapeamento de setor identificado na planilha para o setor do sistema */
