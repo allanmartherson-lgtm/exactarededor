@@ -5219,24 +5219,9 @@ function RowMain({
           </td>
         )}
       </tr>
-      {isExpanded && (
-        <ItemDetailsRow
-          it={it}
-          allItems={allItems}
-          rulesIndex={rulesIndex}
-          rulesByName={rulesByName}
-          observations={observations}
-          profiles={profiles}
-          colSpan={totalCols}
-          showTipoEntrada={!!colVis.tipo_entrada}
-          visitaPaymentTypeId={visitaPaymentTypeId}
-          parecerPaymentTypeId={parecerPaymentTypeId}
-          lotePaymentTypeId={lotePaymentTypeId}
-          isParecerPayment={isParecerPayment}
-          canEdit={canEdit}
-          onChangeCaseSubtype={onChangeCaseSubtype}
-        />
-      )}
+      {/* Detalhes agora abrem em drawer lateral (Sheet) montado no root
+          do ItemsDataGrid — não injeta mais linha extra na tabela. */}
+
     </>
   );
 }
