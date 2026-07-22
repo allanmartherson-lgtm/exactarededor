@@ -1,19 +1,17 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect } from "react";
 
-import { X, ChevronRight, AlertTriangle, GitBranch, ShieldQuestion, Loader2, Users, Lightbulb, Send } from "lucide-react";
+import { X, AlertTriangle, GitBranch, ShieldQuestion, Users, Lightbulb, MessageCircle, ArrowLeft, MapPin, Building2 } from "lucide-react";
 import { ZeevIcon } from "./ZeevIcon";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ZeevBulkManualDialog, type ZeevBulkItem } from "./ZeevBulkManualDialog";
 import { ZeevSuggestRuleDialog } from "./ZeevSuggestRuleDialog";
 import { ZeevExecutorChat } from "./ZeevExecutorChat";
 import { ZeevStagingChat, type StagingContext } from "./ZeevStagingChat";
-import { ZeevDiagnosticCard } from "./ZeevDiagnosticCard";
 import { ZeevRetroactiveGapsCard } from "./ZeevRetroactiveGapsCard";
 
 /**
@@ -240,17 +238,222 @@ function buildItemInsights(items: ZeevItem[], onApplyFilter?: Props["onApplyFilt
   return out;
 }
 
-const PRIORITY_STYLE: Record<ZeevInsight["priority"], string> = {
-  alta: "border-rose-300 bg-rose-50/60 dark:border-rose-900 dark:bg-rose-950/30",
-  media: "border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30",
-  baixa: "border-sky-300 bg-sky-50/60 dark:border-sky-900 dark:bg-sky-950/30",
+const PRIORITY_DOT: Record<ZeevInsight["priority"], string> = {
+  alta: "bg-rose-500",
+  media: "bg-amber-500",
+  baixa: "bg-sky-500",
+};
+const PRIORITY_LABEL: Record<ZeevInsight["priority"], string> = {
+  alta: "Alta",
+  media: "Média",
+  baixa: "Info",
+};
+const PRIORITY_WEIGHT: Record<ZeevInsight["priority"], number> = {
+  alta: 3,
+  media: 2,
+  baixa: 1,
 };
 
 const HIDDEN_KEY = "zeev-dismissed-insights";
 
+/** Insight derivado do pre-flight (contagens do lote/empresa). */
+type DiagBucket = {
+  topic: "sem_setor" | "sem_cc" | "sem_empresa" | "sem_regra" | "divergentes" | "zerados";
+  count: number;
+};
+
+type DiagCounts = {
+  total: number;
+  sem_setor: number;
+  sem_cc: number;
+  sem_empresa: number;
+  sem_regra: number;
+  divergentes: number;
+  zerados: number;
+};
+
+/**
+ * Busca o pré-flight da empresa/lote (mesma lógica do antigo ZeevDiagnosticCard).
+ * Mantida intacta — só migrada pra dentro do ZeevAssistant pra alimentar a lista única.
+ */
+function useDiagnosticCounts(paymentId?: string | null, companyId?: string | null): {
+  counts: DiagCounts | null;
+  loading: boolean;
+} {
+  const [counts, setCounts] = useState<DiagCounts | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [nonce, setNonce] = useState(0);
+
+  useEffect(() => {
+    const h = () => setNonce((n) => n + 1);
+    window.addEventListener("zeev:applied", h);
+    return () => window.removeEventListener("zeev:applied", h);
+  }, []);
+
+  useEffect(() => {
+    if (!paymentId) {
+      setCounts(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const { data: pay } = await supabase
+        .from("payments")
+        .select("cost_center_code")
+        .eq("id", paymentId)
+        .maybeSingle();
+      const loteCc = (pay as { cost_center_code?: string | null } | null)?.cost_center_code ?? null;
+      const loteHasCc = !!loteCc && String(loteCc).trim() !== "";
+
+      let query = supabase
+        .from("payment_items")
+        .select(
+          "id, ai_status, gross_amount, manual_intervention_reason_id, ai_findings, company_id, sector, cost_center_code, is_pool_item",
+        )
+        .eq("payment_id", paymentId)
+        .limit(20000);
+      if (companyId) query = query.eq("company_id", companyId);
+      const { data, error } = await query;
+      if (cancelled) return;
+      if (error || !data) {
+        setCounts(null);
+        setLoading(false);
+        return;
+      }
+      const c: DiagCounts = {
+        total: 0,
+        sem_setor: 0,
+        sem_cc: 0,
+        sem_empresa: 0,
+        sem_regra: 0,
+        divergentes: 0,
+        zerados: 0,
+      };
+      for (const it of data as Array<Record<string, unknown>>) {
+        c.total++;
+        const gross = Number(it.gross_amount ?? 0);
+        if (!gross) c.zerados++;
+        const status = it.ai_status as string | null;
+        if ((status === "reprovado" || status === "alerta") && !it.manual_intervention_reason_id) {
+          c.divergentes++;
+        }
+        const findings = it.ai_findings as { needs_human_review?: boolean } | null;
+        if (findings?.needs_human_review) c.sem_regra++;
+        if (!it.sector || it.sector === "") c.sem_setor++;
+        if (!loteHasCc && (!it.cost_center_code || it.cost_center_code === "")) c.sem_cc++;
+        if (!it.company_id && !it.is_pool_item) c.sem_empresa++;
+      }
+      setCounts(c);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentId, companyId, nonce]);
+
+  return { counts, loading };
+}
+
+/**
+ * Deriva insights do pré-flight. Cada bucket sabe atuar via evento `zeev:apply-filter`
+ * (mesmo mecanismo de antes) ou via chatPrompt encaminhado ao executor.
+ */
+function diagnosticInsights(
+  counts: DiagCounts,
+  scopeLabel: string,
+): Array<ZeevInsight & { topic: DiagBucket["topic"] }> {
+  const out: Array<ZeevInsight & { topic: DiagBucket["topic"] }> = [];
+  const applyFilter = (f: "divergentes" | "sem_regra" | "reprovados" | "zerados") => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("zeev:apply-filter", { detail: { filter: f } }));
+    }
+  };
+  if (counts.sem_setor > 0) {
+    out.push({
+      id: "diag-sem_setor",
+      topic: "sem_setor",
+      priority: "media",
+      icon: MapPin,
+      title: `${counts.sem_setor} itens sem setor`,
+      message: `Preciso do setor pra classificar. Posso resolver em lote agora.`,
+      chatPrompt: `Define o setor nos ${counts.sem_setor} itens sem setor ${scopeLabel}`,
+      chatActionLabel: "Resolver em lote",
+    });
+  }
+  if (counts.sem_cc > 0) {
+    out.push({
+      id: "diag-sem_cc",
+      topic: "sem_cc",
+      priority: "media",
+      icon: Building2,
+      title: `${counts.sem_cc} itens sem centro de custos`,
+      message: `Sem CC o lançamento no financeiro fica travado.`,
+      chatPrompt: `Define o centro de custos nos ${counts.sem_cc} itens sem CC ${scopeLabel}`,
+      chatActionLabel: "Resolver em lote",
+    });
+  }
+  if (counts.sem_empresa > 0) {
+    out.push({
+      id: "diag-sem_empresa",
+      topic: "sem_empresa",
+      priority: "alta",
+      icon: Building2,
+      title: `${counts.sem_empresa} médicos sem PJ vinculada`,
+      message: `Sem PJ o repasse não é aplicado. Precisa vincular antes de seguir.`,
+      chatPrompt: `Vincula os médicos sem PJ ${scopeLabel}`,
+      chatActionLabel: "Resolver em lote",
+    });
+  }
+  if (counts.sem_regra > 0) {
+    out.push({
+      id: "diag-sem_regra",
+      topic: "sem_regra",
+      priority: "alta",
+      icon: ShieldQuestion,
+      title: `${counts.sem_regra} itens sem regra cadastrada`,
+      message: `Nenhum repasse foi calculado — vale revisar cadastro ou tratar manualmente.`,
+      actionLabel: "Ver no grid",
+      onAction: () => applyFilter("sem_regra"),
+    });
+  }
+  if (counts.divergentes > 0) {
+    out.push({
+      id: "diag-divergentes",
+      topic: "divergentes",
+      priority: "media",
+      icon: AlertTriangle,
+      title: `${counts.divergentes} divergências sem tratativa`,
+      message: `Itens reprovado/alerta que ainda não receberam decisão do analista.`,
+      actionLabel: "Ver no grid",
+      onAction: () => applyFilter("divergentes"),
+    });
+  }
+  if (counts.zerados > 0) {
+    out.push({
+      id: "diag-zerados",
+      topic: "zerados",
+      priority: "baixa",
+      icon: AlertTriangle,
+      title: `${counts.zerados} itens com valor zerado`,
+      message: `Sem valor bruto declarado. Confirma se são cancelamentos ou dados faltantes.`,
+      actionLabel: "Ver no grid",
+      onAction: () => applyFilter("zerados"),
+    });
+  }
+  return out;
+}
+
+/** Mapeia um insight (auto ou extra) para um tópico do pré-flight, se aplicável. */
+function insightTopic(ins: ZeevInsight): DiagBucket["topic"] | null {
+  if (ins.id === "muitos-divergentes") return "divergentes";
+  if (ins.id === "sem-regra") return "sem_regra";
+  return null;
+}
+
 export function ZeevAssistant({
   pageLabel,
-  summary,
+  summary: _summary,
   items,
   extraInsights,
   onApplyFilter,
@@ -261,6 +464,7 @@ export function ZeevAssistant({
   stagingContext,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"insights" | "chat">("insights");
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try {
       const raw = sessionStorage.getItem(HIDDEN_KEY);
@@ -269,16 +473,18 @@ export function ZeevAssistant({
       return new Set();
     }
   });
-  const [aiTip, setAiTip] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
-  const [tab, setTab] = useState<"insights" | "chat">("insights");
   const [chatInitialPrompt, setChatInitialPrompt] = useState<{ text: string; nonce: number } | null>(null);
-  const executorEnabled = true; // chat sempre disponível; modo livre quando não há contexto
   const stagingMode = !!stagingContext && !bulkContext?.paymentId;
 
-  const insights = useMemo<ZeevInsight[]>(() => {
+  const { counts: diagCounts } = useDiagnosticCounts(
+    bulkContext?.paymentId ?? null,
+    bulkContext?.companyId ?? null,
+  );
+
+  // Insights automáticos + extras (com ações ricas de bulk/sugerir regra)
+  const richInsights = useMemo<ZeevInsight[]>(() => {
     const auto = items ? buildItemInsights(items, onApplyFilter) : [];
     const merged: ZeevInsight[] = [...(extraInsights ?? []), ...auto];
     if (!smartActionsEnabled) {
@@ -287,7 +493,21 @@ export function ZeevAssistant({
     return merged;
   }, [items, extraInsights, onApplyFilter, smartActionsEnabled]);
 
-  const visible = insights.filter((i) => !dismissed.has(i.id));
+  // Lista unificada: pre-flight (só tópicos não cobertos por insight rico) + ricos
+  const unified = useMemo<ZeevInsight[]>(() => {
+    const richTopics = new Set(richInsights.map(insightTopic).filter(Boolean));
+    const scopeLabel = bulkContext?.companyId
+      ? bulkContext?.companyName ?? "desta empresa"
+      : "deste lote";
+    const diag = diagCounts ? diagnosticInsights(diagCounts, scopeLabel) : [];
+    const filteredDiag = diag.filter((d) => !richTopics.has(d.topic));
+    const all = [...richInsights, ...filteredDiag];
+    return all.sort(
+      (a, b) => PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority],
+    );
+  }, [richInsights, diagCounts, bulkContext?.companyId, bulkContext?.companyName]);
+
+  const visible = unified.filter((i) => !dismissed.has(i.id));
   const highPriority = visible.filter((i) => i.priority === "alta").length;
   const hasInsights = visible.length > 0;
 
@@ -302,42 +522,29 @@ export function ZeevAssistant({
     }
   };
 
-  const fetchTip = useCallback(async () => {
-    setAiLoading(true);
-    try {
-      const signals = visible.map((i) => ({ priority: i.priority, title: i.title }));
-      const { data, error } = await supabase.functions.invoke("ai-copilot", {
-        body: {
-          task: "zeev_tip",
-          context: { page_label: pageLabel, summary: summary ?? {}, signals },
-        },
-      });
-      if (error) {
-        setAiTip(null);
-        return;
-      }
-      const r = (data as { result?: { text?: string } })?.result;
-      setAiTip(r?.text ?? null);
-    } catch {
-      setAiTip(null);
-    } finally {
-      setAiLoading(false);
-    }
-  }, [pageLabel, summary, visible]);
+  const openChatWith = (text?: string) => {
+    if (text) setChatInitialPrompt({ text, nonce: Date.now() });
+    setMode("chat");
+  };
 
+  // Reseta modo ao fechar
   useEffect(() => {
-    if (open && !aiTip && !aiLoading) {
-      void fetchTip();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!open) setMode("insights");
   }, [open]);
 
-  // reset AI tip quando a página muda (pageLabel)
-  useEffect(() => {
-    setAiTip(null);
-  }, [pageLabel]);
-
   const sideClass = side === "bottom-right" ? "bottom-6 right-24" : "bottom-6 left-6";
+  const headerTitle = bulkContext?.companyId
+    ? "Zeev · Análise da empresa"
+    : bulkContext?.paymentId
+      ? "Zeev · Análise do lote"
+      : "Zeev · Apoio analítico";
+  const headerSubtitle =
+    bulkContext?.companyName ?? (bulkContext?.paymentId ? "Lote em análise" : pageLabel);
+  const headerPill = diagCounts
+    ? `${visible.length} pendentes de ${diagCounts.total}`
+    : visible.length > 0
+      ? `${visible.length} pendentes`
+      : null;
 
   return (
     <div className={cn("fixed z-40", sideClass)}>
@@ -393,246 +600,107 @@ export function ZeevAssistant({
           side="top"
           align={side === "bottom-right" ? "end" : "start"}
           sideOffset={12}
-          className="w-[400px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl border-[hsl(var(--primary))]/20 shadow-2xl"
+          className="w-[420px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl border-[hsl(var(--primary))]/20 shadow-2xl"
         >
           {/* Cabeçalho */}
-          <div className="relative bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-[hsl(var(--primary-dark))] px-4 py-3.5 text-[hsl(var(--primary-foreground))]">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
-                <ZeevIcon className="h-5 w-5 text-white" />
-              </div>
-
-              <div className="flex-1 min-w-0 pr-6">
-                <div className="text-sm font-semibold leading-tight">Oi, sou o Zeev 👋</div>
-                <div
-                  className="text-[11px] opacity-90 leading-snug mt-0.5 break-words"
-                  style={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                  title={pageLabel}
+          <div className="relative bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-[hsl(var(--primary-dark))] px-4 py-3 pr-12 text-[hsl(var(--primary-foreground))]">
+            <div className="flex items-center gap-3">
+              {mode === "chat" ? (
+                <button
+                  type="button"
+                  onClick={() => setMode("insights")}
+                  aria-label="Voltar para insights"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 hover:bg-white/25 transition"
                 >
-                  {pageLabel}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Fechar"
-                className="absolute top-2.5 right-2.5 h-6 w-6 text-[hsl(var(--primary-foreground))] hover:bg-white/15"
-                onClick={() => setOpen(false)}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Tabs (só aparece quando o executor está disponível) */}
-          {executorEnabled && (
-            <div className="flex border-b border-border/60 bg-muted/20 px-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setTab("insights")}
-                className={cn(
-                  "flex-1 text-[11px] font-medium px-3 py-2 rounded-t-md transition-colors",
-                  tab === "insights"
-                    ? "bg-background text-foreground border-t border-l border-r border-border/60 -mb-px"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Apoio analítico
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("chat")}
-                className={cn(
-                  "flex-1 text-[11px] font-medium px-3 py-2 rounded-t-md transition-colors inline-flex items-center justify-center gap-1.5",
-                  tab === "chat"
-                    ? "bg-background text-foreground border-t border-l border-r border-border/60 -mb-px"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Conversar
-                <Badge variant="secondary" className="h-3.5 text-[8px] px-1 font-bold uppercase">beta</Badge>
-              </button>
-            </div>
-          )}
-
-          {/* === ABA: APOIO ANALÍTICO === */}
-          {tab === "insights" && (
-            <>
-              {/* Pre-flight do lote (Fase 1 — Zeev v2) */}
-              {bulkContext?.paymentId && (
-                <div className="px-3 pt-3">
-                  <ZeevDiagnosticCard
-                    paymentId={bulkContext.paymentId}
-                    companyId={bulkContext.companyId ?? null}
-                    companyName={bulkContext.companyName ?? null}
-                    onActed={() => setOpen(false)}
-                    onSendChatPrompt={(text) => {
-                      setTab("chat");
-                      setChatInitialPrompt({ text, nonce: Date.now() });
-                    }}
-                  />
+                  <ArrowLeft className="h-4 w-4 text-white" />
+                </button>
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
+                  <ZeevIcon className="h-5 w-5 text-white" />
                 </div>
               )}
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium leading-tight">
+                  {mode === "chat" ? "Zeev · Conversa" : headerTitle}
+                </div>
+                <div
+                  className="text-[11px] opacity-90 leading-snug mt-0.5 truncate"
+                  title={headerSubtitle}
+                >
+                  {headerSubtitle}
+                </div>
+              </div>
+              {mode === "insights" && headerPill && (
+                <span className="shrink-0 bg-white/15 rounded-full text-[10px] px-2 py-0.5 tabular-nums whitespace-nowrap">
+                  {headerPill}
+                </span>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Fechar"
+              className="absolute top-2.5 right-2.5 h-6 w-6 text-[hsl(var(--primary-foreground))] hover:bg-white/15"
+              onClick={() => setOpen(false)}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
 
-              {/* Gaps retroativos (Fase 3.2 — só fora do contexto de lote) */}
+          {/* === MODO: INSIGHTS === */}
+          {mode === "insights" && (
+            <>
+              {/* Gaps retroativos (fora do contexto de lote) — mantido como bloco compacto */}
               {!bulkContext?.paymentId && !stagingMode && (
                 <div className="px-3 pt-3">
                   <ZeevRetroactiveGapsCard onActed={() => setOpen(false)} />
                 </div>
               )}
-              {/* IA conversacional */}
-              <div className="px-3 pt-3">
-                <div className="rounded-xl border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary-soft))]/60 dark:bg-[hsl(var(--primary-soft))]/30 p-3">
-                  {aiLoading ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Pensando…
-                    </div>
-                  ) : aiTip ? (
-                    <p className="text-[13px] leading-relaxed text-foreground break-words hyphens-auto">
-                      {aiTip}
-                    </p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void fetchTip()}
-                      className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
-                    >
-                      Pedir uma dica para esta tela →
-                    </button>
-                  )}
-                  <div className="text-[9px] text-muted-foreground italic mt-1.5 uppercase tracking-wider">
-                    IA · apoio analítico
-                  </div>
-                </div>
-              </div>
 
-              {/* Separador discreto */}
-              <div className="px-3 pt-3">
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <span>Sinais detectados</span>
-                  <div className="flex-1 h-px bg-border" />
-                  {visible.length > 0 && (
-                    <span className="text-foreground/60">{visible.length}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Sinais determinísticos */}
-              <div className="max-h-[44vh] overflow-y-auto p-3 pt-2 space-y-2">
+              {/* Lista unificada de insights */}
+              <div className="max-h-[52vh] overflow-y-auto p-3 space-y-2">
                 {visible.length === 0 && (
-                  <div className="text-xs text-muted-foreground text-center py-4 px-2 leading-relaxed">
-                    Sem alertas por aqui. Estou de olho — se algo aparecer, eu aviso.
+                  <div className="text-xs text-muted-foreground text-center py-6 px-2 leading-relaxed">
+                    Nenhuma pendência aqui. Estou de olho — se algo aparecer, eu aviso.
                   </div>
                 )}
                 {visible.map((ins) => {
-                  const Icon = ins.icon ?? ((props: { className?: string }) => <ZeevIcon variant="mark" className={props.className} />);
+                  const Icon = ins.icon;
+                  const canBulk = ins.bulk && bulkContext && ins.bulk.itemIds.length > 0;
+                  const canSuggest = ins.suggestRule && bulkContext;
+                  const canChat = !!ins.chatPrompt;
+                  const canFilter = !!ins.onAction && !!ins.actionLabel;
                   return (
                     <div
                       key={ins.id}
-                      className={cn(
-                        "rounded-xl border p-3 space-y-2.5 transition-shadow hover:shadow-sm",
-                        PRIORITY_STYLE[ins.priority],
-                      )}
+                      className="border border-border rounded-lg bg-card p-3 space-y-2 transition-shadow hover:shadow-sm"
                     >
                       <div className="flex items-start gap-2.5">
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-background/80 ring-1 ring-border/50">
-                          <Icon className="h-3.5 w-3.5 text-foreground/70" />
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-1">
+                        <span
+                          className={cn(
+                            "mt-1.5 h-2 w-2 rounded-full shrink-0",
+                            PRIORITY_DOT[ins.priority],
+                          )}
+                          aria-hidden
+                        />
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-[13px] font-semibold leading-snug break-words hyphens-auto text-foreground">
+                            <p className="text-[13px] font-medium leading-snug text-foreground break-words">
+                              {Icon && <Icon className="inline h-3.5 w-3.5 mr-1 -mt-0.5 text-muted-foreground" />}
                               {ins.title}
                             </p>
-                            <Badge
-                              variant="outline"
-                              className="text-[9px] h-4 px-1.5 capitalize shrink-0 mt-0.5 bg-background/60"
-                            >
-                              {ins.priority}
-                            </Badge>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 mt-0.5">
+                              {PRIORITY_LABEL[ins.priority]}
+                            </span>
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed break-words hyphens-auto">
+                          <p className="text-[12px] text-muted-foreground leading-relaxed mt-1 break-words">
                             {ins.message}
                           </p>
                         </div>
                       </div>
-                      {ins.inlineActions && ins.inlineActions.length > 0 && (
-                        <div className="space-y-1.5">
-                          {ins.inlineActionsHint && (
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                              {ins.inlineActionsHint}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap gap-1">
-                            {ins.inlineActions.map((a) => (
-                              <Button
-                                key={a.id}
-                                size="sm"
-                                variant={a.tone === "primary" ? "default" : "outline"}
-                                onClick={() => { a.onClick(); }}
-                                className="h-7 text-[11px]"
-                              >
-                                {a.label}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-end gap-1 pt-0.5 border-t border-border/40 -mx-3 px-3 pt-2 flex-wrap">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => dismiss(ins.id)}
-                          className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
-                        >
-                          Dispensar
-                        </Button>
-                        {ins.actionLabel && ins.onAction && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              ins.onAction?.();
-                              setOpen(false);
-                            }}
-                            className="h-7 text-[11px]"
-                          >
-                            {ins.actionLabel}
-                            <ChevronRight className="h-3 w-3 ml-1" />
-                          </Button>
-                        )}
-                        {ins.chatPrompt && executorEnabled && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setChatInitialPrompt({ text: ins.chatPrompt!, nonce: Date.now() });
-                              setTab("chat");
-                            }}
-                            className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
-                          >
-                            <ZeevIcon variant="mark" className="h-3 w-3 mr-1" />
-                            {ins.chatActionLabel ?? "Resolver com o Zeev"}
-                          </Button>
-                        )}
-                        {ins.suggestRule && bulkContext && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSuggestOpen(ins);
-                              setOpen(false);
-                            }}
-                            className="h-7 text-[11px]"
-                          >
-                            <Lightbulb className="h-3 w-3 mr-1" />
-                            Sugerir regra
-                          </Button>
-                        )}
-                        {ins.bulk && bulkContext && ins.bulk.itemIds.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Ação primária: bulk > suggestRule > chat > filter */}
+                        {canBulk ? (
                           <Button
                             size="sm"
                             onClick={() => {
@@ -642,21 +710,82 @@ export function ZeevAssistant({
                             className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
                           >
                             <Users className="h-3 w-3 mr-1" />
-                            Tratar {ins.bulk.itemIds.length} em lote
+                            Tratar {ins.bulk!.itemIds.length} em lote
+                          </Button>
+                        ) : canSuggest ? (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSuggestOpen(ins);
+                              setOpen(false);
+                            }}
+                            className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                          >
+                            <Lightbulb className="h-3 w-3 mr-1" />
+                            Sugerir regra
+                          </Button>
+                        ) : canChat ? (
+                          <Button
+                            size="sm"
+                            onClick={() => openChatWith(ins.chatPrompt!)}
+                            className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                          >
+                            <ZeevIcon variant="mark" className="h-3 w-3 mr-1" />
+                            {ins.chatActionLabel ?? "Resolver com o Zeev"}
+                          </Button>
+                        ) : canFilter ? (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              ins.onAction?.();
+                              setOpen(false);
+                            }}
+                            className="h-7 text-[11px] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]"
+                          >
+                            {ins.actionLabel}
+                          </Button>
+                        ) : null}
+
+                        {/* Ação secundária (Ver no grid) — só quando a primária não é o próprio filtro */}
+                        {(canBulk || canSuggest || canChat) && canFilter && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              ins.onAction?.();
+                              setOpen(false);
+                            }}
+                            className="h-7 text-[11px]"
+                          >
+                            Ver no grid
                           </Button>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => dismiss(ins.id)}
+                          className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
+                        >
+                          Dispensar
+                        </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <QuickAskInput
-                onSubmit={(text) => {
-                  setChatInitialPrompt({ text, nonce: Date.now() });
-                  setTab("chat");
-                }}
-              />
+              {/* Rodapé: um único ponto de entrada de conversa */}
+              <div className="border-t border-border/60 px-3 py-2.5 bg-muted/20 flex justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openChatWith()}
+                  className="h-8 text-[12px] gap-1.5"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Conversar com o Zeev
+                </Button>
+              </div>
 
               <div className="border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground italic bg-muted/40">
                 Zeev observa padrões — nada é alterado sem você confirmar.
@@ -664,8 +793,8 @@ export function ZeevAssistant({
             </>
           )}
 
-          {/* === ABA: CONVERSAR (EXECUTOR) === */}
-          {tab === "chat" && executorEnabled && (
+          {/* === MODO: CONVERSAR === */}
+          {mode === "chat" && (
             <>
               {stagingMode && stagingContext ? (
                 <ZeevStagingChat
@@ -690,8 +819,6 @@ export function ZeevAssistant({
               </div>
             </>
           )}
-
-
         </PopoverContent>
       </Popover>
 
@@ -736,45 +863,6 @@ export function ZeevAssistant({
   );
 }
 
-function QuickAskInput({ onSubmit }: { onSubmit: (text: string) => void }) {
-  const [quickQuestion, setQuickQuestion] = useState("");
-  const submit = () => {
-    const t = quickQuestion.trim();
-    if (!t) return;
-    onSubmit(t);
-    setQuickQuestion("");
-  };
-  const hasText = quickQuestion.trim().length > 0;
-  return (
-    <div className="border-t border-border/40 bg-muted/30 px-3 py-2">
-      <div className="relative">
-        <input
-          type="text"
-          value={quickQuestion}
-          onChange={(e) => setQuickQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder="Pergunte algo ao Zeev…"
-          className="h-8 w-full rounded-md border border-border/60 bg-background/80 pl-3 pr-8 text-[12px] placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/40"
-        />
-        {hasText && (
-          <button
-            type="button"
-            onClick={submit}
-            aria-label="Enviar pergunta ao Zeev"
-            className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-primary hover:bg-primary/10"
-          >
-            <Send className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 
 
