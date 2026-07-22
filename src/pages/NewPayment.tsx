@@ -567,6 +567,12 @@ const NewPayment = () => {
   }>({ open: false, phase: "lendo_arquivo", current: 0, total: 0, fileName: "" });
   const [submitting, setSubmitting] = useState(false);
   const [includeAiOnSubmit, setIncludeAiOnSubmit] = useState(false);
+  // Preview de commit (dry-run visual) — resolver na ref para dar await
+  // dentro de submit() sem reestruturar o fluxo assíncrono existente.
+  const [commitPreviewState, setCommitPreviewState] = useState<
+    import("@/components/payment-wizard/CommitPreviewDialog").CommitPreviewData | null
+  >(null);
+  const commitPreviewResolverRef = useRef<((v: "confirm" | "cancel") => void) | null>(null);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
