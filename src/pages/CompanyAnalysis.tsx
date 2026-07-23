@@ -2792,27 +2792,47 @@ export default function CompanyAnalysis() {
 
 
 
-      {/* ABAS */}
+      {/* ABAS + Notas privadas na mesma linha (economia vertical). */}
       <Tabs defaultValue="analise" className="space-y-3">
-        <TabsList>
-          <TabsTrigger value="analise">
-            {isManual ? "Itens" : (payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
-          </TabsTrigger>
-          {(payment as any)?.analysis_mode === "confeccao" && (
-            <TabsTrigger value="confeccao-audit" data-testid="tab-confeccao-audit">
-              Auditoria de cálculo
+        <div className="flex flex-wrap items-center gap-2">
+          <TabsList>
+            <TabsTrigger value="analise">
+              {isManual ? "Itens" : (payment as any)?.analysis_mode === "confeccao" ? "Confecção" : "Análise"}
             </TabsTrigger>
-          )}
-          {!isConfeccao && !isManual && showParecerTab && (
-            <TabsTrigger value="parecer">
-              <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
+            {(payment as any)?.analysis_mode === "confeccao" && (
+              <TabsTrigger value="confeccao-audit" data-testid="tab-confeccao-audit">
+                Auditoria de cálculo
+              </TabsTrigger>
+            )}
+            {!isConfeccao && !isManual && showParecerTab && (
+              <TabsTrigger value="parecer">
+                <FileText className="h-3.5 w-3.5 mr-1" /> Parecer
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="historico">
+              <History className="h-3.5 w-3.5 mr-1" /> Histórico
             </TabsTrigger>
+          </TabsList>
+
+          {id && groupId && (
+            <div className="flex-1 min-w-[280px] ml-auto">
+              <PrivateCompanyNote
+                note={privateNotes[groupId]?.note ?? ""}
+                marker={privateNotes[groupId]?.marker ?? null}
+                waitingInfo={privateNotes[groupId]?.waiting_info ?? ""}
+                attachments={privateAttachments[groupId] ?? []}
+                saveStatus={privateSaveStatus[groupId] ?? "idle"}
+                onNoteChange={(v) => setPrivateNote(groupId, v)}
+                onMarkerChange={(m) => setPrivateMarker(groupId, m)}
+                onWaitingInfoChange={(v) => setPrivateWaitingInfo(groupId, v)}
+                onUploadAttachment={(file) => uploadPrivateAttachment(groupId, file)}
+                onDeleteAttachment={(attId) => deletePrivateAttachment(groupId, attId)}
+                onDownloadAttachment={(att) => downloadPrivateAttachment(att)}
+              />
+            </div>
           )}
-          <TabsTrigger value="historico">
-            <History className="h-3.5 w-3.5 mr-1" /> Histórico
-          </TabsTrigger>
-          
-        </TabsList>
+        </div>
+
 
         {/* ABA 1 — Análise */}
         <TabsContent value="analise" className="space-y-3">
