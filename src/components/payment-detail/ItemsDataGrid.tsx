@@ -3328,7 +3328,7 @@ export function ItemsDataGrid({
             </colgroup>
             {/* Header CURA — azul primary sólido com texto branco (mesma linguagem do ExcelPreviewDialog).
                 Overrides usam bang para vencer os `bg-muted` inline de cada <th>. */}
-            <thead className="sticky top-0 z-20 [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-primary/40 [&_th]:!uppercase [&_th]:!tracking-wide [&_th]:!text-[11px] [&_th]:!leading-tight [&_th]:!font-semibold [&_th_button]:!text-primary-foreground/85 [&_th_button:hover]:!text-primary-foreground [&_th_button]:!text-[11px] [&_th_button]:!leading-tight [&_th_button]:!font-semibold [&_th_svg]:!text-primary-foreground/85">
+            <thead className="sticky top-0 z-30 [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-b [&_th]:!border-b-white/30 [&_th]:!border-r-0 [&_th]:!border-t-0 [&_th]:!border-l-0 [&_th]:!uppercase [&_th]:!tracking-wide [&_th]:!text-[11px] [&_th]:!leading-tight [&_th]:!font-semibold [&_th_button]:!text-primary-foreground/85 [&_th_button:hover]:!text-primary-foreground [&_th_button]:!text-[11px] [&_th_button]:!leading-tight [&_th_button]:!font-semibold [&_th_svg]:!text-primary-foreground/85">
               <tr>
                 {colVis.atendimento && (
                   <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>
@@ -3392,12 +3392,12 @@ export function ItemsDataGrid({
 
                   scope="col"
                   aria-sort={sortKey === "paciente" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}
+                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-40 shadow-[1px_0_0_0_hsl(var(--border))]")}
                 >
                   <button
                     type="button"
                     onClick={() => toggleSort("paciente")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                     aria-label={`Ordenar por Paciente${sortKey === "paciente" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Paciente
@@ -3418,7 +3418,7 @@ export function ItemsDataGrid({
                     <button
                       type="button"
                       onClick={() => toggleSort("convenio")}
-                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                       aria-label={`Ordenar por Convênio${sortKey === "convenio" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                     >
                       Convênio
@@ -3439,7 +3439,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("tuss")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                     aria-label={`Ordenar por TUSS${sortKey === "tuss" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     TUSS
@@ -3459,7 +3459,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("qtd")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                     aria-label={`Ordenar por Quantidade${sortKey === "qtd" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Qtd
@@ -3484,7 +3484,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("medico")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                     aria-label={`Ordenar por Médico${sortKey === "medico" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Médico
@@ -3507,7 +3507,7 @@ export function ItemsDataGrid({
                     <button
                       type="button"
                       onClick={() => toggleSort("gross")}
-                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                       aria-label={`Ordenar por Valor Repasse${sortKey === "gross" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                     >
                       Valor Repasse
@@ -3537,7 +3537,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("esperado")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                     aria-label={`Ordenar por ${expectedLabel}${sortKey === "esperado" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     {expectedLabel}
@@ -3558,7 +3558,7 @@ export function ItemsDataGrid({
                     <button
                       type="button"
                       onClick={() => toggleSort("diferenca")}
-                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                      className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded ml-auto !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                       aria-label={`Ordenar por Diferença${sortKey === "diferenca" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                     >
                       Diferença
@@ -3579,7 +3579,7 @@ export function ItemsDataGrid({
                   <button
                     type="button"
                     onClick={() => toggleSort("status")}
-                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[10px] !leading-tight uppercase tracking-wide !font-medium"
+                    className="inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded !text-[11px] !leading-tight !uppercase !tracking-wide !font-semibold"
                     aria-label={`Ordenar por Status${sortKey === "status" ? (sortDir === "asc" ? " (crescente)" : " (decrescente)") : ""}`}
                   >
                     Status
@@ -3592,7 +3592,7 @@ export function ItemsDataGrid({
                   <ResizeHandle colKey="status" defaultWidth={132} />
                 </th>
                 {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.<ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
-                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-30 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
+                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-40 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
               </tr>
             </thead>
             <tbody>
