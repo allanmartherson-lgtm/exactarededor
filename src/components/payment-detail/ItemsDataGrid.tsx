@@ -462,8 +462,13 @@ function RowActionsSplit({
       void exec();
       return;
     }
-    setPending({ action, label, exec });
+    // Defere para o próximo tick: quando o gate é disparado por um
+    // DropdownMenuItem, o Radix fecha o menu de forma síncrona e emite
+    // eventos de pointer/focus que o Popover interpreta como "clique fora",
+    // fechando o gate imediatamente. Abrir no próximo tick evita o conflito.
+    setTimeout(() => setPending({ action, label, exec }), 0);
   };
+
 
   const runPending = async (payload: {
     reason: { id: string; label: string; financial_impact: "economia" | "perda" | "neutro" };
@@ -563,7 +568,15 @@ function RowActionsSplit({
           side="left"
           className="w-auto max-w-[420px] p-3"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => {
+            // Ignora o pointer-down residual do fechamento do DropdownMenu
+            // que dispara imediatamente após a escolha da opção.
+            const target = e.target as HTMLElement | null;
+            if (target?.closest?.("[data-radix-menu-content]")) e.preventDefault();
+          }}
+          onFocusOutside={(e) => e.preventDefault()}
         >
+
           <InterventionReasonSelect
             action={pending.action}
             actionLabel={pending.label}
