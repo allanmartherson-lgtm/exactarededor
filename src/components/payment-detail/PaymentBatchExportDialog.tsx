@@ -33,12 +33,9 @@ import {
   formatCompetence,
   type ItemAiStatus,
 } from "@/lib/status";
-import * as XLSX from "xlsx-js-style";
-import {
-  applyBrandTypography,
-  prependBrandHeader,
-  buildBrandSubtitle,
-} from "@/lib/excelBrandStyle";
+// XLSX é gerado no worker (src/workers/excel-export.worker.ts) para paridade
+// total com o PaymentReportModal — não importar XLSX/brand helpers aqui.
+
 import { useHospital } from "@/contexts/HospitalContext";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { getAgreement } from "@/lib/itemFields";
@@ -284,50 +281,163 @@ export function PaymentBatchExportDialog({
     });
   };
 
-  const handleExportXlsx = () => {
-    const rows = buildRows();
-    const headers = [
-      "Empresa", "Atendimento", "Paciente", "Data", "Médico", "CRM",
-      "Especialidade", "Cód. Procedimento", "Procedimento", "Qtd",
-      "Convênio", "Setor", "Valor Bruto", "Valor Esperado", "Diferença",
-      "Piso Aplicado", "Método Piso",
-      "Status", "Regras Aplicadas", "Validações",
-    ];
-    const aoa: any[][] = [
-      headers,
-      ...rows.map((r) => [
-        r.empresa, r.atendimento, r.paciente, r.data, r.medico, r.crm,
-        r.especialidade, r.procedimento_codigo, r.procedimento_nome, r.quantidade,
-        r.convenio, r.setor, r.valor_bruto, r.valor_esperado, r.diferenca,
-        r.piso_aplicado, r.piso_metodo,
-        r.status, r.regras_aplicadas, r.validacoes,
-      ]),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    // Larguras de coluna razoáveis
-    ws["!cols"] = [
-      { wch: 28 }, { wch: 14 }, { wch: 26 }, { wch: 12 }, { wch: 26 }, { wch: 12 },
-      { wch: 18 }, { wch: 14 }, { wch: 30 }, { wch: 6 }, { wch: 18 }, { wch: 18 },
-      { wch: 14 }, { wch: 14 }, { wch: 14 },
-      { wch: 14 }, { wch: 12 },
-      { wch: 12 }, { wch: 40 }, { wch: 50 },
-    ];
-    // Aplica cabeçalho institucional Rede D'Or + tipografia padrão.
-    const subtitle = buildBrandSubtitle({
-      hospitalName: hospital?.name,
-      competence: formatCompetence(payment.competence_months || payment.competence_month || ""),
-    });
-    const headerRow = prependBrandHeader(ws, {
-      title: "Itens do Lote",
-      subtitle,
-      columnsCount: headers.length,
-    });
-    applyBrandTypography(ws, { headerRow });
+  /**
+   * Exportação XLSX — reusa o mesmo worker do PaymentReportModal para garantir
+   * paridade total (mesmas 4 abas: Resumo, Por Empresa, Detalhe dos Itens,
+   * Alertas Assistenciais) entre a exportação do lote e a exportação feita
+   * dentro do pagamento da empresa.
+   */
+  const handleExportXlsx = () =>
+    new Promise<void>((resolve, reject) => {
+      // Resumo agregado
+      const stats = {
+        approved: { count: 0, value: 0 },
+        alert: { count: 0, value: 0 },
+        rejected: { count: 0, value: 0 },
+        accepted: { count: 0, value: 0 },
+      };
+      for (const it of itemsToExport) {
+        const val = Number(it.gross_amount ?? 0);
+        const st = it.ai_status as ItemAiStatus;
+        if (st === "aprovado") { stats.approved.count++; stats.approved.value += val; }
+        else if (st === "alerta") { stats.alert.count++; stats.alert.value += val; }
+        else if (st === "reprovado") { stats.rejected.count++; stats.rejected.value += val; }
+        else if (st === "acatado") { stats.accepted.count++; stats.accepted.value += val; }
+      }
+      const totalValue =
+        stats.approved.value + stats.alert.value + stats.rejected.value + stats.accepted.value;
+      const summary = {
+        approved: { ...stats.approved, pct: totalValue > 0 ? (stats.approved.value / totalValue) * 100 : 0 },
+        alert: { ...stats.alert, pct: totalValue > 0 ? (stats.alert.value / totalValue) * 100 : 0 },
+        rejected: { ...stats.rejected, pct: totalValue > 0 ? (stats.rejected.value / totalValue) * 100 : 0 },
+        accepted: { ...stats.accepted, pct: totalValue > 0 ? (stats.accepted.value / totalValue) * 100 : 0 },
+        riskValue: stats.alert.value + stats.rejected.value,
+        totalValue,
+        totalCount: stats.approved.count + stats.alert.count + stats.rejected.count + stats.accepted.count,
+      };
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Itens do Lote");
-    XLSX.writeFile(wb, buildFileName(payment, scopeLabel, "xlsx"));
-  };
+      // Agrupamento por empresa
+      const grouped = new Map<string, {
+        name: string;
+        totalValue: number;
+        riskValue: number;
+        counts: { aprovado: number; alerta: number; reprovado: number; acatado: number };
+      }>();
+      for (const it of itemsToExport) {
+        const name = it.company_name || "Sem PJ";
+        const g = grouped.get(name) ?? {
+          name,
+          totalValue: 0,
+          riskValue: 0,
+          counts: { aprovado: 0, alerta: 0, reprovado: 0, acatado: 0 },
+        };
+        const val = Number(it.gross_amount ?? 0);
+        g.totalValue += val;
+        const st = it.ai_status as ItemAiStatus;
+        if (st === "alerta" || st === "reprovado") g.riskValue += val;
+        if (st === "aprovado" || st === "alerta" || st === "reprovado" || st === "acatado") {
+          g.counts[st]++;
+        }
+        grouped.set(name, g);
+      }
+      const companyGroups = Array.from(grouped.values()).sort((a, b) => b.riskValue - a.riskValue);
+
+      // Itens enriquecidos com rule_summary + validation_summary + data BR,
+      // no mesmo formato que o PaymentReportModal envia ao worker.
+      const filteredItemsPayload = itemsToExport.map((it) => {
+        const anyIt = it as unknown as Record<string, unknown>;
+        const ruleIds = it.ai_findings?.matched_rule_ids || [];
+        const ruleNames = ruleIds.map((id) => rulesIndex?.[id]?.name).filter(Boolean);
+        const ruleSummary = ruleNames.length > 0
+          ? ruleNames.join(" | ")
+          : (it.ai_findings?.matched_rules?.join(" | ") || "");
+
+        const rawFindings = Array.isArray((anyIt).validation_findings)
+          ? ((anyIt).validation_findings as Array<Record<string, unknown>>)
+          : [];
+        const knownKeys = new Set(
+          rawFindings.map((f) => String(f.rule_id ?? f.rule_name ?? "").toLowerCase()),
+        );
+        const synth: Array<Record<string, unknown>> = [];
+        (it.ai_findings?.matched_rule_ids ?? []).forEach((rid) => {
+          const key = String(rid).toLowerCase();
+          if (knownKeys.has(key)) return;
+          const rule = rulesIndex?.[rid];
+          if (!rule) return;
+          knownKeys.add(key);
+          synth.push({
+            rule_name: rule.name,
+            message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
+          });
+        });
+        const allFindings = [...rawFindings, ...synth];
+        const validationSummary = allFindings
+          .map((f) => {
+            const name = (f?.rule_name as string) || (f?.kind as string) || "Validação";
+            const ci = f?.conflicting_item as Record<string, unknown> | undefined;
+            let conflictDetail = "";
+            if (ci) {
+              const parts: string[] = [];
+              if (ci.doctor_name) parts.push(`Médico: ${ci.doctor_name}`);
+              if (ci.company_name) parts.push(`Empresa: ${ci.company_name}`);
+              if (ci.attendance_number) parts.push(`Atend: ${ci.attendance_number}`);
+              if (parts.length > 0) conflictDetail = ` → conflita com [${parts.join(" · ")}]`;
+            }
+            const msg = (f?.message as string) || "";
+            if (conflictDetail) return `${name}: ${msg}${conflictDetail}`;
+            return msg ? `${name}: ${msg}` : name;
+          })
+          .join(" | ");
+
+        return {
+          ...it,
+          agreement_text: getAgreement(it as never),
+          procedure_date: it.procedure_date ? formatDateOnly(it.procedure_date) : "",
+          rule_summary: ruleSummary,
+          validation_summary: validationSummary,
+        };
+      });
+
+      const workerData = {
+        summary,
+        companyGroups,
+        filteredItems: filteredItemsPayload,
+        fileName: buildFileName(payment, scopeLabel, "xlsx"),
+        hospitalName: hospital?.name ?? null,
+        competence: formatCompetence(payment.competence_months || payment.competence_month || ""),
+      };
+
+      const worker = new Worker(
+        new URL("../../workers/excel-export.worker.ts", import.meta.url),
+        { type: "module" },
+      );
+      worker.onmessage = (e: MessageEvent) => {
+        if (e.data?.type === "success") {
+          const blob = new Blob([e.data.buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = e.data.fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          worker.terminate();
+          resolve();
+        } else if (e.data?.type === "error") {
+          worker.terminate();
+          reject(new Error(e.data.error || "Erro ao gerar Excel"));
+        }
+      };
+      worker.onerror = (err) => {
+        worker.terminate();
+        reject(err.error ?? new Error("Erro no worker de exportação"));
+      };
+      worker.postMessage(workerData);
+    });
+
 
   const handleExportCsv = () => {
     const rows = buildRows();
@@ -389,7 +499,7 @@ export function PaymentBatchExportDialog({
     if (!canExport || busy) return;
     setBusy(true);
     try {
-      if (format === "xlsx") handleExportXlsx();
+      if (format === "xlsx") await handleExportXlsx();
       else if (format === "csv") handleExportCsv();
       else await handleExportPdf();
       toast({
