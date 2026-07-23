@@ -347,7 +347,22 @@ export function PaymentPivotSection({
   const currentMonth = months[months.length - 1];
   const previousMonths = months.slice(0, -1);
 
-  // Agrega rows em estrutura primária + secundária por mês.
+  // Agrega rows em estrutura primária + secundária por mês. Quando o
+  // agrupamento é "empresa" e o usuário quer restringir às PJs do lote,
+  // filtramos aqui — inclusive nos totais — para que a comparação e os KPIs
+  // reflitam apenas o universo do lote.
+  const restrictActive =
+    grouping === "empresa" &&
+    restrictToLotCompanies &&
+    Array.isArray(lotCompanyNames) &&
+    lotCompanyNames.length > 0;
+  const lotCompanySet = useMemo(
+    () => new Set((lotCompanyNames ?? []).map((n) => n.trim().toLowerCase())),
+    [lotCompanyNames],
+  );
+  const isInLot = (key: string) =>
+    !restrictActive || lotCompanySet.has((key ?? "").trim().toLowerCase());
+
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {
     const primary = new Map<string, Map<string, number>>();
     const childrenMap = new Map<string, Map<string, Map<string, number>>>(); // parent -> child -> month -> total
@@ -356,18 +371,21 @@ export function PaymentPivotSection({
     rows.forEach((r) => {
       const monthIso = r.month_bucket.slice(0, 10);
       if (r.parent_key) {
+        // filtra pelo pai (chave primária) quando restrição ativa
+        if (!isInLot(r.parent_key)) return;
         childCount++;
         if (!childrenMap.has(r.parent_key)) childrenMap.set(r.parent_key, new Map());
         const c = childrenMap.get(r.parent_key)!;
         if (!c.has(r.group_key)) c.set(r.group_key, new Map());
         c.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       } else {
+        if (!isInLot(r.group_key)) return;
         primaryCount++;
         if (!primary.has(r.group_key)) primary.set(r.group_key, new Map());
         primary.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       }
     });
-    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size });
+    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size, restrictActive });
 
     const totalsByMonth = new Map<string, number>();
     const primaryList = Array.from(primary.entries())
@@ -406,7 +424,8 @@ export function PaymentPivotSection({
     let totalGeral = 0;
     totalsByMonth.forEach((v) => (totalGeral += v));
     return { primaryRows: primaryList, totalsByMonth, totalGeral };
-  }, [rows, months, currentMonth, previousMonths]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, months, currentMonth, previousMonths, restrictActive, lotCompanySet]);
 
   const totalCurrent = totalsByMonth.get(currentMonth) ?? 0;
   // Meses anteriores efetivamente com dado — base honesta para a média.
