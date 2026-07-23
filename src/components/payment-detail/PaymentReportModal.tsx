@@ -1073,8 +1073,13 @@ export function PaymentReportModal({
                         <TableBody>
                           {g.items.map((it) => {
                             const findings = it.ai_findings as any;
+                            const isAbsorbed = (it as any).package_absorbed === true;
                             const statusTone = it.ai_status === "aprovado" ? "success" : it.ai_status === "alerta" ? "warning" : "destructive";
-                            const diff = Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0);
+                            // Absorvido: valor esperado do grupo já está no item-âncora;
+                            // não computa divergência aqui (espelha a UI de itens).
+                            const diff = isAbsorbed
+                              ? 0
+                              : Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0);
                             const diffPct = findings?.engine?.diff_pct;
 
                             return (
@@ -1097,7 +1102,9 @@ export function PaymentReportModal({
                                 </TableCell>
                                 <TableCell className="text-right tabular-nums">
                                   <p className="font-semibold">{formatCurrency(it.gross_amount)}</p>
-                                  {findings?.expected_amount != null && (
+                                  {isAbsorbed ? (
+                                    <p className="text-[10px] text-emerald-700 font-medium">Absorvido pelo pacote</p>
+                                  ) : findings?.expected_amount != null && (
                                     <p className="text-[10px] text-muted-foreground">Esperado: {formatCurrency(findings.expected_amount)}</p>
                                   )}
                                   {(it as any).piso_aplicado_valor != null && (
