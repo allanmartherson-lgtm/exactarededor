@@ -466,7 +466,7 @@ function RowActionsSplit({
   };
 
   const runPending = async (payload: {
-    reason: { id: string; financial_impact: "economia" | "perda" | "neutro" };
+    reason: { id: string; label: string; financial_impact: "economia" | "perda" | "neutro" };
     notes: string;
   }) => {
     if (!pending) return;
@@ -483,6 +483,12 @@ function RowActionsSplit({
         });
         return;
       }
+      // Justificativa unificada: usa a observação do popover; se vazia, usa o
+      // rótulo do motivo. Evita o segundo modal "Descreva o motivo" que era
+      // redundante com o campo Observações já preenchido acima.
+      const justification = (payload.notes?.trim() || payload.reason.label).trim();
+      (it as unknown as { __interventionJustification?: string }).__interventionJustification =
+        justification;
       await pending.exec();
       setPending(null);
     } finally {

@@ -717,14 +717,19 @@ export default function CompanyAnalysis() {
     // trilha técnica do motor (author_type "ia"), que traz rótulos internos
     // como "setor_master_geral" e confunde o texto de auditoria.
     const existing = (obs.find((o) => o.item_id === it.id && o.author_type !== "ia" && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
-    const justif = await promptJustification({
-      title: "Acatar valor esperado",
-      description: "O valor pago será sobrescrito pelo valor esperado da regra. Registre o motivo abaixo para auditoria.",
-      confirmText: "Acatar valor esperado",
-      tone: "success",
-      minLength: 1,
-      defaultValue: existing,
-    });
+    // Se o popover de motivo (RowActionsSplit) já capturou a justificativa,
+    // reusa direto — evita segundo modal redundante com o mesmo propósito.
+    const preJustif = ((it as any).__interventionJustification as string | undefined)?.trim() || "";
+    const justif = preJustif
+      ? preJustif
+      : await promptJustification({
+          title: "Acatar valor esperado",
+          description: "O valor pago será sobrescrito pelo valor esperado da regra. Registre o motivo abaixo para auditoria.",
+          confirmText: "Acatar valor esperado",
+          tone: "success",
+          minLength: 1,
+          defaultValue: existing,
+        });
     if (!justif) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
@@ -777,14 +782,19 @@ export default function CompanyAnalysis() {
     // baseada em observações persistidas, que gerava o falso "justificativa
     // obrigatória" mesmo após o analista escrever no campo lateral.
     const existing = (obs.find((o) => o.item_id === it.id && o.author_type !== "ia" && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
-    const justif = await promptJustification({
-      title: "Acatar mantendo o valor pago",
-      description: "O valor esperado será alinhado ao valor pago sem sobrescrita. É obrigatório registrar o motivo (mín. 20 caracteres) porque a divergência da regra permanece no histórico.",
-      confirmText: "Acatar valor pago",
-      tone: "success",
-      minLength: 20,
-      defaultValue: existing,
-    });
+    // Reusa a justificativa capturada no popover de motivo, quando presente e
+    // com tamanho suficiente. Caso contrário abre o modal (mín. 20 caracteres).
+    const preJustif = ((it as any).__interventionJustification as string | undefined)?.trim() || "";
+    const justif = preJustif.length >= 20
+      ? preJustif
+      : await promptJustification({
+          title: "Acatar mantendo o valor pago",
+          description: "O valor esperado será alinhado ao valor pago sem sobrescrita. É obrigatório registrar o motivo (mín. 20 caracteres) porque a divergência da regra permanece no histórico.",
+          confirmText: "Acatar valor pago",
+          tone: "success",
+          minLength: 20,
+          defaultValue: preJustif || existing,
+        });
     if (!justif) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item_keep_paid", {
