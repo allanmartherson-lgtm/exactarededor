@@ -60,9 +60,9 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         <SheetPrimitive.Close
           aria-label="Fechar"
           title="Fechar (Esc)"
-          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+          className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md border border-destructive/40 bg-destructive/10 text-destructive shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 disabled:pointer-events-none"
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" strokeWidth={2.5} />
           <span className="sr-only">Fechar</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
