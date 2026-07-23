@@ -2758,25 +2758,29 @@ export default function CompanyAnalysis() {
       )}
 
 
-      <AutoClassifiedBanner
-        items={items as any}
-        lotePaymentTypeId={(payment as any)?.payment_model_id ?? null}
-        paymentId={id}
-        canEdit={isAnalista || isAdminOrDiretor || isValidador}
-        onChanged={() => { void (async () => { await load(); await composition.refresh(); })(); }}
-      />
-
-      {!isConfeccao && !isManual && (
-        <MixedParecerRetroAction
-          paymentId={id!}
-          paymentTypeId={(payment as any)?.payment_model_id ?? null}
-          paymentTypeCode={paymentTypeMeta?.code ?? null}
-          paymentTypeCategory={paymentTypeMeta?.category ?? null}
-          competenceMonths={((payment as any)?.competence_months ?? []).map((d: string) => d.slice(0, 7))}
-          hasMixedParecer={hasMixedParecer}
-          onApplied={() => window.location.reload()}
+      {/* Banners de lote misto (heurística + parecer/visita) na mesma linha — mesmo assunto. */}
+      <div className="flex flex-wrap items-stretch gap-2 [&>*]:flex-1 [&>*]:min-w-[320px]">
+        <AutoClassifiedBanner
+          items={items as any}
+          lotePaymentTypeId={(payment as any)?.payment_model_id ?? null}
+          paymentId={id}
+          canEdit={isAnalista || isAdminOrDiretor || isValidador}
+          onChanged={() => { void (async () => { await load(); await composition.refresh(); })(); }}
         />
-      )}
+
+        {!isConfeccao && !isManual && (
+          <MixedParecerRetroAction
+            paymentId={id!}
+            paymentTypeId={(payment as any)?.payment_model_id ?? null}
+            paymentTypeCode={paymentTypeMeta?.code ?? null}
+            paymentTypeCategory={paymentTypeMeta?.category ?? null}
+            competenceMonths={((payment as any)?.competence_months ?? []).map((d: string) => d.slice(0, 7))}
+            hasMixedParecer={hasMixedParecer}
+            onApplied={() => window.location.reload()}
+          />
+        )}
+      </div>
+
 
 
       {id && group?.company_id && (
