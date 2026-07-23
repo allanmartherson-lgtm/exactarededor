@@ -771,6 +771,8 @@ export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-
 export const HEAD_BTN = "text-[10px] leading-tight uppercase tracking-wide font-medium";
 export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
 const TABLE_HEAD_TEXT = "inline-flex items-center gap-1 text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
+const TABLE_HEAD_TEXT_RIGHT = "inline-flex items-center justify-end gap-1 ml-auto text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
+const TABLE_HEAD_TEXT_CENTER = "inline-flex items-center justify-center gap-1 w-full text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
 const TABLE_HEAD_SORT_BUTTON = "inline-flex items-center gap-1 rounded text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground/90 hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70";
 
 function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
@@ -3330,7 +3332,7 @@ export function ItemsDataGrid({
             </colgroup>
             {/* Header CURA — azul primary sólido com texto branco (mesma linguagem do ExcelPreviewDialog).
                 Overrides usam bang para vencer os `bg-muted` inline de cada <th>. */}
-            <thead className="sticky top-0 z-[70] [&_th]:sticky [&_th]:top-0 [&_th]:z-[70] [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-b [&_th]:!border-b-primary-foreground/45 [&_th]:!border-r [&_th]:!border-r-primary-foreground/20 [&_th]:!border-t-0 [&_th]:!border-l-0 [&_th]:align-middle [&_th]:!text-[11px] [&_th]:!leading-tight [&_th]:!font-semibold [&_th_svg]:!text-primary-foreground/85 [&_th_[role=separator]]:!w-px [&_th_[role=separator]]:!bg-primary-foreground/55 [&_th_[role=separator]:hover]:!bg-primary-foreground/90">
+            <thead className="sticky top-0 z-[70] [&_th]:sticky [&_th]:top-0 [&_th]:z-[70] [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-b [&_th]:!border-b-primary-foreground/45 [&_th]:!border-r [&_th]:!border-r-primary-foreground/20 [&_th]:!border-t-0 [&_th]:!border-l-0 [&_th]:align-middle [&_th]:!text-[11px] [&_th]:!leading-tight [&_th]:!font-semibold [&_th_svg]:!text-primary-foreground/85 [&_th>[role=separator]]:!w-px [&_th>[role=separator]]:!bg-primary-foreground/55 [&_th>[role=separator]:hover]:!bg-primary-foreground/90">
               <tr>
                 {colVis.atendimento && (
                   <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>
@@ -3340,7 +3342,7 @@ export function ItemsDataGrid({
                         <PopoverTrigger asChild>
                           <button
                             type="button"
-                            className="inline-flex items-center justify-center h-3.5 w-3.5 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex items-center justify-center h-3.5 w-3.5 rounded text-primary-foreground/85 hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70"
                             aria-label="Legenda dos selos do atendimento"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -3527,7 +3529,7 @@ export function ItemsDataGrid({
                     scope="col"
                     className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
                   >
-                    <span className={cn(TABLE_HEAD_TEXT, "justify-end")}>Valor Faturamento</span>
+                    <span className={TABLE_HEAD_TEXT_RIGHT}>Valor Faturamento</span>
                     <ResizeHandle colKey="faturamento" defaultWidth={130} />
                   </th>
                 )}
@@ -3594,7 +3596,7 @@ export function ItemsDataGrid({
                   <ResizeHandle colKey="status" defaultWidth={132} />
                 </th>
                 {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Obs.</span><ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
-                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-[80] shadow-[-1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}><span className={cn(TABLE_HEAD_TEXT, "justify-center")}>Ações</span></th>}
+                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-[80] shadow-[-1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}><span className={TABLE_HEAD_TEXT_CENTER}>Ações</span></th>}
               </tr>
             </thead>
             <tbody>
