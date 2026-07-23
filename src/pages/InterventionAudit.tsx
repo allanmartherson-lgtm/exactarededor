@@ -14,7 +14,7 @@
  * reativados (`cancellation_reactivated_at IS NULL`) e evita dupla contagem
  * entre cancelamento de item e de empresa no mesmo período.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
