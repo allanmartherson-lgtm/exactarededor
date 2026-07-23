@@ -271,6 +271,60 @@ export function PaymentPivotSection({
     return () => { alive = false; };
   }, [paymentId]);
 
+  // Carrega as empresas presentes NESTE lote (por payment_company_financials,
+  // que já reflete o rateio real por PJ). Serve para restringir o pivot ao
+  // universo do lote quando o analista quiser comparar apenas essas PJs.
+  useEffect(() => {
+    if (variant === "detalhe" || !paymentId) {
+      setLotCompanyNames(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data: fin } = await supabase
+        .from("payment_company_financials")
+        .select("company_id")
+        .eq("payment_id", paymentId);
+      const ids = Array.from(new Set((fin ?? []).map((r) => r.company_id).filter(Boolean)));
+      if (!ids.length) {
+        // Fallback: usa payment_items (cobre lotes sem financials calculado).
+        const { data: items } = await supabase
+          .from("payment_items")
+          .select("company_id")
+          .eq("payment_id", paymentId)
+          .not("company_id", "is", null);
+        const itemIds = Array.from(new Set((items ?? []).map((r) => r.company_id).filter(Boolean)));
+        if (!itemIds.length) {
+          if (alive) setLotCompanyNames([]);
+          return;
+        }
+        const { data: cs } = await supabase.from("companies").select("name").in("id", itemIds);
+        if (alive) {
+          setLotCompanyNames((cs ?? []).map((c) => (c.name ?? "").trim().toLowerCase()).filter(Boolean));
+        }
+        return;
+      }
+      const { data: cs } = await supabase.from("companies").select("name").in("id", ids);
+      if (alive) {
+        setLotCompanyNames((cs ?? []).map((c) => (c.name ?? "").trim().toLowerCase()).filter(Boolean));
+      }
+    })();
+    return () => { alive = false; };
+  }, [variant, paymentId]);
+
+  // Comportamento padrão: lotes pequenos (< 5 PJs) já entram agrupados por
+  // empresa e restritos às PJs do próprio lote. Só aplica uma vez para não
+  // sobrescrever a escolha do usuário depois.
+  useEffect(() => {
+    if (variant === "detalhe") return;
+    if (autoDefaultApplied || lotCompanyNames === null) return;
+    if (lotCompanyNames.length > 0 && lotCompanyNames.length < 5) {
+      setGrouping("empresa");
+      setRestrictToLotCompanies(true);
+    }
+    setAutoDefaultApplied(true);
+  }, [variant, autoDefaultApplied, lotCompanyNames]);
+
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
   useEffect(() => {
