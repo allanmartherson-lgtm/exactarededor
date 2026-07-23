@@ -626,26 +626,28 @@ function RowActionsSplit({
             type="button"
             onClick={runPrimary}
             className={cn(
-              "h-7 rounded-r-none border border-r-0 px-2.5 min-w-[132px] justify-center gap-1",
+              "h-9 rounded-r-none border border-r-0 px-2 min-w-[108px] justify-center gap-1.5",
               "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
-              "text-[11px] font-medium shadow-none",
+              "font-medium shadow-none",
             )}
             title={primaryTitle}
           >
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{primaryLabel}</span>
-            {primaryValueHint && (
-              <span className="ml-0.5 text-[10px] font-semibold opacity-80 tabular-nums">
-                {primaryValueHint}
-              </span>
-            )}
+            <span className="flex flex-col items-start leading-tight">
+              <span className="text-[11px] font-semibold">{primaryLabel}</span>
+              {primaryValueHint && (
+                <span className="text-[10px] font-semibold opacity-80 tabular-nums">
+                  {primaryValueHint}
+                </span>
+              )}
+            </span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
                 className={cn(
-                  "h-7 rounded-l-none border px-1.5",
+                  "h-9 rounded-l-none border px-1.5",
                   "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
                   "shadow-none",
                 )}
@@ -655,6 +657,7 @@ function RowActionsSplit({
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                 Acatar como
