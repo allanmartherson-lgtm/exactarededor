@@ -436,6 +436,58 @@ function RowActionsSplit({
   const isAcatado = !isBonus && status === "acatado";
   const canDelete = !!onDeleteItem && (!isBonus || !it.applied_rule_id);
 
+  // -----------------------------------------------------------------
+  // GATE de motivo de intervenção (obrigatório para acate/exclusão).
+  // Popover ancorado no container do split-button. Usa
+  // InterventionReasonSelect (categorizado + notas + badge de impacto).
+  // Bonus items dispensam o gate — o motor deriva a decisão da regra.
+  // -----------------------------------------------------------------
+  const [pending, setPending] = useState<
+    | {
+        action: InterventionAction;
+        label: string;
+        exec: () => void | Promise<void>;
+      }
+    | null
+  >(null);
+  const [gateSubmitting, setGateSubmitting] = useState(false);
+
+  const requestGated = (
+    action: InterventionAction,
+    label: string,
+    exec: () => void | Promise<void>,
+  ) => {
+    if (isBonus) {
+      // Bônus não têm intervenção financeira categorizada — executa direto.
+      void exec();
+      return;
+    }
+    setPending({ action, label, exec });
+  };
+
+  const runPending = async (payload: {
+    reason: { id: string; financial_impact: "economia" | "perda" | "neutro" };
+    notes: string;
+  }) => {
+    if (!pending) return;
+    setGateSubmitting(true);
+    try {
+      const res = await saveIntervention({
+        itemId: it.id,
+        reason: payload.reason,
+        notes: payload.notes,
+      });
+      if (!res.ok) {
+        toast.error("Não foi possível salvar o motivo", { description: res.error });
+        return;
+      }
+      await pending.exec();
+      setPending(null);
+    } finally {
+      setGateSubmitting(false);
+    }
+  };
+
   // Item de menu — "Tratar manualmente"
   const manualMenuItem = !isBonus ? (
     <DropdownMenuItem onClick={() => setManualOpen(true)}>
@@ -454,7 +506,14 @@ function RowActionsSplit({
   ) : null;
 
   const deleteMenuItem = canDelete ? (
-    <DropdownMenuItem onClick={() => onDeleteItem!(it)} className="text-destructive focus:text-destructive">
+    <DropdownMenuItem
+      onClick={() =>
+        requestGated("excluir", isBonus ? "Excluir bônus" : "Excluir item", () =>
+          onDeleteItem!(it),
+        )
+      }
+      className="text-destructive focus:text-destructive"
+    >
       <Trash2 className="h-4 w-4 mr-2 text-destructive" />
       <span className="text-[12px]">{isBonus ? "Excluir bônus" : "Excluir item"}</span>
     </DropdownMenuItem>
