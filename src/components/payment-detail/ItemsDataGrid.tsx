@@ -578,23 +578,67 @@ function RowActionsSplit({
 
   // Estado: reprovado / alerta → Split button verde
   if (canAccept && onAcceptItem) {
+    // Preferência do analista para a AÇÃO PRIMÁRIA do split.
+    // Persistida por navegador — o botão principal reflete a última variante
+    // usada, para que o usuário nunca fique "cego" sobre o que o clique aplica.
+    // Se "Manter valor pago" não está disponível na linha, forçamos "esperado".
+    const preferKeepPaid =
+      !!onAcceptItemKeepPaid &&
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("exacta.acceptDefault") === "manter_pago";
+    const primaryVariant: "esperado" | "manter_pago" = preferKeepPaid ? "manter_pago" : "esperado";
+
+    const expectedRaw =
+      (it as unknown as { expected_amount?: number | null }).expected_amount ??
+      it.ai_findings?.expected_amount ??
+      null;
+    const paidRaw = (it as unknown as { gross_amount?: number | null }).gross_amount ?? null;
+    const expectedTxt = expectedRaw != null ? formatCurrency(Number(expectedRaw)) : null;
+    const paidTxt = paidRaw != null ? formatCurrency(Number(paidRaw)) : null;
+
+    const setPrimary = (variant: "esperado" | "manter_pago") => {
+      try {
+        window.localStorage.setItem("exacta.acceptDefault", variant);
+      } catch {
+        /* noop */
+      }
+    };
+
+    const runPrimary = () => {
+      if (primaryVariant === "manter_pago" && onAcceptItemKeepPaid) {
+        requestGated("acatar", "Manter valor pago", () => onAcceptItemKeepPaid(it));
+      } else {
+        requestGated("acatar", "Acatar", () => onAcceptItem(it));
+      }
+    };
+
+    const primaryLabel = primaryVariant === "manter_pago" ? "Manter pago" : "Acatar esperado";
+    const primaryValueHint = primaryVariant === "manter_pago" ? paidTxt : expectedTxt;
+    const primaryTitle =
+      primaryVariant === "manter_pago"
+        ? `Acata mantendo o valor pago${paidTxt ? ` (${paidTxt})` : ""}`
+        : `Acata usando o valor esperado${expectedTxt ? ` (${expectedTxt})` : ""}`;
+
     return gate(
       <>
         <div className="inline-flex items-stretch">
           <Button
             type="button"
-            onClick={() =>
-              requestGated("acatar", "Acatar", () => onAcceptItem(it))
-            }
+            onClick={runPrimary}
             className={cn(
-              "h-7 rounded-r-none border border-r-0 px-2.5 min-w-[92px] justify-center",
+              "h-7 rounded-r-none border border-r-0 px-2.5 min-w-[132px] justify-center gap-1",
               "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
               "text-[11px] font-medium shadow-none",
             )}
-            title="Acatar usando o valor esperado"
+            title={primaryTitle}
           >
-            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-            Acatar
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{primaryLabel}</span>
+            {primaryValueHint && (
+              <span className="ml-0.5 text-[10px] font-semibold opacity-80 tabular-nums">
+                {primaryValueHint}
+              </span>
+            )}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -605,34 +649,64 @@ function RowActionsSplit({
                   "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
                   "shadow-none",
                 )}
-                title="Mais opções"
-                aria-label="Mais opções"
+                title="Escolher outra forma de acate"
+                aria-label="Escolher outra forma de acate"
               >
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                 Acatar como
               </DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() =>
-                  requestGated("acatar", "Acatar", () => onAcceptItem(it))
-                }
+                onClick={() => {
+                  setPrimary("esperado");
+                  requestGated("acatar", "Acatar", () => onAcceptItem(it));
+                }}
               >
-                <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
-                <span className="text-[12px]">Usar valor esperado</span>
+                <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600 shrink-0" />
+                <div className="flex flex-1 flex-col leading-tight">
+                  <span className="text-[12px] flex items-center gap-1.5">
+                    Usar valor esperado
+                    {primaryVariant === "esperado" && (
+                      <span className="text-[9px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1 py-[1px]">
+                        padrão
+                      </span>
+                    )}
+                  </span>
+                  {expectedTxt && (
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      {expectedTxt}
+                    </span>
+                  )}
+                </div>
               </DropdownMenuItem>
               {onAcceptItemKeepPaid && (
                 <DropdownMenuItem
-                  onClick={() =>
+                  onClick={() => {
+                    setPrimary("manter_pago");
                     requestGated("acatar", "Manter valor pago", () =>
                       onAcceptItemKeepPaid(it),
-                    )
-                  }
+                    );
+                  }}
                 >
-                  <HandCoins className="h-4 w-4 mr-2 text-sky-600" />
-                  <span className="text-[12px]">Manter valor pago</span>
+                  <HandCoins className="h-4 w-4 mr-2 text-sky-600 shrink-0" />
+                  <div className="flex flex-1 flex-col leading-tight">
+                    <span className="text-[12px] flex items-center gap-1.5">
+                      Manter valor pago
+                      {primaryVariant === "manter_pago" && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-100 rounded px-1 py-[1px]">
+                          padrão
+                        </span>
+                      )}
+                    </span>
+                    {paidTxt && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                        {paidTxt}
+                      </span>
+                    )}
+                  </div>
                 </DropdownMenuItem>
               )}
               {(manualMenuItem || editMenuItem) && <DropdownMenuSeparator />}
@@ -647,6 +721,7 @@ function RowActionsSplit({
       </>,
     );
   }
+
 
   // Estado: acatado → Desfazer + "⋯" opcional
   if (isAcatado && onUndoAcceptItem) {
