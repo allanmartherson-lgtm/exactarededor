@@ -3392,7 +3392,7 @@ export function ItemsDataGrid({
 
                   scope="col"
                   aria-sort={sortKey === "paciente" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}
+                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-40 shadow-[1px_0_0_0_hsl(var(--border))]")}
                 >
                   <button
                     type="button"
