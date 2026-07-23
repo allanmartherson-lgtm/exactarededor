@@ -218,7 +218,7 @@ export function MixedParecerRetroAction({
               </Select>
             </div>
             {ambiguousCount === 0 && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1 text-[12px] text-amber-900">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>Sem TUSS cadastrados em Parecer/Visita/Consulta — o filtro de itens ambíguos ficará vazio.</span>
               </div>
