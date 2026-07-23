@@ -198,34 +198,36 @@ export function InterventionReasonSelect({
           />
         </div>
 
-        <div className="flex items-center justify-end gap-2">
-          {onCancel && (
+        {!hideActions && (
+          <div className="flex items-center justify-end gap-2">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCancel}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+            )}
             <Button
               type="button"
-              variant="ghost"
               size="sm"
-              onClick={onCancel}
-              disabled={submitting}
+              onClick={handleConfirm}
+              disabled={!selected || submitting}
             >
-              Cancelar
+              {submitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />{" "}
+                  Executando…
+                </>
+              ) : (
+                `Confirmar ${actionLabel ?? ""}`.trim()
+              )}
             </Button>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleConfirm}
-            disabled={!selected || submitting}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />{" "}
-                Executando…
-              </>
-            ) : (
-              `Confirmar ${actionLabel ?? ""}`.trim()
-            )}
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );
