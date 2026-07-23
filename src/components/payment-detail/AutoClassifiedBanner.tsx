@@ -58,7 +58,7 @@ export function AutoClassifiedBanner({
 
   return (
     <>
-      <div className="flex items-center gap-2 rounded-md border border-violet-200/70 bg-violet-50/60 px-3 py-2 text-xs dark:border-violet-900/60 dark:bg-violet-950/20">
+      <div className="flex items-center gap-2 rounded-md border border-violet-200/70 bg-violet-50/60 px-3 py-1 text-[12px] dark:border-violet-900/60 dark:bg-violet-950/20">
         <Sparkles className="h-3.5 w-3.5 shrink-0 text-violet-600 dark:text-violet-300" />
         <span className="font-medium text-violet-900 dark:text-violet-100">
           Lote misto detectado:
