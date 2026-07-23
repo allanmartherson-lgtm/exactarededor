@@ -256,6 +256,19 @@ const PRIORITY_WEIGHT: Record<ZeevInsight["priority"], number> = {
 
 const HIDDEN_KEY = "zeev-dismissed-insights";
 
+// Migração única: a versão antiga guardava dispensas numa chave GLOBAL,
+// ocultando as sugestões (inclusive "Tratar em lote") em todos os lotes
+// e empresas até o navegador ser fechado. Agora as dispensas são por escopo
+// (paymentId+companyId) — então apagamos a chave global uma vez para
+// destravar quem havia dispensado antes desta correção.
+if (typeof window !== "undefined") {
+  try {
+    sessionStorage.removeItem(HIDDEN_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 /** Insight derivado do pre-flight (contagens do lote/empresa). */
 type DiagBucket = {
   topic: "sem_setor" | "sem_cc" | "sem_empresa" | "sem_regra" | "divergentes" | "zerados";
@@ -465,14 +478,26 @@ export function ZeevAssistant({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"insights" | "chat">("insights");
-  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+  // Escopo da dispensa: por lote+empresa (ou "global" quando fora de contexto).
+  // Isso evita que dispensar "muitos-divergentes" numa empresa oculte a mesma
+  // sugestão em TODAS as outras empresas/lotes até fechar a aba — que era o
+  // sintoma de "Zeev parou de sugerir acates em lote".
+  const dismissScopeKey = useMemo(() => {
+    const p = bulkContext?.paymentId ?? "global";
+    const c = bulkContext?.companyId ?? bulkContext?.companyGroupId ?? "all";
+    return `${HIDDEN_KEY}::${p}::${c}`;
+  }, [bulkContext?.paymentId, bulkContext?.companyId, bulkContext?.companyGroupId]);
+
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  // Recarrega o conjunto dispensado ao trocar de escopo (lote/empresa).
+  useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(HIDDEN_KEY);
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+      const raw = sessionStorage.getItem(dismissScopeKey);
+      setDismissed(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
     } catch {
-      return new Set();
+      setDismissed(new Set());
     }
-  });
+  }, [dismissScopeKey]);
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
   const [chatInitialPrompt, setChatInitialPrompt] = useState<{ text: string; nonce: number } | null>(null);
@@ -510,17 +535,31 @@ export function ZeevAssistant({
   const visible = unified.filter((i) => !dismissed.has(i.id));
   const highPriority = visible.filter((i) => i.priority === "alta").length;
   const hasInsights = visible.length > 0;
+  // Quantos insights foram dispensados NESTE escopo mas ainda existem na lista
+  // — usado para expor um "Restaurar sugestões" quando o analista quiser
+  // trazê-los de volta sem precisar fechar a aba.
+  const dismissedVisibleCount = unified.filter((i) => dismissed.has(i.id)).length;
 
   const dismiss = (id: string) => {
     const next = new Set(dismissed);
     next.add(id);
     setDismissed(next);
     try {
-      sessionStorage.setItem(HIDDEN_KEY, JSON.stringify([...next]));
+      sessionStorage.setItem(dismissScopeKey, JSON.stringify([...next]));
     } catch {
       /* noop */
     }
   };
+
+  const restoreDismissed = () => {
+    setDismissed(new Set());
+    try {
+      sessionStorage.removeItem(dismissScopeKey);
+    } catch {
+      /* noop */
+    }
+  };
+
 
   const openChatWith = (text?: string) => {
     if (text) setChatInitialPrompt({ text, nonce: Date.now() });
@@ -661,9 +700,34 @@ export function ZeevAssistant({
               <div className="max-h-[52vh] overflow-y-auto p-3 space-y-2">
                 {visible.length === 0 && (
                   <div className="text-xs text-muted-foreground text-center py-6 px-2 leading-relaxed">
-                    Nenhuma pendência aqui. Estou de olho — se algo aparecer, eu aviso.
+                    {dismissedVisibleCount > 0 ? (
+                      <>
+                        Você dispensou {dismissedVisibleCount} sugestão(ões) neste contexto.
+                        <button
+                          type="button"
+                          onClick={restoreDismissed}
+                          className="block mx-auto mt-2 text-[11px] font-medium text-[hsl(var(--primary))] hover:underline"
+                        >
+                          Restaurar sugestões
+                        </button>
+                      </>
+                    ) : (
+                      "Nenhuma pendência aqui. Estou de olho — se algo aparecer, eu aviso."
+                    )}
                   </div>
                 )}
+                {visible.length > 0 && dismissedVisibleCount > 0 && (
+                  <div className="flex justify-end -mt-1 mb-1">
+                    <button
+                      type="button"
+                      onClick={restoreDismissed}
+                      className="text-[10px] text-muted-foreground hover:text-[hsl(var(--primary))] hover:underline"
+                    >
+                      Restaurar {dismissedVisibleCount} dispensada(s)
+                    </button>
+                  </div>
+                )}
+
                 {visible.map((ins) => {
                   const Icon = ins.icon;
                   const canBulk = ins.bulk && bulkContext && ins.bulk.itemIds.length > 0;
