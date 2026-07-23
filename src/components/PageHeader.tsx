@@ -6,7 +6,7 @@ import { NAV_ITEMS, type NavItem, type NavLeaf } from "@/config/navItems";
 
 interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: ReactNode;
   actions?: ReactNode;
   /** Mantido por compatibilidade; não renderiza mais o quadradinho de ícone. */
   icon?: LucideIcon;
