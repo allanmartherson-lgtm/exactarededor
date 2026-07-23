@@ -996,6 +996,17 @@ const NewPayment = () => {
   // === Vínculo com rateio (pool) ===
   const [paymentMode, setPaymentMode] = useState<"producao" | "rateio">("producao");
   const [competenceRegime, setCompetenceRegime] = useState<"producao" | "remessa">("producao");
+  // Regra: em regime "produção" o lote só pode ter UMA competência (o eixo
+  // financeiro é sempre a competência do lote). Se a analista trocar remessa→produção
+  // com múltiplos meses já marcados, mantemos apenas o mais recente para não
+  // enviar um lote inconsistente para o motor.
+  useEffect(() => {
+    if (competenceRegime !== "producao") return;
+    setCompetenceMonths((cur) => (cur.length > 1 ? [[...cur].sort().pop() as string] : cur));
+    // setCompetenceMonths é estável (setState); regime é a única dependência real.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [competenceRegime]);
+
   const [poolId, setPoolId] = useState<string>("");
   const [poolDeductionId, setPoolDeductionId] = useState<string>("");
   const [rateioSource, setRateioSource] = useState<"planilha" | "sintetico">("planilha");
