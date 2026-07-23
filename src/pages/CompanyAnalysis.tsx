@@ -2787,30 +2787,8 @@ export default function CompanyAnalysis() {
         />
       )}
 
-      {/* Notas pessoais + marcadores (Fixar / Aguardando info / Já revisei) — visíveis apenas para você. */}
-      {id && groupId && (
-        <PrivateCompanyNote
-          note={privateNotes[groupId]?.note ?? ""}
-          marker={privateNotes[groupId]?.marker ?? null}
-          waitingInfo={privateNotes[groupId]?.waiting_info ?? ""}
-          attachments={privateAttachments[groupId] ?? []}
-          saveStatus={privateSaveStatus[groupId] ?? "idle"}
-          onNoteChange={(v) => setPrivateNote(groupId, v)}
-          onMarkerChange={(m) => setPrivateMarker(groupId, m)}
-          onWaitingInfoChange={(v) => setPrivateWaitingInfo(groupId, v)}
-          onUploadAttachment={(file) => uploadPrivateAttachment(groupId, file)}
-          onDeleteAttachment={(attId) => deletePrivateAttachment(groupId, attId)}
-          onDownloadAttachment={(att) => downloadPrivateAttachment(att)}
-        />
-      )}
+      {/* Thread de questionamentos foi movida para o modal de Conversas (FAB). */}
 
-
-
-
-
-
-      {/* Thread de questionamentos foi movida para o modal de Conversas (FAB) —
-          o bloco redundante na página foi removido a pedido do usuário. */}
 
 
 
