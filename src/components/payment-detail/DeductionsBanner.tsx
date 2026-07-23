@@ -156,14 +156,21 @@ export function DeductionsBanner({
 
   if (totalLinhas === 0 && !running) {
     return (
-      <div className="rounded-md border bg-muted/30 px-4 py-2.5 flex items-center justify-between text-xs">
-        <span className="text-muted-foreground flex items-center gap-2">
-          <CheckCircle2 className="h-3.5 w-3.5" /> Nenhuma dedução para esta empresa nesta competência.
+      <div className="rounded-md border bg-muted/30 px-3 py-1.5 flex items-center gap-3 flex-wrap lg:flex-nowrap text-xs">
+        <span className="text-muted-foreground flex items-center gap-2 shrink-0">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Nenhuma dedução nesta competência.
         </span>
+        {formulaSlot && <div className="flex-1 min-w-0">{formulaSlot}</div>}
         {canEdit && (
-          <Button size="sm" variant="ghost" onClick={() => setAddOpen(true)} className="h-7 text-xs">
+          <Button size="sm" variant="ghost" onClick={() => setAddOpen(true)} className="h-7 text-xs shrink-0 ml-auto">
             <Plus className="h-3 w-3 mr-1" /> Adicionar manualmente
           </Button>
+        )}
+        {addOpen && (
+          <AddManualDeductionDialog
+            paymentId={paymentId} companyId={companyId}
+            onClose={() => { setAddOpen(false); void load(); void onApplied?.(); }}
+          />
         )}
       </div>
     );
