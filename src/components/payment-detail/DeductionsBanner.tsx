@@ -25,8 +25,8 @@ type Gpa = {
 const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function DeductionsBanner({
-  paymentId, companyId, canEdit, onApplied,
-}: { paymentId: string; companyId: string; canEdit: boolean; onApplied?: () => void | Promise<void> }) {
+  paymentId, companyId, canEdit, onApplied, formulaSlot,
+}: { paymentId: string; companyId: string; canEdit: boolean; onApplied?: () => void | Promise<void>; formulaSlot?: React.ReactNode }) {
   const [caa, setCaa] = useState<Caa[]>([]);
   const [gpa, setGpa] = useState<Gpa[]>([]);
   const [loading, setLoading] = useState(true);
