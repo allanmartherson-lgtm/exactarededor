@@ -174,6 +174,13 @@ export function PaymentPivotSection({
   // Secundário (drilldown): controlado pelo usuário via "Customizar".
   // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
   const [secondary, setSecondary] = useState<GroupingField | null>(null);
+  // Empresas presentes no lote atual (nomes normalizados). Usado para restringir
+  // o agrupamento por empresa apenas às PJs deste lote — muito útil em lotes
+  // pequenos onde toda a base histórica polui a comparação.
+  const [lotCompanyNames, setLotCompanyNames] = useState<string[] | null>(null);
+  const [restrictToLotCompanies, setRestrictToLotCompanies] = useState<boolean>(true);
+  // Guard para só aplicar o default automático (grouping = empresa) uma vez.
+  const [autoDefaultApplied, setAutoDefaultApplied] = useState(false);
   // Ordenação da tabela. key = "label" | "delta" | "<month-iso>".
   // Default: maior valor do mês atual (mesmo comportamento anterior).
   const [sortKey, setSortKey] = useState<string>("__current__");
@@ -264,6 +271,60 @@ export function PaymentPivotSection({
     return () => { alive = false; };
   }, [paymentId]);
 
+  // Carrega as empresas presentes NESTE lote (por payment_company_financials,
+  // que já reflete o rateio real por PJ). Serve para restringir o pivot ao
+  // universo do lote quando o analista quiser comparar apenas essas PJs.
+  useEffect(() => {
+    if (variant === "detalhe" || !paymentId) {
+      setLotCompanyNames(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data: fin } = await supabase
+        .from("payment_company_financials")
+        .select("company_id")
+        .eq("payment_id", paymentId);
+      const ids = Array.from(new Set((fin ?? []).map((r) => r.company_id).filter(Boolean)));
+      if (!ids.length) {
+        // Fallback: usa payment_items (cobre lotes sem financials calculado).
+        const { data: items } = await supabase
+          .from("payment_items")
+          .select("company_id")
+          .eq("payment_id", paymentId)
+          .not("company_id", "is", null);
+        const itemIds = Array.from(new Set((items ?? []).map((r) => r.company_id).filter(Boolean)));
+        if (!itemIds.length) {
+          if (alive) setLotCompanyNames([]);
+          return;
+        }
+        const { data: cs } = await supabase.from("companies").select("name").in("id", itemIds);
+        if (alive) {
+          setLotCompanyNames((cs ?? []).map((c) => (c.name ?? "").trim().toLowerCase()).filter(Boolean));
+        }
+        return;
+      }
+      const { data: cs } = await supabase.from("companies").select("name").in("id", ids);
+      if (alive) {
+        setLotCompanyNames((cs ?? []).map((c) => (c.name ?? "").trim().toLowerCase()).filter(Boolean));
+      }
+    })();
+    return () => { alive = false; };
+  }, [variant, paymentId]);
+
+  // Comportamento padrão: lotes pequenos (< 5 PJs) já entram agrupados por
+  // empresa e restritos às PJs do próprio lote. Só aplica uma vez para não
+  // sobrescrever a escolha do usuário depois.
+  useEffect(() => {
+    if (variant === "detalhe") return;
+    if (autoDefaultApplied || lotCompanyNames === null) return;
+    if (lotCompanyNames.length > 0 && lotCompanyNames.length < 5) {
+      setGrouping("empresa");
+      setRestrictToLotCompanies(true);
+    }
+    setAutoDefaultApplied(true);
+  }, [variant, autoDefaultApplied, lotCompanyNames]);
+
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
   useEffect(() => {
@@ -286,7 +347,22 @@ export function PaymentPivotSection({
   const currentMonth = months[months.length - 1];
   const previousMonths = months.slice(0, -1);
 
-  // Agrega rows em estrutura primária + secundária por mês.
+  // Agrega rows em estrutura primária + secundária por mês. Quando o
+  // agrupamento é "empresa" e o usuário quer restringir às PJs do lote,
+  // filtramos aqui — inclusive nos totais — para que a comparação e os KPIs
+  // reflitam apenas o universo do lote.
+  const restrictActive =
+    grouping === "empresa" &&
+    restrictToLotCompanies &&
+    Array.isArray(lotCompanyNames) &&
+    lotCompanyNames.length > 0;
+  const lotCompanySet = useMemo(
+    () => new Set((lotCompanyNames ?? []).map((n) => n.trim().toLowerCase())),
+    [lotCompanyNames],
+  );
+  const isInLot = (key: string) =>
+    !restrictActive || lotCompanySet.has((key ?? "").trim().toLowerCase());
+
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {
     const primary = new Map<string, Map<string, number>>();
     const childrenMap = new Map<string, Map<string, Map<string, number>>>(); // parent -> child -> month -> total
@@ -295,18 +371,21 @@ export function PaymentPivotSection({
     rows.forEach((r) => {
       const monthIso = r.month_bucket.slice(0, 10);
       if (r.parent_key) {
+        // filtra pelo pai (chave primária) quando restrição ativa
+        if (!isInLot(r.parent_key)) return;
         childCount++;
         if (!childrenMap.has(r.parent_key)) childrenMap.set(r.parent_key, new Map());
         const c = childrenMap.get(r.parent_key)!;
         if (!c.has(r.group_key)) c.set(r.group_key, new Map());
         c.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       } else {
+        if (!isInLot(r.group_key)) return;
         primaryCount++;
         if (!primary.has(r.group_key)) primary.set(r.group_key, new Map());
         primary.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       }
     });
-    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size });
+    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size, restrictActive });
 
     const totalsByMonth = new Map<string, number>();
     const primaryList = Array.from(primary.entries())
@@ -345,7 +424,8 @@ export function PaymentPivotSection({
     let totalGeral = 0;
     totalsByMonth.forEach((v) => (totalGeral += v));
     return { primaryRows: primaryList, totalsByMonth, totalGeral };
-  }, [rows, months, currentMonth, previousMonths]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, months, currentMonth, previousMonths, restrictActive, lotCompanySet]);
 
   const totalCurrent = totalsByMonth.get(currentMonth) ?? 0;
   // Meses anteriores efetivamente com dado — base honesta para a média.
@@ -452,6 +532,25 @@ export function PaymentPivotSection({
           >
             <Plus className="h-3 w-3 mr-1" /> Customizar
           </Button>
+
+          {grouping === "empresa" && lotCompanyNames && lotCompanyNames.length > 0 && (
+            <label
+              className={cn(
+                "flex items-center gap-1.5 h-7 px-2 text-[11px] rounded-md border cursor-pointer transition-colors",
+                restrictToLotCompanies
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "bg-background border-border text-muted-foreground hover:bg-muted/40",
+              )}
+              title="Restringe o pivot às PJs presentes neste lote"
+            >
+              <Checkbox
+                checked={restrictToLotCompanies}
+                onCheckedChange={(c) => setRestrictToLotCompanies(!!c)}
+                className="h-3.5 w-3.5"
+              />
+              Só PJs do lote ({lotCompanyNames.length})
+            </label>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Trilha</span>
