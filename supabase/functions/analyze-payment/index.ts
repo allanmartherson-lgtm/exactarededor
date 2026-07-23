@@ -1095,6 +1095,64 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
         }
       }
 
+      // Detecta absorções órfãs: rawItem.package_absorbed=true cujo calc
+      // referenciado não existe mais nas regras OU cujo main_code não está
+      // presente no atendimento (nem localmente, nem em outras PJs). Só
+      // precisamos consultar códigos das outras PJs quando há candidatos.
+      const rawAbsorbedItems = (itemsRaw ?? []).filter(
+        (it: any) => it?.package_absorbed === true && it?.attendance_number,
+      );
+      if (rawAbsorbedItems.length > 0) {
+        // Set de códigos por atendimento incluindo todas as PJs do payment.
+        const attCodeSet: Record<string, Set<string>> = {};
+        for (const it of (itemsRaw ?? []) as any[]) {
+          const att = (it.attendance_number ?? "").toString().trim();
+          const code = (it.procedure_code ?? "").toString().trim();
+          if (!att || !code) continue;
+          (attCodeSet[att] ||= new Set()).add(code);
+        }
+        try {
+          const atts = Array.from(new Set(rawAbsorbedItems.map((it: any) => String(it.attendance_number).trim())));
+          const { data: sibs } = await supabase
+            .from("payment_items")
+            .select("attendance_number,procedure_code")
+            .eq("payment_id", payment_id)
+            .in("attendance_number", atts)
+            .not("procedure_code", "is", null);
+          for (const row of (sibs ?? []) as any[]) {
+            const att = (row.attendance_number ?? "").toString().trim();
+            const code = (row.procedure_code ?? "").toString().trim();
+            if (!att || !code) continue;
+            (attCodeSet[att] ||= new Set()).add(code);
+          }
+        } catch { /* ignora: cai no codeSet local */ }
+
+        const calcById = new Map<string, PkgCalc>();
+        for (const c of packageCalcs) calcById.set(c.calc_id, c);
+
+        for (const raw of rawAbsorbedItems) {
+          const att = String(raw.attendance_number).trim();
+          const codeSet = attCodeSet[att] ?? new Set<string>();
+          const calcId = raw.package_absorbed_calc_id ?? null;
+          // Sem calc_id (legado manual): só marca stale se NENHUM pacote tem
+          // main presente no atendimento — assim não desfazemos escolha
+          // manual válida do analista.
+          if (!calcId) {
+            const anyMainPresent = packageCalcs.some((c) =>
+              c.package_main_codes.some((mc) => codeSet.has(mc)),
+            );
+            if (!anyMainPresent) staleAbsorbedItemIds.add(raw.id);
+            continue;
+          }
+          const calc = calcById.get(calcId);
+          if (!calc) { staleAbsorbedItemIds.add(raw.id); continue; }
+          const mainPresent = calc.package_main_codes.some((mc) => codeSet.has(mc));
+          if (!mainPresent) staleAbsorbedItemIds.add(raw.id);
+        }
+        if (staleAbsorbedItemIds.size > 0) {
+          console.log(`[pacote_rule_calcs] stale_absorbed_detected count=${staleAbsorbedItemIds.size}`);
+        }
+      }
 
       if (packageCalcs.length > 0) {
         // Helper: normaliza texto removendo acentos e caixa
