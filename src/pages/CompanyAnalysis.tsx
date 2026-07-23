@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { InterventionReasonSelect } from "@/components/payment-detail/InterventionReasonSelect";
 import { ManualItemsGrid } from "@/components/payment-detail/ManualItemsGrid";
 import { ZeevAssistant } from "@/components/copilot/ZeevAssistant";
 import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
