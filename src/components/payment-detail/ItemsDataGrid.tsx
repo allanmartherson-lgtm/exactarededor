@@ -3592,7 +3592,7 @@ export function ItemsDataGrid({
                   <ResizeHandle colKey="status" defaultWidth={132} />
                 </th>
                 {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.<ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
-                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-30 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
+                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-40 shadow-[-1px_0_0_0_hsl(var(--border))]")}>Ações</th>}
               </tr>
             </thead>
             <tbody>
