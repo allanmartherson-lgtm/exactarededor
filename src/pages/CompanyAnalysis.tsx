@@ -2574,41 +2574,39 @@ export default function CompanyAnalysis() {
               )}
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <Stat
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <KpiBadge
+              icon={<FileText className="h-4 w-4" />}
               label="Itens"
               value={String(group.items_count ?? items.length)}
               tone="info"
-              icon={<FileText className="h-4 w-4" />}
             />
             {isManual ? (
               <>
-                <Stat
+                <KpiBadge
+                  icon={<Wallet className="h-4 w-4" />}
                   label="Valor total"
                   value={formatCurrency(composition.liquido || composition.bruto)}
-                  sub="Lançamento manual"
-                  mono
-                  tone="success"
-                  icon={<Wallet className="h-4 w-4" />}
+                  sublabel="Lançamento manual"
+                  tone="info"
                 />
-                <Stat
+                <KpiBadge
+                  icon={<FileText className="h-4 w-4" />}
                   label="Com anexo"
                   value={String(
                     items.filter((it) => !!(it as any).manual_source_attachment_path).length,
                   )}
                   tone="info"
-                  icon={<FileText className="h-4 w-4" />}
                 />
               </>
             ) : isConfeccao ? (
               <>
-                <Stat
+                <KpiBadge
+                  icon={<Calculator className="h-4 w-4" />}
                   label="Repasse calculado"
                   value={formatCurrency(composition.liquido)}
-                  sub={`Convênio: ${formatCurrency(composition.bruto)}`}
-                  mono
+                  sublabel={`Convênio ${formatCurrency(composition.bruto)}`}
                   tone="warning"
-                  icon={<Calculator className="h-4 w-4" />}
                 />
                 {(() => {
                   const semRegra = items.filter(
@@ -2619,17 +2617,17 @@ export default function CompanyAnalysis() {
                   ).length;
                   return (
                     <>
-                      <Stat
+                      <KpiBadge
+                        icon={<FileText className="h-4 w-4" />}
                         label="Com regra"
                         value={String(comRegra)}
-                        tone={comRegra > 0 ? "success" : "muted"}
-                        icon={<FileText className="h-4 w-4" />}
+                        tone={comRegra > 0 ? "info" : "muted"}
                       />
-                      <Stat
+                      <KpiBadge
+                        icon={<AlertTriangle className="h-4 w-4" />}
                         label="Sem regra"
                         value={String(semRegra)}
                         tone={semRegra > 0 ? "warning" : "muted"}
-                        icon={<AlertTriangle className="h-4 w-4" />}
                       />
                     </>
                   );
@@ -2637,29 +2635,29 @@ export default function CompanyAnalysis() {
               </>
             ) : (
               <>
-                <Stat
+                <KpiBadge
+                  icon={<Wallet className="h-4 w-4" />}
                   label="Valor líquido"
                   value={formatCurrency(composition.liquido)}
-                  sub={`Bruto: ${formatCurrency(composition.bruto)}`}
-                  mono
-                  tone="success"
-                  icon={<Wallet className="h-4 w-4" />}
+                  sublabel={`Bruto ${formatCurrency(composition.bruto)}`}
+                  tone="info"
                 />
-                <Stat
+                <KpiBadge
+                  icon={<AlertTriangle className="h-4 w-4" />}
                   label="Alertas"
                   value={String(counts.alertasTotal)}
                   tone={counts.alertasTotal > 0 ? "warning" : "muted"}
-                  icon={<AlertTriangle className="h-4 w-4" />}
                 />
-                <Stat
+                <KpiBadge
+                  icon={<ShieldAlert className="h-4 w-4" />}
                   label="Críticos"
                   value={String(counts.criticosTotal)}
                   tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
-                  icon={<ShieldAlert className="h-4 w-4" />}
                 />
               </>
             )}
           </div>
+
 
         </CardContent>
       </Card>
