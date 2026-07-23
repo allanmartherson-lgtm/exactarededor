@@ -5487,16 +5487,18 @@ const NewPayment = () => {
 
 
         {(submitValidation.blockers.length > 0 || submitValidation.warnings.length > 0) && (
-          <div className="space-y-2 sticky bottom-[72px] z-20">
+          // Inline (não sticky) para não cobrir o conteúdo em viewports curtos.
+          // Ambos os painéis são <details> compactos e colapsados por padrão —
+          // o analista vê a contagem sempre e expande sob demanda.
+          <div className="space-y-2">
             {submitValidation.blockers.length > 0 && (
-              // Fundo sólido + blur + sombra evita sobreposição visual com o formulário
-              // atrás — banner ficava semitransparente e o texto do form vazava por trás.
-              <div className="rounded-md border-2 border-destructive bg-background/95 backdrop-blur-sm shadow-lg p-3 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  {submitValidation.blockers.length} problema(s) impedem o envio
-                </div>
-                <ul className="text-xs text-foreground space-y-1 pl-6 list-disc">
+              <details open className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2 group">
+                <summary className="flex items-center gap-2 text-xs font-semibold text-destructive cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{submitValidation.blockers.length} problema(s) impedem o envio</span>
+                  <ChevronDown className="h-3.5 w-3.5 ml-auto transition-transform group-open:rotate-180" />
+                </summary>
+                <ul className="text-xs text-foreground space-y-1 pl-6 list-disc mt-2">
                   {submitValidation.blockers.map((b) => (
                     <li key={b.key}>
                       <span className="font-medium text-destructive">{b.label}</span>
@@ -5504,13 +5506,14 @@ const NewPayment = () => {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
             )}
             {submitValidation.warnings.length > 0 && (
-              <details className="rounded-md border-2 border-warning bg-background/95 backdrop-blur-sm shadow-lg p-3 group">
-                <summary className="flex items-center gap-2 text-sm font-semibold text-warning cursor-pointer select-none">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  {submitValidation.warnings.length} aviso(s) — revise antes de enviar
+              <details className="rounded-md border border-warning/50 bg-warning/5 px-3 py-2 group">
+                <summary className="flex items-center gap-2 text-xs font-semibold text-warning cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{submitValidation.warnings.length} aviso(s) — revise antes de enviar</span>
+                  <ChevronDown className="h-3.5 w-3.5 ml-auto transition-transform group-open:rotate-180" />
                 </summary>
                 <ul className="text-xs text-foreground space-y-1 pl-6 list-disc mt-2">
                   {submitValidation.warnings.map((w) => (
@@ -5524,6 +5527,7 @@ const NewPayment = () => {
             )}
           </div>
         )}
+
 
 
         <div className="flex flex-wrap items-center justify-end gap-3">
