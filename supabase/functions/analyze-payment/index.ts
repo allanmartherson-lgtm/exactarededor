@@ -1034,6 +1034,12 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
     //     (mais included_codes presentes no atendimento).
     //   • Códigos absorvidos: main_code + included_codes encontrados.
     //   • Distribuição por função via package_roles_distribution (fixo ou %).
+    // Itens marcados como package_absorbed em runs anteriores cujo pacote
+    // ancoragem (main_code) não está mais presente no atendimento — ex.: a
+    // base foi reimportada e a linha principal (Lobectomia) sumiu, deixando
+    // um item incluído (Broncoscopia) "órfão" com expected=0. Coletamos aqui
+    // e limpamos na persistência (rastro em audit_log via bloco existente).
+    const staleAbsorbedItemIds = new Set<string>();
     try {
       // Coleta todos os cálculos de pacote de todas as regras carregadas
       type PkgCalc = {
