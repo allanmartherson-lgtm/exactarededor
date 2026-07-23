@@ -662,7 +662,7 @@ const ChipGroup = <T extends string>({
    ================================================================ */
 
 const Dashboard = () => {
-  const { roles, user } = useAuth();
+  const { roles, user, rolesLoading } = useAuth();
   const hospitalId = useActiveHospitalId();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
