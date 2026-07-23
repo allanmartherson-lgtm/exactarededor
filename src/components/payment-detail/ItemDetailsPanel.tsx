@@ -4,10 +4,9 @@
  * o restante da tabela imóvel e organiza o conteúdo em seções
  * colapsáveis.
  *
- * Diferente da versão anterior, este painel NÃO reusa o ItemDetailsRow
- * (que foi desenhado para a largura total da tela e ficava ilegível
- * dentro dos 440px do drawer). Toda a informação é renderizada por
- * conta própria em layout vertical de lista chave-valor.
+ * Hierarquia visual CURA: cada seção tem uma borda esquerda colorida
+ * (azul CURA no cálculo, laranja na regra, cinza nas observações,
+ * azul-claro nos dados) para o analista escanear rapidamente.
  */
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
@@ -43,35 +42,59 @@ interface ItemDetailsPanelProps {
 
 const SECTION_TITLE = "text-[11px] uppercase tracking-wide text-muted-foreground font-medium";
 
+// Cor da borda esquerda por seção — comunica hierarquia (mais importante = azul CURA sólido)
+type AccentTone = "primary" | "accent" | "muted" | "glow";
+const ACCENT_BORDER: Record<AccentTone, string> = {
+  primary: "border-l-primary",
+  accent: "border-l-accent",
+  muted: "border-l-muted-foreground/30",
+  glow: "border-l-primary-glow",
+};
+const ACCENT_TINT: Record<AccentTone, string> = {
+  primary: "bg-primary/[0.04]",
+  accent: "",
+  muted: "",
+  glow: "",
+};
+
 function Section({
   title,
   defaultOpen = false,
+  tone = "muted",
   children,
 }: {
   title: string;
   defaultOpen?: boolean;
+  tone?: AccentTone;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="w-full flex items-center justify-between gap-2 px-4 py-2 border-b bg-muted/30 hover:bg-muted/50 transition-colors"
-        >
-          <span className={SECTION_TITLE}>{title}</span>
-          {open ? (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="px-4 py-3 border-b">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
+    <div className={cn("border-l-[3px]", ACCENT_BORDER[tone], ACCENT_TINT[tone])}>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "w-full flex items-center justify-between gap-2 px-4 py-2 bg-muted/40 hover:bg-muted/60 transition-colors",
+              open && "border-b border-border/40",
+            )}
+          >
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-foreground">
+              {title}
+            </span>
+            {open ? (
+              <ChevronDown className="h-3.5 w-3.5 text-primary" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-primary" />
+            )}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-4 py-3 border-b border-border/40">
+          {children}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }
 
@@ -79,15 +102,17 @@ function Field({
   label,
   value,
   full = false,
+  labelClass,
 }: {
   label: string;
   value: React.ReactNode;
   full?: boolean;
+  labelClass?: string;
 }) {
   return (
     <div className={cn("min-w-0", full && "col-span-2")}>
-      <div className={SECTION_TITLE}>{label}</div>
-      <div className="mt-0.5 text-[13px] break-words">
+      <div className={cn(SECTION_TITLE, labelClass)}>{label}</div>
+      <div className="mt-0.5 text-[13px] text-foreground break-words">
         {value == null || value === "" ? <span className="text-muted-foreground">—</span> : value}
       </div>
     </div>
@@ -103,6 +128,24 @@ function formatDate(v: any): string {
   } catch {
     return String(v);
   }
+}
+
+/** Mapeia status para cores CURA semânticas no badge do header. */
+function statusBadgeClass(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes("acatad") || s.includes("aceit") || s.includes("conciliad")) {
+    return "bg-success text-white";
+  }
+  if (s.includes("reprovad") || s.includes("divergent") || s.includes("erro")) {
+    return "bg-destructive text-white";
+  }
+  if (s.includes("alerta") || s.includes("atencao") || s.includes("atenção") || s.includes("pendent")) {
+    return "bg-accent text-white";
+  }
+  if (s.includes("aprovad")) {
+    return "bg-primary-foreground/10 text-primary-foreground border border-primary-foreground/30";
+  }
+  return "bg-white/15 text-primary-foreground";
 }
 
 export function ItemDetailsPanel({
@@ -132,6 +175,12 @@ export function ItemDetailsPanel({
   const grossAmount = Number(item.gross_amount ?? 0);
   const expectedAmount = Number(item.expected_amount ?? 0);
   const diff = grossAmount - expectedAmount;
+  const diffTone =
+    Math.abs(diff) < 0.01
+      ? "text-muted-foreground"
+      : diff > 0
+        ? "text-success"
+        : "text-destructive";
 
   const appliedRuleLabel =
     item.applied_rule_label ?? item.rule_name ?? item.matched_rule_name ?? null;
@@ -184,7 +233,12 @@ export function ItemDetailsPanel({
             <div className="text-sm font-semibold truncate flex-1 min-w-0" title={patient}>
               {patient}
             </div>
-            <span className="shrink-0 text-[10px] uppercase font-semibold rounded bg-white/15 px-2 py-0.5">
+            <span
+              className={cn(
+                "shrink-0 text-[10px] uppercase font-semibold rounded px-2 py-0.5",
+                statusBadgeClass(statusLabel),
+              )}
+            >
               {statusLabel}
             </span>
           </div>
@@ -195,55 +249,83 @@ export function ItemDetailsPanel({
 
         {/* Scroll interno */}
         <div className="flex-1 overflow-y-auto">
-          {/* 1. Cálculo — aberto por padrão, com memória em destaque */}
-          <Section title="Cálculo" defaultOpen>
+          {/* 1. Cálculo — aberto por padrão, azul CURA sólido (destaque máximo) */}
+          <Section title="Cálculo" defaultOpen tone="primary">
             <div className="grid grid-cols-3 gap-3">
-              <Field label="Pago" value={<span className="tabular-nums font-semibold text-[15px]">{formatCurrency(grossAmount)}</span>} />
-              <Field label="Esperado" value={<span className="tabular-nums font-semibold text-[15px]">{formatCurrency(expectedAmount)}</span>} />
-              <Field
-                label="Diferença"
-                value={
-                  <span className={cn(
-                    "tabular-nums font-semibold text-[15px]",
-                    Math.abs(diff) < 0.01 ? "text-emerald-600" : diff > 0 ? "text-red-600" : "text-amber-600",
-                  )}>
-                    {formatCurrency(diff)}
-                  </span>
-                }
-              />
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-primary/70 font-medium">Pago</div>
+                <div className="mt-0.5 text-[18px] font-bold tabular-nums text-foreground">
+                  {formatCurrency(grossAmount)}
+                </div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-primary/70 font-medium">Esperado</div>
+                <div className="mt-0.5 text-[18px] font-bold tabular-nums text-foreground">
+                  {formatCurrency(expectedAmount)}
+                </div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-primary/70 font-medium">Diferença</div>
+                <div className={cn("mt-0.5 text-[18px] font-bold tabular-nums", diffTone)}>
+                  {formatCurrency(diff)}
+                </div>
+              </div>
             </div>
             {calcMemory && (
-              <div className="mt-3 bg-muted/40 rounded p-3 text-[12px] whitespace-pre-wrap break-words">
+              <div className="mt-3 bg-primary/[0.06] rounded-lg p-3 text-[12px] text-foreground/80 leading-relaxed whitespace-pre-wrap break-words">
                 {calcMemory}
               </div>
             )}
             {appliedMethod && (
-              <div className="mt-3 text-[12px] text-muted-foreground">
-                Método aplicado: <span className="font-medium text-foreground">{appliedMethod}</span>
+              <div className="mt-3 flex items-center gap-2 text-[12px] text-muted-foreground">
+                <span>Método aplicado:</span>
+                <span className="inline-flex items-center bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 text-[11px] font-medium">
+                  {appliedMethod}
+                </span>
               </div>
             )}
           </Section>
 
-          {/* 2. Regra aplicada — aberta por padrão */}
-          <Section title="Regra aplicada" defaultOpen>
+          {/* 2. Regra aplicada — laranja CURA */}
+          <Section title="Regra aplicada" defaultOpen tone="accent">
             <div className="space-y-2">
-              <Field label="Nome da regra" value={appliedRuleLabel ?? <span className="text-muted-foreground italic">Sem regra vinculada</span>} />
+              <div className="min-w-0">
+                <div className={SECTION_TITLE}>Nome da regra</div>
+                <div className="mt-0.5 text-[14px] font-semibold text-foreground break-words">
+                  {appliedRuleLabel ?? (
+                    <span className="text-muted-foreground italic font-normal">Sem regra vinculada</span>
+                  )}
+                </div>
+              </div>
               {item.applied_layer && <Field label="Camada" value={String(item.applied_layer)} />}
               {item.applied_rule_id && (
-                <Field label="ID da regra" value={<span className="font-mono text-[11px]">{String(item.applied_rule_id)}</span>} />
+                <div className="min-w-0">
+                  <div className={SECTION_TITLE}>ID da regra</div>
+                  <div className="mt-0.5">
+                    <span className="inline-block text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
+                      {String(item.applied_rule_id)}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
           </Section>
 
-          {/* 3. Observações — colapsada */}
-          <Section title="Observações">
+          {/* 3. Observações — cinza (menos importante) */}
+          <Section title="Observações" tone="muted">
             {observations.length === 0 ? (
               <div className="text-[12px] text-muted-foreground italic">Nenhuma observação registrada.</div>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-0">
                 {observations.map((o, idx) => (
-                  <li key={o.id ?? idx} className="border-l-2 border-primary/40 pl-2 text-[12px]">
-                    <div className="whitespace-pre-wrap break-words">{o.text ?? "—"}</div>
+                  <li
+                    key={o.id ?? idx}
+                    className={cn(
+                      "py-2 text-[12px]",
+                      idx < observations.length - 1 && "border-b border-border/40",
+                    )}
+                  >
+                    <div className="whitespace-pre-wrap break-words text-foreground">{o.text ?? "—"}</div>
                     <div className="mt-1 text-[10px] text-muted-foreground">
                       {o.author_name ?? "—"}{o.created_at ? ` • ${o.created_at}` : ""}
                     </div>
@@ -253,38 +335,38 @@ export function ItemDetailsPanel({
             )}
           </Section>
 
-          {/* 4. Dados do item — colapsada, layout vertical de lista */}
-          <Section title="Dados do item">
+          {/* 4. Dados do item — azul claro CURA */}
+          <Section title="Dados do item" tone="glow">
             {caseSubtypeSlot && (
-              <div className="mb-3 pb-3 border-b">
-                <div className={SECTION_TITLE}>Tipo deste item</div>
+              <div className="mb-3 pb-3 border-b border-border/40">
+                <div className="text-[11px] uppercase tracking-wide text-primary/60 font-medium">Tipo deste item</div>
                 <div className="mt-1">{caseSubtypeSlot}</div>
               </div>
             )}
             <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-              <Field label="Atendimento" value={item.attendance_number ?? item.atendimento ?? null} />
-              <Field label="Data" value={formatDate(item.procedure_date ?? item.data ?? item.date)} />
-              <Field label="Paciente" value={patient} full />
-              <Field label="Convênio" value={getAgreement(item)} full />
-              <Field label="Via de acesso" value={getAccessRoute(item)} />
-              <Field label="TUSS" value={procCode} />
-              <Field label="Procedimento" value={procName} full />
-              <Field label="Médico" value={getDoctor(item)} full />
-              <Field label="Função" value={getDoctorRole(item)} />
-              <Field label="Quantidade" value={item.quantity ?? 1} />
-              <Field label="Setor" value={item.sector_name ?? item.sector ?? null} full />
-              <Field label="Setor (planilha)" value={item.raw_sector ?? item.sector_raw ?? null} full />
-              <Field label="Tipo do item" value={item.item_type_label ?? item.item_type ?? null} full />
+              <Field label="Atendimento" value={item.attendance_number ?? item.atendimento ?? null} labelClass="text-primary/60" />
+              <Field label="Data" value={formatDate(item.procedure_date ?? item.data ?? item.date)} labelClass="text-primary/60" />
+              <Field label="Paciente" value={patient} full labelClass="text-primary/60" />
+              <Field label="Convênio" value={getAgreement(item)} full labelClass="text-primary/60" />
+              <Field label="Via de acesso" value={getAccessRoute(item)} labelClass="text-primary/60" />
+              <Field label="TUSS" value={procCode} labelClass="text-primary/60" />
+              <Field label="Procedimento" value={procName} full labelClass="text-primary/60" />
+              <Field label="Médico" value={getDoctor(item)} full labelClass="text-primary/60" />
+              <Field label="Função" value={getDoctorRole(item)} labelClass="text-primary/60" />
+              <Field label="Quantidade" value={item.quantity ?? 1} labelClass="text-primary/60" />
+              <Field label="Setor" value={item.sector_name ?? item.sector ?? null} full labelClass="text-primary/60" />
+              <Field label="Setor (planilha)" value={item.raw_sector ?? item.sector_raw ?? null} full labelClass="text-primary/60" />
+              <Field label="Tipo do item" value={item.item_type_label ?? item.item_type ?? null} full labelClass="text-primary/60" />
             </div>
           </Section>
 
-          {/* 5. Histórico e análise — colapsada, blocos verticais */}
-          <Section title="Histórico e análise">
+          {/* 5. Histórico e análise — cinza (contexto de apoio) */}
+          <Section title="Histórico e análise" tone="muted">
             <div className="space-y-3">
               {alerts.length > 0 && (
-                <div className="border-l-2 border-amber-500 pl-3">
+                <div className="border-l-2 border-accent pl-3">
                   <div className={SECTION_TITLE}>Alertas</div>
-                  <ul className="mt-1 space-y-1 text-[12px]">
+                  <ul className="mt-1 space-y-1 text-[12px] text-foreground">
                     {alerts.map((a, i) => (
                       <li key={i} className="break-words">• {a}</li>
                     ))}
@@ -295,7 +377,7 @@ export function ItemDetailsPanel({
               {matchedRules.length > 0 && (
                 <div className="border-l-2 border-primary/40 pl-3">
                   <div className={SECTION_TITLE}>Regras avaliadas</div>
-                  <ul className="mt-1 space-y-1 text-[12px]">
+                  <ul className="mt-1 space-y-1 text-[12px] text-foreground">
                     {matchedRules.map((r, i) => (
                       <li key={i} className="break-words">• {r}</li>
                     ))}
@@ -306,7 +388,7 @@ export function ItemDetailsPanel({
               {engine && (
                 <div className="border-l-2 border-muted-foreground/40 pl-3">
                   <div className={SECTION_TITLE}>Motor</div>
-                  <div className="mt-1 space-y-1 text-[12px]">
+                  <div className="mt-1 space-y-1 text-[12px] text-foreground">
                     {engine.calculation_type_used && (
                       <div><span className="text-muted-foreground">Tipo de cálculo:</span> {String(engine.calculation_type_used)}</div>
                     )}
@@ -326,7 +408,7 @@ export function ItemDetailsPanel({
               {item.created_at && (
                 <div className="border-l-2 border-muted-foreground/40 pl-3">
                   <div className={SECTION_TITLE}>Criado em</div>
-                  <div className="mt-1 text-[12px]">{formatDate(item.created_at)}</div>
+                  <div className="mt-1 text-[12px] text-foreground">{formatDate(item.created_at)}</div>
                 </div>
               )}
 
