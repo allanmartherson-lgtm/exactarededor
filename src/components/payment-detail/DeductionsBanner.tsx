@@ -199,7 +199,9 @@ export function DeductionsBanner({
             <Button size="sm" onClick={() => setOpen(true)} className="h-7 text-xs">Revisar</Button>
           </div>
         </div>
+        {formulaSlot && <div className="mt-2">{formulaSlot}</div>}
       </div>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
