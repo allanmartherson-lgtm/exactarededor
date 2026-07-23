@@ -4314,11 +4314,13 @@ export type Database = {
       }
       manual_intervention_reasons: {
         Row: {
+          applies_to: string[]
           category: string
           code: string
           created_at: string
           created_by: string | null
           description: string | null
+          financial_impact: string
           hospital_id: string | null
           id: string
           is_active: boolean
@@ -4328,11 +4330,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          applies_to?: string[]
           category: string
           code: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          financial_impact?: string
           hospital_id?: string | null
           id?: string
           is_active?: boolean
@@ -4342,11 +4346,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          applies_to?: string[]
           category?: string
           code?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          financial_impact?: string
           hospital_id?: string | null
           id?: string
           is_active?: boolean
@@ -5625,6 +5631,9 @@ export type Database = {
           gross_override_reason: string | null
           hospital_id: string
           id: string
+          intervention_financial_impact: string | null
+          intervention_notes: string | null
+          intervention_reason_id: string | null
           is_cancelled: boolean
           is_manual_entry: boolean
           is_pool_item: boolean
@@ -5761,6 +5770,9 @@ export type Database = {
           gross_override_reason?: string | null
           hospital_id: string
           id?: string
+          intervention_financial_impact?: string | null
+          intervention_notes?: string | null
+          intervention_reason_id?: string | null
           is_cancelled?: boolean
           is_manual_entry?: boolean
           is_pool_item?: boolean
@@ -5897,6 +5909,9 @@ export type Database = {
           gross_override_reason?: string | null
           hospital_id?: string
           id?: string
+          intervention_financial_impact?: string | null
+          intervention_notes?: string | null
+          intervention_reason_id?: string | null
           is_cancelled?: boolean
           is_manual_entry?: boolean
           is_pool_item?: boolean
@@ -6022,6 +6037,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_intervention_reason_id_fkey"
+            columns: ["intervention_reason_id"]
+            isOneToOne: false
+            referencedRelation: "manual_intervention_reasons"
             referencedColumns: ["id"]
           },
           {
