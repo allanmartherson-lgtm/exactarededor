@@ -2733,13 +2733,14 @@ export default function CompanyAnalysis() {
         </div>
       )}
 
-      {/* Banner de deduções auto-aplicadas (débitos/glosas) */}
+      {/* Banner de deduções + fórmula financeira fundidos em bloco compacto */}
       {id && group?.company_id && (
         <DeductionsBanner
           paymentId={id}
           companyId={group.company_id}
           canEdit={isAnalista || isAdminOrDiretor || isValidador}
           onApplied={async () => { await composition.refresh(); stale.markFresh(); }}
+          formulaSlot={<FinancialCompositionStrip comp={composition} mode={compMode} />}
         />
       )}
 
@@ -2756,8 +2757,6 @@ export default function CompanyAnalysis() {
         />
       )}
 
-      {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
-      {id && group?.company_id && <FinancialCompositionStrip comp={composition} mode={compMode} />}
 
       <AutoClassifiedBanner
         items={items as any}

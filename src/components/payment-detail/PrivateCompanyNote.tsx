@@ -191,7 +191,7 @@ export function PrivateCompanyNote({
   };
 
   return (
-    <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
+    <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-1.5">
       {/* Cabeçalho: rótulo + status + marcadores. Em telas pequenas vira coluna. */}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex items-center gap-2 min-w-0">
