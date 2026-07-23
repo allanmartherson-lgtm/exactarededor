@@ -465,14 +465,26 @@ export function ZeevAssistant({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"insights" | "chat">("insights");
-  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+  // Escopo da dispensa: por lote+empresa (ou "global" quando fora de contexto).
+  // Isso evita que dispensar "muitos-divergentes" numa empresa oculte a mesma
+  // sugestão em TODAS as outras empresas/lotes até fechar a aba — que era o
+  // sintoma de "Zeev parou de sugerir acates em lote".
+  const dismissScopeKey = useMemo(() => {
+    const p = bulkContext?.paymentId ?? "global";
+    const c = bulkContext?.companyId ?? bulkContext?.companyGroupId ?? "all";
+    return `${HIDDEN_KEY}::${p}::${c}`;
+  }, [bulkContext?.paymentId, bulkContext?.companyId, bulkContext?.companyGroupId]);
+
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  // Recarrega o conjunto dispensado ao trocar de escopo (lote/empresa).
+  useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(HIDDEN_KEY);
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+      const raw = sessionStorage.getItem(dismissScopeKey);
+      setDismissed(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
     } catch {
-      return new Set();
+      setDismissed(new Set());
     }
-  });
+  }, [dismissScopeKey]);
   const [bulkOpen, setBulkOpen] = useState<ZeevInsight | null>(null);
   const [suggestOpen, setSuggestOpen] = useState<ZeevInsight | null>(null);
   const [chatInitialPrompt, setChatInitialPrompt] = useState<{ text: string; nonce: number } | null>(null);
@@ -510,17 +522,31 @@ export function ZeevAssistant({
   const visible = unified.filter((i) => !dismissed.has(i.id));
   const highPriority = visible.filter((i) => i.priority === "alta").length;
   const hasInsights = visible.length > 0;
+  // Quantos insights foram dispensados NESTE escopo mas ainda existem na lista
+  // — usado para expor um "Restaurar sugestões" quando o analista quiser
+  // trazê-los de volta sem precisar fechar a aba.
+  const dismissedVisibleCount = unified.filter((i) => dismissed.has(i.id)).length;
 
   const dismiss = (id: string) => {
     const next = new Set(dismissed);
     next.add(id);
     setDismissed(next);
     try {
-      sessionStorage.setItem(HIDDEN_KEY, JSON.stringify([...next]));
+      sessionStorage.setItem(dismissScopeKey, JSON.stringify([...next]));
     } catch {
       /* noop */
     }
   };
+
+  const restoreDismissed = () => {
+    setDismissed(new Set());
+    try {
+      sessionStorage.removeItem(dismissScopeKey);
+    } catch {
+      /* noop */
+    }
+  };
+
 
   const openChatWith = (text?: string) => {
     if (text) setChatInitialPrompt({ text, nonce: Date.now() });
