@@ -568,7 +568,15 @@ function RowActionsSplit({
           side="left"
           className="w-auto max-w-[420px] p-3"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => {
+            // Ignora o pointer-down residual do fechamento do DropdownMenu
+            // que dispara imediatamente após a escolha da opção.
+            const target = e.target as HTMLElement | null;
+            if (target?.closest?.("[data-radix-menu-content]")) e.preventDefault();
+          }}
+          onFocusOutside={(e) => e.preventDefault()}
         >
+
           <InterventionReasonSelect
             action={pending.action}
             actionLabel={pending.label}
