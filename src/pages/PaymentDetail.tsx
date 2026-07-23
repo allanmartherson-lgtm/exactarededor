@@ -3868,187 +3868,31 @@ const PaymentDetail = () => {
           />
         )}
 
-        {/* Linha compacta: metadados + responsável — sempre primeiro */}
-        {(() => {
-          const currentResponsibleId = assignments[0]?.analyst_id ?? null;
-          const currentResponsibleName = currentResponsibleId ? (profiles[currentResponsibleId] || "—") : null;
-          const initials = currentResponsibleName
-            ? currentResponsibleName.trim().split(/\s+/).slice(0, 2).map((s) => s[0]).join("").toUpperCase()
-            : "?";
-          const isMe = !!currentResponsibleId && currentResponsibleId === user?.id;
-          const cells: { label: string; value: React.ReactNode }[] = [
-            { label: "Competência", value: <span className="capitalize">{formatCompetence(payment.competence_months?.length ? payment.competence_months : payment.competence_month)}</span> },
-            { label: "Previsão", value: formatDateOnly(payment.payment_due_date) },
-          ];
-          if (payment.payment_type) cells.push({ label: "Tipo", value: PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS] });
-          {
-            const currentKind = payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS | null | undefined;
-            cells.push({
-              label: "Categoria",
-              value: (
-                <Select
-                  value={currentKind ?? "__none__"}
-                  onValueChange={async (v) => {
-                    const newVal = v === "__none__" ? null : v;
-                    const prev = currentKind ?? null;
-                    if (newVal === prev) return;
-                    // Confirmação quando muda a categoria — impacta classificação
-                    // de linhas (reprocessamento vs procedimento) e o motor de regras.
-                    const goingOutOfPendencia = prev === "pendencia" && newVal !== "pendencia";
-                    const goingIntoPendencia = prev !== "pendencia" && newVal === "pendencia";
-                    const msg = goingOutOfPendencia
-                      ? "Ao sair de Pendência, os itens marcados como 'reprocessamento' voltam a ser tratados como procedimento e serão reanalisados pelo motor. Confirmar?"
-                      : goingIntoPendencia
-                      ? "Ao marcar como Pendência, o motor deixa de aplicar regras (itens tratados como lançamento financeiro). Confirmar?"
-                      : "Trocar a categoria do lote?";
-                    if (!window.confirm(msg)) return;
-                    const { error } = await supabase
-                      .from("payments")
-                      .update({ payment_kind: newVal as any })
-                      .eq("id", payment.id);
-                    if (error) {
-                      toast({ title: "Erro ao atualizar categoria", description: error.message, variant: "destructive" });
-                      return;
-                    }
-                    // Se saiu de pendência, reclassifica linhas com TUSS que estavam
-                    // travadas como reprocessamento e re-dispara a análise.
-                    if (goingOutOfPendencia) {
-                      const { error: reclassErr, count } = await supabase
-                        .from("payment_items")
-                        .update({ tipo_linha: "procedimento" } as any, { count: "exact" })
-                        .eq("payment_id", payment.id)
-                        .eq("tipo_linha", "reprocessamento")
-                        .not("procedure_code", "is", null);
-                      if (reclassErr) {
-                        toast({ title: "Categoria atualizada, mas falhou reclassificar itens", description: reclassErr.message, variant: "destructive" });
-                      } else {
-                        toast({ title: "Categoria atualizada", description: `${count ?? 0} itens reclassificados. Disparando reanálise…` });
-                        try {
-                          await supabase.functions.invoke("dispatch-payment-analysis", {
-                            body: { payment_id: payment.id, force_fresh_rules: true, skip_ai: true },
-                          });
-                        } catch (e) {
-                          console.warn("[payment_kind] reanalysis dispatch falhou", e);
-                        }
-                      }
-                    } else {
-                      toast({ title: "Categoria atualizada", description: newVal ? PAYMENT_KIND_LABELS[newVal as keyof typeof PAYMENT_KIND_LABELS] : "Sem categoria" });
-                    }
-                    load();
-                  }}
-                >
-                  <SelectTrigger className="h-6 px-2 text-xs w-auto min-w-[140px] border-dashed">
-                    <SelectValue placeholder="Definir" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__" className="text-xs">— Sem categoria</SelectItem>
-                    <SelectItem value="atual" className="text-xs">{PAYMENT_KIND_LABELS.atual}</SelectItem>
-                    <SelectItem value="pendencia" className="text-xs">{PAYMENT_KIND_LABELS.pendencia}</SelectItem>
-                    <SelectItem value="misto" className="text-xs">{PAYMENT_KIND_LABELS.misto}</SelectItem>
-                  </SelectContent>
-                </Select>
-              ),
-            });
-          }
-          {
-            const currentTrack = (payment as any).payment_track as PaymentTrack | null | undefined;
-            cells.push({
-              label: "Trilha",
-              value: (
-                <Select
-                  value={currentTrack ?? "__none__"}
-                  onValueChange={async (v) => {
-                    const newVal = v === "__none__" ? null : (v as PaymentTrack);
-                    const { error } = await supabase
-                      .from("payments")
-                      .update({ payment_track: newVal })
-                      .eq("id", payment.id);
-                    if (error) {
-                      toast({ title: "Erro ao atualizar trilha", description: error.message, variant: "destructive" });
-                    } else {
-                      toast({ title: "Trilha atualizada", description: newVal ? PAYMENT_TRACK_LABELS[newVal] : "Sem trilha" });
-                      load();
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-6 px-2 text-xs w-auto min-w-[110px] border-dashed">
-                    <SelectValue placeholder="Definir" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__" className="text-xs">— Não classificado</SelectItem>
-                    <SelectItem value="habitual" className="text-xs">{PAYMENT_TRACK_SHORT_LABELS.habitual}</SelectItem>
-                    <SelectItem value="prioritario" className="text-xs">{PAYMENT_TRACK_SHORT_LABELS.prioritario}</SelectItem>
-                  </SelectContent>
-                </Select>
-              ),
-            });
-          }
-          if (payment.cost_center_code) cells.push({ label: "Centro de custo", value: <span className="font-mono">{payment.cost_center_code}</span> });
-          {
-            const mode = (payment as any).payment_mode as string | null | undefined;
-            const pid = (payment as any).pool_id as string | null | undefined;
-            if (pid) {
-              const isRateio = mode === "rateio";
-              const label = isRateio ? "Rateio · Pool" : (poolInfo?.deducao ? "Plantão → Pool" : "Pool");
-              cells.push({
-                label,
-                value: (
-                  <Link
-                    to={`/pagamentos/${id}/pool`}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-900/60"
-                    title="Abrir rateio do pool deste lote"
-                  >
-                    {poolInfo?.nome ?? "Pool"}
-                    {poolInfo?.deducao && <span className="text-[10px] opacity-70">· {poolInfo.deducao}</span>}
-                  </Link>
-                ),
-              });
-            }
-          }
-          return (
-            <Card className="shadow-card">
-              <CardContent className="p-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap md:items-center gap-2 md:gap-0 text-xs">
-                  {cells.map((c, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col md:flex-row md:items-baseline gap-0.5 md:gap-1.5 md:px-3 md:py-0.5 md:border-r md:border-border/60 md:first:pl-0"
-                    >
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</span>
-                      <span className="font-medium truncate">{c.value}</span>
-                    </div>
-                  ))}
-                  <div className="col-span-2 sm:col-span-3 md:col-span-1 flex flex-col md:flex-row md:items-center gap-0.5 md:gap-1.5 md:px-3 md:py-0.5">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Responsável</span>
-                    {currentResponsibleName ? (
-                      <span className="flex items-center gap-1.5 min-w-0">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-semibold shrink-0">{initials}</span>
-                        <span className="font-medium truncate">{currentResponsibleName}</span>
-                        {isMe && <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full shrink-0">você</span>}
-                      </span>
-                    ) : (
-                      <span className="italic text-muted-foreground">Ninguém assumiu</span>
-                    )}
-                  </div>
+        {/* Banner de pool — preservado como bloco standalone após a compactação
+            do bloco de metadados (que migrou para o subtítulo/popover do header). */}
+        {(payment as any)?.pool_id && (
+          <Card className="shadow-card">
+            <CardContent className="p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs text-violet-700 dark:text-violet-300 min-w-0">
+                  <Layers className="h-4 w-4 shrink-0" />
+                  <span className="truncate">
+                    Este lote alimenta um <strong>pool de rateio</strong>
+                    {poolInfo?.nome ? <> · <span className="font-medium">{poolInfo.nome}</span></> : null}
+                    {poolInfo?.deducao ? <span className="text-[10px] opacity-70"> · {poolInfo.deducao}</span> : null}
+                    . Veja como o líquido será distribuído entre as PJs participantes.
+                  </span>
                 </div>
-                {(payment as any)?.pool_id && (
-                  <div className="mt-3 pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-xs text-violet-700 dark:text-violet-300">
-                      <Layers className="h-4 w-4" />
-                      <span>Este lote alimenta um <strong>pool de rateio</strong>. Veja como o líquido será distribuído entre as PJs participantes.</span>
-                    </div>
-                    <Button asChild size="sm" className="bg-violet-600 hover:bg-violet-700 text-white">
-                      <Link to={`/pagamentos/${id}/pool`}>
-                        <Layers className="h-4 w-4 mr-1.5" />
-                        Abrir rateio do pool
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })()}
+                <Button asChild size="sm" className="bg-violet-600 hover:bg-violet-700 text-white shrink-0">
+                  <Link to={`/pagamentos/${id}/pool`}>
+                    <Layers className="h-4 w-4 mr-1.5" />
+                    Abrir rateio do pool
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {itemsLoadIssue && (
