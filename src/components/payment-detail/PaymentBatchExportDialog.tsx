@@ -33,12 +33,9 @@ import {
   formatCompetence,
   type ItemAiStatus,
 } from "@/lib/status";
-import * as XLSX from "xlsx-js-style";
-import {
-  applyBrandTypography,
-  prependBrandHeader,
-  buildBrandSubtitle,
-} from "@/lib/excelBrandStyle";
+// XLSX é gerado no worker (src/workers/excel-export.worker.ts) para paridade
+// total com o PaymentReportModal — não importar XLSX/brand helpers aqui.
+
 import { useHospital } from "@/contexts/HospitalContext";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { getAgreement } from "@/lib/itemFields";
