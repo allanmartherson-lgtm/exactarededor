@@ -66,16 +66,15 @@ const DialogContent = React.forwardRef<
         className={cn("pointer-events-none absolute inset-x-0 top-0 h-[3px] rounded-t-lg", toneAccent[tone])}
       />
       {children}
-      {/* Botão fechar: ícone-only mas claramente identificável — borda
-          visível, fundo sólido, tap target 36x36 e hover em vermelho.
-          Sem rótulo textual para não colidir com ações no topo do modal
-          (ex.: "Exportar PDF/Excel", campos de busca). */}
+      {/* Botão fechar: vermelho por padrão (convenção universal),
+          ícone-only 36x36 com borda destacada — não colide com ações
+          no topo do modal e fica imediatamente identificável. */}
       <DialogPrimitive.Close
         aria-label="Fechar"
         title="Fechar (Esc)"
-        className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+        className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md border border-destructive/40 bg-destructive/10 text-destructive shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 disabled:pointer-events-none"
       >
-        <X className="h-4 w-4" />
+        <X className="h-4 w-4" strokeWidth={2.5} />
         <span className="sr-only">Fechar</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
