@@ -18,7 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_LABELS, PAYMENT_TRACK_DESCRIPTIONS, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
-import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, AlertTriangle, Pencil, Plus, RefreshCw, Calculator, History, Focus, Target, Bot } from "lucide-react";
+import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, AlertTriangle, Pencil, Plus, RefreshCw, Calculator, History, Focus, Target, Bot, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ExcelPreviewDialog } from "@/components/shared/ExcelPreviewDialog";
 import { ParseProgressDialog } from "@/components/ParseProgressDialog";
