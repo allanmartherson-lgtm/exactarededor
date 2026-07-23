@@ -3900,7 +3900,7 @@ const PaymentDetail = () => {
         {id && <BatchAIFailureReport paymentId={id} />}
         {/* [Confecção] painel de auditoria pago×regra não faz sentido — o motor
             é dono do gross_amount, então não há "pago" para auditar. */}
-        {id && !isConfeccao && <TussPrincipalAuditPanel paymentId={id} />}
+        {id && !isConfeccao && tussAuditOpenCount > 0 && <TussPrincipalAuditPanel paymentId={id} />}
         {id && (
           <SpecialCaseRetroactiveBanner
             paymentId={id}
@@ -4361,10 +4361,12 @@ const PaymentDetail = () => {
           const totalRuleValue = Array.from(ruleValues.values()).reduce((a, b) => a + b, 0);
           const totalRiskWithConflicts = totalRuleValue + conflictExtraValue;
 
+          const hasAssistanceAlerts = sortedRules.length > 0;
           return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Coluna principal (2/3): cards de IA + Anomalias. No mobile, IA já aparece no collapsible. */}
-              <div className="md:col-span-2 min-w-0 space-y-4">
+            <div className={`grid grid-cols-1 gap-3 ${hasAssistanceAlerts ? "md:grid-cols-3" : ""}`}>
+              {/* Coluna principal: cards de IA + Anomalias. No mobile, IA já aparece no collapsible.
+                  Ocupa 2/3 quando há alertas assistenciais; largura total quando não há. */}
+              <div className={`min-w-0 space-y-4 ${hasAssistanceAlerts ? "md:col-span-2" : ""}`}>
                 <div className="hidden md:block space-y-4">
                   {id && !isConfeccao && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
                   {id && <DirectorBriefingCard
@@ -4418,33 +4420,30 @@ const PaymentDetail = () => {
               </div>
 
 
-              {/* Alertas assistenciais — 1/3 no desktop */}
-              <Card
-                className={`shadow-card md:col-span-1 ${totalRuleAlerts > 0 ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
-                onClick={totalRuleAlerts > 0 ? () => setIsAssistanceAlertsOpen(true) : undefined}
-                role={totalRuleAlerts > 0 ? "button" : undefined}
-                title={totalRuleAlerts > 0 ? "Ver detalhamento e exportar" : undefined}
-              >
-                <CardContent className="p-4 text-sm space-y-2 min-w-0">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Alertas assistenciais</p>
-                    {totalRuleAlerts > 0 && (
+              {/* Alertas assistenciais — 1/3 no desktop. Escondido quando não há alertas
+                  para devolver espaço vertical na tela do lote. */}
+              {hasAssistanceAlerts && (
+                <Card
+                  className="shadow-card md:col-span-1 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setIsAssistanceAlertsOpen(true)}
+                  role="button"
+                  title="Ver detalhamento e exportar"
+                >
+                  <CardContent className="p-4 text-sm space-y-2 min-w-0">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Alertas assistenciais</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-warning">{totalRuleAlerts} total</span>
                         {totalRuleValue > 0 && (
                           <span className="text-sm font-bold text-red-600">· {formatCurrency(totalRuleValue)} em risco</span>
                         )}
                       </div>
-                    )}
-                  </div>
-                  {totalRuleAlerts > 0 && totalRiskWithConflicts > totalRuleValue && (
-                    <div className="text-xs text-muted-foreground">
-                      incluindo outros lotes: <span className="text-red-600 font-semibold text-sm">{formatCurrency(totalRiskWithConflicts)}</span>
                     </div>
-                  )}
-                  {sortedRules.length === 0 ? (
-                    <p className="italic text-muted-foreground">Nenhum alerta</p>
-                  ) : (
+                    {totalRiskWithConflicts > totalRuleValue && (
+                      <div className="text-xs text-muted-foreground">
+                        incluindo outros lotes: <span className="text-red-600 font-semibold text-sm">{formatCurrency(totalRiskWithConflicts)}</span>
+                      </div>
+                    )}
                     <ul className="space-y-1.5 max-h-48 overflow-y-auto">
                       {sortedRules.slice(0, 6).map(([name, n]) => (
                         <li key={name} className="flex items-center justify-between gap-2">
@@ -4461,9 +4460,9 @@ const PaymentDetail = () => {
                         <li className="text-xs text-muted-foreground italic">+ {sortedRules.length - 6} regra(s)</li>
                       )}
                     </ul>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           );
         })()}
