@@ -3390,10 +3390,33 @@ export default function CompanyAnalysis() {
                 </div>
               </>
             )}
+            {/* Motivo obrigatório da edição — impacta auditoria/relatórios */}
+            <div className="rounded-md border bg-muted/20 p-3">
+              <InterventionReasonSelect
+                action="editar"
+                actionLabel="Editar item"
+                hideActions
+                defaultReasonId={editReason.reasonId || null}
+                defaultNotes={editReason.notes || null}
+                onChange={({ reasonId, reason, notes }) =>
+                  setEditReason({
+                    reasonId,
+                    impact: reason?.financial_impact ?? null,
+                    notes,
+                  })
+                }
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditItem(null)} disabled={savingItem}>Cancelar</Button>
-            <Button onClick={saveItem} disabled={savingItem}>{savingItem ? "Salvando…" : "Salvar"}</Button>
+            <Button
+              onClick={saveItem}
+              disabled={savingItem || !editReason.reasonId}
+              title={!editReason.reasonId ? "Selecione o motivo da edição" : undefined}
+            >
+              {savingItem ? "Salvando…" : "Salvar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
