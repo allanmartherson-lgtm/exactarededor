@@ -337,7 +337,17 @@ export function ManualInterventionDialog({
                       <SelectLabel>{groupTitle[cat]}</SelectLabel>
                       {items.map((r) => (
                         <SelectItem key={r.id} value={r.id}>
-                          {r.label}
+                          <span className="flex items-center gap-2">
+                            <span>{r.label}</span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+                                impactBadgeClass(r.financial_impact),
+                              )}
+                            >
+                              {impactLabel(r.financial_impact)}
+                            </span>
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectGroup>
