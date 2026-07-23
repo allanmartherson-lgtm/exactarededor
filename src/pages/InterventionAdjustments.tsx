@@ -259,6 +259,12 @@ export default function InterventionAdjustments() {
     };
   }, [range, currentHospitalId]);
 
+  // Atualização automática: quando o motor materializa novos eventos
+  // (aprovação de lote, reversão de glosa, cancelamento), recarrega sem F5.
+  useInterventionLedgerRealtime(currentHospitalId ?? null, () => {
+    reloadData();
+  });
+
   const filteredItems = useMemo(() => filterItems(data.items, filters), [data.items, filters]);
   const filteredSummary = useMemo(() => summarizeItems(filteredItems), [filteredItems]);
   const saldoTone = impactTone(filteredSummary.saldo);
