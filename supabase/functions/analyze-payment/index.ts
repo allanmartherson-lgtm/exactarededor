@@ -1034,6 +1034,12 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
     //     (mais included_codes presentes no atendimento).
     //   • Códigos absorvidos: main_code + included_codes encontrados.
     //   • Distribuição por função via package_roles_distribution (fixo ou %).
+    // Itens marcados como package_absorbed em runs anteriores cujo pacote
+    // ancoragem (main_code) não está mais presente no atendimento — ex.: a
+    // base foi reimportada e a linha principal (Lobectomia) sumiu, deixando
+    // um item incluído (Broncoscopia) "órfão" com expected=0. Coletamos aqui
+    // e limpamos na persistência (rastro em audit_log via bloco existente).
+    const staleAbsorbedItemIds = new Set<string>();
     try {
       // Coleta todos os cálculos de pacote de todas as regras carregadas
       type PkgCalc = {
@@ -1089,6 +1095,70 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
         }
       }
 
+      // Detecta absorções órfãs: rawItem.package_absorbed=true cujo calc
+      // referenciado não existe mais nas regras OU cujo main_code não está
+      // presente no atendimento (nem localmente, nem em outras PJs). Só
+      // precisamos consultar códigos das outras PJs quando há candidatos.
+      const rawAbsorbedItems = (itemsRaw ?? []).filter(
+        (it: any) => it?.package_absorbed === true && it?.attendance_number,
+      );
+      if (rawAbsorbedItems.length > 0) {
+        // Set de códigos por atendimento incluindo todas as PJs do payment.
+        const attCodeSet: Record<string, Set<string>> = {};
+        for (const it of (itemsRaw ?? []) as any[]) {
+          const att = (it.attendance_number ?? "").toString().trim();
+          const code = (it.procedure_code ?? "").toString().trim();
+          if (!att || !code) continue;
+          (attCodeSet[att] ||= new Set()).add(code);
+        }
+        try {
+          const atts = Array.from(new Set(rawAbsorbedItems.map((it: any) => String(it.attendance_number).trim())));
+          const { data: sibs } = await supabase
+            .from("payment_items")
+            .select("attendance_number,procedure_code")
+            .eq("payment_id", payment_id)
+            .in("attendance_number", atts)
+            .not("procedure_code", "is", null);
+          for (const row of (sibs ?? []) as any[]) {
+            const att = (row.attendance_number ?? "").toString().trim();
+            const code = (row.procedure_code ?? "").toString().trim();
+            if (!att || !code) continue;
+            (attCodeSet[att] ||= new Set()).add(code);
+          }
+        } catch { /* ignora: cai no codeSet local */ }
+
+        const calcById = new Map<string, PkgCalc>();
+        for (const c of packageCalcs) calcById.set(c.calc_id, c);
+
+        for (const raw of rawAbsorbedItems) {
+          const att = String(raw.attendance_number).trim();
+          const codeSet = attCodeSet[att] ?? new Set<string>();
+          const calcId = raw.package_absorbed_calc_id ?? null;
+          const itemCode = String(raw.procedure_code ?? "").trim();
+          // Sem calc_id (legado manual): considera válido se EXISTE algum
+          // pacote cujo main_code está presente no atendimento E cujo
+          // main/included cobre o código deste item. Assim não desfazemos
+          // escolha manual legítima, mas limpamos órfãos reais (main sumiu
+          // ou o item nem pertence aos pacotes remanescentes).
+          if (!calcId) {
+            const anyValid = packageCalcs.some((c) => {
+              const mainPresent = c.package_main_codes.some((mc) => codeSet.has(mc));
+              if (!mainPresent) return false;
+              return c.package_main_codes.includes(itemCode)
+                || c.package_included_codes.includes(itemCode);
+            });
+            if (!anyValid) staleAbsorbedItemIds.add(raw.id);
+            continue;
+          }
+          const calc = calcById.get(calcId);
+          if (!calc) { staleAbsorbedItemIds.add(raw.id); continue; }
+          const mainPresent = calc.package_main_codes.some((mc) => codeSet.has(mc));
+          if (!mainPresent) staleAbsorbedItemIds.add(raw.id);
+        }
+        if (staleAbsorbedItemIds.size > 0) {
+          console.log(`[pacote_rule_calcs] stale_absorbed_detected count=${staleAbsorbedItemIds.size}`);
+        }
+      }
 
       if (packageCalcs.length > 0) {
         // Helper: normaliza texto removendo acentos e caixa
@@ -2447,11 +2517,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         // Preserva absorção manual feita pelo analista: se o item raw já vinha
         // com package_absorbed=true e o motor não absorveu/desabsorveu
         // explicitamente neste run, mantém o flag (e o calc_id) do banco.
-        // Sem isso, qualquer reanálise desfaz o "incluir no pacote" do analista.
+        // Exceção: absorções órfãs (staleAbsorbedItemIds) — o pacote-âncora
+        // sumiu do atendimento (base reimportada, calc removido) e o item
+        // ficou parado com expected=0. Nesses casos, limpa o flag para o
+        // motor recalcular normalmente.
         package_absorbed: (r as any).package_absorbed === true
-          || (rawItem?.package_absorbed === true),
+          || (rawItem?.package_absorbed === true && !staleAbsorbedItemIds.has(r.item_id)),
         package_absorbed_calc_id: (r as any).package_absorbed_calc_id
-          ?? (rawItem?.package_absorbed === true ? (rawItem?.package_absorbed_calc_id ?? null) : null),
+          ?? (rawItem?.package_absorbed === true && !staleAbsorbedItemIds.has(r.item_id)
+            ? (rawItem?.package_absorbed_calc_id ?? null)
+            : null),
         // Piso por procedimento (mínimo garantido). null quando piso não configurado.
         piso_aplicado_valor: (r as any).piso_aplicado_valor ?? null,
         piso_metodo_vencedor: (r as any).piso_metodo_vencedor ?? null,
