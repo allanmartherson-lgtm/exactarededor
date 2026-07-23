@@ -66,16 +66,17 @@ const DialogContent = React.forwardRef<
         className={cn("pointer-events-none absolute inset-x-0 top-0 h-[3px] rounded-t-lg", toneAccent[tone])}
       />
       {children}
-      {/* Botão fechar: precisa ser claramente identificável mesmo para
-          usuários que desconhecem Esc. Usa altura de toque acessível
-          (h-9), borda visível, hover destacado e rótulo "Fechar" ao
-          lado do ícone em telas >=sm. */}
+      {/* Botão fechar: ícone-only mas claramente identificável — borda
+          visível, fundo sólido, tap target 36x36 e hover em vermelho.
+          Sem rótulo textual para não colidir com ações no topo do modal
+          (ex.: "Exportar PDF/Excel", campos de busca). */}
       <DialogPrimitive.Close
         aria-label="Fechar"
-        className="absolute right-3 top-3 inline-flex h-9 min-w-9 items-center gap-1.5 rounded-md border border-border/70 bg-background/90 px-2 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+        title="Fechar (Esc)"
+        className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
       >
         <X className="h-4 w-4" />
-        <span className="hidden sm:inline text-xs font-medium">Fechar</span>
+        <span className="sr-only">Fechar</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
@@ -83,7 +84,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-2 text-center sm:text-left pr-12 sm:pr-24", className)} {...props} />
+  <div className={cn("flex flex-col space-y-2 text-center sm:text-left pr-12", className)} {...props} />
 );
 DialogHeader.displayName = "DialogHeader";
 

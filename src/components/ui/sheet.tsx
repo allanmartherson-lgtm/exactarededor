@@ -59,10 +59,11 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         {children}
         <SheetPrimitive.Close
           aria-label="Fechar"
-          className="absolute right-3 top-3 inline-flex h-9 min-w-9 items-center gap-1.5 rounded-md border border-border/70 bg-background/90 px-2 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+          title="Fechar (Esc)"
+          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
         >
           <X className="h-4 w-4" />
-          <span className="hidden sm:inline text-xs font-medium">Fechar</span>
+          <span className="sr-only">Fechar</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPortal>
