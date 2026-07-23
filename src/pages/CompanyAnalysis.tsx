@@ -717,14 +717,19 @@ export default function CompanyAnalysis() {
     // trilha técnica do motor (author_type "ia"), que traz rótulos internos
     // como "setor_master_geral" e confunde o texto de auditoria.
     const existing = (obs.find((o) => o.item_id === it.id && o.author_type !== "ia" && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
-    const justif = await promptJustification({
-      title: "Acatar valor esperado",
-      description: "O valor pago será sobrescrito pelo valor esperado da regra. Registre o motivo abaixo para auditoria.",
-      confirmText: "Acatar valor esperado",
-      tone: "success",
-      minLength: 1,
-      defaultValue: existing,
-    });
+    // Se o popover de motivo (RowActionsSplit) já capturou a justificativa,
+    // reusa direto — evita segundo modal redundante com o mesmo propósito.
+    const preJustif = ((it as any).__interventionJustification as string | undefined)?.trim() || "";
+    const justif = preJustif
+      ? preJustif
+      : await promptJustification({
+          title: "Acatar valor esperado",
+          description: "O valor pago será sobrescrito pelo valor esperado da regra. Registre o motivo abaixo para auditoria.",
+          confirmText: "Acatar valor esperado",
+          tone: "success",
+          minLength: 1,
+          defaultValue: existing,
+        });
     if (!justif) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
