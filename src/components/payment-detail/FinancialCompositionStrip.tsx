@@ -57,21 +57,6 @@ export function FinancialCompositionStrip({
   const hasDebito = comp.debitos > 0;
   const hasGlosa = comp.glosas > 0;
   const hasPool = (comp.poolAplicado || comp.poolPreview) && comp.pool !== 0;
-  const pctBruto = comp.bruto > 0 ? Math.round((comp.liquido / comp.bruto) * 100) : null;
-
-  // Colapsa quando não há nenhuma parcela intermediária: só o líquido importa.
-  if (!hasCredito && !hasDebito && !hasGlosa && !hasPool) {
-    return (
-      <div className="flex items-center gap-3 px-4 py-2 bg-muted/30 rounded-lg border border-border/50">
-        <Wallet className="h-4 w-4 text-primary shrink-0" />
-        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Líquido a pagar</span>
-        <span className="text-[14px] font-bold tabular-nums text-primary">{brl(comp.liquido)}</span>
-        {pctBruto !== null && (
-          <span className="text-[10px] text-muted-foreground">({pctBruto}% do bruto)</span>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-muted/30 rounded-lg border border-border/50">
@@ -109,7 +94,7 @@ function Term({ label, value, muted }: { label: string; value: string; muted?: b
 }
 
 function FormulaOp({ children }: { children: React.ReactNode }) {
-  return <span className="text-[14px] font-bold text-muted-foreground">{children}</span>;
+  return <span className="text-[14px] font-medium text-muted-foreground">{children}</span>;
 }
 
 function Cell({
