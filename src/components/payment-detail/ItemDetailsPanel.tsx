@@ -200,6 +200,20 @@ export function ItemDetailsPanel({
     : [];
   const engine = item.ai_findings?.engine ?? null;
 
+  // Motivo categorizado de intervenção — snapshotado em payment_items
+  // pelas ações do split-button (acatar/excluir) e pela edição.
+  const { reasons: allReasons } = useManualInterventionReasons();
+  const interventionReasonId: string | null =
+    item.intervention_reason_id ?? null;
+  const interventionReason = interventionReasonId
+    ? allReasons.find((r) => r.id === interventionReasonId) ?? null
+    : null;
+  const interventionImpact = (item.intervention_financial_impact ??
+    interventionReason?.financial_impact ??
+    null) as "economia" | "perda" | "neutro" | null;
+  const interventionNotes: string | null = item.intervention_notes ?? null;
+  const hasIntervention = !!interventionReasonId;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
