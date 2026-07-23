@@ -700,9 +700,34 @@ export function ZeevAssistant({
               <div className="max-h-[52vh] overflow-y-auto p-3 space-y-2">
                 {visible.length === 0 && (
                   <div className="text-xs text-muted-foreground text-center py-6 px-2 leading-relaxed">
-                    Nenhuma pendência aqui. Estou de olho — se algo aparecer, eu aviso.
+                    {dismissedVisibleCount > 0 ? (
+                      <>
+                        Você dispensou {dismissedVisibleCount} sugestão(ões) neste contexto.
+                        <button
+                          type="button"
+                          onClick={restoreDismissed}
+                          className="block mx-auto mt-2 text-[11px] font-medium text-[hsl(var(--primary))] hover:underline"
+                        >
+                          Restaurar sugestões
+                        </button>
+                      </>
+                    ) : (
+                      "Nenhuma pendência aqui. Estou de olho — se algo aparecer, eu aviso."
+                    )}
                   </div>
                 )}
+                {visible.length > 0 && dismissedVisibleCount > 0 && (
+                  <div className="flex justify-end -mt-1 mb-1">
+                    <button
+                      type="button"
+                      onClick={restoreDismissed}
+                      className="text-[10px] text-muted-foreground hover:text-[hsl(var(--primary))] hover:underline"
+                    >
+                      Restaurar {dismissedVisibleCount} dispensada(s)
+                    </button>
+                  </div>
+                )}
+
                 {visible.map((ins) => {
                   const Icon = ins.icon;
                   const canBulk = ins.bulk && bulkContext && ins.bulk.itemIds.length > 0;
