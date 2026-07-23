@@ -537,14 +537,49 @@ function RowActionsSplit({
       />
     ) : null;
 
+  // Wrapper que anexa o Popover de motivo à AÇÃO PRINCIPAL da linha.
+  // Só uma instância por linha — todas as ações gated compartilham `pending`.
+  const gate = (children: React.ReactNode) => (
+    <Popover
+      open={!!pending}
+      onOpenChange={(v) => {
+        if (!v && !gateSubmitting) setPending(null);
+      }}
+    >
+      <PopoverAnchor asChild>
+        <div className="flex w-full items-center justify-center">
+          {children}
+        </div>
+      </PopoverAnchor>
+      {pending && (
+        <PopoverContent
+          align="end"
+          side="left"
+          className="w-auto max-w-[420px] p-3"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <InterventionReasonSelect
+            action={pending.action}
+            actionLabel={pending.label}
+            submitting={gateSubmitting}
+            onCancel={() => setPending(null)}
+            onConfirm={runPending}
+          />
+        </PopoverContent>
+      )}
+    </Popover>
+  );
+
   // Estado: reprovado / alerta → Split button verde
   if (canAccept && onAcceptItem) {
-    return (
-      <div className="flex w-full items-center justify-center">
+    return gate(
+      <>
         <div className="inline-flex items-stretch">
           <Button
             type="button"
-            onClick={() => onAcceptItem(it)}
+            onClick={() =>
+              requestGated("acatar", "Acatar", () => onAcceptItem(it))
+            }
             className={cn(
               "h-7 rounded-r-none border border-r-0 px-2.5 min-w-[92px] justify-center",
               "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
@@ -574,12 +609,22 @@ function RowActionsSplit({
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                 Acatar como
               </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onAcceptItem(it)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  requestGated("acatar", "Acatar", () => onAcceptItem(it))
+                }
+              >
                 <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
                 <span className="text-[12px]">Usar valor esperado</span>
               </DropdownMenuItem>
               {onAcceptItemKeepPaid && (
-                <DropdownMenuItem onClick={() => onAcceptItemKeepPaid(it)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    requestGated("acatar", "Manter valor pago", () =>
+                      onAcceptItemKeepPaid(it),
+                    )
+                  }
+                >
                   <HandCoins className="h-4 w-4 mr-2 text-sky-600" />
                   <span className="text-[12px]">Manter valor pago</span>
                 </DropdownMenuItem>
@@ -593,19 +638,24 @@ function RowActionsSplit({
           </DropdownMenu>
         </div>
         {renderDialog()}
-      </div>
+      </>,
     );
   }
 
   // Estado: acatado → Desfazer + "⋯" opcional
   if (isAcatado && onUndoAcceptItem) {
     const hasExtras = !!(editMenuItem || deleteMenuItem || manualMenuItem);
-    return (
-      <div className="flex w-full items-center justify-center gap-1">
+    return gate(
+      <>
         <Button
           type="button"
           variant="outline"
-          onClick={() => onUndoAcceptItem(it)}
+          onClick={() => {
+            // Desfazer também limpa o motivo/impact snapshotado para o item
+            // voltar a um estado neutro — idempotente, roda em paralelo.
+            void clearIntervention(it.id);
+            onUndoAcceptItem(it);
+          }}
           className="h-7 px-2.5 text-[11px] font-medium"
           title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
         >
@@ -619,7 +669,7 @@ function RowActionsSplit({
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className="h-7 w-7 ml-1"
                 title="Mais ações"
                 aria-label="Mais ações"
               >
@@ -635,15 +685,15 @@ function RowActionsSplit({
           </DropdownMenu>
         )}
         {renderDialog()}
-      </div>
+      </>,
     );
   }
 
   // Estado: aprovado / seguido / bônus → apenas "⋯"
   const hasAny = !!(manualMenuItem || editMenuItem || deleteMenuItem);
   if (!hasAny) return null;
-  return (
-    <div className="flex w-full items-center justify-center">
+  return gate(
+    <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -671,7 +721,7 @@ function RowActionsSplit({
         </DropdownMenuContent>
       </DropdownMenu>
       {renderDialog()}
-    </div>
+    </>,
   );
 }
 
