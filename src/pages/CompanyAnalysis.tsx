@@ -3564,4 +3564,35 @@ function Stat({
   );
 }
 
+function KpiBadge({
+  icon,
+  label,
+  value,
+  sublabel,
+  tone = "info",
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: string;
+  sublabel?: string;
+  tone?: "info" | "warning" | "destructive" | "muted";
+}) {
+  const tones: Record<typeof tone, string> = {
+    info: "border-primary/20 bg-primary/[0.04] text-primary",
+    warning: "border-warning/30 bg-warning-soft text-warning-text",
+    destructive: "border-destructive/30 bg-destructive/10 text-destructive",
+    muted: "border-border bg-muted/40 text-muted-foreground",
+  };
+  return (
+    <div className={cn("inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5", tones[tone])}>
+      {icon && <span className="shrink-0">{icon}</span>}
+      <span className="text-[16px] font-bold tabular-nums text-foreground leading-none">{value}</span>
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      {sublabel && (
+        <span className="text-[10px] text-muted-foreground tabular-nums">· {sublabel}</span>
+      )}
+    </div>
+  );
+}
+
 // ItemsTable foi substituída por <ItemsDataGrid /> compartilhado.
