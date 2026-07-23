@@ -285,10 +285,12 @@ export function ZeevBulkManualDialog({
   const groupOrder: ManualInterventionReason["category"][] = [
     "reclassificacao_clinica",
     "aceite_financeiro",
+    "operacional",
   ];
   const groupTitle: Record<ManualInterventionReason["category"], string> = {
     reclassificacao_clinica: "Reclassificação clínica",
     aceite_financeiro: "Aceite financeiro",
+    operacional: "Operacional",
   };
 
   return (
