@@ -1134,14 +1134,20 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           const att = String(raw.attendance_number).trim();
           const codeSet = attCodeSet[att] ?? new Set<string>();
           const calcId = raw.package_absorbed_calc_id ?? null;
-          // Sem calc_id (legado manual): só marca stale se NENHUM pacote tem
-          // main presente no atendimento — assim não desfazemos escolha
-          // manual válida do analista.
+          const itemCode = String(raw.procedure_code ?? "").trim();
+          // Sem calc_id (legado manual): considera válido se EXISTE algum
+          // pacote cujo main_code está presente no atendimento E cujo
+          // main/included cobre o código deste item. Assim não desfazemos
+          // escolha manual legítima, mas limpamos órfãos reais (main sumiu
+          // ou o item nem pertence aos pacotes remanescentes).
           if (!calcId) {
-            const anyMainPresent = packageCalcs.some((c) =>
-              c.package_main_codes.some((mc) => codeSet.has(mc)),
-            );
-            if (!anyMainPresent) staleAbsorbedItemIds.add(raw.id);
+            const anyValid = packageCalcs.some((c) => {
+              const mainPresent = c.package_main_codes.some((mc) => codeSet.has(mc));
+              if (!mainPresent) return false;
+              return c.package_main_codes.includes(itemCode)
+                || c.package_included_codes.includes(itemCode);
+            });
+            if (!anyValid) staleAbsorbedItemIds.add(raw.id);
             continue;
           }
           const calc = calcById.get(calcId);
