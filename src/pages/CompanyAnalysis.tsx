@@ -2502,7 +2502,7 @@ export default function CompanyAnalysis() {
 
       {/* TOPO */}
       <Card className="shadow-card">
-        <CardContent className="p-3 sm:p-5">
+        <CardContent className="p-3">
           <div className="flex items-start gap-3">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Building2 className="h-5 w-5" />
