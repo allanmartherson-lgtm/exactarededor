@@ -54,66 +54,62 @@ export function FinancialCompositionStrip({
   }
 
   const hasCredito = comp.creditos > 0;
-  const base = Math.max(Math.abs(comp.bruto), 1); // evita divisão por zero
-  const r = (v: number) => Math.abs(v) / base;
+  const hasDebito = comp.debitos > 0;
+  const hasGlosa = comp.glosas > 0;
+  const hasPool = (comp.poolAplicado || comp.poolPreview) && comp.pool !== 0;
+  const pctBruto = comp.bruto > 0 ? Math.round((comp.liquido / comp.bruto) * 100) : null;
+
+  // Colapsa quando não há nenhuma parcela intermediária: só o líquido importa.
+  if (!hasCredito && !hasDebito && !hasGlosa && !hasPool) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-2 bg-muted/30 rounded-lg border border-border/50">
+        <Wallet className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Líquido a pagar</span>
+        <span className="text-[14px] font-bold tabular-nums text-primary">{brl(comp.liquido)}</span>
+        {pctBruto !== null && (
+          <span className="text-[10px] text-muted-foreground">({pctBruto}% do bruto)</span>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-lg border bg-card shadow-soft px-4 py-3">
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Composição financeira da empresa</h3>
-        </div>
-        <span className="text-[11px] text-muted-foreground">
-          O grid abaixo mantém o bruto da produção. Esta faixa mostra o que efetivamente será pago.
-        </span>
-      </div>
-
-      <div className="flex flex-wrap items-stretch gap-2">
-        <Cell label="Bruto produção" value={brl(comp.bruto)} tone="info" ratio={1} />
-        <Op icon={<Minus className="h-3.5 w-3.5" />} />
-        <Cell label="Débitos" value={comp.debitos > 0 ? brl(comp.debitos) : "—"}
-              tone={comp.debitos > 0 ? "destructive" : "muted"}
-              ratio={comp.debitos > 0 ? r(comp.debitos) : undefined}
-              hint={comp.debitos === 0 ? "Sem débitos" : undefined} />
-        {hasCredito && (
-          <>
-            <Op icon={<Plus className="h-3.5 w-3.5" />} />
-            <Cell label="Créditos" value={brl(comp.creditos)} tone="success" ratio={r(comp.creditos)} />
-          </>
-        )}
-        <Op icon={<Minus className="h-3.5 w-3.5" />} />
-        <Cell label="Glosas" value={comp.glosas > 0 ? brl(comp.glosas) : "—"}
-              icon={<MinusCircle className="h-3.5 w-3.5" />}
-              tone={comp.glosas > 0 ? "destructive" : "muted"}
-              ratio={comp.glosas > 0 ? r(comp.glosas) : undefined}
-              hint={comp.glosas === 0 ? "Sem glosas aplicadas" : undefined} />
-        <Op icon={<Minus className="h-3.5 w-3.5" />} />
-        <Cell label={comp.poolPreview && !comp.poolAplicado ? "Pool / rateio (prévia)" : "Pool / rateio"}
-              value={(comp.poolAplicado || comp.poolPreview) && comp.pool !== 0 ? brl(comp.pool) : "—"}
-              icon={<Users className="h-3.5 w-3.5" />}
-              tone={comp.poolAplicado ? "warning" : comp.poolPreview ? "info" : "muted"}
-              ratio={(comp.poolAplicado || comp.poolPreview) && comp.pool !== 0 ? r(comp.pool) : undefined}
-              hint={(() => {
-                if (!comp.poolAplicado && !comp.poolPreview) return "Sem pool aplicado";
-                const dedTxt = comp.poolDetalhes
-                  .flatMap(d => (d.deducoes ?? []).map(x => `${x.descricao || x.tipo} ${brl(x.valor)}`))
-                  .join(" · ");
-                const dedPrefix = dedTxt ? `Deduções: ${dedTxt} · ` : "";
-                if (comp.poolPreview) {
-                  return `Estimativa · ${dedPrefix}${comp.poolDetalhes.map(d => `${d.pool_nome} ${d.percentual}% → quota ${brl(d.quota_empresa)}`).join(" · ")}`;
-                }
-                if (comp.pool === 0) return `${dedPrefix}Pool sem impacto nesta empresa`;
-                return `${dedPrefix}${comp.poolDetalhes.map(d => `${d.pool_nome}: quota ${brl(d.quota_empresa)}`).join(" · ")}`;
-              })()} />
-
-        <Op icon={<Equal className="h-3.5 w-3.5" />} />
-        <Cell label="Líquido a pagar" value={brl(comp.liquido)} tone="success" highlight
-              ratio={r(comp.liquido)}
-              hint={comp.bruto > 0 ? `${Math.round((comp.liquido / comp.bruto) * 100)}% do bruto` : undefined} />
+    <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-muted/30 rounded-lg border border-border/50">
+      <Term label="Bruto" value={brl(comp.bruto)} />
+      <FormulaOp>−</FormulaOp>
+      <Term label="Débitos" value={hasDebito ? brl(comp.debitos) : "—"} muted={!hasDebito} />
+      {hasCredito && (
+        <>
+          <FormulaOp>+</FormulaOp>
+          <Term label="Créditos" value={brl(comp.creditos)} />
+        </>
+      )}
+      <FormulaOp>−</FormulaOp>
+      <Term label="Glosas" value={hasGlosa ? brl(comp.glosas) : "—"} muted={!hasGlosa} />
+      <FormulaOp>−</FormulaOp>
+      <Term label="Pool/Rateio" value={hasPool ? brl(comp.pool) : "—"} muted={!hasPool} />
+      <FormulaOp>=</FormulaOp>
+      <div className="flex flex-col items-center border-l-2 border-accent pl-3">
+        <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Líquido a pagar</span>
+        <span className="text-[14px] font-bold tabular-nums text-primary">{brl(comp.liquido)}</span>
       </div>
     </div>
   );
+}
+
+function Term({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={cn("text-[13px] font-semibold tabular-nums", muted ? "text-muted-foreground" : "text-foreground")}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function FormulaOp({ children }: { children: React.ReactNode }) {
+  return <span className="text-[14px] font-bold text-muted-foreground">{children}</span>;
 }
 
 function Cell({

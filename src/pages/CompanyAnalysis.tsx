@@ -2502,7 +2502,7 @@ export default function CompanyAnalysis() {
 
       {/* TOPO */}
       <Card className="shadow-card">
-        <CardContent className="p-3 sm:p-5">
+        <CardContent className="p-3">
           <div className="flex items-start gap-3">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Building2 className="h-5 w-5" />
@@ -2574,41 +2574,39 @@ export default function CompanyAnalysis() {
               )}
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <Stat
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <KpiBadge
+              icon={<FileText className="h-4 w-4" />}
               label="Itens"
               value={String(group.items_count ?? items.length)}
               tone="info"
-              icon={<FileText className="h-4 w-4" />}
             />
             {isManual ? (
               <>
-                <Stat
+                <KpiBadge
+                  icon={<Wallet className="h-4 w-4" />}
                   label="Valor total"
                   value={formatCurrency(composition.liquido || composition.bruto)}
-                  sub="Lançamento manual"
-                  mono
-                  tone="success"
-                  icon={<Wallet className="h-4 w-4" />}
+                  sublabel="Lançamento manual"
+                  tone="info"
                 />
-                <Stat
+                <KpiBadge
+                  icon={<FileText className="h-4 w-4" />}
                   label="Com anexo"
                   value={String(
                     items.filter((it) => !!(it as any).manual_source_attachment_path).length,
                   )}
                   tone="info"
-                  icon={<FileText className="h-4 w-4" />}
                 />
               </>
             ) : isConfeccao ? (
               <>
-                <Stat
+                <KpiBadge
+                  icon={<Calculator className="h-4 w-4" />}
                   label="Repasse calculado"
                   value={formatCurrency(composition.liquido)}
-                  sub={`Convênio: ${formatCurrency(composition.bruto)}`}
-                  mono
+                  sublabel={`Convênio ${formatCurrency(composition.bruto)}`}
                   tone="warning"
-                  icon={<Calculator className="h-4 w-4" />}
                 />
                 {(() => {
                   const semRegra = items.filter(
@@ -2619,17 +2617,17 @@ export default function CompanyAnalysis() {
                   ).length;
                   return (
                     <>
-                      <Stat
+                      <KpiBadge
+                        icon={<FileText className="h-4 w-4" />}
                         label="Com regra"
                         value={String(comRegra)}
-                        tone={comRegra > 0 ? "success" : "muted"}
-                        icon={<FileText className="h-4 w-4" />}
+                        tone={comRegra > 0 ? "info" : "muted"}
                       />
-                      <Stat
+                      <KpiBadge
+                        icon={<AlertTriangle className="h-4 w-4" />}
                         label="Sem regra"
                         value={String(semRegra)}
                         tone={semRegra > 0 ? "warning" : "muted"}
-                        icon={<AlertTriangle className="h-4 w-4" />}
                       />
                     </>
                   );
@@ -2637,29 +2635,29 @@ export default function CompanyAnalysis() {
               </>
             ) : (
               <>
-                <Stat
+                <KpiBadge
+                  icon={<Wallet className="h-4 w-4" />}
                   label="Valor líquido"
                   value={formatCurrency(composition.liquido)}
-                  sub={`Bruto: ${formatCurrency(composition.bruto)}`}
-                  mono
-                  tone="success"
-                  icon={<Wallet className="h-4 w-4" />}
+                  sublabel={`Bruto ${formatCurrency(composition.bruto)}`}
+                  tone="info"
                 />
-                <Stat
+                <KpiBadge
+                  icon={<AlertTriangle className="h-4 w-4" />}
                   label="Alertas"
                   value={String(counts.alertasTotal)}
                   tone={counts.alertasTotal > 0 ? "warning" : "muted"}
-                  icon={<AlertTriangle className="h-4 w-4" />}
                 />
-                <Stat
+                <KpiBadge
+                  icon={<ShieldAlert className="h-4 w-4" />}
                   label="Críticos"
                   value={String(counts.criticosTotal)}
                   tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
-                  icon={<ShieldAlert className="h-4 w-4" />}
                 />
               </>
             )}
           </div>
+
 
         </CardContent>
       </Card>
@@ -3562,6 +3560,37 @@ function Stat({
           {sub && <div className="mt-0.5 text-[10px] sm:text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
         </div>
       </div>
+    </div>
+  );
+}
+
+function KpiBadge({
+  icon,
+  label,
+  value,
+  sublabel,
+  tone = "info",
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: string;
+  sublabel?: string;
+  tone?: "info" | "warning" | "destructive" | "muted";
+}) {
+  const tones: Record<typeof tone, string> = {
+    info: "border-primary/20 bg-primary/[0.04] text-primary",
+    warning: "border-warning/30 bg-warning-soft text-warning-text",
+    destructive: "border-destructive/30 bg-destructive/10 text-destructive",
+    muted: "border-border bg-muted/40 text-muted-foreground",
+  };
+  return (
+    <div className={cn("inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5", tones[tone])}>
+      {icon && <span className="shrink-0">{icon}</span>}
+      <span className="text-[16px] font-bold tabular-nums text-foreground leading-none">{value}</span>
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      {sublabel && (
+        <span className="text-[10px] text-muted-foreground tabular-nums">· {sublabel}</span>
+      )}
     </div>
   );
 }
