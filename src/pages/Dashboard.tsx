@@ -662,7 +662,7 @@ const ChipGroup = <T extends string>({
    ================================================================ */
 
 const Dashboard = () => {
-  const { roles, user } = useAuth();
+  const { roles, user, rolesLoading } = useAuth();
   const hospitalId = useActiveHospitalId();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
@@ -1006,9 +1006,12 @@ const Dashboard = () => {
     return parts.length ? `&${parts.join("&")}` : "";
   }, [pipelineOwner, pipelineWindow]);
 
-  const isAnalista = roles.includes("analista") || roles.includes("admin");
-  const isValidador = roles.includes("validador") || roles.includes("admin");
-  const isDiretor = roles.includes("diretor") || roles.includes("admin");
+  // Enquanto rolesLoading, tratamos como sem permissão para NÃO renderizar
+  // seções privilegiadas (diretor/admin/validador) com base em cache stale
+  // — evita "flash" da visão de diretor ao abrir o dashboard.
+  const isAnalista = !rolesLoading && (roles.includes("analista") || roles.includes("admin"));
+  const isValidador = !rolesLoading && (roles.includes("validador") || roles.includes("admin"));
+  const isDiretor = !rolesLoading && (roles.includes("diretor") || roles.includes("admin"));
 
   // Anomalias de status (admin/diretor): contagem em aberto + realtime.
   useEffect(() => {
