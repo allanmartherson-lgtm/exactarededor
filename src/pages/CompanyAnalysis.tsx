@@ -1846,6 +1846,12 @@ export default function CompanyAnalysis() {
       doctor_role: String((it as any).doctor_role ?? ""),
       sector: String((it as any).sector ?? ""),
     });
+    // Reseta o motivo — o analista precisa escolher a cada edição.
+    setEditReason({
+      reasonId: (it as any).intervention_reason_id ?? "",
+      impact: (it as any).intervention_financial_impact ?? null,
+      notes: (it as any).intervention_notes ?? "",
+    });
   };
 
   const saveItem = async () => {
