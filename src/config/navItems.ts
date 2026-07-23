@@ -142,6 +142,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["admin"] },
       { to: "/cadastros", label: "Cadastros", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor"] },
       { to: "/configuracoes/tabela-tuss", label: "Tabela TUSS", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
+      { to: "/configuracoes/motivos-intervencao", label: "Motivos de intervenção", icon: ClipboardList, iconName: "ClipboardList", roles: ["admin", "diretor"] },
       { to: "/padroes-lote", label: "Padrões de Lote", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor", "analista"] },
       { to: "/hospitais", label: "Hospitais", icon: Building2, iconName: "Building2", roles: ["admin", "diretor"] },
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
