@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Wand2, RotateCcw } from "lucide-react";
+import { impactBadgeClass, impactLabel } from "@/lib/saveIntervention";
+import { cn } from "@/lib/utils";
 import {
   useManualInterventionReasons,
   type ManualInterventionReason,
@@ -119,6 +121,12 @@ export function ManualInterventionDialog({
             manual_intervention_notes: notes.trim() || null,
             manual_intervention_by: user.id,
             manual_intervention_source: "manual",
+            // Snapshot categorizado dos novos campos (compartilhado com
+            // acate/exclusão/edição). Alimenta relatórios de economia vs perda.
+            intervention_reason_id: reasonId,
+            intervention_notes: notes.trim() || null,
+            intervention_financial_impact:
+              selectedReason?.financial_impact ?? null,
           }
         : {
             manual_intervention_reason_id: null,
@@ -128,6 +136,9 @@ export function ManualInterventionDialog({
             manual_intervention_source: null,
             ai_status: "pendente",
             expected_amount: null,
+            intervention_reason_id: null,
+            intervention_notes: null,
+            intervention_financial_impact: null,
           };
 
 
@@ -268,13 +279,14 @@ export function ManualInterventionDialog({
   // Ordena grupos colocando a categoria preferida primeiro
   const groupOrder: ManualInterventionReason["category"][] = preferCategory
     ? preferCategory === "aceite_financeiro"
-      ? ["aceite_financeiro", "reclassificacao_clinica"]
-      : ["reclassificacao_clinica", "aceite_financeiro"]
-    : ["reclassificacao_clinica", "aceite_financeiro"];
+      ? ["aceite_financeiro", "reclassificacao_clinica", "operacional"]
+      : ["reclassificacao_clinica", "aceite_financeiro", "operacional"]
+    : ["reclassificacao_clinica", "aceite_financeiro", "operacional"];
 
   const groupTitle: Record<ManualInterventionReason["category"], string> = {
     reclassificacao_clinica: "Reclassificação clínica",
     aceite_financeiro: "Aceite financeiro",
+    operacional: "Operacional",
   };
 
   return (
@@ -325,7 +337,17 @@ export function ManualInterventionDialog({
                       <SelectLabel>{groupTitle[cat]}</SelectLabel>
                       {items.map((r) => (
                         <SelectItem key={r.id} value={r.id}>
-                          {r.label}
+                          <span className="flex items-center gap-2">
+                            <span>{r.label}</span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+                                impactBadgeClass(r.financial_impact),
+                              )}
+                            >
+                              {impactLabel(r.financial_impact)}
+                            </span>
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectGroup>

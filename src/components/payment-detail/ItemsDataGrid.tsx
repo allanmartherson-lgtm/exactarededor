@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertBanner } from "./AlertBanner";
@@ -93,6 +93,9 @@ import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
 import { CalcExceptionDialog } from "./CalcExceptionDialog";
 import { ManualInterventionDialog } from "./ManualInterventionDialog";
+import { InterventionReasonSelect } from "./InterventionReasonSelect";
+import { saveIntervention, clearIntervention } from "@/lib/saveIntervention";
+import type { InterventionAction } from "@/hooks/useManualInterventionReasons";
 import { PaymentItemExplainButton } from "@/components/copilot/PaymentItemExplainButton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ItemDetailsPanel } from "@/components/payment-detail/ItemDetailsPanel";
@@ -433,6 +436,60 @@ function RowActionsSplit({
   const isAcatado = !isBonus && status === "acatado";
   const canDelete = !!onDeleteItem && (!isBonus || !it.applied_rule_id);
 
+  // -----------------------------------------------------------------
+  // GATE de motivo de intervenção (obrigatório para acate/exclusão).
+  // Popover ancorado no container do split-button. Usa
+  // InterventionReasonSelect (categorizado + notas + badge de impacto).
+  // Bonus items dispensam o gate — o motor deriva a decisão da regra.
+  // -----------------------------------------------------------------
+  const [pending, setPending] = useState<
+    | {
+        action: InterventionAction;
+        label: string;
+        exec: () => void | Promise<void>;
+      }
+    | null
+  >(null);
+  const [gateSubmitting, setGateSubmitting] = useState(false);
+
+  const requestGated = (
+    action: InterventionAction,
+    label: string,
+    exec: () => void | Promise<void>,
+  ) => {
+    if (isBonus) {
+      // Bônus não têm intervenção financeira categorizada — executa direto.
+      void exec();
+      return;
+    }
+    setPending({ action, label, exec });
+  };
+
+  const runPending = async (payload: {
+    reason: { id: string; financial_impact: "economia" | "perda" | "neutro" };
+    notes: string;
+  }) => {
+    if (!pending) return;
+    setGateSubmitting(true);
+    try {
+      const res = await saveIntervention({
+        itemId: it.id,
+        reason: payload.reason,
+        notes: payload.notes,
+      });
+      if (!res.ok) {
+        toast.error("Não foi possível salvar o motivo", {
+          description: (res as { ok: false; error: string }).error,
+        });
+        return;
+      }
+      await pending.exec();
+      setPending(null);
+    } finally {
+      setGateSubmitting(false);
+    }
+  };
+
   // Item de menu — "Tratar manualmente"
   const manualMenuItem = !isBonus ? (
     <DropdownMenuItem onClick={() => setManualOpen(true)}>
@@ -451,7 +508,14 @@ function RowActionsSplit({
   ) : null;
 
   const deleteMenuItem = canDelete ? (
-    <DropdownMenuItem onClick={() => onDeleteItem!(it)} className="text-destructive focus:text-destructive">
+    <DropdownMenuItem
+      onClick={() =>
+        requestGated("excluir", isBonus ? "Excluir bônus" : "Excluir item", () =>
+          onDeleteItem!(it),
+        )
+      }
+      className="text-destructive focus:text-destructive"
+    >
       <Trash2 className="h-4 w-4 mr-2 text-destructive" />
       <span className="text-[12px]">{isBonus ? "Excluir bônus" : "Excluir item"}</span>
     </DropdownMenuItem>
@@ -473,14 +537,49 @@ function RowActionsSplit({
       />
     ) : null;
 
+  // Wrapper que anexa o Popover de motivo à AÇÃO PRINCIPAL da linha.
+  // Só uma instância por linha — todas as ações gated compartilham `pending`.
+  const gate = (children: React.ReactNode) => (
+    <Popover
+      open={!!pending}
+      onOpenChange={(v) => {
+        if (!v && !gateSubmitting) setPending(null);
+      }}
+    >
+      <PopoverAnchor asChild>
+        <div className="flex w-full items-center justify-center">
+          {children}
+        </div>
+      </PopoverAnchor>
+      {pending && (
+        <PopoverContent
+          align="end"
+          side="left"
+          className="w-auto max-w-[420px] p-3"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <InterventionReasonSelect
+            action={pending.action}
+            actionLabel={pending.label}
+            submitting={gateSubmitting}
+            onCancel={() => setPending(null)}
+            onConfirm={runPending}
+          />
+        </PopoverContent>
+      )}
+    </Popover>
+  );
+
   // Estado: reprovado / alerta → Split button verde
   if (canAccept && onAcceptItem) {
-    return (
-      <div className="flex w-full items-center justify-center">
+    return gate(
+      <>
         <div className="inline-flex items-stretch">
           <Button
             type="button"
-            onClick={() => onAcceptItem(it)}
+            onClick={() =>
+              requestGated("acatar", "Acatar", () => onAcceptItem(it))
+            }
             className={cn(
               "h-7 rounded-r-none border border-r-0 px-2.5 min-w-[92px] justify-center",
               "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:text-success",
@@ -510,12 +609,22 @@ function RowActionsSplit({
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                 Acatar como
               </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onAcceptItem(it)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  requestGated("acatar", "Acatar", () => onAcceptItem(it))
+                }
+              >
                 <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
                 <span className="text-[12px]">Usar valor esperado</span>
               </DropdownMenuItem>
               {onAcceptItemKeepPaid && (
-                <DropdownMenuItem onClick={() => onAcceptItemKeepPaid(it)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    requestGated("acatar", "Manter valor pago", () =>
+                      onAcceptItemKeepPaid(it),
+                    )
+                  }
+                >
                   <HandCoins className="h-4 w-4 mr-2 text-sky-600" />
                   <span className="text-[12px]">Manter valor pago</span>
                 </DropdownMenuItem>
@@ -529,19 +638,24 @@ function RowActionsSplit({
           </DropdownMenu>
         </div>
         {renderDialog()}
-      </div>
+      </>,
     );
   }
 
   // Estado: acatado → Desfazer + "⋯" opcional
   if (isAcatado && onUndoAcceptItem) {
     const hasExtras = !!(editMenuItem || deleteMenuItem || manualMenuItem);
-    return (
-      <div className="flex w-full items-center justify-center gap-1">
+    return gate(
+      <>
         <Button
           type="button"
           variant="outline"
-          onClick={() => onUndoAcceptItem(it)}
+          onClick={() => {
+            // Desfazer também limpa o motivo/impact snapshotado para o item
+            // voltar a um estado neutro — idempotente, roda em paralelo.
+            void clearIntervention(it.id);
+            onUndoAcceptItem(it);
+          }}
           className="h-7 px-2.5 text-[11px] font-medium"
           title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
         >
@@ -555,7 +669,7 @@ function RowActionsSplit({
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className="h-7 w-7 ml-1"
                 title="Mais ações"
                 aria-label="Mais ações"
               >
@@ -571,15 +685,15 @@ function RowActionsSplit({
           </DropdownMenu>
         )}
         {renderDialog()}
-      </div>
+      </>,
     );
   }
 
   // Estado: aprovado / seguido / bônus → apenas "⋯"
   const hasAny = !!(manualMenuItem || editMenuItem || deleteMenuItem);
   if (!hasAny) return null;
-  return (
-    <div className="flex w-full items-center justify-center">
+  return gate(
+    <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -607,7 +721,7 @@ function RowActionsSplit({
         </DropdownMenuContent>
       </DropdownMenu>
       {renderDialog()}
-    </div>
+    </>,
   );
 }
 

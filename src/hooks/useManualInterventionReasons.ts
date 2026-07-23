@@ -1,24 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+export type InterventionAction = "manual" | "acatar" | "excluir" | "editar";
+export type FinancialImpact = "economia" | "perda" | "neutro";
 
 export type ManualInterventionReason = {
   id: string;
   code: string;
   label: string;
-  category: "reclassificacao_clinica" | "aceite_financeiro";
+  category: "reclassificacao_clinica" | "aceite_financeiro" | "operacional";
   description: string | null;
   is_seed: boolean;
   is_active: boolean;
   sort_order: number;
   hospital_id: string | null;
+  financial_impact: FinancialImpact;
+  applies_to: InterventionAction[];
 };
 
 /**
- * Carrega motivos de intervenção manual ativos (seeds globais + cadastros
- * locais do hospital ativo). Não inclui os reasons "legacy" (sufixo
- * `_legado`), que existem só para preservar histórico migrado.
+ * Carrega motivos de intervenção ativos (seeds globais + cadastros locais do
+ * hospital ativo). Filtra suffixos `_legado` do dropdown. Se `appliesTo` é
+ * passado, devolve só os motivos cujo `applies_to` inclui essa ação.
  */
-export function useManualInterventionReasons() {
+export function useManualInterventionReasons(opts?: {
+  appliesTo?: InterventionAction;
+}) {
   const [reasons, setReasons] = useState<ManualInterventionReason[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +36,7 @@ export function useManualInterventionReasons() {
     supabase
       .from("manual_intervention_reasons")
       .select(
-        "id,code,label,category,description,is_seed,is_active,sort_order,hospital_id",
+        "id,code,label,category,description,is_seed,is_active,sort_order,hospital_id,financial_impact,applies_to",
       )
       .eq("is_active", true)
       .order("category", { ascending: true })
@@ -52,14 +59,21 @@ export function useManualInterventionReasons() {
     };
   }, []);
 
+  const filtered = useMemo(() => {
+    if (!opts?.appliesTo) return reasons;
+    const a = opts.appliesTo;
+    return reasons.filter((r) => (r.applies_to ?? []).includes(a));
+  }, [reasons, opts?.appliesTo]);
+
   const byCategory = {
-    reclassificacao_clinica: reasons.filter(
+    reclassificacao_clinica: filtered.filter(
       (r) => r.category === "reclassificacao_clinica",
     ),
-    aceite_financeiro: reasons.filter(
+    aceite_financeiro: filtered.filter(
       (r) => r.category === "aceite_financeiro",
     ),
+    operacional: filtered.filter((r) => r.category === "operacional"),
   };
 
-  return { reasons, byCategory, loading, error };
+  return { reasons: filtered, byCategory, loading, error };
 }

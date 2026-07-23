@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { InterventionReasonSelect } from "@/components/payment-detail/InterventionReasonSelect";
 import { ManualItemsGrid } from "@/components/payment-detail/ManualItemsGrid";
 import { ZeevAssistant } from "@/components/copilot/ZeevAssistant";
 import { MarkSpecialCaseDialog } from "@/components/payment-detail/MarkSpecialCaseDialog";
@@ -451,6 +452,12 @@ export default function CompanyAnalysis() {
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string; procedure_amount: string; procedure_code: string; doctor_role: string; sector: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "", procedure_amount: "", procedure_code: "", doctor_role: "", sector: "" });
   const [savingItem, setSavingItem] = useState(false);
+  // Motivo categorizado exigido para edições de valor (LGPD/auditoria).
+  const [editReason, setEditReason] = useState<{
+    reasonId: string;
+    impact: "economia" | "perda" | "neutro" | null;
+    notes: string;
+  }>({ reasonId: "", impact: null, notes: "" });
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
@@ -1840,6 +1847,12 @@ export default function CompanyAnalysis() {
       doctor_role: String((it as any).doctor_role ?? ""),
       sector: String((it as any).sector ?? ""),
     });
+    // Reseta o motivo — o analista precisa escolher a cada edição.
+    setEditReason({
+      reasonId: (it as any).intervention_reason_id ?? "",
+      impact: (it as any).intervention_financial_impact ?? null,
+      notes: (it as any).intervention_notes ?? "",
+    });
   };
 
   const saveItem = async () => {
@@ -1852,11 +1865,22 @@ export default function CompanyAnalysis() {
       toast.error("Valor inválido");
       return;
     }
+    if (!editReason.reasonId) {
+      toast.error("Selecione o motivo da edição antes de salvar.");
+      return;
+    }
     setSavingItem(true);
     try {
       const oldGross = Number(editItem.gross_amount ?? 0);
       const oldProcedure = Number(editItem.procedure_amount ?? 0);
       const cleanTuss = (editDraft.procedure_code || "").replace(/\D/g, "");
+      // Snapshot categorizado da intervenção — grava junto ao patch para
+      // alimentar relatórios de economia/perda sem depender de reprocessamento.
+      const interventionPatch = {
+        intervention_reason_id: editReason.reasonId,
+        intervention_notes: editReason.notes.trim() || null,
+        intervention_financial_impact: editReason.impact,
+      };
       const patch: Record<string, unknown> = _isConfeccao
         ? {
             // Em confecção a base não tem "valor pago" — quem manda é o valor
@@ -1873,6 +1897,7 @@ export default function CompanyAnalysis() {
             specialty: editDraft.specialty || null,
             manual_edit: true,
             ai_status: "pendente",
+            ...interventionPatch,
           }
         : {
             gross_amount: newGross,
@@ -1880,6 +1905,7 @@ export default function CompanyAnalysis() {
             doctor_name: editDraft.doctor_name,
             description: editDraft.description || null,
             ai_status: "pendente",
+            ...interventionPatch,
           };
       const { error } = await supabase
         .from("payment_items")
@@ -3364,10 +3390,33 @@ export default function CompanyAnalysis() {
                 </div>
               </>
             )}
+            {/* Motivo obrigatório da edição — impacta auditoria/relatórios */}
+            <div className="rounded-md border bg-muted/20 p-3">
+              <InterventionReasonSelect
+                action="editar"
+                actionLabel="Editar item"
+                hideActions
+                defaultReasonId={editReason.reasonId || null}
+                defaultNotes={editReason.notes || null}
+                onChange={({ reasonId, reason, notes }) =>
+                  setEditReason({
+                    reasonId,
+                    impact: reason?.financial_impact ?? null,
+                    notes,
+                  })
+                }
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditItem(null)} disabled={savingItem}>Cancelar</Button>
-            <Button onClick={saveItem} disabled={savingItem}>{savingItem ? "Salvando…" : "Salvar"}</Button>
+            <Button
+              onClick={saveItem}
+              disabled={savingItem || !editReason.reasonId}
+              title={!editReason.reasonId ? "Selecione o motivo da edição" : undefined}
+            >
+              {savingItem ? "Salvando…" : "Salvar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

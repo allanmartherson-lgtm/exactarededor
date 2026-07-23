@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
+import { useManualInterventionReasons } from "@/hooks/useManualInterventionReasons";
+import { impactBadgeClass, impactLabel } from "@/lib/saveIntervention";
 import {
   getAccessRoute,
   getAgreement,
@@ -198,6 +200,20 @@ export function ItemDetailsPanel({
     : [];
   const engine = item.ai_findings?.engine ?? null;
 
+  // Motivo categorizado de intervenção — snapshotado em payment_items
+  // pelas ações do split-button (acatar/excluir) e pela edição.
+  const { reasons: allReasons } = useManualInterventionReasons();
+  const interventionReasonId: string | null =
+    item.intervention_reason_id ?? null;
+  const interventionReason = interventionReasonId
+    ? allReasons.find((r) => r.id === interventionReasonId) ?? null
+    : null;
+  const interventionImpact = (item.intervention_financial_impact ??
+    interventionReason?.financial_impact ??
+    null) as "economia" | "perda" | "neutro" | null;
+  const interventionNotes: string | null = item.intervention_notes ?? null;
+  const hasIntervention = !!interventionReasonId;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -310,6 +326,40 @@ export function ItemDetailsPanel({
               )}
             </div>
           </Section>
+
+          {/* 2b. Intervenção do analista — só aparece quando há motivo gravado */}
+          {hasIntervention && (
+            <Section title="Intervenção do analista" defaultOpen tone="accent">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[13px] font-semibold text-foreground">
+                    {interventionReason?.label ?? "Motivo (removido)"}
+                  </span>
+                  {interventionImpact && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                        impactBadgeClass(interventionImpact),
+                      )}
+                    >
+                      Impacto: {impactLabel(interventionImpact)}
+                    </span>
+                  )}
+                </div>
+                {interventionReason?.description && (
+                  <div className="text-[12px] text-muted-foreground">
+                    {interventionReason.description}
+                  </div>
+                )}
+                {interventionNotes && (
+                  <div className="rounded-md bg-muted/40 border border-border/40 p-2 text-[12px] whitespace-pre-wrap break-words text-foreground">
+                    {interventionNotes}
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
 
           {/* 3. Observações — cinza (menos importante) */}
           <Section title="Observações" tone="muted">
