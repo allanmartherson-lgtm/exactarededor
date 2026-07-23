@@ -327,6 +327,40 @@ export function ItemDetailsPanel({
             </div>
           </Section>
 
+          {/* 2b. Intervenção do analista — só aparece quando há motivo gravado */}
+          {hasIntervention && (
+            <Section title="Intervenção do analista" defaultOpen tone="accent">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[13px] font-semibold text-foreground">
+                    {interventionReason?.label ?? "Motivo (removido)"}
+                  </span>
+                  {interventionImpact && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                        impactBadgeClass(interventionImpact),
+                      )}
+                    >
+                      Impacto: {impactLabel(interventionImpact)}
+                    </span>
+                  )}
+                </div>
+                {interventionReason?.description && (
+                  <div className="text-[12px] text-muted-foreground">
+                    {interventionReason.description}
+                  </div>
+                )}
+                {interventionNotes && (
+                  <div className="rounded-md bg-muted/40 border border-border/40 p-2 text-[12px] whitespace-pre-wrap break-words text-foreground">
+                    {interventionNotes}
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
+
           {/* 3. Observações — cinza (menos importante) */}
           <Section title="Observações" tone="muted">
             {observations.length === 0 ? (
