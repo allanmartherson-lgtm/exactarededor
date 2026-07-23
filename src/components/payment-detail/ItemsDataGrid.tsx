@@ -3335,7 +3335,7 @@ export function ItemsDataGrid({
             <thead className="sticky top-0 z-[70] [&_th]:sticky [&_th]:top-0 [&_th]:z-[70] [&_th]:!bg-primary [&_th]:!text-primary-foreground [&_th]:!border-b [&_th]:!border-b-primary-foreground/45 [&_th]:!border-r [&_th]:!border-r-primary-foreground/20 [&_th]:!border-t-0 [&_th]:!border-l-0 [&_th]:align-middle [&_th]:!text-[11px] [&_th]:!leading-tight [&_th]:!font-semibold [&_th_svg]:!text-primary-foreground/85 [&_th>[role=separator]]:!w-px [&_th>[role=separator]]:!bg-primary-foreground/55 [&_th>[role=separator]:hover]:!bg-primary-foreground/90">
               <tr>
                 {colVis.atendimento && (
-                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>
+                  <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}>
                     <div className={TABLE_HEAD_TEXT}>
                       <span>Atend.</span>
                       <Popover>
@@ -3390,13 +3390,13 @@ export function ItemsDataGrid({
                   </th>
                 )}
                 {colVis.data && (
-                  <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Data</span><ResizeHandle colKey="data" defaultWidth={108} /></th>
+                  <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Data</span><ResizeHandle colKey="data" defaultWidth={108} /></th>
                 )}
                 <th
 
                   scope="col"
                   aria-sort={sortKey === "paciente" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-[80] shadow-[1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}
+                  className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-[80] shadow-[1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}
                 >
                   <button
                     type="button"
@@ -3417,7 +3417,7 @@ export function ItemsDataGrid({
                   <th
                     scope="col"
                     aria-sort={sortKey === "convenio" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                    className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                    className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}
                   >
                     <button
                       type="button"
@@ -3434,11 +3434,11 @@ export function ItemsDataGrid({
                     </button>
                   </th>
                 )}
-                {colVis.via && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Via</span><ResizeHandle colKey="via" defaultWidth={110} /></th>}
+                {colVis.via && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Via</span><ResizeHandle colKey="via" defaultWidth={110} /></th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "tuss" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                  className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}
                 >
                   <button
                     type="button"
@@ -3458,7 +3458,7 @@ export function ItemsDataGrid({
                 <th
                   scope="col"
                   aria-sort={sortKey === "qtd" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                  className={cn(headPad, "text-right border-b bg-muted whitespace-nowrap")}
                 >
                   <button
                     type="button"
@@ -3475,15 +3475,15 @@ export function ItemsDataGrid({
                   </button>
                   <ResizeHandle colKey="qtd" defaultWidth={56} />
                 </th>
-                {colVis.procedimento && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Procedimento</span><ResizeHandle colKey="procedimento" defaultWidth={200} /></th>}
-                {colVis.setor_lido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Setor (Planilha)</span><ResizeHandle colKey="setor_lido" defaultWidth={110} /></th>}
-                {colVis.setor_inferido && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Setor</span><ResizeHandle colKey="setor_inferido" defaultWidth={110} /></th>}
-                {colVis.tipo_entrada && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Caráter</span><ResizeHandle colKey="tipo_entrada" defaultWidth={110} /></th>}
-                {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)"><span className={TABLE_HEAD_TEXT}>Subtipo</span><ResizeHandle colKey="subtipo" defaultWidth={80} /></th>}
+                {colVis.procedimento && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Procedimento</span><ResizeHandle colKey="procedimento" defaultWidth={200} /></th>}
+                {colVis.setor_lido && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Setor (Planilha)</span><ResizeHandle colKey="setor_lido" defaultWidth={110} /></th>}
+                {colVis.setor_inferido && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Setor</span><ResizeHandle colKey="setor_inferido" defaultWidth={110} /></th>}
+                {colVis.tipo_entrada && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Caráter</span><ResizeHandle colKey="tipo_entrada" defaultWidth={110} /></th>}
+                {colVis.subtipo && isParecerPayment && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")} title="Tipo de pagamento do item (Parecer × Visita)"><span className={TABLE_HEAD_TEXT}>Subtipo</span><ResizeHandle colKey="subtipo" defaultWidth={80} /></th>}
                 <th
                   scope="col"
                   aria-sort={sortKey === "medico" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                  className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}
                 >
                   <button
                     type="button"
@@ -3500,13 +3500,13 @@ export function ItemsDataGrid({
                   </button>
                   <ResizeHandle colKey="medico" defaultWidth={150} />
                 </th>
-                {colVis.funcao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Função</span><ResizeHandle colKey="funcao" defaultWidth={100} /></th>}
-                {colVis.regra && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Regra</span><ResizeHandle colKey="regra" defaultWidth={150} /></th>}
+                {colVis.funcao && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Função</span><ResizeHandle colKey="funcao" defaultWidth={100} /></th>}
+                {colVis.regra && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Regra</span><ResizeHandle colKey="regra" defaultWidth={150} /></th>}
                 {showGrossColumn && (
                   <th
                     scope="col"
                     aria-sort={sortKey === "gross" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                    className={cn(headPad, "text-right border-b bg-muted whitespace-nowrap")}
                   >
                     <button
                       type="button"
@@ -3527,7 +3527,7 @@ export function ItemsDataGrid({
                 {showProcedureColumn && (
                   <th
                     scope="col"
-                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                    className={cn(headPad, "text-right border-b bg-muted whitespace-nowrap")}
                   >
                     <span className={TABLE_HEAD_TEXT_RIGHT}>Valor Faturamento</span>
                     <ResizeHandle colKey="faturamento" defaultWidth={130} />
@@ -3536,7 +3536,7 @@ export function ItemsDataGrid({
                 <th
                   scope="col"
                   aria-sort={sortKey === "esperado" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                  className={cn(headPad, "text-right border-b bg-muted whitespace-nowrap")}
                 >
                   <button
                     type="button"
@@ -3557,7 +3557,7 @@ export function ItemsDataGrid({
                   <th
                     scope="col"
                     aria-sort={sortKey === "diferenca" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                    className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}
+                    className={cn(headPad, "text-right border-b bg-muted whitespace-nowrap")}
                   >
                     <button
                       type="button"
@@ -3578,7 +3578,7 @@ export function ItemsDataGrid({
                 <th
                   scope="col"
                   aria-sort={sortKey === "status" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-                  className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}
+                  className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}
                 >
                   <button
                     type="button"
@@ -3595,8 +3595,8 @@ export function ItemsDataGrid({
                   </button>
                   <ResizeHandle colKey="status" defaultWidth={132} />
                 </th>
-                {colVis.observacao && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Obs.</span><ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
-                {canEdit && <th scope="col" className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-[80] shadow-[-1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}><span className={TABLE_HEAD_TEXT_CENTER}>Ações</span></th>}
+                {colVis.observacao && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Obs.</span><ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
+                {canEdit && <th scope="col" className={cn(headPad, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-[80] shadow-[-1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}><span className={TABLE_HEAD_TEXT_CENTER}>Ações</span></th>}
               </tr>
             </thead>
             <tbody>
