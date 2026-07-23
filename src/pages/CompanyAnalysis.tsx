@@ -1864,11 +1864,22 @@ export default function CompanyAnalysis() {
       toast.error("Valor inválido");
       return;
     }
+    if (!editReason.reasonId) {
+      toast.error("Selecione o motivo da edição antes de salvar.");
+      return;
+    }
     setSavingItem(true);
     try {
       const oldGross = Number(editItem.gross_amount ?? 0);
       const oldProcedure = Number(editItem.procedure_amount ?? 0);
       const cleanTuss = (editDraft.procedure_code || "").replace(/\D/g, "");
+      // Snapshot categorizado da intervenção — grava junto ao patch para
+      // alimentar relatórios de economia/perda sem depender de reprocessamento.
+      const interventionPatch = {
+        intervention_reason_id: editReason.reasonId,
+        intervention_notes: editReason.notes.trim() || null,
+        intervention_financial_impact: editReason.impact,
+      };
       const patch: Record<string, unknown> = _isConfeccao
         ? {
             // Em confecção a base não tem "valor pago" — quem manda é o valor
@@ -1885,6 +1896,7 @@ export default function CompanyAnalysis() {
             specialty: editDraft.specialty || null,
             manual_edit: true,
             ai_status: "pendente",
+            ...interventionPatch,
           }
         : {
             gross_amount: newGross,
@@ -1892,6 +1904,7 @@ export default function CompanyAnalysis() {
             doctor_name: editDraft.doctor_name,
             description: editDraft.description || null,
             ai_status: "pendente",
+            ...interventionPatch,
           };
       const { error } = await supabase
         .from("payment_items")
