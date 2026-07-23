@@ -4078,10 +4078,16 @@ const NewPayment = () => {
                   id="competence"
                   value={competenceMonths}
                   onChange={setCompetenceMonths}
-                  placeholder="Selecione um ou mais meses"
+                  singleSelect={competenceRegime === "producao"}
+                  placeholder={competenceRegime === "producao" ? "Selecione o mês da competência" : "Selecione um ou mais meses"}
                 />
-                <p className="text-xs text-muted-foreground">Você pode marcar mais de um mês quando o lote cobrir várias competências.</p>
+                <p className="text-xs text-muted-foreground">
+                  {competenceRegime === "producao"
+                    ? "Em produção, um lote representa uma única competência. Para meses diferentes, crie lotes separados."
+                    : "Em remessa, o lote pode cobrir várias competências — o mês contábil de cada item vem da data do procedimento."}
+                </p>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="due">Previsão de pagamento</Label>
                 <DateInput value={paymentDueDate} onChange={setPaymentDueDate} id="due" />
