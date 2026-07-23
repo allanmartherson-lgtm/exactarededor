@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PaymentStatus } from "@/lib/status";
 
@@ -91,14 +90,13 @@ export function PaymentStatusFunnel({
   return (
     <div
       className={cn(
-        "w-full rounded-[14px] border border-border/50 bg-card px-4 py-3",
-        "shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
+        "w-full rounded-[10px] border border-border/50 bg-card px-3 py-1.5",
         className,
       )}
       role="group"
       aria-label="Funil de aprovação do pagamento"
     >
-      <div className="flex items-center justify-between gap-1">
+      <div className="flex items-center gap-0 flex-wrap">
         {STAGES.map((s, i) => {
           const isLast = i === STAGES.length - 1;
           const isCurrent = !terminated && i === currentIdx;
@@ -106,57 +104,52 @@ export function PaymentStatusFunnel({
           const isPaid = !terminated && currentIdx === STAGE_INDEX.pago && i === STAGE_INDEX.pago;
 
           return (
-            <div key={s.key} className="flex items-center flex-1 min-w-0">
-              <div className="flex flex-col items-center gap-1 min-w-0">
-                <div
+            <div key={s.key} className="flex items-center">
+              <div className="flex items-center gap-1.5">
+                <span
+                  aria-hidden
                   className={cn(
-                    "relative h-6 w-6 rounded-full flex items-center justify-center transition-all",
-                    terminated && "bg-muted text-muted-foreground",
-                    !terminated && isDone && "bg-success text-white",
-                    !terminated && isCurrent && !isPaid && "bg-primary text-primary-foreground shadow-[0_0_0_4px_hsl(var(--primary)/0.15)]",
-                    !terminated && isCurrent && isPaid && "bg-success text-white shadow-[0_0_0_4px_hsl(var(--success)/0.18)]",
-                    !terminated && !isCurrent && !isDone && "bg-muted text-muted-foreground/60",
+                    "h-2 w-2 rounded-full transition-colors shrink-0",
+                    terminated && "bg-border",
+                    !terminated && isDone && "bg-success",
+                    !terminated && isCurrent && !isPaid && "bg-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.18)]",
+                    !terminated && isCurrent && isPaid && "bg-success shadow-[0_0_0_3px_hsl(var(--success)/0.20)]",
+                    !terminated && !isCurrent && !isDone && "bg-border",
                   )}
-                >
-                  {isDone || isPaid ? (
-                    <Check size={12} strokeWidth={3} />
-                  ) : (
-                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                  )}
-                </div>
+                />
                 <span
                   className={cn(
-                    "text-[10.5px] font-medium leading-none whitespace-nowrap",
+                    "text-[11px] leading-none whitespace-nowrap",
                     terminated && "text-muted-foreground",
-                    !terminated && isCurrent && !isPaid && "text-primary font-semibold",
-                    !terminated && isCurrent && isPaid && "text-success font-semibold",
+                    !terminated && isCurrent && !isPaid && "font-medium text-primary",
+                    !terminated && isCurrent && isPaid && "font-medium text-success",
                     !terminated && isDone && "text-foreground/80",
-                    !terminated && !isCurrent && !isDone && "text-muted-foreground/70",
+                    !terminated && !isCurrent && !isDone && "text-muted-foreground",
                   )}
                 >
                   {s.label}
                 </span>
               </div>
               {!isLast && (
-                <div
+                <span
                   aria-hidden
                   className={cn(
-                    "flex-1 h-px mx-2 -mt-3 rounded-full transition-colors",
-                    terminated && "bg-muted",
+                    "w-5 h-px mx-1.5 rounded-full",
+                    terminated && "bg-border",
                     !terminated && i < currentIdx && "bg-success/60",
-                    !terminated && i >= currentIdx && "bg-muted",
+                    !terminated && i >= currentIdx && "bg-border",
                   )}
                 />
               )}
             </div>
           );
         })}
+        {terminated && (
+          <span className="ml-3 text-[11px] text-muted-foreground">
+            · Fluxo encerrado ({terminatedLabel[status as string] ?? "Encerrado"})
+          </span>
+        )}
       </div>
-      {terminated && (
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          Fluxo encerrado · {terminatedLabel[status as string] ?? "Encerrado"}
-        </p>
-      )}
     </div>
   );
 }
