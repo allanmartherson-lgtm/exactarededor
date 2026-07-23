@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Wand2, RotateCcw } from "lucide-react";
+import { impactBadgeClass, impactLabel } from "@/lib/saveIntervention";
+import { cn } from "@/lib/utils";
 import {
   useManualInterventionReasons,
   type ManualInterventionReason,
@@ -119,6 +121,12 @@ export function ManualInterventionDialog({
             manual_intervention_notes: notes.trim() || null,
             manual_intervention_by: user.id,
             manual_intervention_source: "manual",
+            // Snapshot categorizado dos novos campos (compartilhado com
+            // acate/exclusão/edição). Alimenta relatórios de economia vs perda.
+            intervention_reason_id: reasonId,
+            intervention_notes: notes.trim() || null,
+            intervention_financial_impact:
+              selectedReason?.financial_impact ?? null,
           }
         : {
             manual_intervention_reason_id: null,
@@ -128,6 +136,9 @@ export function ManualInterventionDialog({
             manual_intervention_source: null,
             ai_status: "pendente",
             expected_amount: null,
+            intervention_reason_id: null,
+            intervention_notes: null,
+            intervention_financial_impact: null,
           };
 
 
