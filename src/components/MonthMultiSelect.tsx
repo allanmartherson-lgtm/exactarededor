@@ -34,6 +34,13 @@ interface MonthMultiSelectProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  /**
+   * Quando ativo, permite apenas UM mês selecionado — clicar em outro
+   * substitui a seleção anterior em vez de acumular. Usado no regime
+   * "produção" para evitar que a analista misture competências no
+   * mesmo lote (o eixo financeiro é sempre a competência do lote).
+   */
+  singleSelect?: boolean;
 }
 
 /**
@@ -47,6 +54,7 @@ export const MonthMultiSelect = ({
   placeholder = "Selecione um ou mais meses",
   className,
   id,
+  singleSelect = false,
 }: MonthMultiSelectProps) => {
   const today = new Date();
   const initialYear = value.length
@@ -59,12 +67,23 @@ export const MonthMultiSelect = ({
   const selectedSet = useMemo(() => new Set(value), [value]);
 
   const toggle = (key: string) => {
+    if (singleSelect) {
+      // Em modo single, clicar no mês já selecionado limpa; senão substitui.
+      if (selectedSet.has(key) && value.length === 1) {
+        onChange([]);
+      } else {
+        onChange([key]);
+        setOpen(false);
+      }
+      return;
+    }
     if (selectedSet.has(key)) {
       onChange(value.filter((v) => v !== key));
     } else {
       onChange([...value, key]);
     }
   };
+
 
   const remove = (key: string) => onChange(value.filter((v) => v !== key));
 
