@@ -268,13 +268,14 @@ export function ManualInterventionDialog({
   // Ordena grupos colocando a categoria preferida primeiro
   const groupOrder: ManualInterventionReason["category"][] = preferCategory
     ? preferCategory === "aceite_financeiro"
-      ? ["aceite_financeiro", "reclassificacao_clinica"]
-      : ["reclassificacao_clinica", "aceite_financeiro"]
-    : ["reclassificacao_clinica", "aceite_financeiro"];
+      ? ["aceite_financeiro", "reclassificacao_clinica", "operacional"]
+      : ["reclassificacao_clinica", "aceite_financeiro", "operacional"]
+    : ["reclassificacao_clinica", "aceite_financeiro", "operacional"];
 
   const groupTitle: Record<ManualInterventionReason["category"], string> = {
     reclassificacao_clinica: "Reclassificação clínica",
     aceite_financeiro: "Aceite financeiro",
+    operacional: "Operacional",
   };
 
   return (
