@@ -451,6 +451,12 @@ export default function CompanyAnalysis() {
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string; procedure_amount: string; procedure_code: string; doctor_role: string; sector: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "", procedure_amount: "", procedure_code: "", doctor_role: "", sector: "" });
   const [savingItem, setSavingItem] = useState(false);
+  // Motivo categorizado exigido para edições de valor (LGPD/auditoria).
+  const [editReason, setEditReason] = useState<{
+    reasonId: string;
+    impact: "economia" | "perda" | "neutro" | null;
+    notes: string;
+  }>({ reasonId: "", impact: null, notes: "" });
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
