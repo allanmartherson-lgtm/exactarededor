@@ -462,8 +462,13 @@ function RowActionsSplit({
       void exec();
       return;
     }
-    setPending({ action, label, exec });
+    // Defere para o próximo tick: quando o gate é disparado por um
+    // DropdownMenuItem, o Radix fecha o menu de forma síncrona e emite
+    // eventos de pointer/focus que o Popover interpreta como "clique fora",
+    // fechando o gate imediatamente. Abrir no próximo tick evita o conflito.
+    setTimeout(() => setPending({ action, label, exec }), 0);
   };
+
 
   const runPending = async (payload: {
     reason: { id: string; label: string; financial_impact: "economia" | "perda" | "neutro" };
