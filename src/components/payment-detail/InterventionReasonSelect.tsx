@@ -4,7 +4,7 @@
  * edição). Usado dentro de um Popover no split-button e inline no dialog de
  * edição — nunca como Dialog modal, para permitir processar itens em sequência.
  */
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   useManualInterventionReasons,
   type InterventionAction,
@@ -30,7 +30,7 @@ type Props = {
   /** Se informado, pré-seleciona esse motivo. */
   defaultReasonId?: string | null;
   defaultNotes?: string | null;
-  onConfirm: (payload: {
+  onConfirm?: (payload: {
     reason: ManualInterventionReason;
     notes: string;
   }) => void | Promise<void>;
@@ -39,6 +39,13 @@ type Props = {
   submitting?: boolean;
   /** Compacto = usado dentro de popover (menos padding). */
   compact?: boolean;
+  /** Modo inline (dialog de edição) — esconde botões e emite via onChange. */
+  hideActions?: boolean;
+  onChange?: (state: {
+    reasonId: string;
+    reason: ManualInterventionReason | null;
+    notes: string;
+  }) => void;
 };
 
 const CATEGORY_TITLE: Record<ManualInterventionReason["category"], string> = {
@@ -56,6 +63,8 @@ export function InterventionReasonSelect({
   onCancel,
   submitting = false,
   compact = false,
+  hideActions = false,
+  onChange,
 }: Props) {
   const { reasons, byCategory, loading } = useManualInterventionReasons({
     appliesTo: action,
@@ -68,12 +77,18 @@ export function InterventionReasonSelect({
     [reasons, reasonId],
   );
 
+  // Emite alterações para o pai no modo inline (usado no dialog de edição).
+  React.useEffect(() => {
+    onChange?.({ reasonId, reason: selected, notes });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reasonId, selected, notes]);
+
   const cats = (
     ["aceite_financeiro", "reclassificacao_clinica", "operacional"] as const
   ).filter((c) => (byCategory[c]?.length ?? 0) > 0);
 
   const handleConfirm = async () => {
-    if (!selected) return;
+    if (!selected || !onConfirm) return;
     await onConfirm({ reason: selected, notes: notes.trim() });
   };
 
