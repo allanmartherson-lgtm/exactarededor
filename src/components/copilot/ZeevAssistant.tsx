@@ -256,6 +256,19 @@ const PRIORITY_WEIGHT: Record<ZeevInsight["priority"], number> = {
 
 const HIDDEN_KEY = "zeev-dismissed-insights";
 
+// Migração única: a versão antiga guardava dispensas numa chave GLOBAL,
+// ocultando as sugestões (inclusive "Tratar em lote") em todos os lotes
+// e empresas até o navegador ser fechado. Agora as dispensas são por escopo
+// (paymentId+companyId) — então apagamos a chave global uma vez para
+// destravar quem havia dispensado antes desta correção.
+if (typeof window !== "undefined") {
+  try {
+    sessionStorage.removeItem(HIDDEN_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 /** Insight derivado do pre-flight (contagens do lote/empresa). */
 type DiagBucket = {
   topic: "sem_setor" | "sem_cc" | "sem_empresa" | "sem_regra" | "divergentes" | "zerados";
