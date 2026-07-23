@@ -996,6 +996,17 @@ const NewPayment = () => {
   // === Vínculo com rateio (pool) ===
   const [paymentMode, setPaymentMode] = useState<"producao" | "rateio">("producao");
   const [competenceRegime, setCompetenceRegime] = useState<"producao" | "remessa">("producao");
+  // Regra: em regime "produção" o lote só pode ter UMA competência (o eixo
+  // financeiro é sempre a competência do lote). Se a analista trocar remessa→produção
+  // com múltiplos meses já marcados, mantemos apenas o mais recente para não
+  // enviar um lote inconsistente para o motor.
+  useEffect(() => {
+    if (competenceRegime !== "producao") return;
+    setCompetenceMonths((cur) => (cur.length > 1 ? [[...cur].sort().pop() as string] : cur));
+    // setCompetenceMonths é estável (setState); regime é a única dependência real.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [competenceRegime]);
+
   const [poolId, setPoolId] = useState<string>("");
   const [poolDeductionId, setPoolDeductionId] = useState<string>("");
   const [rateioSource, setRateioSource] = useState<"planilha" | "sintetico">("planilha");
@@ -4078,10 +4089,16 @@ const NewPayment = () => {
                   id="competence"
                   value={competenceMonths}
                   onChange={setCompetenceMonths}
-                  placeholder="Selecione um ou mais meses"
+                  singleSelect={competenceRegime === "producao"}
+                  placeholder={competenceRegime === "producao" ? "Selecione o mês da competência" : "Selecione um ou mais meses"}
                 />
-                <p className="text-xs text-muted-foreground">Você pode marcar mais de um mês quando o lote cobrir várias competências.</p>
+                <p className="text-xs text-muted-foreground">
+                  {competenceRegime === "producao"
+                    ? "Em produção, um lote representa uma única competência. Para meses diferentes, crie lotes separados."
+                    : "Em remessa, o lote pode cobrir várias competências — o mês contábil de cada item vem da data do procedimento."}
+                </p>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="due">Previsão de pagamento</Label>
                 <DateInput value={paymentDueDate} onChange={setPaymentDueDate} id="due" />
