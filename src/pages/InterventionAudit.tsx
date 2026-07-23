@@ -28,6 +28,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
+import { useInterventionLedgerRealtime } from "@/hooks/useInterventionLedgerRealtime";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { AlertTriangle, ClipboardList, TrendingDown, TrendingUp } from "lucide-react";
