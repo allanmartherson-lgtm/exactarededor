@@ -3213,11 +3213,178 @@ const PaymentDetail = () => {
       )}
       <PageHeader
         title={isConfeccao ? `🛠  ${payment.reference}` : payment.reference}
-        description={payment.description ?? (() => {
+        description={(() => {
           const liq = Number((payment as any).liquido_total ?? payment.total_amount ?? 0);
           const persistedCount = Number((payment as any).items_count ?? 0);
           const displayCount = items.length > 0 ? items.length : persistedCount;
-          return `${displayCount} itens · ${formatCurrency(liq)}`;
+          const compLabel = formatCompetence(payment.competence_months?.length ? payment.competence_months : payment.competence_month);
+          const ccCode = payment.cost_center_code;
+          const track = (payment as any).payment_track as PaymentTrack | null | undefined;
+          const trackLabel = track ? PAYMENT_TRACK_SHORT_LABELS[track] : null;
+          const currentResponsibleId = assignments[0]?.analyst_id ?? null;
+          const currentResponsibleName = currentResponsibleId ? (profiles[currentResponsibleId] || null) : null;
+          const responsibleShort = currentResponsibleName
+            ? currentResponsibleName.trim().split(/\s+/).slice(0, 2).join(" ")
+            : null;
+          const subtitleParts: string[] = [];
+          if (compLabel) subtitleParts.push(String(compLabel));
+          if (ccCode) subtitleParts.push(`CC ${ccCode}`);
+          if (trackLabel) subtitleParts.push(trackLabel);
+          if (responsibleShort) subtitleParts.push(responsibleShort);
+          // KPIs leves — alertas/críticos só aparecem quando > 0
+          let alertCount = 0;
+          let criticalCount = 0;
+          for (const it of items as any[]) {
+            const s = it?.ai_status as ItemAiStatus | undefined;
+            if (s === "alerta") alertCount++;
+            else if (s === "reprovado" || s === "erro_duplicidade_pagamento" || s === "erro_duplicidade_calculo") criticalCount++;
+          }
+          return (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground min-w-0">
+                <span className="truncate capitalize">{subtitleParts.join(" · ") || "—"}</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center h-5 w-5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                      aria-label="Ver metadados do lote"
+                      title="Ver metadados do lote"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-80 p-3 space-y-2 text-xs">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-24 shrink-0">Previsão</span>
+                      <span className="font-medium">{formatDateOnly(payment.payment_due_date) || "—"}</span>
+                    </div>
+                    {payment.payment_type && (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-24 shrink-0">Tipo</span>
+                        <span className="font-medium">{PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS]}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-24 shrink-0">Categoria</span>
+                      <Select
+                        value={(payment.payment_kind as string) ?? "__none__"}
+                        onValueChange={async (v) => {
+                          const newVal = v === "__none__" ? null : v;
+                          const prev = (payment.payment_kind as string | null) ?? null;
+                          if (newVal === prev) return;
+                          const goingOutOfPendencia = prev === "pendencia" && newVal !== "pendencia";
+                          const goingIntoPendencia = prev !== "pendencia" && newVal === "pendencia";
+                          const msg = goingOutOfPendencia
+                            ? "Ao sair de Pendência, os itens marcados como 'reprocessamento' voltam a ser tratados como procedimento e serão reanalisados pelo motor. Confirmar?"
+                            : goingIntoPendencia
+                            ? "Ao marcar como Pendência, o motor deixa de aplicar regras (itens tratados como lançamento financeiro). Confirmar?"
+                            : "Trocar a categoria do lote?";
+                          if (!window.confirm(msg)) return;
+                          const { error } = await supabase
+                            .from("payments")
+                            .update({ payment_kind: newVal as any })
+                            .eq("id", payment.id);
+                          if (error) {
+                            toast({ title: "Erro ao atualizar categoria", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          if (goingOutOfPendencia) {
+                            const { error: reclassErr, count } = await supabase
+                              .from("payment_items")
+                              .update({ tipo_linha: "procedimento" } as any, { count: "exact" })
+                              .eq("payment_id", payment.id)
+                              .eq("tipo_linha", "reprocessamento")
+                              .not("procedure_code", "is", null);
+                            if (reclassErr) {
+                              toast({ title: "Categoria atualizada, mas falhou reclassificar itens", description: reclassErr.message, variant: "destructive" });
+                            } else {
+                              toast({ title: "Categoria atualizada", description: `${count ?? 0} itens reclassificados. Disparando reanálise…` });
+                              try {
+                                await supabase.functions.invoke("dispatch-payment-analysis", {
+                                  body: { payment_id: payment.id, force_fresh_rules: true, skip_ai: true },
+                                });
+                              } catch (e) {
+                                console.warn("[payment_kind] reanalysis dispatch falhou", e);
+                              }
+                            }
+                          } else {
+                            toast({ title: "Categoria atualizada", description: newVal ? PAYMENT_KIND_LABELS[newVal as keyof typeof PAYMENT_KIND_LABELS] : "Sem categoria" });
+                          }
+                          load();
+                        }}
+                      >
+                        <SelectTrigger className="h-7 px-2 text-xs flex-1 border-dashed">
+                          <SelectValue placeholder="Definir" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__" className="text-xs">— Sem categoria</SelectItem>
+                          <SelectItem value="atual" className="text-xs">{PAYMENT_KIND_LABELS.atual}</SelectItem>
+                          <SelectItem value="pendencia" className="text-xs">{PAYMENT_KIND_LABELS.pendencia}</SelectItem>
+                          <SelectItem value="misto" className="text-xs">{PAYMENT_KIND_LABELS.misto}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-24 shrink-0">Trilha</span>
+                      <Select
+                        value={((payment as any).payment_track as string) ?? "__none__"}
+                        onValueChange={async (v) => {
+                          const newVal = v === "__none__" ? null : (v as PaymentTrack);
+                          const { error } = await supabase
+                            .from("payments")
+                            .update({ payment_track: newVal })
+                            .eq("id", payment.id);
+                          if (error) {
+                            toast({ title: "Erro ao atualizar trilha", description: error.message, variant: "destructive" });
+                          } else {
+                            toast({ title: "Trilha atualizada", description: newVal ? PAYMENT_TRACK_LABELS[newVal] : "Sem trilha" });
+                            load();
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-7 px-2 text-xs flex-1 border-dashed">
+                          <SelectValue placeholder="Definir" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__" className="text-xs">— Não classificado</SelectItem>
+                          <SelectItem value="habitual" className="text-xs">{PAYMENT_TRACK_SHORT_LABELS.habitual}</SelectItem>
+                          <SelectItem value="prioritario" className="text-xs">{PAYMENT_TRACK_SHORT_LABELS.prioritario}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {currentResponsibleName && (
+                      <div className="flex items-baseline gap-2 pt-1 border-t border-border/50">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-24 shrink-0">Responsável</span>
+                        <span className="font-medium truncate">{currentResponsibleName}</span>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <span className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-primary/10 text-primary text-[11px] font-medium tabular-nums">
+                  <ClipboardList className="h-3 w-3" />
+                  {displayCount} itens
+                </span>
+                <span className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-primary/10 text-primary text-[11px] font-medium tabular-nums">
+                  {formatCurrency(liq)}
+                </span>
+                {alertCount > 0 && (
+                  <span className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-medium tabular-nums">
+                    <AlertTriangle className="h-3 w-3" />
+                    {alertCount} {alertCount === 1 ? "alerta" : "alertas"}
+                  </span>
+                )}
+                {criticalCount > 0 && (
+                  <span className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-destructive/15 text-destructive text-[11px] font-medium tabular-nums">
+                    <ShieldAlert className="h-3 w-3" />
+                    {criticalCount} {criticalCount === 1 ? "crítico" : "críticos"}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
         })()}
         sticky
         actions={
