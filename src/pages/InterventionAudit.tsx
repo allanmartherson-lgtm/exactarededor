@@ -66,30 +66,37 @@ export default function InterventionAudit() {
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
   const [search, setSearch] = useState("");
 
+  const loadData = useCallback(async (showSkeleton: boolean) => {
+    if (showSkeleton) setLoading(true);
+    try {
+      const end = new Date();
+      const start = new Date(end.getTime() - range * 24 * 3600 * 1000);
+      const { data: res, error } = await supabase.rpc("get_intervention_savings", {
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
+        p_hospital_id: currentHospitalId ?? null,
+      });
+      if (error) throw error;
+      setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao carregar auditoria de intervenções");
+      setData(emptyResult());
+    } finally {
+      if (showSkeleton) setLoading(false);
+    }
+  }, [range, currentHospitalId]);
+
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const end = new Date();
-        const start = new Date(end.getTime() - range * 24 * 3600 * 1000);
-        const { data: res, error } = await supabase.rpc("get_intervention_savings", {
-          p_start: start.toISOString(),
-          p_end: end.toISOString(),
-          p_hospital_id: currentHospitalId ?? null,
-        });
-        if (error) throw error;
-        if (!cancelled) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
-      } catch (e) {
-        console.error(e);
-        toast.error("Falha ao carregar auditoria de intervenções");
-        if (!cancelled) setData(emptyResult());
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    (async () => { if (!cancelled) await loadData(true); })();
     return () => { cancelled = true; };
-  }, [range, currentHospitalId]);
+  }, [loadData]);
+
+  // Atualiza sem F5 quando o motor materializa novos eventos.
+  useInterventionLedgerRealtime(currentHospitalId ?? null, () => {
+    loadData(false);
+  });
 
   const groups = useMemo(() => groupItemsForAudit(data.items), [data.items]);
   const filteredGroups = useMemo(() => {
