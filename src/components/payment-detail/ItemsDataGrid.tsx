@@ -4762,7 +4762,10 @@ function RowMain({
   // Zebra CURA: linhas pares recebem um tint azul 3%, ímpares ficam sobre background.
   // isExpanded/isActive/bonus vencem a zebra para preservar hierarquia visual.
   const zebra = rowIdx % 2 === 0 ? "bg-primary/[0.03]" : "bg-background";
-  const zebraSticky = rowIdx % 2 === 0 ? "bg-primary/[0.03]" : "bg-card";
+  // Sticky cells DEVEM ter fundo sólido — se ficarem translúcidos, o texto das
+  // colunas roláveis vaza por baixo quando o usuário rola horizontalmente.
+  // Zebra na coluna sticky usa `bg-muted` (sólido) em vez de tint translúcido.
+  const zebraSticky = rowIdx % 2 === 0 ? "bg-muted" : "bg-card";
   const baseCellBg = isBonus
     ? "bg-indigo-50/60 dark:bg-indigo-950/20"
     : isExpanded
@@ -4770,12 +4773,14 @@ function RowMain({
     : isActive
     ? "bg-primary/5"
     : zebra;
-  const stickyBg = isExpanded
+  const stickyBg = isBonus
+    ? "bg-indigo-50 dark:bg-indigo-950"
+    : isExpanded
     ? "bg-primary-soft"
     : isActive
-    ? "bg-primary-soft/60"
+    ? "bg-primary-soft"
     : zebraSticky;
-  const stickyHover = !isActive && !isExpanded ? "group-hover:bg-primary/[0.06]" : "";
+  const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted/80" : "";
   const cellPad = isCompact ? "px-1 py-0" : "px-2.5 py-2";
   // Sempre permitir quebra de linha natural. Sem line-clamp (que estava clipando
   // texto em 1 linha quando o span ficava como flex item sem min-w-0).
@@ -4789,7 +4794,7 @@ function RowMain({
   const cell = cn(cellPad, "border-b align-top break-words", baseCellBg);
   const stickyCell = cn(
     cellPad,
-    "border-b align-top break-words sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
+    "border-b align-top break-words sticky left-0 z-20 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]",
     stickyBg,
     stickyHover,
   );
@@ -5236,7 +5241,7 @@ function RowMain({
         )}
         {canEdit && (
           <td
-            className={cn(cellPad, "text-center border-b whitespace-nowrap sticky right-0 z-20 shadow-[-1px_0_0_0_hsl(var(--border))]", baseCellBg)}
+            className={cn(cellPad, "text-center border-b whitespace-nowrap sticky right-0 z-20 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)]", stickyBg, stickyHover)}
             onClick={(e) => e.stopPropagation()}
           >
             {/*
