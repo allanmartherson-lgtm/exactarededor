@@ -478,7 +478,9 @@ function RowActionsSplit({
         notes: payload.notes,
       });
       if (!res.ok) {
-        toast.error("Não foi possível salvar o motivo", { description: res.error });
+        toast.error("Não foi possível salvar o motivo", {
+          description: (res as { ok: false; error: string }).error,
+        });
         return;
       }
       await pending.exec();
