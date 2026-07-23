@@ -129,8 +129,15 @@ self.onmessage = async (e) => {
           .join(" | ");
       }
 
-      const expectedVal = it.expected_amount ?? findings?.expected_amount ?? "";
-      const expectedNum = Number(expectedVal ?? 0);
+      // Itens absorvidos por pacote: na UI aparecem como "Absorvido pelo pacote"
+      // e NÃO contribuem para divergência (o valor esperado do grupo já está no
+      // item-âncora). No Excel a divergência estava saindo = gross - 0 = gross,
+      // fabricando uma divergência falsa. Espelha a UI: divergência = 0.
+      const isAbsorbed = it.package_absorbed === true;
+      const expectedVal = isAbsorbed
+        ? "Absorvido pelo pacote"
+        : (it.expected_amount ?? findings?.expected_amount ?? "");
+      const expectedNum = isAbsorbed ? Number(it.gross_amount ?? 0) : Number(it.expected_amount ?? findings?.expected_amount ?? 0);
       const pisoMetodo = it.piso_metodo_vencedor === "piso"
         ? "Piso"
         : it.piso_metodo_vencedor === "convenio"
@@ -154,8 +161,8 @@ self.onmessage = async (e) => {
         Number((Number(it.gross_amount ?? 0) - expectedNum).toFixed(2)),
         it.piso_aplicado_valor != null ? Number(it.piso_aplicado_valor) : "",
         pisoMetodo,
-        { v: status, s: statusStyle },
-        it.rule_summary || "",
+        { v: isAbsorbed ? "absorvido" : status, s: statusStyle },
+        it.rule_summary || (isAbsorbed ? "Item absorvido pelo pacote" : ""),
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
         validationCol,
         findings?.calculation_explanation || "",
