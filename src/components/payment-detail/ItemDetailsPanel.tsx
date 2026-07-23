@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
+import { useManualInterventionReasons } from "@/hooks/useManualInterventionReasons";
+import { impactBadgeClass, impactLabel } from "@/lib/saveIntervention";
 import {
   getAccessRoute,
   getAgreement,
