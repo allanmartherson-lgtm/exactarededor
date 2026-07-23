@@ -129,7 +129,9 @@ export const PageHeader = ({
               {title}
             </h1>
             {description && (
-              <p className="text-sm text-muted-foreground mt-2">{description}</p>
+              typeof description === "string"
+                ? <p className="text-sm text-muted-foreground mt-2">{description}</p>
+                : <div className="mt-2">{description}</div>
             )}
           </div>
         </div>
