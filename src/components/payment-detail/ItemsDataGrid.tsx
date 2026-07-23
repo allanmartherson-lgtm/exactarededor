@@ -766,14 +766,14 @@ function RowMoreActionsMenu({
 // Tamanho de referência = AlertBanner (text-xs / 12px).
 export const TEXT_BODY = "text-xs leading-snug tracking-normal";
 export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight [&_button]:uppercase [&_button]:!text-[10px] [&_button]:!font-medium [&_button]:tracking-wide [&_button]:!leading-tight";
-// Classe explícita para <button> dentro de headers ordenáveis — garante o mesmo tamanho
-// dos headers não-ordenáveis (alguns navegadores ignoram herança de font-size em <button>).
+// Classe explícita para <button> dentro de headers ordenáveis — vence a regra global
+// de botões sem alterar o restante do app.
 export const HEAD_BTN = "text-[10px] leading-tight uppercase tracking-wide font-medium";
 export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
 const TABLE_HEAD_TEXT = "inline-flex items-center gap-1 text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
 const TABLE_HEAD_TEXT_RIGHT = "inline-flex items-center justify-end gap-1 ml-auto text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
 const TABLE_HEAD_TEXT_CENTER = "inline-flex items-center justify-center gap-1 w-full text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
-const TABLE_HEAD_SORT_BUTTON = "inline-flex items-center gap-1 rounded text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground/90 hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70";
+const TABLE_HEAD_SORT_BUTTON = "inline-flex items-center gap-1 rounded !text-[11px] !leading-tight uppercase !tracking-wide !font-semibold !text-primary-foreground hover:!text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70";
 
 function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
   const evidence = ((item as any).parecer_evidence ?? null) as string | null;
