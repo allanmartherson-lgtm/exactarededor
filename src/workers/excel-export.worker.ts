@@ -90,9 +90,11 @@ self.onmessage = async (e) => {
     // Aba 3: Detalhe dos Itens (mantém cores por status no Status)
     // -----------------------------------------------------------------
     const detailHeaders = [
-      "Atendimento", "Data", "Empresa", "Convênio", "Paciente", "Médico", "Especialidade",
+      "Atendimento", "Data", "Empresa", "Convênio", "Setor", "Paciente",
+      "Médico", "CRM", "Especialidade",
       "Código", "Procedimento", "Qtd", "Valor Repasse", "Valor Esperado",
-      "Divergência (R$)", "Status", "Regra", "Motivo", "Validação Assistencial",
+      "Divergência (R$)", "Piso Aplicado", "Método Piso",
+      "Status", "Regra", "Motivo", "Validação Assistencial",
       "Memória de cálculo",
     ];
 
@@ -129,13 +131,20 @@ self.onmessage = async (e) => {
 
       const expectedVal = it.expected_amount ?? findings?.expected_amount ?? "";
       const expectedNum = Number(expectedVal ?? 0);
+      const pisoMetodo = it.piso_metodo_vencedor === "piso"
+        ? "Piso"
+        : it.piso_metodo_vencedor === "convenio"
+          ? "Convênio"
+          : "";
       return [
         it.attendance_number,
         it.procedure_date,
         it.company_name,
         it.agreement_text ?? it.convenio_slug ?? "",
+        it.sector_name ?? "",
         it.patient_name,
         it.doctor_name,
+        it.doctor_document ?? "",
         it.specialty,
         it.procedure_code,
         it.procedure_name,
@@ -143,6 +152,8 @@ self.onmessage = async (e) => {
         it.gross_amount,
         expectedVal,
         Number((Number(it.gross_amount ?? 0) - expectedNum).toFixed(2)),
+        it.piso_aplicado_valor != null ? Number(it.piso_aplicado_valor) : "",
+        pisoMetodo,
         { v: status, s: statusStyle },
         it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
@@ -153,10 +164,13 @@ self.onmessage = async (e) => {
 
     const wsDetails = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows]);
     wsDetails["!cols"] = [
-      { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 28 }, { wch: 28 }, { wch: 28 },
-      { wch: 20 }, { wch: 12 }, { wch: 36 }, { wch: 6 }, { wch: 14 }, { wch: 14 },
-      { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 36 }, { wch: 40 }, { wch: 40 },
+      { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 24 }, { wch: 18 }, { wch: 28 },
+      { wch: 28 }, { wch: 12 }, { wch: 20 },
+      { wch: 12 }, { wch: 36 }, { wch: 6 }, { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 12 }, { wch: 28 }, { wch: 36 }, { wch: 40 }, { wch: 40 },
     ];
+
     const detailHeaderRow = prependBrandHeader(wsDetails, {
       title: "Detalhe dos Itens",
       subtitle,
