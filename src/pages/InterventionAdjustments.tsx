@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
+import { useInterventionLedgerRealtime } from "@/hooks/useInterventionLedgerRealtime";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
@@ -258,6 +259,12 @@ export default function InterventionAdjustments() {
       cancelled = true;
     };
   }, [range, currentHospitalId]);
+
+  // Atualização automática: quando o motor materializa novos eventos
+  // (aprovação de lote, reversão de glosa, cancelamento), recarrega sem F5.
+  useInterventionLedgerRealtime(currentHospitalId ?? null, () => {
+    reloadData();
+  });
 
   const filteredItems = useMemo(() => filterItems(data.items, filters), [data.items, filters]);
   const filteredSummary = useMemo(() => summarizeItems(filteredItems), [filteredItems]);

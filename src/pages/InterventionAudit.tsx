@@ -14,7 +14,7 @@
  * reativados (`cancellation_reactivated_at IS NULL`) e evita dupla contagem
  * entre cancelamento de item e de empresa no mesmo período.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +28,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveHospitalId } from "@/contexts/HospitalContext";
+import { useInterventionLedgerRealtime } from "@/hooks/useInterventionLedgerRealtime";
 import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { AlertTriangle, ClipboardList, TrendingDown, TrendingUp } from "lucide-react";
@@ -65,30 +66,37 @@ export default function InterventionAudit() {
   const [data, setData] = useState<InterventionSavingsResult>(emptyResult());
   const [search, setSearch] = useState("");
 
+  const loadData = useCallback(async (showSkeleton: boolean) => {
+    if (showSkeleton) setLoading(true);
+    try {
+      const end = new Date();
+      const start = new Date(end.getTime() - range * 24 * 3600 * 1000);
+      const { data: res, error } = await supabase.rpc("get_intervention_savings", {
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
+        p_hospital_id: currentHospitalId ?? null,
+      });
+      if (error) throw error;
+      setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao carregar auditoria de intervenções");
+      setData(emptyResult());
+    } finally {
+      if (showSkeleton) setLoading(false);
+    }
+  }, [range, currentHospitalId]);
+
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const end = new Date();
-        const start = new Date(end.getTime() - range * 24 * 3600 * 1000);
-        const { data: res, error } = await supabase.rpc("get_intervention_savings", {
-          p_start: start.toISOString(),
-          p_end: end.toISOString(),
-          p_hospital_id: currentHospitalId ?? null,
-        });
-        if (error) throw error;
-        if (!cancelled) setData((res as unknown as InterventionSavingsResult) ?? emptyResult());
-      } catch (e) {
-        console.error(e);
-        toast.error("Falha ao carregar auditoria de intervenções");
-        if (!cancelled) setData(emptyResult());
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    (async () => { if (!cancelled) await loadData(true); })();
     return () => { cancelled = true; };
-  }, [range, currentHospitalId]);
+  }, [loadData]);
+
+  // Atualiza sem F5 quando o motor materializa novos eventos.
+  useInterventionLedgerRealtime(currentHospitalId ?? null, () => {
+    loadData(false);
+  });
 
   const groups = useMemo(() => groupItemsForAudit(data.items), [data.items]);
   const filteredGroups = useMemo(() => {
