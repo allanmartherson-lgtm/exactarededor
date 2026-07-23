@@ -231,80 +231,67 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const deadline = Date.now() + GOOGLE_SIGN_IN_TIMEOUT_MS;
-    // Preserva o destino via sessionStorage — redirect_uri precisa ser sempre
-    // origin puro para não quebrar a validação do broker OAuth no mobile.
+    // Preserva o destino via sessionStorage — o redirect_uri fica sempre no
+    // origin puro (exigência do broker OAuth managed da Lovable e do fluxo
+    // web_message do Safari mobile). O destino real é aplicado só depois
+    // que a sessão está válida.
     try { sessionStorage.setItem("exacta-oauth-next", nextTarget); } catch { /* noop */ }
 
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const forceWebMessage = isEmbeddedPreviewFrame();
-    diagPush("google.click", { nextTarget, redirect_uri: redirectUri, forceWebMessage });
-    const bridge = startOAuthWebMessageBridge();
-    const signInPromise = lovable.auth.signInWithOAuth("google", {
-      redirect_uri: redirectUri,
-      // No app mobile da Lovable o helper identifica iframe + LovableApp e troca
-      // o callback por deep link nativo. No preview isso não volta para o iframe,
-      // então forçamos o mesmo modo web_message usado pelo preview desktop.
-      ...(forceWebMessage ? { extraParams: { response_mode: "web_message" } } : {}),
-    }).then((r) => { diagPush("google.signInWithOAuth.resolved", { redirected: (r as { redirected?: boolean })?.redirected, hasError: !!(r as { error?: unknown })?.error }); return r; })
-      .catch((e) => { diagPush("google.signInWithOAuth.threw", { error: e instanceof Error ? e.message : String(e) }); throw e; });
-    const result = await Promise.race([signInPromise, bridge.promise]);
-    diagPush("google.race.result", { kind: typeof result === "string" ? result : "object" });
-    const sessionDeadline = result === "timeout"
-      ? deadline
-      : result === "session"
-        ? Date.now() + 5_000
-        : (result as { redirected?: boolean })?.redirected
-          ? deadline
-          : Date.now() + 5_000;
-    if (typeof result === "object" && (result as { redirected?: boolean })?.redirected) {
-      diagPush("google.redirected.waitingForReturn", { remainingMs: Math.max(0, deadline - Date.now()) });
-    }
-    const session = (typeof result === "object" && (result as { redirected?: boolean })?.redirected)
-      ? await waitForOAuthCompletion(sessionDeadline, bridge.promise)
-      : await waitForSessionAfterGoogle(sessionDeadline);
-    bridge.cleanup();
-    if (session) {
+    // IMPORTANTE: não passar `response_mode`, não detectar iframe, não usar
+    // path protegido no redirect_uri. O helper @lovable.dev/cloud-auth-js já
+    // trata popup + web_message no preview e full-page redirect fora dele.
+    // Qualquer wrapper adicional trava o login no Safari mobile e no desktop
+    // (o promise do helper nunca resolve).
+    const redirectUri = window.location.origin;
+    diagPush("google.click", { nextTarget, redirect_uri: redirectUri });
+
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: redirectUri });
+      diagPush("google.signInWithOAuth.resolved", {
+        redirected: (result as { redirected?: boolean })?.redirected,
+        hasError: !!(result as { error?: unknown })?.error,
+      });
+
+      if (result.error) {
+        setGoogleLoading(false);
+        toast({
+          title: "Não foi possível entrar com Google",
+          description: result.error.message ?? "Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Full-page redirect: o navegador vai sair da página; nada mais a fazer.
+      if (result.redirected) return;
+
+      // Popup/web_message: o helper já chamou setSession. Confirma e navega.
+      const deadline = Date.now() + 5_000;
+      const session = await waitForSessionAfterGoogle(deadline);
       setGoogleLoading(false);
+      if (!session) {
+        toast({
+          title: "Login Google não finalizou",
+          description: "Feche a janela do Google e toque novamente em Entrar com Google.",
+          variant: "destructive",
+        });
+        return;
+      }
       let target = nextTarget;
       try {
         const stored = sessionStorage.getItem("exacta-oauth-next");
         if (stored) { target = safeNext(stored); sessionStorage.removeItem("exacta-oauth-next"); }
       } catch { /* noop */ }
       navigate(target, { replace: true });
-      return;
-    }
-    if (result === "timeout") {
+    } catch (e) {
+      diagPush("google.signInWithOAuth.threw", { error: e instanceof Error ? e.message : String(e) });
       setGoogleLoading(false);
       toast({
-        title: "Login Google não finalizou",
-        description: "Não recebemos o retorno seguro do Google. Feche a janela do Google e toque novamente em Entrar com Google.",
+        title: "Não foi possível entrar com Google",
+        description: e instanceof Error ? e.message : "Tente novamente.",
         variant: "destructive",
       });
-      return;
     }
-    if (result === "session") return;
-    if (result.error) {
-      setGoogleLoading(false);
-      toast({ title: "Não foi possível entrar com Google", description: result.error.message ?? "Tente novamente.", variant: "destructive" });
-      return;
-    }
-    if (result.redirected) {
-      setGoogleLoading(false);
-      toast({
-        title: "Aguardando retorno do Google",
-        description: "Se a tela do Google já fechou, toque em Entrar com Google novamente para concluir a sessão.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setGoogleLoading(false);
-    let target = nextTarget;
-    try {
-      const stored = sessionStorage.getItem("exacta-oauth-next");
-      if (stored) { target = safeNext(stored); sessionStorage.removeItem("exacta-oauth-next"); }
-    } catch { /* noop */ }
-    navigate(target, { replace: true });
   };
 
   useEffect(() => {
