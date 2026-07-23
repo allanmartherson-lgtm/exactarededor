@@ -232,6 +232,7 @@ const RelacionamentoHub = lazy(loadRelacionamentoHub);
 const RegrasHub = lazy(() => import("./pages/RegrasHub.tsx"));
 const SistemaHub = lazy(() => import("./pages/SistemaHub.tsx"));
 const SystemParameters = lazy(() => import("./pages/SystemParameters.tsx"));
+const ManualInterventionReasonsPage = lazy(() => import("./pages/ManualInterventionReasons.tsx"));
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -402,6 +403,7 @@ const App = () => (
                   <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/configuracoes/tabela-tuss" element={<ProtectedRoute roles={["diretor", "admin"]}><TussTable /></ProtectedRoute>} />
+                  <Route path="/configuracoes/motivos-intervencao" element={<ProtectedRoute roles={["admin", "diretor"]}><ManualInterventionReasonsPage /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
                   <Route path="/hospitals" element={<Navigate to="/hospitais" replace />} />
