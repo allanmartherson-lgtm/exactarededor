@@ -533,6 +533,25 @@ export function PaymentPivotSection({
             <Plus className="h-3 w-3 mr-1" /> Customizar
           </Button>
 
+          {grouping === "empresa" && lotCompanyNames && lotCompanyNames.length > 0 && (
+            <label
+              className={cn(
+                "flex items-center gap-1.5 h-7 px-2 text-[11px] rounded-md border cursor-pointer transition-colors",
+                restrictToLotCompanies
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "bg-background border-border text-muted-foreground hover:bg-muted/40",
+              )}
+              title="Restringe o pivot às PJs presentes neste lote"
+            >
+              <Checkbox
+                checked={restrictToLotCompanies}
+                onCheckedChange={(c) => setRestrictToLotCompanies(!!c)}
+                className="h-3.5 w-3.5"
+              />
+              Só PJs do lote ({lotCompanyNames.length})
+            </label>
+          )}
+
           <div className="ml-auto flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Trilha</span>
             <Select value={trackFilter} onValueChange={(v) => setTrackFilter(v as typeof trackFilter)}>
