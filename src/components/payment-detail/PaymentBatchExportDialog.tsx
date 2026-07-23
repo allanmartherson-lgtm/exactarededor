@@ -502,7 +502,7 @@ export function PaymentBatchExportDialog({
     if (!canExport || busy) return;
     setBusy(true);
     try {
-      if (format === "xlsx") handleExportXlsx();
+      if (format === "xlsx") await handleExportXlsx();
       else if (format === "csv") handleExportCsv();
       else await handleExportPdf();
       toast({
