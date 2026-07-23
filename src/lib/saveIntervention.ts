@@ -26,6 +26,7 @@ export async function saveIntervention(params: {
     } as any)
     .eq("id", itemId);
   if (error) return { ok: false, error: error.message };
+  notifyZeevApplied();
   return { ok: true };
 }
 
@@ -41,6 +42,22 @@ export async function clearIntervention(itemId: string) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", itemId);
+  notifyZeevApplied();
+}
+
+/**
+ * Avisa o Zeev que o estado dos itens mudou para forçar o recount dos
+ * pré-flight buckets (divergências sem tratativa, sem regra, etc.). Sem este
+ * ping o painel só se atualizava quando o executor do Zeev agia — ações
+ * manuais do analista (acatar, glosar, editar) ficavam fora do radar.
+ */
+function notifyZeevApplied() {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent("zeev:applied"));
+  } catch {
+    /* noop */
+  }
 }
 
 export function impactBadgeClass(impact: FinancialImpact | null | undefined) {
