@@ -2511,11 +2511,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         // Preserva absorção manual feita pelo analista: se o item raw já vinha
         // com package_absorbed=true e o motor não absorveu/desabsorveu
         // explicitamente neste run, mantém o flag (e o calc_id) do banco.
-        // Sem isso, qualquer reanálise desfaz o "incluir no pacote" do analista.
+        // Exceção: absorções órfãs (staleAbsorbedItemIds) — o pacote-âncora
+        // sumiu do atendimento (base reimportada, calc removido) e o item
+        // ficou parado com expected=0. Nesses casos, limpa o flag para o
+        // motor recalcular normalmente.
         package_absorbed: (r as any).package_absorbed === true
-          || (rawItem?.package_absorbed === true),
+          || (rawItem?.package_absorbed === true && !staleAbsorbedItemIds.has(r.item_id)),
         package_absorbed_calc_id: (r as any).package_absorbed_calc_id
-          ?? (rawItem?.package_absorbed === true ? (rawItem?.package_absorbed_calc_id ?? null) : null),
+          ?? (rawItem?.package_absorbed === true && !staleAbsorbedItemIds.has(r.item_id)
+            ? (rawItem?.package_absorbed_calc_id ?? null)
+            : null),
         // Piso por procedimento (mínimo garantido). null quando piso não configurado.
         piso_aplicado_valor: (r as any).piso_aplicado_valor ?? null,
         piso_metodo_vencedor: (r as any).piso_metodo_vencedor ?? null,
