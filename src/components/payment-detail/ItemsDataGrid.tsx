@@ -447,6 +447,7 @@ function RowActionsSplit({
         action: InterventionAction;
         label: string;
         exec: () => void | Promise<void>;
+        impactFilter?: Array<"economia" | "perda" | "neutro">;
       }
     | null
   >(null);
@@ -456,6 +457,7 @@ function RowActionsSplit({
     action: InterventionAction,
     label: string,
     exec: () => void | Promise<void>,
+    impactFilter?: Array<"economia" | "perda" | "neutro">,
   ) => {
     if (isBonus) {
       // Bônus não têm intervenção financeira categorizada — executa direto.
@@ -466,8 +468,9 @@ function RowActionsSplit({
     // DropdownMenuItem, o Radix fecha o menu de forma síncrona e emite
     // eventos de pointer/focus que o Popover interpreta como "clique fora",
     // fechando o gate imediatamente. Abrir no próximo tick evita o conflito.
-    setTimeout(() => setPending({ action, label, exec }), 0);
+    setTimeout(() => setPending({ action, label, exec, impactFilter }), 0);
   };
+
 
 
   const runPending = async (payload: {
@@ -580,6 +583,7 @@ function RowActionsSplit({
           <InterventionReasonSelect
             action={pending.action}
             actionLabel={pending.label}
+            impactFilter={pending.impactFilter}
             submitting={gateSubmitting}
             onCancel={() => setPending(null)}
             onConfirm={runPending}
@@ -588,6 +592,7 @@ function RowActionsSplit({
       )}
     </Popover>
   );
+
 
   // Estado: reprovado / alerta → botão único "Acatar ▾" que sempre abre opções.
   // Decisão de UX: em vez de um split-button com ação primária "invisível",
@@ -602,6 +607,27 @@ function RowActionsSplit({
     const paidRaw = (it as unknown as { gross_amount?: number | null }).gross_amount ?? null;
     const expectedTxt = expectedRaw != null ? formatCurrency(Number(expectedRaw)) : null;
     const paidTxt = paidRaw != null ? formatCurrency(Number(paidRaw)) : null;
+
+    // Contexto financeiro para filtrar motivos:
+    // - "Usar valor esperado": ajusta gross → expected. Se expected < paid,
+    //   deduzimos = ECONOMIA. Se expected > paid, pagamos mais = PERDA.
+    // - "Manter valor pago": mantém o pago sem recuperar. Se paid > expected,
+    //   deixamos de deduzir = PERDA. Se paid < expected, não pagamos o extra
+    //   = ECONOMIA.
+    // Sempre incluímos "neutro" para permitir motivos operacionais.
+    const expNum = expectedRaw != null ? Number(expectedRaw) : null;
+    const paidNum = paidRaw != null ? Number(paidRaw) : null;
+    const hasDelta = expNum != null && paidNum != null && Math.abs(expNum - paidNum) > 0.005;
+    const acceptExpectedImpact: Array<"economia" | "perda" | "neutro"> | undefined = hasDelta
+      ? expNum! < paidNum!
+        ? ["economia", "neutro"]
+        : ["perda", "neutro"]
+      : undefined;
+    const keepPaidImpact: Array<"economia" | "perda" | "neutro"> | undefined = hasDelta
+      ? paidNum! > expNum!
+        ? ["perda", "neutro"]
+        : ["economia", "neutro"]
+      : undefined;
 
     return gate(
       <>
@@ -629,7 +655,12 @@ function RowActionsSplit({
             </DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() =>
-                requestGated("acatar", "Acatar valor esperado", () => onAcceptItem(it))
+                requestGated(
+                  "acatar",
+                  "Acatar valor esperado",
+                  () => onAcceptItem(it),
+                  acceptExpectedImpact,
+                )
               }
             >
               <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600 shrink-0" />
@@ -645,8 +676,11 @@ function RowActionsSplit({
             {onAcceptItemKeepPaid && (
               <DropdownMenuItem
                 onClick={() =>
-                  requestGated("acatar", "Manter valor pago", () =>
-                    onAcceptItemKeepPaid(it),
+                  requestGated(
+                    "acatar",
+                    "Manter valor pago",
+                    () => onAcceptItemKeepPaid(it),
+                    keepPaidImpact,
                   )
                 }
               >
@@ -661,6 +695,7 @@ function RowActionsSplit({
                 </div>
               </DropdownMenuItem>
             )}
+
             {(manualMenuItem || editMenuItem) && <DropdownMenuSeparator />}
             {manualMenuItem}
             {editMenuItem}

@@ -9,6 +9,7 @@ import {
   useManualInterventionReasons,
   type InterventionAction,
   type ManualInterventionReason,
+  type FinancialImpact,
 } from "@/hooks/useManualInterventionReasons";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +31,12 @@ type Props = {
   /** Se informado, pré-seleciona esse motivo. */
   defaultReasonId?: string | null;
   defaultNotes?: string | null;
+  /**
+   * Restringe os motivos exibidos aos impactos financeiros informados.
+   * Ex.: quando o delta indica economia, passar `["economia","neutro"]`
+   * para esconder motivos de "Perda" que não fazem sentido no contexto.
+   */
+  impactFilter?: FinancialImpact[];
   onConfirm?: (payload: {
     reason: ManualInterventionReason;
     notes: string;
@@ -48,6 +55,7 @@ type Props = {
   }) => void;
 };
 
+
 const CATEGORY_TITLE: Record<ManualInterventionReason["category"], string> = {
   aceite_financeiro: "Aceite financeiro",
   reclassificacao_clinica: "Reclassificação clínica",
@@ -59,6 +67,7 @@ export function InterventionReasonSelect({
   actionLabel,
   defaultReasonId,
   defaultNotes,
+  impactFilter,
   onConfirm,
   onCancel,
   submitting = false,
@@ -66,9 +75,22 @@ export function InterventionReasonSelect({
   hideActions = false,
   onChange,
 }: Props) {
-  const { reasons, byCategory, loading } = useManualInterventionReasons({
+  const { reasons: allReasons, loading } = useManualInterventionReasons({
     appliesTo: action,
   });
+  const reasons = useMemo(() => {
+    if (!impactFilter || impactFilter.length === 0) return allReasons;
+    const allow = new Set(impactFilter);
+    return allReasons.filter((r) => allow.has(r.financial_impact));
+  }, [allReasons, impactFilter]);
+  const byCategory = useMemo(
+    () => ({
+      reclassificacao_clinica: reasons.filter((r) => r.category === "reclassificacao_clinica"),
+      aceite_financeiro: reasons.filter((r) => r.category === "aceite_financeiro"),
+      operacional: reasons.filter((r) => r.category === "operacional"),
+    }),
+    [reasons],
+  );
   const [reasonId, setReasonId] = useState<string>(defaultReasonId ?? "");
   const [notes, setNotes] = useState<string>(defaultNotes ?? "");
 
@@ -76,6 +98,14 @@ export function InterventionReasonSelect({
     () => reasons.find((r) => r.id === reasonId) ?? null,
     [reasons, reasonId],
   );
+
+  // Se o motivo pré-selecionado sumiu por conta do filtro, limpa.
+  React.useEffect(() => {
+    if (reasonId && !reasons.some((r) => r.id === reasonId)) {
+      setReasonId("");
+    }
+  }, [reasons, reasonId]);
+
 
   // Emite alterações para o pai no modo inline (usado no dialog de edição).
   React.useEffect(() => {
@@ -105,9 +135,14 @@ export function InterventionReasonSelect({
             {actionLabel ? `Motivo — ${actionLabel}` : "Motivo da intervenção"}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Escolha o motivo categorizado antes de confirmar.
+            {impactFilter && impactFilter.length > 0
+              ? `Mostrando apenas motivos de ${impactFilter
+                  .map((i) => impactLabel(i).toLowerCase())
+                  .join(" / ")} — coerentes com o contexto deste item.`
+              : "Escolha o motivo categorizado antes de confirmar."}
           </p>
         </div>
+
 
         <div
           className={cn(
