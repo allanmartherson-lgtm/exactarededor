@@ -447,6 +447,7 @@ function RowActionsSplit({
         action: InterventionAction;
         label: string;
         exec: () => void | Promise<void>;
+        impactFilter?: Array<"economia" | "perda" | "neutro">;
       }
     | null
   >(null);
@@ -456,6 +457,7 @@ function RowActionsSplit({
     action: InterventionAction,
     label: string,
     exec: () => void | Promise<void>,
+    impactFilter?: Array<"economia" | "perda" | "neutro">,
   ) => {
     if (isBonus) {
       // Bônus não têm intervenção financeira categorizada — executa direto.
@@ -466,8 +468,9 @@ function RowActionsSplit({
     // DropdownMenuItem, o Radix fecha o menu de forma síncrona e emite
     // eventos de pointer/focus que o Popover interpreta como "clique fora",
     // fechando o gate imediatamente. Abrir no próximo tick evita o conflito.
-    setTimeout(() => setPending({ action, label, exec }), 0);
+    setTimeout(() => setPending({ action, label, exec, impactFilter }), 0);
   };
+
 
 
   const runPending = async (payload: {
