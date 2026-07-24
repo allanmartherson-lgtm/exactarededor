@@ -67,6 +67,7 @@ export function InterventionReasonSelect({
   actionLabel,
   defaultReasonId,
   defaultNotes,
+  impactFilter,
   onConfirm,
   onCancel,
   submitting = false,
@@ -74,9 +75,22 @@ export function InterventionReasonSelect({
   hideActions = false,
   onChange,
 }: Props) {
-  const { reasons, byCategory, loading } = useManualInterventionReasons({
+  const { reasons: allReasons, loading } = useManualInterventionReasons({
     appliesTo: action,
   });
+  const reasons = useMemo(() => {
+    if (!impactFilter || impactFilter.length === 0) return allReasons;
+    const allow = new Set(impactFilter);
+    return allReasons.filter((r) => allow.has(r.financial_impact));
+  }, [allReasons, impactFilter]);
+  const byCategory = useMemo(
+    () => ({
+      reclassificacao_clinica: reasons.filter((r) => r.category === "reclassificacao_clinica"),
+      aceite_financeiro: reasons.filter((r) => r.category === "aceite_financeiro"),
+      operacional: reasons.filter((r) => r.category === "operacional"),
+    }),
+    [reasons],
+  );
   const [reasonId, setReasonId] = useState<string>(defaultReasonId ?? "");
   const [notes, setNotes] = useState<string>(defaultNotes ?? "");
 
@@ -84,6 +98,14 @@ export function InterventionReasonSelect({
     () => reasons.find((r) => r.id === reasonId) ?? null,
     [reasons, reasonId],
   );
+
+  // Se o motivo pré-selecionado sumiu por conta do filtro, limpa.
+  React.useEffect(() => {
+    if (reasonId && !reasons.some((r) => r.id === reasonId)) {
+      setReasonId("");
+    }
+  }, [reasons, reasonId]);
+
 
   // Emite alterações para o pai no modo inline (usado no dialog de edição).
   React.useEffect(() => {
