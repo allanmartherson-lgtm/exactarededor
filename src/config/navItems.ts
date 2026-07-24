@@ -197,6 +197,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Cadastros", iconName: "FolderKanban" },
   { label: "Tabela TUSS", iconName: "BookOpen" },
+  { label: "Motivos de intervenção", iconName: "ClipboardList" },
   { label: "Padrões de Lote", iconName: "FolderKanban" },
   { label: "Hospitais", iconName: "Building2" },
   { label: "Pools de rateio", iconName: "Split" },
