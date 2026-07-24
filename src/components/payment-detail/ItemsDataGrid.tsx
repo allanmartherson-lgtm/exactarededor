@@ -608,6 +608,27 @@ function RowActionsSplit({
     const expectedTxt = expectedRaw != null ? formatCurrency(Number(expectedRaw)) : null;
     const paidTxt = paidRaw != null ? formatCurrency(Number(paidRaw)) : null;
 
+    // Contexto financeiro para filtrar motivos:
+    // - "Usar valor esperado": ajusta gross → expected. Se expected < paid,
+    //   deduzimos = ECONOMIA. Se expected > paid, pagamos mais = PERDA.
+    // - "Manter valor pago": mantém o pago sem recuperar. Se paid > expected,
+    //   deixamos de deduzir = PERDA. Se paid < expected, não pagamos o extra
+    //   = ECONOMIA.
+    // Sempre incluímos "neutro" para permitir motivos operacionais.
+    const expNum = expectedRaw != null ? Number(expectedRaw) : null;
+    const paidNum = paidRaw != null ? Number(paidRaw) : null;
+    const hasDelta = expNum != null && paidNum != null && Math.abs(expNum - paidNum) > 0.005;
+    const acceptExpectedImpact: Array<"economia" | "perda" | "neutro"> | undefined = hasDelta
+      ? expNum! < paidNum!
+        ? ["economia", "neutro"]
+        : ["perda", "neutro"]
+      : undefined;
+    const keepPaidImpact: Array<"economia" | "perda" | "neutro"> | undefined = hasDelta
+      ? paidNum! > expNum!
+        ? ["perda", "neutro"]
+        : ["economia", "neutro"]
+      : undefined;
+
     return gate(
       <>
         <DropdownMenu>
@@ -634,7 +655,12 @@ function RowActionsSplit({
             </DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() =>
-                requestGated("acatar", "Acatar valor esperado", () => onAcceptItem(it))
+                requestGated(
+                  "acatar",
+                  "Acatar valor esperado",
+                  () => onAcceptItem(it),
+                  acceptExpectedImpact,
+                )
               }
             >
               <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600 shrink-0" />
@@ -650,8 +676,11 @@ function RowActionsSplit({
             {onAcceptItemKeepPaid && (
               <DropdownMenuItem
                 onClick={() =>
-                  requestGated("acatar", "Manter valor pago", () =>
-                    onAcceptItemKeepPaid(it),
+                  requestGated(
+                    "acatar",
+                    "Manter valor pago",
+                    () => onAcceptItemKeepPaid(it),
+                    keepPaidImpact,
                   )
                 }
               >
@@ -666,6 +695,7 @@ function RowActionsSplit({
                 </div>
               </DropdownMenuItem>
             )}
+
             {(manualMenuItem || editMenuItem) && <DropdownMenuSeparator />}
             {manualMenuItem}
             {editMenuItem}
