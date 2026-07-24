@@ -2022,6 +2022,41 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       (itemsRaw ?? []).map((it: any) => it.item_hash).filter(Boolean) as string[],
     ));
     if (hashesPresent.length > 0) {
+      // Carrega regras de duplicidade ativas do hospital para respeitar
+      // doctor_mode/compare_patient/window_days configurados pelo usuário.
+      // Sem essa filtragem, o item_hash (att+agr+date+code+role) sozinho
+      // pode marcar como duplicidade pares que a regra do hospital ignora
+      // (ex.: médicos diferentes quando doctor_mode = "same").
+      let __dupRulesForHospital: Array<{
+        doctor_mode: "same" | "any" | "different";
+        window_days: number;
+        compare_patient: boolean;
+      }> = [];
+      try {
+        let __vrQ = supabase
+          .from("validation_rules")
+          .select("kind,active,hospital_id,params")
+          .eq("active", true)
+          .in("kind", ["duplicidade_lancamento", "duplicidade_exata", "duplicidade_atendimento"]);
+        if (__paymentHospitalId) __vrQ = __vrQ.eq("hospital_id", __paymentHospitalId);
+        const { data: __vrRows } = await __vrQ;
+        for (const r of (__vrRows ?? []) as any[]) {
+          const p = (r?.params ?? {}) as any;
+          const dm = (p.doctor_mode as string) ??
+            (p.compare_doctor === false || p.allow_different_doctors === true ? "any" : "same");
+          __dupRulesForHospital.push({
+            doctor_mode: (dm === "any" || dm === "different" ? dm : "same") as
+              "same" | "any" | "different",
+            window_days: typeof p.window_days === "number" && p.window_days > 0 ? p.window_days : 0,
+            compare_patient: p.compare_patient !== false,
+          });
+        }
+      } catch (_e) { /* fail-open: sem regras carregadas, mantém comportamento anterior */ }
+
+      // Se não há regra de duplicidade configurada, NÃO devemos marcar cross-lote
+      // (o motor não pode aplicar regra que o hospital não cadastrou).
+      const __hasDupRules = __dupRulesForHospital.length > 0;
+
       const { data: dupRows } = await supabase
         .from("payment_items")
         .select(`
@@ -2037,6 +2072,30 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         (byHash[row.item_hash as string] ||= []).push(row);
       }
 
+      // Verifica se o par (item local × item de outro lote) seria flagado
+      // por ao menos UMA regra de duplicidade cadastrada. Como o item_hash
+      // já garante mesmo (att+conv+data+tuss+função), aqui só validamos os
+      // eixos remanescentes: doctor_mode e compare_patient.
+      const __pairAllowedByAnyRule = (
+        itDoc: string | null | undefined,
+        itPat: string | null | undefined,
+        otherDoc: string | null | undefined,
+        otherPat: string | null | undefined,
+      ): boolean => {
+        if (!__hasDupRules) return false;
+        const dA = normName(itDoc ?? "");
+        const dB = normName(otherDoc ?? "");
+        const pA = normName(itPat ?? "");
+        const pB = normName(otherPat ?? "");
+        for (const rule of __dupRulesForHospital) {
+          if (rule.doctor_mode === "same" && dA && dB && dA !== dB) continue;
+          if (rule.doctor_mode === "different" && dA && dB && dA === dB) continue;
+          if (rule.compare_patient && pA && pB && pA !== pB) continue;
+          return true;
+        }
+        return false;
+      };
+
       for (const it of (itemsRaw ?? []) as any[]) {
         const hash = it.item_hash as string | null;
         if (!hash) continue;
@@ -2048,6 +2107,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           const st = String(c.payment?.status ?? "");
           const sev = classifyDuplicateMatch(st);
           if (sev === "none") continue;
+          // Respeita configuração do hospital (doctor_mode/compare_patient).
+          // Sem regra cadastrada OU par não flagado por nenhuma regra → ignora.
+          if (!__pairAllowedByAnyRule(
+            it.doctor_name, it.patient_name, c.doctor_name, c.patient_name,
+          )) continue;
           matches.push({
             other_item_id: c.id,
             other_payment_id: c.payment_id,
@@ -2080,6 +2144,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
     // ===== fim 2B =====
+
 
     // ===== Post-pass CONTÁGIO DE EXCLUSÃO =====
     // Quando uma linha de cálculo de exclusão está marcada com
