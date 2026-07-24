@@ -583,6 +583,7 @@ function RowActionsSplit({
           <InterventionReasonSelect
             action={pending.action}
             actionLabel={pending.label}
+            impactFilter={pending.impactFilter}
             submitting={gateSubmitting}
             onCancel={() => setPending(null)}
             onConfirm={runPending}
@@ -591,6 +592,7 @@ function RowActionsSplit({
       )}
     </Popover>
   );
+
 
   // Estado: reprovado / alerta → botão único "Acatar ▾" que sempre abre opções.
   // Decisão de UX: em vez de um split-button com ação primária "invisível",
