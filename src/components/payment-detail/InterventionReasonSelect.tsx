@@ -9,6 +9,7 @@ import {
   useManualInterventionReasons,
   type InterventionAction,
   type ManualInterventionReason,
+  type FinancialImpact,
 } from "@/hooks/useManualInterventionReasons";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +31,12 @@ type Props = {
   /** Se informado, pré-seleciona esse motivo. */
   defaultReasonId?: string | null;
   defaultNotes?: string | null;
+  /**
+   * Restringe os motivos exibidos aos impactos financeiros informados.
+   * Ex.: quando o delta indica economia, passar `["economia","neutro"]`
+   * para esconder motivos de "Perda" que não fazem sentido no contexto.
+   */
+  impactFilter?: FinancialImpact[];
   onConfirm?: (payload: {
     reason: ManualInterventionReason;
     notes: string;
@@ -47,6 +54,7 @@ type Props = {
     notes: string;
   }) => void;
 };
+
 
 const CATEGORY_TITLE: Record<ManualInterventionReason["category"], string> = {
   aceite_financeiro: "Aceite financeiro",
