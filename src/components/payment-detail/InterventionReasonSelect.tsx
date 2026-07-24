@@ -135,9 +135,14 @@ export function InterventionReasonSelect({
             {actionLabel ? `Motivo — ${actionLabel}` : "Motivo da intervenção"}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Escolha o motivo categorizado antes de confirmar.
+            {impactFilter && impactFilter.length > 0
+              ? `Mostrando apenas motivos de ${impactFilter
+                  .map((i) => impactLabel(i).toLowerCase())
+                  .join(" / ")} — coerentes com o contexto deste item.`
+              : "Escolha o motivo categorizado antes de confirmar."}
           </p>
         </div>
+
 
         <div
           className={cn(
