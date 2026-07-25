@@ -803,9 +803,15 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
       (it as any).__resolved_specialty = resolved;
       const persistedSector = it.sector ?? null;
       const rawSector = rawSectorFromRawData(it.raw_data);
-      const recoveredSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
-        ? persistedSector
-        : rawSector;
+      // HIERARQUIA: planilha (rawSector) SEMPRE prevalece. O persistido só
+      // vale quando a planilha não trouxe setor. Isso evita que o setor do
+      // LOTE gravado em payment_items.sector sobrescreva o setor real da
+      // linha em lotes mistos (ex.: "Centro Cirúrgico e Hemodinâmica").
+      const recoveredSector = rawSector && String(rawSector).trim() !== ""
+        ? rawSector
+        : (persistedSector && !["outro", "outros"].includes(normName(persistedSector))
+            ? persistedSector
+            : null);
 
       return ({
       id: it.id,
