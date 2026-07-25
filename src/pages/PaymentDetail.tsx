@@ -2016,32 +2016,60 @@ const PaymentDetail = () => {
 
 
 
-      // Limpa apenas itens; grupos serão sincronizados (não apagados em massa)
-      // para que as empresas continuem visíveis na tela durante a reanálise pela IA.
-      // O motor (analyze-payment) atualiza totais e remove grupos órfãos ao final.
-      //
-      // IMPORTANTE: o DELETE em massa por `payment_id` dispara vários triggers
-      // (sync_company_groups por STATEMENT, invalidate_financials por ROW,
-      // recalc_priority) e cascades em ~12 tabelas filhas. Em lotes médios
-      // isso estoura o `statement_timeout` do role `authenticated` (~8s) e o
-      // PostgREST devolve "canceling statement due to statement timeout".
-      // Para evitar, paginamos os ids e deletamos em chunks pequenos.
+      // GUARD: grupos que já saíram de `revisao_analista`/`devolvido_analista`
+      // (i.e., já foram encaminhados para validação, validados ou concluídos)
+      // são congelados. Não apagamos seus itens nem sobrescrevemos suas
+      // intervenções manuais (economia/perda/absorção/exceção). Também não
+      // inserimos linhas novas para essas empresas — o resultado final já foi
+      // aprovado no fluxo anterior.
+      const nrm = (s: string) => (s ?? "").trim().toLowerCase();
+      const { data: allExistingGroups } = await supabase
+        .from("payment_company_groups")
+        .select("id,company_name,status")
+        .eq("payment_id", id);
+      const PRESERVE_STATUSES = new Set(["aguardando_validacao", "validado", "concluido", "concluida_analista", "aprovado"]);
+      const preservedCompanyKeys = new Set(
+        (allExistingGroups ?? [])
+          .filter((g) => PRESERVE_STATUSES.has((g.status ?? "") as string))
+          .map((g) => nrm(g.company_name)),
+      );
+      const preservedCount = preservedCompanyKeys.size;
+      if (preservedCount > 0) {
+        toast({
+          title: `${preservedCount} PJ(s) preservada(s)`,
+          description: "Grupos já encaminhados para validação/concluídos não foram tocados na reimportação.",
+        });
+      }
+
+      // Limpa itens dos grupos NÃO preservados. Grupos avançados mantêm
+      // itens e todas as intervenções manuais (economia/perda/absorção).
+      // Paginamos para evitar statement_timeout via cascades de triggers.
       const DEL_CHUNK = 100;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data: idsBatch, error: idsErr } = await supabase
           .from("payment_items")
-          .select("id")
+          .select("id,company_name")
           .eq("payment_id", id)
-          .limit(DEL_CHUNK);
+          .limit(DEL_CHUNK * 4);
         if (idsErr) { toast({ title: "Falha ao listar itens p/ limpar", description: idsErr.message, variant: "destructive" }); return; }
         if (!idsBatch || idsBatch.length === 0) break;
+        const deletable = idsBatch.filter((r) => !preservedCompanyKeys.has(nrm((r as any).company_name ?? "")));
+        if (deletable.length === 0) break;
+        const slice = deletable.slice(0, DEL_CHUNK);
         const { error: delItemsErr } = await supabase
           .from("payment_items")
           .delete()
-          .in("id", idsBatch.map((r) => r.id));
+          .in("id", slice.map((r) => r.id));
         if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
-        if (idsBatch.length < DEL_CHUNK) break;
+        if (idsBatch.length < DEL_CHUNK * 4 && deletable.length <= DEL_CHUNK) break;
+      }
+
+      // Descarta linhas novas que pertenceriam a grupos preservados.
+      const beforeFilter = allRows.length;
+      allRows = allRows.filter((r) => !preservedCompanyKeys.has(nrm((r.company_name ?? "Sem empresa"))));
+      if (beforeFilter !== allRows.length) {
+        console.log(`[reimport] ${beforeFilter - allRows.length} linha(s) descartada(s) por pertencerem a grupos preservados.`);
       }
 
       // Sincronização eager de grupos: agrega por empresa a partir das linhas
@@ -2062,17 +2090,15 @@ const PaymentDetail = () => {
           newGroupsMap.set(key, { company_name: name, company_id: r.company_id ?? null, items_count: 1, total_amount: Number(r.gross_amount) || 0 });
         }
       }
-      const { data: existingGroups } = await supabase
-        .from("payment_company_groups")
-        .select("id,company_name,status")
-        .eq("payment_id", id);
+      // Só sincroniza grupos NÃO preservados.
+      const existingGroups = (allExistingGroups ?? []).filter((g) => !preservedCompanyKeys.has(nrm(g.company_name)));
       const newKeys = new Set(newGroupsMap.keys());
-      const toRemove = (existingGroups ?? []).filter((g) => !newKeys.has(norm(g.company_name))).map((g) => g.id);
+      const toRemove = existingGroups.filter((g) => !newKeys.has(norm(g.company_name))).map((g) => g.id);
       if (toRemove.length > 0) {
         await supabase.from("payment_company_groups").delete().in("id", toRemove);
       }
       for (const [key, g] of newGroupsMap.entries()) {
-        const existing = (existingGroups ?? []).find((eg) => norm(eg.company_name) === key);
+        const existing = existingGroups.find((eg) => norm(eg.company_name) === key);
         if (existing) {
           await supabase
             .from("payment_company_groups")
@@ -2096,6 +2122,7 @@ const PaymentDetail = () => {
           });
         }
       }
+
 
       const itemsToInsert = allRows.map((r) => ({
         hospital_id: (payment as any).hospital_id,

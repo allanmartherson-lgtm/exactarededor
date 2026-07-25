@@ -575,6 +575,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           convenio_value_totalized,
           package_absorbed,
           package_absorbed_calc_id,
+          package_absorbed_by,
           ai_status,
           gross_override_at,
           item_hash,
@@ -803,9 +804,15 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
       (it as any).__resolved_specialty = resolved;
       const persistedSector = it.sector ?? null;
       const rawSector = rawSectorFromRawData(it.raw_data);
-      const recoveredSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
-        ? persistedSector
-        : rawSector;
+      // HIERARQUIA: planilha (rawSector) SEMPRE prevalece. O persistido só
+      // vale quando a planilha não trouxe setor. Isso evita que o setor do
+      // LOTE gravado em payment_items.sector sobrescreva o setor real da
+      // linha em lotes mistos (ex.: "Centro Cirúrgico e Hemodinâmica").
+      const recoveredSector = rawSector && String(rawSector).trim() !== ""
+        ? rawSector
+        : (persistedSector && !["outro", "outros"].includes(normName(persistedSector))
+            ? persistedSector
+            : null);
 
       return ({
       id: it.id,
@@ -1135,11 +1142,16 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           const codeSet = attCodeSet[att] ?? new Set<string>();
           const calcId = raw.package_absorbed_calc_id ?? null;
           const itemCode = String(raw.procedure_code ?? "").trim();
-          // Sem calc_id (legado manual): considera válido se EXISTE algum
+          // PRESERVAÇÃO DE ABSORÇÃO MANUAL: se a absorção foi feita pelo
+          // analista (package_absorbed_by preenchido), é decisão soberana e
+          // nunca é considerada "stale". Sem essa guarda, a reanálise
+          // automática (F5/refresh) apagava marcações manuais quando não
+          // havia regra de pacote correspondente no cadastro.
+          const wasManual = raw.package_absorbed_by != null;
+          if (wasManual) continue;
+          // Sem calc_id (legado auto): considera válido se EXISTE algum
           // pacote cujo main_code está presente no atendimento E cujo
-          // main/included cobre o código deste item. Assim não desfazemos
-          // escolha manual legítima, mas limpamos órfãos reais (main sumiu
-          // ou o item nem pertence aos pacotes remanescentes).
+          // main/included cobre o código deste item.
           if (!calcId) {
             const anyValid = packageCalcs.some((c) => {
               const mainPresent = c.package_main_codes.some((mc) => codeSet.has(mc));
@@ -2521,9 +2533,12 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const rawItem = itemsRawById[r.item_id];
       const persistedSector = originalItem?.sector ?? null;
       const rawSector = rawSectorFromRawData(rawItem?.raw_data);
-      const originalSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
-        ? persistedSector
-        : rawSector;
+      // HIERARQUIA: planilha vence. Persistido só quando raw ausente.
+      const originalSector = rawSector && String(rawSector).trim() !== ""
+        ? rawSector
+        : (persistedSector && !["outro", "outros"].includes(normName(persistedSector))
+            ? persistedSector
+            : null);
       const inferredSector = (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null;
       const sectorToPersist = originalSector && String(originalSector).trim() !== ""
         ? inferItemSector({ ...(originalItem as ItemInput), sector: originalSector }, ctx)
