@@ -2527,9 +2527,12 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const rawItem = itemsRawById[r.item_id];
       const persistedSector = originalItem?.sector ?? null;
       const rawSector = rawSectorFromRawData(rawItem?.raw_data);
-      const originalSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
-        ? persistedSector
-        : rawSector;
+      // HIERARQUIA: planilha vence. Persistido só quando raw ausente.
+      const originalSector = rawSector && String(rawSector).trim() !== ""
+        ? rawSector
+        : (persistedSector && !["outro", "outros"].includes(normName(persistedSector))
+            ? persistedSector
+            : null);
       const inferredSector = (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null;
       const sectorToPersist = originalSector && String(originalSector).trim() !== ""
         ? inferItemSector({ ...(originalItem as ItemInput), sector: originalSector }, ctx)
