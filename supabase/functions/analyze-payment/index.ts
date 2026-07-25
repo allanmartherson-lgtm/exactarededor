@@ -575,6 +575,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           convenio_value_totalized,
           package_absorbed,
           package_absorbed_calc_id,
+          package_absorbed_by,
           ai_status,
           gross_override_at,
           item_hash,
