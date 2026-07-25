@@ -1142,11 +1142,16 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           const codeSet = attCodeSet[att] ?? new Set<string>();
           const calcId = raw.package_absorbed_calc_id ?? null;
           const itemCode = String(raw.procedure_code ?? "").trim();
-          // Sem calc_id (legado manual): considera válido se EXISTE algum
+          // PRESERVAÇÃO DE ABSORÇÃO MANUAL: se a absorção foi feita pelo
+          // analista (package_absorbed_by preenchido), é decisão soberana e
+          // nunca é considerada "stale". Sem essa guarda, a reanálise
+          // automática (F5/refresh) apagava marcações manuais quando não
+          // havia regra de pacote correspondente no cadastro.
+          const wasManual = raw.package_absorbed_by != null;
+          if (wasManual) continue;
+          // Sem calc_id (legado auto): considera válido se EXISTE algum
           // pacote cujo main_code está presente no atendimento E cujo
-          // main/included cobre o código deste item. Assim não desfazemos
-          // escolha manual legítima, mas limpamos órfãos reais (main sumiu
-          // ou o item nem pertence aos pacotes remanescentes).
+          // main/included cobre o código deste item.
           if (!calcId) {
             const anyValid = packageCalcs.some((c) => {
               const mainPresent = c.package_main_codes.some((mc) => codeSet.has(mc));
