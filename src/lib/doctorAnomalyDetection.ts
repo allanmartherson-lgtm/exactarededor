@@ -60,6 +60,27 @@ const CANONICAL_FALLBACK: Record<string, string> = {
  * Só sinaliza anomalia quando as duas pontas convergem para categorias
  * canônicas diferentes — evita falsos positivos entre "1556" e "Centro Cirúrgico".
  */
+function stripAllSeparators(s: string): string {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_\s\-()./]/g, "")
+    .toLowerCase();
+}
+
+const KNOWN_CATEGORIES = [
+  "centro_cirurgico",
+  "hemodinamica",
+  "uti",
+  "pronto_socorro",
+  "sadt_endoscopia",
+  "sadt_radiologia",
+  "rpa",
+  "sadt",
+  "ambulatorio",
+  "enfermaria",
+];
+
 function normalizeSector(sector: string, sectorMap: Record<string, string>): string {
   const norm = baseNormalize(sector);
   if (!norm) return "";
@@ -69,7 +90,19 @@ function normalizeSector(sector: string, sectorMap: Record<string, string>): str
   for (const [key, canonical] of Object.entries(CANONICAL_FALLBACK)) {
     if (norm === key || norm.includes(key) || key.includes(norm)) return canonical;
   }
-  return norm;
+  // Fallback agressivo: elimina underscores/espaços/hífens/acentos e testa
+  // contra as categorias canônicas conhecidas. Resolve casos como
+  // "Em Centrocirurgico" ≡ "Centro_cirurgico" ≡ "centro cirúrgico".
+  const stripped = stripAllSeparators(sector);
+  if (stripped) {
+    for (const cat of KNOWN_CATEGORIES) {
+      const catStripped = cat.replace(/_/g, "");
+      if (stripped === catStripped || stripped.includes(catStripped) || catStripped.includes(stripped)) {
+        return cat;
+      }
+    }
+  }
+  return stripped || norm;
 }
 
 async function loadSectorMap(): Promise<Record<string, string>> {
