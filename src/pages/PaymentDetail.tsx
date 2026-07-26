@@ -3794,6 +3794,21 @@ const PaymentDetail = () => {
                     <Pencil className="h-4 w-4 mr-2" /> Editar lote
                   </DropdownMenuItem>
                 )}
+                {isAnalista
+                  && payment.analysis_mode === "padrao"
+                  && (payment.status === "em_analise_ia"
+                      || payment.status === "revisao_analista"
+                      || payment.status === "devolvido_analista"
+                      || payment.status === "rascunho") && (
+                  <DropdownMenuItem
+                    disabled={convertingMode}
+                    onSelect={(e) => { e.preventDefault(); convertToConfeccao(); }}
+                    title="Trocar para Confecção: o motor calcula o repasse pelas regras em vez de verificar divergências."
+                  >
+                    <Calculator className="h-4 w-4 mr-2" />
+                    {convertingMode ? "Convertendo…" : "Converter para Confecção"}
+                  </DropdownMenuItem>
+                )}
                 {canManagePaymentBase && (
                   <DropdownMenuItem disabled={busy || reimporting} onSelect={() => reimportInputRef.current?.click()}>
                     <Upload className="h-4 w-4 mr-2" /> {canImportInitialPaymentBase ? "Importar base de pagamento" : "Reimportar base"}
