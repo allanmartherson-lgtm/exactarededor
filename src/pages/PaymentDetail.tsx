@@ -3264,6 +3264,15 @@ const PaymentDetail = () => {
           if (ccCode) subtitleParts.push(`CC ${ccCode}`);
           if (trackLabel) subtitleParts.push(trackLabel);
           if (responsibleShort) subtitleParts.push(responsibleShort);
+          const modeLabel = (() => {
+            switch (payment.analysis_mode) {
+              case "confeccao": return "Confecção";
+              case "manual": return "Manual";
+              case "empresa_prioritaria": return "Empresa prioritária";
+              case "isolado": return "Isolado";
+              default: return null;
+            }
+          })();
           // KPIs leves — alertas/críticos só aparecem quando > 0
           let alertCount = 0;
           let criticalCount = 0;
@@ -3276,6 +3285,11 @@ const PaymentDetail = () => {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground min-w-0">
                 <span className="truncate capitalize">{subtitleParts.join(" · ") || "—"}</span>
+                {modeLabel && (
+                  <span className="ml-1 shrink-0 inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/40 text-[10px] font-semibold uppercase tracking-wide">
+                    {modeLabel}
+                  </span>
+                )}
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
