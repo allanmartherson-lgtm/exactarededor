@@ -104,6 +104,7 @@ export async function detectDoctorSectorAnomalies(
   if (!paymentId) return [];
 
   const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
+  const sectorMap = await loadSectorMap();
 
   // Lote atual
   let current: Array<{ doctor_name: string | null; sector: string | null }> = [];
@@ -123,7 +124,7 @@ export async function detectDoctorSectorAnomalies(
   const currentByDoctor: Record<string, Record<string, number>> = {};
   for (const row of current) {
     const name = (row.doctor_name ?? "").trim();
-    const sec = normalizeSector((row.sector ?? "").trim());
+    const sec = normalizeSector((row.sector ?? "").trim(), sectorMap);
     if (!name || !sec) continue;
     (currentByDoctor[name] ||= {});
     currentByDoctor[name][sec] = (currentByDoctor[name][sec] ?? 0) + 1;
@@ -152,7 +153,7 @@ export async function detectDoctorSectorAnomalies(
   const histByDoctor: Record<string, Record<string, number>> = {};
   for (const row of history) {
     const name = (row.doctor_name ?? "").trim();
-    const sec = normalizeSector((row.sector ?? "").trim());
+    const sec = normalizeSector((row.sector ?? "").trim(), sectorMap);
     if (!name || !sec) continue;
     (histByDoctor[name] ||= {});
     histByDoctor[name][sec] = (histByDoctor[name][sec] ?? 0) + 1;
@@ -175,7 +176,8 @@ export async function detectDoctorSectorAnomalies(
     if (curTotal === 0) continue;
     const curEntries = Object.entries(cur).sort((a, b) => b[1] - a[1]);
     const [curTopSector, curTopCount] = curEntries[0];
-    if (normalizeSector(curTopSector) === normalizeSector(histTopSector)) continue;
+    // Chaves já estão na forma canônica (via sectorMap+stems).
+    if (curTopSector === histTopSector) continue;
     const curShare = curTopCount / curTotal;
     if (curShare < CURRENT_DEVIATION) continue;
 
