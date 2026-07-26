@@ -2483,7 +2483,7 @@ export function describeTvrAcao(r: TvrResult): TvrAcao {
         kind: "recuperar",
         valor: diffValor,
         label: `↓ Recuperar ${brl(diffValor)}`,
-        hint: `Auditoria reduziu de ${r.qtd_por_func.toFixed(0)} para ${r.qtd_tasy.toFixed(0)} unidade(s) do procedimento ${r.tuss || "—"}. Diferença de ${brl(diffValor)} a descontar.`,
+        hint: `Auditoria reduziu de ${r.qtd_por_func.toFixed(0)} para ${r.qtd_tasy.toFixed(0)} unidade(s) do procedimento ${r.tuss || "—"}. Diferença de ${brl(diffValor)} a descontar · ${prettyMethod}.`,
       };
     }
     if (r.dif_qtd > 0.5) {
