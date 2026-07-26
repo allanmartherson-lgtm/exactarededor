@@ -7574,7 +7574,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         // marcados como excluir_do_encaminhamento. Reutilizado pelo
         // runEncaminharFluxo — a lista principal da tela NÃO usa isso
         // (excluídos continuam visíveis, é só opt-out do envio).
-        const encaminhaveis = (results ?? []).filter(notExcluded);
+        // Quando há seleção ativa, restringe encaminhaveis apenas aos itens
+        // selecionados — assim tanto "Encaminhar apuração" (topo) quanto a
+        // barra de ações flutuante (rodapé) operam sobre a mesma lista.
+        const baseEncaminhaveis = (results ?? []).filter(notExcluded);
+        const encaminhaveis = selectedKeys.size > 0
+          ? baseEncaminhaveis.filter((r) => selectedKeys.has(r.key))
+          : baseEncaminhaveis;
         const retirar = toRetirarItems(encaminhaveis);
         const { groups, unassigned } = buildGlosaGroups(retirar);
         // Modo médico único (apuração vinculada a 1 PJ+médico) exige recon.company_id.
