@@ -2460,11 +2460,12 @@ export function describeTvrAcao(r: TvrResult): TvrAcao {
   }
   if (r.status === "ausente_tasy") {
     const valor = r.valor_com_acordo && r.valor_com_acordo > 0.5 ? r.valor_com_acordo : r.valor_pago_base;
+    const compRef = r.lotes ? r.lotes : "competência anterior";
     return {
       kind: "recuperar",
       valor,
       label: `↓ Recuperar ${brl(valor)}`,
-      hint: `Pago no lote (${prettyMethod}) mas ausente no TASY hoje — provável cancelamento/glosa total.`,
+      hint: `Procedimento (${r.tuss || "—"} - ${r.procedimento || "—"}) pago em ${compRef} mas removido pela auditoria hospitalar. Valor de ${brl(valor)} a descontar.`,
     };
   }
   if (r.sem_lastro_tasy) {
@@ -2477,12 +2478,12 @@ export function describeTvrAcao(r: TvrResult): TvrAcao {
   }
   if (r.tipo_analise === "quantidade") {
     if (r.dif_qtd < -0.5) {
-      const qtdRetirar = Math.abs(r.dif_qtd);
+      const diffValor = r.valor_com_acordo || 0;
       return {
         kind: "recuperar",
-        valor: r.valor_com_acordo || 0,
-        label: `↓ Recuperar ${brl(r.valor_com_acordo || 0)}`,
-        hint: `TASY reduziu ${qtdRetirar.toFixed(2)} un · ${prettyMethod}`,
+        valor: diffValor,
+        label: `↓ Recuperar ${brl(diffValor)}`,
+        hint: `Auditoria reduziu de ${r.qtd_por_func.toFixed(0)} para ${r.qtd_tasy.toFixed(0)} unidade(s) do procedimento ${r.tuss || "—"}. Diferença de ${brl(diffValor)} a descontar.`,
       };
     }
     if (r.dif_qtd > 0.5) {
@@ -2496,14 +2497,12 @@ export function describeTvrAcao(r: TvrResult): TvrAcao {
     return { kind: "ok", valor: 0, label: "— Sem ajuste", hint: `Quantidade bate · ${prettyMethod}` };
   }
   if (r.ajuste_acordo > 0.5) {
-    const fator = r.valor_pago_base > 0 ? (r.valor_com_acordo / r.valor_pago_base) * 100 : 0;
-    const dif = Math.abs(r.dif_valor);
-    const direcao = r.dif_valor < 0 ? "reduziu" : "subiu";
+    const compRef = r.lotes ? r.lotes : "competência anterior";
     return {
       kind: "recuperar",
       valor: r.ajuste_acordo,
       label: `↓ Recuperar ${brl(r.ajuste_acordo)}`,
-      hint: `TASY ${direcao} ${brl(dif)} · acordo ${fator.toFixed(0)}% convênio`,
+      hint: `Auditoria hospitalar ajustou valor de ${brl(r.valor_pago_base)} para ${brl(r.valor_com_acordo_recalc)}. Diferença de ${brl(r.ajuste_acordo)} a descontar (ref. ${compRef}).`,
     };
   }
   if (r.ajuste_acordo < -0.5) {
