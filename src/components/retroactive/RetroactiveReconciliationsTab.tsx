@@ -7191,517 +7191,304 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </div>
 
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-sm font-semibold">
-                Resultado · {visible.length} de {countsByTipo[analysisTab]}
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  ({analysisTab === "valor" ? "itens por % do convênio" : "itens por pacote/valor fixo"})
-                </span>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* === Barra de filtros simplificada === */}
+            <div className="px-4 py-3 border-b border-border bg-muted/20 flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[240px] max-w-md">
+                <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar atend., TUSS, lote, convênio, médico, paciente, função…"
-                  className="h-8 w-[340px] text-xs"
+                  placeholder="Buscar PJ, médico, atendimento, TUSS..."
+                  className="pl-8 h-9 text-sm"
                 />
-                <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none px-2 py-1 rounded border border-border">
-                  <input
-                    type="checkbox"
-                    checked={onlyWithPayment}
-                    onChange={(e) => setOnlyWithPayment(e.target.checked)}
-                    className="h-3.5 w-3.5"
-                  />
-                  Apenas com pagamento
-                </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 w-[200px] text-xs justify-between font-normal">
-                      <span className="truncate">
-                        {statusFilter.size === 0
-                          ? "Todos (exceto OK)"
-                          : statusFilter.size === 1
-                          ? TVR_STATUS_LABEL[Array.from(statusFilter)[0]]
-                          : `${statusFilter.size} status selecionados`}
-                      </span>
-                      <ChevronsUpDownIcon className="h-3.5 w-3.5 opacity-50 ml-1 shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[220px] p-2" align="end">
-                    <div className="flex items-center justify-between px-1 pb-2 mb-1 border-b border-border">
-                      <span className="text-[11px] font-medium text-muted-foreground">Filtrar status</span>
-                      {statusFilter.size > 0 && (
-                        <button
-                          type="button"
-                          className="text-[11px] text-primary hover:underline"
-                          onClick={() => setStatusFilter(new Set())}
-                        >
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      {TVR_STATUS_ORDER.map((s) => {
-                        const checked = statusFilter.has(s);
-                        return (
-                          <label
-                            key={s}
-                            className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted cursor-pointer"
-                          >
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(v) => {
-                                setStatusFilter((prev) => {
-                                  const next = new Set(prev);
-                                  if (v) next.add(s);
-                                  else next.delete(s);
-                                  return next;
-                                });
-                              }}
-                            />
-                            <span>{TVR_STATUS_LABEL[s]}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <MultiSelectFilter
-                  label="PJ"
-                  allLabel="Todas as PJs"
-                  options={pjOptions}
-                  selected={pjFilter}
-                  onChange={setPjFilter}
-                />
-                <MultiSelectFilter
-                  label="Médico"
-                  allLabel="Todos os médicos"
-                  options={medicoOptions}
-                  selected={medicoFilter}
-                  onChange={setMedicoFilter}
-                />
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setKeyAuditOpen(true)}>
-                  Auditoria de chave
-                </Button>
-
               </div>
-            </div>
-            <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
-            <div className="sticky top-0 z-20 flex items-center gap-1 border-b border-border bg-muted/40 backdrop-blur px-2 py-1 shadow-sm">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                onClick={() => nudgeResultScroll(-1)}
-                aria-label="Rolar tabela para a esquerda"
-              >
-                <ArrowLeftIcon className="h-3.5 w-3.5" />
-              </Button>
-              <div
-                ref={resultTopScrollRef}
-                onScroll={() => syncResultScroll("top")}
-                className="h-5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:thin]"
-                aria-label="Rolagem horizontal da tabela de resultados"
-              >
-                <div className="h-4" style={{ width: resultScrollWidth }} />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                onClick={() => nudgeResultScroll(1)}
-                aria-label="Rolar tabela para a direita"
-              >
-                <ArrowRightIcon className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <div
-              ref={resultTableScrollRef}
-              onScroll={() => syncResultScroll("table")}
-              className="overflow-auto max-h-[65vh] rounded-b-lg border-border [scrollbar-width:thin]"
-            >
-
-              {(() => {
-                // ============================================================
-                // Modelo compacto: colunas mudam por sub-aba (valor vs presença).
-                // Colunas técnicas (dif_valor bruto, devido hoje, valor unit TASY,
-                // nº funções, lote de origem etc.) saem do padrão e vão pro
-                // detalhe expansível por linha — evita a "análise maior" que o
-                // analista precisava fazer pra distinguir pacote de percentual.
-                // ============================================================
-                const isPresenca = analysisTab === "quantidade";
-                // Colunas visíveis por padrão em cada aba, na ordem de render.
-                // A primeira é o toggle de expansão, a segunda o checkbox de seleção.
-                const compactCols: Array<{
-                  key: string;
-                  header: React.ReactNode;
-                  title?: string;
-                  groupLabel: string;
-                  groupClass: string;
-                  cell: (r: TvrResult) => React.ReactNode;
-                  className?: string;
-                  headClassName?: string;
-                }> = [
-                  // PJ e Médico abrem o Contexto — são o "quem" antes do "quando/onde".
-                  {
-                    key: "context.pj",
-                    header: "PJ",
-                    title: "Empresa (PJ) conciliada para este item no lote histórico. Em 'Faltou pagar' mostramos a PJ provável (vínculo ativo do médico), marcada como 'prev.'.",
-                    groupLabel: "Contexto",
-                    groupClass: "text-muted-foreground",
-                    className: "max-w-[200px]",
-                    cell: (r) => {
-                      // Faltou pagar → não há PJ conciliada; usamos inferência.
-                      if (r.pj_conciliada) {
-                        return <span className="truncate block" title={r.pj_conciliada}>{r.pj_conciliada}</span>;
-                      }
-                      if (r.status === "nao_pago" && r.pj_provavel) {
-                        return (
-                          <span className="inline-flex items-center gap-1 max-w-full" title={`PJ provável (vínculo ativo do médico): ${r.pj_provavel}`}>
-                            <span className="truncate">{r.pj_provavel}</span>
-                            <span className="shrink-0 text-[9px] uppercase tracking-wide px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">prev.</span>
-                          </span>
-                        );
-                      }
-                      return <span>—</span>;
-                    },
-                  },
-
-                  { key: "context.med", header: "Médico", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[180px] truncate", cell: (r) => <span title={r.medico}>{r.medico || "—"}</span> },
-                  {
-                    key: "context.atend",
-                    header: "Atend.",
-                    groupLabel: "Contexto",
-                    groupClass: "text-muted-foreground",
-                    cell: (r) => r.atendimento || "—",
-                  },
-                  { key: "context.tuss", header: "TUSS", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => r.tuss || "—" },
-                  { key: "context.proc", header: "Procedimento", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[220px] truncate", cell: (r) => <span title={r.procedimento}>{r.procedimento || "—"}</span> },
-                  { key: "context.data", header: "Data", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => formatTvrDate(r.data) },
-                  { key: "context.conv", header: "Convênio", groupLabel: "Contexto", groupClass: "text-muted-foreground", className: "max-w-[140px] truncate", cell: (r) => <span title={r.convenio}>{r.convenio || "—"}</span> },
-                  { key: "context.func", header: "Função", groupLabel: "Contexto", groupClass: "text-muted-foreground", cell: (r) => r.funcao || "—" },
-                ];
-
-                // Cabeçalho de coluna com regra de acordo aplicada (nome amigável).
-                const regraHead = (
-                  <TableHead key="regra.aplic" title="Regra e cálculo aplicados no lote histórico">Regra do acordo</TableHead>
-                );
-                if (isPresenca) {
-                  compactCols.push(
-                    { key: "qtd.tasy", header: "Qtd TASY hoje", headClassName: "text-center", className: "text-center", groupLabel: "Quantidades", groupClass: "text-sky-800 bg-sky-50/60", cell: (r) => r.qtd_tasy || "—" },
-                    { key: "qtd.paga", header: "Qtd paga (por função)", headClassName: "text-center", className: "text-center", groupLabel: "Quantidades", groupClass: "text-sky-800 bg-sky-50/60", cell: (r) => r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—" },
-                    {
-                      key: "qtd.dif",
-                      header: "Dif. qtd",
-                      headClassName: "text-center",
-                      title: "Diferença entre a quantidade que aparece HOJE no TASY e a que foi paga por função no lote histórico. Negativa = TASY reduziu (glosa/cancelamento).",
-                      groupLabel: "Quantidades",
-                      groupClass: "text-sky-800 bg-sky-50/60",
-                      className: (undefined as unknown as string), // usado dinamicamente abaixo
-                      cell: (r) => (
-                        <span className={cn("text-center inline-block w-full", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>
-                          {r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}
-                        </span>
-                      ),
-                    },
-                    {
-                      key: "lote.pago",
-                      header: "Pago no lote (c/ acordo)",
-                      title: "Quanto o médico recebeu neste item no lote de repasse já processado.",
-                      groupLabel: "Lote histórico",
-                      groupClass: "text-indigo-800 bg-indigo-50/60",
-                      cell: (r) => brl(r.valor_com_acordo),
-                    },
-                  );
-                } else {
-                  compactCols.push(
-                    { key: "tasy.total", header: "Vlr total TASY hoje", title: "Valor total do procedimento na base TASY atual (100% convênio, sem acordo).", groupLabel: "TASY hoje (100% convênio)", groupClass: "text-sky-800 bg-sky-50/60", cell: (r) => brl(r.valor_total_tasy) },
-                    { key: "lote.base", header: "Base convênio no lote", title: "Base 100% do convênio registrada NO LOTE histórico (época do repasse).", groupLabel: "Lote histórico", groupClass: "text-indigo-800 bg-indigo-50/60", cell: (r) => brl(r.valor_pago_base) },
-                    { key: "lote.pago", header: "Pago médico no lote (c/ acordo)", title: "Valor efetivamente pago ao médico neste item no lote histórico.", groupLabel: "Lote histórico", groupClass: "text-indigo-800 bg-indigo-50/60", cell: (r) => brl(r.valor_com_acordo) },
-                  );
-                }
-                // Coluna final "Ação sugerida" — substitui as 3 técnicas.
-                const acaoHead = (
-                  <TableHead
-                    key="acao.head"
-                    className="min-w-[260px] text-rose-800 bg-rose-50/60"
-                    title="Ação em linguagem do analista, derivada de: TASY hoje vs. lote e do tipo de acordo aplicado."
-                  >
-                    Ação sugerida
-                  </TableHead>
-                );
-                // ============================================================
-                // Cálculo dos grupos (linha superior do cabeçalho) — junta
-                // colunas consecutivas com o mesmo groupLabel/groupClass.
-                // ============================================================
-                type GroupSeg = { label: string; className: string; count: number };
-                const groups: GroupSeg[] = [];
-                for (const c of compactCols) {
-                  const last = groups[groups.length - 1];
-                  if (last && last.label === c.groupLabel && last.className === c.groupClass) last.count += 1;
-                  else groups.push({ label: c.groupLabel, className: c.groupClass, count: 1 });
-                }
-                // Colunas fixas antes/depois de compactCols: [expand], [checkbox], [status], [regra], ..., [ação]
-                const totalCols = 4 + compactCols.length + 1;
-                return (
-              <Table className="min-w-[1600px]">
-                <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
-                  <TableRow className="bg-muted/50">
-                    {/* [expand], [checkbox], [status], [regra do acordo] */}
-                    <TableHead colSpan={4} className="text-center text-[10px] uppercase tracking-wider text-muted-foreground border-r border-border">Item</TableHead>
-                    {groups.map((g, i) => (
-                      <TableHead
-                        key={`grp-${i}`}
-                        colSpan={g.count}
-                        className={cn("text-center text-[10px] uppercase tracking-wider border-r border-border", g.className)}
-                      >
-                        {g.label}
-                      </TableHead>
-                    ))}
-                    <TableHead colSpan={1} className="text-center text-[10px] uppercase tracking-wider text-rose-800 bg-rose-50/60">Ação</TableHead>
-                  </TableRow>
-                  <TableRow>
-                    <TableHead className="w-8 text-center" title="Expandir para ver campos técnicos (Vlr unitário TASY, nº funções, lotes, dif. valor 100%, devido hoje, etc.)">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 min-w-[170px] justify-between font-normal">
+                    <span className="truncate text-xs">
+                      {statusFilter.size === 0
+                        ? "Todos os status"
+                        : statusFilter.size === 1
+                        ? TVR_STATUS_LABEL[Array.from(statusFilter)[0]]
+                        : `${statusFilter.size} status`}
+                    </span>
+                    <ChevronsUpDownIcon className="h-3.5 w-3.5 opacity-50 ml-1 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[220px] p-2" align="start">
+                  <div className="flex items-center justify-between px-1 pb-2 mb-1 border-b border-border">
+                    <span className="text-[11px] font-medium text-muted-foreground">Filtrar status</span>
+                    {statusFilter.size > 0 && (
                       <button
                         type="button"
                         className="text-[11px] text-primary hover:underline"
-                        onClick={() => {
-                          if (expandedKeys.size >= visible.length) setExpandedKeys(new Set());
-                          else setExpandedKeys(new Set(visible.map((r) => r.key)));
-                        }}
-                        title={expandedKeys.size >= visible.length && visible.length > 0 ? "Recolher todos" : "Expandir todos"}
+                        onClick={() => setStatusFilter(new Set())}
                       >
-                        {expandedKeys.size >= visible.length && visible.length > 0 ? "−" : "+"}
+                        Limpar
                       </button>
-                    </TableHead>
-                    <TableHead className="w-10 text-center">
-                      {(() => {
-                        // T3: "selecionar todos" ignora itens já excluídos do encaminhamento.
-                        const selectableKeys = visible.filter((r) => isActionableTvr(r) && !r.excluir_do_encaminhamento).map((r) => r.key);
-                        const allSelected = selectableKeys.length > 0 && selectableKeys.every((k) => selectedKeys.has(k));
-                        const someSelected = selectableKeys.some((k) => selectedKeys.has(k));
-                        return (
-                          <Checkbox
-                            checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                            disabled={isLocked || selectableKeys.length === 0}
-                            onCheckedChange={(v) => {
-                              setSelectedKeys((prev) => {
-                                const next = new Set(prev);
-                                if (v) selectableKeys.forEach((k) => next.add(k));
-                                else selectableKeys.forEach((k) => next.delete(k));
-                                return next;
-                              });
-                            }}
-                            aria-label="Selecionar todos os acionáveis visíveis"
-                          />
-                        );
-                      })()}
-                    </TableHead>
-                    <TableHead>Status</TableHead>
-                    {regraHead}
-                    {compactCols.map((c) => (
-                      <TableHead key={c.key} title={c.title} className={c.headClassName}>{c.header}</TableHead>
-                    ))}
-                    {acaoHead}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visible.length === 0 && (
-                    <TableRow><TableCell colSpan={totalCols} className="text-center text-muted-foreground py-8">Nenhuma linha neste filtro.</TableCell></TableRow>
-                  )}
-                  {visible.map((r) => {
-                    const selectable = isActionableTvr(r) && !isLocked;
-                    const acao = describeAcao(r);
-                    const isExpanded = expandedKeys.has(r.key);
-                    const acaoTone =
-                      acao.kind === "recuperar" ? "text-destructive"
-                      : acao.kind === "complementar" ? "text-orange-700"
-                      : acao.kind === "validar" ? "text-amber-700"
-                      : "text-muted-foreground";
-                    const isExcluded = !!r.excluir_do_encaminhamento;
-                    const canExclude = !isLocked && !isExcluded && !!r._retroReconRowId;
-                    const canReinclude = !isLocked && isExcluded && !!r._retroReconRowId;
-                    return (
-                    <React.Fragment key={r.key}>
-                    <TableRow
-                      data-state={selectedKeys.has(r.key) ? "selected" : undefined}
-                      className={cn(isExcluded && "opacity-60 text-muted-foreground")}
-                    >
-                      <TableCell className="text-center align-top">
-                        <button
-                          type="button"
-                          className="text-[13px] text-muted-foreground hover:text-primary leading-none"
-                          onClick={() => toggleExpanded(r.key)}
-                          aria-label={isExpanded ? "Recolher detalhes" : "Expandir detalhes técnicos"}
-                          aria-expanded={isExpanded}
-                        >
-                          {isExpanded ? "−" : "+"}
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-center align-top">
-                        {selectable && !isExcluded ? (
-                          <Checkbox
-                            checked={selectedKeys.has(r.key)}
-                            onCheckedChange={(v) => {
-                              setSelectedKeys((prev) => {
-                                const next = new Set(prev);
-                                if (v) next.add(r.key); else next.delete(r.key);
-                                return next;
-                              });
-                            }}
-                            aria-label={`Selecionar ${r.atendimento}/${r.tuss}`}
-                          />
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${TVR_STATUS_TONE[r.status]}`}>
-                          {TVR_STATUS_LABEL[r.status]}
-                        </span>
-                        {r.sem_lastro_tasy && (
-                          <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800" title="Item pago mas ausente no TASY. Em tabela própria pode ser normal — validar caso a caso.">
-                            sem lastro TASY
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="align-top max-w-[180px]">
-                        {r.regra_aplicada ? (
-                          <>
-                            <div className="text-[11px] font-medium truncate" title={r.regra_aplicada}>{r.regra_aplicada}</div>
-                            <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_aplicado}>{r.calculo_aplicado || ""}</div>
-                          </>
-                        ) : r.status === "nao_pago" && r.regra_prevista ? (
-                          <>
-                            <div
-                              className="text-[11px] font-medium truncate flex items-center gap-1"
-                              title={`Regra prevista (última aplicada para este médico + procedimento neste hospital): ${r.regra_prevista}`}
-                            >
-                              <span className="truncate">{r.regra_prevista}</span>
-                              <span className="shrink-0 text-[9px] uppercase tracking-wide px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">prev.</span>
-                            </div>
-                            <div className="text-[10px] text-muted-foreground truncate" title={r.calculo_previsto}>{r.calculo_previsto || ""}</div>
-                          </>
-                        ) : (
-                          <div className="text-[11px] font-medium text-muted-foreground">—</div>
-                        )}
-                      </TableCell>
-
-                      {compactCols.map((c) => (
-                        <TableCell key={c.key} className={cn("align-top", c.className)}>{c.cell(r)}</TableCell>
-                      ))}
-                      <TableCell
-                        className={cn("align-top", !isExcluded && acaoTone, !isExcluded && (acao.kind === "recuperar" || acao.kind === "complementar") && "font-semibold")}
-                        title={isExcluded ? r.exclusion_note || undefined : acao.hint}
-                      >
-                        {isExcluded ? (
-                          <div className="space-y-1">
-                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-900 text-[10px] font-medium">
-                              Excluído · {reasonLabel(r.exclusion_reason)}
-                            </Badge>
-                            {r.exclusion_note && (
-                              <div className="text-[10px] text-muted-foreground italic leading-tight" title={r.exclusion_note}>
-                                {r.exclusion_note}
-                              </div>
-                            )}
-                            {canReinclude && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-[11px]"
-                                onClick={async () => {
-                                  const res = await unmarkExcluded([r._retroReconRowId!]);
-                                  if (!res.ok) {
-                                    toast({ title: "Falha ao reincluir", description: res.error, variant: "destructive" });
-                                  } else {
-                                    toast({ title: "Item reincluído no encaminhamento" });
-                                  }
-                                }}
-                              >
-                                <RotateCcwIcon className="h-3.5 w-3.5 mr-1" />
-                                Reincluir
-                              </Button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <div className="text-[12px] leading-tight">{acao.label}</div>
-                            <div className="text-[10px] text-muted-foreground font-normal leading-tight">{acao.hint}</div>
-                            {canExclude && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                                onClick={() => openExcludeDialog([r._retroReconRowId!])}
-                                title="Marcar este item como fora do encaminhamento (permanece visível na lista)"
-                              >
-                                <BanIcon className="h-3.5 w-3.5 mr-1" />
-                                Não encaminhar
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    {isExpanded && (
-                      <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        <TableCell colSpan={totalCols} className="p-3">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
-                            <div className="rounded border border-sky-200 bg-sky-50/50 p-2.5">
-                              <div className="text-[10px] uppercase tracking-wider text-sky-800 font-semibold mb-1.5">TASY hoje (100% convênio)</div>
-                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                <span className="text-muted-foreground">Qtd:</span><span className="tabular-nums">{r.qtd_tasy || "—"}</span>
-                                <span className="text-muted-foreground">Vlr unit:</span><span className="tabular-nums">{brl(r.valor_unit_tasy)}</span>
-                                <span className="text-muted-foreground">Vlr total:</span><span className="tabular-nums">{brl(r.valor_total_tasy)}</span>
-                                <span className="text-muted-foreground">Paciente:</span><span className="truncate" title={r.paciente}>{r.paciente || "—"}</span>
-                              </div>
-                            </div>
-                            <div className="rounded border border-indigo-200 bg-indigo-50/50 p-2.5">
-                              <div className="text-[10px] uppercase tracking-wider text-indigo-800 font-semibold mb-1.5">Lote histórico</div>
-                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                <span className="text-muted-foreground">Base convênio:</span><span className="tabular-nums">{brl(r.valor_pago_base)}</span>
-                                <span className="text-muted-foreground">Pago ao médico:</span><span className="tabular-nums">{brl(r.valor_com_acordo)}</span>
-                                <span className="text-muted-foreground">Fator do acordo:</span>
-                                <span className="tabular-nums">{r.valor_pago_base > 0 ? `${((r.valor_com_acordo / r.valor_pago_base) * 100).toFixed(1)}%` : "—"}</span>
-                                <span className="text-muted-foreground">Qtd por função:</span><span className="tabular-nums">{r.qtd_por_func ? r.qtd_por_func.toFixed(2) : "—"}</span>
-                                <span className="text-muted-foreground">Nº funções:</span><span className="tabular-nums">{r.n_funcs || "—"}</span>
-                                <span className="text-muted-foreground">Funções pagas:</span><span className="truncate" title={r.funcoes_pagas}>{r.funcoes_pagas || "—"}</span>
-                                <span className="text-muted-foreground">Lote(s) origem:</span><span className="font-mono text-[10px] truncate" title={r.lotes}>{r.lotes || "—"}</span>
-                              </div>
-                            </div>
-                            <div className="rounded border border-emerald-200 bg-emerald-50/50 p-2.5">
-                              <div className="text-[10px] uppercase tracking-wider text-emerald-800 font-semibold mb-1.5">Motor de recálculo</div>
-                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                <span className="text-muted-foreground">Tipo de análise:</span>
-                                <span>{r.tipo_analise === "quantidade" ? "Quantidade (tabela própria)" : "Valor (% convênio)"}</span>
-                                <span className="text-muted-foreground">Dif. qtd (TASY − lote):</span>
-                                <span className={cn("tabular-nums", Math.abs(r.dif_qtd) >= 0.5 && "font-semibold text-amber-700")}>{r.dif_qtd ? r.dif_qtd.toFixed(2) : "—"}</span>
-                                <span className="text-muted-foreground">Dif. valor 100%:</span>
-                                <span className={cn("tabular-nums", r.tipo_analise === "quantidade" && "text-muted-foreground/60")}>
-                                  {r.tipo_analise === "quantidade" ? "n/a" : brl(r.dif_valor)}
-                                </span>
-                                <span className="text-muted-foreground">Devido hoje:</span>
-                                <span className={cn("tabular-nums", r.tipo_analise === "quantidade" && "text-muted-foreground/60")}>
-                                  {r.tipo_analise === "quantidade" ? "n/a" : brl(r.valor_com_acordo_recalc)}
-                                </span>
-                                <span className="text-muted-foreground">Ajuste (pago − devido):</span>
-                                <span className={cn("tabular-nums", r.ajuste_acordo > 0.5 && "font-semibold text-destructive", r.ajuste_acordo < -0.5 && "font-semibold text-orange-600")}>
-                                  {r.ajuste_acordo > 0 ? "+" : ""}{brl(r.ajuste_acordo)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
                     )}
-                    </React.Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-                );
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {TVR_STATUS_ORDER.map((s) => {
+                      const checked = statusFilter.has(s);
+                      return (
+                        <label
+                          key={s}
+                          className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              setStatusFilter((prev) => {
+                                const next = new Set(prev);
+                                if (v) next.add(s);
+                                else next.delete(s);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span>{TVR_STATUS_LABEL[s]}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <MultiSelectFilter
+                label="PJ"
+                allLabel="Todas as PJs"
+                options={pjOptions}
+                selected={pjFilter}
+                onChange={setPjFilter}
+              />
+              <MultiSelectFilter
+                label="Médico"
+                allLabel="Todos os médicos"
+                options={medicoOptions}
+                selected={medicoFilter}
+                onChange={setMedicoFilter}
+              />
+              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none px-2 h-9 rounded border border-border bg-card">
+                <input
+                  type="checkbox"
+                  checked={onlyWithPayment}
+                  onChange={(e) => setOnlyWithPayment(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                Só com pagamento
+              </label>
+              <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setKeyAuditOpen(true)}>
+                Auditoria de chave
+              </Button>
+              <div className="ml-auto text-xs text-muted-foreground tabular-nums">
+                {visible.length} de {countsByTipo[analysisTab]}
+              </div>
+            </div>
+            <KeyAuditDialog open={keyAuditOpen} onOpenChange={setKeyAuditOpen} results={results} />
+
+            {/* === Legenda === */}
+            <div className="px-4 py-2 border-b border-border bg-card flex items-center gap-4 flex-wrap text-[11px] text-muted-foreground">
+              <span className="font-semibold uppercase tracking-wider">Legenda</span>
+              <span className="inline-flex items-center gap-1.5">
+                <ArrowDownIcon className="h-3.5 w-3.5 text-destructive" /> Valor reduzido pela auditoria
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <XIcon className="h-3.5 w-3.5 text-destructive" /> Removido do faturamento
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <MinusIcon className="h-3.5 w-3.5 text-warning" /> Quantidade reduzida
+              </span>
+            </div>
+
+            {/* === Lista agrupada por empresa === */}
+            <div className="p-3 space-y-2 bg-muted/10 max-h-[65vh] overflow-y-auto">
+              {visible.length === 0 && (
+                <div className="text-center text-sm text-muted-foreground py-10">
+                  Nenhum item corresponde ao filtro atual.
+                </div>
+              )}
+              {(() => {
+                const groups = new Map<string, TvrResult[]>();
+                for (const r of visible) {
+                  const pj = (r.pj_conciliada || r.pj_provavel || "— Sem PJ vinculada —").trim() || "— Sem PJ vinculada —";
+                  if (!groups.has(pj)) groups.set(pj, []);
+                  groups.get(pj)!.push(r);
+                }
+                const groupsList = Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length);
+                const GRID_COLS = "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 160px";
+                return groupsList.map(([pjName, items]) => {
+                  const isOpen = !collapsedPjs.has(pjName);
+                  const groupTotal = items.reduce((s, r) => {
+                    if (r.excluir_do_encaminhamento) return s;
+                    const a = describeAcao(r);
+                    return s + (a.kind === "recuperar" ? Number(a.valor || 0) : 0);
+                  }, 0);
+                  return (
+                    <div key={pjName} className="rounded-lg border border-border bg-card overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => togglePjCollapsed(pjName)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
+                      >
+                        {isOpen ? (
+                          <ChevronDownIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        ) : (
+                          <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        )}
+                        <Building2Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="font-semibold text-sm truncate flex-1" title={pjName}>
+                          {pjName}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums">
+                          {items.length} {items.length === 1 ? "item" : "itens"}
+                        </span>
+                        {groupTotal > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-destructive-soft border border-destructive/30 px-2 py-0.5 text-[11px] font-semibold text-destructive tabular-nums">
+                            {brl(groupTotal)}
+                          </span>
+                        )}
+                      </button>
+                      {isOpen && (
+                        <div className="border-t border-border">
+                          <div
+                            className="grid gap-3 px-4 py-2 border-b border-border bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold"
+                            style={{ gridTemplateColumns: GRID_COLS }}
+                          >
+                            <div>Procedimento</div>
+                            <div className="text-right">Pago no lote</div>
+                            <div className="text-right">Auditoria</div>
+                            <div className="text-right">Desconto</div>
+                            <div className="text-right">Ações</div>
+                          </div>
+                          <ul className="divide-y divide-border">
+                            {items.map((r) => {
+                              const acao = describeAcao(r);
+                              const isExcluded = !!r.excluir_do_encaminhamento;
+                              const isSelected = selectedKeys.has(r.key);
+                              const selectable = isActionableTvr(r) && !isLocked && !isExcluded;
+                              const pago = Number(r.valor_com_acordo ?? r.valor_pago_base ?? 0) || 0;
+                              const auditoria = acao.kind === "recuperar"
+                                ? Math.max(0, pago - Number(acao.valor || 0))
+                                : pago;
+                              const desconto = acao.kind === "recuperar" ? Number(acao.valor || 0) : 0;
+                              return (
+                                <li
+                                  key={r.key}
+                                  className={cn(
+                                    "grid gap-3 px-4 py-3 items-start hover:bg-muted/20 transition-colors",
+                                    isExcluded && "opacity-60",
+                                    isSelected && "bg-primary/5",
+                                  )}
+                                  style={{ gridTemplateColumns: GRID_COLS }}
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium truncate" title={r.procedimento || undefined}>
+                                      {r.procedimento || "—"}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground truncate">
+                                      <span title={r.medico || undefined}>{r.medico || "—"}</span>
+                                      <span className="mx-1">·</span>
+                                      <span>Atend. {r.atendimento || "—"}</span>
+                                      <span className="mx-1">·</span>
+                                      <span>TUSS {r.tuss || "—"}</span>
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground truncate">
+                                      <span>{formatTvrDate(r.data)}</span>
+                                      <span className="mx-1">·</span>
+                                      <span title={r.convenio || undefined}>{r.convenio || "—"}</span>
+                                      <span className="mx-1">·</span>
+                                      <span>{r.funcao || "—"}</span>
+                                    </div>
+                                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                      <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium", TVR_STATUS_TONE[r.status])}>
+                                        {TVR_STATUS_LABEL[r.status]}
+                                      </span>
+                                      {r.sem_lastro_tasy && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-warning-soft text-warning border border-warning/30">
+                                          sem lastro TASY
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right tabular-nums text-sm text-muted-foreground line-through">
+                                    {brl(pago)}
+                                  </div>
+                                  <div className="text-right tabular-nums text-sm font-medium text-primary">
+                                    {brl(auditoria)}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className={cn("tabular-nums text-sm font-semibold", desconto > 0 ? "text-destructive" : "text-muted-foreground")}>
+                                      {desconto > 0 ? `- ${brl(desconto)}` : acao.label}
+                                    </div>
+                                    {acao.hint && (
+                                      <div className="text-[11px] text-muted-foreground leading-snug mt-0.5 text-right line-clamp-2" title={acao.hint}>
+                                        {acao.hint}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col gap-1 items-stretch">
+                                    {isExcluded ? (
+                                      <>
+                                        <span className="text-[10px] text-warning bg-warning-soft border border-warning/30 rounded px-2 py-1 text-center">
+                                          Excluído · {reasonLabel(r.exclusion_reason)}
+                                        </span>
+                                        {r._retroReconRowId && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-[11px]"
+                                            onClick={async () => {
+                                              const res = await unmarkExcluded([r._retroReconRowId!]);
+                                              if (!res.ok) toast({ title: "Falha ao reincluir", description: res.error, variant: "destructive" });
+                                              else toast({ title: "Item reincluído" });
+                                            }}
+                                          >
+                                            <RotateCcwIcon className="h-3.5 w-3.5 mr-1" /> Reincluir
+                                          </Button>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        {selectable && (
+                                          <Button
+                                            size="sm"
+                                            variant={isSelected ? "default" : "outline"}
+                                            className="h-7 text-[11px]"
+                                            onClick={() =>
+                                              setSelectedKeys((prev) => {
+                                                const n = new Set(prev);
+                                                if (n.has(r.key)) n.delete(r.key);
+                                                else n.add(r.key);
+                                                return n;
+                                              })
+                                            }
+                                          >
+                                            <SendIcon className="h-3.5 w-3.5 mr-1" />
+                                            {isSelected ? "Selecionado" : "Encaminhar"}
+                                          </Button>
+                                        )}
+                                        {r._retroReconRowId && !isLocked && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-[11px] text-muted-foreground"
+                                            onClick={() => openExcludeDialog([r._retroReconRowId!])}
+                                          >
+                                            <BanIcon className="h-3.5 w-3.5 mr-1" /> Ignorar
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
               })()}
             </div>
           </div>
