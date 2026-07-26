@@ -7280,7 +7280,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setKeyAuditOpen(true)}>
                 Auditoria de chave
               </Button>
-              <div className="ml-auto text-xs text-muted-foreground tabular-nums">
+              {(() => {
+                // Select-all global: só considera itens visíveis e efetivamente acionáveis
+                // (selectable no grid). Marca/desmarca todos de uma vez respeitando os filtros.
+                const globalSelectable = visible.filter((r) => isActionableTvr(r) && !isLocked && !r.excluir_do_encaminhamento);
+                const selCount = globalSelectable.filter((r) => selectedKeys.has(r.key)).length;
+                const allSel = globalSelectable.length > 0 && selCount === globalSelectable.length;
+                const someSel = selCount > 0 && !allSel;
+                return (
+                  <label className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none px-2 h-9 rounded border border-border bg-card">
+                    <Checkbox
+                      checked={allSel ? true : someSel ? "indeterminate" : false}
+                      onCheckedChange={(v) => {
+                        setSelectedKeys((prev) => {
+                          const next = new Set(prev);
+                          if (v) globalSelectable.forEach((r) => next.add(r.key));
+                          else globalSelectable.forEach((r) => next.delete(r.key));
+                          return next;
+                        });
+                      }}
+                      disabled={globalSelectable.length === 0}
+                    />
+                    Selecionar todos
+                  </label>
+                );
+              })()}
+              <div className="text-xs text-muted-foreground tabular-nums">
                 {visible.length} de {countsByTipo[analysisTab]}
               </div>
             </div>
