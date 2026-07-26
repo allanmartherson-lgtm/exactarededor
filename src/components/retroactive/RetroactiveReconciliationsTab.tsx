@@ -7513,24 +7513,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                       </>
                                     ) : (
                                       <>
-                                        {selectable && (
-                                          <Button
-                                            size="sm"
-                                            variant={isSelected ? "default" : "outline"}
-                                            className="h-7 text-[11px]"
-                                            onClick={() =>
-                                              setSelectedKeys((prev) => {
-                                                const n = new Set(prev);
-                                                if (n.has(r.key)) n.delete(r.key);
-                                                else n.add(r.key);
-                                                return n;
-                                              })
-                                            }
-                                          >
-                                            <SendIcon className="h-3.5 w-3.5 mr-1" />
-                                            {isSelected ? "Selecionado" : "Encaminhar"}
-                                          </Button>
-                                        )}
                                         {r._retroReconRowId && !isLocked && (
                                           <Button
                                             variant="ghost"
