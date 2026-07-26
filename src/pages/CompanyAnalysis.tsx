@@ -2852,6 +2852,9 @@ export default function CompanyAnalysis() {
             <TabsTrigger value="historico">
               <History className="h-3.5 w-3.5 mr-1" /> Histórico
             </TabsTrigger>
+            <TabsTrigger value="base-importada">
+              <FileText className="h-3.5 w-3.5 mr-1" /> Base importada
+            </TabsTrigger>
           </TabsList>
 
           {id && groupId && (
