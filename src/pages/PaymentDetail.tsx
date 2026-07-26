@@ -4601,47 +4601,49 @@ const PaymentDetail = () => {
         })()}
 
 
-          {showAnalystActions && groupsPendingAnalyst.length > 0 && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-info-soft/90 border border-info/40 rounded-lg text-sm flex-wrap dark:bg-info-soft dark:border-info/50">
-              <span className="w-2 h-2 rounded-full bg-info flex-shrink-0" />
-              <span className="font-semibold text-info-text">Concluir análise em massa</span>
-              <span className="text-info-text/80 text-xs">
-                — {groupsPendingAnalyst.length} empresa(s) ainda em revisão. Selecione várias e finalize de uma vez.
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy || bulkConcluding}
-                onClick={() => {
-                  setBulkConcludeSelected(new Set(groupsPendingAnalyst.map((g) => g.id)));
-                  setBulkConcludeOpen(true);
-                }}
-                className="ml-auto h-7 px-3 text-xs"
-              >
-                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
-                Selecionar empresas
-              </Button>
-            </div>
-          )}
-
-          {showAnalystActions && groups.some((g) => g.status === "revisao_pos_aprovacao") && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-teal-50 dark:bg-teal-950/30 border border-teal-300/60 dark:border-teal-800 rounded-lg text-sm flex-wrap">
-              <span className="w-2 h-2 rounded-full bg-teal-600 flex-shrink-0" />
-              <span className="font-medium text-teal-900 dark:text-teal-200">Liberar pedidos de NF em massa</span>
-              <span className="text-muted-foreground text-xs">
-                — {groups.filter((g) => g.status === "revisao_pos_aprovacao").length} empresa(s) aprovadas pelo diretor. Selecione e dispare os pedidos de uma vez.
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setBulkReleaseOpen(true)}
-                className="ml-auto h-7 px-3 text-xs border-teal-400 text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/40"
-              >
-                <Mail className="h-3.5 w-3.5 mr-1.5" />
-                Selecionar empresas
-              </Button>
-            </div>
-          )}
+          {showAnalystActions && (groupsPendingAnalyst.length > 0 || groups.some((g) => g.status === "revisao_pos_aprovacao")) && (() => {
+            const releaseCount = groups.filter((g) => g.status === "revisao_pos_aprovacao").length;
+            const concludeCount = groupsPendingAnalyst.length;
+            return (
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border border-border rounded-lg text-xs flex-wrap">
+                <span className="font-semibold text-muted-foreground uppercase tracking-wide">Ações em massa</span>
+                {concludeCount > 0 && (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-info" />
+                    <span className="text-info-text">{concludeCount} em revisão</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy || bulkConcluding}
+                      onClick={() => {
+                        setBulkConcludeSelected(new Set(groupsPendingAnalyst.map((g) => g.id)));
+                        setBulkConcludeOpen(true);
+                      }}
+                      className="h-7 px-2.5 text-xs"
+                    >
+                      <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                      Concluir análise
+                    </Button>
+                  </>
+                )}
+                {releaseCount > 0 && (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-teal-500" />
+                    <span className="text-teal-700 dark:text-teal-300">{releaseCount} aprovadas pelo diretor</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setBulkReleaseOpen(true)}
+                      className="h-7 px-2.5 text-xs border-teal-400 text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/40"
+                    >
+                      <Mail className="h-3.5 w-3.5 mr-1.5" />
+                      Liberar NF
+                    </Button>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           <Dialog open={bulkConcludeOpen} onOpenChange={(o) => { if (!o) { setBulkConcludeOpen(false); } }}>
             <DialogContent className="max-w-lg">
