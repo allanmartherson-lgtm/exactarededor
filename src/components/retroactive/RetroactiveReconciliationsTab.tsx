@@ -56,6 +56,14 @@ import {
   PackageIcon,
   BanIcon,
   RotateCcwIcon,
+  Search as SearchIcon,
+  Download as DownloadIcon,
+  ChevronDown as ChevronDownIcon,
+  ChevronRight as ChevronRightIcon,
+  ArrowDown as ArrowDownIcon,
+  X as XIcon,
+  Minus as MinusIcon,
+  Building2 as Building2Icon,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
