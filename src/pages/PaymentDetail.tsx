@@ -4962,43 +4962,8 @@ const PaymentDetail = () => {
             apenas o pivot histórico e ações de aprovação. */}
         {viewMode !== "executivo" && (
         <>
-        {/* Badge sempre visível do modo de análise — evita confusão entre
-            "Modo Padrão" e "Modo Confecção" (que mudam radicalmente o motor). */}
-        {payment.analysis_mode && payment.analysis_mode !== "confeccao" && payment.analysis_mode !== "empresa_prioritaria" && (
-          <Card className="shadow-card border-border bg-muted/30">
-            <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
-              <div className="flex items-center gap-2 flex-1">
-                <span className="font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
-                  Modo de análise
-                </span>
-                <span className="px-2 py-0.5 rounded bg-background border border-border font-medium">
-                  {payment.analysis_mode === "padrao" ? "Padrão (verificação)" : payment.analysis_mode === "isolado" ? "Isolado" : payment.analysis_mode}
-                </span>
-                <span className="text-muted-foreground hidden sm:inline">
-                  · O sistema verifica os valores que você já calculou.
-                </span>
-              </div>
-              {isAnalista
-                && payment.analysis_mode === "padrao"
-                && (payment.status === "em_analise_ia"
-                    || payment.status === "revisao_analista"
-                    || payment.status === "devolvido_analista"
-                    || payment.status === "rascunho") && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={convertToConfeccao}
-                  disabled={convertingMode}
-                  className="gap-1.5 shrink-0"
-                  title="Trocar para Confecção: o sistema calcula o repasse pelas regras em vez de verificar divergências."
-                >
-                  <Calculator className="h-3.5 w-3.5" />
-                  {convertingMode ? "Convertendo…" : "Converter para Confecção"}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {/* Card do modo "padrão"/"isolado" removido — o badge no cabeçalho
+            e o item "Converter para Confecção" no menu Ações já cobrem o UX. */}
         {payment.analysis_mode === "empresa_prioritaria" && (
           <Card className="shadow-card border-warning/30 bg-warning-soft/30">
             <CardContent className="p-3 text-xs flex items-start gap-2">
