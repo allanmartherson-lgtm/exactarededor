@@ -50,6 +50,7 @@ function SpecialCaseHeaderBanner({
 
 import { AddManualItemDialog } from "@/components/payment-detail/AddManualItemDialog";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
+import { RawDataTable } from "@/components/payment-detail/RawDataTable";
 import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
