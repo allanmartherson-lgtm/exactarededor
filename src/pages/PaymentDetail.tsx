@@ -3264,6 +3264,15 @@ const PaymentDetail = () => {
           if (ccCode) subtitleParts.push(`CC ${ccCode}`);
           if (trackLabel) subtitleParts.push(trackLabel);
           if (responsibleShort) subtitleParts.push(responsibleShort);
+          const modeLabel = (() => {
+            switch (payment.analysis_mode) {
+              case "confeccao": return "Confecção";
+              case "manual": return "Manual";
+              case "empresa_prioritaria": return "Empresa prioritária";
+              case "isolado": return "Isolado";
+              default: return null;
+            }
+          })();
           // KPIs leves — alertas/críticos só aparecem quando > 0
           let alertCount = 0;
           let criticalCount = 0;
@@ -3276,6 +3285,11 @@ const PaymentDetail = () => {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground min-w-0">
                 <span className="truncate capitalize">{subtitleParts.join(" · ") || "—"}</span>
+                {modeLabel && (
+                  <span className="ml-1 shrink-0 inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/40 text-[10px] font-semibold uppercase tracking-wide">
+                    {modeLabel}
+                  </span>
+                )}
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
@@ -3778,6 +3792,21 @@ const PaymentDetail = () => {
                 {canEditMeta && (
                   <DropdownMenuItem onSelect={() => { openEditMeta(); setEditMetaOpen(true); }}>
                     <Pencil className="h-4 w-4 mr-2" /> Editar lote
+                  </DropdownMenuItem>
+                )}
+                {isAnalista
+                  && payment.analysis_mode === "padrao"
+                  && (payment.status === "em_analise_ia"
+                      || payment.status === "revisao_analista"
+                      || payment.status === "devolvido_analista"
+                      || payment.status === "rascunho") && (
+                  <DropdownMenuItem
+                    disabled={convertingMode}
+                    onSelect={(e) => { e.preventDefault(); convertToConfeccao(); }}
+                    title="Trocar para Confecção: o motor calcula o repasse pelas regras em vez de verificar divergências."
+                  >
+                    <Calculator className="h-4 w-4 mr-2" />
+                    {convertingMode ? "Convertendo…" : "Converter para Confecção"}
                   </DropdownMenuItem>
                 )}
                 {canManagePaymentBase && (
@@ -4962,43 +4991,8 @@ const PaymentDetail = () => {
             apenas o pivot histórico e ações de aprovação. */}
         {viewMode !== "executivo" && (
         <>
-        {/* Badge sempre visível do modo de análise — evita confusão entre
-            "Modo Padrão" e "Modo Confecção" (que mudam radicalmente o motor). */}
-        {payment.analysis_mode && payment.analysis_mode !== "confeccao" && payment.analysis_mode !== "empresa_prioritaria" && (
-          <Card className="shadow-card border-border bg-muted/30">
-            <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
-              <div className="flex items-center gap-2 flex-1">
-                <span className="font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
-                  Modo de análise
-                </span>
-                <span className="px-2 py-0.5 rounded bg-background border border-border font-medium">
-                  {payment.analysis_mode === "padrao" ? "Padrão (verificação)" : payment.analysis_mode === "isolado" ? "Isolado" : payment.analysis_mode}
-                </span>
-                <span className="text-muted-foreground hidden sm:inline">
-                  · O sistema verifica os valores que você já calculou.
-                </span>
-              </div>
-              {isAnalista
-                && payment.analysis_mode === "padrao"
-                && (payment.status === "em_analise_ia"
-                    || payment.status === "revisao_analista"
-                    || payment.status === "devolvido_analista"
-                    || payment.status === "rascunho") && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={convertToConfeccao}
-                  disabled={convertingMode}
-                  className="gap-1.5 shrink-0"
-                  title="Trocar para Confecção: o sistema calcula o repasse pelas regras em vez de verificar divergências."
-                >
-                  <Calculator className="h-3.5 w-3.5" />
-                  {convertingMode ? "Convertendo…" : "Converter para Confecção"}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {/* Card do modo "padrão"/"isolado" removido — o badge no cabeçalho
+            e o item "Converter para Confecção" no menu Ações já cobrem o UX. */}
         {payment.analysis_mode === "empresa_prioritaria" && (
           <Card className="shadow-card border-warning/30 bg-warning-soft/30">
             <CardContent className="p-3 text-xs flex items-start gap-2">
