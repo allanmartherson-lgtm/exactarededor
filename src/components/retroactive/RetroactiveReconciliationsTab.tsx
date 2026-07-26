@@ -7675,6 +7675,60 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* === Barra de ações em massa flutuante ===
+          Aparece quando há ≥1 item selecionado. Reutiliza o mesmo fluxo
+          individual (setEncaminharOpen abre o modal de revisão do
+          encaminhamento; openExcludeDialog pede motivo e aplica em batch). */}
+      {selectedKeys.size > 0 && !isLocked && (() => {
+        const excludableIds = (results ?? [])
+          .filter((r) => selectedKeys.has(r.key) && !r.excluir_do_encaminhamento && r._retroReconRowId)
+          .map((r) => r._retroReconRowId!) as string[];
+        const forwardableCount = (results ?? [])
+          .filter((r) => selectedKeys.has(r.key) && isActionableTvr(r) && !r.excluir_do_encaminhamento)
+          .length;
+        return (
+          <div
+            className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur px-6 py-3 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.15)]"
+            role="region"
+            aria-label="Ações em massa"
+          >
+            <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="font-semibold tabular-nums">{selectedKeys.size}</span>
+                <span className="text-muted-foreground"> selecionado(s)</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  onClick={() => setEncaminharOpen(true)}
+                  disabled={forwardableCount === 0}
+                >
+                  <SendIcon className="h-4 w-4 mr-1" />
+                  Encaminhar selecionados{forwardableCount > 0 ? ` (${forwardableCount})` : ""}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openExcludeDialog(excludableIds)}
+                  disabled={excludableIds.length === 0}
+                >
+                  <BanIcon className="h-4 w-4 mr-1" />
+                  Ignorar selecionados{excludableIds.length > 0 ? ` (${excludableIds.length})` : ""}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedKeys(new Set())}
+                >
+                  <XIcon className="h-4 w-4 mr-1" />
+                  Limpar seleção
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
