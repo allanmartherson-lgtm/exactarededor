@@ -7280,7 +7280,32 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setKeyAuditOpen(true)}>
                 Auditoria de chave
               </Button>
-              <div className="ml-auto text-xs text-muted-foreground tabular-nums">
+              {(() => {
+                // Select-all global: só considera itens visíveis e efetivamente acionáveis
+                // (selectable no grid). Marca/desmarca todos de uma vez respeitando os filtros.
+                const globalSelectable = visible.filter((r) => isActionableTvr(r) && !isLocked && !r.excluir_do_encaminhamento);
+                const selCount = globalSelectable.filter((r) => selectedKeys.has(r.key)).length;
+                const allSel = globalSelectable.length > 0 && selCount === globalSelectable.length;
+                const someSel = selCount > 0 && !allSel;
+                return (
+                  <label className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none px-2 h-9 rounded border border-border bg-card">
+                    <Checkbox
+                      checked={allSel ? true : someSel ? "indeterminate" : false}
+                      onCheckedChange={(v) => {
+                        setSelectedKeys((prev) => {
+                          const next = new Set(prev);
+                          if (v) globalSelectable.forEach((r) => next.add(r.key));
+                          else globalSelectable.forEach((r) => next.delete(r.key));
+                          return next;
+                        });
+                      }}
+                      disabled={globalSelectable.length === 0}
+                    />
+                    Selecionar todos
+                  </label>
+                );
+              })()}
+              <div className="text-xs text-muted-foreground tabular-nums">
                 {visible.length} de {countsByTipo[analysisTab]}
               </div>
             </div>
@@ -7315,7 +7340,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   groups.get(pj)!.push(r);
                 }
                 const groupsList = Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length);
-                const GRID_COLS = "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 160px";
+                const GRID_COLS = "32px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 160px";
                 return groupsList.map(([pjName, items]) => {
                   const isOpen = !collapsedPjs.has(pjName);
                   const groupTotal = items.reduce((s, r) => {
@@ -7323,37 +7348,60 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     const a = describeAcao(r);
                     return s + (a.kind === "recuperar" ? Number(a.valor || 0) : 0);
                   }, 0);
+                  // Checkbox no header da PJ: seleciona/desmarca todos os itens acionáveis daquele grupo.
+                  const groupSelectable = items.filter((r) => isActionableTvr(r) && !isLocked && !r.excluir_do_encaminhamento);
+                  const groupSelCount = groupSelectable.filter((r) => selectedKeys.has(r.key)).length;
+                  const groupAllSel = groupSelectable.length > 0 && groupSelCount === groupSelectable.length;
+                  const groupSomeSel = groupSelCount > 0 && !groupAllSel;
                   return (
                     <div key={pjName} className="rounded-lg border border-border bg-card overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => togglePjCollapsed(pjName)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
-                      >
-                        {isOpen ? (
-                          <ChevronDownIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        ) : (
-                          <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        )}
-                        <Building2Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="font-semibold text-sm truncate flex-1" title={pjName}>
-                          {pjName}
+                      <div className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors">
+                        <span onClick={(e) => e.stopPropagation()} className="shrink-0">
+                          <Checkbox
+                            checked={groupAllSel ? true : groupSomeSel ? "indeterminate" : false}
+                            onCheckedChange={(v) => {
+                              setSelectedKeys((prev) => {
+                                const next = new Set(prev);
+                                if (v) groupSelectable.forEach((r) => next.add(r.key));
+                                else groupSelectable.forEach((r) => next.delete(r.key));
+                                return next;
+                              });
+                            }}
+                            disabled={groupSelectable.length === 0}
+                            aria-label={`Selecionar todos os itens de ${pjName}`}
+                          />
                         </span>
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums">
-                          {items.length} {items.length === 1 ? "item" : "itens"}
-                        </span>
-                        {groupTotal > 0 && (
-                          <span className="inline-flex items-center rounded-full bg-destructive-soft border border-destructive/30 px-2 py-0.5 text-[11px] font-semibold text-destructive tabular-nums">
-                            {brl(groupTotal)}
+                        <button
+                          type="button"
+                          onClick={() => togglePjCollapsed(pjName)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          {isOpen ? (
+                            <ChevronDownIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          <Building2Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="font-semibold text-sm truncate flex-1" title={pjName}>
+                            {pjName}
                           </span>
-                        )}
-                      </button>
+                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums">
+                            {items.length} {items.length === 1 ? "item" : "itens"}
+                          </span>
+                          {groupTotal > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-destructive-soft border border-destructive/30 px-2 py-0.5 text-[11px] font-semibold text-destructive tabular-nums">
+                              {brl(groupTotal)}
+                            </span>
+                          )}
+                        </button>
+                      </div>
                       {isOpen && (
                         <div className="border-t border-border">
                           <div
                             className="grid gap-3 px-4 py-2 border-b border-border bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold"
                             style={{ gridTemplateColumns: GRID_COLS }}
                           >
+                            <div />
                             <div>Procedimento</div>
                             <div className="text-right">Pago no lote</div>
                             <div className="text-right">Auditoria</div>
@@ -7381,6 +7429,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                   )}
                                   style={{ gridTemplateColumns: GRID_COLS }}
                                 >
+                                  <div className="pt-0.5">
+                                    {selectable ? (
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={(v) =>
+                                          setSelectedKeys((prev) => {
+                                            const n = new Set(prev);
+                                            if (v) n.add(r.key);
+                                            else n.delete(r.key);
+                                            return n;
+                                          })
+                                        }
+                                        aria-label="Selecionar item"
+                                      />
+                                    ) : null}
+                                  </div>
                                   <div className="min-w-0">
                                     <div className="text-sm font-medium truncate" title={r.procedimento || undefined}>
                                       {r.procedimento || "—"}
@@ -7449,24 +7513,6 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                       </>
                                     ) : (
                                       <>
-                                        {selectable && (
-                                          <Button
-                                            size="sm"
-                                            variant={isSelected ? "default" : "outline"}
-                                            className="h-7 text-[11px]"
-                                            onClick={() =>
-                                              setSelectedKeys((prev) => {
-                                                const n = new Set(prev);
-                                                if (n.has(r.key)) n.delete(r.key);
-                                                else n.add(r.key);
-                                                return n;
-                                              })
-                                            }
-                                          >
-                                            <SendIcon className="h-3.5 w-3.5 mr-1" />
-                                            {isSelected ? "Selecionado" : "Encaminhar"}
-                                          </Button>
-                                        )}
                                         {r._retroReconRowId && !isLocked && (
                                           <Button
                                             variant="ghost"
@@ -7528,7 +7574,13 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         // marcados como excluir_do_encaminhamento. Reutilizado pelo
         // runEncaminharFluxo — a lista principal da tela NÃO usa isso
         // (excluídos continuam visíveis, é só opt-out do envio).
-        const encaminhaveis = (results ?? []).filter(notExcluded);
+        // Quando há seleção ativa, restringe encaminhaveis apenas aos itens
+        // selecionados — assim tanto "Encaminhar apuração" (topo) quanto a
+        // barra de ações flutuante (rodapé) operam sobre a mesma lista.
+        const baseEncaminhaveis = (results ?? []).filter(notExcluded);
+        const encaminhaveis = selectedKeys.size > 0
+          ? baseEncaminhaveis.filter((r) => selectedKeys.has(r.key))
+          : baseEncaminhaveis;
         const retirar = toRetirarItems(encaminhaveis);
         const { groups, unassigned } = buildGlosaGroups(retirar);
         // Modo médico único (apuração vinculada a 1 PJ+médico) exige recon.company_id.
@@ -7623,6 +7675,60 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* === Barra de ações em massa flutuante ===
+          Aparece quando há ≥1 item selecionado. Reutiliza o mesmo fluxo
+          individual (setEncaminharOpen abre o modal de revisão do
+          encaminhamento; openExcludeDialog pede motivo e aplica em batch). */}
+      {selectedKeys.size > 0 && !isLocked && (() => {
+        const excludableIds = (results ?? [])
+          .filter((r) => selectedKeys.has(r.key) && !r.excluir_do_encaminhamento && r._retroReconRowId)
+          .map((r) => r._retroReconRowId!) as string[];
+        const forwardableCount = (results ?? [])
+          .filter((r) => selectedKeys.has(r.key) && isActionableTvr(r) && !r.excluir_do_encaminhamento)
+          .length;
+        return (
+          <div
+            className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur px-6 py-3 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.15)]"
+            role="region"
+            aria-label="Ações em massa"
+          >
+            <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="font-semibold tabular-nums">{selectedKeys.size}</span>
+                <span className="text-muted-foreground"> selecionado(s)</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  onClick={() => setEncaminharOpen(true)}
+                  disabled={forwardableCount === 0}
+                >
+                  <SendIcon className="h-4 w-4 mr-1" />
+                  Encaminhar selecionados{forwardableCount > 0 ? ` (${forwardableCount})` : ""}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openExcludeDialog(excludableIds)}
+                  disabled={excludableIds.length === 0}
+                >
+                  <BanIcon className="h-4 w-4 mr-1" />
+                  Ignorar selecionados{excludableIds.length > 0 ? ` (${excludableIds.length})` : ""}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedKeys(new Set())}
+                >
+                  <XIcon className="h-4 w-4 mr-1" />
+                  Limpar seleção
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

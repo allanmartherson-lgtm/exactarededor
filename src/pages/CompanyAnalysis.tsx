@@ -50,6 +50,7 @@ function SpecialCaseHeaderBanner({
 
 import { AddManualItemDialog } from "@/components/payment-detail/AddManualItemDialog";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
+import { RawDataTable } from "@/components/payment-detail/RawDataTable";
 import { ConfeccaoAuditPanel } from "@/components/payment-detail/ConfeccaoAuditPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
@@ -2852,6 +2853,9 @@ export default function CompanyAnalysis() {
             <TabsTrigger value="historico">
               <History className="h-3.5 w-3.5 mr-1" /> Histórico
             </TabsTrigger>
+            <TabsTrigger value="base-importada">
+              <FileText className="h-3.5 w-3.5 mr-1" /> Base importada
+            </TabsTrigger>
           </TabsList>
 
           {id && groupId && (
@@ -3193,6 +3197,13 @@ export default function CompanyAnalysis() {
           />
 
         </TabsContent>
+
+        {/* ABA — Base importada (raw_data espelhado da planilha original) */}
+        <TabsContent value="base-importada" className="space-y-3">
+          <RawDataTable items={items as any} />
+        </TabsContent>
+
+
 
 
 
