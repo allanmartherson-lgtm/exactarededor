@@ -2528,6 +2528,12 @@ const PaymentDetail = () => {
         tolerance_pct: toleranceValue,
         _job_id: null,
         _company_label: !isBatch ? "Processamento por filtro" : undefined,
+        // [Fix reanálise-lote sem efeito] Sem force_fresh, se já houver job
+        // em_andamento no payment o dispatch responde already_running e não
+        // invalida o snapshot em payment_job_context — workers pendentes
+        // continuam com regras antigas e itens não mudam de status.
+        // Alinha ao reanalyzeGroup (per-company), que já passa esta flag.
+        force_fresh_rules: true,
         ...(runAi ? { run_ai: true } : {}),
       });
       if (!result.ok) {
