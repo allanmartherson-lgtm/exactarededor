@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { applySectorStems } from "@/lib/sectorStems";
 
 export interface DoctorSectorAnomaly {
   doctorName: string;
@@ -15,51 +16,82 @@ const SAMPLE_MONTHS = 6;
 const HISTORICAL_DOMINANCE = 0.6;
 const CURRENT_DEVIATION = 0.4;
 
-/**
- * Normaliza o nome do setor para comparação semântica.
- * Remove sufixos de centro de custo (ex: "(DFStar)", "(Hospital X)")
- * e mapeia variações conhecidas para um termo canônico.
- */
-function normalizeSector(sector: string): string {
-  const withoutSuffix = sector.replace(/\s*\([^)]*\)/g, "").trim();
-
-  const norm = withoutSuffix
+function baseNormalize(s: string): string {
+  return s
+    .replace(/\s*\([^)]*\)/g, "")
+    .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9\s]/g, "")
     .trim();
+}
 
-  const CANONICAL: Record<string, string> = {
-    "centro cirurgico": "cirurgia",
-    "cirurgia": "cirurgia",
-    "cc": "cirurgia",
-    "bloco cirurgico": "cirurgia",
-    "hemodinamica": "hemodinamica",
-    "hemo": "hemodinamica",
-    "uti": "uti",
-    "unidade de terapia intensiva": "uti",
-    "pronto socorro": "emergencia",
-    "emergencia": "emergencia",
-    "ps": "emergencia",
-    "centro de endoscopia": "endoscopia",
-    "endoscopia": "endoscopia",
-    "radiologia": "radiologia",
-    "raio x": "radiologia",
-    "rpa": "rpa",
-    "recuperacao pos anestesica": "rpa",
-    "sadt": "sadt",
-    "laboratorio": "laboratorio",
-    "ambulatorio": "ambulatorio",
-    "internacao": "internacao",
-    "apartamento": "internacao",
-  };
+const CANONICAL_FALLBACK: Record<string, string> = {
+  "centro cirurgico": "centro_cirurgico",
+  "cirurgia": "centro_cirurgico",
+  "cc": "centro_cirurgico",
+  "bloco cirurgico": "centro_cirurgico",
+  "hemodinamica": "hemodinamica",
+  "hemo": "hemodinamica",
+  "uti": "uti",
+  "unidade de terapia intensiva": "uti",
+  "pronto socorro": "pronto_socorro",
+  "emergencia": "pronto_socorro",
+  "ps": "pronto_socorro",
+  "endoscopia": "sadt_endoscopia",
+  "radiologia": "sadt_radiologia",
+  "raio x": "sadt_radiologia",
+  "rpa": "rpa",
+  "recuperacao pos anestesica": "rpa",
+  "sadt": "sadt",
+  "ambulatorio": "ambulatorio",
+  "internacao": "enfermaria",
+  "apartamento": "enfermaria",
+  "enfermaria": "enfermaria",
+};
 
-  for (const [key, canonical] of Object.entries(CANONICAL)) {
-    if (norm.includes(key) || key.includes(norm)) return canonical;
+/**
+ * Normaliza setor via 3 camadas:
+ *  1) mapa slug/name/alias → categoria (montado a partir da tabela sectors).
+ *     Isso resolve códigos numéricos como "1556" → "centro_cirurgico".
+ *  2) sectorStems (mesmos padrões que o motor de regras usa).
+ *  3) fallback CANONICAL para variações de texto livre.
+ * Só sinaliza anomalia quando as duas pontas convergem para categorias
+ * canônicas diferentes — evita falsos positivos entre "1556" e "Centro Cirúrgico".
+ */
+function normalizeSector(sector: string, sectorMap: Record<string, string>): string {
+  const norm = baseNormalize(sector);
+  if (!norm) return "";
+  if (sectorMap[norm]) return sectorMap[norm];
+  const viaStems = applySectorStems(sector) ?? applySectorStems(norm);
+  if (viaStems) return viaStems;
+  for (const [key, canonical] of Object.entries(CANONICAL_FALLBACK)) {
+    if (norm === key || norm.includes(key) || key.includes(norm)) return canonical;
   }
+  return norm;
+}
 
-  return norm || sector.toLowerCase().trim();
+async function loadSectorMap(): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  try {
+    const { data } = await supabase.from("sectors").select("slug,name,aliases");
+    for (const row of (data ?? []) as Array<{ slug?: string; name?: string; aliases?: string[] | null }>) {
+      const cat =
+        applySectorStems(row.name ?? "") ??
+        applySectorStems((row.aliases ?? []).join(" "));
+      if (!cat) continue;
+      const keys: string[] = [];
+      if (row.slug) keys.push(String(row.slug));
+      if (row.name) keys.push(row.name);
+      for (const a of row.aliases ?? []) keys.push(a);
+      for (const k of keys) {
+        const n = baseNormalize(k);
+        if (n && !map[n]) map[n] = cat;
+      }
+    }
+  } catch { /* ignore — fallback para stems/canonical */ }
+  return map;
 }
 
 /**
