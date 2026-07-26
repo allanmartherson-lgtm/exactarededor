@@ -7007,14 +7007,60 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           })()}
 
 
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            {TVR_STATUS_ORDER.map((s) => (
-              <div key={s} className="rounded-lg border border-border bg-card px-3 py-2">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{TVR_STATUS_LABEL[s]}</div>
-                <div className="text-xl font-semibold">{counts[s] ?? 0}</div>
+          {(() => {
+            // === Cards de resumo (redesign) ===
+            // Base de leitura é a lista já filtrada pela sub-aba/filtros do
+            // analista — assim os números batem com o que ele vê logo abaixo.
+            const totalRecuperar = visible.reduce((s, r) => {
+              if (r.excluir_do_encaminhamento) return s;
+              const a = describeAcao(r);
+              return s + (a.kind === "recuperar" ? Number(a.valor || 0) : 0);
+            }, 0);
+            const pjSet = new Set<string>();
+            for (const r of visible) {
+              const k = (r.pj_conciliada || r.pj_provavel || "").trim();
+              if (k) pjSet.add(k);
+            }
+            const encaminhadosCount = (results ?? []).filter((r) => r.excluir_do_encaminhamento).length + selectedKeys.size;
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-lg border border-border bg-card px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Itens divergentes</div>
+                  <div className="text-2xl font-semibold tabular-nums mt-1">{visible.length.toLocaleString("pt-BR")}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">de {results?.length ?? 0} no total</div>
+                </div>
+                <div className="rounded-lg border border-destructive/30 bg-destructive-soft/50 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wider text-destructive">A recuperar</div>
+                  <div className="text-2xl font-semibold tabular-nums text-destructive mt-1">{brl(totalRecuperar)}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">soma dos descontos sugeridos</div>
+                </div>
+                <div className="rounded-lg border border-border bg-card px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Empresas afetadas</div>
+                  <div className="text-2xl font-semibold tabular-nums mt-1">{pjSet.size}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">PJs distintas na lista</div>
+                </div>
+                <div className="rounded-lg border border-success/30 bg-success-soft/40 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wider text-success">Selecionados/tratados</div>
+                  <div className="text-2xl font-semibold tabular-nums text-success mt-1">{encaminhadosCount}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">prontos para encaminhar ou já excluídos</div>
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })()}
+
+          {/* Grade antiga de status por contagem (mantida abaixo, colapsada,
+              como referência técnica) */}
+          <details className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
+            <summary className="cursor-pointer text-muted-foreground select-none">Detalhamento por status</summary>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-2">
+              {TVR_STATUS_ORDER.map((s) => (
+                <div key={s} className="rounded-md border border-border bg-card px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{TVR_STATUS_LABEL[s]}</div>
+                  <div className="text-lg font-semibold tabular-nums">{counts[s] ?? 0}</div>
+                </div>
+              ))}
+            </div>
+          </details>
 
 
           {/* Cards "Total a complementar" e "Total a retirar" removidos:
