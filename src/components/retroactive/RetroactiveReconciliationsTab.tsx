@@ -7429,6 +7429,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                   )}
                                   style={{ gridTemplateColumns: GRID_COLS }}
                                 >
+                                  <div className="pt-0.5">
+                                    {selectable ? (
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={(v) =>
+                                          setSelectedKeys((prev) => {
+                                            const n = new Set(prev);
+                                            if (v) n.add(r.key);
+                                            else n.delete(r.key);
+                                            return n;
+                                          })
+                                        }
+                                        aria-label="Selecionar item"
+                                      />
+                                    ) : null}
+                                  </div>
                                   <div className="min-w-0">
                                     <div className="text-sm font-medium truncate" title={r.procedimento || undefined}>
                                       {r.procedimento || "—"}
