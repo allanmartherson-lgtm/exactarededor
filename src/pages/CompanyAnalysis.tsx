@@ -3197,6 +3197,13 @@ export default function CompanyAnalysis() {
 
         </TabsContent>
 
+        {/* ABA — Base importada (raw_data espelhado da planilha original) */}
+        <TabsContent value="base-importada" className="space-y-3">
+          <RawDataTable items={items as any} />
+        </TabsContent>
+
+
+
 
 
         {/* ABA Confecção — auditoria de cálculo (só no modo confecção) */}
