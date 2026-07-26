@@ -7340,7 +7340,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                   groups.get(pj)!.push(r);
                 }
                 const groupsList = Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length);
-                const GRID_COLS = "minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 160px";
+                const GRID_COLS = "32px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 160px";
                 return groupsList.map(([pjName, items]) => {
                   const isOpen = !collapsedPjs.has(pjName);
                   const groupTotal = items.reduce((s, r) => {
@@ -7348,37 +7348,60 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     const a = describeAcao(r);
                     return s + (a.kind === "recuperar" ? Number(a.valor || 0) : 0);
                   }, 0);
+                  // Checkbox no header da PJ: seleciona/desmarca todos os itens acionáveis daquele grupo.
+                  const groupSelectable = items.filter((r) => isActionableTvr(r) && !isLocked && !r.excluir_do_encaminhamento);
+                  const groupSelCount = groupSelectable.filter((r) => selectedKeys.has(r.key)).length;
+                  const groupAllSel = groupSelectable.length > 0 && groupSelCount === groupSelectable.length;
+                  const groupSomeSel = groupSelCount > 0 && !groupAllSel;
                   return (
                     <div key={pjName} className="rounded-lg border border-border bg-card overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => togglePjCollapsed(pjName)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
-                      >
-                        {isOpen ? (
-                          <ChevronDownIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        ) : (
-                          <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        )}
-                        <Building2Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="font-semibold text-sm truncate flex-1" title={pjName}>
-                          {pjName}
+                      <div className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors">
+                        <span onClick={(e) => e.stopPropagation()} className="shrink-0">
+                          <Checkbox
+                            checked={groupAllSel ? true : groupSomeSel ? "indeterminate" : false}
+                            onCheckedChange={(v) => {
+                              setSelectedKeys((prev) => {
+                                const next = new Set(prev);
+                                if (v) groupSelectable.forEach((r) => next.add(r.key));
+                                else groupSelectable.forEach((r) => next.delete(r.key));
+                                return next;
+                              });
+                            }}
+                            disabled={groupSelectable.length === 0}
+                            aria-label={`Selecionar todos os itens de ${pjName}`}
+                          />
                         </span>
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums">
-                          {items.length} {items.length === 1 ? "item" : "itens"}
-                        </span>
-                        {groupTotal > 0 && (
-                          <span className="inline-flex items-center rounded-full bg-destructive-soft border border-destructive/30 px-2 py-0.5 text-[11px] font-semibold text-destructive tabular-nums">
-                            {brl(groupTotal)}
+                        <button
+                          type="button"
+                          onClick={() => togglePjCollapsed(pjName)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          {isOpen ? (
+                            <ChevronDownIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          <Building2Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="font-semibold text-sm truncate flex-1" title={pjName}>
+                            {pjName}
                           </span>
-                        )}
-                      </button>
+                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums">
+                            {items.length} {items.length === 1 ? "item" : "itens"}
+                          </span>
+                          {groupTotal > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-destructive-soft border border-destructive/30 px-2 py-0.5 text-[11px] font-semibold text-destructive tabular-nums">
+                              {brl(groupTotal)}
+                            </span>
+                          )}
+                        </button>
+                      </div>
                       {isOpen && (
                         <div className="border-t border-border">
                           <div
                             className="grid gap-3 px-4 py-2 border-b border-border bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold"
                             style={{ gridTemplateColumns: GRID_COLS }}
                           >
+                            <div />
                             <div>Procedimento</div>
                             <div className="text-right">Pago no lote</div>
                             <div className="text-right">Auditoria</div>
