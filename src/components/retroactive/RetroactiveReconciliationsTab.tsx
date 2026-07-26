@@ -3173,6 +3173,15 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const resultTableScrollRef = useRef<HTMLDivElement | null>(null);
   const resultScrollSyncingRef = useRef(false);
   const [resultScrollWidth, setResultScrollWidth] = useState(1);
+  // Redesign: quais grupos de PJ estão colapsados na lista agrupada.
+  const [collapsedPjs, setCollapsedPjs] = useState<Set<string>>(new Set());
+  const togglePjCollapsed = (pj: string) => {
+    setCollapsedPjs((prev) => {
+      const n = new Set(prev);
+      if (n.has(pj)) n.delete(pj); else n.add(pj);
+      return n;
+    });
+  };
   const [doctorInfo, setDoctorInfo] = useState<{ id: string | null; name: string | null; crm: string | null }>({ id: null, name: null, crm: null });
   const [hospitalIdRecon, setHospitalIdRecon] = useState<string | null>(null);
   const [encaminharOpen, setEncaminharOpen] = useState(false);
