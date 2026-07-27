@@ -7812,7 +7812,7 @@ function EncaminharApuracaoModal({
   open, onOpenChange, headline, actionable, retirar,
   groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm, refScope,
 }: EncaminharModalProps) {
-  const [includeComplementar, setIncludeComplementar] = useState(true);
+  const [includeComplementar, setIncludeComplementar] = useState(false);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
   const [parcelas, setParcelas] = useState<number>(0);
   const [parcelasByDoctor, setParcelasByDoctor] = useState<Record<string, number>>({});
