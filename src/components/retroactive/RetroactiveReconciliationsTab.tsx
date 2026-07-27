@@ -6479,9 +6479,9 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
     }
 
-    // Marca os itens efetivamente encaminhados (coluna `n` = referência do
-    // encaminhamento gerado). Sem isso o badge "Já encaminhado" nunca aparece
-    // após gerar glosa — só aparecia no caminho de ajuste complementar.
+    // Marca os itens efetivamente encaminhados (generated_adjustment_id =
+    // referência do encaminhamento gerado). Sem isso o badge "Já encaminhado"
+    // nunca aparece após gerar glosa — só no caminho de ajuste complementar.
     const forwardedRowIds = okGroups
       .flatMap((g) => g.items)
       .map((r) => r._retroReconRowId)
@@ -6489,7 +6489,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (forwardedRowIds.length > 0) {
       const { error: markErr } = await supabase
         .from("retroactive_reconciliation_items")
-        .update({ n: batchId } as never)
+        .update({ generated_adjustment_id: batchId } as never)
         .in("id", forwardedRowIds);
       if (markErr) {
         console.error("Falha ao marcar itens como encaminhados:", markErr.message);
