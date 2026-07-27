@@ -2170,11 +2170,28 @@ const PaymentDetail = () => {
         if (insErr) { toast({ title: "Falha ao inserir itens", description: insErr.message, variant: "destructive" }); return; }
       }
 
-      const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
+      // Totais do lote precisam incluir as PJs preservadas (não reimportadas),
+      // caso contrário o header do lote passa a mostrar só a parte nova.
+      const preservedGroups = (allExistingGroups ?? []).filter((g) =>
+        preservedCompanyKeys.has(nrm(g.company_name)),
+      );
+      let preservedTotal = 0;
+      let preservedItems = 0;
+      if (preservedGroups.length > 0) {
+        const { data: pgFull } = await supabase
+          .from("payment_company_groups")
+          .select("total_amount,items_count")
+          .in("id", preservedGroups.map((g) => g.id));
+        for (const g of pgFull ?? []) {
+          preservedTotal += Number((g as any).total_amount) || 0;
+          preservedItems += Number((g as any).items_count) || 0;
+        }
+      }
+      const total = allRows.reduce((s, r) => s + r.gross_amount, 0) + preservedTotal;
       const previousStatus = payment.status;
       await supabase.from("payments").update({
         total_amount: total,
-        items_count: allRows.length,
+        items_count: allRows.length + preservedItems,
         status: "em_analise_ia",
       }).eq("id", id);
 
