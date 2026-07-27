@@ -5943,11 +5943,26 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const handoff = recon?.summary?.handoff ?? null;
   const isLocked = !!handoff;
 
-  const isActionableTvr = (r: TvrResult): boolean =>
-    r.status === "nao_pago" ||
-    r.status === "div_valor" ||
-    r.status === "div_qtd_valor" ||
-    r.status === "pago_a_mais";
+  const isActionableTvr = (r: TvrResult): boolean => {
+    if (r._generatedAdjustmentId) return false; // já materializado em ajuste
+    return (
+      r.status === "nao_pago" ||
+      r.status === "div_valor" ||
+      r.status === "div_qtd_valor" ||
+      r.status === "pago_a_mais"
+    );
+  };
+
+  // Motivo textual pelo qual um item NÃO pode ser encaminhado — usado como
+  // dica visual na coluna Ações quando o checkbox aparece desabilitado.
+  const describeNaoAcionavel = (r: TvrResult): string | null => {
+    if (r.excluir_do_encaminhamento) return null; // já tem badge próprio "Excluído"
+    if (r._generatedAdjustmentId) return "Já encaminhado";
+    if (isLocked) return "Apuração encaminhada";
+    if (r.status === "ok") return "Sem divergência";
+    if (r.status === "ausente_tasy") return "Sem lastro na base de faturamento";
+    return null;
+  };
 
   const describeAcao = (r: TvrResult) => describeTvrAcao(r);
 
