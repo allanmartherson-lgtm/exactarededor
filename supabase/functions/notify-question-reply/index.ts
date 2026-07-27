@@ -107,6 +107,17 @@ serve(async (req) => {
 
 
     try {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
+      if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
+        throw new Error("LOVABLE_API_KEY ou RESEND_API_KEY ausente");
+      }
+      const toList = [invoice.recipient_email].filter((x): x is string => Boolean(x));
+      if (toList.length === 0) throw new Error("Invoice sem recipient_email");
+      const rawCc = (invoice as { recipient_cc?: string[] | string | null }).recipient_cc;
+      const ccList = (Array.isArray(rawCc) ? rawCc : rawCc ? [rawCc] : [])
+        .filter((x): x is string => Boolean(x) && x !== invoice.recipient_email);
+
       const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
         method: "POST",
         headers: {
