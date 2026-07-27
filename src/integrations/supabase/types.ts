@@ -9255,7 +9255,11 @@ export type Database = {
           procedure_name: string | null
           raw: Json
           reconciliation_id: string
+          retroactive_target_company_id: string | null
           source: string
+          target_reassign_reason: string | null
+          target_reassigned_at: string | null
+          target_reassigned_by: string | null
           tuss_code: string | null
           updated_at: string
         }
@@ -9290,7 +9294,11 @@ export type Database = {
           procedure_name?: string | null
           raw?: Json
           reconciliation_id: string
+          retroactive_target_company_id?: string | null
           source?: string
+          target_reassign_reason?: string | null
+          target_reassigned_at?: string | null
+          target_reassigned_by?: string | null
           tuss_code?: string | null
           updated_at?: string
         }
@@ -9325,11 +9333,22 @@ export type Database = {
           procedure_name?: string | null
           raw?: Json
           reconciliation_id?: string
+          retroactive_target_company_id?: string | null
           source?: string
+          target_reassign_reason?: string | null
+          target_reassigned_at?: string | null
+          target_reassigned_by?: string | null
           tuss_code?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "retroactive_reconciliation_it_retroactive_target_company_i_fkey"
+            columns: ["retroactive_target_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "retroactive_reconciliation_items_company_id_fkey"
             columns: ["company_id"]
