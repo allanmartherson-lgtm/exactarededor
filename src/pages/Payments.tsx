@@ -2114,9 +2114,62 @@ const Payments = () => {
                         </button>
                       </th>
                       <th className="border-b border-border px-3 py-2.5">
-                        <button type="button" onClick={() => toggleColSort("status")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
-                          Status <SortIcon col="status" />
-                        </button>
+                        <div className="inline-flex items-center gap-1">
+                          <button type="button" onClick={() => toggleColSort("status")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors uppercase tracking-wider">
+                            Status <SortIcon col="status" />
+                          </button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                title={statusFilter.length ? `${statusFilter.length} filtro(s) ativo(s)` : "Filtrar por status"}
+                                className={cn(
+                                  "inline-flex items-center justify-center h-5 w-5 rounded hover:bg-muted transition-colors",
+                                  statusFilter.length > 0 && "text-primary bg-primary/10",
+                                )}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-[260px] p-2">
+                              <div className="flex items-center justify-between mb-2 px-1">
+                                <span className="text-xs font-semibold text-muted-foreground uppercase">Status</span>
+                                {statusFilter.length > 0 && (
+                                  <button
+                                    type="button"
+                                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                                    onClick={() => setStatusFilter([])}
+                                  >
+                                    Limpar
+                                  </button>
+                                )}
+                              </div>
+                              <div className="max-h-[300px] overflow-y-auto space-y-0.5">
+                                {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => {
+                                  const checked = statusFilter.includes(k);
+                                  return (
+                                    <label
+                                      key={k}
+                                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm normal-case tracking-normal"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-border accent-primary"
+                                        checked={checked}
+                                        onChange={(e) => {
+                                          setStatusFilter((prev) =>
+                                            e.target.checked ? [...prev, k] : prev.filter((s) => s !== k),
+                                          );
+                                        }}
+                                      />
+                                      <span className="truncate">{v}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </th>
                     </tr>
                   </thead>
