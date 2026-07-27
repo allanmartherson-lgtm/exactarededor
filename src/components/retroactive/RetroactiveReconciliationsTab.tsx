@@ -6551,7 +6551,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
 
     const okItemsCount = okGroups.reduce((s, g) => s + g.items.length, 0);
     const okTotal = okGroups.reduce(
-      (s, g) => s + g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0),
+      (s, g) => s + g.items.reduce((ss, r) => ss + getTvrValorRecuperar(r), 0),
       0,
     );
 
