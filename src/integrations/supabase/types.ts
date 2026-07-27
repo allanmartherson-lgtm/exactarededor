@@ -12281,6 +12281,10 @@ export type Database = {
           company_id: string
         }[]
       }
+      compute_company_financial_aggregates: {
+        Args: { p_company_id: string; p_payment_id: string }
+        Returns: Json
+      }
       compute_payment_item_hash: {
         Args: {
           _agreement: string
