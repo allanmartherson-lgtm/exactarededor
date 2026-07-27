@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeTvrFinancialTotals,
   describeTvrAcao,
+  getTvrValorRecuperar,
   type TvrResult,
 } from "../RetroactiveReconciliationsTab";
 
@@ -163,6 +164,44 @@ describe("describeTvrAcao — regressão do bug 'Faltou pagar sem ajuste'", () =
     expect(acao.kind).toBe("recuperar");
     expect(acao.valor).toBeCloseTo(200, 2);
     expect(acao.hint).toContain("valor fixo");
+  });
+
+  it("por presença ausente recupera valor pago mesmo quando valor_recuperar_acordo veio zerado", () => {
+    const item = r({
+      status: "ausente_tasy",
+      tipo_analise: "quantidade",
+      sem_lastro_tasy: true,
+      valor_recuperar_acordo: 0,
+      ajuste_acordo: 0,
+      valor_com_acordo: 0,
+      valor_pago_base: 420,
+    });
+    const acao = describeTvrAcao(item);
+    const totals = computeTvrFinancialTotals([item]);
+
+    expect(getTvrValorRecuperar(item)).toBeCloseTo(420, 2);
+    expect(acao.kind).toBe("recuperar");
+    expect(acao.valor).toBeCloseTo(420, 2);
+    expect(totals.totalRetirar).toBeCloseTo(420, 2);
+  });
+
+  it("por presença com quantidade divergente recupera proporcionalmente quando acordo antigo veio zerado", () => {
+    const item = r({
+      status: "pago_a_mais",
+      tipo_analise: "quantidade",
+      dif_qtd: -1,
+      qtd_por_func: 2,
+      qtd_tasy: 1,
+      valor_recuperar_acordo: 0,
+      ajuste_acordo: 0,
+      valor_com_acordo: 0,
+      valor_pago_base: 300,
+    });
+    const acao = describeTvrAcao(item);
+
+    expect(getTvrValorRecuperar(item)).toBeCloseTo(150, 2);
+    expect(acao.kind).toBe("recuperar");
+    expect(acao.valor).toBeCloseTo(150, 2);
   });
 
   it("tipo_analise='quantidade' com quantidade OK → sem ajuste", () => {
