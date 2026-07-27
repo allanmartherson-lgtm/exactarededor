@@ -7602,6 +7602,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                           ✓ Já encaminhado
                                         </span>
                                       )}
+                                      {r.retroactive_target_company_id && !r._generatedAdjustmentId && (
+                                        <span
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 border border-blue-300"
+                                          title="PJ de destino reatribuída manualmente pelo analista"
+                                        >
+                                          ↻ PJ reatribuída
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="text-right tabular-nums text-sm text-muted-foreground line-through">
