@@ -8192,49 +8192,9 @@ function EncaminharApuracaoModal({
                                   <span className="text-muted-foreground font-normal">{pj.items.length} médico(s)</span>
                                   <span className="font-mono w-24 text-right">{brl(pjSubtotal)}</span>
                                 </div>
-                                {pj.key !== "__ambigua__" && (
-                                  <div className="flex items-center flex-wrap gap-2 px-2 py-1 pl-8 bg-muted/20 text-[10px] border-t border-border/40">
-                                    {refLoteLoading ? (
-                                      <span className="text-muted-foreground italic">carregando lote de referência…</span>
-                                    ) : refLote ? (
-                                      <>
-                                        <span className="rounded bg-background border border-border px-1.5 py-0.5">
-                                          Lote {refLote.reference || "—"}
-                                          {refLote.competence_month && ` · ${refLote.competence_month.slice(0, 7)}`}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          Líquido PJ: <span className="font-mono text-foreground">{brl(liquido)}</span>
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          1ª parcela: <span className="font-mono text-foreground">{brl(proximaParcelaPJ)}</span>
-                                        </span>
-                                        {cabe ? (
-                                          <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5">
-                                            cabe no lote
-                                          </span>
-                                        ) : (
-                                          <>
-                                            <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">
-                                              excede em {brl(faltando)}
-                                            </span>
-                                            <button
-                                              type="button"
-                                              className="text-primary underline"
-                                              disabled={busy}
-                                              onClick={fitParcelas}
-                                            >
-                                              ajustar parcelas p/ caber
-                                            </button>
-                                          </>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span className="rounded bg-slate-100 text-slate-700 px-1.5 py-0.5">
-                                        sem lote em aberto — vira débito futuro
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                                {/* UI de parcelamento/fit removida: encaminhar
+                                    é só encaminhar. Débito ativa e é abatido
+                                    integralmente no próximo lote da PJ. */}
                                 {pj.items.map((g) => {
                                   const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
                                   const isExpanded = expandedGroups.has(g.doctor_id);
