@@ -1186,7 +1186,9 @@ export default function CreditosDebitos() {
     results.forEach(([pjId, opts]) => {
       lotesMap[pjId] = opts;
       const origem = originByPj.get(pjId) ?? { cc: null, track: null };
-      const sug = [...opts].sort((a, b) => {
+      // Só sugere lotes que ainda não seguiram para validação/aprovação.
+      const sugeriveis = opts.filter(o => GLOSA_SUGGESTABLE_STATUSES.has(o.status));
+      const sug = [...sugeriveis].sort((a, b) => {
         const ds = scoreLoteMatch(b, origem.cc, origem.track) - scoreLoteMatch(a, origem.cc, origem.track);
         if (ds !== 0) return ds;
         return Number(b.liquido ?? 0) - Number(a.liquido ?? 0);
