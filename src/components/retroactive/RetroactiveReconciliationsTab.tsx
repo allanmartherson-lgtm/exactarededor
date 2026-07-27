@@ -7445,6 +7445,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                   className={cn(
                                     "grid gap-3 px-4 py-3 items-start hover:bg-muted/20 transition-colors",
                                     isExcluded && "opacity-60",
+                                    r._generatedAdjustmentId && "opacity-70 bg-muted/20",
                                     isSelected && "bg-primary/5",
                                   )}
                                   style={{ gridTemplateColumns: GRID_COLS }}
