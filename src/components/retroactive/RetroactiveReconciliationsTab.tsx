@@ -2231,6 +2231,9 @@ export type TvrResult = {
   // T3: id da linha em retroactive_reconciliation_items (necessário
   // p/ UPDATEs de exclusão — matched_payment_item_id NÃO serve como PK).
   _retroReconRowId?: string;
+  // Preenchido quando este item já foi materializado em um ajuste financeiro
+  // (encaminhamento anterior). Serve para bloquear novo envio e sinalizar na UI.
+  _generatedAdjustmentId?: string | null;
 };
 
 // Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
