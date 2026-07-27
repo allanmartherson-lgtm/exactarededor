@@ -5964,12 +5964,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     );
   };
 
+  const isSelectableForEncaminhamento = (r: TvrResult): boolean => {
+    if (r._generatedAdjustmentId) return false;
+    if (isActionableTvr(r)) return true;
+    // Glosa válida: item pago no lote, mas removido/zerado pela auditoria
+    // hospitalar. Antes esse status ficava sem checkbox, bloqueando PJs como
+    // C M FRANCA, CAIM e CIRURGIA BRASILIA mesmo com valor a recuperar.
+    return r.status === "ausente_tasy" && !r.sem_lastro_tasy && (r.valor_recuperar_acordo ?? 0) > 0.5;
+  };
+
   // Motivo textual pelo qual um item NÃO pode ser encaminhado — usado como
   // dica visual na coluna Ações quando o checkbox aparece desabilitado.
   const describeNaoAcionavel = (r: TvrResult): string | null => {
     if (r.excluir_do_encaminhamento) return null; // já tem badge próprio "Excluído"
     if (r._generatedAdjustmentId) return "Já encaminhado";
     if (isLocked) return "Apuração encaminhada";
+    if (isSelectableForEncaminhamento(r)) return null;
     if (r.status === "ok") return "Sem divergência";
     if (r.status === "ausente_tasy") return "Sem lastro na base de faturamento";
     return null;
@@ -7404,7 +7414,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               {(() => {
                 // Select-all global: só considera itens visíveis e efetivamente acionáveis
                 // (selectable no grid). Marca/desmarca todos de uma vez respeitando os filtros.
-                const globalSelectable = visible.filter((r) => isActionableTvr(r) && !isLocked && !r.excluir_do_encaminhamento);
+                const globalSelectable = visible.filter((r) => isSelectableForEncaminhamento(r) && !isLocked && !r.excluir_do_encaminhamento);
                 const selCount = globalSelectable.filter((r) => selectedKeys.has(r.key)).length;
                 const allSel = globalSelectable.length > 0 && selCount === globalSelectable.length;
                 const someSel = selCount > 0 && !allSel;
@@ -7470,7 +7480,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                     return s + (a.kind === "recuperar" ? Number(a.valor || 0) : 0);
                   }, 0);
                   // Checkbox no header da PJ: seleciona/desmarca todos os itens acionáveis daquele grupo.
-                  const groupSelectable = items.filter((r) => isActionableTvr(r) && !isLocked && !r.excluir_do_encaminhamento);
+                  const groupSelectable = items.filter((r) => isSelectableForEncaminhamento(r) && !isLocked && !r.excluir_do_encaminhamento);
                   const groupSelCount = groupSelectable.filter((r) => selectedKeys.has(r.key)).length;
                   const groupAllSel = groupSelectable.length > 0 && groupSelCount === groupSelectable.length;
                   const groupSomeSel = groupSelCount > 0 && !groupAllSel;
@@ -7534,7 +7544,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                               const acao = describeAcao(r);
                               const isExcluded = !!r.excluir_do_encaminhamento;
                               const isSelected = selectedKeys.has(r.key);
-                              const selectable = isActionableTvr(r) && !isLocked && !isExcluded;
+                              const selectable = isSelectableForEncaminhamento(r) && !isLocked && !isExcluded;
                               const pago = Number(r.valor_com_acordo ?? r.valor_pago_base ?? 0) || 0;
                               const auditoria = acao.kind === "recuperar"
                                 ? Math.max(0, pago - Number(acao.valor || 0))
@@ -7845,7 +7855,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           .filter((r) => selectedKeys.has(r.key) && !r.excluir_do_encaminhamento && r._retroReconRowId)
           .map((r) => r._retroReconRowId!) as string[];
         const forwardableCount = (results ?? [])
-          .filter((r) => selectedKeys.has(r.key) && isActionableTvr(r) && !r.excluir_do_encaminhamento)
+          .filter((r) => selectedKeys.has(r.key) && isSelectableForEncaminhamento(r) && !r.excluir_do_encaminhamento)
           .length;
         return (
           <div
