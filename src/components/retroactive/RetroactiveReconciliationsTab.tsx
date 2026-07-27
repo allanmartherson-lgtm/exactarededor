@@ -3227,10 +3227,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       excluir_do_encaminhamento?: boolean | null;
       exclusion_reason?: TvrResult["exclusion_reason"] | null;
       exclusion_note?: string | null;
+      generated_adjustment_id?: string | null;
     }>((from, to) =>
       supabase
         .from("retroactive_reconciliation_items" as never)
-        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note")
+        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note, generated_adjustment_id")
         .eq("reconciliation_id", id)
         .eq("source", TVR_SOURCE)
         .order("created_at", { ascending: true })
@@ -3246,6 +3247,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           exclusion_reason: item.exclusion_reason ?? null,
           exclusion_note: item.exclusion_note ?? null,
           _retroReconRowId: item.id,
+          _generatedAdjustmentId: item.generated_adjustment_id ?? null,
         } as TvrResult;
       })
       .filter((x): x is TvrResult => x !== null);
