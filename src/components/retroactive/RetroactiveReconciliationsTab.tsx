@@ -2231,6 +2231,9 @@ export type TvrResult = {
   // T3: id da linha em retroactive_reconciliation_items (necessário
   // p/ UPDATEs de exclusão — matched_payment_item_id NÃO serve como PK).
   _retroReconRowId?: string;
+  // Preenchido quando este item já foi materializado em um ajuste financeiro
+  // (encaminhamento anterior). Serve para bloquear novo envio e sinalizar na UI.
+  _generatedAdjustmentId?: string | null;
 };
 
 // Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
@@ -3224,10 +3227,11 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       excluir_do_encaminhamento?: boolean | null;
       exclusion_reason?: TvrResult["exclusion_reason"] | null;
       exclusion_note?: string | null;
+      generated_adjustment_id?: string | null;
     }>((from, to) =>
       supabase
         .from("retroactive_reconciliation_items" as never)
-        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note")
+        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note, generated_adjustment_id")
         .eq("reconciliation_id", id)
         .eq("source", TVR_SOURCE)
         .order("created_at", { ascending: true })
@@ -3243,6 +3247,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           exclusion_reason: item.exclusion_reason ?? null,
           exclusion_note: item.exclusion_note ?? null,
           _retroReconRowId: item.id,
+          _generatedAdjustmentId: item.generated_adjustment_id ?? null,
         } as TvrResult;
       })
       .filter((x): x is TvrResult => x !== null);
@@ -5938,11 +5943,26 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const handoff = recon?.summary?.handoff ?? null;
   const isLocked = !!handoff;
 
-  const isActionableTvr = (r: TvrResult): boolean =>
-    r.status === "nao_pago" ||
-    r.status === "div_valor" ||
-    r.status === "div_qtd_valor" ||
-    r.status === "pago_a_mais";
+  const isActionableTvr = (r: TvrResult): boolean => {
+    if (r._generatedAdjustmentId) return false; // já materializado em ajuste
+    return (
+      r.status === "nao_pago" ||
+      r.status === "div_valor" ||
+      r.status === "div_qtd_valor" ||
+      r.status === "pago_a_mais"
+    );
+  };
+
+  // Motivo textual pelo qual um item NÃO pode ser encaminhado — usado como
+  // dica visual na coluna Ações quando o checkbox aparece desabilitado.
+  const describeNaoAcionavel = (r: TvrResult): string | null => {
+    if (r.excluir_do_encaminhamento) return null; // já tem badge próprio "Excluído"
+    if (r._generatedAdjustmentId) return "Já encaminhado";
+    if (isLocked) return "Apuração encaminhada";
+    if (r.status === "ok") return "Sem divergência";
+    if (r.status === "ausente_tasy") return "Sem lastro na base de faturamento";
+    return null;
+  };
 
   const describeAcao = (r: TvrResult) => describeTvrAcao(r);
 
@@ -7326,7 +7346,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             </div>
 
             {/* === Lista agrupada por empresa === */}
-            <div className="p-3 space-y-2 bg-muted/10 max-h-[65vh] overflow-y-auto">
+            <div className={cn("p-3 space-y-2 bg-muted/10 max-h-[65vh] overflow-y-auto", selectedKeys.size > 0 && "pb-28")}>
               {visible.length === 0 && (
                 <div className="text-center text-sm text-muted-foreground py-10">
                   Nenhum item corresponde ao filtro atual.
@@ -7425,6 +7445,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                   className={cn(
                                     "grid gap-3 px-4 py-3 items-start hover:bg-muted/20 transition-colors",
                                     isExcluded && "opacity-60",
+                                    r._generatedAdjustmentId && "opacity-70 bg-muted/20",
                                     isSelected && "bg-primary/5",
                                   )}
                                   style={{ gridTemplateColumns: GRID_COLS }}
@@ -7472,6 +7493,14 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                           sem lastro TASY
                                         </span>
                                       )}
+                                      {r._generatedAdjustmentId && (
+                                        <span
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                          title="Este item já foi materializado em um ajuste financeiro anterior"
+                                        >
+                                          ✓ Já encaminhado
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="text-right tabular-nums text-sm text-muted-foreground line-through">
@@ -7513,7 +7542,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                       </>
                                     ) : (
                                       <>
-                                        {r._retroReconRowId && !isLocked && (
+                                        {/* Item 1: quando o checkbox está oculto por não-acionabilidade,
+                                            mostrar um badge com o motivo (antes ficava vazio). */}
+                                        {!selectable && describeNaoAcionavel(r) && (
+                                          <span
+                                            className="text-[10px] text-muted-foreground bg-muted border border-border rounded px-2 py-1 text-center"
+                                            title="Este item não pode ser encaminhado nesta etapa"
+                                          >
+                                            {describeNaoAcionavel(r)}
+                                          </span>
+                                        )}
+                                        {r._retroReconRowId && !isLocked && !r._generatedAdjustmentId && (
                                           <Button
                                             variant="ghost"
                                             size="sm"
@@ -7773,7 +7812,7 @@ function EncaminharApuracaoModal({
   open, onOpenChange, headline, actionable, retirar,
   groups, unassigned, canGerarGlosa, modoMedicoUnico, busy, onConfirm, refScope,
 }: EncaminharModalProps) {
-  const [includeComplementar, setIncludeComplementar] = useState(true);
+  const [includeComplementar, setIncludeComplementar] = useState(false);
   const [gerarGlosa, setGerarGlosa] = useState<"agora" | "depois">("agora");
   const [parcelas, setParcelas] = useState<number>(0);
   const [parcelasByDoctor, setParcelasByDoctor] = useState<Record<string, number>>({});
@@ -7815,7 +7854,10 @@ function EncaminharApuracaoModal({
     if (!justOpened && !groupsChangedWhileOpen) return;
 
     if (justOpened) {
-      setIncludeComplementar(actionable.length > 0);
+      // Default por etapa: encaminhar glosa primeiro. Confecção de novo lote
+      // fica opt-in — o analista precisa marcar explicitamente para gerar
+      // itens a pagar. Item 3 do briefing.
+      setIncludeComplementar(false);
       setGerarGlosa(retirar.length > 0 && canGerarGlosa ? "agora" : "depois");
       setParcelas(1);
       setShowCompList(false);
@@ -8034,56 +8076,12 @@ function EncaminharApuracaoModal({
                   <div className="flex items-center gap-2">
                     <RadioGroupItem id="g-agora" value="agora" disabled={!canGerarGlosa || retirar.length === 0} />
                     <Label htmlFor="g-agora" className="text-xs font-normal">
-                      Gerar glosa agora (débito parcelável)
+                      Gerar glosa agora
                     </Label>
                   </div>
                   {gerarGlosa === "agora" && groups.length > 0 && (
                     <div className="ml-6 mt-2 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="text-muted-foreground">
-                          Padrão (aplicar a todos):
-                        </span>
-                        <Select
-                          value={parcelas > 0 ? String(parcelas) : ""}
-                          onValueChange={(v) => {
-                            const n = Number(v);
-                            setParcelas(n);
-                            // Aplica o padrão sobrescrevendo todas as linhas — a analista
-                            // ainda pode ajustar caso a caso depois.
-                            const next: Record<string, number> = {};
-                            for (const g of groups) next[g.doctor_id] = n;
-                            setParcelasByDoctor(next);
-                          }}
-                        >
-                          <SelectTrigger className="h-7 w-28 text-xs">
-                            <SelectValue placeholder="Escolher…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
-                              <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <button
-                          type="button"
-                          className="text-[10px] text-primary underline"
-                          onClick={() => {
-                            // Restaura sugestão inteligente por porte de débito.
-                            const seed: Record<string, number> = {};
-                            for (const g of groups) {
-                              const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
-                              seed[g.doctor_id] = suggestParcelas(subtotal);
-                            }
-                            setParcelasByDoctor(seed);
-                            setParcelas(0);
-                          }}
-                        >
-                          Sugerir por valor
-                        </button>
-                        <span className="text-[10px] text-muted-foreground">
-                          · valores pequenos ficam 1×, valores altos são diluídos
-                        </span>
-                      </div>
+
                       {!modoMedicoUnico && (
                         <div className="flex items-center justify-between gap-2 text-[11px] rounded border border-border bg-muted/30 px-2 py-1.5">
                           <span className="text-muted-foreground">
@@ -8194,49 +8192,9 @@ function EncaminharApuracaoModal({
                                   <span className="text-muted-foreground font-normal">{pj.items.length} médico(s)</span>
                                   <span className="font-mono w-24 text-right">{brl(pjSubtotal)}</span>
                                 </div>
-                                {pj.key !== "__ambigua__" && (
-                                  <div className="flex items-center flex-wrap gap-2 px-2 py-1 pl-8 bg-muted/20 text-[10px] border-t border-border/40">
-                                    {refLoteLoading ? (
-                                      <span className="text-muted-foreground italic">carregando lote de referência…</span>
-                                    ) : refLote ? (
-                                      <>
-                                        <span className="rounded bg-background border border-border px-1.5 py-0.5">
-                                          Lote {refLote.reference || "—"}
-                                          {refLote.competence_month && ` · ${refLote.competence_month.slice(0, 7)}`}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          Líquido PJ: <span className="font-mono text-foreground">{brl(liquido)}</span>
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          1ª parcela: <span className="font-mono text-foreground">{brl(proximaParcelaPJ)}</span>
-                                        </span>
-                                        {cabe ? (
-                                          <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5">
-                                            cabe no lote
-                                          </span>
-                                        ) : (
-                                          <>
-                                            <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">
-                                              excede em {brl(faltando)}
-                                            </span>
-                                            <button
-                                              type="button"
-                                              className="text-primary underline"
-                                              disabled={busy}
-                                              onClick={fitParcelas}
-                                            >
-                                              ajustar parcelas p/ caber
-                                            </button>
-                                          </>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span className="rounded bg-slate-100 text-slate-700 px-1.5 py-0.5">
-                                        sem lote em aberto — vira débito futuro
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                                {/* UI de parcelamento/fit removida: encaminhar
+                                    é só encaminhar. Débito ativa e é abatido
+                                    integralmente no próximo lote da PJ. */}
                                 {pj.items.map((g) => {
                                   const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
                                   const isExpanded = expandedGroups.has(g.doctor_id);
@@ -8255,22 +8213,7 @@ function EncaminharApuracaoModal({
                                         </div>
                                         <span className="text-muted-foreground">{g.items.length} itens</span>
                                         <span className="font-mono w-24 text-right">{brl(subtotal)}</span>
-                                        <Select
-                                          value={String(parcelasByDoctor[g.doctor_id] ?? 1)}
-                                          onValueChange={(v) =>
-                                            setParcelasByDoctor((prev) => ({ ...prev, [g.doctor_id]: Number(v) }))
-                                          }
-                                          disabled={busy || !isSel}
-                                        >
-                                          <SelectTrigger className="h-6 w-[68px] text-[11px] px-2">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
-                                              <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        {/* Select de parcelas removido — encaminhamento é sempre 1× */}
                                         <button
                                           type="button"
                                           className="text-[10px] text-destructive underline"
