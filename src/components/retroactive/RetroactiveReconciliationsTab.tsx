@@ -2234,6 +2234,11 @@ export type TvrResult = {
   // Preenchido quando este item já foi materializado em um ajuste financeiro
   // (encaminhamento anterior). Serve para bloquear novo envio e sinalizar na UI.
   _generatedAdjustmentId?: string | null;
+  // Override manual: PJ escolhida pelo analista quando o vínculo médico→PJ
+  // mudou desde o lote original. Quando null, `buildGlosaGroups` cai para
+  // a PJ ativa via doctor_companies. Grava em retroactive_reconciliation_items.
+  retroactive_target_company_id?: string | null;
+  target_reassign_reason?: string | null;
 };
 
 // Rótulos padronizados pela perspectiva do PAGAMENTO — deixa os pares simétricos:
@@ -3190,6 +3195,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [keyAuditOpen, setKeyAuditOpen] = useState(false);
   const [encaminharBusy, setEncaminharBusy] = useState(false);
+  const [reavaliarOpen, setReavaliarOpen] = useState(false);
+  const [reavaliarBusy, setReavaliarBusy] = useState(false);
   const [groupDoctorsMap, setGroupDoctorsMap] = useState<Record<string, { full_name: string; crm: string | null }>>({});
 
   const [wizard, setWizard] = useState<
@@ -3228,10 +3235,12 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       exclusion_reason?: TvrResult["exclusion_reason"] | null;
       exclusion_note?: string | null;
       generated_adjustment_id?: string | null;
+      retroactive_target_company_id?: string | null;
+      target_reassign_reason?: string | null;
     }>((from, to) =>
       supabase
         .from("retroactive_reconciliation_items" as never)
-        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note, generated_adjustment_id")
+        .select("id, raw, excluir_do_encaminhamento, exclusion_reason, exclusion_note, generated_adjustment_id, retroactive_target_company_id, target_reassign_reason")
         .eq("reconciliation_id", id)
         .eq("source", TVR_SOURCE)
         .order("created_at", { ascending: true })
@@ -3248,6 +3257,8 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           exclusion_note: item.exclusion_note ?? null,
           _retroReconRowId: item.id,
           _generatedAdjustmentId: item.generated_adjustment_id ?? null,
+          retroactive_target_company_id: item.retroactive_target_company_id ?? null,
+          target_reassign_reason: item.target_reassign_reason ?? null,
         } as TvrResult;
       })
       .filter((x): x is TvrResult => x !== null);
@@ -6152,6 +6163,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   // Map doctor_id → PJ ativa (regra: 1 PJ ativa por médico). Quando o médico
   // tem múltiplas PJs ativas, deixamos null e o backend resolve na hora do envio.
   const [doctorPjMap, setDoctorPjMap] = useState<Record<string, { company_id: string; company_name: string } | null>>({});
+  // Todas as PJs ativas por médico (via doctor_companies). Usado pelo modal
+  // "Reavaliar vínculos" para o analista escolher a PJ de destino quando
+  // o vínculo é ambíguo ou divergiu do lote original.
+  const [doctorAllPjsMap, setDoctorAllPjsMap] = useState<Record<string, Array<{ company_id: string; company_name: string }>>>({});
 
   // Carrega map id→{full_name,crm} para os doctor_ids presentes nos itens a retirar
   // quando a apuração é só-PJ. Em modo médico-único isso não é usado.
@@ -6221,16 +6236,19 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       }
       if (cancelled) return;
       const next: Record<string, { company_id: string; company_name: string } | null> = { ...doctorPjMap };
+      const nextAll: Record<string, Array<{ company_id: string; company_name: string }>> = { ...doctorAllPjsMap };
       for (const did of missing) {
         const set = byDoctor.get(did);
-        if (set && set.size === 1) {
-          const cid = Array.from(set)[0];
-          next[did] = { company_id: cid, company_name: nameById.get(cid) ?? "PJ" };
+        const list = set ? Array.from(set).map((cid) => ({ company_id: cid, company_name: nameById.get(cid) ?? "PJ" })) : [];
+        nextAll[did] = list;
+        if (list.length === 1) {
+          next[did] = list[0];
         } else {
           next[did] = null;
         }
       }
       setDoctorPjMap(next);
+      setDoctorAllPjsMap(nextAll);
     })();
     return () => { cancelled = true; };
   }, [results, modoMedicoUnico, doctorPjMap]);
@@ -6252,25 +6270,35 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         unassigned: [],
       };
     }
-    const byDoctor = new Map<string, TvrResult[]>();
+    // Agrupa por (médico + override de PJ). Se o analista reatribuiu itens do
+    // mesmo médico para PJs diferentes via "Reavaliar vínculos", cada override
+    // vira um grupo próprio para gerar débitos separados.
+    const byKey = new Map<string, { did: string; override: string | null; items: TvrResult[] }>();
     const unassigned: TvrResult[] = [];
     for (const r of retirar) {
       const did = r.matched_doctor_id;
       if (!did) { unassigned.push(r); continue; }
-      const list = byDoctor.get(did) ?? [];
-      list.push(r);
-      byDoctor.set(did, list);
+      const override = r.retroactive_target_company_id ?? null;
+      const key = `${did}|${override ?? ""}`;
+      const entry = byKey.get(key) ?? { did, override, items: [] };
+      entry.items.push(r);
+      byKey.set(key, entry);
     }
     const groups: GlosaGroup[] = [];
-    for (const [did, items] of byDoctor) {
+    for (const { did, override, items } of byKey.values()) {
       const info = groupDoctorsMap[did];
       const pj = doctorPjMap[did] ?? null;
+      // Prioridade: override manual → PJ ativa única → null (ambíguo/sem vínculo)
+      const overridePj = override
+        ? (doctorAllPjsMap[did] ?? []).find((p) => p.company_id === override) ?? { company_id: override, company_name: "PJ reatribuída" }
+        : null;
+      const chosen = overridePj ?? pj;
       groups.push({
         doctor_id: did,
         doctor_name: info?.full_name ?? "Médico",
         doctor_crm: info?.crm ?? null,
-        company_id: pj?.company_id ?? null,
-        company_name: pj?.company_name ?? null,
+        company_id: chosen?.company_id ?? null,
+        company_name: chosen?.company_name ?? null,
         items,
       });
     }
@@ -6556,6 +6584,69 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       });
     } finally {
       setEncaminharBusy(false);
+    }
+  };
+
+  // ===== Reavaliar vínculos (Item 6) =====
+  // Persiste o override retroactive_target_company_id em
+  // retroactive_reconciliation_items e atualiza o resultado em memória.
+  // `choices` é map de doctor_id → company_id escolhida (ou null para limpar).
+  const applyReassignments = async (
+    choices: Record<string, string | null>,
+    reason: string,
+  ): Promise<void> => {
+    if (!results || Object.keys(choices).length === 0) return;
+    setReavaliarBusy(true);
+    try {
+      const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
+      const nowIso = new Date().toISOString();
+      // Agrupa items por (doctor_id, target). Só atualiza linhas com _retroReconRowId.
+      const updates: Array<{ ids: string[]; target: string | null }> = [];
+      for (const [did, target] of Object.entries(choices)) {
+        const rowIds = results
+          .filter((r) => r.matched_doctor_id === did && r._retroReconRowId && !r._generatedAdjustmentId)
+          .map((r) => r._retroReconRowId!) as string[];
+        if (rowIds.length > 0) updates.push({ ids: rowIds, target });
+      }
+      for (const u of updates) {
+        const { error } = await supabase
+          .from("retroactive_reconciliation_items" as never)
+          .update({
+            retroactive_target_company_id: u.target,
+            target_reassign_reason: u.target ? reason || "reatribuido_manual" : null,
+            target_reassigned_by: u.target ? uid : null,
+            target_reassigned_at: u.target ? nowIso : null,
+          } as never)
+          .in("id", u.ids);
+        if (error) throw error;
+      }
+      // Atualiza estado em memória
+      setResults((prev) =>
+        prev
+          ? prev.map((r) => {
+              if (!r.matched_doctor_id || !(r.matched_doctor_id in choices)) return r;
+              const target = choices[r.matched_doctor_id];
+              return {
+                ...r,
+                retroactive_target_company_id: target,
+                target_reassign_reason: target ? reason || "reatribuido_manual" : null,
+              };
+            })
+          : prev,
+      );
+      toast({
+        title: "Vínculos reavaliados",
+        description: `${updates.length} médico(s) reatribuídos. Encaminhe a glosa quando quiser.`,
+      });
+      setReavaliarOpen(false);
+    } catch (e) {
+      toast({
+        title: "Falha ao reatribuir vínculos",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setReavaliarBusy(false);
     }
   };
 
@@ -7300,6 +7391,16 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setKeyAuditOpen(true)}>
                 Auditoria de chave
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => setReavaliarOpen(true)}
+                disabled={isLocked}
+                title="Escolher em qual PJ lançar a glosa quando o vínculo médico→PJ mudou desde o lote original"
+              >
+                Reavaliar vínculos
+              </Button>
               {(() => {
                 // Select-all global: só considera itens visíveis e efetivamente acionáveis
                 // (selectable no grid). Marca/desmarca todos de uma vez respeitando os filtros.
@@ -7649,6 +7750,18 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
           />
         );
       })()}
+
+      {/* Item 6 — Reavaliar vínculos: escolher PJ de destino quando vínculo mudou */}
+      <ReavaliarVinculosDialog
+        open={reavaliarOpen}
+        onOpenChange={(v) => { if (!reavaliarBusy) setReavaliarOpen(v); }}
+        results={results ?? []}
+        doctorPjMap={doctorPjMap}
+        doctorAllPjsMap={doctorAllPjsMap}
+        groupDoctorsMap={groupDoctorsMap}
+        busy={reavaliarBusy}
+        onConfirm={applyReassignments}
+      />
 
       {/* T3 — Dialog de motivo para exclusão do encaminhamento */}
       <Dialog
