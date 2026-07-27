@@ -2118,9 +2118,11 @@ export default function CreditosDebitos() {
                             )}
                           </div>
                           <div className="text-xs">
-                            {cabe == null ? "—" : cabe >= 0
+                            {!pick ? (
+                              <span className="text-amber-600">fica pendente</span>
+                            ) : cabe == null ? "—" : cabe >= 0
                               ? <span className="text-emerald-600">✓ {brl(cabe)}</span>
-                              : <span className="text-amber-600">⚠ falta {brl(-cabe)}</span>}
+                              : <span className="text-amber-600">⚠ falta {brl(-cabe)} · fica pendente</span>}
                           </div>
                         </div>
                       );
@@ -2128,7 +2130,7 @@ export default function CreditosDebitos() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ⚠ Quando o líquido do lote não cobrir a parcela, o motor aplica o que couber e posterga o saldo para o próximo ciclo.
+                  ⚠ PJs sem lote em aberto ou sem líquido suficiente para a parcela não são confirmadas — os débitos permanecem pendentes para o próximo ciclo. Lotes já em validação/aprovação não são sugeridos automaticamente (só se você escolher).
                 </p>
               </div>
             );
