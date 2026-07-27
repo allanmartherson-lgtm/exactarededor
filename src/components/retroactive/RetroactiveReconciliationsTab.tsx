@@ -7854,7 +7854,10 @@ function EncaminharApuracaoModal({
     if (!justOpened && !groupsChangedWhileOpen) return;
 
     if (justOpened) {
-      setIncludeComplementar(actionable.length > 0);
+      // Default por etapa: encaminhar glosa primeiro. Confecção de novo lote
+      // fica opt-in — o analista precisa marcar explicitamente para gerar
+      // itens a pagar. Item 3 do briefing.
+      setIncludeComplementar(false);
       setGerarGlosa(retirar.length > 0 && canGerarGlosa ? "agora" : "depois");
       setParcelas(1);
       setShowCompList(false);
