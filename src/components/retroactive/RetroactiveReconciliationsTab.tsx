@@ -7533,7 +7533,17 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
                                       </>
                                     ) : (
                                       <>
-                                        {r._retroReconRowId && !isLocked && (
+                                        {/* Item 1: quando o checkbox está oculto por não-acionabilidade,
+                                            mostrar um badge com o motivo (antes ficava vazio). */}
+                                        {!selectable && describeNaoAcionavel(r) && (
+                                          <span
+                                            className="text-[10px] text-muted-foreground bg-muted border border-border rounded px-2 py-1 text-center"
+                                            title="Este item não pode ser encaminhado nesta etapa"
+                                          >
+                                            {describeNaoAcionavel(r)}
+                                          </span>
+                                        )}
+                                        {r._retroReconRowId && !isLocked && !r._generatedAdjustmentId && (
                                           <Button
                                             variant="ghost"
                                             size="sm"
