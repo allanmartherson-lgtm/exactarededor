@@ -86,6 +86,18 @@ Deno.serve(async (req) => {
       return out;
     };
 
+    // Agregações pesadas (bruto/pool/débitos/créditos/glosas/conciliação) rodam
+    // dentro do banco em uma única chamada — antes eram baixadas linha a linha
+    // para o edge runtime, o que estourava o timeout em lotes grandes.
+    const { data: aggRaw, error: aggErr } = await supabase
+      .rpc("compute_company_financial_aggregates", {
+        p_payment_id: payment_id,
+        p_company_id: company_id,
+      });
+    if (aggErr) throw aggErr;
+    const agg = (aggRaw ?? {}) as Record<string, any>;
+    if (agg.ok === false) throw new Error(agg.error ?? "Falha ao agregar composição financeira");
+
     let bruto = 0;
     // Em pool soberano, calcula:
     //  - bruto      = pct × soma_gross dos itens do pool (fatia bruta da PJ)
@@ -95,28 +107,8 @@ Deno.serve(async (req) => {
     let poolGrossShare = 0;
     let poolShareDeducoes = 0;
     if (poolId) {
-      const { data: pmtPool } = await supabase
-        .from("pools")
-        .select("base_calculo")
-        .eq("id", poolId)
-        .maybeSingle();
-      const poolBaseField = (pmtPool as any)?.base_calculo === "soma_expected" ? "expected_amount" : "gross_amount";
-      const { data: poolItems } = await supabase
-        .from("payment_items")
-        .select("gross_amount, expected_amount, gross_override_reason, is_cancelled, package_absorbed, is_pool_item, item_origin, company_id")
-        .eq("payment_id", payment_id).eq("is_pool_item", true);
-      const effectivePoolItemValue = (it: any) => {
-        // “Acatar mantendo pago” fixa o pago como valor financeiro efetivo,
-        // inclusive em pools cujo cadastro usa soma_expected como base.
-        if (it.gross_override_reason === "acatado_pago") return Number(it.gross_amount || 0);
-        return Number(it[poolBaseField] || 0);
-      };
-      const totalPool = (poolItems ?? [])
-        .filter((it: any) => !it.is_cancelled && !it.package_absorbed && it.item_origin !== "complemento_minimo")
-        .reduce((s, it: any) => s + effectivePoolItemValue(it), 0);
-      const companyMinimumComplement = (poolItems ?? [])
-        .filter((it: any) => !it.is_cancelled && it.item_origin === "complemento_minimo" && it.company_id === company_id)
-        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0);
+      const totalPool = Number(agg.pool_total || 0);
+      const companyMinimumComplement = Number(agg.minimum_complement || 0);
       const { data: parts } = await supabase
         .from("pool_participants").select("company_id, percentual").eq("pool_id", poolId);
       const minhaPart = (parts ?? []).find((p: any) => p.company_id === company_id);
@@ -138,45 +130,17 @@ Deno.serve(async (req) => {
         poolShareDeducoes = round2(poolGrossShare - quotaVal);
       }
     } else {
-      // Bruto (soma de gross_amount dos itens da empresa neste pagamento)
-      // Exclui itens cancelados individualmente (is_cancelled) — eles saem do pagamento.
-      // Exclui também itens absorvidos manualmente em pacote (package_absorbed=true) — o valor
-      // deles passa a fazer parte do pacote principal, não pode ser somado em duplicidade no bruto.
-      const { data: items } = await supabase
-        .from("payment_items")
-        .select("gross_amount, is_cancelled, package_absorbed")
-        .eq("payment_id", payment_id).eq("company_id", company_id);
-      bruto = round2((items ?? [])
-        .filter((it: any) => !it.is_cancelled && !it.package_absorbed)
-        .reduce((s, it: any) => s + Number(it.gross_amount || 0), 0));
+      // Bruto (soma de gross_amount dos itens da empresa neste pagamento).
+      // Exclui itens cancelados (is_cancelled) e absorvidos em pacote (package_absorbed).
+      bruto = round2(Number(agg.bruto_simple || 0));
     }
 
 
-    // Débitos/Créditos
-    const { data: caa } = await supabase
-      .from("company_adjustment_applications")
-      .select("valor_aplicado, adjustment_id, status")
-      .eq("payment_id", payment_id).eq("company_id", company_id)
-      .neq("status", "revertido");
-    let debitos = 0, creditos = 0;
-    if (caa && caa.length > 0) {
-      const ids = Array.from(new Set(caa.map((x: any) => x.adjustment_id)));
-      const { data: adjs } = await supabase
-        .from("company_financial_adjustments").select("id, tipo").in("id", ids);
-      const tipoMap = new Map((adjs ?? []).map((a: any) => [a.id, a.tipo]));
-      caa.forEach((x: any) => {
-        const v = Number(x.valor_aplicado || 0);
-        if (tipoMap.get(x.adjustment_id) === "credito") creditos += v; else debitos += v;
-      });
-    }
+    // Débitos/Créditos e Glosas (já agregados no banco)
+    const debitos = round2(Number(agg.debitos || 0));
+    const creditos = round2(Number(agg.creditos || 0));
+    const glosas = round2(Number(agg.glosas || 0));
 
-    // Glosas
-    const { data: gpa } = await supabase
-      .from("glosa_payment_applications")
-      .select("valor_aplicado, status")
-      .eq("payment_id", payment_id).eq("company_id", company_id)
-      .neq("status", "revertido").neq("status", "pending_manual_resolution");
-    const glosas = round2((gpa ?? []).reduce((s, x: any) => s + Number(x.valor_aplicado || 0), 0));
 
     // Pool — runs confirmados ou preview
     const today = new Date().toISOString().slice(0, 10);
