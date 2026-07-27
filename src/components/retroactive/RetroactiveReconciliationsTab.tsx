@@ -5970,7 +5970,10 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // Glosa válida: item pago no lote, mas removido/zerado pela auditoria
     // hospitalar. Antes esse status ficava sem checkbox, bloqueando PJs como
     // C M FRANCA, CAIM e CIRURGIA BRASILIA mesmo com valor a recuperar.
-    return r.status === "ausente_tasy" && !r.sem_lastro_tasy && (r.valor_recuperar_acordo ?? 0) > 0.5;
+    // "sem lastro TASY" é apenas um alerta qualitativo (pacote fechado pode não
+    // faturar item a item) — não pode bloquear o encaminhamento quando existe
+    // valor a recuperar apurado. Mesmo caso do "Por valor", agora no "Por presença".
+    return r.status === "ausente_tasy" && (r.valor_recuperar_acordo ?? 0) > 0.5;
   };
 
   // Motivo textual pelo qual um item NÃO pode ser encaminhado — usado como
