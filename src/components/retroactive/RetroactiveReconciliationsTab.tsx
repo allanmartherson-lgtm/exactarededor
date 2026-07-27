@@ -8213,22 +8213,7 @@ function EncaminharApuracaoModal({
                                         </div>
                                         <span className="text-muted-foreground">{g.items.length} itens</span>
                                         <span className="font-mono w-24 text-right">{brl(subtotal)}</span>
-                                        <Select
-                                          value={String(parcelasByDoctor[g.doctor_id] ?? 1)}
-                                          onValueChange={(v) =>
-                                            setParcelasByDoctor((prev) => ({ ...prev, [g.doctor_id]: Number(v) }))
-                                          }
-                                          disabled={busy || !isSel}
-                                        >
-                                          <SelectTrigger className="h-6 w-[68px] text-[11px] px-2">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
-                                              <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        {/* Select de parcelas removido — encaminhamento é sempre 1× */}
                                         <button
                                           type="button"
                                           className="text-[10px] text-destructive underline"
