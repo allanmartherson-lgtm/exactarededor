@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type PaymentType, type PaymentKind, type PaymentTrack } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, ChevronsUpDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, ChevronsUpDown, Stethoscope, Trash2, SlidersHorizontal, Receipt, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, EyeOff, Filter } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { useItemTypes } from "@/hooks/useItemTypes";
