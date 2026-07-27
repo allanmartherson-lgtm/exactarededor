@@ -2138,7 +2138,13 @@ export default function CreditosDebitos() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setGlobalDialogOpen(false)} disabled={busyGlobal}>Cancelar</Button>
             <Button onClick={confirmGlobalMass} disabled={busyGlobal}>
-              {busyGlobal ? "Confirmando…" : "Confirmar todos"}
+              {busyGlobal ? "Confirmando…" : (() => {
+                const base = pendentes;
+                const tg = selectedPending.size > 0 ? base.filter(g => selectedPending.has(g.id)) : base;
+                const { eligible } = globalPjEligibility(tg, globalParc);
+                const n = tg.filter(g => eligible.has(g.company_id)).length;
+                return `Confirmar elegíveis (${n})`;
+              })()}
             </Button>
           </DialogFooter>
         </DialogContent>
