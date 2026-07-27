@@ -103,6 +103,10 @@ const OPEN_PAYMENT_STATUSES = [
   "revisao_pos_aprovacao",
 ] as const;
 
+// Lotes que ainda podem receber glosa sem retrabalho de validação/aprovação.
+// Os demais (revisão do analista em diante) só entram se o usuário escolher manualmente.
+const GLOSA_SUGGESTABLE_STATUSES = new Set(["rascunho", "em_analise_ia"]);
+
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
 
@@ -443,7 +447,8 @@ export default function CreditosDebitos() {
     const ref = p.reference ? `${p.reference} · ` : "";
     const base = `${ref}${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
     const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
-    return `${base}${liq}`;
+    const lock = GLOSA_SUGGESTABLE_STATUSES.has(p.status) ? "" : " · ⚠ já em validação/aprovação";
+    return `${base}${liq}${lock}`;
   };
 
   const scoreLoteMatch = (lote: LoteOption, cc: string | null | undefined, track: string | null | undefined) => {
@@ -1181,7 +1186,9 @@ export default function CreditosDebitos() {
     results.forEach(([pjId, opts]) => {
       lotesMap[pjId] = opts;
       const origem = originByPj.get(pjId) ?? { cc: null, track: null };
-      const sug = [...opts].sort((a, b) => {
+      // Só sugere lotes que ainda não seguiram para validação/aprovação.
+      const sugeriveis = opts.filter(o => GLOSA_SUGGESTABLE_STATUSES.has(o.status));
+      const sug = [...sugeriveis].sort((a, b) => {
         const ds = scoreLoteMatch(b, origem.cc, origem.track) - scoreLoteMatch(a, origem.cc, origem.track);
         if (ds !== 0) return ds;
         return Number(b.liquido ?? 0) - Number(a.liquido ?? 0);
@@ -1219,12 +1226,38 @@ export default function CreditosDebitos() {
     });
   };
 
+  // Elegibilidade por PJ no modal global: precisa de lote-alvo selecionado e de
+  // líquido suficiente para a parcela. As demais PJs continuam PENDENTES.
+  const globalPjEligibility = (list: GlosaDebt[], parc: number) => {
+    const byPj = new Map<string, GlosaDebt[]>();
+    list.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
+    const eligible = new Set<string>();
+    const skipped: { pjId: string; name: string; reason: "sem_lote" | "sem_liquido" }[] = [];
+    byPj.forEach((debts, pjId) => {
+      const name = debts[0]?._company_name ?? "PJ";
+      const pick = globalLoteByPj[pjId];
+      if (!pick) { skipped.push({ pjId, name, reason: "sem_lote" }); return; }
+      const lote = (globalLotesByPj[pjId] ?? []).find(o => o.id === pick);
+      const parcela = parc > 0 ? debts.reduce((s, g) => s + Number(g.total_debt), 0) / parc : 0;
+      if (lote?.liquido != null && lote.liquido < parcela) {
+        skipped.push({ pjId, name, reason: "sem_liquido" });
+        return;
+      }
+      eligible.add(pjId);
+    });
+    return { eligible, skipped };
+  };
+
   const confirmGlobalMass = async () => {
     if (globalParc < 1 || globalParc > 24) { toast.error("Parcelas entre 1 e 24"); return; }
     const base = pendentes;
-    const targets = selectedPending.size > 0 ? base.filter(g => selectedPending.has(g.id)) : base;
-    const pjsSemLote = Array.from(new Set(targets.map(g => g.company_id))).filter(pj => !globalLoteByPj[pj]);
-    if (pjsSemLote.length) { toast.error(`${pjsSemLote.length} PJ(s) sem lote-alvo selecionado`); return; }
+    const allTargets = selectedPending.size > 0 ? base.filter(g => selectedPending.has(g.id)) : base;
+    const { eligible, skipped } = globalPjEligibility(allTargets, globalParc);
+    const targets = allTargets.filter(g => eligible.has(g.company_id));
+    if (targets.length === 0) {
+      toast.error("Nenhuma PJ com lote-alvo e líquido suficiente. Os débitos seguem pendentes.");
+      return;
+    }
     setBusyGlobal(true);
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
@@ -1248,11 +1281,14 @@ export default function CreditosDebitos() {
       }
     }
     setBusyGlobal(false);
+    const pendMsg = skipped.length
+      ? ` · ${skipped.length} PJ(s) seguem pendentes (${skipped.filter(s => s.reason === "sem_lote").length} sem lote em aberto, ${skipped.filter(s => s.reason === "sem_liquido").length} sem líquido suficiente)`
+      : "";
     if (errors.length) {
-      toast.error(`${ok} confirmadas · ${errors.length} falharam`);
+      toast.error(`${ok} confirmadas · ${errors.length} falharam${pendMsg}`);
       console.error("[global mass confirm]", errors);
     } else {
-      toast.success(`${ok} débitos confirmados em ${globalParc}× (todas as PJs).`);
+      toast.success(`${ok} débito(s) confirmado(s) em ${globalParc}×${pendMsg}`);
     }
     setGlobalDialogOpen(false);
     setSelectedPending(prev => {
@@ -2082,9 +2118,11 @@ export default function CreditosDebitos() {
                             )}
                           </div>
                           <div className="text-xs">
-                            {cabe == null ? "—" : cabe >= 0
+                            {!pick ? (
+                              <span className="text-amber-600">fica pendente</span>
+                            ) : cabe == null ? "—" : cabe >= 0
                               ? <span className="text-emerald-600">✓ {brl(cabe)}</span>
-                              : <span className="text-amber-600">⚠ falta {brl(-cabe)}</span>}
+                              : <span className="text-amber-600">⚠ falta {brl(-cabe)} · fica pendente</span>}
                           </div>
                         </div>
                       );
@@ -2092,7 +2130,7 @@ export default function CreditosDebitos() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ⚠ Quando o líquido do lote não cobrir a parcela, o motor aplica o que couber e posterga o saldo para o próximo ciclo.
+                  ⚠ PJs sem lote em aberto ou sem líquido suficiente para a parcela não são confirmadas — os débitos permanecem pendentes para o próximo ciclo. Lotes já em validação/aprovação não são sugeridos automaticamente (só se você escolher).
                 </p>
               </div>
             );
@@ -2100,7 +2138,13 @@ export default function CreditosDebitos() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setGlobalDialogOpen(false)} disabled={busyGlobal}>Cancelar</Button>
             <Button onClick={confirmGlobalMass} disabled={busyGlobal}>
-              {busyGlobal ? "Confirmando…" : "Confirmar todos"}
+              {busyGlobal ? "Confirmando…" : (() => {
+                const base = pendentes;
+                const tg = selectedPending.size > 0 ? base.filter(g => selectedPending.has(g.id)) : base;
+                const { eligible } = globalPjEligibility(tg, globalParc);
+                const n = tg.filter(g => eligible.has(g.company_id)).length;
+                return `Confirmar elegíveis (${n})`;
+              })()}
             </Button>
           </DialogFooter>
         </DialogContent>
