@@ -447,7 +447,8 @@ export default function CreditosDebitos() {
     const ref = p.reference ? `${p.reference} · ` : "";
     const base = `${ref}${fmtCompetence(p.competence_month)} · ${statusShort(p.status)}`;
     const liq = liquido == null ? "" : ` · Líq. ${brl(liquido)}`;
-    return `${base}${liq}`;
+    const lock = GLOSA_SUGGESTABLE_STATUSES.has(p.status) ? "" : " · ⚠ já em validação/aprovação";
+    return `${base}${liq}${lock}`;
   };
 
   const scoreLoteMatch = (lote: LoteOption, cc: string | null | undefined, track: string | null | undefined) => {
