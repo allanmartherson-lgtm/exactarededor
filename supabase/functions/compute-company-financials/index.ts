@@ -269,12 +269,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Conciliação
-    const { data: rr } = await supabase
-      .from("reconciliation_runs")
-      .select("id, status").eq("payment_id", payment_id).eq("status", "done").limit(1);
-    const conciliacaoAplicada = (rr ?? []).length > 0;
+    // Conciliação (flag já agregada no banco)
+    const conciliacaoAplicada = Boolean(agg.conciliacao_aplicada);
     const conciliacao = 0;
+
 
     const pool = round2(poolImpactoTotal);
     const liquido = round2(bruto - debitos + creditos - glosas - pool + conciliacao);
