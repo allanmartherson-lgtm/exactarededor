@@ -1226,12 +1226,38 @@ export default function CreditosDebitos() {
     });
   };
 
+  // Elegibilidade por PJ no modal global: precisa de lote-alvo selecionado e de
+  // líquido suficiente para a parcela. As demais PJs continuam PENDENTES.
+  const globalPjEligibility = (list: GlosaDebt[], parc: number) => {
+    const byPj = new Map<string, GlosaDebt[]>();
+    list.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
+    const eligible = new Set<string>();
+    const skipped: { pjId: string; name: string; reason: "sem_lote" | "sem_liquido" }[] = [];
+    byPj.forEach((debts, pjId) => {
+      const name = debts[0]?._company_name ?? "PJ";
+      const pick = globalLoteByPj[pjId];
+      if (!pick) { skipped.push({ pjId, name, reason: "sem_lote" }); return; }
+      const lote = (globalLotesByPj[pjId] ?? []).find(o => o.id === pick);
+      const parcela = parc > 0 ? debts.reduce((s, g) => s + Number(g.total_debt), 0) / parc : 0;
+      if (lote?.liquido != null && lote.liquido < parcela) {
+        skipped.push({ pjId, name, reason: "sem_liquido" });
+        return;
+      }
+      eligible.add(pjId);
+    });
+    return { eligible, skipped };
+  };
+
   const confirmGlobalMass = async () => {
     if (globalParc < 1 || globalParc > 24) { toast.error("Parcelas entre 1 e 24"); return; }
     const base = pendentes;
-    const targets = selectedPending.size > 0 ? base.filter(g => selectedPending.has(g.id)) : base;
-    const pjsSemLote = Array.from(new Set(targets.map(g => g.company_id))).filter(pj => !globalLoteByPj[pj]);
-    if (pjsSemLote.length) { toast.error(`${pjsSemLote.length} PJ(s) sem lote-alvo selecionado`); return; }
+    const allTargets = selectedPending.size > 0 ? base.filter(g => selectedPending.has(g.id)) : base;
+    const { eligible, skipped } = globalPjEligibility(allTargets, globalParc);
+    const targets = allTargets.filter(g => eligible.has(g.company_id));
+    if (targets.length === 0) {
+      toast.error("Nenhuma PJ com lote-alvo e líquido suficiente. Os débitos seguem pendentes.");
+      return;
+    }
     setBusyGlobal(true);
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
