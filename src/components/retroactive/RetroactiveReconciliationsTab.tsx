@@ -6479,6 +6479,41 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
       await supabase.from("glosa_batches" as never).delete().eq("id", batchId);
     }
 
+    // Marca os itens efetivamente encaminhados (coluna `n` = referência do
+    // encaminhamento gerado). Sem isso o badge "Já encaminhado" nunca aparece
+    // após gerar glosa — só aparecia no caminho de ajuste complementar.
+    const forwardedRowIds = okGroups
+      .flatMap((g) => g.items)
+      .map((r) => r._retroReconRowId)
+      .filter((x): x is string => !!x);
+    if (forwardedRowIds.length > 0) {
+      const { error: markErr } = await supabase
+        .from("retroactive_reconciliation_items")
+        .update({ n: batchId } as never)
+        .in("id", forwardedRowIds);
+      if (markErr) {
+        console.error("Falha ao marcar itens como encaminhados:", markErr.message);
+        toast({
+          title: "Glosa gerada, mas a marcação falhou",
+          description: "Os itens podem aparecer como não encaminhados até recarregar. Detalhe: " + markErr.message,
+          variant: "destructive",
+        });
+      } else {
+        const idSet = new Set(forwardedRowIds);
+        setResults((prev) =>
+          prev
+            ? prev.map((r) =>
+                r._retroReconRowId && idSet.has(r._retroReconRowId)
+                  ? { ...r, _generatedAdjustmentId: batchId }
+                  : r,
+              )
+            : prev,
+        );
+        setSelectedKeys(new Set());
+      }
+    }
+
+
     const usados = okGroups.map((g) => Math.max(1, parcelasByDoctor[g.doctor_id] ?? parcelasFallback));
     const min = usados.length ? Math.min(...usados) : 0;
     const max = usados.length ? Math.max(...usados) : 0;
