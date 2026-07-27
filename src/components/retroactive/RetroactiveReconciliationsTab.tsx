@@ -8076,7 +8076,7 @@ function EncaminharApuracaoModal({
                   <div className="flex items-center gap-2">
                     <RadioGroupItem id="g-agora" value="agora" disabled={!canGerarGlosa || retirar.length === 0} />
                     <Label htmlFor="g-agora" className="text-xs font-normal">
-                      Gerar glosa agora (débito parcelável)
+                      Gerar glosa agora
                     </Label>
                   </div>
                   {gerarGlosa === "agora" && groups.length > 0 && (
