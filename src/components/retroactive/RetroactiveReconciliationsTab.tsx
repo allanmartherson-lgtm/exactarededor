@@ -8081,51 +8081,7 @@ function EncaminharApuracaoModal({
                   </div>
                   {gerarGlosa === "agora" && groups.length > 0 && (
                     <div className="ml-6 mt-2 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="text-muted-foreground">
-                          Padrão (aplicar a todos):
-                        </span>
-                        <Select
-                          value={parcelas > 0 ? String(parcelas) : ""}
-                          onValueChange={(v) => {
-                            const n = Number(v);
-                            setParcelas(n);
-                            // Aplica o padrão sobrescrevendo todas as linhas — a analista
-                            // ainda pode ajustar caso a caso depois.
-                            const next: Record<string, number> = {};
-                            for (const g of groups) next[g.doctor_id] = n;
-                            setParcelasByDoctor(next);
-                          }}
-                        >
-                          <SelectTrigger className="h-7 w-28 text-xs">
-                            <SelectValue placeholder="Escolher…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[1, 2, 3, 4, 6, 12, 18, 24].map((n) => (
-                              <SelectItem key={n} value={String(n)}>{n}×</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <button
-                          type="button"
-                          className="text-[10px] text-primary underline"
-                          onClick={() => {
-                            // Restaura sugestão inteligente por porte de débito.
-                            const seed: Record<string, number> = {};
-                            for (const g of groups) {
-                              const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
-                              seed[g.doctor_id] = suggestParcelas(subtotal);
-                            }
-                            setParcelasByDoctor(seed);
-                            setParcelas(0);
-                          }}
-                        >
-                          Sugerir por valor
-                        </button>
-                        <span className="text-[10px] text-muted-foreground">
-                          · valores pequenos ficam 1×, valores altos são diluídos
-                        </span>
-                      </div>
+
                       {!modoMedicoUnico && (
                         <div className="flex items-center justify-between gap-2 text-[11px] rounded border border-border bg-muted/30 px-2 py-1.5">
                           <span className="text-muted-foreground">
