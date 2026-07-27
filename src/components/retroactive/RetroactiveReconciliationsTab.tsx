@@ -7346,7 +7346,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             </div>
 
             {/* === Lista agrupada por empresa === */}
-            <div className="p-3 space-y-2 bg-muted/10 max-h-[65vh] overflow-y-auto">
+            <div className={cn("p-3 space-y-2 bg-muted/10 max-h-[65vh] overflow-y-auto", selectedKeys.size > 0 && "pb-28")}>
               {visible.length === 0 && (
                 <div className="text-center text-sm text-muted-foreground py-10">
                   Nenhum item corresponde ao filtro atual.
