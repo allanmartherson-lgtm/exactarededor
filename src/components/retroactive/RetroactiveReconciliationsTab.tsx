@@ -5984,7 +5984,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     if (isLocked) return "Apuração encaminhada";
     if (isSelectableForEncaminhamento(r)) return null;
     if (r.status === "ok") return "Sem divergência";
-    if (r.status === "ausente_tasy") return "Sem lastro na base de faturamento";
+    if (r.status === "ausente_tasy") return "Sem valor a recuperar apurado";
     return null;
   };
 
