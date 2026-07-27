@@ -1281,11 +1281,14 @@ export default function CreditosDebitos() {
       }
     }
     setBusyGlobal(false);
+    const pendMsg = skipped.length
+      ? ` · ${skipped.length} PJ(s) seguem pendentes (${skipped.filter(s => s.reason === "sem_lote").length} sem lote em aberto, ${skipped.filter(s => s.reason === "sem_liquido").length} sem líquido suficiente)`
+      : "";
     if (errors.length) {
-      toast.error(`${ok} confirmadas · ${errors.length} falharam`);
+      toast.error(`${ok} confirmadas · ${errors.length} falharam${pendMsg}`);
       console.error("[global mass confirm]", errors);
     } else {
-      toast.success(`${ok} débitos confirmados em ${globalParc}× (todas as PJs).`);
+      toast.success(`${ok} débito(s) confirmado(s) em ${globalParc}×${pendMsg}`);
     }
     setGlobalDialogOpen(false);
     setSelectedPending(prev => {
