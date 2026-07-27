@@ -2291,6 +2291,30 @@ export function computeTvrCounts(list: TvrResult[]): Record<TvrStatus, number> {
 }
 
 
+export function getTvrValorRecuperar(r: TvrResult): number {
+  const stored = r.valor_recuperar_acordo ?? 0;
+  const ajuste = r.ajuste_acordo ?? 0;
+  const paidOperational = r.valor_com_acordo && r.valor_com_acordo > 0.5
+    ? r.valor_com_acordo
+    : (r.valor_pago_base || 0);
+
+  if (r.status === "ausente_tasy") return Math.max(0, paidOperational);
+
+  if (r.tipo_analise === "quantidade" && r.dif_qtd < -0.5) {
+    if (stored > 0.5) return stored;
+    if (ajuste > 0.5) return ajuste;
+    if (r.qtd_por_func > 0) {
+      const deficit = Math.max(0, (r.qtd_por_func - r.qtd_tasy) / r.qtd_por_func);
+      return Math.max(0, paidOperational * deficit);
+    }
+    return Math.max(0, paidOperational);
+  }
+
+  if (stored > 0.5) return stored;
+  return ajuste > 0.5 ? ajuste : 0;
+}
+
+
 const TVR_SOURCE = "tasy_vs_repasse";
 
 /**
@@ -2325,10 +2349,8 @@ export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementa
     return r.dif_valor > 0.5 ? sum + r.dif_valor : sum;
   }, 0);
   const totalRetirar = list.reduce((sum, r) => {
-    if (r.status === "ausente_tasy") {
-      const operacional = r.valor_com_acordo && r.valor_com_acordo > 0.5 ? r.valor_com_acordo : r.valor_pago_base;
-      return sum + operacional;
-    }
+    const recuperar = getTvrValorRecuperar(r);
+    if (recuperar > 0.5) return sum + recuperar;
     if (r.tipo_analise === "quantidade") {
       const ajuste = r.ajuste_acordo ?? 0;
       return ajuste > 0.5 ? sum + ajuste : sum;
@@ -2389,7 +2411,7 @@ function computeTvrAgreementTotals(list: TvrResult[]): { totalComplementarAcordo
     (acc, r) => {
       const ajuste = r.ajuste_acordo ?? 0;
       if (ajuste < -0.5) acc.totalComplementarAcordo += Math.abs(ajuste);
-      if (ajuste > 0.5) acc.totalRetirarAcordo += ajuste;
+      acc.totalRetirarAcordo += getTvrValorRecuperar(r);
       return acc;
     },
     { totalComplementarAcordo: 0, totalRetirarAcordo: 0 },
@@ -2494,7 +2516,7 @@ export function describeTvrAcao(r: TvrResult): TvrAcao {
   }
   if (r.tipo_analise === "quantidade") {
     if (r.dif_qtd < -0.5) {
-      const diffValor = r.valor_com_acordo || 0;
+      const diffValor = getTvrValorRecuperar(r);
       return {
         kind: "recuperar",
         valor: diffValor,
@@ -4101,19 +4123,22 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
         // Negativo => paguei a menos (a complementar).
         let ajuste_acordo = 0;
         let sem_lastro_tasy = false;
+        const valor_pago_operacional = valor_com_acordo && valor_com_acordo > 0.5 ? valor_com_acordo : valor_pago_base;
         if (tipo_analise === "quantidade") {
           // Grupo B: só compara quantidade. Divergência de valor TASY não é erro.
           if (status === "ausente_tasy") {
-            // Pacote/valor_fixo pode não faturar item individualmente no TASY →
-            // marca "sem lastro" como alerta qualitativo, sem cobrar R$.
+            // Sem presença na auditoria hospitalar: desconta o valor pago total
+            // (pós-regra quando disponível). O flag segue como alerta qualitativo:
+            // pacote/valor_fixo pode não faturar item individualmente no TASY,
+            // mas não bloqueia glosa quando há pagamento no lote.
             sem_lastro_tasy = true;
-            ajuste_acordo = 0;
+            ajuste_acordo = valor_pago_operacional;
           } else if (status === "nao_pago") {
             ajuste_acordo = 0;
           } else if (qtd_por_func > 0 && qtd_tasy + 0.0001 < qtd_por_func) {
             // Proporcional: pagou N, TASY comprova M<N → recupera (N−M)/N do pago.
             const deficit = (qtd_por_func - qtd_tasy) / qtd_por_func;
-            ajuste_acordo = valor_com_acordo * deficit;
+            ajuste_acordo = valor_pago_operacional * deficit;
           }
         } else {
           // Grupo A: regra % sobre convênio → compara valor com acordo recalculado.
@@ -4535,7 +4560,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     { group: "Devido hoje (acordo × TASY hoje)", header: "Valor previsto (simulação)", get: (r) => r.status === "nao_pago" && typeof r.valor_previsto_regra === "number" ? Number(r.valor_previsto_regra.toFixed(2)) : "" },
     // Ajuste
     { group: "Ajuste (pago no lote − devido hoje)", header: "Ajuste a fazer", get: (r) => Number((r.ajuste_acordo ?? 0).toFixed(2)) },
-    { group: "Ajuste (pago no lote − devido hoje)", header: "A recuperar (paguei a mais)", get: (r) => Number((r.valor_recuperar_acordo ?? 0).toFixed(2)) },
+    { group: "Ajuste (pago no lote − devido hoje)", header: "A recuperar (paguei a mais)", get: (r) => Number(getTvrValorRecuperar(r).toFixed(2)) },
     { group: "Ajuste (pago no lote − devido hoje)", header: "A complementar (paguei a menos)", get: (r) => Number(Math.max(0, -(r.ajuste_acordo ?? 0)).toFixed(2)) },
     // Ação sugerida — mesmo texto que a UI mostra na coluna final.
     { group: "Ação sugerida", header: "Ação", get: (r) => describeAcao(r).label.replace(/^[↓↑—]\s*/, "") },
@@ -5973,7 +5998,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     // "sem lastro TASY" é apenas um alerta qualitativo (pacote fechado pode não
     // faturar item a item) — não pode bloquear o encaminhamento quando existe
     // valor a recuperar apurado. Mesmo caso do "Por valor", agora no "Por presença".
-    return r.status === "ausente_tasy" && (r.valor_recuperar_acordo ?? 0) > 0.5;
+    return r.status === "ausente_tasy" && getTvrValorRecuperar(r) > 0.5;
   };
 
   // Motivo textual pelo qual um item NÃO pode ser encaminhado — usado como
@@ -6040,7 +6065,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const toRetirarItems = (list: TvrResult[]) =>
-    list.filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5);
+    list.filter((r) => getTvrValorRecuperar(r) > 0.5);
 
   // Tópico 2: helper único para filtrar itens marcados como
   // "excluir do encaminhamento". Usado apenas nos fluxos que geram
@@ -6188,7 +6213,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const ids = Array.from(
       new Set(
         (results ?? [])
-          .filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5)
+          .filter((r) => getTvrValorRecuperar(r) > 0.5)
           .map((r) => r.matched_doctor_id)
           .filter((x): x is string => !!x),
       ),
@@ -6218,7 +6243,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const ids = Array.from(
       new Set(
         (results ?? [])
-          .filter((r) => (r.valor_recuperar_acordo ?? 0) > 0.5)
+          .filter((r) => getTvrValorRecuperar(r) > 0.5)
           .map((r) => r.matched_doctor_id)
           .filter((x): x is string => !!x),
       ),
@@ -6342,7 +6367,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
     const allItems = groups.flatMap((g) => g.items);
     if (allItems.length === 0) throw new Error("Nenhum item a retirar nos grupos selecionados.");
 
-    const totalGlosa = allItems.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+    const totalGlosa = allItems.reduce((s, r) => s + getTvrValorRecuperar(r), 0);
     const competence = competenceOfYmd(recon.period_start) ?? "";
     const title = recon.title ?? `Apuração ${recon.id.slice(0, 8)}`;
 
@@ -6389,7 +6414,7 @@ function TasyVsRepasseView({ id, onBack }: { id: string; onBack: () => void }) {
             doctor_crm: g.doctor_crm,
             convenio: r.convenio || null,
             valor_cobrado: Number((r.valor_com_acordo || 0).toFixed(2)),
-            valor_glosa: Number((r.valor_recuperar_acordo ?? 0).toFixed(2)),
+            valor_glosa: Number(getTvrValorRecuperar(r).toFixed(2)),
             motivo_glosa: motivo,
             complemento_glosa: `Apuração ${title} · Atend ${r.atendimento || "—"} · TUSS ${r.tuss || "—"}`,
             status: "vinculado",
@@ -8044,7 +8069,7 @@ function EncaminharApuracaoModal({
       const next: Record<string, number> = justOpened ? {} : { ...prev };
       for (const g of groups) {
         if (!justOpened && next[g.doctor_id] != null) continue;
-        const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+        const subtotal = g.items.reduce((s, r) => s + getTvrValorRecuperar(r), 0);
         next[g.doctor_id] = suggestParcelas(subtotal);
       }
       return next;
@@ -8300,7 +8325,7 @@ function EncaminharApuracaoModal({
                           });
                           return pjList.map((pj) => {
                             const pjSubtotal = pj.items.reduce(
-                              (s, g) => s + g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0),
+                              (s, g) => s + g.items.reduce((ss, r) => ss + getTvrValorRecuperar(r), 0),
                               0,
                             );
                             const pjDoctorIds = pj.items.map((g) => g.doctor_id);
@@ -8312,7 +8337,7 @@ function EncaminharApuracaoModal({
                             const proximaParcelaPJ = pj.items
                               .filter((g) => selectedDoctorIds.has(g.doctor_id))
                               .reduce((s, g) => {
-                                const sub = g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0);
+                                const sub = g.items.reduce((ss, r) => ss + getTvrValorRecuperar(r), 0);
                                 const n = Math.max(1, parcelasByDoctor[g.doctor_id] ?? 1);
                                 return s + sub / n;
                               }, 0);
@@ -8327,7 +8352,7 @@ function EncaminharApuracaoModal({
                                 const next = { ...prev };
                                 for (const g of pj.items) {
                                   if (!selectedDoctorIds.has(g.doctor_id)) continue;
-                                  const sub = g.items.reduce((ss, r) => ss + (r.valor_recuperar_acordo ?? 0), 0);
+                                  const sub = g.items.reduce((ss, r) => ss + getTvrValorRecuperar(r), 0);
                                   if (sub <= 0) continue;
                                   const share = (sub / pjSubtotal) * liquido;
                                   const nCalc = Math.ceil(sub / Math.max(share, 0.01));
@@ -8365,7 +8390,7 @@ function EncaminharApuracaoModal({
                                     é só encaminhar. Débito ativa e é abatido
                                     integralmente no próximo lote da PJ. */}
                                 {pj.items.map((g) => {
-                                  const subtotal = g.items.reduce((s, r) => s + (r.valor_recuperar_acordo ?? 0), 0);
+                                  const subtotal = g.items.reduce((s, r) => s + getTvrValorRecuperar(r), 0);
                                   const isExpanded = expandedGroups.has(g.doctor_id);
                                   const isSel = selectedDoctorIds.has(g.doctor_id);
                                   return (
@@ -8396,7 +8421,7 @@ function EncaminharApuracaoModal({
                                           {g.items.map((r) => (
                                             <div key={r.key} className="flex justify-between gap-2 px-2 py-1 border-b border-border/50 last:border-b-0">
                                               <span className="truncate">{r.atendimento}/{r.tuss} · {r.procedimento || "—"}</span>
-                                              <span className="font-mono">{brl(r.valor_recuperar_acordo ?? 0)}</span>
+                                              <span className="font-mono">{brl(getTvrValorRecuperar(r))}</span>
                                             </div>
                                           ))}
                                         </div>
