@@ -523,7 +523,18 @@ function ListView({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () =
                   <TableCell className="text-[12.5px] whitespace-nowrap">
                     {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                   </TableCell>
-                  <TableCell className="font-medium">{scope || "—"}</TableCell>
+                  <TableCell className="max-w-[340px]">
+                    {r.title?.trim() ? (
+                      <>
+                        <div className="font-medium truncate" title={r.title}>{r.title}</div>
+                        {scope && (
+                          <div className="text-[11.5px] text-muted-foreground truncate" title={scope}>{scope}</div>
+                        )}
+                      </>
+                    ) : (
+                      <span className="font-medium">{scope || "—"}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-[12.5px]">
                     {format(parseYmdLocal(r.period_start), "dd/MM/yy")} → {format(parseYmdLocal(r.period_end), "dd/MM/yy")}
                   </TableCell>
