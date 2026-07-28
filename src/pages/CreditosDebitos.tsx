@@ -781,6 +781,27 @@ export default function CreditosDebitos() {
     return apps.find(a => a.payment_id === paymentId) ?? null;
   };
 
+  // Retorna TODAS as aplicações efetivas (proposto/confirmado/partial) da dívida,
+  // em qualquer lote — usado para decidir "quitada", "arquivada" e mostrar
+  // histórico cruzado quando o débito foi acrescido depois do 1º pagamento.
+  const debtEffectiveApps = (debtId: string) => {
+    const apps = glosaAppsByDebt[debtId] ?? [];
+    return apps.filter(a => ["proposto", "confirmado", "partial"].includes(a.status));
+  };
+  const debtTotalApplied = (debtId: string) =>
+    debtEffectiveApps(debtId).reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
+  const debtAppliedInFinalized = (debtId: string) =>
+    debtEffectiveApps(debtId)
+      .filter(a => isPaymentFinalized(a.payment_id))
+      .reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
+  // "Quitada": soma aplicada (em qualquer status ativo) cobre o total_debt.
+  const isDebtSettled = (g: GlosaDebt) =>
+    debtTotalApplied(g.id) + 0.005 >= Number(g.total_debt || 0);
+  // "Arquivável": o quitado veio de lotes finalizados (pago/aprovado).
+  const isDebtArchivable = (g: GlosaDebt) =>
+    debtAppliedInFinalized(g.id) + 0.005 >= Number(g.total_debt || 0);
+
+
   // Abre o dialog obrigatório de seleção de lote para "Aplicar no lote vigente".
   // Sistema multi-usuário: nunca auto-seleciona lote — analista escolhe explicitamente.
   const openApplyCurrentDialog = async (pjId?: string) => {
