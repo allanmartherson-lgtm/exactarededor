@@ -170,6 +170,7 @@ export default function CreditosDebitos() {
   const [glosaAppsByDebt, setGlosaAppsByDebt] = useState<Record<string, { payment_id: string; status: string; valor_aplicado: number; applied_at: string | null; postpone_reason?: string | null }[]>>({});
   const [historyOpen, setHistoryOpen] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [settledOpen, setSettledOpen] = useState<Record<string, boolean>>({});
 
   // Histórico de aplicações (auditoria)
   const [auditOpen, setAuditOpen] = useState(false);
