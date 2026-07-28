@@ -400,14 +400,34 @@ Deno.serve(async (req) => {
 
         const parcelas = debt.parcelas_default ?? 12;
         const parcelaFull = round2(Number(debt.total_debt) / parcelas);
-        // Se já existe aplicação neste lote para o débito, este ciclo pode ser um
-        // COMPLEMENTO (o total_debt cresceu depois — ex.: append via RPC) em vez
-        // de uma nova parcela. Reutilizamos a mesma numeração para não estourar
-        // parcelas_default e aplicamos só o delta ainda devido.
+
+        // Total já aplicado em QUALQUER lote (confirmado/proposto/partial) para
+        // este débito. Sem esse cap, um débito cujo total_debt cresceu via
+        // upsert (create_glosa_debt_with_items append) depois de já ter sido
+        // aplicado num lote finalizado tentaria aplicar "parcelaFull" no novo
+        // lote e cobraria a PJ em duplicidade. O cap real é o saldo devedor.
+        const { data: allDebtApps } = await supabase
+          .from("glosa_payment_applications")
+          .select("valor_aplicado, status")
+          .eq("glosa_debt_id", debt.id)
+          .in("status", ["proposto", "confirmado", "partial"]);
+        const totalAppliedAllLotes = round2(
+          (allDebtApps ?? []).reduce((s: number, r: any) => s + Number(r.valor_aplicado || 0), 0)
+        );
+        const saldoDevedor = round2(Number(debt.total_debt) - totalAppliedAllLotes);
+        if (saldoDevedor <= 0.01) {
+          summary.glosas.skipped_existing++;
+          continue;
+        }
+
+        // Se já existe aplicação neste lote para o débito, este ciclo pode ser
+        // um COMPLEMENTO (o total_debt cresceu depois — ex.: append via RPC)
+        // em vez de uma nova parcela. Reutilizamos a mesma numeração para não
+        // estourar parcelas_default e aplicamos só o delta ainda devido.
         let parcelaNumero: number;
         let parcelaPrevista: number;
         if (alreadyAppliedHere > 0.01) {
-          const pendingHere = round2(parcelaFull - alreadyAppliedHere);
+          const pendingHere = round2(Math.min(parcelaFull - alreadyAppliedHere, saldoDevedor));
           if (pendingHere <= 0.01) { summary.glosas.skipped_existing++; continue; }
           parcelaNumero = prevAppliedHere?.maxParcela ?? 1;
           parcelaPrevista = pendingHere;
@@ -417,7 +437,11 @@ Deno.serve(async (req) => {
             .eq("glosa_debt_id", debt.id).eq("status", "confirmado");
           parcelaNumero = (aplicadas ?? 0) + 1;
           if (parcelaNumero > parcelas) continue;
-          parcelaPrevista = parcelaFull;
+          // Cap por saldo devedor: nunca cobrar mais do que a PJ ainda deve,
+          // mesmo que a "parcela cheia" (total/parcelas) seja maior — cenário
+          // típico quando aplicações anteriores em outros lotes já cobriram
+          // parte do débito e o resíduo é menor que uma parcela inteira.
+          parcelaPrevista = round2(Math.min(parcelaFull, saldoDevedor));
         }
 
         // === REGRA DE CAPACIDADE ===
