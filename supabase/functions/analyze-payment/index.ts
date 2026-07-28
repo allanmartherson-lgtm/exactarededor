@@ -2428,6 +2428,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       // compute-company-financials EXCLUA o gross do secundário do bruto.
       package_absorbed?: boolean;
       package_absorbed_calc_id?: string | null;
+      /** Ambiguidade de pacote (multi_anchor / no_anchor) + decisão do analista. */
+      package_ambiguity?: Record<string, unknown> | null;
       convenio_basis_detected?: string | null;
       basis_confidence?: number | null;
       piso_aplicado_valor?: number | null;
