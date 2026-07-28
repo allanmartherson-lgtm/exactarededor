@@ -480,39 +480,65 @@ Deno.serve(async (req) => {
         }
 
         // === REGRA DE CAPACIDADE ===
-        if (capacidadeRestante <= 0.01) {
-          const { error: e3 } = await supabase.from("glosa_payment_applications").insert({
+        // Falta líquido para cobrir 100% do saldo devedor deste débito?
+        const semLiquido = capacidadeRestante <= 0.01 || parcelaPrevista > capacidadeRestante;
+        if (semLiquido) {
+          const faltante = round2(Math.max(0, parcelaPrevista - Math.max(0, capacidadeRestante)));
+          const insufficientEntry = {
+            debt_id: debt.id,
+            doctor_name: debt.doctor_name,
+            company_id,
+            saldo_devedor: parcelaPrevista,
+            capacidade: Math.max(0, capacidadeRestante),
+            faltante,
+            parcela_numero: parcelaNumero,
+            parcelas_total: parcelas,
+          };
+          summary.glosas.insufficient.push(insufficientEntry);
+
+          if (mode === "full_only" || dryRun) {
+            // Não escreve nada — devolve para a UI decidir (parcelar/adiar/trocar lote).
+            summary.glosas.items.push({ ...insufficientEntry, action: "insufficient" });
+            continue;
+          }
+
+          // mode === 'partial_allowed': aplica o que couber; se não couber nada, adia.
+          const aplicavel = round2(Math.min(parcelaPrevista, Math.max(0, capacidadeRestante)));
+          if (aplicavel <= 0.01) {
+            const { error: e3 } = await supabase.from("glosa_payment_applications").insert({
+              payment_id, company_id, hospital_id: paymentHospitalId,
+              glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+              parcela_numero: parcelaNumero, valor_aplicado: 0,
+              status: "postponed", source: "auto",
+              postpone_reason: "insufficient_net",
+              resolution_note: `Lote sem líquido disponível para a PJ (capacidade R$ ${Math.max(0, capacidadeRestante).toFixed(2)}). Débito rola para o próximo ciclo.`,
+              applied_by: user_id,
+            });
+            if (e3) { console.error(`[glosa postponed] ${debt.id}`, e3); throw e3; }
+            summary.glosas.postponed++;
+            summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
+            continue;
+          }
+
+          const { error: eP } = await supabase.from("glosa_payment_applications").insert({
             payment_id, company_id, hospital_id: paymentHospitalId,
             glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-            parcela_numero: parcelaNumero, valor_aplicado: 0,
-            status: "postponed", source: "auto",
-            postpone_reason: "insufficient_net",
-            resolution_note: `Lote sem líquido disponível para a PJ (capacidade R$ ${capacidadeRestante.toFixed(2)}). Débito rola para o próximo ciclo.`,
+            parcela_numero: parcelaNumero, valor_aplicado: aplicavel,
+            status: "partial", source: "auto",
+            resolution_note: `Aplicação parcial autorizada pelo usuário: R$ ${aplicavel.toFixed(2)} de R$ ${parcelaPrevista.toFixed(2)}. Residual R$ ${faltante.toFixed(2)} rola para o próximo lote.`,
             applied_by: user_id,
           });
-          if (e3) { console.error(`[glosa postponed] ${debt.id}`, e3); throw e3; }
-          summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
-          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
+          if (eP) { console.error(`[glosa partial] ${debt.id}`, eP); throw eP; }
+          capacidadeRestante = round2(capacidadeRestante - aplicavel);
+          summary.glosas.partial++;
+          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: aplicavel, parcela: `${parcelaNumero}/${parcelas}`, action: "partial" });
           continue;
         }
 
-        if (parcelaPrevista > capacidadeRestante) {
-          // Regra de negócio (07/2026): NUNCA aplicar parcial.
-          // Se a PJ não tem líquido suficiente para cobrir a parcela inteira,
-          // o débito rola integralmente para o próximo ciclo. Parcial gerava
-          // resíduos de conciliação difíceis de auditar e confundia analistas.
-          const { error: e4 } = await supabase.from("glosa_payment_applications").insert({
-            payment_id, company_id, hospital_id: paymentHospitalId,
-            glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-            parcela_numero: parcelaNumero, valor_aplicado: 0,
-            status: "postponed", source: "auto",
-            postpone_reason: "insufficient_net",
-            resolution_note: `Líquido insuficiente: parcela prevista R$ ${parcelaPrevista.toFixed(2)}, capacidade R$ ${capacidadeRestante.toFixed(2)}. Débito rola integralmente para o próximo ciclo (sem aplicação parcial).`,
-            applied_by: user_id,
-          });
-          if (e4) { console.error(`[glosa postponed-insufficient] ${debt.id}`, e4); throw e4; }
-          summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
-          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
+        if (dryRun) {
+          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaPrevista, parcela: `${parcelaNumero}/${parcelas}`, action: "would_apply" });
+          capacidadeRestante = round2(capacidadeRestante - parcelaPrevista);
+          summary.glosas.proposed++;
           continue;
         }
 
