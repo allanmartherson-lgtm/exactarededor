@@ -347,13 +347,44 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const snapshotLiquido = Number(pcf?.liquido ?? 0);
       const snapshotGlosas = Number(pcf?.glosas ?? 0);
-      // liquido já vem descontado de glosas snapshotadas; capacidade "livre" para
-      // novas glosas = liquido + glosas_snapshotadas − glosas_deste_ciclo.
-      let capacidadeRestante = round2(snapshotLiquido + snapshotGlosas
+      // liquido bruto para cálculo do piso = líquido antes das glosas snapshotadas
+      const liquidoBrutoPreGlosa = round2(snapshotLiquido + snapshotGlosas);
+
+      // === PISO MÍNIMO DE REPASSE (por hospital) ===
+      // Regra C híbrida: sempre preservar max(pct% do líquido, R$ mínimo) para que a
+      // PJ receba algo e emita NF. Descoberto pelo hospital_id do payment.
+      let pisoAplicado = 0;
+      let pisoPct = 0;
+      let pisoBrl = 0;
+      try {
+        const { data: pay } = await supabase
+          .from("payments").select("hospital_id").eq("id", payment_id).maybeSingle();
+        if (pay?.hospital_id) {
+          const { data: hs } = await supabase
+            .from("hospital_settings")
+            .select("min_payout_pct, min_payout_brl")
+            .eq("hospital_id", pay.hospital_id)
+            .maybeSingle();
+          pisoPct = Number(hs?.min_payout_pct ?? 0);
+          pisoBrl = Number(hs?.min_payout_brl ?? 0);
+          const pisoDoPct = liquidoBrutoPreGlosa * (pisoPct / 100);
+          pisoAplicado = round2(Math.max(pisoDoPct, pisoBrl));
+        }
+      } catch (_e) { /* piso opcional — se falhar, segue com 0 */ }
+      summary.glosas.piso_aplicado = pisoAplicado;
+      summary.glosas.piso_pct = pisoPct;
+      summary.glosas.piso_brl = pisoBrl;
+      summary.glosas.liquido_bruto = liquidoBrutoPreGlosa;
+
+      // Capacidade real = líquido bruto − piso − glosas já consumidas neste ciclo.
+      let capacidadeRestante = round2(
+        Math.max(0, liquidoBrutoPreGlosa - pisoAplicado)
         - (existingGpa ?? [])
             .filter((r: any) => ["proposto", "confirmado", "partial"].includes(r.status))
-            .reduce((s: number, r: any) => s + Number(r.valor_aplicado || 0), 0));
+            .reduce((s: number, r: any) => s + Number(r.valor_aplicado || 0), 0),
+      );
       summary.glosas.capacidade_inicial = capacidadeRestante;
+
 
       // Sequencial (não paralelo) para respeitar capacidade decrementalmente.
       // Ordena FIFO por created_at do débito para que os mais antigos entrem primeiro.
