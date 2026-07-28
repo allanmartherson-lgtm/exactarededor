@@ -428,15 +428,17 @@ Deno.serve(async (req) => {
             .in("company_id", vinculadas);
           const empresasComProd = Array.from(new Set((outrasProd ?? []).map((i: any) => i.company_id)));
           if (empresasComProd.length > 1) {
-            const { error: e2 } = await supabase.from("glosa_payment_applications").insert({
-              payment_id, company_id, hospital_id: paymentHospitalId,
-              glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-              parcela_numero: 0, valor_aplicado: 0,
-              status: "pending_manual_resolution", source: "auto",
-              resolution_note: `Médico tem produção em ${empresasComProd.length} PJs vinculadas no mesmo lote — resolver manualmente`,
-              applied_by: user_id,
-            });
-            if (e2) { console.error(`[glosa ambiguous] ${debt.id}`, e2); throw e2; }
+            if (!dryRun) {
+              const { error: e2 } = await supabase.from("glosa_payment_applications").insert({
+                payment_id, company_id, hospital_id: paymentHospitalId,
+                glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+                parcela_numero: 0, valor_aplicado: 0,
+                status: "pending_manual_resolution", source: "auto",
+                resolution_note: `Médico tem produção em ${empresasComProd.length} PJs vinculadas no mesmo lote — resolver manualmente`,
+                applied_by: user_id,
+              });
+              if (e2) { console.error(`[glosa ambiguous] ${debt.id}`, e2); throw e2; }
+            }
             summary.glosas.ambiguous++;
             continue;
           }
