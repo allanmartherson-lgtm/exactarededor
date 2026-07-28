@@ -46,6 +46,28 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // === TRAVA DE CONCORRÊNCIA ===
+    // Serializa execuções simultâneas para o mesmo (payment_id, company_id).
+    // Sem isso, cliques repetidos ou reprocessamentos paralelos aplicavam a
+    // mesma glosa múltiplas vezes (sobre-aplicação → duplicidade).
+    const { data: lockOk, error: lockErr } = await supabase.rpc("try_acquire_deduction_lock", {
+      _payment_id: payment_id,
+      _company_id: company_id,
+    });
+    if (lockErr) {
+      console.error("[apply-company-deductions] lock rpc failed", lockErr);
+      return new Response(JSON.stringify({ error: "lock_rpc_failed", detail: lockErr.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!lockOk) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "locked",
+        message: "Outra execução de aplicar deduções já está em andamento para esta PJ neste lote. Aguarde alguns segundos e tente novamente.",
+      }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Identity for auditing
     const authHeader = req.headers.get("Authorization");
     let user_id: string | null = null;
