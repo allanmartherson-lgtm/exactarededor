@@ -207,17 +207,21 @@ export default function CreditosDebitos() {
   type ApplyOutcome = {
     pj_id: string;
     pj_name: string;
+    payment_id: string;
     payment_label: string;
     ok: boolean;
     applied: number;      // glosas efetivamente aplicadas agora
     already: number;      // já aplicadas antes (idempotência)
     postponed: number;    // sem líquido — rolam para próximo ciclo
     partial: number;      // aplicado parcial
+    insufficient_count: number; // débitos que não couberam integralmente
+    faltante_total: number;     // soma do que faltou de líquido
     capacidade: number | null;
     error?: string | null;
     hint?: string | null; // ação recomendada
   };
   const [resultDialog, setResultDialog] = useState<{ open: boolean; outcomes: ApplyOutcome[] }>({ open: false, outcomes: [] });
+  const [partialBusy, setPartialBusy] = useState<Set<string>>(new Set());
 
   // ============ FILTROS (sincronizados via URL) ============
   const tab = searchParams.get("tab") || "pendentes";
