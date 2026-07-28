@@ -2434,36 +2434,59 @@ export default function CreditosDebitos() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {(() => {
             const hasFail = resultDialog.outcomes.some(o => !o.ok);
+            const hasInsufficient = resultDialog.outcomes.some(o => (o.insufficient_count ?? 0) > 0);
             const hasPend = resultDialog.outcomes.some(o => o.postponed > 0 || o.partial > 0);
             const isRed = hasFail;
+            const title = isRed
+              ? "Erro ao aplicar débito no lote"
+              : hasInsufficient
+                ? "Líquido insuficiente — como proceder?"
+                : "Aplicação concluída com pendências";
+            const banner = isRed
+              ? "Uma ou mais aplicações falharam. Nenhum débito é aplicado à revelia — revise os detalhes abaixo e a ação recomendada por PJ antes de tentar novamente."
+              : hasInsufficient
+                ? "Algumas PJs não têm líquido suficiente no lote para cobrir 100% do débito. Nada foi lançado nessas PJs — escolha, por PJ, se quer parcelar (descontar o que couber agora) ou adiar (deixar o saldo aguardando o próximo lote com líquido)."
+                : "Todas as aplicações foram processadas, mas há PJs sem líquido suficiente no lote escolhido. Os saldos rolam automaticamente para o próximo ciclo.";
+            const bulkPartial = async () => {
+              const targets = resultDialog.outcomes.filter(o => (o.insufficient_count ?? 0) > 0);
+              for (const t of targets) await applyPartialForPj(t);
+            };
+            const bulkPostpone = () => {
+              resultDialog.outcomes
+                .filter(o => (o.insufficient_count ?? 0) > 0)
+                .forEach(o => postponeOutcome(o));
+            };
             return (
               <>
                 <DialogHeader>
                   <DialogTitle className={isRed ? "text-destructive" : "text-amber-700 dark:text-amber-500"}>
-                    {isRed ? "Erro ao aplicar débito no lote" : "Aplicação concluída com pendências"}
+                    {title}
                   </DialogTitle>
                 </DialogHeader>
                 <div className={`rounded-md border p-3 text-sm ${isRed ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"}`}>
-                  {isRed
-                    ? "Uma ou mais aplicações falharam. Nenhum débito é aplicado à revelia — revise os detalhes abaixo e a ação recomendada por PJ antes de tentar novamente."
-                    : "Todas as aplicações foram processadas, mas há PJs sem líquido suficiente no lote escolhido. Os saldos rolam automaticamente para o próximo ciclo."}
+                  {banner}
                 </div>
                 <div className="mt-3 divide-y border rounded-md max-h-[55vh] overflow-y-auto">
-                  {resultDialog.outcomes.map((o) => (
-                    <div key={`${o.pj_id}-${o.payment_label}`} className="px-3 py-2 text-sm space-y-1">
+                  {resultDialog.outcomes.map((o) => {
+                    const busyKey = `${o.payment_id}|${o.pj_id}`;
+                    const busy = partialBusy.has(busyKey);
+                    const isInsuf = (o.insufficient_count ?? 0) > 0;
+                    return (
+                    <div key={busyKey || `${o.pj_id}-${o.payment_label}`} className="px-3 py-2 text-sm space-y-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="font-medium truncate">{o.pj_name}</div>
                           <div className="text-[11px] text-muted-foreground truncate">Lote: {o.payment_label}</div>
                         </div>
-                        <Badge variant={o.ok ? (o.postponed > 0 || o.partial > 0 ? "secondary" : "default") : "destructive"}>
-                          {o.ok ? (o.postponed > 0 && o.applied === 0 && o.partial === 0 ? "Adiado" : o.partial > 0 ? "Parcial" : "Aplicado") : "Erro"}
+                        <Badge variant={!o.ok ? "destructive" : isInsuf ? "secondary" : (o.postponed > 0 || o.partial > 0 ? "secondary" : "default")}>
+                          {!o.ok ? "Erro" : isInsuf ? "Sem líquido" : (o.postponed > 0 && o.applied === 0 && o.partial === 0 ? "Adiado" : o.partial > 0 ? "Parcial" : "Aplicado")}
                         </Badge>
                       </div>
                       <div className="text-xs flex flex-wrap gap-x-3 gap-y-0.5">
                         {o.applied > 0 && <span>✓ {o.applied} aplicado(s)</span>}
                         {o.partial > 0 && <span className="text-amber-600">◐ {o.partial} parcial</span>}
                         {o.postponed > 0 && <span className="text-amber-600">↷ {o.postponed} adiado(s)</span>}
+                        {isInsuf && <span className="text-amber-700 dark:text-amber-400">⚠ {o.insufficient_count} sem líquido · falta {brl(o.faltante_total)}</span>}
                         {o.already > 0 && <span className="text-muted-foreground">↻ {o.already} já aplicado(s)</span>}
                         {o.capacidade != null && <span className="text-muted-foreground">líquido disp.: {brl(o.capacidade)}</span>}
                       </div>
@@ -2477,10 +2500,30 @@ export default function CreditosDebitos() {
                           <span className="font-medium">O que fazer:</span> {o.hint}
                         </div>
                       )}
+                      {isInsuf && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Button size="sm" variant="default" disabled={busy || !o.payment_id} onClick={() => applyPartialForPj(o)}>
+                            {busy ? "Parcelando…" : "Parcelar mesmo assim"}
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={busy} onClick={() => postponeOutcome(o)}>
+                            Adiar para próximo lote
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  );})}
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between">
+                  {hasInsufficient ? (
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" variant="secondary" onClick={bulkPartial} disabled={partialBusy.size > 0}>
+                        Parcelar todas
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={bulkPostpone} disabled={partialBusy.size > 0}>
+                        Adiar todas
+                      </Button>
+                    </div>
+                  ) : <span />}
                   <Button variant="outline" onClick={() => setResultDialog({ open: false, outcomes: [] })}>Fechar</Button>
                 </DialogFooter>
               </>
