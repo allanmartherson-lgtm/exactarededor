@@ -90,8 +90,10 @@ Deno.serve(async (req) => {
     try {
 
     const summary: any = {
+      mode,
+      dry_run: dryRun,
       debitos: { proposed: 0, updated_existing: 0, skipped_existing: 0, reverted_stale: 0, items: [] as any[] },
-      glosas:  { proposed: 0, skipped_existing: 0, ambiguous: 0, sem_pj: 0, items: [] as any[] },
+      glosas:  { proposed: 0, skipped_existing: 0, ambiguous: 0, sem_pj: 0, postponed: 0, partial: 0, insufficient: [] as any[], items: [] as any[] },
     };
 
     // Gate: lote já finalizado/pago não recebe novas propostas automáticas.
