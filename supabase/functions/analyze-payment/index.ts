@@ -1063,6 +1063,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
         rule_id: string;
         rule_name: string;
         calc_id: string;
+        calc_label: string | null;
         // Lista de códigos que disparam o pacote (qualquer um deles ativa).
         package_main_codes: string[];
         package_included_codes: string[];
