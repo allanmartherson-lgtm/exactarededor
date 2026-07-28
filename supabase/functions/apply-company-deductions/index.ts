@@ -283,11 +283,18 @@ Deno.serve(async (req) => {
         .eq("company_id", company_id)
         .in("status", ["proposto", "confirmado", "pending_manual_resolution", "partial"]);
 
-      const existingDebtIds = new Set(
-        (existingGpa ?? [])
-          .filter((r: any) => ["proposto", "confirmado", "partial"].includes(r.status))
-          .map((r: any) => r.glosa_debt_id),
-      );
+      // Agregado por débito: quanto já foi aplicado neste lote (proposto+confirmado+partial)
+      // e a maior parcela_numero registrada. Usamos para detectar débitos que tiveram o
+      // total_debt aumentado depois da primeira aplicação (append via RPC), calcular o
+      // delta ainda devido e completar a diferença em vez de ignorar o débito.
+      const existingByDebt = new Map<string, { applied: number; maxParcela: number }>();
+      for (const r of existingGpa ?? []) {
+        if (!["proposto", "confirmado", "partial"].includes(r.status)) continue;
+        const cur = existingByDebt.get(r.glosa_debt_id) ?? { applied: 0, maxParcela: 0 };
+        cur.applied = round2(cur.applied + Number(r.valor_aplicado || 0));
+        cur.maxParcela = Math.max(cur.maxParcela, Number(r.parcela_numero || 0));
+        existingByDebt.set(r.glosa_debt_id, cur);
+      }
 
       // Capacidade da PJ neste lote: líquido previsto (snapshot em payment_company_financials)
       // menos o que já foi consumido por outras deduções deste ciclo.
