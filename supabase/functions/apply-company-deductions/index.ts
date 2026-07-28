@@ -528,6 +528,8 @@ Deno.serve(async (req) => {
             saldo_devedor: parcelaPrevista,
             capacidade: Math.max(0, capacidadeRestante),
             faltante,
+            piso_aplicado: pisoAplicado,
+            liquido_bruto: liquidoBrutoPreGlosa,
             parcela_numero: parcelaNumero,
             parcelas_total: parcelas,
           };
