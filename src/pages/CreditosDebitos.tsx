@@ -1705,15 +1705,15 @@ export default function CreditosDebitos() {
             ) : (
               <>
                 {(() => {
-                  const pendingCount = emAndamento.filter(g => !isDebtSettled(g) && (!g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id))).length;
+                  const pendingCount = emAndamento.filter(g => isDebtPending(g)).length;
                   const appliedCount = emAndamento.length - pendingCount;
                   return (
                     <div className="flex flex-wrap items-center justify-between gap-2 border border-emerald-500/30 bg-emerald-500/5 rounded-md px-3 py-2">
                       <div className="text-xs text-muted-foreground">
-                        Aplica no lote em aberto mais recente de cada PJ. Débitos já aplicados são ignorados automaticamente (idempotente).
+                        Aplica no lote em aberto mais recente de cada PJ. Débitos já quitados (residual zero) são ignorados automaticamente.
                         {appliedCount > 0 && (
                           <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
-                            ✓ {appliedCount} já aplicado{appliedCount > 1 ? "s" : ""}
+                            ✓ {appliedCount} já quitado{appliedCount > 1 ? "s" : ""}
                           </span>
                         )}
                       </div>
@@ -1737,13 +1737,130 @@ export default function CreditosDebitos() {
                 const allGroups = groupByPj(emAndamento);
                 const activeGroups = allGroups.filter(([, list]) => !isGroupArchived(list));
                 const archivedGroups = allGroups.filter(([, list]) => isGroupArchived(list));
+                const renderDebtRow = (g: GlosaDebt) => {
+                  const parc = g.parcelas_default ?? 1;
+                  const allApps = debtEffectiveApps(g.id);
+                  const totalApplied = debtTotalApplied(g.id);
+                  const residual = debtResidual(g);
+                  const settled = isDebtSettled(g);
+                  // Prioriza aplicação no lote-alvo atual; senão, qualquer aplicação efetiva.
+                  const appliedInTarget = debtAppliedAt(g.id, g.target_payment_id);
+                  const anyApplied = appliedInTarget ?? allApps[0] ?? null;
+                  const appliedPaymentId = anyApplied?.payment_id ?? null;
+                  const otherApps = allApps.filter(a => a.payment_id !== appliedPaymentId);
+                  return (
+                    <div key={g.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{g.doctor_name}</span>
+                          {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
+                          {settled ? (
+                            <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
+                              ✓ Quitada ({brl(totalApplied)})
+                            </Badge>
+                          ) : anyApplied ? (
+                            anyApplied.status === "postponed" ? (
+                              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
+                                ⏳ Adiada ({anyApplied.postpone_reason === "sem_producao" ? "sem produção" : anyApplied.postpone_reason === "insufficient_net" ? "saldo insuficiente" : anyApplied.postpone_reason ?? "aguardando ciclo"})
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
+                                ✓ Aplicado ({anyApplied.status})
+                              </Badge>
+                            )
+                          ) : totalApplied > 0 ? (
+                            <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px]">
+                              ◐ Parcial ({brl(totalApplied)} de {brl(g.total_debt)})
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <div className="text-xs mt-0.5">
+                          <span className="font-mono text-destructive">{brl(g.total_debt)}</span>{" · "}
+                          <span>{parc}× de {brl(g.total_debt / parc)}</span>
+                          {g.confirmed_at && (
+                            <span className="ml-2 text-[10px] text-muted-foreground">
+                              confirmado {new Date(g.confirmed_at).toLocaleDateString("pt-BR")}
+                            </span>
+                          )}
+                        </div>
+                        {otherApps.length > 0 && (
+                          <div className="text-[11px] mt-0.5 text-muted-foreground">
+                            Aplicações anteriores:{" "}
+                            {otherApps.map((a, i) => (
+                              <span key={a.payment_id + i}>
+                                {i > 0 && " · "}
+                                <span className="text-emerald-700 dark:text-emerald-400">
+                                  {paymentLabels[a.payment_id] ?? a.payment_id.slice(0, 8)} — {brl(a.valor_aplicado)}
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="text-[11px] mt-0.5">
+                          {settled ? (
+                            appliedPaymentId ? (
+                              <span className="text-emerald-600">
+                                ✓ dívida totalmente quitada — aplicado em: {paymentLabels[appliedPaymentId] ?? appliedPaymentId.slice(0, 8)}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600">✓ dívida totalmente quitada</span>
+                            )
+                          ) : anyApplied ? (
+                            <span className="text-emerald-600">
+                              ✓ aplicado em: {paymentLabels[appliedPaymentId!] ?? appliedPaymentId!.slice(0, 8)}
+                              {anyApplied.valor_aplicado > 0 && ` — ${brl(anyApplied.valor_aplicado)}`}
+                              {residual > 0 && (
+                                <>
+                                  <span className="ml-1 text-amber-600">· residual {brl(residual)}</span>
+                                  {g.target_payment_id && g.target_payment_id !== appliedPaymentId && (
+                                    <span className="ml-1 text-muted-foreground">
+                                      → lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </span>
+                          ) : g.target_payment_id ? (
+                            <span className="text-emerald-600">
+                              → lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
+                              {residual > 0 && residual < Number(g.total_debt) && (
+                                <span className="ml-1 text-amber-600">· residual a aplicar {brl(residual)}</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600">⚠ sem lote-alvo definido — não será aplicado</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => openGlosa(g)}>
+                          <Pencil className="w-3.5 h-3.5 mr-1" /> Reparcelar
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => reopenGlosa(g)}>Reabrir</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => revertGlosa(g)}
+                          title="Cancelar esta glosa e devolvê-la à conciliação"
+                        >
+                          Reverter
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                };
                 const renderGroup = (pjId: string, list: GlosaDebt[], groupCount: number, archived: boolean) => {
                   const pjName = list[0]?._company_name ?? "PJ";
-                  const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
+                  // Total do grupo: soma apenas o residual (o que ainda falta aplicar).
+                  const totalResidual = list.reduce((s, g) => s + debtResidual(g), 0);
                   // Arquivados: colapsados por default (ignora auto-open por cardinalidade)
                   const isOpen = openGroups[pjId] !== undefined ? openGroups[pjId] : (archived ? false : isGroupOpen(pjId, groupCount));
-                  const pjPending = list.filter(g => !isDebtSettled(g) && (!g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id))).length;
-                  const pjApplied = list.length - pjPending;
+                  const pendingList = list.filter(g => isDebtPending(g));
+                  const settledList = list.filter(g => !isDebtPending(g));
+                  const pjPending = pendingList.length;
+                  const pjApplied = settledList.length;
+                  const settledKey = `settled:${pjId}`;
+                  const settledIsOpen = !!settledOpen[settledKey];
 
                   return (
                     <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className={`border rounded-md ${archived ? "border-border/60 bg-muted/20" : "border-border"}`}>
@@ -1751,17 +1868,17 @@ export default function CreditosDebitos() {
                         <CollapsibleTrigger className="flex-1 flex items-center gap-2 min-w-0 hover:opacity-80 text-left">
                           {isOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
                           <span className={`font-medium text-sm truncate flex-1 min-w-0 ${archived ? "text-muted-foreground" : ""}`}>{pjName}</span>
-                          <Badge variant="outline" className="shrink-0">{list.length}</Badge>
+                          <Badge variant="outline" className="shrink-0" title="Débitos com residual a aplicar">{pjPending}</Badge>
                           {archived ? (
                             <Badge className="bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30 shrink-0 whitespace-nowrap">
-                              🗄 Arquivado (lote finalizado)
+                              🗄 Arquivado (lote liquidado)
                             </Badge>
                           ) : pjApplied > 0 && (
                             <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 shrink-0 whitespace-nowrap">
-                              ✓ {pjApplied} aplicado{pjApplied > 1 ? "s" : ""}
+                              ✓ {pjApplied} quitada{pjApplied > 1 ? "s" : ""}
                             </Badge>
                           )}
-                          <span className="text-xs text-muted-foreground font-mono shrink-0 whitespace-nowrap">{brl(total)}</span>
+                          <span className="text-xs text-muted-foreground font-mono shrink-0 whitespace-nowrap">{brl(totalResidual)}</span>
                         </CollapsibleTrigger>
                         {!archived && (
                           <Button
@@ -1784,106 +1901,27 @@ export default function CreditosDebitos() {
 
                       <CollapsibleContent>
                         <div className="divide-y">
-                          {list.map(g => {
-                            const parc = g.parcelas_default ?? 1;
-                            const applied = debtAppliedAt(g.id, g.target_payment_id);
-                            const allApps = debtEffectiveApps(g.id);
-                            const totalApplied = debtTotalApplied(g.id);
-                            const residual = Math.max(0, Number(g.total_debt || 0) - totalApplied);
-                            const settled = isDebtSettled(g);
-                            const otherApps = allApps.filter(a => a.payment_id !== g.target_payment_id);
-                            return (
-                              <div key={g.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium text-sm">{g.doctor_name}</span>
-                                    {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
-                                    {settled ? (
-                                      <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
-                                        ✓ Quitada ({brl(totalApplied)})
-                                      </Badge>
-                                    ) : applied ? (
-                                      applied.status === "postponed" ? (
-                                        <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
-                                          ⏳ Adiada ({applied.postpone_reason === "sem_producao" ? "sem produção" : applied.postpone_reason === "insufficient_net" ? "saldo insuficiente" : applied.postpone_reason ?? "aguardando ciclo"})
-                                        </Badge>
-                                      ) : (
-                                        <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
-                                          ✓ Aplicado ({applied.status})
-                                        </Badge>
-                                      )
-                                    ) : totalApplied > 0 ? (
-                                      <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px]">
-                                        ◐ Parcial ({brl(totalApplied)} de {brl(g.total_debt)})
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                  <div className="text-xs mt-0.5">
-                                    <span className="font-mono text-destructive">{brl(g.total_debt)}</span>{" · "}
-                                    <span>{parc}× de {brl(g.total_debt / parc)}</span>
-                                    {g.confirmed_at && (
-                                      <span className="ml-2 text-[10px] text-muted-foreground">
-                                        confirmado {new Date(g.confirmed_at).toLocaleDateString("pt-BR")}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {otherApps.length > 0 && (
-                                    <div className="text-[11px] mt-0.5 text-muted-foreground">
-                                      Aplicações anteriores:{" "}
-                                      {otherApps.map((a, i) => (
-                                        <span key={a.payment_id + i}>
-                                          {i > 0 && " · "}
-                                          <span className="text-emerald-700 dark:text-emerald-400">
-                                            {paymentLabels[a.payment_id] ?? a.payment_id.slice(0, 8)} — {brl(a.valor_aplicado)}
-                                          </span>
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                  <div className="text-[11px] mt-0.5">
-                                    {settled ? (
-                                      <span className="text-emerald-600">✓ dívida totalmente quitada</span>
-                                    ) : g.target_payment_id ? (
-                                      applied ? (
-                                        <span className="text-emerald-600">
-                                          ✓ aplicado em: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
-                                          {applied.valor_aplicado > 0 && ` — ${brl(applied.valor_aplicado)}`}
-                                          {residual > 0 && (
-                                            <span className="ml-1 text-amber-600">· residual {brl(residual)}</span>
-                                          )}
-                                        </span>
-                                      ) : (
-                                        <span className="text-emerald-600">
-                                          → lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
-                                          {residual > 0 && residual < Number(g.total_debt) && (
-                                            <span className="ml-1 text-amber-600">· residual a aplicar {brl(residual)}</span>
-                                          )}
-                                        </span>
-                                      )
-
-                                    ) : (
-                                      <span className="text-amber-600">⚠ sem lote-alvo definido — não será aplicado</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Button size="sm" variant="outline" onClick={() => openGlosa(g)}>
-                                    <Pencil className="w-3.5 h-3.5 mr-1" /> Reparcelar
-                                  </Button>
-                                  <Button size="sm" variant="ghost" onClick={() => reopenGlosa(g)}>Reabrir</Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => revertGlosa(g)}
-                                    title="Cancelar esta glosa e devolvê-la à conciliação"
-                                  >
-                                    Reverter
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {pendingList.map(renderDebtRow)}
                         </div>
+                        {settledList.length > 0 && (
+                          <div className="border-t bg-muted/10">
+                            <button
+                              type="button"
+                              onClick={() => setSettledOpen(s => ({ ...s, [settledKey]: !s[settledKey] }))}
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted/30"
+                            >
+                              {settledIsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                              <span className="text-xs text-muted-foreground">
+                                Quitadas ({settledList.length})
+                              </span>
+                            </button>
+                            {settledIsOpen && (
+                              <div className="divide-y">
+                                {settledList.map(renderDebtRow)}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </CollapsibleContent>
                     </Collapsible>
                   );
