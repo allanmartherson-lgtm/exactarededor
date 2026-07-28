@@ -1771,13 +1771,22 @@ export default function CreditosDebitos() {
                           {list.map(g => {
                             const parc = g.parcelas_default ?? 1;
                             const applied = debtAppliedAt(g.id, g.target_payment_id);
+                            const allApps = debtEffectiveApps(g.id);
+                            const totalApplied = debtTotalApplied(g.id);
+                            const residual = Math.max(0, Number(g.total_debt || 0) - totalApplied);
+                            const settled = isDebtSettled(g);
+                            const otherApps = allApps.filter(a => a.payment_id !== g.target_payment_id);
                             return (
                               <div key={g.id} className="flex items-center justify-between gap-3 px-3 py-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-medium text-sm">{g.doctor_name}</span>
                                     {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
-                                    {applied && (
+                                    {settled ? (
+                                      <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
+                                        ✓ Quitada ({brl(totalApplied)})
+                                      </Badge>
+                                    ) : applied ? (
                                       applied.status === "postponed" ? (
                                         <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
                                           ⏳ Adiada ({applied.postpone_reason === "sem_producao" ? "sem produção" : applied.postpone_reason === "insufficient_net" ? "saldo insuficiente" : applied.postpone_reason ?? "aguardando ciclo"})
@@ -1787,7 +1796,11 @@ export default function CreditosDebitos() {
                                           ✓ Aplicado ({applied.status})
                                         </Badge>
                                       )
-                                    )}
+                                    ) : totalApplied > 0 ? (
+                                      <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px]">
+                                        ◐ Parcial ({brl(totalApplied)} de {brl(g.total_debt)})
+                                      </Badge>
+                                    ) : null}
                                   </div>
                                   <div className="text-xs mt-0.5">
                                     <span className="font-mono text-destructive">{brl(g.total_debt)}</span>{" · "}
@@ -1798,16 +1811,40 @@ export default function CreditosDebitos() {
                                       </span>
                                     )}
                                   </div>
+                                  {otherApps.length > 0 && (
+                                    <div className="text-[11px] mt-0.5 text-muted-foreground">
+                                      Aplicações anteriores:{" "}
+                                      {otherApps.map((a, i) => (
+                                        <span key={a.payment_id + i}>
+                                          {i > 0 && " · "}
+                                          <span className="text-emerald-700 dark:text-emerald-400">
+                                            {paymentLabels[a.payment_id] ?? a.payment_id.slice(0, 8)} — {brl(a.valor_aplicado)}
+                                          </span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                   <div className="text-[11px] mt-0.5">
-                                    {g.target_payment_id ? (
+                                    {settled ? (
+                                      <span className="text-emerald-600">✓ dívida totalmente quitada</span>
+                                    ) : g.target_payment_id ? (
                                       applied ? (
                                         <span className="text-emerald-600">
                                           ✓ aplicado em: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
                                           {applied.valor_aplicado > 0 && ` — ${brl(applied.valor_aplicado)}`}
+                                          {residual > 0 && (
+                                            <span className="ml-1 text-amber-600">· residual {brl(residual)}</span>
+                                          )}
                                         </span>
                                       ) : (
-                                        <span className="text-emerald-600">→ lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}</span>
+                                        <span className="text-emerald-600">
+                                          → lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
+                                          {residual > 0 && residual < Number(g.total_debt) && (
+                                            <span className="ml-1 text-amber-600">· residual a aplicar {brl(residual)}</span>
+                                          )}
+                                        </span>
                                       )
+
                                     ) : (
                                       <span className="text-amber-600">⚠ sem lote-alvo definido — não será aplicado</span>
                                     )}
