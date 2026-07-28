@@ -132,7 +132,7 @@ export function PackageAmbiguityPanel({
         patch.expected_amount = pkgValue;
         patch.ai_status = "aprovado";
         patch.applied_calc_method = "pacote";
-        patch.matched_rule_name = extra.option?.calc_label
+        patch.applied_rule_label = extra.option?.calc_label
           ? `${extra.option.rule_name} — ${extra.option.calc_label}`
           : extra.option?.rule_name ?? null;
       } else if (decision === "manual") {
