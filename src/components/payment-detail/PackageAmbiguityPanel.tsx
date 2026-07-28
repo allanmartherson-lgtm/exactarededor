@@ -223,23 +223,30 @@ export function PackageAmbiguityPanel({
 
                 {canEdit && (
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {options.map((op) => (
-                      <button
-                        key={`${item.id}-${op.calc_id}`}
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => resolve(item.id, amb, "absorbed", { calcId: op.calc_id })}
-                        className="rounded bg-amber-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-amber-700 disabled:opacity-40"
-                        title={
-                          op.package_amount != null
-                            ? `Pacote de ${brl(Number(op.package_amount))}`
-                            : undefined
-                        }
-                      >
-                        Absorver em “{op.rule_name}”
-                        {op.access_route ? ` (${ROUTE_LABEL[op.access_route] ?? op.access_route})` : ""}
-                      </button>
-                    ))}
+                    {options.map((op) => {
+                      const primary = op.calc_label?.trim() || op.rule_name;
+                      const secondary =
+                        op.calc_label && op.calc_label.trim() && op.calc_label.trim() !== op.rule_name
+                          ? op.rule_name
+                          : null;
+                      const val = op.package_amount != null ? Number(op.package_amount) : null;
+                      return (
+                        <button
+                          key={`${item.id}-${op.calc_id}`}
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() =>
+                            resolve(item.id, amb, "absorbed", { calcId: op.calc_id, option: op })
+                          }
+                          className="rounded bg-amber-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-amber-700 disabled:opacity-40"
+                          title={secondary ? `Regra: ${secondary}` : undefined}
+                        >
+                          Absorver em “{primary}”
+                          {op.access_route ? ` (${ROUTE_LABEL[op.access_route] ?? op.access_route})` : ""}
+                          {val != null ? ` · ${brl(val)}` : ""}
+                        </button>
+                      );
+                    })}
                     <button
                       type="button"
                       disabled={isSaving}
