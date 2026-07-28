@@ -1689,7 +1689,7 @@ export default function CreditosDebitos() {
             ) : (
               <>
                 {(() => {
-                  const pendingCount = emAndamento.filter(g => !g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id)).length;
+                  const pendingCount = emAndamento.filter(g => !isDebtSettled(g) && (!g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id))).length;
                   const appliedCount = emAndamento.length - pendingCount;
                   return (
                     <div className="flex flex-wrap items-center justify-between gap-2 border border-emerald-500/30 bg-emerald-500/5 rounded-md px-3 py-2">
@@ -1726,8 +1726,9 @@ export default function CreditosDebitos() {
                   const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
                   // Arquivados: colapsados por default (ignora auto-open por cardinalidade)
                   const isOpen = openGroups[pjId] !== undefined ? openGroups[pjId] : (archived ? false : isGroupOpen(pjId, groupCount));
-                  const pjPending = list.filter(g => !g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id)).length;
+                  const pjPending = list.filter(g => !isDebtSettled(g) && (!g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id))).length;
                   const pjApplied = list.length - pjPending;
+
                   return (
                     <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className={`border rounded-md ${archived ? "border-border/60 bg-muted/20" : "border-border"}`}>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
