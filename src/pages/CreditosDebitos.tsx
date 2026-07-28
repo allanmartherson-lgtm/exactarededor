@@ -2274,9 +2274,10 @@ export default function CreditosDebitos() {
             <DialogTitle>Selecionar lote-alvo</DialogTitle>
           </DialogHeader>
           {(() => {
-            const scope = applyDialogScopePj
+            const rawScope = applyDialogScopePj
               ? emAndamento.filter(g => g.company_id === applyDialogScopePj)
               : emAndamento;
+            const scope = rawScope.filter(g => isDebtPending(g));
             const byPj = new Map<string, GlosaDebt[]>();
             scope.forEach(g => { const arr = byPj.get(g.company_id) ?? []; arr.push(g); byPj.set(g.company_id, arr); });
             const pjEntries = Array.from(byPj.entries());
@@ -2293,12 +2294,12 @@ export default function CreditosDebitos() {
                 </div>
                 <div className="border border-border rounded-md">
                   <div className="grid grid-cols-[1.2fr_auto_2fr] gap-2 px-3 py-2 bg-muted/40 text-xs font-medium border-b">
-                    <div>PJ</div><div className="text-right">Total dívida</div><div>Lote-alvo</div>
+                    <div>PJ</div><div className="text-right">Residual</div><div>Lote-alvo</div>
                   </div>
                   <div className="divide-y max-h-[50vh] overflow-y-auto">
                     {pjEntries.map(([pjId, list]) => {
                       const pjName = list[0]?._company_name ?? "PJ";
-                      const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
+                      const total = list.reduce((s, g) => s + debtResidual(g), 0);
                       const opts = applyLotesByPj[pjId] ?? [];
                       const pick = applyPickByPj[pjId] ?? "";
                       return (
