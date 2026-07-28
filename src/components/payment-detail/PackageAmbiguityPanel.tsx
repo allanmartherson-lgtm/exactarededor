@@ -24,6 +24,7 @@ export type PackageAmbiguityOption = {
   calc_id: string;
   rule_id?: string;
   rule_name: string;
+  calc_label?: string | null;
   code?: string;
   main_codes?: string[];
   package_amount?: number;
