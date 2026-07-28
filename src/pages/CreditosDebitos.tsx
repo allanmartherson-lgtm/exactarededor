@@ -207,17 +207,21 @@ export default function CreditosDebitos() {
   type ApplyOutcome = {
     pj_id: string;
     pj_name: string;
+    payment_id: string;
     payment_label: string;
     ok: boolean;
     applied: number;      // glosas efetivamente aplicadas agora
     already: number;      // já aplicadas antes (idempotência)
     postponed: number;    // sem líquido — rolam para próximo ciclo
     partial: number;      // aplicado parcial
+    insufficient_count: number; // débitos que não couberam integralmente
+    faltante_total: number;     // soma do que faltou de líquido
     capacidade: number | null;
     error?: string | null;
     hint?: string | null; // ação recomendada
   };
   const [resultDialog, setResultDialog] = useState<{ open: boolean; outcomes: ApplyOutcome[] }>({ open: false, outcomes: [] });
+  const [partialBusy, setPartialBusy] = useState<Set<string>>(new Set());
 
   // ============ FILTROS (sincronizados via URL) ============
   const tab = searchParams.get("tab") || "pendentes";
@@ -1022,6 +1026,9 @@ export default function CreditosDebitos() {
         const partial = Number(glosasSummary?.partial ?? 0);
         const already = Number(glosasSummary?.skipped_existing ?? 0);
         const capacidade = glosasSummary?.capacidade_inicial != null ? Number(glosasSummary.capacidade_inicial) : null;
+        const insufficientList: any[] = Array.isArray(glosasSummary?.insufficient) ? glosasSummary.insufficient : [];
+        const insufficientCount = insufficientList.length;
+        const faltanteTotal = insufficientList.reduce((s: number, r: any) => s + Number(r.faltante ?? 0), 0);
 
         const ok = res.status === "fulfilled" && !invokeError && !data?.error;
         const errMsg = !ok
@@ -1031,6 +1038,8 @@ export default function CreditosDebitos() {
         let hint: string | null = null;
         if (!ok) {
           hint = "Verifique se o lote-alvo permanece aberto e tente novamente. Se persistir, revise o vínculo médico→PJ e o cadastro do débito.";
+        } else if (insufficientCount > 0) {
+          hint = `PJ sem líquido para cobrir ${insufficientCount} débito(s) integralmente (faltam ${brl(faltanteTotal)}). Escolha "Parcelar" para descontar o que couber agora, ou "Adiar" para deixar o saldo aguardando o próximo lote.`;
         } else if (postponed > 0 && applied === 0 && partial === 0) {
           hint = `PJ sem líquido disponível no lote (capacidade R$ ${capacidade?.toFixed(2) ?? "0,00"}). O débito rola automaticamente para o próximo ciclo — nenhuma ação necessária agora.`;
         } else if (partial > 0) {
@@ -1038,8 +1047,10 @@ export default function CreditosDebitos() {
         }
 
         outcomes.push({
-          pj_id: p.company_id, pj_name: pjName, payment_label: loteLabel,
-          ok, applied, already, postponed, partial, capacidade, error: errMsg, hint,
+          pj_id: p.company_id, pj_name: pjName, payment_id: p.payment_id, payment_label: loteLabel,
+          ok, applied, already, postponed, partial,
+          insufficient_count: insufficientCount, faltante_total: faltanteTotal,
+          capacidade, error: errMsg, hint,
         });
 
         const baseReason = ok ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${errMsg}`;
@@ -1066,9 +1077,11 @@ export default function CreditosDebitos() {
         setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
       }
 
-      // Se houver falha, postpone ou parcial → abre painel vermelho detalhado.
-      // Caso 100% ok e sem postpone/partial → toast de sucesso simples.
-      if (failedInvocations > 0 || anyPostponedOrPartial) {
+      // Detecta líquido insuficiente para abrir a UI de decisão explícita.
+      const anyInsufficient = outcomes.some(o => (o.insufficient_count ?? 0) > 0);
+      // Se houver falha, postpone, parcial ou insufficient → abre painel detalhado.
+      // Caso 100% ok e sem pendência → toast de sucesso simples.
+      if (failedInvocations > 0 || anyPostponedOrPartial || anyInsufficient) {
         setResultDialog({ open: true, outcomes });
       } else {
         const scopeLabel = scopePjId
@@ -1093,8 +1106,10 @@ export default function CreditosDebitos() {
           pj_name: scopePjId
             ? (emAndamento.find(g => g.company_id === scopePjId)?._company_name ?? "PJ")
             : "Aplicação em massa",
+          payment_id: "",
           payment_label: "—",
-          ok: false, applied: 0, already: 0, postponed: 0, partial: 0, capacidade: null,
+          ok: false, applied: 0, already: 0, postponed: 0, partial: 0,
+          insufficient_count: 0, faltante_total: 0, capacidade: null,
           error: err?.message ?? "Falha ao aplicar no lote escolhido.",
           hint: "Verifique sua conexão e permissões no hospital ativo. Se persistir, recarregue a página e tente novamente.",
         }],
@@ -1103,6 +1118,52 @@ export default function CreditosDebitos() {
       setApplyingCurrent(null);
     }
   };
+
+  // Chamado quando o usuário clica "Parcelar mesmo assim" no dialog de líquido insuficiente.
+  // Re-invoca a edge para o par (payment_id, company_id) com mode='partial_allowed',
+  // que aplica o que couber no líquido e adia o residual como débito ativo.
+  const applyPartialForPj = async (outcome: ApplyOutcome) => {
+    const key = `${outcome.payment_id}|${outcome.pj_id}`;
+    if (!outcome.payment_id) { toast.error("Lote-alvo indisponível para parcelar."); return; }
+    setPartialBusy(prev => { const n = new Set(prev); n.add(key); return n; });
+    try {
+      const { data, error } = await supabase.functions.invoke("apply-company-deductions", {
+        body: { payment_id: outcome.payment_id, company_id: outcome.pj_id, mode: "partial_allowed" },
+      });
+      if (error || (data as any)?.error) {
+        toast.error(`Falha ao parcelar ${outcome.pj_name}: ${error?.message ?? (data as any)?.error ?? "erro desconhecido"}`);
+        return;
+      }
+      const g = (data as any)?.summary?.glosas ?? {};
+      const parts = [
+        g.partial ? `◐ ${g.partial} parcial` : null,
+        g.proposed ? `✓ ${g.proposed} aplicado(s)` : null,
+        g.postponed ? `↷ ${g.postponed} adiado(s)` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(`${outcome.pj_name} — ${parts || "sem alterações"}`);
+      // Remove esse outcome do painel; se ficar vazio, fecha.
+      setResultDialog(prev => {
+        const remaining = prev.outcomes.filter(o => !(o.pj_id === outcome.pj_id && o.payment_id === outcome.payment_id));
+        return { open: remaining.length > 0, outcomes: remaining };
+      });
+      void loadAll();
+    } catch (err: any) {
+      toast.error(`Falha ao parcelar: ${err?.message ?? String(err)}`);
+    } finally {
+      setPartialBusy(prev => { const n = new Set(prev); n.delete(key); return n; });
+    }
+  };
+
+  const postponeOutcome = (outcome: ApplyOutcome) => {
+    // Adiar = não fazer nada. O débito segue pendente e será oferecido no próximo ciclo.
+    setResultDialog(prev => {
+      const remaining = prev.outcomes.filter(o => !(o.pj_id === outcome.pj_id && o.payment_id === outcome.payment_id));
+      return { open: remaining.length > 0, outcomes: remaining };
+    });
+    toast.info(`${outcome.pj_name}: débito segue pendente. Será aplicado quando houver líquido no próximo lote.`);
+  };
+
+
 
 
 
@@ -2373,36 +2434,59 @@ export default function CreditosDebitos() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {(() => {
             const hasFail = resultDialog.outcomes.some(o => !o.ok);
+            const hasInsufficient = resultDialog.outcomes.some(o => (o.insufficient_count ?? 0) > 0);
             const hasPend = resultDialog.outcomes.some(o => o.postponed > 0 || o.partial > 0);
             const isRed = hasFail;
+            const title = isRed
+              ? "Erro ao aplicar débito no lote"
+              : hasInsufficient
+                ? "Líquido insuficiente — como proceder?"
+                : "Aplicação concluída com pendências";
+            const banner = isRed
+              ? "Uma ou mais aplicações falharam. Nenhum débito é aplicado à revelia — revise os detalhes abaixo e a ação recomendada por PJ antes de tentar novamente."
+              : hasInsufficient
+                ? "Algumas PJs não têm líquido suficiente no lote para cobrir 100% do débito. Nada foi lançado nessas PJs — escolha, por PJ, se quer parcelar (descontar o que couber agora) ou adiar (deixar o saldo aguardando o próximo lote com líquido)."
+                : "Todas as aplicações foram processadas, mas há PJs sem líquido suficiente no lote escolhido. Os saldos rolam automaticamente para o próximo ciclo.";
+            const bulkPartial = async () => {
+              const targets = resultDialog.outcomes.filter(o => (o.insufficient_count ?? 0) > 0);
+              for (const t of targets) await applyPartialForPj(t);
+            };
+            const bulkPostpone = () => {
+              resultDialog.outcomes
+                .filter(o => (o.insufficient_count ?? 0) > 0)
+                .forEach(o => postponeOutcome(o));
+            };
             return (
               <>
                 <DialogHeader>
                   <DialogTitle className={isRed ? "text-destructive" : "text-amber-700 dark:text-amber-500"}>
-                    {isRed ? "Erro ao aplicar débito no lote" : "Aplicação concluída com pendências"}
+                    {title}
                   </DialogTitle>
                 </DialogHeader>
                 <div className={`rounded-md border p-3 text-sm ${isRed ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"}`}>
-                  {isRed
-                    ? "Uma ou mais aplicações falharam. Nenhum débito é aplicado à revelia — revise os detalhes abaixo e a ação recomendada por PJ antes de tentar novamente."
-                    : "Todas as aplicações foram processadas, mas há PJs sem líquido suficiente no lote escolhido. Os saldos rolam automaticamente para o próximo ciclo."}
+                  {banner}
                 </div>
                 <div className="mt-3 divide-y border rounded-md max-h-[55vh] overflow-y-auto">
-                  {resultDialog.outcomes.map((o) => (
-                    <div key={`${o.pj_id}-${o.payment_label}`} className="px-3 py-2 text-sm space-y-1">
+                  {resultDialog.outcomes.map((o) => {
+                    const busyKey = `${o.payment_id}|${o.pj_id}`;
+                    const busy = partialBusy.has(busyKey);
+                    const isInsuf = (o.insufficient_count ?? 0) > 0;
+                    return (
+                    <div key={busyKey || `${o.pj_id}-${o.payment_label}`} className="px-3 py-2 text-sm space-y-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="font-medium truncate">{o.pj_name}</div>
                           <div className="text-[11px] text-muted-foreground truncate">Lote: {o.payment_label}</div>
                         </div>
-                        <Badge variant={o.ok ? (o.postponed > 0 || o.partial > 0 ? "secondary" : "default") : "destructive"}>
-                          {o.ok ? (o.postponed > 0 && o.applied === 0 && o.partial === 0 ? "Adiado" : o.partial > 0 ? "Parcial" : "Aplicado") : "Erro"}
+                        <Badge variant={!o.ok ? "destructive" : isInsuf ? "secondary" : (o.postponed > 0 || o.partial > 0 ? "secondary" : "default")}>
+                          {!o.ok ? "Erro" : isInsuf ? "Sem líquido" : (o.postponed > 0 && o.applied === 0 && o.partial === 0 ? "Adiado" : o.partial > 0 ? "Parcial" : "Aplicado")}
                         </Badge>
                       </div>
                       <div className="text-xs flex flex-wrap gap-x-3 gap-y-0.5">
                         {o.applied > 0 && <span>✓ {o.applied} aplicado(s)</span>}
                         {o.partial > 0 && <span className="text-amber-600">◐ {o.partial} parcial</span>}
                         {o.postponed > 0 && <span className="text-amber-600">↷ {o.postponed} adiado(s)</span>}
+                        {isInsuf && <span className="text-amber-700 dark:text-amber-400">⚠ {o.insufficient_count} sem líquido · falta {brl(o.faltante_total)}</span>}
                         {o.already > 0 && <span className="text-muted-foreground">↻ {o.already} já aplicado(s)</span>}
                         {o.capacidade != null && <span className="text-muted-foreground">líquido disp.: {brl(o.capacidade)}</span>}
                       </div>
@@ -2416,10 +2500,30 @@ export default function CreditosDebitos() {
                           <span className="font-medium">O que fazer:</span> {o.hint}
                         </div>
                       )}
+                      {isInsuf && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Button size="sm" variant="default" disabled={busy || !o.payment_id} onClick={() => applyPartialForPj(o)}>
+                            {busy ? "Parcelando…" : "Parcelar mesmo assim"}
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={busy} onClick={() => postponeOutcome(o)}>
+                            Adiar para próximo lote
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  );})}
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between">
+                  {hasInsufficient ? (
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" variant="secondary" onClick={bulkPartial} disabled={partialBusy.size > 0}>
+                        Parcelar todas
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={bulkPostpone} disabled={partialBusy.size > 0}>
+                        Adiar todas
+                      </Button>
+                    </div>
+                  ) : <span />}
                   <Button variant="outline" onClick={() => setResultDialog({ open: false, outcomes: [] })}>Fechar</Button>
                 </DialogFooter>
               </>

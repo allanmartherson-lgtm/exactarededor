@@ -34,7 +34,19 @@ Deno.serve(async (req) => {
 
   try {
 
-    const { payment_id, company_id } = await req.json();
+    const body = await req.json();
+    const { payment_id, company_id } = body ?? {};
+    // mode:
+    //   'full_only'        (default) — só aplica glosa se PJ tiver líquido para cobrir 100%.
+    //                       Se não cobrir, NÃO insere nada e devolve `insufficient` para a UI
+    //                       decidir (parcelar/adiar/trocar lote).
+    //   'partial_allowed'  — aplica até o líquido disponível e adia o resíduo (comportamento
+    //                        antigo). Usado apenas quando o usuário escolhe "Parcelar" no modal.
+    const mode: "full_only" | "partial_allowed" =
+      body?.mode === "partial_allowed" ? "partial_allowed" : "full_only";
+    // dry_run: só calcula capacidade × necessidade e devolve o `summary`. Não escreve nada.
+    // Usado pela UI para saber, antes de aplicar, se algumas PJs vão bater em líquido insuficiente.
+    const dryRun: boolean = body?.dry_run === true;
     if (!payment_id || !company_id) {
       return new Response(JSON.stringify({ error: "payment_id and company_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,8 +90,10 @@ Deno.serve(async (req) => {
     try {
 
     const summary: any = {
+      mode,
+      dry_run: dryRun,
       debitos: { proposed: 0, updated_existing: 0, skipped_existing: 0, reverted_stale: 0, items: [] as any[] },
-      glosas:  { proposed: 0, skipped_existing: 0, ambiguous: 0, sem_pj: 0, items: [] as any[] },
+      glosas:  { proposed: 0, skipped_existing: 0, ambiguous: 0, sem_pj: 0, postponed: 0, partial: 0, insufficient: [] as any[], items: [] as any[] },
     };
 
     // Gate: lote já finalizado/pago não recebe novas propostas automáticas.
@@ -127,10 +141,12 @@ Deno.serve(async (req) => {
     // Garante que a linha de snapshot financeiro (PCF) exista para esta PJ neste lote.
     // Sem ela, o trigger de recompute rodava um UPDATE que não atingia nenhuma linha e
     // o Panorama do lote mostrava "Apurado glosas = R$ 0,00" mesmo com aplicações válidas.
-    await supabase.rpc("ensure_payment_company_financials_row", {
-      p_payment_id: payment_id,
-      p_company_id: company_id,
-    });
+    if (!dryRun) {
+      await supabase.rpc("ensure_payment_company_financials_row", {
+        p_payment_id: payment_id,
+        p_company_id: company_id,
+      });
+    }
 
 
     // ============ DÉBITOS (company_financial_adjustments) ============
@@ -183,7 +199,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const loteCompetence: string | null = (paymentRowForDate?.competence_month as string) ?? null;
 
-    const adjResult = await runInBatches(adjustments ?? [], 5, async (adj: any) => {
+    const adjResult = dryRun
+      ? { errors: [] }
+      : await runInBatches(adjustments ?? [], 5, async (adj: any) => {
      try {
       const isRecorrente = !!adj.recorrente;
       const existingRows = existingByAdj.get(adj.id) ?? [];
@@ -364,14 +382,16 @@ Deno.serve(async (req) => {
           const stalePendingRows = (existingGpa ?? []).filter((r: any) =>
             r.glosa_debt_id === debt.id && r.status === "pending_manual_resolution"
           );
-          for (const stale of stalePendingRows) {
-            const { error: deletePendingErr } = await supabase
-              .from("glosa_payment_applications")
-              .delete()
-              .eq("id", stale.id);
-            if (deletePendingErr) {
-              console.error(`[glosa cleanup pending] ${debt.id}`, deletePendingErr);
-              throw deletePendingErr;
+          if (!dryRun) {
+            for (const stale of stalePendingRows) {
+              const { error: deletePendingErr } = await supabase
+                .from("glosa_payment_applications")
+                .delete()
+                .eq("id", stale.id);
+              if (deletePendingErr) {
+                console.error(`[glosa cleanup pending] ${debt.id}`, deletePendingErr);
+                throw deletePendingErr;
+              }
             }
           }
         } else {
@@ -385,15 +405,17 @@ Deno.serve(async (req) => {
           const matchEmpresa = vinculadas.includes(company_id);
 
           if (vinculadas.length === 0) {
-          const { error: e1 } = await supabase.from("glosa_payment_applications").insert({
-            payment_id, company_id, hospital_id: paymentHospitalId,
-            glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-            parcela_numero: 0, valor_aplicado: 0,
-            status: "pending_manual_resolution", source: "auto",
-            resolution_note: "Médico sem PJ vinculada",
-            applied_by: user_id,
-          });
-          if (e1) { console.error(`[glosa sem_pj] ${debt.id}`, e1); throw e1; }
+          if (!dryRun) {
+            const { error: e1 } = await supabase.from("glosa_payment_applications").insert({
+              payment_id, company_id, hospital_id: paymentHospitalId,
+              glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+              parcela_numero: 0, valor_aplicado: 0,
+              status: "pending_manual_resolution", source: "auto",
+              resolution_note: "Médico sem PJ vinculada",
+              applied_by: user_id,
+            });
+            if (e1) { console.error(`[glosa sem_pj] ${debt.id}`, e1); throw e1; }
+          }
           summary.glosas.sem_pj++;
           continue;
           }
@@ -406,15 +428,17 @@ Deno.serve(async (req) => {
             .in("company_id", vinculadas);
           const empresasComProd = Array.from(new Set((outrasProd ?? []).map((i: any) => i.company_id)));
           if (empresasComProd.length > 1) {
-            const { error: e2 } = await supabase.from("glosa_payment_applications").insert({
-              payment_id, company_id, hospital_id: paymentHospitalId,
-              glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-              parcela_numero: 0, valor_aplicado: 0,
-              status: "pending_manual_resolution", source: "auto",
-              resolution_note: `Médico tem produção em ${empresasComProd.length} PJs vinculadas no mesmo lote — resolver manualmente`,
-              applied_by: user_id,
-            });
-            if (e2) { console.error(`[glosa ambiguous] ${debt.id}`, e2); throw e2; }
+            if (!dryRun) {
+              const { error: e2 } = await supabase.from("glosa_payment_applications").insert({
+                payment_id, company_id, hospital_id: paymentHospitalId,
+                glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+                parcela_numero: 0, valor_aplicado: 0,
+                status: "pending_manual_resolution", source: "auto",
+                resolution_note: `Médico tem produção em ${empresasComProd.length} PJs vinculadas no mesmo lote — resolver manualmente`,
+                applied_by: user_id,
+              });
+              if (e2) { console.error(`[glosa ambiguous] ${debt.id}`, e2); throw e2; }
+            }
             summary.glosas.ambiguous++;
             continue;
           }
@@ -462,39 +486,65 @@ Deno.serve(async (req) => {
         }
 
         // === REGRA DE CAPACIDADE ===
-        if (capacidadeRestante <= 0.01) {
-          const { error: e3 } = await supabase.from("glosa_payment_applications").insert({
+        // Falta líquido para cobrir 100% do saldo devedor deste débito?
+        const semLiquido = capacidadeRestante <= 0.01 || parcelaPrevista > capacidadeRestante;
+        if (semLiquido) {
+          const faltante = round2(Math.max(0, parcelaPrevista - Math.max(0, capacidadeRestante)));
+          const insufficientEntry = {
+            debt_id: debt.id,
+            doctor_name: debt.doctor_name,
+            company_id,
+            saldo_devedor: parcelaPrevista,
+            capacidade: Math.max(0, capacidadeRestante),
+            faltante,
+            parcela_numero: parcelaNumero,
+            parcelas_total: parcelas,
+          };
+          summary.glosas.insufficient.push(insufficientEntry);
+
+          if (mode === "full_only" || dryRun) {
+            // Não escreve nada — devolve para a UI decidir (parcelar/adiar/trocar lote).
+            summary.glosas.items.push({ ...insufficientEntry, action: "insufficient" });
+            continue;
+          }
+
+          // mode === 'partial_allowed': aplica o que couber; se não couber nada, adia.
+          const aplicavel = round2(Math.min(parcelaPrevista, Math.max(0, capacidadeRestante)));
+          if (aplicavel <= 0.01) {
+            const { error: e3 } = await supabase.from("glosa_payment_applications").insert({
+              payment_id, company_id, hospital_id: paymentHospitalId,
+              glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+              parcela_numero: parcelaNumero, valor_aplicado: 0,
+              status: "postponed", source: "auto",
+              postpone_reason: "insufficient_net",
+              resolution_note: `Lote sem líquido disponível para a PJ (capacidade R$ ${Math.max(0, capacidadeRestante).toFixed(2)}). Débito rola para o próximo ciclo.`,
+              applied_by: user_id,
+            });
+            if (e3) { console.error(`[glosa postponed] ${debt.id}`, e3); throw e3; }
+            summary.glosas.postponed++;
+            summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
+            continue;
+          }
+
+          const { error: eP } = await supabase.from("glosa_payment_applications").insert({
             payment_id, company_id, hospital_id: paymentHospitalId,
             glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-            parcela_numero: parcelaNumero, valor_aplicado: 0,
-            status: "postponed", source: "auto",
-            postpone_reason: "insufficient_net",
-            resolution_note: `Lote sem líquido disponível para a PJ (capacidade R$ ${capacidadeRestante.toFixed(2)}). Débito rola para o próximo ciclo.`,
+            parcela_numero: parcelaNumero, valor_aplicado: aplicavel,
+            status: "partial", source: "auto",
+            resolution_note: `Aplicação parcial autorizada pelo usuário: R$ ${aplicavel.toFixed(2)} de R$ ${parcelaPrevista.toFixed(2)}. Residual R$ ${faltante.toFixed(2)} rola para o próximo lote.`,
             applied_by: user_id,
           });
-          if (e3) { console.error(`[glosa postponed] ${debt.id}`, e3); throw e3; }
-          summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
-          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
+          if (eP) { console.error(`[glosa partial] ${debt.id}`, eP); throw eP; }
+          capacidadeRestante = round2(capacidadeRestante - aplicavel);
+          summary.glosas.partial++;
+          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: aplicavel, parcela: `${parcelaNumero}/${parcelas}`, action: "partial" });
           continue;
         }
 
-        if (parcelaPrevista > capacidadeRestante) {
-          // Regra de negócio (07/2026): NUNCA aplicar parcial.
-          // Se a PJ não tem líquido suficiente para cobrir a parcela inteira,
-          // o débito rola integralmente para o próximo ciclo. Parcial gerava
-          // resíduos de conciliação difíceis de auditar e confundia analistas.
-          const { error: e4 } = await supabase.from("glosa_payment_applications").insert({
-            payment_id, company_id, hospital_id: paymentHospitalId,
-            glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-            parcela_numero: parcelaNumero, valor_aplicado: 0,
-            status: "postponed", source: "auto",
-            postpone_reason: "insufficient_net",
-            resolution_note: `Líquido insuficiente: parcela prevista R$ ${parcelaPrevista.toFixed(2)}, capacidade R$ ${capacidadeRestante.toFixed(2)}. Débito rola integralmente para o próximo ciclo (sem aplicação parcial).`,
-            applied_by: user_id,
-          });
-          if (e4) { console.error(`[glosa postponed-insufficient] ${debt.id}`, e4); throw e4; }
-          summary.glosas.postponed = (summary.glosas.postponed ?? 0) + 1;
-          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: 0, parcela: `${parcelaNumero}/${parcelas}`, action: "postponed" });
+        if (dryRun) {
+          summary.glosas.items.push({ debt_id: debt.id, doctor_name: debt.doctor_name, valor: parcelaPrevista, parcela: `${parcelaNumero}/${parcelas}`, action: "would_apply" });
+          capacidadeRestante = round2(capacidadeRestante - parcelaPrevista);
+          summary.glosas.proposed++;
           continue;
         }
 
