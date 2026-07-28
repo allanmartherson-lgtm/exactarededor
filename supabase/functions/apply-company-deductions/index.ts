@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
       const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
       user_id = user?.id ?? null;
     }
+    try {
 
     const summary: any = {
       debitos: { proposed: 0, updated_existing: 0, skipped_existing: 0, reverted_stale: 0, items: [] as any[] },
