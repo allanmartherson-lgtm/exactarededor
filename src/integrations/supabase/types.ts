@@ -5654,6 +5654,7 @@ export type Database = {
           exception_note: string | null
           exception_reason: string | null
           expected_amount: number | null
+          expected_amount_original: number | null
           gross_amount: number | null
           gross_amount_original: number | null
           gross_override_at: string | null
@@ -5794,6 +5795,7 @@ export type Database = {
           exception_note?: string | null
           exception_reason?: string | null
           expected_amount?: number | null
+          expected_amount_original?: number | null
           gross_amount?: number | null
           gross_amount_original?: number | null
           gross_override_at?: string | null
@@ -5934,6 +5936,7 @@ export type Database = {
           exception_note?: string | null
           exception_reason?: string | null
           expected_amount?: number | null
+          expected_amount_original?: number | null
           gross_amount?: number | null
           gross_amount_original?: number | null
           gross_override_at?: string | null
