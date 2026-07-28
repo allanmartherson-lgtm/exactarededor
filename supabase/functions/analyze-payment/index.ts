@@ -1063,6 +1063,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
         rule_id: string;
         rule_name: string;
         calc_id: string;
+        calc_label: string | null;
         // Lista de códigos que disparam o pacote (qualquer um deles ativa).
         package_main_codes: string[];
         package_included_codes: string[];
@@ -1098,6 +1099,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
             rule_id: rule.id,
             rule_name: rule.name,
             calc_id: calc.id,
+            calc_label: (calc.label ?? null) as string | null,
             package_main_codes: mainCodes,
             package_included_codes: Array.isArray(calc.package_included_codes)
               ? calc.package_included_codes.map((c: string) => String(c).trim()).filter(Boolean)
@@ -1315,6 +1317,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
                 calc_id: c.calc.calc_id,
                 rule_id: c.calc.rule_id,
                 rule_name: c.calc.rule_name,
+                calc_label: c.calc.calc_label,
                 code: c.triggerCode,
                 package_amount: c.calc.package_amount,
                 included_codes: c.calc.package_included_codes,
@@ -1377,6 +1380,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
                 calc_id: s.calc.calc_id,
                 rule_id: s.calc.rule_id,
                 rule_name: s.calc.rule_name,
+                calc_label: s.calc.calc_label,
                 main_codes: s.calc.package_main_codes,
                 package_amount: s.calc.package_amount,
                 matched_included: s.matchedIncluded,

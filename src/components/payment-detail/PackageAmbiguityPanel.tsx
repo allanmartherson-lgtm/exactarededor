@@ -24,6 +24,7 @@ export type PackageAmbiguityOption = {
   calc_id: string;
   rule_id?: string;
   rule_name: string;
+  calc_label?: string | null;
   code?: string;
   main_codes?: string[];
   package_amount?: number;
@@ -102,7 +103,7 @@ export function PackageAmbiguityPanel({
     itemId: string,
     amb: PackageAmbiguity,
     decision: "absorbed" | "standalone" | "manual",
-    extra: { calcId?: string | null; value?: number; reasonCode?: string } = {},
+    extra: { calcId?: string | null; value?: number; reasonCode?: string; option?: PackageAmbiguityOption } = {},
   ) => {
     setSaving(itemId);
     try {
@@ -119,14 +120,21 @@ export function PackageAmbiguityPanel({
       };
 
       if (decision === "absorbed") {
+        const pkgValue = Number(extra.option?.package_amount ?? 0);
         patch.package_absorbed = true;
         patch.package_absorbed_calc_id = extra.calcId ?? null;
         patch.package_absorbed_by = user?.id ?? null;
         patch.package_absorbed_at = new Date().toISOString();
         patch.package_absorbed_note = `Decisão de pacote ambíguo (atend. ${amb.att}).`;
-        patch.expected_amount = 0;
+        // Este item é o CÓDIGO-ALAVANCA escolhido: recebe o valor do pacote.
+        // Demais códigos inclusos do mesmo atendimento continuam absorvidos (expected=0)
+        // conforme registrados pelo motor no próximo run.
+        patch.expected_amount = pkgValue;
         patch.ai_status = "aprovado";
         patch.applied_calc_method = "pacote";
+        patch.matched_rule_name = extra.option?.calc_label
+          ? `${extra.option.rule_name} — ${extra.option.calc_label}`
+          : extra.option?.rule_name ?? null;
       } else if (decision === "manual") {
         patch.expected_amount = extra.value ?? null;
         patch.ai_status = "aprovado";
@@ -215,23 +223,30 @@ export function PackageAmbiguityPanel({
 
                 {canEdit && (
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {options.map((op) => (
-                      <button
-                        key={`${item.id}-${op.calc_id}`}
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => resolve(item.id, amb, "absorbed", { calcId: op.calc_id })}
-                        className="rounded bg-amber-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-amber-700 disabled:opacity-40"
-                        title={
-                          op.package_amount != null
-                            ? `Pacote de ${brl(Number(op.package_amount))}`
-                            : undefined
-                        }
-                      >
-                        Absorver em “{op.rule_name}”
-                        {op.access_route ? ` (${ROUTE_LABEL[op.access_route] ?? op.access_route})` : ""}
-                      </button>
-                    ))}
+                    {options.map((op) => {
+                      const primary = op.calc_label?.trim() || op.rule_name;
+                      const secondary =
+                        op.calc_label && op.calc_label.trim() && op.calc_label.trim() !== op.rule_name
+                          ? op.rule_name
+                          : null;
+                      const val = op.package_amount != null ? Number(op.package_amount) : null;
+                      return (
+                        <button
+                          key={`${item.id}-${op.calc_id}`}
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() =>
+                            resolve(item.id, amb, "absorbed", { calcId: op.calc_id, option: op })
+                          }
+                          className="rounded bg-amber-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-amber-700 disabled:opacity-40"
+                          title={secondary ? `Regra: ${secondary}` : undefined}
+                        >
+                          Absorver em “{primary}”
+                          {op.access_route ? ` (${ROUTE_LABEL[op.access_route] ?? op.access_route})` : ""}
+                          {val != null ? ` · ${brl(val)}` : ""}
+                        </button>
+                      );
+                    })}
                     <button
                       type="button"
                       disabled={isSaving}
