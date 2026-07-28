@@ -2737,6 +2737,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           ?? (rawItem?.package_absorbed === true && !staleAbsorbedItemIds.has(r.item_id)
             ? (rawItem?.package_absorbed_calc_id ?? null)
             : null),
+        // Ambiguidade de pacote. Decisão do analista (resolved) é soberana:
+        // reanálise nunca sobrescreve item já resolvido.
+        package_ambiguity: rawItem?.package_ambiguity?.resolved
+          ? rawItem.package_ambiguity
+          : (packageAmbiguityByItemId.get(r.item_id) ?? null),
         // Piso por procedimento (mínimo garantido). null quando piso não configurado.
         piso_aplicado_valor: (r as any).piso_aplicado_valor ?? null,
         piso_metodo_vencedor: (r as any).piso_metodo_vencedor ?? null,
