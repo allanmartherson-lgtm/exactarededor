@@ -283,11 +283,18 @@ Deno.serve(async (req) => {
         .eq("company_id", company_id)
         .in("status", ["proposto", "confirmado", "pending_manual_resolution", "partial"]);
 
-      const existingDebtIds = new Set(
-        (existingGpa ?? [])
-          .filter((r: any) => ["proposto", "confirmado", "partial"].includes(r.status))
-          .map((r: any) => r.glosa_debt_id),
-      );
+      // Agregado por débito: quanto já foi aplicado neste lote (proposto+confirmado+partial)
+      // e a maior parcela_numero registrada. Usamos para detectar débitos que tiveram o
+      // total_debt aumentado depois da primeira aplicação (append via RPC), calcular o
+      // delta ainda devido e completar a diferença em vez de ignorar o débito.
+      const existingByDebt = new Map<string, { applied: number; maxParcela: number }>();
+      for (const r of existingGpa ?? []) {
+        if (!["proposto", "confirmado", "partial"].includes(r.status)) continue;
+        const cur = existingByDebt.get(r.glosa_debt_id) ?? { applied: 0, maxParcela: 0 };
+        cur.applied = round2(cur.applied + Number(r.valor_aplicado || 0));
+        cur.maxParcela = Math.max(cur.maxParcela, Number(r.parcela_numero || 0));
+        existingByDebt.set(r.glosa_debt_id, cur);
+      }
 
       // Capacidade da PJ neste lote: líquido previsto (snapshot em payment_company_financials)
       // menos o que já foi consumido por outras deduções deste ciclo.
@@ -314,7 +321,8 @@ Deno.serve(async (req) => {
 
       for (const debt of debtsOrdenadas) {
        try {
-         if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; continue; }
+         const prevAppliedHere = existingByDebt.get(debt.id);
+         const alreadyAppliedHere = prevAppliedHere?.applied ?? 0;
 
          // NOTA: NÃO bloqueamos por "médico sem produção no lote". A glosa é dívida
          // da PJ (para fins de pagamento, PJ e médico são inseparáveis) e desconta
@@ -391,12 +399,26 @@ Deno.serve(async (req) => {
         }
 
         const parcelas = debt.parcelas_default ?? 12;
-        const { count: aplicadas } = await supabase
-          .from("glosa_payment_applications").select("*", { count: "exact", head: true })
-          .eq("glosa_debt_id", debt.id).eq("status", "confirmado");
-        const parcelaNumero = (aplicadas ?? 0) + 1;
-        if (parcelaNumero > parcelas) continue;
-        const parcelaPrevista = round2(Number(debt.total_debt) / parcelas);
+        const parcelaFull = round2(Number(debt.total_debt) / parcelas);
+        // Se já existe aplicação neste lote para o débito, este ciclo pode ser um
+        // COMPLEMENTO (o total_debt cresceu depois — ex.: append via RPC) em vez
+        // de uma nova parcela. Reutilizamos a mesma numeração para não estourar
+        // parcelas_default e aplicamos só o delta ainda devido.
+        let parcelaNumero: number;
+        let parcelaPrevista: number;
+        if (alreadyAppliedHere > 0.01) {
+          const pendingHere = round2(parcelaFull - alreadyAppliedHere);
+          if (pendingHere <= 0.01) { summary.glosas.skipped_existing++; continue; }
+          parcelaNumero = prevAppliedHere?.maxParcela ?? 1;
+          parcelaPrevista = pendingHere;
+        } else {
+          const { count: aplicadas } = await supabase
+            .from("glosa_payment_applications").select("*", { count: "exact", head: true })
+            .eq("glosa_debt_id", debt.id).eq("status", "confirmado");
+          parcelaNumero = (aplicadas ?? 0) + 1;
+          if (parcelaNumero > parcelas) continue;
+          parcelaPrevista = parcelaFull;
+        }
 
         // === REGRA DE CAPACIDADE ===
         if (capacidadeRestante <= 0.01) {
