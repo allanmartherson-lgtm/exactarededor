@@ -34,7 +34,19 @@ Deno.serve(async (req) => {
 
   try {
 
-    const { payment_id, company_id } = await req.json();
+    const body = await req.json();
+    const { payment_id, company_id } = body ?? {};
+    // mode:
+    //   'full_only'        (default) — só aplica glosa se PJ tiver líquido para cobrir 100%.
+    //                       Se não cobrir, NÃO insere nada e devolve `insufficient` para a UI
+    //                       decidir (parcelar/adiar/trocar lote).
+    //   'partial_allowed'  — aplica até o líquido disponível e adia o resíduo (comportamento
+    //                        antigo). Usado apenas quando o usuário escolhe "Parcelar" no modal.
+    const mode: "full_only" | "partial_allowed" =
+      body?.mode === "partial_allowed" ? "partial_allowed" : "full_only";
+    // dry_run: só calcula capacidade × necessidade e devolve o `summary`. Não escreve nada.
+    // Usado pela UI para saber, antes de aplicar, se algumas PJs vão bater em líquido insuficiente.
+    const dryRun: boolean = body?.dry_run === true;
     if (!payment_id || !company_id) {
       return new Response(JSON.stringify({ error: "payment_id and company_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
