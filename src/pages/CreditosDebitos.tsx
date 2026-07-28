@@ -1077,9 +1077,11 @@ export default function CreditosDebitos() {
         setPaymentLabels(prev => ({ ...prev, ...labelPatch }));
       }
 
-      // Se houver falha, postpone ou parcial → abre painel vermelho detalhado.
-      // Caso 100% ok e sem postpone/partial → toast de sucesso simples.
-      if (failedInvocations > 0 || anyPostponedOrPartial) {
+      // Detecta líquido insuficiente para abrir a UI de decisão explícita.
+      const anyInsufficient = outcomes.some(o => (o.insufficient_count ?? 0) > 0);
+      // Se houver falha, postpone, parcial ou insufficient → abre painel detalhado.
+      // Caso 100% ok e sem pendência → toast de sucesso simples.
+      if (failedInvocations > 0 || anyPostponedOrPartial || anyInsufficient) {
         setResultDialog({ open: true, outcomes });
       } else {
         const scopeLabel = scopePjId
