@@ -684,7 +684,9 @@ export default function CreditosDebitos() {
     const now = new Date();
     const m0 = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const totalPendente = pendentes.reduce((s, g) => s + Number(g.total_debt), 0);
-    const totalAndamento = emAndamento.reduce((s, g) => s + Number(g.total_debt), 0);
+    // "Em andamento" = residual (o que ainda falta aplicar), não o total nominal.
+    const totalAndamento = emAndamento.reduce((s, g) => s + debtResidual(g), 0);
+    const aplicadoAndamento = emAndamento.reduce((s, g) => s + debtTotalApplied(g.id), 0);
     let aplicadoMes = 0;
     Object.values(appsByAdj).flat().forEach(ap => {
       if (ap.status === "revertido") return;
