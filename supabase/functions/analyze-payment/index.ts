@@ -1283,7 +1283,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           // (maior coverage de included presentes; em empate, mais included declarados).
           const byTrigger: Record<string, typeof candidates> = {};
           for (const c of candidates) (byTrigger[c.triggerCode] ||= []).push(c);
-          const winners: typeof candidates = [];
+          let winners: typeof candidates = [];
           for (const list of Object.values(byTrigger)) {
             list.sort((a, b) => {
               if (b.includedFound.length !== a.includedFound.length) return b.includedFound.length - a.includedFound.length;
@@ -1291,6 +1291,125 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
             });
             winners.push(list[0]);
           }
+
+          // ---- Desempate entre ÂNCORAS DISTINTAS por VIA DE ACESSO (caso THORAX) ----
+          // Dois códigos-alavanca diferentes no mesmo atendimento não podem gerar
+          // dois pacotes automaticamente. Vence a via "Única ou principal"; os
+          // demais viram decisão do analista (neutros — nem economia nem perda).
+          if (winners.length > 1) {
+            const routeOf = (code: string): string => {
+              const hit = attItems.find(
+                (i) => (i.procedure_code ?? "").toString().trim() === code,
+              );
+              return normAccessRoute((hit as any)?.access_route ?? null) as string;
+            };
+            const ranked = rankAnchorsByAccessRoute(
+              winners.map((w) => ({ ...w, routeKey: routeOf(w.triggerCode) })) as AnchorCandidate[],
+            );
+            if (ranked.ambiguous.length > 0) {
+              const optionOf = (c: AnchorCandidate) => ({
+                calc_id: c.calc.calc_id,
+                rule_id: c.calc.rule_id,
+                rule_name: c.calc.rule_name,
+                code: c.triggerCode,
+                package_amount: c.calc.package_amount,
+                included_codes: c.calc.package_included_codes,
+                access_route: c.routeKey || null,
+              });
+              const options = [
+                ...(ranked.winner ? [optionOf(ranked.winner)] : []),
+                ...ranked.ambiguous.map(optionOf),
+              ];
+              for (const amb of ranked.ambiguous) {
+                for (const it of attItems) {
+                  const code = (it.procedure_code ?? "").toString().trim();
+                  if (code !== amb.triggerCode) continue;
+                  const rawIt = (itemsRaw ?? []).find((x: any) => x.id === it.id);
+                  // Decisão do analista é soberana — não reabre ambiguidade resolvida.
+                  if (rawIt?.package_ambiguity?.resolved) continue;
+                  const r = resultById[it.id];
+                  if (!r) continue;
+                  // NEUTRO: expected = pago → delta zero, não conta economia/perda.
+                  r.expected_amount = it.gross_amount;
+                  r.diff_pct = 0;
+                  r.status = "alerta" as any;
+                  r.needs_ai_review = false;
+                  (r as any).package_absorbed = false;
+                  (r as any).package_absorbed_calc_id = null;
+                  r.alerts = [
+                    `Pacote ambíguo: o atendimento ${att} tem mais de um código-alavanca (${options.map((o) => o.code).join(", ")}). Decisão do analista pendente.`,
+                    ...r.alerts.filter((a) => !a.toLowerCase().includes("sem regra")),
+                  ];
+                  r.calculation_explanation =
+                    `Atendimento ${att}: o motor encontrou ${options.length} pacotes candidatos. ` +
+                    (ranked.winner
+                      ? `Aplicado automaticamente o pacote do código ${ranked.winner.triggerCode} (via "${ranked.winner.routeKey || "—"}"). `
+                      : `Empate na via de acesso — nenhum pacote foi aplicado automaticamente. `) +
+                    `O código ${amb.triggerCode} (via "${amb.routeKey || "—"}") ficou pendente de decisão: absorver no pacote, pagar avulso ou outro valor. ` +
+                    `Enquanto pendente, este item é neutro (não gera economia nem perda).`;
+                  packageAmbiguityByItemId.set(it.id, {
+                    kind: "multi_anchor",
+                    att,
+                    item_code: amb.triggerCode,
+                    chosen_calc_id: ranked.winner?.calc.calc_id ?? null,
+                    chosen_code: ranked.winner?.triggerCode ?? null,
+                    options,
+                    detected_at: new Date().toISOString(),
+                  });
+                }
+              }
+            }
+            winners = ranked.winner ? [ranked.winner] : [];
+          }
+
+          // ---- Pacote SEM código-alavanca (caso AGATHA) ----
+          // Nenhum main_code foi faturado, mas os códigos do atendimento
+          // pertencem a package_included_codes de algum pacote. Não altera
+          // valor: só sinaliza a sugestão e neutraliza economia/perda.
+          if (candidates.length === 0) {
+            const suggestions = findPackagesWithoutAnchor(packageCalcs, fullCodeSet, attCompanyIds, 3);
+            if (suggestions.length > 0) {
+              const suggestionPayload = suggestions.map((s) => ({
+                calc_id: s.calc.calc_id,
+                rule_id: s.calc.rule_id,
+                rule_name: s.calc.rule_name,
+                main_codes: s.calc.package_main_codes,
+                package_amount: s.calc.package_amount,
+                matched_included: s.matchedIncluded,
+              }));
+              const coveredCodes = new Set(suggestions.flatMap((s) => s.matchedIncluded));
+              for (const it of attItems) {
+                const code = (it.procedure_code ?? "").toString().trim();
+                if (!coveredCodes.has(code)) continue;
+                const rawIt = (itemsRaw ?? []).find((x: any) => x.id === it.id);
+                if (rawIt?.package_ambiguity?.resolved) continue;
+                if (rawIt?.package_absorbed === true) continue;
+                const r = resultById[it.id];
+                if (!r) continue;
+                // Mantém o cálculo avulso já produzido pelo motor; só sinaliza.
+                r.status = "alerta" as any;
+                r.needs_ai_review = false;
+                r.alerts = [
+                  `Códigos deste atendimento pertencem ao pacote "${suggestions[0].calc.rule_name}", mas nenhum código-alavanca foi faturado. Decisão do analista pendente.`,
+                  ...r.alerts,
+                ];
+                r.calculation_explanation =
+                  `${r.calculation_explanation ?? ""} ` +
+                  `Atendimento ${att}: o código ${code} está declarado em package_included_codes de ` +
+                  `${suggestions.map((s) => `"${s.calc.rule_name}"`).join(", ")}, porém o código-alavanca ` +
+                  `(${suggestions[0].calc.package_main_codes.join(" / ")}) não aparece na base. ` +
+                  `Item mantido com cálculo avulso e marcado como neutro até a decisão do analista.`;
+                packageAmbiguityByItemId.set(it.id, {
+                  kind: "no_anchor",
+                  att,
+                  item_code: code,
+                  suggestions: suggestionPayload,
+                  detected_at: new Date().toISOString(),
+                });
+              }
+            }
+          }
+
 
           for (const { calc, triggerCode, includedFound } of winners) {
             if (usedCalcIds.has(calc.calc_id)) continue;
