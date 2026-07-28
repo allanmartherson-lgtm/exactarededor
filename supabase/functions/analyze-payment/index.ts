@@ -1380,6 +1380,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
                 calc_id: s.calc.calc_id,
                 rule_id: s.calc.rule_id,
                 rule_name: s.calc.rule_name,
+                calc_label: s.calc.calc_label,
                 main_codes: s.calc.package_main_codes,
                 package_amount: s.calc.package_amount,
                 matched_included: s.matchedIncluded,
