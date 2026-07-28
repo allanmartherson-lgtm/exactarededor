@@ -382,14 +382,16 @@ Deno.serve(async (req) => {
           const stalePendingRows = (existingGpa ?? []).filter((r: any) =>
             r.glosa_debt_id === debt.id && r.status === "pending_manual_resolution"
           );
-          for (const stale of stalePendingRows) {
-            const { error: deletePendingErr } = await supabase
-              .from("glosa_payment_applications")
-              .delete()
-              .eq("id", stale.id);
-            if (deletePendingErr) {
-              console.error(`[glosa cleanup pending] ${debt.id}`, deletePendingErr);
-              throw deletePendingErr;
+          if (!dryRun) {
+            for (const stale of stalePendingRows) {
+              const { error: deletePendingErr } = await supabase
+                .from("glosa_payment_applications")
+                .delete()
+                .eq("id", stale.id);
+              if (deletePendingErr) {
+                console.error(`[glosa cleanup pending] ${debt.id}`, deletePendingErr);
+                throw deletePendingErr;
+              }
             }
           }
         } else {
