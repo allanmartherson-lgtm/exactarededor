@@ -1382,16 +1382,20 @@ export default function CreditosDebitos() {
 
   // Lote "finalizado" = já saiu do ciclo de validação; débitos aplicados nele
   // podem ser arquivados na visão de andamento.
-  const FINAL_PAYMENT_STATUSES = new Set(["aprovado", "pago", "quitado", "finalizado", "concluido"]);
+  const FINAL_PAYMENT_STATUSES = new Set([
+    "aprovado", "aprovado_com_ressalva", "aprovado_parcial", "aprovado_em_revisao",
+    "pago", "quitado", "finalizado", "concluido", "lancado",
+    "pedido_nf_enviado", "nf_recebida", "nf_conciliada",
+  ]);
   const isPaymentFinalized = (payId: string | null | undefined) =>
     !!payId && FINAL_PAYMENT_STATUSES.has((paymentStatuses[payId] ?? "").toLowerCase());
 
-  // Grupo (PJ) é "arquivado" quando: todos os débitos aplicados E o lote-alvo finalizado.
+  // Grupo (PJ) arquivado quando toda dívida está quitada em lote finalizado
+  // (independe do target_payment_id atual — que pode ter migrado para lote
+  // aberto após acréscimo via upsert de glosa).
   const isGroupArchived = (list: GlosaDebt[]) =>
-    list.length > 0 && list.every(g => {
-      const app = debtAppliedAt(g.id, g.target_payment_id);
-      return app && app.status !== "postponed" && isPaymentFinalized(g.target_payment_id);
-    });
+    list.length > 0 && list.every(g => isDebtArchivable(g));
+
 
   // ============ RENDER ============
   const kpiCard = (label: string, value: string, tone?: string, hint?: string) => (
