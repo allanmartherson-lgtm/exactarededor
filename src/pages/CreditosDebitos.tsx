@@ -1466,7 +1466,7 @@ export default function CreditosDebitos() {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {kpiCard("A confirmar", brl(kpi.totalPendente), "text-destructive", `${pendentes.length} glosa(s)`)}
-          {kpiCard("Em andamento", brl(kpi.totalAndamento), "text-amber-600", `${emAndamento.length} débito(s)`)}
+          {kpiCard("Em andamento", brl(kpi.totalAndamento), "text-amber-600", `${emAndamento.length} débito(s) · já aplicado ${brl(kpi.aplicadoAndamento)}`)}
           {kpiCard("Aplicado no mês", brl(kpi.aplicadoMes), "text-emerald-600")}
           {kpiCard("Sem lote-alvo", String(kpi.semLote), kpi.semLote > 0 ? "text-amber-600" : "", "risco de não aplicar")}
         </div>
