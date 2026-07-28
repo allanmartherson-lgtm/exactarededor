@@ -199,7 +199,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const loteCompetence: string | null = (paymentRowForDate?.competence_month as string) ?? null;
 
-    const adjResult = await runInBatches(adjustments ?? [], 5, async (adj: any) => {
+    const adjResult = dryRun
+      ? { errors: [] }
+      : await runInBatches(adjustments ?? [], 5, async (adj: any) => {
      try {
       const isRecorrente = !!adj.recorrente;
       const existingRows = existingByAdj.get(adj.id) ?? [];
