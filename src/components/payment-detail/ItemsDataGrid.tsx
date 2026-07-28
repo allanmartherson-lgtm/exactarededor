@@ -3474,8 +3474,16 @@ export function ItemsDataGrid({
             </div>
           )}
 
+          {/* Pacote ambíguo — decisão do analista (neutro até resolver). */}
+          <PackageAmbiguityPanel
+            items={filtered as any}
+            canEdit={canEdit}
+            onRefresh={onRefresh}
+          />
+
           {/* DESKTOP/TABLET — tabela densa (>= md). Apenas a coluna Paciente
               é sticky à esquerda — múltiplas sticky causavam sobreposição
+
               de conteúdo no scroll horizontal. As demais colunas truncam
               normalmente com larguras controladas via colgroup. */}
           <table
