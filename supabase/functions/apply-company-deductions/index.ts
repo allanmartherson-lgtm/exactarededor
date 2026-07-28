@@ -405,15 +405,17 @@ Deno.serve(async (req) => {
           const matchEmpresa = vinculadas.includes(company_id);
 
           if (vinculadas.length === 0) {
-          const { error: e1 } = await supabase.from("glosa_payment_applications").insert({
-            payment_id, company_id, hospital_id: paymentHospitalId,
-            glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
-            parcela_numero: 0, valor_aplicado: 0,
-            status: "pending_manual_resolution", source: "auto",
-            resolution_note: "Médico sem PJ vinculada",
-            applied_by: user_id,
-          });
-          if (e1) { console.error(`[glosa sem_pj] ${debt.id}`, e1); throw e1; }
+          if (!dryRun) {
+            const { error: e1 } = await supabase.from("glosa_payment_applications").insert({
+              payment_id, company_id, hospital_id: paymentHospitalId,
+              glosa_debt_id: debt.id, doctor_id: debt.doctor_id,
+              parcela_numero: 0, valor_aplicado: 0,
+              status: "pending_manual_resolution", source: "auto",
+              resolution_note: "Médico sem PJ vinculada",
+              applied_by: user_id,
+            });
+            if (e1) { console.error(`[glosa sem_pj] ${debt.id}`, e1); throw e1; }
+          }
           summary.glosas.sem_pj++;
           continue;
           }
