@@ -791,16 +791,20 @@ export default function CreditosDebitos() {
   };
   const debtTotalApplied = (debtId: string) =>
     debtEffectiveApps(debtId).reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
-  const debtAppliedInFinalized = (debtId: string) =>
+  const debtAppliedInLiquidado = (debtId: string) =>
     debtEffectiveApps(debtId)
-      .filter(a => isPaymentFinalized(a.payment_id))
+      .filter(a => isPaymentLiquidado(a.payment_id))
       .reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
+  // Residual = o que ainda falta aplicar somando aplicações em QUALQUER lote.
+  const debtResidual = (g: GlosaDebt) =>
+    Math.max(0, Number(g.total_debt || 0) - debtTotalApplied(g.id));
+  // "Pendente" = ainda tem algo a aplicar (residual > 1 centavo).
+  const isDebtPending = (g: GlosaDebt) => debtResidual(g) > 0.005;
   // "Quitada": soma aplicada (em qualquer status ativo) cobre o total_debt.
-  const isDebtSettled = (g: GlosaDebt) =>
-    debtTotalApplied(g.id) + 0.005 >= Number(g.total_debt || 0);
-  // "Arquivável": o quitado veio de lotes finalizados (pago/aprovado).
+  const isDebtSettled = (g: GlosaDebt) => !isDebtPending(g);
+  // "Arquivável": o quitado veio de lotes já liquidados (pago/aprovado/etc).
   const isDebtArchivable = (g: GlosaDebt) =>
-    debtAppliedInFinalized(g.id) + 0.005 >= Number(g.total_debt || 0);
+    debtAppliedInLiquidado(g.id) + 0.005 >= Number(g.total_debt || 0);
 
 
   // Abre o dialog obrigatório de seleção de lote para "Aplicar no lote vigente".
