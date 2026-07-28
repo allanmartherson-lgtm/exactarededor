@@ -4927,11 +4927,17 @@ function RowMain({
   rowIdx?: number;
 }) {
   const convenio = getAgreement(it);
-  // Itens absorvidos manualmente em pacote: zerados visualmente — o valor
-  // foi incorporado ao pacote principal, não devem aparecer como repasse próprio.
+  // Itens absorvidos manualmente em pacote ficam zerados, exceto quando a
+  // decisão de ambiguidade escolheu esta própria linha como portadora do pacote.
   const isAbsorbed = (it as any).package_absorbed === true;
-  const grossN = isAbsorbed ? 0 : Number(it.gross_amount ?? 0);
-  const expN = isAbsorbed ? 0 : (expected != null ? Number(expected) : null);
+  const expectedN = expected != null ? Number(expected) : null;
+  const carriesPackageValue =
+    isAbsorbed &&
+    (it as any).applied_calc_method === "pacote" &&
+    expectedN != null &&
+    Math.abs(expectedN) > 0.01;
+  const grossN = isAbsorbed && !carriesPackageValue ? 0 : Number(it.gross_amount ?? 0);
+  const expN = isAbsorbed && !carriesPackageValue ? 0 : expectedN;
   const diff = expN != null ? expN - grossN : null;
   const diverges = diff != null && Math.abs(diff) > 0.01;
   const sectorAliases = useSectorAliases();
