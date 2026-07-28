@@ -1039,7 +1039,12 @@ export default function CreditosDebitos() {
         if (!ok) {
           hint = "Verifique se o lote-alvo permanece aberto e tente novamente. Se persistir, revise o vínculo médico→PJ e o cadastro do débito.";
         } else if (insufficientCount > 0) {
-          hint = `PJ sem líquido para cobrir ${insufficientCount} débito(s) integralmente (faltam ${brl(faltanteTotal)}). Escolha "Parcelar" para descontar o que couber agora, ou "Adiar" para deixar o saldo aguardando o próximo lote.`;
+          const pisoAplicado = Number(glosasSummary?.piso_aplicado ?? 0);
+          const liquidoBruto = Number(glosasSummary?.liquido_bruto ?? 0);
+          const pisoNote = pisoAplicado > 0
+            ? ` Piso do hospital reserva ${brl(pisoAplicado)} (líquido ${brl(liquidoBruto)} − piso = capacidade ${brl(Math.max(0, liquidoBruto - pisoAplicado))}).`
+            : "";
+          hint = `PJ sem líquido para cobrir ${insufficientCount} débito(s) integralmente (faltam ${brl(faltanteTotal)}).${pisoNote} Escolha "Parcelar" para descontar o que couber agora, ou "Adiar" para deixar o saldo aguardando o próximo lote.`;
         } else if (postponed > 0 && applied === 0 && partial === 0) {
           hint = `PJ sem líquido disponível no lote (capacidade R$ ${capacidade?.toFixed(2) ?? "0,00"}). O débito rola automaticamente para o próximo ciclo — nenhuma ação necessária agora.`;
         } else if (partial > 0) {

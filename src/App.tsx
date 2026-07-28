@@ -170,6 +170,7 @@ const Profile = lazy(loadProfile);
 const AuditLog = lazy(loadAuditLog);
 const StatusAnomalies = lazy(loadStatusAnomalies);
 const SlaSettings = lazy(loadSlaSettings);
+const PisoRepasse = lazy(() => import("./pages/PisoRepasse.tsx"));
 const PreviewPalettes = lazy(loadPreviewPalettes);
 const PreviewDesignSystems = lazy(loadPreviewDesignSystems);
 const PreviewCura = lazy(loadPreviewCura);
@@ -402,6 +403,7 @@ const App = () => (
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
                   <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
+                  <Route path="/configuracoes/piso-repasse" element={<ProtectedRoute roles={["diretor", "admin"]}><PisoRepasse /></ProtectedRoute>} />
                   <Route path="/configuracoes/tabela-tuss" element={<ProtectedRoute roles={["diretor", "admin"]}><TussTable /></ProtectedRoute>} />
                   <Route path="/configuracoes/motivos-intervencao" element={<ProtectedRoute roles={["admin", "diretor"]}><ManualInterventionReasonsPage /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
