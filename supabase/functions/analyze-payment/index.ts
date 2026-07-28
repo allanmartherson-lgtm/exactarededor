@@ -1099,6 +1099,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
             rule_id: rule.id,
             rule_name: rule.name,
             calc_id: calc.id,
+            calc_label: (calc.label ?? null) as string | null,
             package_main_codes: mainCodes,
             package_included_codes: Array.isArray(calc.package_included_codes)
               ? calc.package_included_codes.map((c: string) => String(c).trim()).filter(Boolean)
