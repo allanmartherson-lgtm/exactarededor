@@ -37,6 +37,12 @@ import {
 import { maskPatients, unmaskText, type ReverseMap } from "../_shared/aiPrivacy.ts";
 import { buildPrimaryItemByRole, isPrimaryAnchor, normRole } from "../_shared/packagePrimary.ts";
 import {
+  rankAnchorsByAccessRoute,
+  findPackagesWithoutAnchor,
+  type AnchorCandidate,
+} from "../_shared/packagePicker.ts";
+import { normAccessRoute } from "../_shared/rulesEngine.ts";
+import {
   normDocKey,
   sheetSpecialtyFromRaw,
   makeResolveMedicalSpecialty,
