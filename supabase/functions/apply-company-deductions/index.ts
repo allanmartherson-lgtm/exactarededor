@@ -532,6 +532,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: true, summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+    } finally {
+      await supabase.rpc("release_deduction_lock", {
+        _payment_id: payment_id,
+        _company_id: company_id,
+      }).then(({ error }) => { if (error) console.error("[apply-company-deductions] release lock failed", error); });
+    }
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
