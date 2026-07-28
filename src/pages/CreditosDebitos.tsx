@@ -788,19 +788,22 @@ export default function CreditosDebitos() {
   // Retorna TODAS as aplicações efetivas (proposto/confirmado/partial) da dívida,
   // em qualquer lote — usado para decidir "quitada", "arquivada" e mostrar
   // histórico cruzado quando o débito foi acrescido depois do 1º pagamento.
-  const debtEffectiveApps = (debtId: string) => {
+  function debtEffectiveApps(debtId: string) {
     const apps = glosaAppsByDebt[debtId] ?? [];
     return apps.filter(a => ["proposto", "confirmado", "partial"].includes(a.status));
-  };
-  const debtTotalApplied = (debtId: string) =>
-    debtEffectiveApps(debtId).reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
-  const debtAppliedInLiquidado = (debtId: string) =>
-    debtEffectiveApps(debtId)
+  }
+  function debtTotalApplied(debtId: string) {
+    return debtEffectiveApps(debtId).reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
+  }
+  function debtAppliedInLiquidado(debtId: string) {
+    return debtEffectiveApps(debtId)
       .filter(a => isPaymentLiquidado(a.payment_id))
       .reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
+  }
   // Residual = o que ainda falta aplicar somando aplicações em QUALQUER lote.
-  const debtResidual = (g: GlosaDebt) =>
-    Math.max(0, Number(g.total_debt || 0) - debtTotalApplied(g.id));
+  function debtResidual(g: GlosaDebt) {
+    return Math.max(0, Number(g.total_debt || 0) - debtTotalApplied(g.id));
+  }
   // "Pendente" = ainda tem algo a aplicar (residual > 1 centavo).
   const isDebtPending = (g: GlosaDebt) => debtResidual(g) > 0.005;
   // "Quitada": soma aplicada (em qualquer status ativo) cobre o total_debt.
