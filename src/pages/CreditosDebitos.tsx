@@ -1106,8 +1106,10 @@ export default function CreditosDebitos() {
           pj_name: scopePjId
             ? (emAndamento.find(g => g.company_id === scopePjId)?._company_name ?? "PJ")
             : "Aplicação em massa",
+          payment_id: "",
           payment_label: "—",
-          ok: false, applied: 0, already: 0, postponed: 0, partial: 0, capacidade: null,
+          ok: false, applied: 0, already: 0, postponed: 0, partial: 0,
+          insufficient_count: 0, faltante_total: 0, capacidade: null,
           error: err?.message ?? "Falha ao aplicar no lote escolhido.",
           hint: "Verifique sua conexão e permissões no hospital ativo. Se persistir, recarregue a página e tente novamente.",
         }],
