@@ -2063,6 +2063,30 @@ export type Database = {
         }
         Relationships: []
       }
+      deduction_run_locks: {
+        Row: {
+          company_id: string
+          expires_at: string
+          hospital_id: string | null
+          payment_id: string
+          started_at: string
+        }
+        Insert: {
+          company_id: string
+          expires_at?: string
+          hospital_id?: string | null
+          payment_id: string
+          started_at?: string
+        }
+        Update: {
+          company_id?: string
+          expires_at?: string
+          hospital_id?: string | null
+          payment_id?: string
+          started_at?: string
+        }
+        Relationships: []
+      }
       doctor_aliases: {
         Row: {
           alias_normalized: string | null
@@ -13568,6 +13592,10 @@ export type Database = {
         Args: { _campaign_id: string; _reason: string }
         Returns: undefined
       }
+      release_deduction_lock: {
+        Args: { _company_id: string; _payment_id: string }
+        Returns: undefined
+      }
       repair_portal_links: { Args: never; Returns: Json }
       repair_status_inconsistencies: {
         Args: { _limit?: number }
@@ -13730,6 +13758,14 @@ export type Database = {
           passed: boolean
           test_name: string
         }[]
+      }
+      try_acquire_deduction_lock: {
+        Args: {
+          _company_id: string
+          _hospital_id?: string
+          _payment_id: string
+        }
+        Returns: boolean
       }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
