@@ -1119,6 +1119,52 @@ export default function CreditosDebitos() {
     }
   };
 
+  // Chamado quando o usuário clica "Parcelar mesmo assim" no dialog de líquido insuficiente.
+  // Re-invoca a edge para o par (payment_id, company_id) com mode='partial_allowed',
+  // que aplica o que couber no líquido e adia o residual como débito ativo.
+  const applyPartialForPj = async (outcome: ApplyOutcome) => {
+    const key = `${outcome.payment_id}|${outcome.pj_id}`;
+    if (!outcome.payment_id) { toast.error("Lote-alvo indisponível para parcelar."); return; }
+    setPartialBusy(prev => { const n = new Set(prev); n.add(key); return n; });
+    try {
+      const { data, error } = await supabase.functions.invoke("apply-company-deductions", {
+        body: { payment_id: outcome.payment_id, company_id: outcome.pj_id, mode: "partial_allowed" },
+      });
+      if (error || (data as any)?.error) {
+        toast.error(`Falha ao parcelar ${outcome.pj_name}: ${error?.message ?? (data as any)?.error ?? "erro desconhecido"}`);
+        return;
+      }
+      const g = (data as any)?.summary?.glosas ?? {};
+      const parts = [
+        g.partial ? `◐ ${g.partial} parcial` : null,
+        g.proposed ? `✓ ${g.proposed} aplicado(s)` : null,
+        g.postponed ? `↷ ${g.postponed} adiado(s)` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(`${outcome.pj_name} — ${parts || "sem alterações"}`);
+      // Remove esse outcome do painel; se ficar vazio, fecha.
+      setResultDialog(prev => {
+        const remaining = prev.outcomes.filter(o => !(o.pj_id === outcome.pj_id && o.payment_id === outcome.payment_id));
+        return { open: remaining.length > 0, outcomes: remaining };
+      });
+      void loadAll();
+    } catch (err: any) {
+      toast.error(`Falha ao parcelar: ${err?.message ?? String(err)}`);
+    } finally {
+      setPartialBusy(prev => { const n = new Set(prev); n.delete(key); return n; });
+    }
+  };
+
+  const postponeOutcome = (outcome: ApplyOutcome) => {
+    // Adiar = não fazer nada. O débito segue pendente e será oferecido no próximo ciclo.
+    setResultDialog(prev => {
+      const remaining = prev.outcomes.filter(o => !(o.pj_id === outcome.pj_id && o.payment_id === outcome.payment_id));
+      return { open: remaining.length > 0, outcomes: remaining };
+    });
+    toast.info(`${outcome.pj_name}: débito segue pendente. Será aplicado quando houver líquido no próximo lote.`);
+  };
+
+
+
 
 
   // ============ Mass actions ============
