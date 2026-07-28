@@ -1026,6 +1026,9 @@ export default function CreditosDebitos() {
         const partial = Number(glosasSummary?.partial ?? 0);
         const already = Number(glosasSummary?.skipped_existing ?? 0);
         const capacidade = glosasSummary?.capacidade_inicial != null ? Number(glosasSummary.capacidade_inicial) : null;
+        const insufficientList: any[] = Array.isArray(glosasSummary?.insufficient) ? glosasSummary.insufficient : [];
+        const insufficientCount = insufficientList.length;
+        const faltanteTotal = insufficientList.reduce((s: number, r: any) => s + Number(r.faltante ?? 0), 0);
 
         const ok = res.status === "fulfilled" && !invokeError && !data?.error;
         const errMsg = !ok
@@ -1035,6 +1038,8 @@ export default function CreditosDebitos() {
         let hint: string | null = null;
         if (!ok) {
           hint = "Verifique se o lote-alvo permanece aberto e tente novamente. Se persistir, revise o vínculo médico→PJ e o cadastro do débito.";
+        } else if (insufficientCount > 0) {
+          hint = `PJ sem líquido para cobrir ${insufficientCount} débito(s) integralmente (faltam ${brl(faltanteTotal)}). Escolha "Parcelar" para descontar o que couber agora, ou "Adiar" para deixar o saldo aguardando o próximo lote.`;
         } else if (postponed > 0 && applied === 0 && partial === 0) {
           hint = `PJ sem líquido disponível no lote (capacidade R$ ${capacidade?.toFixed(2) ?? "0,00"}). O débito rola automaticamente para o próximo ciclo — nenhuma ação necessária agora.`;
         } else if (partial > 0) {
@@ -1042,8 +1047,10 @@ export default function CreditosDebitos() {
         }
 
         outcomes.push({
-          pj_id: p.company_id, pj_name: pjName, payment_label: loteLabel,
-          ok, applied, already, postponed, partial, capacidade, error: errMsg, hint,
+          pj_id: p.company_id, pj_name: pjName, payment_id: p.payment_id, payment_label: loteLabel,
+          ok, applied, already, postponed, partial,
+          insufficient_count: insufficientCount, faltante_total: faltanteTotal,
+          capacidade, error: errMsg, hint,
         });
 
         const baseReason = ok ? "Aplicação disparada no lote-alvo" : `Falha ao aplicar: ${errMsg}`;
