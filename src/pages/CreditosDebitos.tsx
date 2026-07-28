@@ -694,7 +694,7 @@ export default function CreditosDebitos() {
       if (t && new Date(t).getTime() >= m0) aplicadoMes += Number(ap.valor_aplicado);
     });
     const semLote = emAndamento.filter(g => !g.target_payment_id).length;
-    return { totalPendente, totalAndamento, aplicadoMes, semLote };
+    return { totalPendente, totalAndamento, aplicadoAndamento, aplicadoMes, semLote };
   }, [pendentes, emAndamento, appsByAdj]);
 
   // Histórico aplicado (flat)
