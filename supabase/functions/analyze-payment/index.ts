@@ -3045,6 +3045,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         // Pacote: marca/desmarca absorção (idempotente em reanálise).
         package_absorbed: u.package_absorbed === true,
         package_absorbed_calc_id: u.package_absorbed_calc_id ?? null,
+        package_ambiguity: (u as any).package_ambiguity ?? null,
         // Cache determinístico da IA
         ai_input_hash: u.ai_input_hash ?? null,
         ai_cached_at: u.ai_cached_at ?? null,
