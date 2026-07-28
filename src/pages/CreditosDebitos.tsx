@@ -871,7 +871,10 @@ export default function CreditosDebitos() {
   // Executa a aplicação com as escolhas explícitas do analista.
   const executeApplyCurrentLote = async (picksByPj: Record<string, string>, scopePjId: string | null) => {
     if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
-    const scope = scopePjId ? emAndamento.filter(g => g.company_id === scopePjId) : emAndamento;
+    const rawScope = scopePjId ? emAndamento.filter(g => g.company_id === scopePjId) : emAndamento;
+    // Ignora dívidas já quitadas: trocar o lote-alvo delas apagaria o rastro de
+    // onde foram efetivamente descontadas.
+    const scope = rawScope.filter(g => isDebtPending(g));
     const key = scopePjId ?? "__all__";
     setApplyingCurrent(key);
     try {
