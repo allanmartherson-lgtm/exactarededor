@@ -781,6 +781,27 @@ export default function CreditosDebitos() {
     return apps.find(a => a.payment_id === paymentId) ?? null;
   };
 
+  // Retorna TODAS as aplicações efetivas (proposto/confirmado/partial) da dívida,
+  // em qualquer lote — usado para decidir "quitada", "arquivada" e mostrar
+  // histórico cruzado quando o débito foi acrescido depois do 1º pagamento.
+  const debtEffectiveApps = (debtId: string) => {
+    const apps = glosaAppsByDebt[debtId] ?? [];
+    return apps.filter(a => ["proposto", "confirmado", "partial"].includes(a.status));
+  };
+  const debtTotalApplied = (debtId: string) =>
+    debtEffectiveApps(debtId).reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
+  const debtAppliedInFinalized = (debtId: string) =>
+    debtEffectiveApps(debtId)
+      .filter(a => isPaymentFinalized(a.payment_id))
+      .reduce((s, a) => s + Number(a.valor_aplicado || 0), 0);
+  // "Quitada": soma aplicada (em qualquer status ativo) cobre o total_debt.
+  const isDebtSettled = (g: GlosaDebt) =>
+    debtTotalApplied(g.id) + 0.005 >= Number(g.total_debt || 0);
+  // "Arquivável": o quitado veio de lotes finalizados (pago/aprovado).
+  const isDebtArchivable = (g: GlosaDebt) =>
+    debtAppliedInFinalized(g.id) + 0.005 >= Number(g.total_debt || 0);
+
+
   // Abre o dialog obrigatório de seleção de lote para "Aplicar no lote vigente".
   // Sistema multi-usuário: nunca auto-seleciona lote — analista escolhe explicitamente.
   const openApplyCurrentDialog = async (pjId?: string) => {
@@ -1361,16 +1382,20 @@ export default function CreditosDebitos() {
 
   // Lote "finalizado" = já saiu do ciclo de validação; débitos aplicados nele
   // podem ser arquivados na visão de andamento.
-  const FINAL_PAYMENT_STATUSES = new Set(["aprovado", "pago", "quitado", "finalizado", "concluido"]);
+  const FINAL_PAYMENT_STATUSES = new Set([
+    "aprovado", "aprovado_com_ressalva", "aprovado_parcial", "aprovado_em_revisao",
+    "pago", "quitado", "finalizado", "concluido", "lancado",
+    "pedido_nf_enviado", "nf_recebida", "nf_conciliada",
+  ]);
   const isPaymentFinalized = (payId: string | null | undefined) =>
     !!payId && FINAL_PAYMENT_STATUSES.has((paymentStatuses[payId] ?? "").toLowerCase());
 
-  // Grupo (PJ) é "arquivado" quando: todos os débitos aplicados E o lote-alvo finalizado.
+  // Grupo (PJ) arquivado quando toda dívida está quitada em lote finalizado
+  // (independe do target_payment_id atual — que pode ter migrado para lote
+  // aberto após acréscimo via upsert de glosa).
   const isGroupArchived = (list: GlosaDebt[]) =>
-    list.length > 0 && list.every(g => {
-      const app = debtAppliedAt(g.id, g.target_payment_id);
-      return app && app.status !== "postponed" && isPaymentFinalized(g.target_payment_id);
-    });
+    list.length > 0 && list.every(g => isDebtArchivable(g));
+
 
   // ============ RENDER ============
   const kpiCard = (label: string, value: string, tone?: string, hint?: string) => (
@@ -1664,7 +1689,7 @@ export default function CreditosDebitos() {
             ) : (
               <>
                 {(() => {
-                  const pendingCount = emAndamento.filter(g => !g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id)).length;
+                  const pendingCount = emAndamento.filter(g => !isDebtSettled(g) && (!g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id))).length;
                   const appliedCount = emAndamento.length - pendingCount;
                   return (
                     <div className="flex flex-wrap items-center justify-between gap-2 border border-emerald-500/30 bg-emerald-500/5 rounded-md px-3 py-2">
@@ -1701,8 +1726,9 @@ export default function CreditosDebitos() {
                   const total = list.reduce((s, g) => s + Number(g.total_debt), 0);
                   // Arquivados: colapsados por default (ignora auto-open por cardinalidade)
                   const isOpen = openGroups[pjId] !== undefined ? openGroups[pjId] : (archived ? false : isGroupOpen(pjId, groupCount));
-                  const pjPending = list.filter(g => !g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id)).length;
+                  const pjPending = list.filter(g => !isDebtSettled(g) && (!g.target_payment_id || !debtAppliedAt(g.id, g.target_payment_id))).length;
                   const pjApplied = list.length - pjPending;
+
                   return (
                     <Collapsible key={pjId} open={isOpen} onOpenChange={(o) => setOpenGroups(s => ({ ...s, [pjId]: o }))} className={`border rounded-md ${archived ? "border-border/60 bg-muted/20" : "border-border"}`}>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 bg-muted/30 border-b">
@@ -1745,13 +1771,22 @@ export default function CreditosDebitos() {
                           {list.map(g => {
                             const parc = g.parcelas_default ?? 1;
                             const applied = debtAppliedAt(g.id, g.target_payment_id);
+                            const allApps = debtEffectiveApps(g.id);
+                            const totalApplied = debtTotalApplied(g.id);
+                            const residual = Math.max(0, Number(g.total_debt || 0) - totalApplied);
+                            const settled = isDebtSettled(g);
+                            const otherApps = allApps.filter(a => a.payment_id !== g.target_payment_id);
                             return (
                               <div key={g.id} className="flex items-center justify-between gap-3 px-3 py-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-medium text-sm">{g.doctor_name}</span>
                                     {g.doctor_crm && <span className="text-xs text-muted-foreground">CRM {g.doctor_crm}</span>}
-                                    {applied && (
+                                    {settled ? (
+                                      <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border-emerald-600/30 text-[10px]">
+                                        ✓ Quitada ({brl(totalApplied)})
+                                      </Badge>
+                                    ) : applied ? (
                                       applied.status === "postponed" ? (
                                         <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
                                           ⏳ Adiada ({applied.postpone_reason === "sem_producao" ? "sem produção" : applied.postpone_reason === "insufficient_net" ? "saldo insuficiente" : applied.postpone_reason ?? "aguardando ciclo"})
@@ -1761,7 +1796,11 @@ export default function CreditosDebitos() {
                                           ✓ Aplicado ({applied.status})
                                         </Badge>
                                       )
-                                    )}
+                                    ) : totalApplied > 0 ? (
+                                      <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px]">
+                                        ◐ Parcial ({brl(totalApplied)} de {brl(g.total_debt)})
+                                      </Badge>
+                                    ) : null}
                                   </div>
                                   <div className="text-xs mt-0.5">
                                     <span className="font-mono text-destructive">{brl(g.total_debt)}</span>{" · "}
@@ -1772,16 +1811,40 @@ export default function CreditosDebitos() {
                                       </span>
                                     )}
                                   </div>
+                                  {otherApps.length > 0 && (
+                                    <div className="text-[11px] mt-0.5 text-muted-foreground">
+                                      Aplicações anteriores:{" "}
+                                      {otherApps.map((a, i) => (
+                                        <span key={a.payment_id + i}>
+                                          {i > 0 && " · "}
+                                          <span className="text-emerald-700 dark:text-emerald-400">
+                                            {paymentLabels[a.payment_id] ?? a.payment_id.slice(0, 8)} — {brl(a.valor_aplicado)}
+                                          </span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                   <div className="text-[11px] mt-0.5">
-                                    {g.target_payment_id ? (
+                                    {settled ? (
+                                      <span className="text-emerald-600">✓ dívida totalmente quitada</span>
+                                    ) : g.target_payment_id ? (
                                       applied ? (
                                         <span className="text-emerald-600">
                                           ✓ aplicado em: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
                                           {applied.valor_aplicado > 0 && ` — ${brl(applied.valor_aplicado)}`}
+                                          {residual > 0 && (
+                                            <span className="ml-1 text-amber-600">· residual {brl(residual)}</span>
+                                          )}
                                         </span>
                                       ) : (
-                                        <span className="text-emerald-600">→ lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}</span>
+                                        <span className="text-emerald-600">
+                                          → lote-alvo: {paymentLabels[g.target_payment_id] ?? g.target_payment_id.slice(0, 8)}
+                                          {residual > 0 && residual < Number(g.total_debt) && (
+                                            <span className="ml-1 text-amber-600">· residual a aplicar {brl(residual)}</span>
+                                          )}
+                                        </span>
                                       )
+
                                     ) : (
                                       <span className="text-amber-600">⚠ sem lote-alvo definido — não será aplicado</span>
                                     )}
