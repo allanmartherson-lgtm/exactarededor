@@ -1381,15 +1381,19 @@ export default function CreditosDebitos() {
     return groupCount <= 5; // auto-fecha quando muitas PJs
   };
 
-  // Lote "finalizado" = já saiu do ciclo de validação; débitos aplicados nele
-  // podem ser arquivados na visão de andamento.
-  const FINAL_PAYMENT_STATUSES = new Set([
-    "aprovado", "aprovado_com_ressalva", "aprovado_parcial", "aprovado_em_revisao",
-    "pago", "quitado", "finalizado", "concluido", "lancado",
+  // Lote "liquidado" = a dedução já foi consumada (não recebe mais deduções novas);
+  // débitos aplicados nele podem ser arquivados na visão de andamento.
+  // NÃO inclui aprovado_em_revisao/revisao_pos_aprovacao (ainda recebe deduções)
+  // nem cancelado/rejeitado (dedução não é consumada).
+  // Valores conferidos contra o enum payment_status.
+  const LOTE_LIQUIDADO_STATUSES = new Set([
+    "aprovado", "aprovado_com_ressalva", "aprovado_parcial",
+    "pago", "lancado", "arquivado",
     "pedido_nf_enviado", "nf_recebida", "nf_conciliada",
+    "nf_questionada", "nf_divergente",
   ]);
-  const isPaymentFinalized = (payId: string | null | undefined) =>
-    !!payId && FINAL_PAYMENT_STATUSES.has((paymentStatuses[payId] ?? "").toLowerCase());
+  const isPaymentLiquidado = (payId: string | null | undefined) =>
+    !!payId && LOTE_LIQUIDADO_STATUSES.has((paymentStatuses[payId] ?? "").toLowerCase());
 
   // Grupo (PJ) arquivado quando toda dívida está quitada em lote finalizado
   // (independe do target_payment_id atual — que pode ter migrado para lote
