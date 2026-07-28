@@ -52,6 +52,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { invokeDispatchAnalysis } from "@/lib/dispatchAnalysis";
 import { useAuth } from "@/contexts/AuthContext";
+import { PackageAmbiguityPanel } from "@/components/payment-detail/PackageAmbiguityPanel";
 import { useNavigate } from "react-router-dom";
 import {
   SEVERITY_TOKENS,
