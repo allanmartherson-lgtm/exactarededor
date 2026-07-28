@@ -104,8 +104,9 @@ const OPEN_PAYMENT_STATUSES = [
 ] as const;
 
 // Lotes que ainda podem receber glosa sem retrabalho de validação/aprovação.
-// Os demais (revisão do analista em diante) só entram se o usuário escolher manualmente.
-const GLOSA_SUGGESTABLE_STATUSES = new Set(["rascunho", "em_analise_ia"]);
+// "revisao_analista" continua sendo etapa segura para receber glosa — só a
+// partir de aguardando_aprovacao (validação) o warning faz sentido.
+const GLOSA_SUGGESTABLE_STATUSES = new Set(["rascunho", "em_analise_ia", "revisao_analista"]);
 
 const brl = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
