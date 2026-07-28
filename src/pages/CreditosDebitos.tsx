@@ -811,8 +811,9 @@ export default function CreditosDebitos() {
   // Sistema multi-usuário: nunca auto-seleciona lote — analista escolhe explicitamente.
   const openApplyCurrentDialog = async (pjId?: string) => {
     if (!activeHospitalId) { toast.error("Sem hospital ativo."); return; }
-    const scope = pjId ? emAndamento.filter(g => g.company_id === pjId) : emAndamento;
-    if (!scope.length) { toast.info("Nada para aplicar."); return; }
+    const rawScope = pjId ? emAndamento.filter(g => g.company_id === pjId) : emAndamento;
+    const scope = rawScope.filter(g => isDebtPending(g));
+    if (!scope.length) { toast.info("Nada a aplicar — todos os débitos deste recorte já estão quitados."); return; }
     setApplyDialogScopePj(pjId ?? null);
     setApplyDialogOpen(true);
     setApplyLoading(true);
