@@ -135,3 +135,92 @@ export function buildCrossPjCodeSet(
   }
   return out;
 }
+
+/* ------------------------------------------------------------------ *
+ * Desempate de âncoras por VIA DE ACESSO + detecção de pacote sem
+ * código-alavanca. Ambos puros: recebem dados já normalizados pelo
+ * caller (analyze-payment usa normAccessRoute de rulesEngine.ts).
+ * ------------------------------------------------------------------ */
+
+/** Prioridade canônica das vias de acesso para desempate de pacote. */
+export const ACCESS_ROUTE_PRIORITY: Record<string, number> = {
+  unica_principal: 3,
+  outra_via: 2,
+  mesma_via: 1,
+  sem_via: 0,
+  "": 0,
+};
+
+export type AnchorCandidate = {
+  calc: PkgCalc;
+  triggerCode: string;
+  includedFound: string[];
+  /** Chave canônica retornada por normAccessRoute (pode ser ""). */
+  routeKey: string;
+};
+
+export type AnchorRanking = {
+  /** Pacote a aplicar automaticamente. null = empate real → ninguém aplica. */
+  winner: AnchorCandidate | null;
+  /** Candidatos que NÃO foram aplicados e viram decisão do analista. */
+  ambiguous: AnchorCandidate[];
+};
+
+/**
+ * Regra (THORAX): dois códigos-alavanca distintos no mesmo atendimento.
+ *  1. Vence a maior prioridade de via de acesso.
+ *  2. Se exatamente um candidato tem a prioridade máxima → aplica; os demais
+ *     ficam ambíguos (não aplicados).
+ *  3. Empate na prioridade máxima → NINGUÉM é aplicado; todos ficam ambíguos.
+ */
+export function rankAnchorsByAccessRoute(candidates: AnchorCandidate[]): AnchorRanking {
+  if (candidates.length === 0) return { winner: null, ambiguous: [] };
+  if (candidates.length === 1) return { winner: candidates[0], ambiguous: [] };
+
+  const prio = (c: AnchorCandidate) => ACCESS_ROUTE_PRIORITY[c.routeKey] ?? 0;
+  const max = Math.max(...candidates.map(prio));
+  const top = candidates.filter((c) => prio(c) === max);
+
+  if (top.length === 1) {
+    return { winner: top[0], ambiguous: candidates.filter((c) => c !== top[0]) };
+  }
+  return { winner: null, ambiguous: candidates };
+}
+
+export type NoAnchorSuggestion = {
+  calc: PkgCalc;
+  /** Códigos do atendimento que este pacote absorveria. */
+  matchedIncluded: string[];
+};
+
+/**
+ * Regra (AGATHA): nenhum código-alavanca foi faturado, mas os códigos do
+ * atendimento pertencem a package_included_codes de algum pacote.
+ * Retorna sugestões (top N por cobertura) — NÃO altera valor nenhum.
+ */
+export function findPackagesWithoutAnchor(
+  packageCalcs: PkgCalc[],
+  codeSet: Set<string>,
+  attCompanyIds: Set<string>,
+  limit = 3,
+): NoAnchorSuggestion[] {
+  const out: NoAnchorSuggestion[] = [];
+  for (const calc of packageCalcs) {
+    // Só entra se NENHUM main_code estiver presente.
+    if (calc.package_main_codes.some((c) => codeSet.has(c))) continue;
+    if (calc.rule_scope === "grupo" && calc.rule_company_ids.size > 0) {
+      const applies = [...attCompanyIds].some((cid) => calc.rule_company_ids.has(cid));
+      if (!applies) continue;
+    }
+    const matchedIncluded = calc.package_included_codes.filter((c) => codeSet.has(c));
+    if (matchedIncluded.length === 0) continue;
+    out.push({ calc, matchedIncluded });
+  }
+  out.sort((a, b) => {
+    if (b.matchedIncluded.length !== a.matchedIncluded.length) {
+      return b.matchedIncluded.length - a.matchedIncluded.length;
+    }
+    return a.calc.rule_name.localeCompare(b.calc.rule_name);
+  });
+  return out.slice(0, limit);
+}

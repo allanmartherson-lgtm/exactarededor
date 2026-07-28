@@ -5662,6 +5662,7 @@ export type Database = {
           package_absorbed_by: string | null
           package_absorbed_calc_id: string | null
           package_absorbed_note: string | null
+          package_ambiguity: Json | null
           parecer_checked_at: string | null
           parecer_evidence: string | null
           parecer_evidence_weak: boolean
@@ -5801,6 +5802,7 @@ export type Database = {
           package_absorbed_by?: string | null
           package_absorbed_calc_id?: string | null
           package_absorbed_note?: string | null
+          package_ambiguity?: Json | null
           parecer_checked_at?: string | null
           parecer_evidence?: string | null
           parecer_evidence_weak?: boolean
@@ -5940,6 +5942,7 @@ export type Database = {
           package_absorbed_by?: string | null
           package_absorbed_calc_id?: string | null
           package_absorbed_note?: string | null
+          package_ambiguity?: Json | null
           parecer_checked_at?: string | null
           parecer_evidence?: string | null
           parecer_evidence_weak?: boolean

@@ -1,58 +1,113 @@
+## Contexto apurado no código
 
-# Escopo — só o solicitado, sem melhorias adjacentes
+`supabase/functions/analyze-payment/index.ts`, bloco **4.1 PACOTES** (linhas ~1035–1392):
 
-## 1. PJs sem checkbox habilitado e sem motivo visível
-**Arquivo:** `src/components/retroactive/RetroactiveReconciliationsTab.tsx`
-- Investigar por que `isActionableTvr(r)` retorna false para itens de C M FRANCA / CAIM / CIRURGIA BRASILIA (ler helper e ver bucket real desses itens).
-- Quando um item for não-acionável, renderizar o checkbox **desabilitado** já hoje faz isso, mas **acrescentar tooltip/badge com o motivo** ("Já encaminhado", "Sem PJ vinculada", "Sem cálculo", etc.) na coluna Ações — hoje aparece vazio.
-- Motivo deriva de `bucket`/`status`/flags existentes (sem novas colunas).
-
-## 2. Itens já encaminhados não são sinalizados
-**Arquivo:** `src/components/retroactive/RetroactiveReconciliationsTab.tsx`
-- Marcar visualmente (badge "Já encaminhado" + linha atenuada) os itens cujo `retroactive_forward_status`/`payment_item_id` já esteja vinculado a um lote de glosa (campo já persistido; hoje só bloqueia no submit).
-- Excluí-los da contagem "Selecionar todos" e do batch de encaminhamento antes de disparar o modal (evita o alerta de erro reativo).
-
-## 3. Encaminhamento marca "confecção de lote" por padrão
-**Arquivo:** modal de revisão do encaminhamento (dentro de `RetroactiveReconciliationsTab.tsx` ou componente filho — confirmar ao editar).
-- Trocar default `criarLoteConfeccao = true` → `false`.
-- Ajustar texto/agrupamento: seção 1 "Encaminhar glosas" (default), seção 2 "Também criar lote de confecção para itens a pagar" (opt-in, com explicação curta).
-- Não mexer na lógica de criação — só no default e no rótulo.
-
-## 4. Barra sticky cobre a última empresa
-**Arquivo:** `src/components/retroactive/RetroactiveReconciliationsTab.tsx`
-- Adicionar `padding-bottom` dinâmico no container da lista (~96px) quando `selectedKeys.size > 0`, para o conteúdo poder rolar por cima da barra.
-
-## 5. Sugestão de parcelamento por médico ao encaminhar
-**Arquivo:** modal de encaminhamento (mesmo componente / helper).
-- Remover UI e payload de "parcelas por médico" no fluxo de encaminhar glosa. Encaminhamento envia valor integral; parcelamento fica só na tela Créditos e Débitos.
-- Verificar se a Edge Function que recebe o payload aceita ausência do campo (se exigir, enviar `parcelas: 1` fixo, sem UI).
-
-## 6. Vínculo médico → PJ desatualizado exige reprocesso
-**Arquivos:**
-- `src/components/retroactive/RetroactiveReconciliationsTab.tsx`
-- possivelmente novo componente `DoctorCompanyReassignDialog.tsx` (pequeno, isolado)
-
-Comportamento:
-- Botão "Reavaliar vínculos" no header da lista → lê `doctor_companies` ativo e, para cada item cuja PJ atual difere do vínculo ativo, marca conflito.
-- Quando há mais de uma PJ possível (duplo vínculo / migração), abrir dialog para o analista escolher **por médico** em qual PJ lançar (opções: PJ do lote original / PJ ativa atual / lista das PJs vinculadas).
-- Atualiza `company_id`/`retroactive_target_company_id` dos itens selecionados sem re-rodar motor.
-- Preserva histórico (não apaga original — grava override).
-
-**Banco:** verificar se já existe coluna de override (`retroactive_target_company_id`). Se não existir, avisar antes e propor migration mínima.
-
-## 7. Filtros por coluna na tela de Pagamentos
-**Arquivo:** `src/pages/Payments.tsx`
-- Adicionar dropdown de filtro no header da coluna **Status** (multi-select dos status existentes).
-- Reaproveitar filtro atual (não duplicar): o dropdown escreve no mesmo state que os chips já usam.
-- Sem tocar nas outras colunas nesta rodada.
+- Monta `packageCalcs` a partir de `rule_calculations` com `package_main_code` (aceita lista separada por vírgula).
+- Para cada atendimento monta `fullCodeSet` (cross-PJ) e cria `candidates` = todo calc cujo `main_code` aparece no atendimento.
+- Agrupa por `triggerCode` (`byTrigger`) e escolhe 1 vencedor **por trigger** — ou seja, **dois códigos-alavanca diferentes no mesmo atendimento geram DOIS pacotes aplicados**, exatamente o caso THORAX (30803217 e 30803233).
+- Se **nenhum** `main_code` está presente, o atendimento simplesmente não entra em pacote — caso AGATHA (nenhuma sugestão é oferecida ao analista).
+- `access_route` é lido do item (linha ~833, ~1543) mas **não participa** de nenhum desempate de pacote.
+- Itens absorvidos ficam `expected=0 / gross=0`, e o delta (`gross − expected`) alimenta `intervention_ledger` → aparece como economia/perda. Não existe hoje conceito de item "neutro por ambiguidade".
 
 ---
 
-## Ordem sugerida de execução
-1, 2, 4 (mesmo arquivo, rápido) → 3, 5 (modal de encaminhamento) → 7 (Payments) → 6 (mais complexo, pode precisar de migration).
+## Caso A — THORAX: dois códigos-alavanca no mesmo atendimento
 
-## Confirmar antes de começar
-- **Item 6:** posso adicionar coluna `retroactive_target_company_id` em `retroactive_reconciliations` (ou tabela equivalente) se ainda não existir? É a única mudança de schema prevista.
-- **Item 3:** confirmo que o default deve ser "só glosa" mesmo quando há itens a pagar no encaminhamento?
+### Regra nova (determinística)
+Ao final da montagem de `winners`, se houver **2+ vencedores com `triggerCode` distinto no mesmo atendimento**:
 
-Nenhum outro arquivo será tocado além dos listados. Aguardando aprovação.
+1. Classifica a via de acesso do item que carrega cada `triggerCode`, usando o normalizador canônico já existente (`normAccessRoute` de `_shared/rulesEngine.ts`, espelho em `src/lib/normAccessRoute.ts`).
+2. Prioridade: `unica_principal` > `outra_via` > `mesma_via` > `sem_via`/vazio.
+3. Se **exatamente um** candidato tem a maior prioridade → ele vence; os demais viram **candidatos ambíguos** (não aplicados).
+4. Se houver empate na melhor prioridade → **nenhum** dos empatados é aplicado automaticamente; todos viram ambíguos.
+
+Isso resolve o atendimento 9321191: 30803217 (Única/principal) prevalece; 30803233 (Mesma via) vira decisão do analista.
+
+### Estado "ambíguo" (neutro)
+Item âncora não-vencedor recebe:
+- `expected_amount = gross_amount` (delta zero → **não gera economia nem perda**)
+- `status = 'alerta'`, `needs_ai_review = false` (não gasta IA)
+- `package_ambiguity` (coluna nova, jsonb) com:
+  ```
+  { kind: "multi_anchor", att, chosen_calc_id, chosen_code,
+    options: [{ calc_id, rule_name, code, package_amount, access_route }] }
+  ```
+- `calculation_explanation` explicando o empate.
+
+---
+
+## Caso B — AGATHA: só códigos secundários chegam
+
+Novo passo, após o loop de `winners`, apenas para atendimentos **sem nenhum `triggerCode` presente**:
+
+1. Procura calcs cujo `package_included_codes` cobre ≥1 código do `fullCodeSet` (respeitando `rule_scope='grupo'` / `rule_company_ids`, igual ao matching atual).
+2. Ordena por cobertura (nº de included presentes) e pega os top 3 como sugestões.
+3. **Não altera valor nenhum**: os itens seguem com o cálculo normal que o motor já produziu (avulso). Apenas grava:
+   - `package_ambiguity = { kind: "no_anchor", att, suggestions: [...] }`
+   - `status = 'alerta'`, `needs_ai_review = false`
+   - explicação: "Códigos deste atendimento pertencem ao pacote X, mas o código-alavanca não foi faturado. Decisão do analista."
+4. Enquanto `package_ambiguity` estiver pendente, o item é **excluído** do cálculo de economia/perda.
+
+---
+
+## Neutralidade em economia/perda
+
+- `payment_items.package_ambiguity IS NOT NULL AND package_ambiguity->>'resolved' IS NULL` → item **neutro**.
+- Aplicado em dois pontos:
+  - RPC `get_intervention_savings` / `materialize_intervention_ledger`: filtro que ignora esses itens (classificação `neutro`).
+  - `src/lib/interventionSavings.ts`: `classifyDelta` já suporta `"neutro"`; só precisa receber a flag.
+
+---
+
+## UI — card de decisão (neutro)
+
+Em `src/components/payment-detail/ItemsDataGrid.tsx`, dentro do bloco de pacote já existente (~linha 3839–4040, onde hoje vive "absorver manualmente"):
+
+- Badge âmbar **"Pacote ambíguo — decisão pendente"** na linha do item.
+- Painel expandido com as opções vindas de `package_ambiguity`:
+  1. **Absorver no pacote X** → reutiliza `absorverItem()` já existente (linha 1509), passando `calc_id` escolhido; marca `package_ambiguity.resolved = 'absorbed'`.
+  2. **Pagar avulso (manter cálculo atual)** → `resolved = 'standalone'`; item volta a contar em economia/perda normalmente.
+  3. **Outro valor** → input de valor + motivo obrigatório (reaproveita o gate de `manual_intervention_reasons` já em vigor); grava override e `resolved = 'manual'`.
+- Toda decisão grava em `audit_log` (mesmo padrão do bloco `audit_package_absorbed`).
+- Decisão do analista é **soberana**: reanálise não sobrescreve item com `package_ambiguity.resolved` preenchido (mesma guarda do `package_absorbed_by`).
+
+---
+
+## Banco — a única mudança de schema
+
+```sql
+ALTER TABLE public.payment_items
+  ADD COLUMN IF NOT EXISTS package_ambiguity jsonb;
+```
+
+**Efeito prático:** uma coluna opcional em `payment_items` que guarda, quando o motor não conseguiu decidir sozinho, quais pacotes eram candidatos e qual foi a decisão do analista. Não altera nenhum registro existente (fica `NULL`), não muda RLS, não muda cálculo de quem já está aprovado. Sem novos valores de enum.
+
+---
+
+## Arquivos que serão alterados
+
+| Arquivo | Mudança |
+|---|---|
+| `supabase/migrations/<data>_add_package_ambiguity.sql` | nova coluna jsonb |
+| `supabase/functions/analyze-payment/index.ts` | desempate por via de acesso; detecção sem-alavanca; gravação de `package_ambiguity`; guarda de decisão soberana; persistência da coluna |
+| `supabase/functions/_shared/packagePicker.ts` | novo helper puro `rankAnchorsByAccessRoute()` + `findPackagesWithoutAnchor()` (**arquivo compartilhado — aviso prévio conforme REGRA 2; hoje é usado por `analyze-payment` e pelos testes `packageAbsorbedEngine.contract.test.ts`; a mudança é aditiva, nenhuma assinatura existente muda**) |
+| `src/components/payment-detail/ItemsDataGrid.tsx` | badge + painel de decisão do pacote ambíguo |
+| `src/lib/interventionSavings.ts` | tratar item ambíguo pendente como `neutro` |
+| RPC `get_intervention_savings` (migration) | excluir itens ambíguos pendentes de economia/perda |
+| `supabase/functions/_shared/__tests__/packagePicker.test.ts` | testes do desempate por via e do caso sem-alavanca |
+
+**Edge function:** `analyze-payment` será reimplantada e eu informarei explicitamente o deploy.
+
+---
+
+## Ordem de execução
+1. Migration da coluna (após seu OK).
+2. Helpers puros + testes.
+3. `analyze-payment` + deploy.
+4. UI do card de decisão.
+5. Neutralidade em economia/perda (lib + RPC).
+
+## Confirmações que preciso antes de codar
+1. **Coluna `package_ambiguity` jsonb** em `payment_items` — aprovado?
+2. **Caso B (AGATHA):** confirmo que o item deve continuar com o cálculo avulso atual (só sinaliza a sugestão), e **não** ser zerado à espera da decisão?
+3. **Empate real de via** (dois âncoras ambos "Única/principal"): confirmo que nenhum pacote é aplicado automaticamente e ambos ficam pendentes?
