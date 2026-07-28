@@ -203,6 +203,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Hospitais", iconName: "Building2" },
   { label: "Pools de rateio", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
+  { label: "Piso de repasse", iconName: "ShieldCheck" },
   { label: "Usuários", iconName: "Users" },
   { label: "Acessos dos Portais", iconName: "Building2" },
   { label: "Saúde (Motor, Portais, Processo)", iconName: "Activity" },
