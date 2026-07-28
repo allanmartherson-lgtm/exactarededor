@@ -3574,6 +3574,8 @@ export type Database = {
         Row: {
           created_at: string
           hospital_id: string
+          min_payout_brl: number
+          min_payout_pct: number
           reapproval_require_reason: boolean
           reapproval_threshold_brl: number
           reapproval_threshold_pct: number
@@ -3582,6 +3584,8 @@ export type Database = {
         Insert: {
           created_at?: string
           hospital_id: string
+          min_payout_brl?: number
+          min_payout_pct?: number
           reapproval_require_reason?: boolean
           reapproval_threshold_brl?: number
           reapproval_threshold_pct?: number
@@ -3590,6 +3594,8 @@ export type Database = {
         Update: {
           created_at?: string
           hospital_id?: string
+          min_payout_brl?: number
+          min_payout_pct?: number
           reapproval_require_reason?: boolean
           reapproval_threshold_brl?: number
           reapproval_threshold_pct?: number
