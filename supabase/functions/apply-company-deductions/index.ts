@@ -321,7 +321,8 @@ Deno.serve(async (req) => {
 
       for (const debt of debtsOrdenadas) {
        try {
-         if (existingDebtIds.has(debt.id)) { summary.glosas.skipped_existing++; continue; }
+         const prevAppliedHere = existingByDebt.get(debt.id);
+         const alreadyAppliedHere = prevAppliedHere?.applied ?? 0;
 
          // NOTA: NÃO bloqueamos por "médico sem produção no lote". A glosa é dívida
          // da PJ (para fins de pagamento, PJ e médico são inseparáveis) e desconta
