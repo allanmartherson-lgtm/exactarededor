@@ -103,7 +103,7 @@ export function PackageAmbiguityPanel({
     itemId: string,
     amb: PackageAmbiguity,
     decision: "absorbed" | "standalone" | "manual",
-    extra: { calcId?: string | null; value?: number; reasonCode?: string } = {},
+    extra: { calcId?: string | null; value?: number; reasonCode?: string; option?: PackageAmbiguityOption } = {},
   ) => {
     setSaving(itemId);
     try {
@@ -120,14 +120,21 @@ export function PackageAmbiguityPanel({
       };
 
       if (decision === "absorbed") {
+        const pkgValue = Number(extra.option?.package_amount ?? 0);
         patch.package_absorbed = true;
         patch.package_absorbed_calc_id = extra.calcId ?? null;
         patch.package_absorbed_by = user?.id ?? null;
         patch.package_absorbed_at = new Date().toISOString();
         patch.package_absorbed_note = `Decisão de pacote ambíguo (atend. ${amb.att}).`;
-        patch.expected_amount = 0;
+        // Este item é o CÓDIGO-ALAVANCA escolhido: recebe o valor do pacote.
+        // Demais códigos inclusos do mesmo atendimento continuam absorvidos (expected=0)
+        // conforme registrados pelo motor no próximo run.
+        patch.expected_amount = pkgValue;
         patch.ai_status = "aprovado";
         patch.applied_calc_method = "pacote";
+        patch.matched_rule_name = extra.option?.calc_label
+          ? `${extra.option.rule_name} — ${extra.option.calc_label}`
+          : extra.option?.rule_name ?? null;
       } else if (decision === "manual") {
         patch.expected_amount = extra.value ?? null;
         patch.ai_status = "aprovado";
