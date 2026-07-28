@@ -1053,6 +1053,9 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
     // um item incluído (Broncoscopia) "órfão" com expected=0. Coletamos aqui
     // e limpamos na persistência (rastro em audit_log via bloco existente).
     const staleAbsorbedItemIds = new Set<string>();
+    // Ambiguidade de pacote (multi_anchor / no_anchor) detectada neste run.
+    // Item com ambiguidade PENDENTE é neutro em economia/perda.
+    const packageAmbiguityByItemId = new Map<string, Record<string, unknown>>();
     try {
       // Coleta todos os cálculos de pacote de todas as regras carregadas
       type PkgCalc = {
