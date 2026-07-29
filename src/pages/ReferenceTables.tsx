@@ -1005,6 +1005,14 @@ const ReferenceTables = () => {
           </CardContent>
         </Card>
       </div>
+      <CloneReferenceTableToHospitalDialog
+        open={!!cloneTarget}
+        tableId={cloneTarget?.id ?? null}
+        tableName={cloneTarget?.name ?? null}
+        tableHospitalId={(cloneTarget as any)?.hospital_id ?? null}
+        onClose={() => setCloneTarget(null)}
+        onCloned={() => loadTables()}
+      />
     </>
   );
 };
