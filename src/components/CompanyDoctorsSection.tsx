@@ -184,11 +184,17 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
 
     // Busca TODOS vínculos do médico cujo intervalo toca a data escolhida
     // (constraint usa range inclusivo — vínculos encerrados no próprio "start" também bloqueiam).
-    const { data: conflicts } = await supabase
+    // A constraint de sobreposição agora é por (médico + hospital) — restringimos
+    // a busca de conflitos ao hospital ativo para não oferecer transferência de
+    // um vínculo que pertence a outra unidade.
+    const conflictHid = await resolveActiveHospitalId();
+    let conflictQuery = supabase
       .from("doctor_companies")
-      .select("id, company_id, start_date, end_date, end_reason, companies:company_id(name)")
+      .select("id, company_id, hospital_id, start_date, end_date, end_reason, companies:company_id(name)")
       .eq("doctor_id", doctor.id)
-      .lte("start_date", start)
+      .lte("start_date", start);
+    if (conflictHid) conflictQuery = conflictQuery.eq("hospital_id", conflictHid);
+    const { data: conflicts } = await conflictQuery
       .or(`end_date.is.null,end_date.gte.${start}`);
 
     type Row = {
