@@ -965,6 +965,11 @@ export default function InterventionAdjustments() {
                           <div className="font-mono text-xs">{it.procedure_code ?? ""}</div>
                           <div className="text-muted-foreground">{it.procedure_name ?? "—"}</div>
                         </TableCell>
+                        <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                          {(it.parcelas_total ?? 0) > 1
+                            ? `${it.parcela_numero ?? "—"}/${it.parcelas_total}`
+                            : ""}
+                        </TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_regra)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_pago_final)}</TableCell>
                         <TableCell
