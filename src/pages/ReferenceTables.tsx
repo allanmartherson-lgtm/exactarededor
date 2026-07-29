@@ -10,9 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
-import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download, Pencil } from "lucide-react";
+import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download, Pencil, Building2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+import { CloneReferenceTableToHospitalDialog } from "@/components/reference-tables/CloneReferenceTableToHospitalDialog";
 
 type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos" | "pacote_combinacao";
 type RefPurpose = "calculo" | "classificacao" | "exclusao" | "sem_acordo";
@@ -76,6 +77,7 @@ const ReferenceTables = () => {
   const [manualText, setManualText] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
   const [newTableKind, setNewTableKind] = useState<RefKind>("simples");
+  const [cloneTarget, setCloneTarget] = useState<RefTable | null>(null);
 
   const wizardProfile: ImportProfile | null = selected
     ? {
@@ -973,6 +975,18 @@ const ReferenceTables = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="Copiar para outro hospital"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCloneTarget(t);
+                          }}
+                        >
+                          <Building2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -991,6 +1005,14 @@ const ReferenceTables = () => {
           </CardContent>
         </Card>
       </div>
+      <CloneReferenceTableToHospitalDialog
+        open={!!cloneTarget}
+        tableId={cloneTarget?.id ?? null}
+        tableName={cloneTarget?.name ?? null}
+        tableHospitalId={(cloneTarget as any)?.hospital_id ?? null}
+        onClose={() => setCloneTarget(null)}
+        onCloned={() => loadTables()}
+      />
     </>
   );
 };
