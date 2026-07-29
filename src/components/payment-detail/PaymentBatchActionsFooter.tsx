@@ -117,6 +117,10 @@ export function PaymentBatchActionsFooter({
     paymentMeta.created_by === currentUserId &&
     (paymentMeta.analysis_source ?? "system") === "system";
 
+  const pendencias = useMemo(() => {
+    // Só contam pendências que realmente bloqueariam o envio atual: itens
+    // pertencentes a empresas que este ator vai enviar agora, ignorando
+    // cancelados, absorvidos por pacote e itens já acatados.
     const approvableCompanies = new Set(
       groups
         .filter((g) => ROLE_APPROVABLE_STATUSES[actorRole].has(String(g.status)))
