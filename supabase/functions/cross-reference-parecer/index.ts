@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${SERVICE_KEY}`,
         },
-        body: JSON.stringify({ payment_id, trigger_reanalysis, _background: true }),
+        body: JSON.stringify({ payment_id, trigger_reanalysis, _background: true, reanalysis_options }),
       }).catch((e) => console.warn("[cross-reference-parecer] bg dispatch failed", e));
       // @ts-ignore — EdgeRuntime existe no runtime do Supabase
       try { EdgeRuntime.waitUntil(bgPromise); } catch { /* noop */ }
