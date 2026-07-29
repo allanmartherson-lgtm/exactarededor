@@ -617,7 +617,7 @@ export function PaymentBatchActionsFooter({
               onClick={() => doApprove(approvable.map((g) => g.id), approveNote.trim() || null)}
               disabled={busy}
             >
-              {actorRole === "diretor" ? "Confirmar aprovação parcial" : "Confirmar envio parcial"}
+              {actorRole === "diretor" ? "Confirmar aprovação parcial" : isValidacaoModule ? "Confirmar conclusão parcial" : "Confirmar envio parcial"}
             </Button>
           </DialogFooter>
         </DialogContent>
