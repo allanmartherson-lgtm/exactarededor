@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     ]);
     const { data: paymentStatusRow } = await supabase
       .from("payments")
-      .select("status, payment_model_id, hospital_id, competence_month")
+      .select("status, payment_model_id, hospital_id, competence_month, cost_center_code")
       .eq("id", payment_id)
       .maybeSingle();
     const paymentCurrentStatus: string | null = (paymentStatusRow?.status as string) ?? null;
@@ -160,13 +160,87 @@ Deno.serve(async (req) => {
       .eq("company_id", company_id)
       .eq("ativo", true);
 
+    // ---- Centros de custo do lote (para filtrar ajustes com cost_center_id) ----
+    // A mesma unidade pode ter até 3 registros de cost_centers com códigos
+    // equivalentes (code, code_p10, code_p12). Por isso comparamos por conjunto
+    // de códigos normalizados, não por id.
+    const normCc = (v: unknown) => String(v ?? "").trim().toUpperCase();
+    const loteCcCodes = new Set<string>();
+    const loteCcCodeRaw = (paymentStatusRow as any)?.cost_center_code as string | null | undefined;
+    if (loteCcCodeRaw) loteCcCodes.add(normCc(loteCcCodeRaw));
+    {
+      const { data: itemCcRows } = await supabase
+        .from("payment_items")
+        .select("cost_center_code")
+        .eq("payment_id", payment_id)
+        .eq("company_id", company_id)
+        .not("cost_center_code", "is", null);
+      for (const r of (itemCcRows as any[]) ?? []) {
+        const c = normCc(r.cost_center_code);
+        if (c) loteCcCodes.add(c);
+      }
+    }
+
+    const adjCcIds = Array.from(new Set(
+      ((adjustmentsRaw as any[]) ?? []).map((a) => a.cost_center_id).filter(Boolean),
+    )) as string[];
+    // cost_center_id do ajuste -> conjunto de códigos equivalentes aceitos
+    const adjCcCodeSet = new Map<string, Set<string>>();
+    if (adjCcIds.length > 0) {
+      const { data: ccRows } = await supabase
+        .from("cost_centers")
+        .select("id, code, code_p10, code_p12, hospital_id")
+        .in("id", adjCcIds);
+      const seedByAdjCc = new Map<string, Set<string>>();
+      const allCodes = new Set<string>();
+      for (const cc of (ccRows as any[]) ?? []) {
+        const codes = new Set<string>([cc.code, cc.code_p10, cc.code_p12].map(normCc).filter(Boolean));
+        seedByAdjCc.set(cc.id, codes);
+        codes.forEach((c) => allCodes.add(c));
+      }
+      // Expande com os registros "irmãos" (mesma unidade cadastrada 2-3x com
+      // códigos P10/P12 diferentes) para cobrir a duplicação de cadastro.
+      if (allCodes.size > 0) {
+        const list = Array.from(allCodes);
+        const { data: siblings } = await supabase
+          .from("cost_centers")
+          .select("code, code_p10, code_p12")
+          .or([
+            `code.in.(${list.join(",")})`,
+            `code_p10.in.(${list.join(",")})`,
+            `code_p12.in.(${list.join(",")})`,
+          ].join(","));
+        for (const [ccId, codes] of seedByAdjCc.entries()) {
+          for (const sib of (siblings as any[]) ?? []) {
+            const sibCodes = [sib.code, sib.code_p10, sib.code_p12].map(normCc).filter(Boolean);
+            if (sibCodes.some((c) => codes.has(c))) sibCodes.forEach((c) => codes.add(c));
+          }
+          adjCcCodeSet.set(ccId, codes);
+        }
+      } else {
+        for (const [k, v] of seedByAdjCc.entries()) adjCcCodeSet.set(k, v);
+      }
+    }
+
     // Filtro canônico: payment_model_ids (D3.e.4 — coluna única após drop de payment_type_ids).
     // NULL/vazio = qualquer lote; senão exige match com o modelo do lote.
+    // Filtro adicional: cost_center_id. NULL = vale para todos os CCs; preenchido =
+    // só aplica se o lote/itens tiverem CC equivalente.
     const adjustments = (adjustmentsRaw ?? []).filter((a: any) => {
       const ids: string[] | null = a.payment_model_ids ?? null;
-      if (!ids || ids.length === 0) return true;
-      return lotePaymentModelId ? ids.includes(lotePaymentModelId) : false;
+      if (ids && ids.length > 0) {
+        if (!lotePaymentModelId || !ids.includes(lotePaymentModelId)) return false;
+      }
+      if (a.cost_center_id) {
+        const accepted = adjCcCodeSet.get(a.cost_center_id);
+        if (!accepted || accepted.size === 0) return false;
+        let hit = false;
+        for (const c of loteCcCodes) { if (accepted.has(c)) { hit = true; break; } }
+        if (!hit) return false;
+      }
+      return true;
     });
+
 
     const { data: existingCaa } = await supabase
       .from("company_adjustment_applications")
