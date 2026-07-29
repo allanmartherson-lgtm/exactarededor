@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/PageHeader";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormDialog } from "@/components/FormDialog";
@@ -452,8 +453,9 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
         if (shiftErr) linkErrors.push(`Falha ao preparar nova vigência: ${shiftErr.message}`);
 
         if (linkErrors.length === 0) {
+          const hid = await resolveActiveHospitalId();
           const { error: linkErr } = await supabase.from("doctor_companies").insert(
-            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today })),
+            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today, hospital_id: hid ?? "" })),
           );
           if (linkErr) {
             // Conflito de vigência é uma condição esperada — mensagem específica.

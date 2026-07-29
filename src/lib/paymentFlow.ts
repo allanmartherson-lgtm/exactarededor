@@ -135,6 +135,7 @@ export const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStat
   "arquivado",
   "rejeitado",
   "cancelado",
+  "concluido_validacao",
 ]);
 
 /** Conveniência: predicado para `Array.filter`/condicionais. */

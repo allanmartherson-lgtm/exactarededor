@@ -12,6 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 
 type Row = {
   kind: "doctor_unregistered" | "pj_not_linked";
@@ -110,9 +111,11 @@ export function DoctorRegistrationPendingPanel({ onCreateDoctor, onLinkCompany }
       if (endErr) return false;
     }
 
+    const hid = await resolveActiveHospitalId();
+    if (!hid) return false;
     const { error } = await supabase
       .from("doctor_companies")
-      .insert({ doctor_id: doctorId, company_id: companyId, start_date: divergent ? tomorrow : today });
+      .insert({ doctor_id: doctorId, company_id: companyId, start_date: divergent ? tomorrow : today, hospital_id: hid });
     return !error;
   };
 
