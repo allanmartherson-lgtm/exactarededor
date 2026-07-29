@@ -194,7 +194,21 @@ Deno.serve(async (req) => {
             // Chama diretamente o worker real. A chamada sem `_background`
             // apenas agenda outro fetch e retorna 202; em cadeia fire-and-forget
             // isso pode encerrar antes do redispatch final ser criado.
-            body: JSON.stringify({ payment_id, trigger_reanalysis: true, _background: true }),
+            // Propaga o escopo original: sem isso o redispatch do cross-ref
+            // reanalisava o lote inteiro (todas as empresas), o que é lento e
+            // faz o clique em "Reaplicar regras" de UMA empresa se perder.
+            body: JSON.stringify({
+              payment_id,
+              trigger_reanalysis: true,
+              _background: true,
+              reanalysis_options: {
+                only_companies: Array.isArray(only_companies) && only_companies.length > 0 ? only_companies : undefined,
+                ai_statuses: Array.isArray(ai_statuses) && ai_statuses.length > 0 ? ai_statuses : undefined,
+                tolerance_pct,
+                skip_ai: __skip_ai,
+              },
+            }),
+
           }).then(async (resp) => {
             const txt = await resp.text();
             if (!resp.ok) {
