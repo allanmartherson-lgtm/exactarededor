@@ -89,7 +89,7 @@ export function PaymentBatchActionsFooter({
   const [originSource, setOriginSource] = useState<"email" | "whatsapp" | "outro">("email");
   const [originPerson, setOriginPerson] = useState("");
   const [originNote, setOriginNote] = useState("");
-  const [pendingOriginFlow, setPendingOriginFlow] = useState<"direct" | "with-approve-dialog" | null>(null);
+  const [originNote2, setOriginNote2] = useState<string>("__unused__"); void originNote2;
 
   useEffect(() => {
     if (actorRole !== "validador") return;
