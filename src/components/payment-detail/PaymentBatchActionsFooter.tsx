@@ -69,6 +69,7 @@ export function PaymentBatchActionsFooter({
   currentUserId,
   currentUserName,
   actorRole,
+  workflowModule = "completo",
   items,
   onDone,
   onReviewPendencias,
