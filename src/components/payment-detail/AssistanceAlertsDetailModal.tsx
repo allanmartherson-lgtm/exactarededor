@@ -280,11 +280,13 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
         map.set(patientKey, g);
       }
       g.rows.push(r);
-      g.total += r.gross_amount;
       if (r.procedure_date) g.dates.add((r.procedure_date || "").slice(0, 10));
-      const curId = `cur|${r.itemId}`;
-      if (!seen.has(curId)) {
+      // Dedup pela identidade real do item: o mesmo item aparece como dono de
+      // um finding e como conflitante do finding simétrico do par.
+      const curId = r.itemId ? `item|${r.itemId}` : null;
+      if (curId && !seen.has(curId)) {
         seen.add(curId);
+        g.total += r.gross_amount;
         g.timeline.push({
           procedure_name: r.procedure_name,
           procedure_code: r.procedure_code,
@@ -299,7 +301,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
       }
       if (r.conflicting_procedure || r.conflicting_doctor || r.conflicting_attendance) {
         const cid = r.conflicting_item_id
-          ? `confid|${r.conflicting_item_id}`
+          ? `item|${r.conflicting_item_id}`
           : `conf|${r.itemId}|${r.conflicting_attendance}|${r.conflicting_procedure}|${r.conflicting_payment_ref}`;
         if (!seen.has(cid)) {
           seen.add(cid);
@@ -318,6 +320,7 @@ export function AssistanceAlertsDetailModal({ open, onOpenChange, items, payment
           });
         }
       }
+
     }
     // ordena timeline de cada grupo
     const dirMul = sortDir === "asc" ? 1 : -1;
