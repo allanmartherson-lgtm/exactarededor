@@ -144,10 +144,9 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/configuracoes/tabela-tuss", label: "Tabela TUSS", icon: BookOpen, iconName: "BookOpen", roles: ["admin", "diretor"] },
       { to: "/configuracoes/motivos-intervencao", label: "Motivos de intervenção", icon: ClipboardList, iconName: "ClipboardList", roles: ["admin", "diretor"] },
       { to: "/padroes-lote", label: "Padrões de Lote", icon: FolderKanban, iconName: "FolderKanban", roles: ["admin", "diretor", "analista"] },
-      { to: "/hospitais", label: "Hospitais", icon: Building2, iconName: "Building2", roles: ["admin", "diretor"] },
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["admin"] },
-      { to: "/configuracoes/piso-repasse", label: "Piso de repasse", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["admin", "diretor"] },
+
     ],
   },
   {
@@ -158,12 +157,14 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
+      { to: "/hospitais", label: "Hospitais", icon: Building2, iconName: "Building2", roles: ["admin", "diretor"] },
       { to: "/saude", label: "Saúde (Motor, Portais, Processo)", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
       { to: "/sistema", label: "Sistema (Versões, Flags, Parâmetros)", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
+
   },
 ];
 
@@ -200,17 +201,17 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Tabela TUSS", iconName: "BookOpen" },
   { label: "Motivos de intervenção", iconName: "ClipboardList" },
   { label: "Padrões de Lote", iconName: "FolderKanban" },
-  { label: "Hospitais", iconName: "Building2" },
   { label: "Pools de rateio", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
-  { label: "Piso de repasse", iconName: "ShieldCheck" },
   { label: "Usuários", iconName: "Users" },
   { label: "Acessos dos Portais", iconName: "Building2" },
+  { label: "Hospitais", iconName: "Building2" },
   { label: "Saúde (Motor, Portais, Processo)", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
   { label: "Sistema (Versões, Flags, Parâmetros)", iconName: "Rocket" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
+
 
 
 
