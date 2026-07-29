@@ -170,7 +170,7 @@ const Profile = lazy(loadProfile);
 const AuditLog = lazy(loadAuditLog);
 const StatusAnomalies = lazy(loadStatusAnomalies);
 const SlaSettings = lazy(loadSlaSettings);
-const PisoRepasse = lazy(() => import("./pages/PisoRepasse.tsx"));
+const HospitaisHub = lazy(() => import("./pages/HospitaisHub.tsx"));
 const PreviewPalettes = lazy(loadPreviewPalettes);
 const PreviewDesignSystems = lazy(loadPreviewDesignSystems);
 const PreviewCura = lazy(loadPreviewCura);
