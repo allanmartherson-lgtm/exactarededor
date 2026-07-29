@@ -402,6 +402,14 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
       const today = new Date().toISOString().slice(0, 10);
       const yDate = new Date(); yDate.setDate(yDate.getDate() - 1);
       const yesterday = yDate.toISOString().slice(0, 10);
+      if (!linkHospitalId) {
+        toast({
+          title: "Selecione o hospital do vínculo",
+          description: "O vínculo médico↔PJ é por hospital. Escolha um hospital antes de salvar.",
+          variant: "destructive",
+        });
+        return;
+      }
       const previousIds = linksByDoctorHospital.get(`${savedId}|${linkHospitalId}`) ?? [];
       const toEnd = previousIds.filter((cid) => !editingCompanyIds.includes(cid));
       const toAdd = editingCompanyIds.filter((cid) => !previousIds.includes(cid));
@@ -440,6 +448,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
             .select("id,start_date")
             .eq("doctor_id", savedId)
             .eq("company_id", cid)
+            .eq("hospital_id", linkHospitalId)
             .is("end_date", null)
             .maybeSingle();
           if (selErr) { linkErrors.push(selErr.message); continue; }
@@ -472,13 +481,13 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
           .from("doctor_companies")
           .update({ end_date: yesterday })
           .eq("doctor_id", savedId!)
+          .eq("hospital_id", linkHospitalId)
           .eq("end_date", today);
         if (shiftErr) linkErrors.push(`Falha ao preparar nova vigência: ${shiftErr.message}`);
 
         if (linkErrors.length === 0) {
-          const hid = await resolveActiveHospitalId();
           const { error: linkErr } = await supabase.from("doctor_companies").insert(
-            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today, hospital_id: hid ?? "" })),
+            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today, hospital_id: linkHospitalId })),
           );
           if (linkErr) {
             // Conflito de vigência é uma condição esperada — mensagem específica.
@@ -801,6 +810,31 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
                         <Badge variant="outline" className="text-[10px] h-4 ml-1">{editingCompanyIds.length}</Badge>
                       )}
                     </h3>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Hospital do vínculo <span className="text-destructive">*</span></Label>
+                      <Select
+                        value={linkHospitalId}
+                        onValueChange={(v) => {
+                          setLinkHospitalId(v);
+                          setEditingCompanyIds(
+                            editing.id ? (linksByDoctorHospital.get(`${editing.id}|${v}`) ?? []) : [],
+                          );
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o hospital" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableHospitals.map((h) => (
+                            <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground">
+                        As PJs marcadas abaixo valem para este hospital. Troque o hospital para manter
+                        vínculos simultâneos diferentes em cada unidade.
+                      </p>
+                    </div>
                     <Input
                       placeholder="Buscar empresa..."
                       value={companySearch}
