@@ -1,6 +1,8 @@
 // Hub unificado de Cadastros — substitui entradas separadas no menu
-// (Hospitais / Empresas / Médicos / Convênios / Setores e Centros / Tipos de pagamento / Diretores).
+// (Empresas / Médicos / Convênios / Setores e Centros / Tipos de pagamento / Diretores).
 // As rotas antigas continuam funcionando, redirecionando para a aba correspondente.
+// Hospitais NÃO ficam aqui — administrar hospital é via /hospitais (HospitaisHub),
+// que traz dados cadastrais + piso + reaprovação + módulo de fluxo no mesmo lugar.
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
@@ -15,12 +17,10 @@ import PaymentTypes from "./PaymentTypes";
 import PaymentModels from "./PaymentModels";
 import ItemTypes from "./ItemTypes";
 import ManualInterventionReasons from "./ManualInterventionReasons";
-import Hospitals from "./Hospitals";
 import PayoutModels from "./PayoutModels";
 import Specialties from "./Specialties";
 
 type TabValue =
-  | "hospitais"
   | "empresas"
   | "medicos"
   | "convenios"
@@ -34,7 +34,6 @@ type TabValue =
   | "modelos-repasse";
 
 const TABS: { value: TabValue; label: string }[] = [
-  { value: "hospitais", label: "Hospitais" },
   { value: "empresas", label: "Empresas" },
   { value: "medicos", label: "Médicos" },
   { value: "convenios", label: "Convênios" },
@@ -62,7 +61,6 @@ export default function CadastrosHub() {
 
   const content = useMemo(() => {
     switch (active) {
-      case "hospitais": return <Hospitals embedded />;
       case "empresas": return <Companies embedded />;
       case "medicos": return <Doctors embedded />;
       case "convenios": return <Convenios embedded />;
@@ -81,9 +79,10 @@ export default function CadastrosHub() {
     <div>
       <PageHeader
         title="Cadastros"
-        description="Hospitais, empresas, médicos, convênios, setores, tipos de pagamento e diretores aprovadores — tudo em um só lugar."
+        description="Empresas, médicos, convênios, setores, tipos de pagamento e diretores aprovadores — tudo em um só lugar."
         icon={FolderKanban}
       />
+
       <div className="p-4 md:p-6 space-y-6">
         <nav className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-muted/50 p-1" aria-label="Seções de Cadastros">
           {TABS.map((item) => {
