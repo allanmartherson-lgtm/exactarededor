@@ -330,6 +330,10 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
 
   const body = ctx.items.map((it) => {
     const cls = classifyItem(it);
+    const parcelaLabel =
+      (it.parcelas_total ?? 0) > 1
+        ? `${it.parcela_numero ?? "—"}/${it.parcelas_total}`
+        : "";
     return [
       fmtDatePt(it.obs_at),
       loteByPayment.get(it.payment_id) ?? "—",
@@ -338,6 +342,7 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
       it.company_name ?? "—",
       it.doctor_name ?? "—",
       [it.procedure_code, it.procedure_name].filter(Boolean).join(" — ") || "—",
+      parcelaLabel,
       formatCurrency(it.valor_regra),
       formatCurrency(it.valor_pago_final),
       formatCurrency(it.delta),
@@ -348,7 +353,7 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
   autoTable(doc, {
     head: [[
       "Data", "Lote", "Autor", "Papel", "Empresa", "Médico", "Procedimento",
-      "Valor regra", "Pago final", "Diferença", "Classif.",
+      "Parcela", "Valor regra", "Pago final", "Diferença", "Classif.",
     ]],
     body,
     startY: tableStartY,
@@ -369,15 +374,16 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
       4: { cellWidth: 34 },
       5: { cellWidth: 30 },
       6: { cellWidth: "auto" as any },
-      7: { cellWidth: 20, halign: "right" },
+      7: { cellWidth: 14, halign: "center" },
       8: { cellWidth: 20, halign: "right" },
-      9: { cellWidth: 22, halign: "right", fontStyle: "bold" },
-      10: { cellWidth: 18, halign: "center" },
+      9: { cellWidth: 20, halign: "right" },
+      10: { cellWidth: 22, halign: "right", fontStyle: "bold" },
+      11: { cellWidth: 18, halign: "center" },
     },
     didParseCell: (data) => {
       if (data.section !== "body") return;
       const cls = classifyItem(ctx.items[data.row.index]);
-      if (data.column.index === 10 || data.column.index === 9) {
+      if (data.column.index === 11 || data.column.index === 10) {
         if (cls === "economia") data.cell.styles.textColor = [22, 101, 52];
         else if (cls === "aumento") data.cell.styles.textColor = [153, 27, 27];
       }
