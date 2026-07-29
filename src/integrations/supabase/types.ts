@@ -2136,6 +2136,7 @@ export type Database = {
           doctor_id: string
           end_date: string | null
           end_reason: string | null
+          hospital_id: string
           id: string
           start_date: string | null
         }
@@ -2146,6 +2147,7 @@ export type Database = {
           doctor_id: string
           end_date?: string | null
           end_reason?: string | null
+          hospital_id: string
           id?: string
           start_date?: string | null
         }
@@ -2156,6 +2158,7 @@ export type Database = {
           doctor_id?: string
           end_date?: string | null
           end_reason?: string | null
+          hospital_id?: string
           id?: string
           start_date?: string | null
         }
@@ -2172,6 +2175,13 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_companies_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]
@@ -3580,6 +3590,7 @@ export type Database = {
           reapproval_threshold_brl: number
           reapproval_threshold_pct: number
           updated_at: string
+          workflow_module: string
         }
         Insert: {
           created_at?: string
@@ -3590,6 +3601,7 @@ export type Database = {
           reapproval_threshold_brl?: number
           reapproval_threshold_pct?: number
           updated_at?: string
+          workflow_module?: string
         }
         Update: {
           created_at?: string
@@ -3600,6 +3612,7 @@ export type Database = {
           reapproval_threshold_brl?: number
           reapproval_threshold_pct?: number
           updated_at?: string
+          workflow_module?: string
         }
         Relationships: [
           {
@@ -7188,6 +7201,10 @@ export type Database = {
         Row: {
           ai_summary: string | null
           analysis_mode: Database["public"]["Enums"]["payment_analysis_mode"]
+          analysis_note: string | null
+          analysis_on_behalf_of: string | null
+          analysis_registered_by: string | null
+          analysis_source: string
           approval_pdf_path: string | null
           approved_at: string | null
           approved_by: string | null
@@ -7247,6 +7264,10 @@ export type Database = {
         Insert: {
           ai_summary?: string | null
           analysis_mode?: Database["public"]["Enums"]["payment_analysis_mode"]
+          analysis_note?: string | null
+          analysis_on_behalf_of?: string | null
+          analysis_registered_by?: string | null
+          analysis_source?: string
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -7306,6 +7327,10 @@ export type Database = {
         Update: {
           ai_summary?: string | null
           analysis_mode?: Database["public"]["Enums"]["payment_analysis_mode"]
+          analysis_note?: string | null
+          analysis_on_behalf_of?: string | null
+          analysis_registered_by?: string | null
+          analysis_source?: string
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -11495,6 +11520,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_states: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          state_uf: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          state_uf: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          state_uf?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       validation_rules: {
         Row: {
           action: Database["public"]["Enums"]["validation_action"]
@@ -12291,6 +12340,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      clone_reference_table_to_hospital: {
+        Args: {
+          _new_name?: string
+          _reference_table_id: string
+          _target_hospital_id: string
+        }
+        Returns: string
+      }
       clone_rule_to_hospital: {
         Args: {
           _new_name?: string
@@ -12321,7 +12378,7 @@ export type Database = {
         Returns: undefined
       }
       companies_for_doctor_at: {
-        Args: { _doctor_id: string; _on_date: string }
+        Args: { _doctor_id: string; _hospital_id?: string; _on_date: string }
         Returns: {
           company_id: string
         }[]
@@ -12339,6 +12396,16 @@ export type Database = {
           _procedure_date: string
         }
         Returns: string
+      }
+      conclude_groups_at_validator: {
+        Args: {
+          p_author_id: string
+          p_author_name: string
+          p_group_ids: string[]
+          p_note?: string
+          p_payment_id: string
+        }
+        Returns: undefined
       }
       conclude_historico_payment: {
         Args: { _payment_id: string }
@@ -13975,6 +14042,7 @@ export type Database = {
         | "em_questionamento"
         | "aprovado_parcial"
         | "revisao_pos_aprovacao"
+        | "concluido_validacao"
       payment_track: "prioritario" | "habitual"
       portal_link_health: "ok" | "orphan_user" | "orphan_target" | "inactive"
       reapproval_trigger_source:
@@ -14286,6 +14354,7 @@ export const Constants = {
         "em_questionamento",
         "aprovado_parcial",
         "revisao_pos_aprovacao",
+        "concluido_validacao",
       ],
       payment_track: ["prioritario", "habitual"],
       portal_link_health: ["ok", "orphan_user", "orphan_target", "inactive"],

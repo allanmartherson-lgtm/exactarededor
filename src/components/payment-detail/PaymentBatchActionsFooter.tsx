@@ -1,6 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Undo2, CheckCircle2, MailCheck } from "lucide-react";
+import { MessageCircle, Undo2, CheckCircle2, MailCheck, ShieldAlert } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RegisterExternalApprovalDialog } from "@/components/payment-detail/RegisterExternalApprovalDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,6 +79,43 @@ export function PaymentBatchActionsFooter({
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
   const [reconTargets, setReconTargets] = useState<string[]>([]);
   const [pendingRetry, setPendingRetry] = useState<{ groupIds: string[]; note: string | null } | null>(null);
+
+  // ===== Origem da análise (validador que também criou o lote) =====
+  const [paymentMeta, setPaymentMeta] = useState<{
+    created_by: string | null;
+    analysis_source: string | null;
+  } | null>(null);
+  const [originOpen, setOriginOpen] = useState(false);
+  const [originSource, setOriginSource] = useState<"email" | "whatsapp" | "outro">("email");
+  const [originPerson, setOriginPerson] = useState("");
+  const [originNote, setOriginNote] = useState("");
+  
+
+  useEffect(() => {
+    if (actorRole !== "validador") return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("payments")
+        .select("created_by, analysis_source")
+        .eq("id", paymentId)
+        .maybeSingle();
+      if (cancelled) return;
+      setPaymentMeta((data as { created_by: string | null; analysis_source: string | null } | null) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [actorRole, paymentId]);
+
+  // Segregação de funções: só precisa declarar origem externa quando o
+  // próprio validador foi quem criou o lote E a análise ainda consta como
+  // feita dentro do sistema. Caso contrário, o fluxo padrão vale.
+  const needsAnalysisOrigin =
+    actorRole === "validador" &&
+    !!paymentMeta &&
+    paymentMeta.created_by === currentUserId &&
+    (paymentMeta.analysis_source ?? "system") === "system";
 
   const pendencias = useMemo(() => {
     // Só contam pendências que realmente bloqueariam o envio atual: itens
@@ -162,8 +207,53 @@ export function PaymentBatchActionsFooter({
       setGateOpen(true);
       return;
     }
+    if (needsAnalysisOrigin) {
+      // Validador é também o criador do lote e a análise ainda está marcada
+      // como 'system'. O trigger de segregação de funções vai bloquear —
+      // exige declarar a origem externa da análise antes de prosseguir.
+      setOriginSource("email");
+      setOriginPerson("");
+      setOriginNote("");
+      setOriginOpen(true);
+      return;
+    }
     await proceedApprove();
   };
+
+  const saveAnalysisOriginAndContinue = async () => {
+    if (originPerson.trim().length < 3) {
+      toast({
+        title: "Informe quem fez a análise",
+        description: "Nome do analista corporativo que enviou a análise por fora do sistema.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase
+      .from("payments")
+      .update({
+        analysis_source: originSource,
+        analysis_on_behalf_of: originPerson.trim(),
+        analysis_note: originNote.trim() || null,
+        analysis_registered_by: currentUserId,
+      })
+      .eq("id", paymentId);
+    setBusy(false);
+    if (error) {
+      toast({ title: "Falha ao registrar origem da análise", description: error.message, variant: "destructive" });
+      return;
+    }
+    // Atualiza o estado local para não pedir de novo nesta sessão.
+    setPaymentMeta((prev) => ({
+      created_by: prev?.created_by ?? null,
+      analysis_source: originSource,
+    }));
+    setOriginOpen(false);
+    toast({ title: "Origem da análise registrada", description: `Em nome de ${originPerson.trim()} (${originSource}).` });
+    await proceedApprove();
+  };
+
 
   const doApprove = async (groupIds: string[], note: string | null) => {
     if (groupIds.length === 0) return;
@@ -550,6 +640,70 @@ export function PaymentBatchActionsFooter({
               className="w-full sm:w-auto"
             >
               Revisar itens sinalizados
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============== Origem da análise (validador == criador) ============== */}
+      <Dialog open={originOpen} onOpenChange={(v) => !busy && setOriginOpen(v)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-warning-text" />
+              Registrar origem da análise
+            </DialogTitle>
+            <DialogDescription>
+              Você criou este lote e também vai validá-lo. Por segregação de funções, isso só é
+              permitido se a análise foi feita <strong>fora do Exacta</strong> (por e-mail, WhatsApp
+              ou outro canal). Registre a origem antes de continuar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              <Label className="text-xs">Origem da análise</Label>
+              <Select value={originSource} onValueChange={(v) => setOriginSource(v as typeof originSource)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">E-mail</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">
+                Quem fez a análise <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={originPerson}
+                onChange={(e) => setOriginPerson(e.target.value)}
+                placeholder="Nome do analista corporativo"
+                className="text-base md:text-sm mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Mínimo 3 caracteres. Fica registrado em nome de quem a análise foi feita.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Observação (opcional)</Label>
+              <Textarea
+                value={originNote}
+                onChange={(e) => setOriginNote(e.target.value)}
+                rows={3}
+                placeholder="Ex.: análise enviada por e-mail em 28/07, thread com anexo XYZ..."
+                className="text-base md:text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOriginOpen(false)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button onClick={saveAnalysisOriginAndContinue} disabled={busy}>
+              {busy ? "Registrando…" : "Registrar e continuar"}
             </Button>
           </DialogFooter>
         </DialogContent>
