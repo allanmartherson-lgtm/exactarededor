@@ -2178,6 +2178,11 @@ export function calcItemErrorMessages(c: CalcItem): string[] {
   if (calcItemHasWhitelistWithoutCodes(c)) {
     msgs.push("Modo \"apenas estes códigos\" exige ao menos 1 código de procedimento.");
   }
+  if (c.is_catch_all && c.code_match_mode !== "any" && (c.procedure_codes?.length ?? 0) > 0) {
+    msgs.push(
+      "Este cálculo está marcado como catch-all — filtros de código/palavras-chave configurados aqui serão ignorados pelo motor. Desmarque o catch-all para aplicar essa restrição, ou remova os códigos/palavras-chave para manter como catch-all.",
+    );
+  }
   return msgs;
 }
 
