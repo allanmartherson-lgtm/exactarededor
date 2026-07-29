@@ -153,10 +153,13 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     [linkedDoctors, activeLinks],
   );
 
-  const tryInsert = async (doctorId: string, startDate: string) =>
-    supabase
+  const tryInsert = async (doctorId: string, startDate: string) => {
+    const hid = await resolveActiveHospitalId();
+    if (!hid) return { error: { message: "Hospital ativo não resolvido" } } as any;
+    return supabase
       .from("doctor_companies")
-      .insert({ doctor_id: doctorId, company_id: companyId, start_date: startDate });
+      .insert({ doctor_id: doctorId, company_id: companyId, start_date: startDate, hospital_id: hid });
+  };
 
   const finishAdd = async (doctor: Doctor, label: string) => {
     await loadLinks();
