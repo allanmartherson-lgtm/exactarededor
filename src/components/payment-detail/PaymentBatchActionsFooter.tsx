@@ -214,7 +214,6 @@ export function PaymentBatchActionsFooter({
       setOriginSource("email");
       setOriginPerson("");
       setOriginNote("");
-      setPendingOriginFlow("direct");
       setOriginOpen(true);
       return;
     }
