@@ -639,7 +639,15 @@ Deno.serve(async (req) => {
             payment_id,
             force_fresh_rules: true,
             skip_parecer_cross_ref: true,
+            // Mantém o escopo do pedido original (ex.: "Reaplicar regras" de
+            // uma única empresa). Sem isso, o redispatch reprocessava o lote
+            // inteiro e o job da empresa clicada nunca aparecia com escopo.
+            ...(reanalysis_options?.only_companies ? { only_companies: reanalysis_options.only_companies } : {}),
+            ...(reanalysis_options?.ai_statuses ? { ai_statuses: reanalysis_options.ai_statuses } : {}),
+            ...(reanalysis_options?.tolerance_pct != null ? { tolerance_pct: reanalysis_options.tolerance_pct } : {}),
+            ...(reanalysis_options?.skip_ai === false ? { run_ai: true } : { skip_ai: true }),
           }),
+
         });
         const txt = await resp.text();
         if (!resp.ok) {
