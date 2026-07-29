@@ -260,10 +260,17 @@ export function PaymentBatchActionsFooter({
   };
 
 
+  const isValidacaoModule = workflowModule === "validacao" && actorRole === "validador";
+
   const doApprove = async (groupIds: string[], note: string | null) => {
     if (groupIds.length === 0) return;
     setBusy(true);
-    const rpcName = actorRole === "diretor" ? "approve_payment" : "forward_groups_to_director";
+    const rpcName: "approve_payment" | "forward_groups_to_director" | "conclude_groups_at_validator" =
+      actorRole === "diretor"
+        ? "approve_payment"
+        : isValidacaoModule
+          ? "conclude_groups_at_validator"
+          : "forward_groups_to_director";
     const { error } = await supabase.rpc(rpcName as "approve_payment", {
       p_payment_id: paymentId,
       p_group_ids: groupIds,
@@ -286,7 +293,11 @@ export function PaymentBatchActionsFooter({
         return;
       }
       toast({
-        title: actorRole === "diretor" ? "Falha ao aprovar" : "Falha ao encaminhar ao diretor",
+        title: actorRole === "diretor"
+          ? "Falha ao aprovar"
+          : isValidacaoModule
+            ? "Falha ao concluir validação"
+            : "Falha ao encaminhar ao diretor",
         description: error.message,
         variant: "destructive",
       });
@@ -295,7 +306,9 @@ export function PaymentBatchActionsFooter({
     toast({
       title: actorRole === "diretor"
         ? `${groupIds.length} empresa(s) aprovada(s)`
-        : `${groupIds.length} empresa(s) encaminhada(s) ao diretor`,
+        : isValidacaoModule
+          ? `${groupIds.length} empresa(s) — validação concluída`
+          : `${groupIds.length} empresa(s) encaminhada(s) ao diretor`,
     });
     setApproveOpen(false);
     await onDone();
@@ -303,6 +316,7 @@ export function PaymentBatchActionsFooter({
     // ação a tomar aqui — volta para a lista de pagamentos.
     navigate("/pagamentos");
   };
+
 
   const doQuestion = async () => {
     if (qMessage.trim().length < 10) {
