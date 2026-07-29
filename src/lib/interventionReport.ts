@@ -138,7 +138,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
   const dateFmt = 'dd/mm/yyyy';
 
   const rows: any[][] = [];
-  const totalCols = 12;
+  const totalCols = 13;
   const spacerRow = new Array(totalCols).fill(null);
   const titleRow = (label: string) => {
     const r = new Array(totalCols).fill(null);
@@ -161,6 +161,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     { v: "Total de itens", s: metaLabel },
     { v: ctx.items.length, s: metaValue },
     null,
+    null,
   ]);
   rows.push(spacerRow);
   rows.push([
@@ -176,6 +177,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     { v: "Saldo líquido", s: metaLabel },
     { t: "n", v: Number(ctx.summary.saldo) || 0, s: { ...metaValue, numFmt: currencyFmt, font: { bold: true, sz: 10 } } },
     null,
+    null,
   ]);
   rows.push(spacerRow);
 
@@ -188,6 +190,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     "Empresa",
     "Médico",
     "Procedimento",
+    "Parcela",
     "Valor regra",
     "Pago final",
     "Δ",
