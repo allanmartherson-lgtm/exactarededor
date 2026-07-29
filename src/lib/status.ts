@@ -61,6 +61,7 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   em_questionamento: "warning",
   aprovado_parcial: "warning",
   revisao_pos_aprovacao: "success",
+  concluido_validacao: "success",
 };
 
 /**
