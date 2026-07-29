@@ -874,6 +874,7 @@ export default function InterventionAdjustments() {
                     <TableHead className="w-[140px]">Autor</TableHead>
                     <TableHead className="w-[220px]">Empresa / Médico</TableHead>
                     <TableHead className="w-[200px]">Procedimento</TableHead>
+                    <TableHead className="w-[70px] text-center">Parcela</TableHead>
                     <TableHead className="w-[88px] text-right">Valor regra</TableHead>
                     <TableHead className="w-[88px] text-right">Pago final</TableHead>
                     <TableHead className="w-[88px] text-right">Δ</TableHead>
@@ -884,11 +885,11 @@ export default function InterventionAdjustments() {
 
                 <TableBody>
                   {loading && (
-                    <TableRow><TableCell colSpan={10}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                   )}
                   {!loading && filteredItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-muted-foreground text-center py-6">
+                      <TableCell colSpan={11} className="text-muted-foreground text-center py-6">
                         Sem itens para os filtros atuais.
                       </TableCell>
                     </TableRow>
@@ -963,6 +964,11 @@ export default function InterventionAdjustments() {
                         <TableCell className="text-sm">
                           <div className="font-mono text-xs">{it.procedure_code ?? ""}</div>
                           <div className="text-muted-foreground">{it.procedure_name ?? "—"}</div>
+                        </TableCell>
+                        <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                          {(it.parcelas_total ?? 0) > 1
+                            ? `${it.parcela_numero ?? "—"}/${it.parcelas_total}`
+                            : ""}
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_regra)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(it.valor_pago_final)}</TableCell>

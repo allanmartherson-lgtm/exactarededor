@@ -138,7 +138,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
   const dateFmt = 'dd/mm/yyyy';
 
   const rows: any[][] = [];
-  const totalCols = 12;
+  const totalCols = 13;
   const spacerRow = new Array(totalCols).fill(null);
   const titleRow = (label: string) => {
     const r = new Array(totalCols).fill(null);
@@ -161,6 +161,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     { v: "Total de itens", s: metaLabel },
     { v: ctx.items.length, s: metaValue },
     null,
+    null,
   ]);
   rows.push(spacerRow);
   rows.push([
@@ -176,6 +177,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     { v: "Saldo líquido", s: metaLabel },
     { t: "n", v: Number(ctx.summary.saldo) || 0, s: { ...metaValue, numFmt: currencyFmt, font: { bold: true, sz: 10 } } },
     null,
+    null,
   ]);
   rows.push(spacerRow);
 
@@ -188,6 +190,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     "Empresa",
     "Médico",
     "Procedimento",
+    "Parcela",
     "Valor regra",
     "Pago final",
     "Δ",
@@ -213,6 +216,11 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
         ? { t: "d", v: dateObj, s: { ...base, numFmt: dateFmt, alignment: { horizontal: "center" as const } } }
         : { v: "—", s: base };
 
+    const parcelaLabel =
+      (it.parcelas_total ?? 0) > 1
+        ? `${it.parcela_numero ?? "—"}/${it.parcelas_total}`
+        : "";
+
     rows.push([
       dateCell,
       { v: loteByPayment.get(it.payment_id) ?? "—", s: base },
@@ -222,6 +230,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
       { v: it.company_name ?? "—", s: base },
       { v: it.doctor_name ?? "—", s: base },
       { v: [it.procedure_code, it.procedure_name].filter(Boolean).join(" — ") || "—", s: base },
+      { v: parcelaLabel, s: { ...base, alignment: { horizontal: "center" as const } } },
       { t: "n", v: Number(it.valor_regra) || 0, s: rightNum },
       { t: "n", v: Number(it.valor_pago_final) || 0, s: rightNum },
       {
@@ -243,6 +252,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     { wch: 28 }, // Empresa
     { wch: 26 }, // Médico
     { wch: 42 }, // Procedimento
+    { wch: 10 }, // Parcela
     { wch: 16 },
     { wch: 16 },
     { wch: 14 },
@@ -320,6 +330,10 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
 
   const body = ctx.items.map((it) => {
     const cls = classifyItem(it);
+    const parcelaLabel =
+      (it.parcelas_total ?? 0) > 1
+        ? `${it.parcela_numero ?? "—"}/${it.parcelas_total}`
+        : "";
     return [
       fmtDatePt(it.obs_at),
       loteByPayment.get(it.payment_id) ?? "—",
@@ -328,6 +342,7 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
       it.company_name ?? "—",
       it.doctor_name ?? "—",
       [it.procedure_code, it.procedure_name].filter(Boolean).join(" — ") || "—",
+      parcelaLabel,
       formatCurrency(it.valor_regra),
       formatCurrency(it.valor_pago_final),
       formatCurrency(it.delta),
@@ -338,7 +353,7 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
   autoTable(doc, {
     head: [[
       "Data", "Lote", "Autor", "Papel", "Empresa", "Médico", "Procedimento",
-      "Valor regra", "Pago final", "Diferença", "Classif.",
+      "Parcela", "Valor regra", "Pago final", "Diferença", "Classif.",
     ]],
     body,
     startY: tableStartY,
@@ -359,15 +374,16 @@ export async function exportInterventionPdf(ctx: InterventionReportContext): Pro
       4: { cellWidth: 34 },
       5: { cellWidth: 30 },
       6: { cellWidth: "auto" as any },
-      7: { cellWidth: 20, halign: "right" },
+      7: { cellWidth: 14, halign: "center" },
       8: { cellWidth: 20, halign: "right" },
-      9: { cellWidth: 22, halign: "right", fontStyle: "bold" },
-      10: { cellWidth: 18, halign: "center" },
+      9: { cellWidth: 20, halign: "right" },
+      10: { cellWidth: 22, halign: "right", fontStyle: "bold" },
+      11: { cellWidth: 18, halign: "center" },
     },
     didParseCell: (data) => {
       if (data.section !== "body") return;
       const cls = classifyItem(ctx.items[data.row.index]);
-      if (data.column.index === 10 || data.column.index === 9) {
+      if (data.column.index === 11 || data.column.index === 10) {
         if (cls === "economia") data.cell.styles.textColor = [22, 101, 52];
         else if (cls === "aumento") data.cell.styles.textColor = [153, 27, 27];
       }

@@ -90,6 +90,9 @@ export interface InterventionItem {
   company_group_id: string | null;
   /** Motivo do cancelamento — buscado client-side a partir de payment_items para classificação fina. */
   cancellation_reason?: string | null;
+  /** Contexto de parcelamento (só relevante quando parcelas_total > 1). */
+  parcela_numero?: number | null;
+  parcelas_total?: number | null;
 }
 
 export interface InterventionSavingsResult {
