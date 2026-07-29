@@ -10,9 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
-import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download, Pencil } from "lucide-react";
+import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download, Pencil, Building2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+import { CloneReferenceTableToHospitalDialog } from "@/components/reference-tables/CloneReferenceTableToHospitalDialog";
 
 type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos" | "pacote_combinacao";
 type RefPurpose = "calculo" | "classificacao" | "exclusao" | "sem_acordo";
