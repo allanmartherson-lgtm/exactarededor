@@ -403,12 +403,13 @@ const App = () => (
                   <Route path="/pools/relatorios" element={<Navigate to="/pools" replace />} />
                   <Route path="/financeiro/creditos-debitos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><CreditosDebitos /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
-                  <Route path="/configuracoes/piso-repasse" element={<ProtectedRoute roles={["diretor", "admin"]}><PisoRepasse /></ProtectedRoute>} />
+                  <Route path="/configuracoes/piso-repasse" element={<Navigate to="/hospitais" replace />} />
                   <Route path="/configuracoes/tabela-tuss" element={<ProtectedRoute roles={["diretor", "admin"]}><TussTable /></ProtectedRoute>} />
                   <Route path="/configuracoes/motivos-intervencao" element={<ProtectedRoute roles={["admin", "diretor"]}><ManualInterventionReasonsPage /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
-                  <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><Hospitals /></ProtectedRoute>} />
+                  <Route path="/hospitais" element={<ProtectedRoute roles={["admin", "diretor"]}><HospitaisHub /></ProtectedRoute>} />
                   <Route path="/hospitals" element={<Navigate to="/hospitais" replace />} />
+
                   <Route path="/portal-usuarios" element={<ProtectedRoute roles={["admin"]}><PortalUsers /></ProtectedRoute>} />
                   <Route path="/portal-saude" element={<Navigate to="/saude?tab=portais" replace />} />
                   <Route path="/produtividade-analistas" element={<Navigate to="/saude-processo" replace />} />
