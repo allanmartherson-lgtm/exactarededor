@@ -39,6 +39,10 @@ interface Props {
   /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
    *  diretor (validador) ou conclui a aprovação final (diretor). */
   actorRole: "validador" | "diretor";
+  /** Módulo de fluxo do hospital do pagamento. Quando "validacao", o botão
+   *  "Enviar p/ aprovação do diretor" vira "Concluir validação" e chama
+   *  `conclude_groups_at_validator` em vez de `forward_groups_to_director`. */
+  workflowModule?: "completo" | "validacao";
   items?: Array<{
     ai_status: string;
     validation_findings?: unknown;
