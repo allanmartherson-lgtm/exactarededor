@@ -414,7 +414,7 @@ export function PaymentBatchActionsFooter({
             </Button>
             <Button onClick={handleApproveClick} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0 justify-center whitespace-normal text-center leading-tight px-3">
               <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
-              {actorRole === "diretor" ? "Aprovar" : "Enviar p/ aprovação do diretor"}
+              {actorRole === "diretor" ? "Aprovar" : isValidacaoModule ? "Concluir validação" : "Enviar p/ aprovação do diretor"}
             </Button>
             <Button
               variant="ghost"
