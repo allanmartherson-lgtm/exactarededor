@@ -644,6 +644,70 @@ export function PaymentBatchActionsFooter({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ============== Origem da análise (validador == criador) ============== */}
+      <Dialog open={originOpen} onOpenChange={(v) => !busy && setOriginOpen(v)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-warning-text" />
+              Registrar origem da análise
+            </DialogTitle>
+            <DialogDescription>
+              Você criou este lote e também vai validá-lo. Por segregação de funções, isso só é
+              permitido se a análise foi feita <strong>fora do Exacta</strong> (por e-mail, WhatsApp
+              ou outro canal). Registre a origem antes de continuar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              <Label className="text-xs">Origem da análise</Label>
+              <Select value={originSource} onValueChange={(v) => setOriginSource(v as typeof originSource)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">E-mail</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">
+                Quem fez a análise <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={originPerson}
+                onChange={(e) => setOriginPerson(e.target.value)}
+                placeholder="Nome do analista corporativo"
+                className="text-base md:text-sm mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Mínimo 3 caracteres. Fica registrado em nome de quem a análise foi feita.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Observação (opcional)</Label>
+              <Textarea
+                value={originNote}
+                onChange={(e) => setOriginNote(e.target.value)}
+                rows={3}
+                placeholder="Ex.: análise enviada por e-mail em 28/07, thread com anexo XYZ..."
+                className="text-base md:text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOriginOpen(false)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button onClick={saveAnalysisOriginAndContinue} disabled={busy}>
+              {busy ? "Registrando…" : "Registrar e continuar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
