@@ -366,9 +366,10 @@ function useHospitalSettings<K extends string>(hospitalId: string, columns: read
   const upsert = async (patch: Partial<Record<K, unknown>>) => {
     const { error } = await supabase
       .from("hospital_settings")
-      .upsert({ hospital_id: hospitalId, ...patch }, { onConflict: "hospital_id" });
+      .upsert({ hospital_id: hospitalId, ...patch } as never, { onConflict: "hospital_id" });
     if (error) throw error;
   };
+
 
   return { values, loading, upsert, setValues };
 }
