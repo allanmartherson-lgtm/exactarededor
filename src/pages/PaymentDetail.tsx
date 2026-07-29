@@ -4951,6 +4951,7 @@ const PaymentDetail = () => {
                 currentUserId={user!.id}
                 currentUserName={profiles[user!.id] ?? user!.email ?? "Usuário"}
                 actorRole={batchActionActorRole}
+                workflowModule={workflowModule}
                 items={items.map((i) => ({
                   ai_status: i.ai_status,
                   validation_findings: i.validation_findings,
