@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/PageHeader";
-import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
+import { useHospital } from "@/contexts/HospitalContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormDialog } from "@/components/FormDialog";
@@ -65,7 +65,7 @@ interface Doctor {
   vinculo: string | null;
 }
 interface Company { id: string; name: string; document: string | null; }
-interface Link { doctor_id: string; company_id: string; start_date: string | null; end_date: string | null; end_reason: string | null; }
+interface Link { doctor_id: string; company_id: string; hospital_id: string | null; start_date: string | null; end_date: string | null; end_reason: string | null; }
 
 const empty: Doctor = {
   id: "", code: null, full_name: "", crm: "", crm_uf: "", email: "", phone: "",
@@ -113,6 +113,10 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
   const [showInactive, setShowInactive] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
+  // Vínculo médico↔PJ agora é por hospital (doctor_companies.hospital_id).
+  // O seletor abaixo define em qual hospital os vínculos editados são gravados.
+  const [linkHospitalId, setLinkHospitalId] = useState<string>("");
+  const { hospital: activeHospital, availableHospitals } = useHospital();
 
   useEffect(() => {
     document.title = "Médicos | Exacta";
@@ -127,7 +131,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
         async () => {
           const { data } = await supabase
             .from("doctor_companies")
-            .select("doctor_id,company_id,start_date,end_date,end_reason")
+            .select("doctor_id,company_id,hospital_id,start_date,end_date,end_reason")
             .limit(50000);
           setLinks((data ?? []) as Link[]);
         },
@@ -158,7 +162,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
         fetchAllPaginated<Link>((from, to) =>
           supabase
             .from("doctor_companies")
-            .select("doctor_id,company_id,start_date,end_date,end_reason")
+            .select("doctor_id,company_id,hospital_id,start_date,end_date,end_reason")
             .range(from, to),
         ),
         supabase.from("doctors").select("*", { count: 'exact', head: true }),
@@ -218,8 +222,23 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     for (const l of links) {
       if (l.end_date) continue;
       const arr = m.get(l.doctor_id) ?? [];
-      arr.push(l.company_id);
+      // dedupe: o mesmo company_id pode aparecer em mais de um hospital
+      if (!arr.includes(l.company_id)) arr.push(l.company_id);
       m.set(l.doctor_id, arr);
+    }
+    return m;
+  }, [links]);
+
+  // Vínculos ativos por (médico + hospital) — base do editor, que grava sempre
+  // no hospital selecionado.
+  const linksByDoctorHospital = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const l of links) {
+      if (l.end_date) continue;
+      const key = `${l.doctor_id}|${l.hospital_id ?? ""}`;
+      const arr = m.get(key) ?? [];
+      if (!arr.includes(l.company_id)) arr.push(l.company_id);
+      m.set(key, arr);
     }
     return m;
   }, [links]);
@@ -245,6 +264,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
 
   const openNew = () => {
     setEditing(empty);
+    setLinkHospitalId(activeHospital?.id ?? "");
     setEditingCompanyIds([]);
     setSpecInput("");
     setCompanySearch("");
@@ -253,7 +273,9 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
 
   const openEdit = async (d: Doctor) => {
     setEditing(d);
-    setEditingCompanyIds(linksByDoctor.get(d.id) ?? []);
+    const hid = activeHospital?.id ?? "";
+    setLinkHospitalId(hid);
+    setEditingCompanyIds(linksByDoctorHospital.get(`${d.id}|${hid}`) ?? []);
     setSpecInput("");
     setCompanySearch("");
     setOpen(true);
@@ -379,7 +401,15 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
       const today = new Date().toISOString().slice(0, 10);
       const yDate = new Date(); yDate.setDate(yDate.getDate() - 1);
       const yesterday = yDate.toISOString().slice(0, 10);
-      const previousIds = linksByDoctor.get(savedId) ?? [];
+      if (!linkHospitalId) {
+        toast({
+          title: "Selecione o hospital do vínculo",
+          description: "O vínculo médico↔PJ é por hospital. Escolha um hospital antes de salvar.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const previousIds = linksByDoctorHospital.get(`${savedId}|${linkHospitalId}`) ?? [];
       const toEnd = previousIds.filter((cid) => !editingCompanyIds.includes(cid));
       const toAdd = editingCompanyIds.filter((cid) => !previousIds.includes(cid));
 
@@ -417,6 +447,7 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
             .select("id,start_date")
             .eq("doctor_id", savedId)
             .eq("company_id", cid)
+            .eq("hospital_id", linkHospitalId)
             .is("end_date", null)
             .maybeSingle();
           if (selErr) { linkErrors.push(selErr.message); continue; }
@@ -449,13 +480,13 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
           .from("doctor_companies")
           .update({ end_date: yesterday })
           .eq("doctor_id", savedId!)
+          .eq("hospital_id", linkHospitalId)
           .eq("end_date", today);
         if (shiftErr) linkErrors.push(`Falha ao preparar nova vigência: ${shiftErr.message}`);
 
         if (linkErrors.length === 0) {
-          const hid = await resolveActiveHospitalId();
           const { error: linkErr } = await supabase.from("doctor_companies").insert(
-            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today, hospital_id: hid ?? "" })),
+            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today, hospital_id: linkHospitalId })),
           );
           if (linkErr) {
             // Conflito de vigência é uma condição esperada — mensagem específica.
@@ -778,6 +809,31 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
                         <Badge variant="outline" className="text-[10px] h-4 ml-1">{editingCompanyIds.length}</Badge>
                       )}
                     </h3>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Hospital do vínculo <span className="text-destructive">*</span></Label>
+                      <Select
+                        value={linkHospitalId}
+                        onValueChange={(v) => {
+                          setLinkHospitalId(v);
+                          setEditingCompanyIds(
+                            editing.id ? (linksByDoctorHospital.get(`${editing.id}|${v}`) ?? []) : [],
+                          );
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o hospital" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableHospitals.map((h) => (
+                            <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground">
+                        As PJs marcadas abaixo valem para este hospital. Troque o hospital para manter
+                        vínculos simultâneos diferentes em cada unidade.
+                      </p>
+                    </div>
                     <Input
                       placeholder="Buscar empresa..."
                       value={companySearch}

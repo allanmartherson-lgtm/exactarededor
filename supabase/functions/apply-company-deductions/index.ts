@@ -430,9 +430,14 @@ Deno.serve(async (req) => {
             .rpc("companies_for_doctor_at", {
               _doctor_id: debt.doctor_id,
               _on_date: competenceDate,
+              _hospital_id: paymentHospitalId,
             });
 
-          const vinculadas = (vinculos ?? []).map((v: any) => v.company_id);
+          // A função pode devolver mais de uma linha por PJ (uma por hospital);
+          // dedupe para não inflar a contagem de vínculos.
+          const vinculadas = Array.from(
+            new Set((vinculos ?? []).map((v: any) => v.company_id as string)),
+          );
           const matchEmpresa = vinculadas.includes(company_id);
 
           if (vinculadas.length === 0) {
