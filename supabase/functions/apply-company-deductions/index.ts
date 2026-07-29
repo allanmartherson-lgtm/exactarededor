@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     ]);
     const { data: paymentStatusRow } = await supabase
       .from("payments")
-      .select("status, payment_model_id, hospital_id, competence_month")
+      .select("status, payment_model_id, hospital_id, competence_month, cost_center_code")
       .eq("id", payment_id)
       .maybeSingle();
     const paymentCurrentStatus: string | null = (paymentStatusRow?.status as string) ?? null;
