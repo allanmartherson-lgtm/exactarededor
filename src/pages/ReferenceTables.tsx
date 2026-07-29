@@ -975,6 +975,18 @@ const ReferenceTables = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="Copiar para outro hospital"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCloneTarget(t);
+                          }}
+                        >
+                          <Building2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
