@@ -12,6 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 
 type Row = {
   kind: "doctor_unregistered" | "pj_not_linked";
