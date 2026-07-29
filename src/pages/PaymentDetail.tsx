@@ -243,6 +243,28 @@ const PaymentDetail = () => {
     load,
   } = usePaymentDetailData(id);
   const paymentTypeMeta = usePaymentTypeMeta((payment as any)?.payment_model_id ?? null);
+
+  // Módulo de fluxo do hospital do pagamento — decide se a jornada é
+  // "completo" (Análise → Validação → Aprovação → NF → Pago) ou "validacao"
+  // (fluxo mais curto que termina em Validação Concluída).
+  const paymentHospitalId = (payment as { hospital_id?: string | null } | null)?.hospital_id ?? null;
+  const [workflowModule, setWorkflowModule] = useState<"completo" | "validacao">("completo");
+  useEffect(() => {
+    if (!paymentHospitalId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("hospital_settings")
+        .select("workflow_module")
+        .eq("hospital_id", paymentHospitalId)
+        .maybeSingle();
+      if (cancelled) return;
+      const v = String((data as { workflow_module?: string } | null)?.workflow_module ?? "completo");
+      setWorkflowModule(v === "validacao" ? "validacao" : "completo");
+    })();
+    return () => { cancelled = true; };
+  }, [paymentHospitalId]);
+
   const {
     byGroup: privateNotes,
     attachmentsByGroup: privateAttachments,
