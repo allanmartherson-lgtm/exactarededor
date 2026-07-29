@@ -6,6 +6,7 @@ import { Loader2, RefreshCw, Link2, X, Check, Building2, Sparkles, Hand } from "
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCNPJ } from "@/lib/cnpj";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 
 interface Suggestion {
   id: string;
