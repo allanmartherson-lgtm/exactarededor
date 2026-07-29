@@ -3948,7 +3948,7 @@ const PaymentDetail = () => {
 
         {/* Funil de etapas — visão Apple do progresso do lote */}
         {!isConfeccao && payment?.status && (
-          <PaymentStatusFunnel status={payment.status} />
+          <PaymentStatusFunnel status={payment.status} workflowModule={workflowModule} />
         )}
 
         {/* Lotes de remessa: competência por item + bucket sem competência */}
