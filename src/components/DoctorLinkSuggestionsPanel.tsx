@@ -106,10 +106,13 @@ export function DoctorLinkSuggestionsPanel() {
       .is("end_date", null)
       .maybeSingle();
     if (!existing) {
+      const hid = await resolveActiveHospitalId();
+      if (!hid) { setBusyId(null); toast({ title: "Erro ao vincular", description: "Hospital ativo não resolvido", variant: "destructive" }); return; }
       const { error } = await supabase.from("doctor_companies").insert({
         doctor_id: s.doctor_id,
         company_id: s.matched_company_id,
         start_date: new Date().toISOString().slice(0, 10),
+        hospital_id: hid,
       });
       if (error) { setBusyId(null); toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" }); return; }
     }
