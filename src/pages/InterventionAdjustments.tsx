@@ -874,6 +874,7 @@ export default function InterventionAdjustments() {
                     <TableHead className="w-[140px]">Autor</TableHead>
                     <TableHead className="w-[220px]">Empresa / Médico</TableHead>
                     <TableHead className="w-[200px]">Procedimento</TableHead>
+                    <TableHead className="w-[70px] text-center">Parcela</TableHead>
                     <TableHead className="w-[88px] text-right">Valor regra</TableHead>
                     <TableHead className="w-[88px] text-right">Pago final</TableHead>
                     <TableHead className="w-[88px] text-right">Δ</TableHead>
