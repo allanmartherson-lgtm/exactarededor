@@ -80,10 +80,43 @@ export function PaymentBatchActionsFooter({
   const [reconTargets, setReconTargets] = useState<string[]>([]);
   const [pendingRetry, setPendingRetry] = useState<{ groupIds: string[]; note: string | null } | null>(null);
 
-  const pendencias = useMemo(() => {
-    // Só contam pendências que realmente bloqueariam o envio atual: itens
-    // pertencentes a empresas que este ator vai enviar agora, ignorando
-    // cancelados, absorvidos por pacote e itens já acatados.
+  // ===== Origem da análise (validador que também criou o lote) =====
+  const [paymentMeta, setPaymentMeta] = useState<{
+    created_by: string | null;
+    analysis_source: string | null;
+  } | null>(null);
+  const [originOpen, setOriginOpen] = useState(false);
+  const [originSource, setOriginSource] = useState<"email" | "whatsapp" | "outro">("email");
+  const [originPerson, setOriginPerson] = useState("");
+  const [originNote, setOriginNote] = useState("");
+  const [pendingOriginFlow, setPendingOriginFlow] = useState<"direct" | "with-approve-dialog" | null>(null);
+
+  useEffect(() => {
+    if (actorRole !== "validador") return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("payments")
+        .select("created_by, analysis_source")
+        .eq("id", paymentId)
+        .maybeSingle();
+      if (cancelled) return;
+      setPaymentMeta((data as { created_by: string | null; analysis_source: string | null } | null) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [actorRole, paymentId]);
+
+  // Segregação de funções: só precisa declarar origem externa quando o
+  // próprio validador foi quem criou o lote E a análise ainda consta como
+  // feita dentro do sistema. Caso contrário, o fluxo padrão vale.
+  const needsAnalysisOrigin =
+    actorRole === "validador" &&
+    !!paymentMeta &&
+    paymentMeta.created_by === currentUserId &&
+    (paymentMeta.analysis_source ?? "system") === "system";
+
     const approvableCompanies = new Set(
       groups
         .filter((g) => ROLE_APPROVABLE_STATUSES[actorRole].has(String(g.status)))
