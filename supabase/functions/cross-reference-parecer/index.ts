@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
-    const { payment_id, trigger_reanalysis = true, _background } = await req.json();
+    const { payment_id, trigger_reanalysis = true, _background, reanalysis_options } = await req.json();
     if (!payment_id) {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400,
