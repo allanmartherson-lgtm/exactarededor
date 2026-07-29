@@ -77,6 +77,7 @@ const ReferenceTables = () => {
   const [manualText, setManualText] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
   const [newTableKind, setNewTableKind] = useState<RefKind>("simples");
+  const [cloneTarget, setCloneTarget] = useState<RefTable | null>(null);
 
   const wizardProfile: ImportProfile | null = selected
     ? {
