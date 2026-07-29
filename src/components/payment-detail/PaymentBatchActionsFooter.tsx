@@ -207,8 +207,54 @@ export function PaymentBatchActionsFooter({
       setGateOpen(true);
       return;
     }
+    if (needsAnalysisOrigin) {
+      // Validador é também o criador do lote e a análise ainda está marcada
+      // como 'system'. O trigger de segregação de funções vai bloquear —
+      // exige declarar a origem externa da análise antes de prosseguir.
+      setOriginSource("email");
+      setOriginPerson("");
+      setOriginNote("");
+      setPendingOriginFlow("direct");
+      setOriginOpen(true);
+      return;
+    }
     await proceedApprove();
   };
+
+  const saveAnalysisOriginAndContinue = async () => {
+    if (originPerson.trim().length < 3) {
+      toast({
+        title: "Informe quem fez a análise",
+        description: "Nome do analista corporativo que enviou a análise por fora do sistema.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase
+      .from("payments")
+      .update({
+        analysis_source: originSource,
+        analysis_on_behalf_of: originPerson.trim(),
+        analysis_note: originNote.trim() || null,
+        analysis_registered_by: currentUserId,
+      })
+      .eq("id", paymentId);
+    setBusy(false);
+    if (error) {
+      toast({ title: "Falha ao registrar origem da análise", description: error.message, variant: "destructive" });
+      return;
+    }
+    // Atualiza o estado local para não pedir de novo nesta sessão.
+    setPaymentMeta((prev) => ({
+      created_by: prev?.created_by ?? null,
+      analysis_source: originSource,
+    }));
+    setOriginOpen(false);
+    toast({ title: "Origem da análise registrada", description: `Em nome de ${originPerson.trim()} (${originSource}).` });
+    await proceedApprove();
+  };
+
 
   const doApprove = async (groupIds: string[], note: string | null) => {
     if (groupIds.length === 0) return;
