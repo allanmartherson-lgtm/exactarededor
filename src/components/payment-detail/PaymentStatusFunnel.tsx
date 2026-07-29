@@ -84,12 +84,18 @@ const TERMINATED: ReadonlyArray<PaymentStatus> = ["rejeitado", "cancelado", "arq
 export function PaymentStatusFunnel({
   status,
   className,
+  workflowModule = "completo",
 }: {
   status: PaymentStatus;
   className?: string;
+  workflowModule?: "completo" | "validacao";
 }) {
   const terminated = TERMINATED.includes(status);
-  const currentIdx = STAGE_INDEX[statusToStage(status)];
+  const STAGES = workflowModule === "validacao" ? STAGES_VALIDACAO : STAGES_COMPLETO;
+  const stageIndex = (s: Stage) => STAGES.findIndex((x) => x.key === s);
+  const currentIdx = stageIndex(statusToStage(status, workflowModule));
+  const paidIdx = stageIndex(workflowModule === "validacao" ? "validacao" : "pago");
+  const isTerminalStatus = workflowModule === "validacao" ? status === "concluido_validacao" : status === "pago";
 
   const terminatedLabel: Record<string, string> = {
     rejeitado: "Rejeitado",
@@ -111,7 +117,8 @@ export function PaymentStatusFunnel({
           const isLast = i === STAGES.length - 1;
           const isCurrent = !terminated && i === currentIdx;
           const isDone = !terminated && i < currentIdx;
-          const isPaid = !terminated && currentIdx === STAGE_INDEX.pago && i === STAGE_INDEX.pago;
+          const isPaid = !terminated && isTerminalStatus && i === paidIdx;
+
 
           return (
             <div key={s.key} className="flex items-center">
