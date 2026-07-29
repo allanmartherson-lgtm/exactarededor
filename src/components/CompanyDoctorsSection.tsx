@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { confirmDialog } from "@/lib/confirm";
 import { DoctorCompanySyncFaq } from "@/components/DoctorCompanySyncFaq";
 import { DateInput } from "@/components/ui/date-input";
+import { resolveActiveHospitalId } from "@/lib/resolveActiveHospitalId";
 
 interface Doctor {
   id: string;
