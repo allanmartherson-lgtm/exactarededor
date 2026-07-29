@@ -39,6 +39,10 @@ interface Props {
   /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
    *  diretor (validador) ou conclui a aprovação final (diretor). */
   actorRole: "validador" | "diretor";
+  /** Módulo de fluxo do hospital do pagamento. Quando "validacao", o botão
+   *  "Enviar p/ aprovação do diretor" vira "Concluir validação" e chama
+   *  `conclude_groups_at_validator` em vez de `forward_groups_to_director`. */
+  workflowModule?: "completo" | "validacao";
   items?: Array<{
     ai_status: string;
     validation_findings?: unknown;
@@ -65,6 +69,7 @@ export function PaymentBatchActionsFooter({
   currentUserId,
   currentUserName,
   actorRole,
+  workflowModule = "completo",
   items,
   onDone,
   onReviewPendencias,
@@ -255,10 +260,17 @@ export function PaymentBatchActionsFooter({
   };
 
 
+  const isValidacaoModule = workflowModule === "validacao" && actorRole === "validador";
+
   const doApprove = async (groupIds: string[], note: string | null) => {
     if (groupIds.length === 0) return;
     setBusy(true);
-    const rpcName = actorRole === "diretor" ? "approve_payment" : "forward_groups_to_director";
+    const rpcName: "approve_payment" | "forward_groups_to_director" | "conclude_groups_at_validator" =
+      actorRole === "diretor"
+        ? "approve_payment"
+        : isValidacaoModule
+          ? "conclude_groups_at_validator"
+          : "forward_groups_to_director";
     const { error } = await supabase.rpc(rpcName as "approve_payment", {
       p_payment_id: paymentId,
       p_group_ids: groupIds,
@@ -281,7 +293,11 @@ export function PaymentBatchActionsFooter({
         return;
       }
       toast({
-        title: actorRole === "diretor" ? "Falha ao aprovar" : "Falha ao encaminhar ao diretor",
+        title: actorRole === "diretor"
+          ? "Falha ao aprovar"
+          : isValidacaoModule
+            ? "Falha ao concluir validação"
+            : "Falha ao encaminhar ao diretor",
         description: error.message,
         variant: "destructive",
       });
@@ -290,7 +306,9 @@ export function PaymentBatchActionsFooter({
     toast({
       title: actorRole === "diretor"
         ? `${groupIds.length} empresa(s) aprovada(s)`
-        : `${groupIds.length} empresa(s) encaminhada(s) ao diretor`,
+        : isValidacaoModule
+          ? `${groupIds.length} empresa(s) — validação concluída`
+          : `${groupIds.length} empresa(s) encaminhada(s) ao diretor`,
     });
     setApproveOpen(false);
     await onDone();
@@ -298,6 +316,7 @@ export function PaymentBatchActionsFooter({
     // ação a tomar aqui — volta para a lista de pagamentos.
     navigate("/pagamentos");
   };
+
 
   const doQuestion = async () => {
     if (qMessage.trim().length < 10) {
@@ -395,7 +414,7 @@ export function PaymentBatchActionsFooter({
             </Button>
             <Button onClick={handleApproveClick} disabled={busy || groups.length === 0} className="w-full md:w-auto min-h-[44px] md:min-h-0 justify-center whitespace-normal text-center leading-tight px-3">
               <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
-              {actorRole === "diretor" ? "Aprovar" : "Enviar p/ aprovação do diretor"}
+              {actorRole === "diretor" ? "Aprovar" : isValidacaoModule ? "Concluir validação" : "Enviar p/ aprovação do diretor"}
             </Button>
             <Button
               variant="ghost"
@@ -551,12 +570,18 @@ export function PaymentBatchActionsFooter({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {actorRole === "diretor" ? "Aprovação parcial" : "Encaminhar para o diretor"}
+              {actorRole === "diretor"
+                ? "Aprovação parcial"
+                : isValidacaoModule
+                  ? "Concluir validação (parcial)"
+                  : "Encaminhar para o diretor"}
             </DialogTitle>
             <DialogDescription>
               {actorRole === "diretor"
                 ? `${approvable.length} empresa(s) serão aprovadas agora. ${pending.length} ficam pendentes com o analista.`
-                : `${approvable.length} empresa(s) serão enviadas ao diretor para aprovação final. ${pending.length} ficam pendentes com o analista.`}
+                : isValidacaoModule
+                  ? `${approvable.length} empresa(s) serão concluídas agora. ${pending.length} ficam pendentes com o analista.`
+                  : `${approvable.length} empresa(s) serão enviadas ao diretor para aprovação final. ${pending.length} ficam pendentes com o analista.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
@@ -592,7 +617,7 @@ export function PaymentBatchActionsFooter({
               onClick={() => doApprove(approvable.map((g) => g.id), approveNote.trim() || null)}
               disabled={busy}
             >
-              {actorRole === "diretor" ? "Confirmar aprovação parcial" : "Confirmar envio parcial"}
+              {actorRole === "diretor" ? "Confirmar aprovação parcial" : isValidacaoModule ? "Confirmar conclusão parcial" : "Confirmar envio parcial"}
             </Button>
           </DialogFooter>
         </DialogContent>
