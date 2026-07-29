@@ -216,6 +216,11 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
         ? { t: "d", v: dateObj, s: { ...base, numFmt: dateFmt, alignment: { horizontal: "center" as const } } }
         : { v: "—", s: base };
 
+    const parcelaLabel =
+      (it.parcelas_total ?? 0) > 1
+        ? `${it.parcela_numero ?? "—"}/${it.parcelas_total}`
+        : "";
+
     rows.push([
       dateCell,
       { v: loteByPayment.get(it.payment_id) ?? "—", s: base },
@@ -225,6 +230,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
       { v: it.company_name ?? "—", s: base },
       { v: it.doctor_name ?? "—", s: base },
       { v: [it.procedure_code, it.procedure_name].filter(Boolean).join(" — ") || "—", s: base },
+      { v: parcelaLabel, s: { ...base, alignment: { horizontal: "center" as const } } },
       { t: "n", v: Number(it.valor_regra) || 0, s: rightNum },
       { t: "n", v: Number(it.valor_pago_final) || 0, s: rightNum },
       {
@@ -246,6 +252,7 @@ export async function exportInterventionExcel(ctx: InterventionReportContext): P
     { wch: 28 }, // Empresa
     { wch: 26 }, // Médico
     { wch: 42 }, // Procedimento
+    { wch: 10 }, // Parcela
     { wch: 16 },
     { wch: 16 },
     { wch: 14 },
