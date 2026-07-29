@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
-    const { payment_id, trigger_reanalysis = true, _background } = await req.json();
+    const { payment_id, trigger_reanalysis = true, _background, reanalysis_options } = await req.json();
     if (!payment_id) {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400,
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${SERVICE_KEY}`,
         },
-        body: JSON.stringify({ payment_id, trigger_reanalysis, _background: true }),
+        body: JSON.stringify({ payment_id, trigger_reanalysis, _background: true, reanalysis_options }),
       }).catch((e) => console.warn("[cross-reference-parecer] bg dispatch failed", e));
       // @ts-ignore — EdgeRuntime existe no runtime do Supabase
       try { EdgeRuntime.waitUntil(bgPromise); } catch { /* noop */ }
@@ -639,7 +639,15 @@ Deno.serve(async (req) => {
             payment_id,
             force_fresh_rules: true,
             skip_parecer_cross_ref: true,
+            // Mantém o escopo do pedido original (ex.: "Reaplicar regras" de
+            // uma única empresa). Sem isso, o redispatch reprocessava o lote
+            // inteiro e o job da empresa clicada nunca aparecia com escopo.
+            ...(reanalysis_options?.only_companies ? { only_companies: reanalysis_options.only_companies } : {}),
+            ...(reanalysis_options?.ai_statuses ? { ai_statuses: reanalysis_options.ai_statuses } : {}),
+            ...(reanalysis_options?.tolerance_pct != null ? { tolerance_pct: reanalysis_options.tolerance_pct } : {}),
+            ...(reanalysis_options?.skip_ai === false ? { run_ai: true } : { skip_ai: true }),
           }),
+
         });
         const txt = await resp.text();
         if (!resp.ok) {
