@@ -3750,6 +3750,8 @@ export type Database = {
           hospital_id: string
           id: string
           item_id: string | null
+          parcela_numero: number | null
+          parcelas_total: number | null
           payment_id: string
           procedure_code: string | null
           procedure_name: string | null
@@ -3773,6 +3775,8 @@ export type Database = {
           hospital_id: string
           id?: string
           item_id?: string | null
+          parcela_numero?: number | null
+          parcelas_total?: number | null
           payment_id: string
           procedure_code?: string | null
           procedure_name?: string | null
@@ -3796,6 +3800,8 @@ export type Database = {
           hospital_id?: string
           id?: string
           item_id?: string | null
+          parcela_numero?: number | null
+          parcelas_total?: number | null
           payment_id?: string
           procedure_code?: string | null
           procedure_name?: string | null
