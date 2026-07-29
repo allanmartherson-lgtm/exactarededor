@@ -20,7 +20,7 @@ import type { PaymentStatus } from "@/lib/status";
 
 type Stage = "analise" | "validacao" | "aprovacao" | "pos_nf" | "pago";
 
-const STAGES: Array<{ key: Stage; label: string }> = [
+const STAGES_COMPLETO: Array<{ key: Stage; label: string }> = [
   { key: "analise", label: "Análise" },
   { key: "validacao", label: "Validação" },
   { key: "aprovacao", label: "Aprovação" },
@@ -28,15 +28,25 @@ const STAGES: Array<{ key: Stage; label: string }> = [
   { key: "pago", label: "Pago" },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = {
-  analise: 0,
-  validacao: 1,
-  aprovacao: 2,
-  pos_nf: 3,
-  pago: 4,
-};
+const STAGES_VALIDACAO: Array<{ key: Stage; label: string }> = [
+  { key: "analise", label: "Análise" },
+  { key: "validacao", label: "Validação" },
+];
 
-function statusToStage(status: PaymentStatus): Stage {
+function statusToStage(status: PaymentStatus, workflowModule: "completo" | "validacao"): Stage {
+  // No módulo "validação" o fluxo termina na etapa de Validação — não existe
+  // diretor/NF/pago. `concluido_validacao` marca a etapa como concluída.
+  if (workflowModule === "validacao") {
+    switch (status) {
+      case "aguardando_validacao":
+      case "em_questionamento":
+      case "devolvido_analista":
+      case "concluido_validacao":
+        return "validacao";
+      default:
+        return "analise";
+    }
+  }
   switch (status) {
     case "rascunho":
     case "em_confeccao":
