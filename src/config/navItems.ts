@@ -201,17 +201,17 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Tabela TUSS", iconName: "BookOpen" },
   { label: "Motivos de intervenção", iconName: "ClipboardList" },
   { label: "Padrões de Lote", iconName: "FolderKanban" },
-  { label: "Hospitais", iconName: "Building2" },
   { label: "Pools de rateio", iconName: "Split" },
   { label: "Prazos e SLA", iconName: "Timer" },
-  { label: "Piso de repasse", iconName: "ShieldCheck" },
   { label: "Usuários", iconName: "Users" },
   { label: "Acessos dos Portais", iconName: "Building2" },
+  { label: "Hospitais", iconName: "Building2" },
   { label: "Saúde (Motor, Portais, Processo)", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
   { label: "Sistema (Versões, Flags, Parâmetros)", iconName: "Rocket" },
   { label: "Sobre o Exacta", iconName: "Info" },
 ];
+
 
 
 
