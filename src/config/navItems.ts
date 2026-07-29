@@ -157,12 +157,14 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
       { to: "/portal-usuarios", label: "Acessos dos Portais", icon: Building2, iconName: "Building2", roles: ["admin"] },
+      { to: "/hospitais", label: "Hospitais", icon: Building2, iconName: "Building2", roles: ["admin", "diretor"] },
       { to: "/saude", label: "Saúde (Motor, Portais, Processo)", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin", "validador"] },
       { to: "/sistema", label: "Sistema (Versões, Flags, Parâmetros)", icon: Rocket, iconName: "Rocket", roles: ["admin", "diretor"] },
       
       { to: "/sobre", label: "Sobre o Exacta", icon: Info, iconName: "Info", roles: ALL_ROLES },
     ],
+
   },
 ];
 
