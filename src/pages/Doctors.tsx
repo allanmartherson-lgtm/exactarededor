@@ -452,8 +452,9 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
         if (shiftErr) linkErrors.push(`Falha ao preparar nova vigência: ${shiftErr.message}`);
 
         if (linkErrors.length === 0) {
+          const hid = await resolveActiveHospitalId();
           const { error: linkErr } = await supabase.from("doctor_companies").insert(
-            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today, hospital_id: hospital?.id ?? "" })),
+            toAdd.map((cid) => ({ doctor_id: savedId!, company_id: cid, start_date: today, hospital_id: hid ?? "" })),
           );
           if (linkErr) {
             // Conflito de vigência é uma condição esperada — mensagem específica.
