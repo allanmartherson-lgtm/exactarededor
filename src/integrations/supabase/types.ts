@@ -3738,6 +3738,7 @@ export type Database = {
         Row: {
           approved_at: string
           approved_by: string | null
+          attendance_number: string | null
           autor_id: string | null
           cancellation_reason: string | null
           company_id: string | null
@@ -3760,6 +3761,7 @@ export type Database = {
         Insert: {
           approved_at: string
           approved_by?: string | null
+          attendance_number?: string | null
           autor_id?: string | null
           cancellation_reason?: string | null
           company_id?: string | null
@@ -3782,6 +3784,7 @@ export type Database = {
         Update: {
           approved_at?: string
           approved_by?: string | null
+          attendance_number?: string | null
           autor_id?: string | null
           cancellation_reason?: string | null
           company_id?: string | null
