@@ -996,7 +996,7 @@ export default function CompanyAnalysis() {
       // Prioriza polling do JOB específico retornado pelo dispatch — evita
       // falso positivo quando processing_diagnostics do pagamento já estava
       // "success" de um job anterior (qualquer worker sobrescreve esse campo).
-      const jobId = existingJobId;
+      let jobId = existingJobId;
       mark("dispatch_ok");
       // eslint-disable-next-line no-console
       console.info(`[reapply-metrics] job_dispatched`, {
@@ -1006,6 +1006,41 @@ export default function CompanyAnalysis() {
         deferred_to: deferredTo ?? null,
         already_running: alreadyRunning,
       });
+
+      // Lote de Parecer: o dispatch apenas agenda o cross-reference, que só
+      // depois redispara a análise real. Sem esperar o JOB NOVO nascer, o
+      // polling caía em `processing_diagnostics` antigo (status "success" de
+      // um job anterior) e a tela mostrava "concluído" sem nada ter rodado.
+      if (!jobId && isDeferredParecer) {
+        setReapplyStep("rodar_motor");
+        setReapplyPhase("processando");
+        const deadline = Date.now() + 150_000;
+        const dispatchedAtIso = new Date(startedAt - 5_000).toISOString();
+        while (Date.now() < deadline && !jobId) {
+          await new Promise((r) => setTimeout(r, 3_000));
+          const { data: newJob } = await supabase
+            .from("payment_processing_jobs")
+            .select("id, created_at")
+            .eq("payment_id", id)
+            .gt("created_at", dispatchedAtIso)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (newJob?.id) jobId = newJob.id as string;
+        }
+        if (!jobId) {
+          const msg =
+            "A reclassificação Parecer/Visita foi disparada, mas nenhuma análise nova começou em 2,5 min. " +
+            "Nenhum cálculo foi refeito — tente novamente em alguns instantes ou acione o suporte se persistir.";
+          setReapplyError(msg);
+          setReapplyPhase("erro");
+          toast.error("Reanálise não iniciou", { description: msg, duration: 15_000 });
+          // eslint-disable-next-line no-console
+          console.warn("[reapply-metrics] parecer_deferred_no_job", { payment_id: id, company: group.company_name });
+          return;
+        }
+      }
+
       // Empresas grandes (200+ itens) podem ultrapassar 120s. Aumentamos o teto
       // para 240s antes de cair no fallback informativo.
       const POLL_TIMEOUT_MS = 240_000;
@@ -1013,6 +1048,7 @@ export default function CompanyAnalysis() {
         ? await waitForJobCompletion(jobId, POLL_TIMEOUT_MS, startedAt)
         : await waitForProcessingCompletion(id, startedAt, POLL_TIMEOUT_MS);
       mark(done ? "motor_done" : "motor_timeout");
+
 
       if (done) {
         setReapplyStep("ajustes_finais");
