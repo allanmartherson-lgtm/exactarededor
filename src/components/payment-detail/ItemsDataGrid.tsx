@@ -958,77 +958,25 @@ const TABLE_HEAD_TEXT_RIGHT = "inline-flex items-center justify-end gap-1 ml-aut
 const TABLE_HEAD_TEXT_CENTER = "inline-flex items-center justify-center gap-1 w-full text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
 const TABLE_HEAD_SORT_BUTTON = "inline-flex items-center gap-1 rounded !text-[11px] !leading-tight uppercase !tracking-wide !font-semibold !text-primary-foreground hover:!text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70";
 
-function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
-  const evidence = ((item as any).parecer_evidence ?? null) as string | null;
-  const isWeak = (item as any).parecer_evidence_weak === true;
-  const wasReclassified = (item as any).reclassified_from_parecer === true;
-  if (!evidence) return null;
-  if (evidence === "confirmed") {
-    if (wasReclassified) {
-      return (
-        <span
-          className={cn(
-            "inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border",
-            "bg-slate-50 text-slate-700 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700",
-          )}
-          title="Parecer cruzado no relatório, MAS rebaixado para Visita (já existe parecer anterior pago neste atendimento). Pagamento segue a regra de Visita."
-        >
-          <FileText className="h-2.5 w-2.5" />
-          P→V
-        </span>
-      );
-    }
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border",
-          isWeak
-            ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
-            : "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-200 dark:border-emerald-800",
-        )}
-        title={
-          isWeak
-            ? "Parecer cruzado por atendimento e médico, mas com confirmação fraca/divergente"
-            : "Parecer cruzado por atendimento, data e médico"
-        }
-      >
-        <FileText className="h-2.5 w-2.5" />
-        {isWeak ? "P?" : "P✓"}
-      </span>
-    );
-  }
-  if (evidence === "unverified") {
-    return (
-      <span
-        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
-        title="Parecer sem registro no relatório do Tasy — analista precisa confirmar ou reclassificar como Visita"
-      >
-        <AlertTriangle className="h-2.5 w-2.5" />
-        Sem registro Tasy
-      </span>
-    );
-  }
-  if (evidence === "not_applicable") {
-    return (
-      <span
-        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
-        title="Contato subsequente — classificado como visita"
-      >
-        <FileText className="h-2.5 w-2.5" />
-        V
-      </span>
-    );
-  }
-  return (
-    <span
-      className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
-      title={evidence === "no_report" ? "Nenhum relatório de parecer importado" : "Sem parecer cruzado para atendimento/data/médico"}
-    >
-      <FileText className="h-2.5 w-2.5" />
-      P×
-    </span>
-  );
-}
+/**
+ * Estados de EXCEÇÃO da coluna Parecer/Visita.
+ * Reservados para uso futuro (detecção ainda NÃO implementada):
+ *  - "nao_respondido"  → parecer não respondido
+ *  - "duplicado"       → parecer duplicado no mesmo atendimento
+ *  - "classif_divergente" → classificação divergente
+ * Quando informado, o badge assume cor de alerta e exibe o rótulo abaixo.
+ */
+export type ParecerException = "nao_respondido" | "duplicado" | "classif_divergente";
+
+const PARECER_EXCEPTION_META: Record<ParecerException, { label: string; title: string }> = {
+  nao_respondido: { label: "Não respondido", title: "Parecer sem resposta registrada" },
+  duplicado: { label: "Duplicado", title: "Parecer duplicado no mesmo atendimento" },
+  classif_divergente: { label: "Classificação divergente", title: "Classificação divergente entre as fontes" },
+};
+
+const PARECER_EXCEPTION_TONE =
+  "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800";
+
 
 /** Detecta divergência semântica entre a descrição da linha e a classificação
  *  atual: quando o texto contém "parecer" mas o item foi tratado como Visita
