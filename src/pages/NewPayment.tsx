@@ -3380,6 +3380,9 @@ const NewPayment = () => {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        // Origem da classificação Parecer/Visita vinda do arquivo original do Tasy.
+        parecer_medico_solicitante: (r as any).parecer_medico_solicitante ?? null,
+        parecer_espec_origem: (r as any).parecer_espec_origem ?? null,
         convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
         // === Vínculos estritos com cadastros (lookup obrigatório) ===
         doctor_id: dRes.doctor?.id ?? null,
