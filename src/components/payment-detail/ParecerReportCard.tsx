@@ -295,6 +295,20 @@ export function ParecerReportCard({
             dateOrder,
           ),
           situacao: valueFromMapping(rec, mapping, "situacao"),
+          // Nº do parecer: identificador único no Tasy (detecção de duplicidade).
+          nr_parecer: (() => {
+            const v = valueFromMapping(rec, mapping, "nr_parecer");
+            const s = v == null ? "" : String(v).trim();
+            return s || null;
+          })(),
+          // Tempo de resposta: única informação temporal confiável do relatório.
+          tempo_resposta: (() => {
+            const v = valueFromMapping(rec, mapping, "tempo_resposta");
+            const s = v == null ? "" : String(v).trim();
+            return s || null;
+          })(),
+          // Hora do relatório é corrompida na origem — gravamos só a data.
+          hora_confiavel: false,
           raw: rec,
         };
       });
