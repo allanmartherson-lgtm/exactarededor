@@ -3400,7 +3400,10 @@ const NewPayment = () => {
           const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
           const loteId = paymentModelMeta?.item_type_id ?? null;
           if (r.payment_type_id_override) {
-            return { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" };
+            return {
+              item_type_id: r.payment_type_id_override,
+              item_type_source: (r as any).item_type_source_override ?? "auto_heuristic",
+            };
           }
           if (companyDefault && companyDefault !== loteId) {
             return { item_type_id: companyDefault, item_type_source: "inherit" };
