@@ -764,6 +764,25 @@ const NewPayment = () => {
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
   const isParecerType = !!paymentModelMeta?.code?.startsWith("parecer");
   const isVisitaType = paymentModelMeta?.code === "visita";
+  // IDs canônicos de item_type usados pela classificação por arquivo original
+  // do Tasy (coluna "Medico Solic."): parecer_adulto × visita.
+  const parecerItemTypeIdsRef = useRef<{ parecer: string | null; visita: string | null }>({ parecer: null, visita: null });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase.from as any)("payment_types_unified")
+        .select("id, code, origin")
+        .in("code", ["parecer_adulto", "visita"]);
+      if (cancelled) return;
+      const rows = (data ?? []) as Array<{ id: string; code: string; origin: string }>;
+      const find = (code: string) =>
+        rows.find((r) => r.code === code && r.origin === "item_type")?.id
+        ?? rows.find((r) => r.code === code)?.id
+        ?? null;
+      parecerItemTypeIdsRef.current = { parecer: find("parecer_adulto"), visita: find("visita") };
+    })();
+    return () => { cancelled = true; };
+  }, []);
   // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
   // Em confecção + rateio + Parecer, também exibimos a opção: o lote pode ser
   // uma base única de Parecer/Visita e o relatório do Tasy decide cada item.
