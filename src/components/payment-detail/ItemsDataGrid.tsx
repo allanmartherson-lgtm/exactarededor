@@ -2093,6 +2093,7 @@ export function ItemsDataGrid({
         if (parecerFilter === "missing" && evidence !== "not_found") return false;
         if (parecerFilter === "weak" && !(evidence === "confirmed" && isWeak)) return false;
       }
+      if (typeFilter !== "__all__" && (it as any).item_type_id !== typeFilter) return false;
       if (statusFilter !== "__all__") {
         // "seguido" no filtro agrupa itens acatados pelo analista e seguidos pelo validador
         const matches = statusFilter === "seguido"
