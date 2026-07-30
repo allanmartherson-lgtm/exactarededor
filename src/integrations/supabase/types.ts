@@ -5717,8 +5717,10 @@ export type Database = {
           package_absorbed_note: string | null
           package_ambiguity: Json | null
           parecer_checked_at: string | null
+          parecer_espec_origem: string | null
           parecer_evidence: string | null
           parecer_evidence_weak: boolean
+          parecer_medico_solicitante: string | null
           parecer_report_row_id: string | null
           patient_name: string | null
           payment_id: string
@@ -5858,8 +5860,10 @@ export type Database = {
           package_absorbed_note?: string | null
           package_ambiguity?: Json | null
           parecer_checked_at?: string | null
+          parecer_espec_origem?: string | null
           parecer_evidence?: string | null
           parecer_evidence_weak?: boolean
+          parecer_medico_solicitante?: string | null
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id: string
@@ -5999,8 +6003,10 @@ export type Database = {
           package_absorbed_note?: string | null
           package_ambiguity?: Json | null
           parecer_checked_at?: string | null
+          parecer_espec_origem?: string | null
           parecer_evidence?: string | null
           parecer_evidence_weak?: boolean
+          parecer_medico_solicitante?: string | null
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id?: string
