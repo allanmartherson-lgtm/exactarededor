@@ -104,6 +104,9 @@ Deno.serve(async (req) => {
     // Mapa code → id para tipos dinâmicos usados pela heurística por prefixo TUSS.
     // TUSS/AMB agrupa por 1º dígito: 2 = SADT, 3 = cirúrgicos/invasivos, 4 = procedimentos clínicos.
     const dynamicByCode: Record<string, { id: string; code: string }> = {};
+    // Mapa code → item_type para TODOS os tipos ativos (usado pela via CBHPM).
+    const itemTypeByCode: Record<string, { id: string; code: string }> = {};
+
 
     for (const it of itemTypes) {
       const codes = new Set<string>();
