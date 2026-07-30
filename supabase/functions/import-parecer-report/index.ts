@@ -155,6 +155,11 @@ Deno.serve(async (req) => {
         dt_solic_parecer: r.dt_solic_parecer ?? null,
         dt_resposta_parecer: r.dt_resposta_parecer ?? null,
         situacao: r.situacao ?? null,
+        nr_parecer: r.nr_parecer ?? null,
+        tempo_resposta: r.tempo_resposta ?? null,
+        // A hora do relatório do Tasy nasce corrompida (mês na posição do
+        // minuto, relógio de 12h sem AM/PM). Gravamos só a data.
+        hora_confiavel: r.hora_confiavel === true,
         raw: r.raw ?? null,
       }));
 
