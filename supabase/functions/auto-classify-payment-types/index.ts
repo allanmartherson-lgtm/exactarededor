@@ -337,9 +337,19 @@ Deno.serve(async (req) => {
         code &&
         !VISIT_PARECER_TUSS.has(code)
       ) {
-        const byPrefix = classifyByTussPrefix(code);
-        nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
-        nextSource = "auto_heuristic";
+        // CBHPM primeiro; prefixo TUSS só como último recurso. Categorias
+        // visita/consulta são ignoradas aqui para não anular a trava reversa.
+        const byCbhpm = classifyByCbhpm(code);
+        const cbhpmOk =
+          byCbhpm && byCbhpm.code !== "visita" && !byCbhpm.code.startsWith("parecer");
+        if (cbhpmOk) {
+          nextItemTypeId = byCbhpm!.id;
+          nextSource = "auto_cbhpm";
+        } else {
+          const byPrefix = classifyByTussPrefix(code);
+          nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
+          nextSource = "auto_heuristic";
+        }
         forcedNonVisitParecer++;
       }
       // Regras originais.
@@ -352,10 +362,14 @@ Deno.serve(async (req) => {
           nextItemTypeId = null;
           nextSource = "ambiguous_tuss";
         }
+      } else if (code && classifyByCbhpm(code)) {
+        nextItemTypeId = classifyByCbhpm(code)!.id;
+        nextSource = "auto_cbhpm";
       } else if (code && (classifyByTussPrefix(code) || dynamicFallbackItemTypeId)) {
         const byPrefix = classifyByTussPrefix(code);
         nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
         nextSource = "auto_heuristic";
+
       } else if (defaultItemTypeId) {
         nextItemTypeId = defaultItemTypeId;
         nextSource = "auto_default";
