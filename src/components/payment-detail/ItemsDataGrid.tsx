@@ -5410,20 +5410,9 @@ function RowMain({
         {colVis.parecer_info && isParecerPayment && (
           <td className={cn(cellPad, "border-b align-middle", baseCellBg)}>
             <div className="flex items-center gap-1 flex-wrap">
-              <ParecerEvidenceBadge item={it} />
-              {(() => {
-                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
-                if (!div) return null;
-                return (
-                  <span
-                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
-                    title={`${div} Sinal informativo de texto — não indica divergência de valor. Verifique se a classificação está correta.`}
-                  >
-                    <AlertTriangle className="h-2.5 w-2.5" />
-                    Texto inconsistente
-                  </span>
-                );
-              })()}
+              {/* Badge único: a fonte é o TIPO DO ITEM (Parecer/Visita).
+                  Evidência do relatório Tasy não gera mais badge — o relatório
+                  lista apenas pareceres, então ausência ali não é sinal. */}
               <CaseSubtypeBadge
                 item={it}
                 allItems={allItems}
@@ -5434,6 +5423,7 @@ function RowMain({
                 onChange={onChangeCaseSubtype}
               />
             </div>
+
           </td>
         )}
         {colVis.observacao && (
