@@ -40,6 +40,7 @@ import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type File
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { applySectorStems } from "@/lib/sectorStems";
 import { sha256Hex, inferBucketRole } from "@/lib/fileHash";
+import { classifyParecerRowFromBase } from "@/lib/parecerBaseClassification";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
