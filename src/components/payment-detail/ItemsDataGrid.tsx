@@ -5836,7 +5836,6 @@ function ItemDetailsRow({
                 hidden={isParecerPayment}
                 canEdit={canEdit}
                 onChange={onChangeCaseSubtype}
-                exception={parecerAlertOf(it)}
               />
 
 
