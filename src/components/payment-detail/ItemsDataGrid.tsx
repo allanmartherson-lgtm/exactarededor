@@ -1287,7 +1287,8 @@ type OptionalColKey =
   | "diferenca"
   | "observacao"
   | "tipo_entrada"
-  | "subtipo";
+  | "subtipo"
+  | "parecer_info";
 
 const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "atendimento", label: "Atendimento" },
@@ -1300,6 +1301,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "setor_inferido", label: "Setor" },
   { key: "tipo_entrada", label: "Tipo de entrada (caráter)" },
   { key: "subtipo", label: "Subtipo (Parecer/Visita)" },
+  { key: "parecer_info", label: "Parecer/Visita (evidência)" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -1316,6 +1318,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   setor_inferido: true,
   tipo_entrada: false,
   subtipo: false,
+  parecer_info: true,
   regra: false,
   diferenca: false,
   observacao: false,
@@ -1912,6 +1915,10 @@ export function ItemsDataGrid({
   // Em confecção, "Diferença" não faz sentido (gross e expected coincidem por
   // construção). Forçamos invisível independentemente da preferência salva.
   const showDiferencaCol = colVis.diferenca && !isConfeccao;
+  // Coluna consolidada de sinais de Parecer × Visita (evidência Tasy,
+  // descrição inconsistente e classificação final). Só existe em lotes
+  // de Parecer/Visita ou mistos.
+  const showParecerInfoCol = colVis.parecer_info && isParecerPayment;
 
 
 
@@ -2612,6 +2619,7 @@ export function ItemsDataGrid({
     getWidth("esperado", expectedColWidth) +
     (showDiferencaCol ? getWidth("diferenca", 110) : 0) +
     statusColumnWidth +
+    (showParecerInfoCol ? getWidth("parecer_info", 170) : 0) +
     (colVis.observacao ? getWidth("observacao", 70) : 0) +
     (canEdit ? actionColumnWidth : 0);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
@@ -3518,6 +3526,7 @@ export function ItemsDataGrid({
               <col style={colStyle("esperado", expectedColWidth)} />
               {showDiferencaCol && <col style={colStyle("diferenca", 110)} />}
               <col style={{ width: statusColumnWidth }} />
+              {showParecerInfoCol && <col style={colStyle("parecer_info", 170)} />}
               {colVis.observacao && <col style={colStyle("observacao", 70)} />}
               {canEdit && <col style={{ width: actionColumnWidth }} />}
             </colgroup>
