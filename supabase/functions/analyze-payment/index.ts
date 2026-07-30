@@ -249,6 +249,27 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
       const { data: convs } = await convQ;
       if (convs?.length) extendConvenioMap(convs as Array<{ slug: string; name: string; aliases: string[] }>);
     } catch (_e) { /* fallback à normalização pura */ }
+    try {
+      // Aliases aprendidos/cadastrados vivem em `convenio_aliases` (tabela dedicada)
+      // e NÃO na coluna array `convenios.aliases`. Sem esta carga, o motor cai nos
+      // stems hardcoded e resolve para o slug genérico (ex.: `sul_america`) em vez
+      // da variante por hospital (`sul_america_hsh`), quebrando whitelist/blacklist.
+      let aliasQ = supabase.from("convenio_aliases").select("convenio_slug,alias_text,hospital_id");
+      if (__paymentHospitalId) aliasQ = aliasQ.or(`hospital_id.is.null,hospital_id.eq.${__paymentHospitalId}`);
+      else aliasQ = aliasQ.is("hospital_id", null);
+      const { data: aliasRows, error: aliasErr } = await aliasQ;
+      if (aliasErr) console.warn(`${__t} convenio_aliases load falhou: ${aliasErr.message}`);
+      if (aliasRows?.length) {
+        // Globais primeiro, hospital-específicos depois: o específico sobrescreve.
+        const sorted = [...(aliasRows as any[])].sort(
+          (a, b) => (a.hospital_id ? 1 : 0) - (b.hospital_id ? 1 : 0),
+        );
+        extendConvenioMap(
+          sorted.map((r) => ({ slug: String(r.convenio_slug), aliases: [String(r.alias_text)] })),
+        );
+      }
+    } catch (_e) { /* fallback: convenios.aliases + stems */ }
+
 
 
 
