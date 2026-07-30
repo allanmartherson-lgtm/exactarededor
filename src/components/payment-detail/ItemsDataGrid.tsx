@@ -2243,7 +2243,7 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, turnoFilter, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, typeFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, turnoFilter, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
 
   // Bridge global do Zeev → aplica filtro pedido via chat ("me leva pros zerados", etc.).
   // Limpa os filtros anteriores e marca apenas o requerido para evitar combinações esquisitas.
