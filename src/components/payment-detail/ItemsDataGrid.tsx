@@ -1409,6 +1409,8 @@ export function ItemsDataGrid({
   const [patientFilter, setPatientFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState<string>("__all__");
   const [statusFilter, setStatusFilter] = useState<string>("__all__");
+  // Filtro por tipo de item (só aparece em lote misto — 2+ item_type_id distintos).
+  const [typeFilter, setTypeFilter] = useState<string>("__all__");
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [onlyManualBonus, setOnlyManualBonus] = useState(false);
