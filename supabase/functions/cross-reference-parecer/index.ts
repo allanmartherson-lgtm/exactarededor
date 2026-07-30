@@ -419,7 +419,9 @@ Deno.serve(async (req) => {
       items_total: items.length,
       candidates_considered: candidates.length,
       parecer_confirmed: parecerConfirmed,
-      parecer_unverified: parecerUnverified,
+      parecer_not_found: parecerNotFound,
+      parecer_unverified: 0,
+
       visitas,
       skipped_no_key: skippedNoKey.length,
       skipped_no_key_sample_ids: skippedNoKey.slice(0, 20),
