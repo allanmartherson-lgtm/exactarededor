@@ -5094,31 +5094,9 @@ function RowMain({
                   MAN
                 </span>
               )}
-              {isParecerPayment && <ParecerEvidenceBadge item={it} />}
-              {isParecerPayment && (() => {
-                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
-                if (!div) return null;
-                return (
-                  <span
-                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
-                    title={`${div} Verifique se a classificação está correta.`}
-                  >
-                    <AlertTriangle className="h-2.5 w-2.5" />
-                    Divergência
-                  </span>
-                );
-              })()}
-              {isParecerPayment && (
-                <CaseSubtypeBadge
-                  item={it}
-                  allItems={allItems}
-                  lotePaymentTypeId={lotePaymentTypeId}
-                  visitaPaymentTypeId={visitaPaymentTypeId}
-                  parecerPaymentTypeId={parecerPaymentTypeId}
-                  canEdit={canEdit}
-                  onChange={onChangeCaseSubtype}
-                />
-              )}
+              {/* Sinais de Parecer × Visita foram consolidados na coluna
+                  "Parecer/Visita" (entre Status e Ações) para não espremer
+                  o número do atendimento. */}
             </div>
           </td>
         )}
@@ -5481,6 +5459,35 @@ function RowMain({
           </div>
           )}
         </td>
+        {colVis.parecer_info && isParecerPayment && (
+          <td className={cn(cellPad, "border-b align-middle", baseCellBg)}>
+            <div className="flex items-center gap-1 flex-wrap">
+              <ParecerEvidenceBadge item={it} />
+              {(() => {
+                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
+                if (!div) return null;
+                return (
+                  <span
+                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
+                    title={`${div} Sinal informativo de texto — não indica divergência de valor. Verifique se a classificação está correta.`}
+                  >
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Texto inconsistente
+                  </span>
+                );
+              })()}
+              <CaseSubtypeBadge
+                item={it}
+                allItems={allItems}
+                lotePaymentTypeId={lotePaymentTypeId}
+                visitaPaymentTypeId={visitaPaymentTypeId}
+                parecerPaymentTypeId={parecerPaymentTypeId}
+                canEdit={canEdit}
+                onChange={onChangeCaseSubtype}
+              />
+            </div>
+          </td>
+        )}
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
             {obsCount > 0 ? obsCount : "—"}
