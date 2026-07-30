@@ -140,6 +140,32 @@ const FIELDS: FieldDef[] = [
     required: false,
     aliases: ["situacao_parecer", "situacao", "status"],
   },
+  {
+    key: "nr_parecer",
+    label: "Nº do parecer",
+    hint: "Identificador único do parecer no Tasy — usado para detectar parecer duplicado",
+    required: false,
+    aliases: [
+      "nr_parecer",
+      "numero_parecer",
+      "n_parecer",
+      "nr_parecer_paciente",
+      "nr_sequencial_parecer",
+      "parecer",
+    ],
+  },
+  {
+    key: "tempo_resposta",
+    label: "Tempo de resposta",
+    hint: "Única informação temporal confiável do relatório (a hora vem corrompida na origem)",
+    required: false,
+    aliases: [
+      "tempo_resposta",
+      "tempo_de_resposta",
+      "tempo_resp",
+      "tempo_resposta_parecer",
+    ],
+  },
 ];
 
 const normHeader = (s: string) =>
