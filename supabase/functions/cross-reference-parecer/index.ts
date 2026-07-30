@@ -287,9 +287,11 @@ Deno.serve(async (req) => {
       candidates.push(it);
     }
 
-    // ==== Chave de agrupamento (com fallback) ====
-    type GroupKey = string; // hosp|att|empresa|spec
-    const groupOf = new Map<string, GroupKey>(); // item.id → key
+    // ==== Chave de agrupamento (APENAS métrica/log) ====
+    // A eleição cronológica por grupo foi REMOVIDA (PASSO 3): a classificação
+    // Parecer × Visita vem do arquivo importado. A chave abaixo existe só para
+    // contabilizar itens sem identificação mínima. Empresa NÃO entra na chave.
+    type GroupKey = string; // hosp|att|spec
     const groupsMap = new Map<GroupKey, CandidateItem[]>();
     const skippedNoKey: string[] = [];
 
@@ -297,13 +299,11 @@ Deno.serve(async (req) => {
       const hospKey = it.hospital_id;
       const attKey = onlyDigits(it.attendance_number);
       const specKey = norm(it.specialty);
-      const empresaKey = it.company_id ?? (norm(it.company_name) || null);
-      if (!hospKey || !attKey || !specKey || !empresaKey) {
+      if (!hospKey || !attKey || !specKey) {
         skippedNoKey.push(it.id);
         continue;
       }
-      const key = `${hospKey}|${attKey}|${empresaKey}|${specKey}`;
-      groupOf.set(it.id, key);
+      const key = `${hospKey}|${attKey}|${specKey}`;
       const list = groupsMap.get(key) ?? [];
       list.push(it);
       groupsMap.set(key, list);
@@ -316,213 +316,54 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ==== Lookback histórico EM BATCH ====
-    // Coleta attendances únicos por hospital, quebra em chunks de 200,
-    // e traz TODAS as linhas históricas de outros lotes com TUSS/tipo
-    // ambíguo. Match final por grupo é feito em memória.
-    type HistRow = {
-      id: string;
-      payment_id: string;
-      hospital_id: string;
-      company_id: string | null;
-      company_name: string | null;
-      specialty: string | null;
-      attendance_number: string | null;
-      procedure_code: string | null;
-      procedure_date: string | null;
-      created_at: string | null;
-      item_type_id: string | null;
-    };
-    const CHUNK = 200;
-    const historyByGroup = new Map<GroupKey, HistRow[]>();
-
-    // Agrupa attendances por hospital.
-    const attsByHospital = new Map<string, Set<string>>();
-    for (const it of candidates) {
-      const att = onlyDigits(it.attendance_number);
-      if (!att || !it.hospital_id) continue;
-      const set = attsByHospital.get(it.hospital_id) ?? new Set<string>();
-      set.add(it.attendance_number); // valor bruto — coluna não tem versão só-dígitos
-      attsByHospital.set(it.hospital_id, set);
-    }
-
-    const ambTypeIdsArr = [...ambiguousTypeIds];
-    const ambTussArr = [...ambiguousTussSet];
-
-    for (const [hospId, attSet] of attsByHospital.entries()) {
-      const attArr = [...attSet];
-      for (let i = 0; i < attArr.length; i += CHUNK) {
-        const chunk = attArr.slice(i, i + CHUNK);
-        let q = supabase
-          .from("payment_items")
-          .select(
-            "id, payment_id, hospital_id, company_id, company_name, specialty, attendance_number, procedure_code, procedure_date, created_at, item_type_id",
-          )
-          .eq("hospital_id", hospId)
-          .in("attendance_number", chunk)
-          .neq("payment_id", payment_id)
-          .eq("is_cancelled", false);
-        // Filtro tipo/TUSS ambíguo. Ambos podem estar vazios em ambientes
-        // sem cadastro de item_types — nesse caso não filtra (comportamento
-        // conservador, mais itens seguem para o match em memória).
-        if (ambTypeIdsArr.length > 0 && ambTussArr.length > 0) {
-          const inList = ambTypeIdsArr.map((id) => `"${id}"`).join(",");
-          const tussList = ambTussArr.map((c) => `"${c}"`).join(",");
-          q = q.or(`item_type_id.in.(${inList}),procedure_code.in.(${tussList})`);
-        } else if (ambTypeIdsArr.length > 0) {
-          q = q.in("item_type_id", ambTypeIdsArr);
-        } else if (ambTussArr.length > 0) {
-          q = q.in("procedure_code", ambTussArr);
-        }
-        const { data: page, error } = await q;
-        if (error) {
-          console.warn(`[cross-reference-parecer] lookback chunk fail hosp=${hospId}`, error.message);
-          continue;
-        }
-        for (const row of (page ?? []) as HistRow[]) {
-          const attKey = onlyDigits(row.attendance_number);
-          const specKey = norm(row.specialty);
-          const empresaKey = row.company_id ?? (norm(row.company_name) || null);
-          if (!attKey || !specKey || !empresaKey) continue;
-          const key = `${row.hospital_id}|${attKey}|${empresaKey}|${specKey}`;
-          if (!groupsMap.has(key)) continue; // só nos interessa se casa com um grupo do lote atual
-          const list = historyByGroup.get(key) ?? [];
-          list.push(row);
-          historyByGroup.set(key, list);
-        }
-      }
-    }
-
     console.log(
-      `[cross-reference-parecer] groups=${groupsMap.size} candidates=${candidates.length} skippedNoKey=${skippedNoKey.length} skippedCancelled=${skippedCancelled} skippedNonAmbiguousTuss=${skippedNonAmbiguousTuss} lookback_hospitals=${attsByHospital.size} lookback_matched_groups=${historyByGroup.size}`,
+      `[cross-reference-parecer] groups=${groupsMap.size} candidates=${candidates.length} skippedNoKey=${skippedNoKey.length} skippedCancelled=${skippedCancelled} skippedNonAmbiguousTuss=${skippedNonAmbiguousTuss}`,
     );
 
-    // ==== Decisão por grupo ====
-    // Para cada item: define role ('candidate_parecer' | 'visita' | 'protected')
-    // e evidence + weak.
+    // ==== Registro de correspondência (SEM reclassificação) ====
+    // Para cada candidato, apenas verifica se existe linha correspondente no
+    // relatório de parecer do Tasy. Nenhum item_type_id é alterado.
     type Decision = {
       evidence: EvidenceValue;
       weak: boolean;
-      roleParecer: boolean; // candidato virou parecer (tipo)
-      roleVisita: boolean;  // item vira visita
-      reportRowId: string | null; // hit.id do relatório Tasy quando confirmed
+      reportRowId: string | null;
     };
     const decisionById = new Map<string, Decision>();
 
-    // Protegidos (não trocam tipo). Evidência: se candidato eleito, marcaremos
-    // depois; por default entram como 'not_applicable' (informativo).
-    // Vamos preencher junto do loop principal do grupo abaixo.
-
-    for (const [key, groupItems] of groupsMap.entries()) {
-      // Ordena candidatos do lote por procedure_date asc, tie-break created_at asc.
-      const ordered = [...groupItems].sort((a, b) => {
-        const da = a.procedure_date ? Date.parse(a.procedure_date) : Infinity;
-        const db = b.procedure_date ? Date.parse(b.procedure_date) : Infinity;
-        if (da !== db) return da - db;
-        const ca = a.created_at ? Date.parse(a.created_at) : 0;
-        const cb = b.created_at ? Date.parse(b.created_at) : 0;
-        return ca - cb;
-      });
-      const first = ordered[0];
-      const firstDay = dayKey(first?.procedure_date ?? null);
-
-      // Histórico do grupo (só itens de OUTROS lotes, já filtrado).
-      const hist = historyByGroup.get(key) ?? [];
-      let priorStrict = false; // histórico com data ESTRITAMENTE anterior
-      let priorSameDay = false; // histórico no mesmo dia do candidato atual
-      for (const h of hist) {
-        const hDay = dayKey(h.procedure_date);
-        if (!hDay || !firstDay) continue;
-        if (hDay < firstDay) { priorStrict = true; break; }
-        if (hDay === firstDay) priorSameDay = true;
-      }
-
-      if (priorStrict) {
-        // Todo o grupo vira visita.
-        for (const it of ordered) {
-          decisionById.set(it.id, {
-            evidence: "not_applicable",
-            weak: false,
-            roleParecer: false,
-            roleVisita: true,
-            reportRowId: null,
-          });
-        }
-        continue;
-      }
-
-      // Sem histórico estritamente anterior: o candidato é o primeiro do lote.
-      // Empate interno (mesma data que o 2º) → weak=true.
-      let internalTie = false;
-      if (ordered.length >= 2) {
-        const d0 = dayKey(ordered[0].procedure_date);
-        const d1 = dayKey(ordered[1].procedure_date);
-        if (d0 && d1 && d0 === d1) internalTie = true;
-      }
-
-      // Validação do candidato contra o relatório do Tasy.
-      const att = onlyDigits(first.attendance_number);
-      const cd = crmByDoctor.get(first.doctor_id ?? "") ?? "";
-      const nm = norm(first.doctor_name);
+    for (const it of candidates) {
+      const att = onlyDigits(it.attendance_number);
+      const cd = crmByDoctor.get(it.doctor_id ?? "") ?? "";
+      const nm = norm(it.doctor_name);
       let hit: any = null;
       let weakFromValidation = false;
       if (att && cd) {
         const list = byAttendCrm.get(`${att}|${cd}`) ?? [];
         hit = list.find((r) =>
-          matchesParecerDate(r, first.procedure_date) &&
+          matchesParecerDate(r, it.procedure_date) &&
           String(r.situacao ?? "").toLowerCase().includes("com parecer"),
-        ) ?? list.find((r) => matchesParecerDate(r, first.procedure_date)) ?? null;
+        ) ?? list.find((r) => matchesParecerDate(r, it.procedure_date)) ?? null;
       }
       if (!hit && att && nm) {
         const list = byAttendName.get(`${att}|${nm}`) ?? [];
-        hit = list.find((r) => matchesParecerDate(r, first.procedure_date)) ?? null;
+        hit = list.find((r) => matchesParecerDate(r, it.procedure_date)) ?? null;
         if (hit) weakFromValidation = true;
       }
 
-      // Regra do empate entre lotes: mesmo que o Tasy confirme, se há
-      // histórico no MESMO dia, marcamos como 'unverified' + weak — não
-      // dá para saber a ordem.
-      let candidateEvidence: EvidenceValue;
-      let candidateWeak: boolean;
-      let candidateReportRowId: string | null = null;
-      if (priorSameDay) {
-        candidateEvidence = "unverified";
-        candidateWeak = true;
-      } else if (hit) {
-        candidateEvidence = "confirmed";
-        candidateWeak = weakFromValidation || internalTie;
-        candidateReportRowId = hit.id ?? null;
-      } else {
-        candidateEvidence = "unverified";
-        candidateWeak = true;
-      }
-
-      decisionById.set(first.id, {
-        evidence: candidateEvidence,
-        weak: candidateWeak,
-        roleParecer: true,
-        roleVisita: false,
-        reportRowId: candidateReportRowId,
+      decisionById.set(it.id, {
+        evidence: hit ? "confirmed" : "not_found",
+        weak: hit ? weakFromValidation : false,
+        reportRowId: hit?.id ?? null,
       });
-      for (let i = 1; i < ordered.length; i++) {
-        decisionById.set(ordered[i].id, {
-          evidence: "not_applicable",
-          weak: false,
-          roleParecer: false,
-          roleVisita: true,
-          reportRowId: null,
-        });
-      }
     }
+
 
     // ==== Aplica patches em batches agrupados ====
     const now = new Date().toISOString();
     const itemById = new Map(items.map((i: any) => [i.id, i]));
     let parecerConfirmed = 0;
-    let parecerUnverified = 0;
-    let visitas = 0;
+    let parecerNotFound = 0;
+    const visitas = 0; // reclassificação removida (PASSO 3)
     let protectedKept = 0;
-    let notFoundLegacy = 0; // manteremos 0 para compatibilidade; UI antiga lê essa chave
 
     type Group = { patch: Record<string, any>; ids: string[] };
     const groups = new Map<string, Group>();
@@ -536,52 +377,24 @@ Deno.serve(async (req) => {
 
     for (const it of items) {
       if (it.is_cancelled) continue;
-      const isProtected = PROTECTED_SOURCES.has(it.item_type_source ?? "");
       const decision = decisionById.get(it.id);
+      if (!decision) continue;
 
-      if (!decision) {
-        // Sem decisão: item pulado (skippedNoKey ou fora de ambíguo em lote misto).
-        // Ainda assim gravamos evidência informativa 'not_applicable' quando
-        // ele foi de fato descartado como candidato ambíguo.
-        // Mas para não sobrescrever itens não relacionados, só marcamos se
-        // ele estava no conjunto `candidates` (participou do filtro).
-        continue;
-      }
+      if (PROTECTED_SOURCES.has(it.item_type_source ?? "")) protectedKept++;
+      if (decision.evidence === "confirmed") parecerConfirmed++;
+      else parecerNotFound++;
 
-      const patch: Record<string, any> = {
+      // Somente EVIDÊNCIA. Nunca item_type_id / item_type_source:
+      // a classificação Parecer × Visita é do arquivo importado (base_tipo)
+      // ou da decisão manual do analista.
+      enqueue(it.id, {
         parecer_evidence: decision.evidence,
         parecer_evidence_weak: decision.weak,
         parecer_checked_at: now,
         parecer_report_row_id: decision.reportRowId,
-      };
-
-      if (isProtected) {
-        // Nunca troca item_type_id. Só evidência informativa.
-        protectedKept++;
-        enqueue(it.id, patch);
-        continue;
-      }
-
-      if (!lotePaymentTypeId || !visitaPaymentTypeId) {
-        // Sem tipos resolvidos, ainda assim grava evidência coerente.
-        enqueue(it.id, patch);
-        continue;
-      }
-
-      if (decision.roleParecer) {
-        patch.item_type_id = lotePaymentTypeId;
-        patch.item_type_source = "report_cross";
-        patch.reclassified_from_parecer = false;
-        if (decision.evidence === "confirmed") parecerConfirmed++;
-        else parecerUnverified++;
-      } else if (decision.roleVisita) {
-        patch.item_type_id = visitaPaymentTypeId;
-        patch.item_type_source = "report_cross";
-        patch.reclassified_from_parecer = true;
-        visitas++;
-      }
-      enqueue(it.id, patch);
+      });
     }
+
 
     const APPLY_CHUNK = 200;
     for (const g of groups.values()) {
@@ -606,7 +419,9 @@ Deno.serve(async (req) => {
       items_total: items.length,
       candidates_considered: candidates.length,
       parecer_confirmed: parecerConfirmed,
-      parecer_unverified: parecerUnverified,
+      parecer_not_found: parecerNotFound,
+      parecer_unverified: 0,
+
       visitas,
       skipped_no_key: skippedNoKey.length,
       skipped_no_key_sample_ids: skippedNoKey.slice(0, 20),
@@ -668,11 +483,12 @@ Deno.serve(async (req) => {
         has_report: true,
         // legado
         confirmed: parecerConfirmed,
-        not_found: notFoundLegacy,
+        not_found: parecerNotFound,
         reclassified: 0,
-        auto_applied: parecerConfirmed + parecerUnverified + visitas,
-        subtype_parecer: parecerConfirmed + parecerUnverified,
+        auto_applied: 0,
+        subtype_parecer: parecerConfirmed,
         subtype_visita: visitas,
+
         // novo
         cross_summary: summary,
       }),
