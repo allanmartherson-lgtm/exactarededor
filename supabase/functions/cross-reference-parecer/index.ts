@@ -361,10 +361,9 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     const itemById = new Map(items.map((i: any) => [i.id, i]));
     let parecerConfirmed = 0;
-    let parecerUnverified = 0;
-    let visitas = 0;
+    let parecerNotFound = 0;
+    const visitas = 0; // reclassificação removida (PASSO 3)
     let protectedKept = 0;
-    let notFoundLegacy = 0; // manteremos 0 para compatibilidade; UI antiga lê essa chave
 
     type Group = { patch: Record<string, any>; ids: string[] };
     const groups = new Map<string, Group>();
@@ -378,52 +377,24 @@ Deno.serve(async (req) => {
 
     for (const it of items) {
       if (it.is_cancelled) continue;
-      const isProtected = PROTECTED_SOURCES.has(it.item_type_source ?? "");
       const decision = decisionById.get(it.id);
+      if (!decision) continue;
 
-      if (!decision) {
-        // Sem decisão: item pulado (skippedNoKey ou fora de ambíguo em lote misto).
-        // Ainda assim gravamos evidência informativa 'not_applicable' quando
-        // ele foi de fato descartado como candidato ambíguo.
-        // Mas para não sobrescrever itens não relacionados, só marcamos se
-        // ele estava no conjunto `candidates` (participou do filtro).
-        continue;
-      }
+      if (PROTECTED_SOURCES.has(it.item_type_source ?? "")) protectedKept++;
+      if (decision.evidence === "confirmed") parecerConfirmed++;
+      else parecerNotFound++;
 
-      const patch: Record<string, any> = {
+      // Somente EVIDÊNCIA. Nunca item_type_id / item_type_source:
+      // a classificação Parecer × Visita é do arquivo importado (base_tipo)
+      // ou da decisão manual do analista.
+      enqueue(it.id, {
         parecer_evidence: decision.evidence,
         parecer_evidence_weak: decision.weak,
         parecer_checked_at: now,
         parecer_report_row_id: decision.reportRowId,
-      };
-
-      if (isProtected) {
-        // Nunca troca item_type_id. Só evidência informativa.
-        protectedKept++;
-        enqueue(it.id, patch);
-        continue;
-      }
-
-      if (!lotePaymentTypeId || !visitaPaymentTypeId) {
-        // Sem tipos resolvidos, ainda assim grava evidência coerente.
-        enqueue(it.id, patch);
-        continue;
-      }
-
-      if (decision.roleParecer) {
-        patch.item_type_id = lotePaymentTypeId;
-        patch.item_type_source = "report_cross";
-        patch.reclassified_from_parecer = false;
-        if (decision.evidence === "confirmed") parecerConfirmed++;
-        else parecerUnverified++;
-      } else if (decision.roleVisita) {
-        patch.item_type_id = visitaPaymentTypeId;
-        patch.item_type_source = "report_cross";
-        patch.reclassified_from_parecer = true;
-        visitas++;
-      }
-      enqueue(it.id, patch);
+      });
     }
+
 
     const APPLY_CHUNK = 200;
     for (const g of groups.values()) {
