@@ -40,6 +40,7 @@ import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type File
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
 import { applySectorStems } from "@/lib/sectorStems";
 import { sha256Hex, inferBucketRole } from "@/lib/fileHash";
+import { classifyParecerRowFromBase } from "@/lib/parecerBaseClassification";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -763,6 +764,25 @@ const NewPayment = () => {
   const [parecerPayload, setParecerPayload] = useState<ParecerWizardPayload | null>(null);
   const isParecerType = !!paymentModelMeta?.code?.startsWith("parecer");
   const isVisitaType = paymentModelMeta?.code === "visita";
+  // IDs canônicos de item_type usados pela classificação por arquivo original
+  // do Tasy (coluna "Medico Solic."): parecer_adulto × visita.
+  const parecerItemTypeIdsRef = useRef<{ parecer: string | null; visita: string | null }>({ parecer: null, visita: null });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase.from as any)("payment_types_unified")
+        .select("id, code, origin")
+        .in("code", ["parecer_adulto", "visita"]);
+      if (cancelled) return;
+      const rows = (data ?? []) as Array<{ id: string; code: string; origin: string }>;
+      const find = (code: string) =>
+        rows.find((r) => r.code === code && r.origin === "item_type")?.id
+        ?? rows.find((r) => r.code === code)?.id
+        ?? null;
+      parecerItemTypeIdsRef.current = { parecer: find("parecer_adulto"), visita: find("visita") };
+    })();
+    return () => { cancelled = true; };
+  }, []);
   // Lote MISTO: produção que também tem parecer/visita misturados nos TUSS.
   // Em confecção + rateio + Parecer, também exibimos a opção: o lote pode ser
   // uma base única de Parecer/Visita e o relatório do Tasy decide cada item.
@@ -1203,6 +1223,9 @@ const NewPayment = () => {
     // template. Evita o bug histórico de uma coluna de DATA ser mapeada
     // como "nome do procedimento" e contaminar o motor de validação.
     const ptMetaForMap = paymentTypeMetaRef.current;
+    // Lote de Parecer/Visita → classificação vem do arquivo original do Tasy.
+    const isParecerFlowForMap =
+      !!ptMetaForMap?.code?.startsWith("parecer") || ptMetaForMap?.code === "visita";
     const procFixedByType =
       !!ptMetaForMap?.tuss_default || ptMetaForMap?.requires_tuss_in_sheet === false;
     const sanitizedMapping = (() => {
@@ -1415,9 +1438,45 @@ const NewPayment = () => {
         }
       }
 
-      const tipo_linha = classifyLine(base, paymentKind || null);
-      const withType = { ...base, tipo_linha, payment_type_id_override };
+      // === Classificação Parecer × Visita pelo ARQUIVO ORIGINAL do Tasy ===
+      // Fonte: coluna "Medico Solic." ("Visita" → visita; nome → parecer).
+      // Qualquer coluna "Tipo" criada manualmente pelo analista é ignorada.
+      let parecer_medico_solicitante: string | null = null;
+      let parecer_espec_origem: string | null = null;
+      let item_type_source_override: string | null = null;
+      let forcedTipo: "parecer" | "visita" | null = null;
+      let parecerDivergence: string | null = null;
+      if (isParecerFlowForMap) {
+        const cls = classifyParecerRowFromBase(rawRow);
+        if (cls) {
+          forcedTipo = cls.tipo;
+          const tid = cls.tipo === "visita"
+            ? parecerItemTypeIdsRef.current.visita
+            : parecerItemTypeIdsRef.current.parecer;
+          if (tid) {
+            payment_type_id_override = tid;
+            item_type_source_override = "base_tipo";
+          }
+          parecer_medico_solicitante = cls.medico_solicitante;
+          parecer_espec_origem = cls.espec_origem;
+          if (cls.divergent) parecerDivergence = cls.divergenceMessage ?? "Classificação Parecer/Visita divergente entre 'Medico Solic.' e 'Espec. orig.'";
+          (base.raw_data as any).__parecer_classification = cls.tipo;
+        }
+      }
+
+      const tipo_linha = forcedTipo ?? classifyLine(base, paymentKind || null);
+      const withType = {
+        ...base,
+        tipo_linha,
+        payment_type_id_override,
+        parecer_medico_solicitante,
+        parecer_espec_origem,
+        item_type_source_override,
+      };
       const line_issues = validateLine(withType, { modoConfeccao });
+      if (parecerDivergence) {
+        line_issues.push({ severity: "alerta", field: "tipo_linha", message: parecerDivergence });
+      }
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => {
       const hasDoctor = !!r.doctor_name?.trim();
@@ -3321,6 +3380,9 @@ const NewPayment = () => {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        // Origem da classificação Parecer/Visita vinda do arquivo original do Tasy.
+        parecer_medico_solicitante: (r as any).parecer_medico_solicitante ?? null,
+        parecer_espec_origem: (r as any).parecer_espec_origem ?? null,
         convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
         // === Vínculos estritos com cadastros (lookup obrigatório) ===
         doctor_id: dRes.doctor?.id ?? null,
@@ -3341,7 +3403,10 @@ const NewPayment = () => {
           const companyDefault = cid ? companyDefaultTypeMap.get(cid) ?? null : null;
           const loteId = paymentModelMeta?.item_type_id ?? null;
           if (r.payment_type_id_override) {
-            return { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" };
+            return {
+              item_type_id: r.payment_type_id_override,
+              item_type_source: (r as any).item_type_source_override ?? "auto_heuristic",
+            };
           }
           if (companyDefault && companyDefault !== loteId) {
             return { item_type_id: companyDefault, item_type_source: "inherit" };
