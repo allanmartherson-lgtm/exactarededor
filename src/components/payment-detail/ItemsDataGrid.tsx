@@ -3336,6 +3336,34 @@ export function ItemsDataGrid({
         );
       })()}
 
+      {/* Faixa de filtro por tipo de item — só em lote misto (2+ tipos). */}
+      {typeTabs.length >= 2 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b px-4 py-1.5 bg-muted/20">
+          <span className="text-[11px] text-muted-foreground mr-1">Tipo:</span>
+          <Button
+            size="sm"
+            variant={typeFilter === "__all__" ? "default" : "outline"}
+            className="h-7 text-[11px]"
+            onClick={() => setTypeFilter("__all__")}
+          >
+            Todos ({items.length})
+          </Button>
+          {typeTabs.map((t) => (
+            <Button
+              key={t.id}
+              size="sm"
+              variant={typeFilter === t.id ? "default" : "outline"}
+              className="h-7 text-[11px]"
+              onClick={() => setTypeFilter((prev) => (prev === t.id ? "__all__" : t.id))}
+            >
+              {t.label} ({t.count})
+            </Button>
+          ))}
+        </div>
+      )}
+
+
+
 
 
       {/* Tabela / Lista */}
