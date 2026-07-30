@@ -483,11 +483,12 @@ Deno.serve(async (req) => {
         has_report: true,
         // legado
         confirmed: parecerConfirmed,
-        not_found: notFoundLegacy,
+        not_found: parecerNotFound,
         reclassified: 0,
-        auto_applied: parecerConfirmed + parecerUnverified + visitas,
-        subtype_parecer: parecerConfirmed + parecerUnverified,
+        auto_applied: 0,
+        subtype_parecer: parecerConfirmed,
         subtype_visita: visitas,
+
         // novo
         cross_summary: summary,
       }),
