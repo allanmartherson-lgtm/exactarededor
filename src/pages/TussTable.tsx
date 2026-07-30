@@ -40,6 +40,7 @@ type TussRow = {
   canonical_name: string;
   source: string | null;
   created_at: string | null;
+  categoria_funcional: string | null;
 };
 
 const PAGE_SIZE = 50;
@@ -52,6 +53,45 @@ const SOURCE_OPTIONS: { value: SourceFilter; label: string }[] = [
   { value: ANS_SOURCE, label: "ANS (oficial)" },
   { value: "auto-learn", label: "Aprendidos automaticamente" },
 ];
+
+type CategoryFilter = "all" | "none" | string;
+
+const CATEGORY_OPTIONS: { value: CategoryFilter; label: string }[] = [
+  { value: "all", label: "Todas as categorias" },
+  { value: "cirurgia", label: "Cirurgia" },
+  { value: "exame_imagem", label: "Exame de imagem" },
+  { value: "exame_laboratorial", label: "Exame laboratorial" },
+  { value: "procedimento_clinico", label: "Procedimento clínico" },
+  { value: "consulta", label: "Consulta" },
+  { value: "visita", label: "Visita" },
+  { value: "outros", label: "Outros" },
+  { value: "none", label: "Sem categoria" },
+];
+
+const CATEGORY_STYLES: Record<string, { label: string; className: string }> = {
+  cirurgia: { label: "Cirurgia", className: "bg-red-100 text-red-800 hover:bg-red-100 border-red-200" },
+  exame_imagem: { label: "Exame de imagem", className: "bg-indigo-100 text-indigo-800 hover:bg-indigo-100 border-indigo-200" },
+  exame_laboratorial: { label: "Exame laboratorial", className: "bg-cyan-100 text-cyan-800 hover:bg-cyan-100 border-cyan-200" },
+  procedimento_clinico: { label: "Procedimento clínico", className: "bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200" },
+  consulta: { label: "Consulta", className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200" },
+  visita: { label: "Visita", className: "bg-purple-100 text-purple-800 hover:bg-purple-100 border-purple-200" },
+  outros: { label: "Outros", className: "bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-200" },
+};
+
+function CategoryBadge({ categoria }: { categoria: string | null }) {
+  if (!categoria) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const style = CATEGORY_STYLES[categoria];
+  if (!style) {
+    return (
+      <Badge variant="secondary" className="bg-muted text-muted-foreground">
+        {categoria}
+      </Badge>
+    );
+  }
+  return <Badge className={style.className}>{style.label}</Badge>;
+}
 
 const EDIT_SOURCE_OPTIONS = [
   { value: "manual", label: "Manual" },
@@ -105,6 +145,7 @@ export default function TussTable() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [stats, setStats] = useState<Stats>({ total: 0, ans: 0, learned: 0 });
 
   const [editing, setEditing] = useState<TussRow | null>(null);
@@ -143,6 +184,11 @@ export default function TussTable() {
       if (sourceFilter !== "all") {
         query = query.eq("source", sourceFilter);
       }
+      if (categoryFilter === "none") {
+        query = query.is("categoria_funcional", null);
+      } else if (categoryFilter !== "all") {
+        query = query.eq("categoria_funcional", categoryFilter);
+      }
       const { data, error } = await query;
       if (error) {
         toast({
@@ -156,7 +202,7 @@ export default function TussTable() {
       setHasMore(list.length === PAGE_SIZE);
       setRows((prev) => (replace ? list : [...prev, ...list]));
     },
-    [sourceFilter],
+    [sourceFilter, categoryFilter],
   );
 
   useEffect(() => {
@@ -357,6 +403,21 @@ export default function TussTable() {
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={categoryFilter}
+            onValueChange={(v) => setCategoryFilter(v as CategoryFilter)}
+          >
+            <SelectTrigger className="w-full md:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" />
             Novo código
@@ -371,6 +432,7 @@ export default function TussTable() {
                 <tr>
                   <th className="text-left font-medium px-3 py-2 w-[130px]">Código</th>
                   <th className="text-left font-medium px-3 py-2">Nome do procedimento</th>
+                  <th className="text-left font-medium px-3 py-2 w-[170px]">Categoria</th>
                   <th className="text-left font-medium px-3 py-2 w-[140px]">Origem</th>
                   <th className="text-left font-medium px-3 py-2 w-[120px]">Cadastrado em</th>
                   <th className="text-right font-medium px-3 py-2 w-[100px]">Ações</th>
@@ -379,13 +441,13 @@ export default function TussTable() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
                       Carregando...
                     </td>
                   </tr>
                 ) : filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
                       Nenhum código encontrado.
                     </td>
                   </tr>
@@ -399,6 +461,9 @@ export default function TussTable() {
                       >
                         <td className="px-3 py-2 font-mono">{row.code}</td>
                         <td className="px-3 py-2">{row.canonical_name}</td>
+                        <td className="px-3 py-2">
+                          <CategoryBadge categoria={row.categoria_funcional} />
+                        </td>
                         <td className="px-3 py-2">
                           <SourceBadge source={row.source} />
                         </td>

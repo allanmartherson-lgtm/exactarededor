@@ -104,6 +104,9 @@ Deno.serve(async (req) => {
     // Mapa code → id para tipos dinâmicos usados pela heurística por prefixo TUSS.
     // TUSS/AMB agrupa por 1º dígito: 2 = SADT, 3 = cirúrgicos/invasivos, 4 = procedimentos clínicos.
     const dynamicByCode: Record<string, { id: string; code: string }> = {};
+    // Mapa code → item_type para TODOS os tipos ativos (usado pela via CBHPM).
+    const itemTypeByCode: Record<string, { id: string; code: string }> = {};
+
 
     for (const it of itemTypes) {
       const codes = new Set<string>();
@@ -124,6 +127,8 @@ Deno.serve(async (req) => {
       if (["procedimento", "cirurgia", "sadt"].includes(it.code)) {
         dynamicByCode[it.code] = { id: it.id, code: it.code };
       }
+      itemTypeByCode[it.code] = { id: it.id, code: it.code };
+
     }
 
     // Tipos visita/parecer ativos — usados pelas travas direta/reversa.
@@ -178,6 +183,7 @@ Deno.serve(async (req) => {
     let totalScanned = 0;
     let autoTuss = 0;
     let autoHeuristic = 0;
+    let autoCbhpm = 0;
     let autoDefault = 0;
     let ambiguousTuss = 0;
     let forcedVisitParecer = 0; // trava direta (TUSS 10102019 & cia)
@@ -212,6 +218,52 @@ Deno.serve(async (req) => {
       if (items.length < pageSize) break;
     }
     totalScanned = allItems.length;
+
+    // 2b. Classificação funcional CBHPM 2018 (tuss_procedure_names.categoria_funcional).
+    //     Substitui a heurística grosseira por prefixo TUSS, que passa a ser
+    //     usada apenas como último recurso.
+    const CBHPM_TO_ITEM_TYPE_CODE: Record<string, string> = {
+      cirurgia: "cirurgia",
+      exame_imagem: "sadt",
+      exame_laboratorial: "sadt",
+      procedimento_clinico: "procedimento",
+      consulta: "consulta",
+      visita: "visita",
+    };
+    const cbhpmByTuss = new Map<string, string>(); // code → categoria_funcional
+    const distinctCodes = Array.from(
+      new Set(
+        allItems
+          .map((i) => String(i.procedure_code ?? "").trim())
+          .filter((c) => !!c),
+      ),
+    );
+    for (let i = 0; i < distinctCodes.length; i += 400) {
+      const chunk = distinctCodes.slice(i, i + 400);
+      const { data: tussRows, error: tussErr } = await supabase
+        .from("tuss_procedure_names")
+        .select("code, categoria_funcional")
+        .in("code", chunk);
+      if (tussErr) {
+        console.error("[auto-classify] falha ao carregar categoria_funcional", tussErr);
+        break;
+      }
+      for (const r of (tussRows ?? []) as Array<{ code: string; categoria_funcional: string | null }>) {
+        if (r.categoria_funcional) cbhpmByTuss.set(String(r.code).trim(), r.categoria_funcional);
+      }
+    }
+
+    // Resolve item_type pela categoria funcional CBHPM. Retorna null quando o
+    // código não tem categoria, ou quando a categoria é "outros" (cai no fallback).
+    const classifyByCbhpm = (code: string): { id: string; code: string } | null => {
+      const cat = cbhpmByTuss.get(code);
+      if (!cat) return null;
+      const targetCode = CBHPM_TO_ITEM_TYPE_CODE[cat];
+      if (!targetCode) return null; // "outros" e desconhecidos → fallback dinâmico
+      return itemTypeByCode[targetCode] ?? null;
+    };
+
+
 
     // Predominância do lote entre visita×parecer, considerando SOMENTE itens
     // cujo tipo atual já é inequívoco (não veio como ambíguo) e cujo TUSS não
@@ -258,6 +310,7 @@ Deno.serve(async (req) => {
       let nextSource:
         | "auto_tuss"
         | "auto_heuristic"
+        | "auto_cbhpm"
         | "auto_default"
         | "ambiguous_tuss"
         | null = null;
@@ -286,9 +339,19 @@ Deno.serve(async (req) => {
         code &&
         !VISIT_PARECER_TUSS.has(code)
       ) {
-        const byPrefix = classifyByTussPrefix(code);
-        nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
-        nextSource = "auto_heuristic";
+        // CBHPM primeiro; prefixo TUSS só como último recurso. Categorias
+        // visita/consulta são ignoradas aqui para não anular a trava reversa.
+        const byCbhpm = classifyByCbhpm(code);
+        const cbhpmOk =
+          byCbhpm && byCbhpm.code !== "visita" && !byCbhpm.code.startsWith("parecer");
+        if (cbhpmOk) {
+          nextItemTypeId = byCbhpm!.id;
+          nextSource = "auto_cbhpm";
+        } else {
+          const byPrefix = classifyByTussPrefix(code);
+          nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
+          nextSource = "auto_heuristic";
+        }
         forcedNonVisitParecer++;
       }
       // Regras originais.
@@ -301,10 +364,14 @@ Deno.serve(async (req) => {
           nextItemTypeId = null;
           nextSource = "ambiguous_tuss";
         }
+      } else if (code && classifyByCbhpm(code)) {
+        nextItemTypeId = classifyByCbhpm(code)!.id;
+        nextSource = "auto_cbhpm";
       } else if (code && (classifyByTussPrefix(code) || dynamicFallbackItemTypeId)) {
         const byPrefix = classifyByTussPrefix(code);
         nextItemTypeId = byPrefix?.id ?? dynamicFallbackItemTypeId;
         nextSource = "auto_heuristic";
+
       } else if (defaultItemTypeId) {
         nextItemTypeId = defaultItemTypeId;
         nextSource = "auto_default";
@@ -337,7 +404,7 @@ Deno.serve(async (req) => {
     for (const [key, ids] of buckets) {
       const [rawTypeId, nextSource] = key.split("::") as [
         string,
-        "auto_tuss" | "auto_heuristic" | "auto_default" | "ambiguous_tuss",
+        "auto_tuss" | "auto_heuristic" | "auto_cbhpm" | "auto_default" | "ambiguous_tuss",
       ];
       const nextItemTypeId = rawTypeId === NULL_SENTINEL ? null : rawTypeId;
       for (let i = 0; i < ids.length; i += CHUNK) {
@@ -358,13 +425,14 @@ Deno.serve(async (req) => {
         }
         if (nextSource === "auto_tuss") autoTuss += chunk.length;
         else if (nextSource === "auto_heuristic") autoHeuristic += chunk.length;
+        else if (nextSource === "auto_cbhpm") autoCbhpm += chunk.length;
         else if (nextSource === "ambiguous_tuss") ambiguousTuss += chunk.length;
         else autoDefault += chunk.length;
       }
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} forced_visita_parecer=${forcedVisitParecer} forced_non_visita_parecer=${forcedNonVisitParecer} predominance(visita=${countVisita},parecer=${countParecer}) unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_cbhpm=${autoCbhpm} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} forced_visita_parecer=${forcedVisitParecer} forced_non_visita_parecer=${forcedNonVisitParecer} predominance(visita=${countVisita},parecer=${countParecer}) unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -374,6 +442,7 @@ Deno.serve(async (req) => {
         scanned: totalScanned,
         auto_tuss: autoTuss,
         auto_heuristic: autoHeuristic,
+        auto_cbhpm: autoCbhpm,
         auto_default: autoDefault,
         ambiguous_tuss: ambiguousTuss,
         forced_visita_parecer: forcedVisitParecer,
