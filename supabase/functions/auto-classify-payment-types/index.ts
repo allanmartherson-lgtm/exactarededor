@@ -124,6 +124,8 @@ Deno.serve(async (req) => {
       if (["procedimento", "cirurgia", "sadt"].includes(it.code)) {
         dynamicByCode[it.code] = { id: it.id, code: it.code };
       }
+      itemTypeByCode[it.code] = { id: it.id, code: it.code };
+
     }
 
     // Tipos visita/parecer ativos — usados pelas travas direta/reversa.
