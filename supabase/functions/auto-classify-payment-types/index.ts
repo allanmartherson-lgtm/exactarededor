@@ -183,6 +183,7 @@ Deno.serve(async (req) => {
     let totalScanned = 0;
     let autoTuss = 0;
     let autoHeuristic = 0;
+    let autoCbhpm = 0;
     let autoDefault = 0;
     let ambiguousTuss = 0;
     let forcedVisitParecer = 0; // trava direta (TUSS 10102019 & cia)
@@ -309,6 +310,7 @@ Deno.serve(async (req) => {
       let nextSource:
         | "auto_tuss"
         | "auto_heuristic"
+        | "auto_cbhpm"
         | "auto_default"
         | "ambiguous_tuss"
         | null = null;
@@ -402,7 +404,7 @@ Deno.serve(async (req) => {
     for (const [key, ids] of buckets) {
       const [rawTypeId, nextSource] = key.split("::") as [
         string,
-        "auto_tuss" | "auto_heuristic" | "auto_default" | "ambiguous_tuss",
+        "auto_tuss" | "auto_heuristic" | "auto_cbhpm" | "auto_default" | "ambiguous_tuss",
       ];
       const nextItemTypeId = rawTypeId === NULL_SENTINEL ? null : rawTypeId;
       for (let i = 0; i < ids.length; i += CHUNK) {
@@ -423,13 +425,14 @@ Deno.serve(async (req) => {
         }
         if (nextSource === "auto_tuss") autoTuss += chunk.length;
         else if (nextSource === "auto_heuristic") autoHeuristic += chunk.length;
+        else if (nextSource === "auto_cbhpm") autoCbhpm += chunk.length;
         else if (nextSource === "ambiguous_tuss") ambiguousTuss += chunk.length;
         else autoDefault += chunk.length;
       }
     }
 
     console.log(
-      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} forced_visita_parecer=${forcedVisitParecer} forced_non_visita_parecer=${forcedNonVisitParecer} predominance(visita=${countVisita},parecer=${countParecer}) unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
+      `[auto-classify] payment=${payment_id} scanned=${totalScanned} auto_tuss=${autoTuss} auto_heuristic=${autoHeuristic} auto_cbhpm=${autoCbhpm} auto_default=${autoDefault} ambiguous_tuss=${ambiguousTuss} forced_visita_parecer=${forcedVisitParecer} forced_non_visita_parecer=${forcedNonVisitParecer} predominance(visita=${countVisita},parecer=${countParecer}) unchanged=${unchanged} default_item_type=${defaultItemTypeCode} dynamic_fallback=${dynamicFallbackItemTypeCode}`,
     );
 
     return new Response(
@@ -439,6 +442,7 @@ Deno.serve(async (req) => {
         scanned: totalScanned,
         auto_tuss: autoTuss,
         auto_heuristic: autoHeuristic,
+        auto_cbhpm: autoCbhpm,
         auto_default: autoDefault,
         ambiguous_tuss: ambiguousTuss,
         forced_visita_parecer: forcedVisitParecer,
