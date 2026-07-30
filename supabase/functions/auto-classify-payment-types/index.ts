@@ -218,6 +218,52 @@ Deno.serve(async (req) => {
     }
     totalScanned = allItems.length;
 
+    // 2b. Classificação funcional CBHPM 2018 (tuss_procedure_names.categoria_funcional).
+    //     Substitui a heurística grosseira por prefixo TUSS, que passa a ser
+    //     usada apenas como último recurso.
+    const CBHPM_TO_ITEM_TYPE_CODE: Record<string, string> = {
+      cirurgia: "cirurgia",
+      exame_imagem: "sadt",
+      exame_laboratorial: "sadt",
+      procedimento_clinico: "procedimento",
+      consulta: "consulta",
+      visita: "visita",
+    };
+    const cbhpmByTuss = new Map<string, string>(); // code → categoria_funcional
+    const distinctCodes = Array.from(
+      new Set(
+        allItems
+          .map((i) => String(i.procedure_code ?? "").trim())
+          .filter((c) => !!c),
+      ),
+    );
+    for (let i = 0; i < distinctCodes.length; i += 400) {
+      const chunk = distinctCodes.slice(i, i + 400);
+      const { data: tussRows, error: tussErr } = await supabase
+        .from("tuss_procedure_names")
+        .select("code, categoria_funcional")
+        .in("code", chunk);
+      if (tussErr) {
+        console.error("[auto-classify] falha ao carregar categoria_funcional", tussErr);
+        break;
+      }
+      for (const r of (tussRows ?? []) as Array<{ code: string; categoria_funcional: string | null }>) {
+        if (r.categoria_funcional) cbhpmByTuss.set(String(r.code).trim(), r.categoria_funcional);
+      }
+    }
+
+    // Resolve item_type pela categoria funcional CBHPM. Retorna null quando o
+    // código não tem categoria, ou quando a categoria é "outros" (cai no fallback).
+    const classifyByCbhpm = (code: string): { id: string; code: string } | null => {
+      const cat = cbhpmByTuss.get(code);
+      if (!cat) return null;
+      const targetCode = CBHPM_TO_ITEM_TYPE_CODE[cat];
+      if (!targetCode) return null; // "outros" e desconhecidos → fallback dinâmico
+      return itemTypeByCode[targetCode] ?? null;
+    };
+
+
+
     // Predominância do lote entre visita×parecer, considerando SOMENTE itens
     // cujo tipo atual já é inequívoco (não veio como ambíguo) e cujo TUSS não
     // é o ambíguo 10102019 — isto é, sinais confiáveis. Empate ou ausência de
