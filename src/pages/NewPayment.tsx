@@ -1223,6 +1223,9 @@ const NewPayment = () => {
     // template. Evita o bug histórico de uma coluna de DATA ser mapeada
     // como "nome do procedimento" e contaminar o motor de validação.
     const ptMetaForMap = paymentTypeMetaRef.current;
+    // Lote de Parecer/Visita → classificação vem do arquivo original do Tasy.
+    const isParecerFlowForMap =
+      !!ptMetaForMap?.code?.startsWith("parecer") || ptMetaForMap?.code === "visita";
     const procFixedByType =
       !!ptMetaForMap?.tuss_default || ptMetaForMap?.requires_tuss_in_sheet === false;
     const sanitizedMapping = (() => {
