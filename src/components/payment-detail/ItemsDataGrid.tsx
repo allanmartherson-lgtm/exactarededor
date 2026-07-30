@@ -2245,6 +2245,50 @@ export function ItemsDataGrid({
     return result;
   }, [items, filter, patientFilter, doctorFilter, statusFilter, typeFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, turnoFilter, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
 
+  // ---- Filtro por tipo de item (lote misto) --------------------------------
+  // Só existe quando o lote tem 2+ item_type_id distintos. Calculado no cliente,
+  // sem coluna nova no banco. Independente do parecerFilter (visita × parecer).
+  const distinctTypeIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const it of items as any[]) {
+      const id = (it as any)?.item_type_id as string | null | undefined;
+      if (id) s.add(id);
+    }
+    return Array.from(s);
+  }, [items]);
+  const [itemTypeLabels, setItemTypeLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (distinctTypeIds.length < 2) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("item_types")
+        .select("id, code, label")
+        .in("id", distinctTypeIds);
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const t of (data ?? []) as any[]) map[t.id] = t.label || t.code;
+      setItemTypeLabels(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [distinctTypeIds.join("|")]);
+  const typeTabs = useMemo(() => {
+    if (distinctTypeIds.length < 2) return [] as { id: string; label: string; count: number }[];
+    const counts = new Map<string, number>();
+    for (const it of items as any[]) {
+      const id = (it as any)?.item_type_id as string | null | undefined;
+      if (!id) continue;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return distinctTypeIds
+      .map((id) => ({ id, label: itemTypeLabels[id] ?? "Tipo", count: counts.get(id) ?? 0 }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [distinctTypeIds, items, itemTypeLabels]);
+
+
   // Bridge global do Zeev → aplica filtro pedido via chat ("me leva pros zerados", etc.).
   // Limpa os filtros anteriores e marca apenas o requerido para evitar combinações esquisitas.
   useEffect(() => {
