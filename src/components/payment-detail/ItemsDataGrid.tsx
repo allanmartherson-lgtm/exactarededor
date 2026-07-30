@@ -3768,15 +3768,11 @@ export function ItemsDataGrid({
                         <PopoverContent align="end" className="w-80 text-xs normal-case tracking-normal font-normal text-foreground">
                           <p className="font-semibold mb-2">O que cada sinal significa</p>
                           <ul className="space-y-1.5">
-                            <li><strong>P✓</strong> — Parecer confirmado (forte): cruzado no relatório Tasy por atendimento, data e médico.</li>
-                            <li><strong>P?</strong> — Parecer confirmado (fraco): cruzou por atendimento e médico, mas com data divergente.</li>
-                            <li><strong>Sem registro Tasy</strong> — Parecer sem contrapartida no relatório; o analista precisa confirmar ou reclassificar.</li>
-                            <li><strong>P×</strong> — Nenhum cruzamento encontrado (ou nenhum relatório importado).</li>
-                            <li><strong>P→V</strong> — Reclassificado: cruzou como parecer, mas foi rebaixado para Visita (já havia parecer pago no atendimento).</li>
-                            <li><strong>V</strong> (cinza, evidência) — Contato subsequente: cruzamento não se aplica.</li>
-                            <li><strong>Texto inconsistente</strong> — A descrição da linha menciona "parecer"/"visita" em desacordo com a classificação. Sinal informativo de <em>texto</em>, não de valor.</li>
-                            <li><strong>Badge V / P (classificação)</strong> — Resultado final usado no pagamento (tipo do item). É o que vale para a regra; os demais sinais são apenas evidência.</li>
+                            <li><strong>Parecer</strong> / <strong>Visita</strong> — Classificação final do item, usada pela regra de pagamento. Clique no badge para reclassificar.</li>
+                            <li>Estado normal fica em <strong>cinza neutro</strong>: nada a fazer.</li>
+                            <li><strong>Âmbar</strong> — Exceção que exige atenção (parecer não respondido, parecer duplicado ou classificação divergente).</li>
                           </ul>
+
                           <p className="mt-2 text-muted-foreground">
                             Divergência de <strong>valor</strong> continua sinalizada na coluna Status.
                           </p>
