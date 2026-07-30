@@ -1409,6 +1409,8 @@ export function ItemsDataGrid({
   const [patientFilter, setPatientFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState<string>("__all__");
   const [statusFilter, setStatusFilter] = useState<string>("__all__");
+  // Filtro por tipo de item (só aparece em lote misto — 2+ item_type_id distintos).
+  const [typeFilter, setTypeFilter] = useState<string>("__all__");
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [onlyManualBonus, setOnlyManualBonus] = useState(false);
@@ -2091,6 +2093,7 @@ export function ItemsDataGrid({
         if (parecerFilter === "missing" && evidence !== "not_found") return false;
         if (parecerFilter === "weak" && !(evidence === "confirmed" && isWeak)) return false;
       }
+      if (typeFilter !== "__all__" && (it as any).item_type_id !== typeFilter) return false;
       if (statusFilter !== "__all__") {
         // "seguido" no filtro agrupa itens acatados pelo analista e seguidos pelo validador
         const matches = statusFilter === "seguido"
@@ -2240,7 +2243,51 @@ export function ItemsDataGrid({
     }
     if (orphanBonus.length) result.push(...orphanBonus);
     return result;
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, turnoFilter, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, typeFilter, convenioFilter, onlyAlerts, onlyManualBonus, onlyNeedsReview, onlyValidationAlerts, onlyAdjusted, onlyZero, onlySemRegra, onlyPisoAplicado, turnoFilter, adjustedItemIds, isParecerPayment, parecerFilter, groupStatus, sortKey, sortDir]);
+
+  // ---- Filtro por tipo de item (lote misto) --------------------------------
+  // Só existe quando o lote tem 2+ item_type_id distintos. Calculado no cliente,
+  // sem coluna nova no banco. Independente do parecerFilter (visita × parecer).
+  const distinctTypeIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const it of items as any[]) {
+      const id = (it as any)?.item_type_id as string | null | undefined;
+      if (id) s.add(id);
+    }
+    return Array.from(s);
+  }, [items]);
+  const [itemTypeLabels, setItemTypeLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (distinctTypeIds.length < 2) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("item_types")
+        .select("id, code, label")
+        .in("id", distinctTypeIds);
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const t of (data ?? []) as any[]) map[t.id] = t.label || t.code;
+      setItemTypeLabels(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [distinctTypeIds.join("|")]);
+  const typeTabs = useMemo(() => {
+    if (distinctTypeIds.length < 2) return [] as { id: string; label: string; count: number }[];
+    const counts = new Map<string, number>();
+    for (const it of items as any[]) {
+      const id = (it as any)?.item_type_id as string | null | undefined;
+      if (!id) continue;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return distinctTypeIds
+      .map((id) => ({ id, label: itemTypeLabels[id] ?? "Tipo", count: counts.get(id) ?? 0 }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [distinctTypeIds, items, itemTypeLabels]);
+
 
   // Bridge global do Zeev → aplica filtro pedido via chat ("me leva pros zerados", etc.).
   // Limpa os filtros anteriores e marca apenas o requerido para evitar combinações esquisitas.
@@ -3288,6 +3335,34 @@ export function ItemsDataGrid({
         </div>
         );
       })()}
+
+      {/* Faixa de filtro por tipo de item — só em lote misto (2+ tipos). */}
+      {typeTabs.length >= 2 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b px-4 py-1.5 bg-muted/20">
+          <span className="text-[11px] text-muted-foreground mr-1">Tipo:</span>
+          <Button
+            size="sm"
+            variant={typeFilter === "__all__" ? "default" : "outline"}
+            className="h-7 text-[11px]"
+            onClick={() => setTypeFilter("__all__")}
+          >
+            Todos ({items.length})
+          </Button>
+          {typeTabs.map((t) => (
+            <Button
+              key={t.id}
+              size="sm"
+              variant={typeFilter === t.id ? "default" : "outline"}
+              className="h-7 text-[11px]"
+              onClick={() => setTypeFilter((prev) => (prev === t.id ? "__all__" : t.id))}
+            >
+              {t.label} ({t.count})
+            </Button>
+          ))}
+        </div>
+      )}
+
+
 
 
 
