@@ -1287,7 +1287,8 @@ type OptionalColKey =
   | "diferenca"
   | "observacao"
   | "tipo_entrada"
-  | "subtipo";
+  | "subtipo"
+  | "parecer_info";
 
 const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "atendimento", label: "Atendimento" },
@@ -1300,6 +1301,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "setor_inferido", label: "Setor" },
   { key: "tipo_entrada", label: "Tipo de entrada (caráter)" },
   { key: "subtipo", label: "Subtipo (Parecer/Visita)" },
+  { key: "parecer_info", label: "Parecer/Visita (evidência)" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -1316,6 +1318,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   setor_inferido: true,
   tipo_entrada: false,
   subtipo: false,
+  parecer_info: true,
   regra: false,
   diferenca: false,
   observacao: false,
@@ -1912,6 +1915,10 @@ export function ItemsDataGrid({
   // Em confecção, "Diferença" não faz sentido (gross e expected coincidem por
   // construção). Forçamos invisível independentemente da preferência salva.
   const showDiferencaCol = colVis.diferenca && !isConfeccao;
+  // Coluna consolidada de sinais de Parecer × Visita (evidência Tasy,
+  // descrição inconsistente e classificação final). Só existe em lotes
+  // de Parecer/Visita ou mistos.
+  const showParecerInfoCol = colVis.parecer_info && isParecerPayment;
 
 
 
@@ -2612,6 +2619,7 @@ export function ItemsDataGrid({
     getWidth("esperado", expectedColWidth) +
     (showDiferencaCol ? getWidth("diferenca", 110) : 0) +
     statusColumnWidth +
+    (showParecerInfoCol ? getWidth("parecer_info", 170) : 0) +
     (colVis.observacao ? getWidth("observacao", 70) : 0) +
     (canEdit ? actionColumnWidth : 0);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
@@ -3518,6 +3526,7 @@ export function ItemsDataGrid({
               <col style={colStyle("esperado", expectedColWidth)} />
               {showDiferencaCol && <col style={colStyle("diferenca", 110)} />}
               <col style={{ width: statusColumnWidth }} />
+              {showParecerInfoCol && <col style={colStyle("parecer_info", 170)} />}
               {colVis.observacao && <col style={colStyle("observacao", 70)} />}
               {canEdit && <col style={{ width: actionColumnWidth }} />}
             </colgroup>
@@ -3786,6 +3795,42 @@ export function ItemsDataGrid({
                   </button>
                   <ResizeHandle colKey="status" defaultWidth={132} />
                 </th>
+                {showParecerInfoCol && (
+                  <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}>
+                    <span className={TABLE_HEAD_TEXT}>
+                      Parecer/Visita
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center justify-center rounded-full hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70"
+                            aria-label="Legenda dos sinais de Parecer/Visita"
+                          >
+                            <HelpCircle className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-80 text-xs normal-case tracking-normal font-normal text-foreground">
+                          <p className="font-semibold mb-2">O que cada sinal significa</p>
+                          <ul className="space-y-1.5">
+                            <li><strong>P✓</strong> — Parecer confirmado (forte): cruzado no relatório Tasy por atendimento, data e médico.</li>
+                            <li><strong>P?</strong> — Parecer confirmado (fraco): cruzou por atendimento e médico, mas com data divergente.</li>
+                            <li><strong>Sem registro Tasy</strong> — Parecer sem contrapartida no relatório; o analista precisa confirmar ou reclassificar.</li>
+                            <li><strong>P×</strong> — Nenhum cruzamento encontrado (ou nenhum relatório importado).</li>
+                            <li><strong>P→V</strong> — Reclassificado: cruzou como parecer, mas foi rebaixado para Visita (já havia parecer pago no atendimento).</li>
+                            <li><strong>V</strong> (cinza, evidência) — Contato subsequente: cruzamento não se aplica.</li>
+                            <li><strong>Texto inconsistente</strong> — A descrição da linha menciona "parecer"/"visita" em desacordo com a classificação. Sinal informativo de <em>texto</em>, não de valor.</li>
+                            <li><strong>Badge V / P (classificação)</strong> — Resultado final usado no pagamento (tipo do item). É o que vale para a regra; os demais sinais são apenas evidência.</li>
+                          </ul>
+                          <p className="mt-2 text-muted-foreground">
+                            Divergência de <strong>valor</strong> continua sinalizada na coluna Status.
+                          </p>
+                        </PopoverContent>
+                      </Popover>
+                    </span>
+                    <ResizeHandle colKey="parecer_info" defaultWidth={170} />
+                  </th>
+                )}
                 {colVis.observacao && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Obs.</span><ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
                 {canEdit && <th scope="col" className={cn(headPad, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-[80] shadow-[-1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}><span className={TABLE_HEAD_TEXT_CENTER}>Ações</span></th>}
               </tr>
@@ -3833,6 +3878,7 @@ export function ItemsDataGrid({
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (showDiferencaCol ? 1 : 0) +
+                  (showParecerInfoCol ? 1 : 0) +
                   (colVis.observacao ? 1 : 0) +
                   (canEdit ? 1 : 0);
                 const isExpanded = expandedId === it.id;
@@ -4145,7 +4191,7 @@ export function ItemsDataGrid({
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
-              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
+              const trailingCols = 1 /* status */ + (showParecerInfoCol ? 1 : 0) + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
               const footPad = isCompact ? "px-1.5 py-3" : "px-2 py-4";
               // Footer CURA — fundo primary reforçado, valores em bold destacado.
               return (
@@ -5048,31 +5094,9 @@ function RowMain({
                   MAN
                 </span>
               )}
-              {isParecerPayment && <ParecerEvidenceBadge item={it} />}
-              {isParecerPayment && (() => {
-                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
-                if (!div) return null;
-                return (
-                  <span
-                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
-                    title={`${div} Verifique se a classificação está correta.`}
-                  >
-                    <AlertTriangle className="h-2.5 w-2.5" />
-                    Divergência
-                  </span>
-                );
-              })()}
-              {isParecerPayment && (
-                <CaseSubtypeBadge
-                  item={it}
-                  allItems={allItems}
-                  lotePaymentTypeId={lotePaymentTypeId}
-                  visitaPaymentTypeId={visitaPaymentTypeId}
-                  parecerPaymentTypeId={parecerPaymentTypeId}
-                  canEdit={canEdit}
-                  onChange={onChangeCaseSubtype}
-                />
-              )}
+              {/* Sinais de Parecer × Visita foram consolidados na coluna
+                  "Parecer/Visita" (entre Status e Ações) para não espremer
+                  o número do atendimento. */}
             </div>
           </td>
         )}
@@ -5435,6 +5459,35 @@ function RowMain({
           </div>
           )}
         </td>
+        {colVis.parecer_info && isParecerPayment && (
+          <td className={cn(cellPad, "border-b align-middle", baseCellBg)}>
+            <div className="flex items-center gap-1 flex-wrap">
+              <ParecerEvidenceBadge item={it} />
+              {(() => {
+                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
+                if (!div) return null;
+                return (
+                  <span
+                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
+                    title={`${div} Sinal informativo de texto — não indica divergência de valor. Verifique se a classificação está correta.`}
+                  >
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Texto inconsistente
+                  </span>
+                );
+              })()}
+              <CaseSubtypeBadge
+                item={it}
+                allItems={allItems}
+                lotePaymentTypeId={lotePaymentTypeId}
+                visitaPaymentTypeId={visitaPaymentTypeId}
+                parecerPaymentTypeId={parecerPaymentTypeId}
+                canEdit={canEdit}
+                onChange={onChangeCaseSubtype}
+              />
+            </div>
+          </td>
+        )}
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
             {obsCount > 0 ? obsCount : "—"}
