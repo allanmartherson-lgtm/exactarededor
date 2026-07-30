@@ -960,7 +960,8 @@ const TABLE_HEAD_SORT_BUTTON = "inline-flex items-center gap-1 rounded !text-[11
 
 /**
  * Estados de EXCEÇÃO da coluna Parecer/Visita.
- * Reservados para uso futuro (detecção ainda NÃO implementada):
+ * Detecção de "nao_respondido" e "duplicado" vem do cruzamento
+ * (payment_items.parecer_alert) — sinalização apenas, não altera valor:
  *  - "nao_respondido"  → parecer não respondido
  *  - "duplicado"       → parecer duplicado no mesmo atendimento
  *  - "classif_divergente" → classificação divergente
@@ -968,14 +969,31 @@ const TABLE_HEAD_SORT_BUTTON = "inline-flex items-center gap-1 rounded !text-[11
  */
 export type ParecerException = "nao_respondido" | "duplicado" | "classif_divergente";
 
-const PARECER_EXCEPTION_META: Record<ParecerException, { label: string; title: string }> = {
-  nao_respondido: { label: "Não respondido", title: "Parecer sem resposta registrada" },
-  duplicado: { label: "Duplicado", title: "Parecer duplicado no mesmo atendimento" },
-  classif_divergente: { label: "Classificação divergente", title: "Classificação divergente entre as fontes" },
+const PARECER_EXCEPTION_META: Record<ParecerException, { label: string; title: string; tone: string }> = {
+  nao_respondido: {
+    label: "Não respondido",
+    title:
+      "O relatório do Tasy registra este parecer como solicitado e não respondido (sem médico parecerista)",
+    tone: "bg-red-50 text-red-700 border-red-300 dark:bg-red-950/30 dark:text-red-200 dark:border-red-800",
+  },
+  duplicado: {
+    label: "Duplicado",
+    title: "Este nº de parecer já foi pago em outro item (neste lote ou em lote anterior)",
+    tone: "bg-red-50 text-red-700 border-red-300 dark:bg-red-950/30 dark:text-red-200 dark:border-red-800",
+  },
+  classif_divergente: {
+    label: "Classificação divergente",
+    title: "Classificação divergente entre as fontes",
+    tone: "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800",
+  },
 };
 
-const PARECER_EXCEPTION_TONE =
-  "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800";
+/** Lê o alerta persistido pelo cruzamento (não altera classificação nem valor). */
+function parecerAlertOf(item: any): ParecerException | null {
+  const v = (item?.parecer_alert ?? null) as string | null;
+  if (v === "nao_respondido" || v === "duplicado") return v;
+  return null;
+}
 
 
 /** Detecta divergência semântica entre a descrição da linha e a classificação
@@ -1140,9 +1158,7 @@ function CaseSubtypeBadge({
   const typeLabel = isVisita ? "Visita" : "Parecer";
   // Estado normal = neutro e silencioso. Só exceções recebem cor de alerta.
   const label = exMeta ? `${typeLabel} · ${exMeta.label}` : typeLabel;
-  const tone = exMeta
-    ? PARECER_EXCEPTION_TONE
-    : "bg-muted text-muted-foreground border-border";
+  const tone = exMeta ? exMeta.tone : "bg-muted text-muted-foreground border-border";
   const sourceLabel: Record<string, string> = {
     base: "lido da planilha",
     auto_tuss: "TUSS cadastrado",
@@ -5179,6 +5195,7 @@ function RowMain({
               parecerPaymentTypeId={parecerPaymentTypeId}
               canEdit={canEdit}
               onChange={onChangeCaseSubtype}
+              exception={parecerAlertOf(it)}
             />
           </td>
         )}
@@ -5424,6 +5441,7 @@ function RowMain({
                 parecerPaymentTypeId={parecerPaymentTypeId}
                 canEdit={canEdit}
                 onChange={onChangeCaseSubtype}
+                exception={parecerAlertOf(it)}
               />
             </div>
 
@@ -5818,6 +5836,7 @@ function ItemDetailsRow({
                 hidden={isParecerPayment}
                 canEdit={canEdit}
                 onChange={onChangeCaseSubtype}
+                exception={parecerAlertOf(it)}
               />
 
 

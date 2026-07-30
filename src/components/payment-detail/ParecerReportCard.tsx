@@ -79,29 +79,39 @@ function inferDateOrder(values: any[]): "dmy" | "mdy" {
   return "dmy";
 }
 
+/**
+ * Parser de data do relatório de parecer — SEMPRE data pura, hora zerada.
+ *
+ * Por quê: a hora nasce corrompida no próprio arquivo do Tasy (a máscara do
+ * relatório usa o MÊS na posição do minuto e a hora só varia de 1 a 12, sem
+ * AM/PM). Não há como recuperar a hora real em código, e hora errada é pior
+ * que hora ausente porque faz a data virar o dia. A única informação temporal
+ * confiável do relatório é a coluna "Tempo resposta", capturada à parte.
+ */
 function parseExcelDate(v: any, order: "dmy" | "mdy" = "dmy"): string | null {
   if (v == null || v === "") return null;
-  if (v instanceof Date) return v.toISOString();
+  const isoDay = (y: number, mo1: number, d: number) => {
+    const dt = new Date(Date.UTC(y, mo1 - 1, d, 0, 0, 0));
+    return isNaN(+dt) ? null : dt.toISOString();
+  };
+  if (v instanceof Date) return isoDay(v.getFullYear(), v.getMonth() + 1, v.getDate());
   if (typeof v === "number") {
     const epoch = new Date(Date.UTC(1899, 11, 30));
-    return new Date(epoch.getTime() + v * 86400 * 1000).toISOString();
+    const dt = new Date(epoch.getTime() + Math.floor(v) * 86400 * 1000);
+    return isNaN(+dt) ? null : isoDay(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
   }
   const s = String(v).trim();
-  const m = s.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
-  );
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (m) {
-    const [, p1, p2, y, h = "0", mi = "0", se = "0"] = m;
+    const [, p1, p2, y] = m;
     const d = order === "mdy" ? p2 : p1;
     const mo = order === "mdy" ? p1 : p2;
     const year = y.length === 2 ? 2000 + Number(y) : Number(y);
-    const dt = new Date(
-      Date.UTC(year, Number(mo) - 1, Number(d), Number(h), Number(mi), Number(se)),
-    );
-    return isNaN(+dt) ? null : dt.toISOString();
+    return isoDay(year, Number(mo), Number(d));
   }
   const dt = new Date(s);
-  return isNaN(+dt) ? null : dt.toISOString();
+  if (isNaN(+dt)) return null;
+  return isoDay(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -285,6 +295,20 @@ export function ParecerReportCard({
             dateOrder,
           ),
           situacao: valueFromMapping(rec, mapping, "situacao"),
+          // Nº do parecer: identificador único no Tasy (detecção de duplicidade).
+          nr_parecer: (() => {
+            const v = valueFromMapping(rec, mapping, "nr_parecer");
+            const s = v == null ? "" : String(v).trim();
+            return s || null;
+          })(),
+          // Tempo de resposta: única informação temporal confiável do relatório.
+          tempo_resposta: (() => {
+            const v = valueFromMapping(rec, mapping, "tempo_resposta");
+            const s = v == null ? "" : String(v).trim();
+            return s || null;
+          })(),
+          // Hora do relatório é corrompida na origem — gravamos só a data.
+          hora_confiavel: false,
           raw: rec,
         };
       });

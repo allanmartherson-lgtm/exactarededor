@@ -140,6 +140,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const visitaPaymentTypeId = (visitaType as any)?.id ?? null;
 
+    // Item é PARECER quando seu tipo efetivo não é Visita. A classificação vem
+    // do arquivo/decisão manual — aqui apenas lemos, nunca alteramos.
+    const isParecerItem = (it: any) => {
+      const effective = it.item_type_id ?? lotePaymentTypeId;
+      if (!effective) return false;
+      if (visitaPaymentTypeId && effective === visitaPaymentTypeId) return false;
+      return true;
+    };
+
     // Conjunto de TUSS ambíguos (parecer/visita/consulta) e ids de tipos
     // ambíguos para o filtro do lookback histórico.
     const { data: ambTypes } = await supabase
@@ -191,7 +200,7 @@ Deno.serve(async (req) => {
         const { data: page, error } = await supabase
           .from("payment_parecer_report_rows")
           .select(
-            "id, report_id, atendimento, medico_resposta, medico_resposta_crm, dt_solic_parecer, dt_resposta_parecer, situacao",
+            "id, report_id, atendimento, medico_resposta, medico_resposta_crm, dt_solic_parecer, dt_resposta_parecer, situacao, nr_parecer, tempo_resposta, espec_destino",
           )
           .in("report_id", ids)
           .range(from, from + pageSize - 1);
@@ -327,8 +336,26 @@ Deno.serve(async (req) => {
       evidence: EvidenceValue;
       weak: boolean;
       reportRowId: string | null;
+      /** Nº do parecer no Tasy vinculado ao item (quando identificado). */
+      nrParecer: string | null;
+      /** Linha correspondente é um parecer solicitado e não respondido. */
+      unanswered: boolean;
     };
     const decisionById = new Map<string, Decision>();
+
+    // ==== Índice de pareceres SOLICITADOS E NÃO RESPONDIDOS ====
+    // Linha sem médico parecerista = parecer solicitado que nunca foi
+    // respondido. Se um item pago casar com uma dessas linhas, ele recebe
+    // o alerta "parecer não respondido" (apenas sinalização).
+    const unansweredByAttend = new Map<string, any[]>();
+    for (const r of allRows) {
+      const att = onlyDigits(r.atendimento);
+      if (!att) continue;
+      if (norm(r.medico_resposta)) continue;
+      const list = unansweredByAttend.get(att) ?? [];
+      list.push(r);
+      unansweredByAttend.set(att, list);
+    }
 
     for (const it of candidates) {
       const att = onlyDigits(it.attendance_number);
@@ -349,11 +376,68 @@ Deno.serve(async (req) => {
         if (hit) weakFromValidation = true;
       }
 
+      // Alerta 1 — parecer não respondido: item classificado como parecer que
+      // corresponde a uma linha do relatório sem médico parecerista.
+      let unansweredRow: any = null;
+      if (!hit && att && isParecerItem(it)) {
+        const list = unansweredByAttend.get(att) ?? [];
+        unansweredRow =
+          list.find((r) => {
+            const specR = norm(r.espec_destino);
+            const specI = norm(it.specialty);
+            return !specR || !specI || specR === specI;
+          }) ?? null;
+      }
+
       decisionById.set(it.id, {
         evidence: hit ? "confirmed" : "not_found",
         weak: hit ? weakFromValidation : false,
         reportRowId: hit?.id ?? null,
+        nrParecer: (hit?.nr_parecer ?? unansweredRow?.nr_parecer ?? null) || null,
+        unanswered: !!unansweredRow,
       });
+    }
+
+    // ==== Alerta 2 — parecer duplicado ====
+    // Mesmo Nr parecer já pago em outro item (neste lote ou em lote anterior).
+    const duplicatedNrs = new Set<string>();
+    {
+      const nrs = Array.from(
+        new Set(
+          Array.from(decisionById.values())
+            .map((d) => d.nrParecer)
+            .filter((v): v is string => !!v),
+        ),
+      );
+      // Contagem dentro do próprio lote
+      const localCount = new Map<string, number>();
+      for (const [, d] of decisionById) {
+        if (!d.nrParecer) continue;
+        localCount.set(d.nrParecer, (localCount.get(d.nrParecer) ?? 0) + 1);
+      }
+      for (const [nr, c] of localCount) if (c > 1) duplicatedNrs.add(nr);
+
+      // Ocorrências em outros lotes (histórico)
+      const CHUNK_NR = 200;
+      for (let i = 0; i < nrs.length; i += CHUNK_NR) {
+        const slice = nrs.slice(i, i + CHUNK_NR);
+        const { data: prev, error: prevErr } = await supabase
+          .from("payment_items")
+          .select("id, payment_id, parecer_nr")
+          .in("parecer_nr", slice)
+          .neq("payment_id", payment_id)
+          .eq("is_cancelled", false);
+        if (prevErr) {
+          console.warn("[cross-reference-parecer] dup lookup fail", prevErr.message);
+          break;
+        }
+        for (const r of (prev ?? []) as any[]) {
+          if (r.parecer_nr) duplicatedNrs.add(String(r.parecer_nr));
+        }
+      }
+      console.log(
+        `[cross-reference-parecer] nrs=${nrs.length} duplicated_nrs=${duplicatedNrs.size}`,
+      );
     }
 
 
@@ -364,6 +448,8 @@ Deno.serve(async (req) => {
     let parecerNotFound = 0;
     const visitas = 0; // reclassificação removida (PASSO 3)
     let protectedKept = 0;
+    let alertNaoRespondido = 0;
+    let alertDuplicado = 0;
 
     type Group = { patch: Record<string, any>; ids: string[] };
     const groups = new Map<string, Group>();
@@ -387,11 +473,24 @@ Deno.serve(async (req) => {
       // Somente EVIDÊNCIA. Nunca item_type_id / item_type_source:
       // a classificação Parecer × Visita é do arquivo importado (base_tipo)
       // ou da decisão manual do analista.
+      // Alertas são apenas sinalização: nunca alteram classificação nem valor.
+      let alert: string | null = null;
+      if (isParecerItem(it)) {
+        if (decision.unanswered) alert = "nao_respondido";
+        else if (decision.nrParecer && duplicatedNrs.has(decision.nrParecer)) {
+          alert = "duplicado";
+        }
+      }
+      if (alert === "nao_respondido") alertNaoRespondido++;
+      if (alert === "duplicado") alertDuplicado++;
+
       enqueue(it.id, {
         parecer_evidence: decision.evidence,
         parecer_evidence_weak: decision.weak,
         parecer_checked_at: now,
         parecer_report_row_id: decision.reportRowId,
+        parecer_nr: decision.nrParecer,
+        parecer_alert: alert,
       });
     }
 
@@ -426,6 +525,8 @@ Deno.serve(async (req) => {
       skipped_no_key: skippedNoKey.length,
       skipped_no_key_sample_ids: skippedNoKey.slice(0, 20),
       protected_kept: protectedKept,
+      alert_nao_respondido: alertNaoRespondido,
+      alert_duplicado: alertDuplicado,
     };
     try {
       const { error: sumErr } = await supabase

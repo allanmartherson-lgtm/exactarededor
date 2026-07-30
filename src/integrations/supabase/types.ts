@@ -5716,11 +5716,13 @@ export type Database = {
           package_absorbed_calc_id: string | null
           package_absorbed_note: string | null
           package_ambiguity: Json | null
+          parecer_alert: string | null
           parecer_checked_at: string | null
           parecer_espec_origem: string | null
           parecer_evidence: string | null
           parecer_evidence_weak: boolean
           parecer_medico_solicitante: string | null
+          parecer_nr: string | null
           parecer_report_row_id: string | null
           patient_name: string | null
           payment_id: string
@@ -5859,11 +5861,13 @@ export type Database = {
           package_absorbed_calc_id?: string | null
           package_absorbed_note?: string | null
           package_ambiguity?: Json | null
+          parecer_alert?: string | null
           parecer_checked_at?: string | null
           parecer_espec_origem?: string | null
           parecer_evidence?: string | null
           parecer_evidence_weak?: boolean
           parecer_medico_solicitante?: string | null
+          parecer_nr?: string | null
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id: string
@@ -6002,11 +6006,13 @@ export type Database = {
           package_absorbed_calc_id?: string | null
           package_absorbed_note?: string | null
           package_ambiguity?: Json | null
+          parecer_alert?: string | null
           parecer_checked_at?: string | null
           parecer_espec_origem?: string | null
           parecer_evidence?: string | null
           parecer_evidence_weak?: boolean
           parecer_medico_solicitante?: string | null
+          parecer_nr?: string | null
           parecer_report_row_id?: string | null
           patient_name?: string | null
           payment_id?: string
@@ -6383,14 +6389,17 @@ export type Database = {
           dt_solic_parecer: string | null
           espec_destino: string | null
           espec_origem: string | null
+          hora_confiavel: boolean
           id: string
           medico_resposta: string | null
           medico_resposta_crm: string | null
           medico_solicitante: string | null
+          nr_parecer: string | null
           paciente: string | null
           raw: Json | null
           report_id: string
           situacao: string | null
+          tempo_resposta: string | null
         }
         Insert: {
           atendimento?: string | null
@@ -6399,14 +6408,17 @@ export type Database = {
           dt_solic_parecer?: string | null
           espec_destino?: string | null
           espec_origem?: string | null
+          hora_confiavel?: boolean
           id?: string
           medico_resposta?: string | null
           medico_resposta_crm?: string | null
           medico_solicitante?: string | null
+          nr_parecer?: string | null
           paciente?: string | null
           raw?: Json | null
           report_id: string
           situacao?: string | null
+          tempo_resposta?: string | null
         }
         Update: {
           atendimento?: string | null
@@ -6415,14 +6427,17 @@ export type Database = {
           dt_solic_parecer?: string | null
           espec_destino?: string | null
           espec_origem?: string | null
+          hora_confiavel?: boolean
           id?: string
           medico_resposta?: string | null
           medico_resposta_crm?: string | null
           medico_solicitante?: string | null
+          nr_parecer?: string | null
           paciente?: string | null
           raw?: Json | null
           report_id?: string
           situacao?: string | null
+          tempo_resposta?: string | null
         }
         Relationships: [
           {
