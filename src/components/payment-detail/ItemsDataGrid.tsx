@@ -1111,6 +1111,7 @@ function CaseSubtypeBadge({
   parecerPaymentTypeId,
   onChange,
   canEdit,
+  exception = null,
 }: {
   item: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -1123,6 +1124,8 @@ function CaseSubtypeBadge({
     newTypeLabel: "Visita" | "Parecer",
   ) => void;
   canEdit: boolean;
+  /** Exceção a destacar (detecção ainda não implementada). */
+  exception?: ParecerException | null;
 }) {
   const itemTypeId = ((item as any).item_type_id ?? null) as string | null;
   const source = ((item as any).item_type_source ?? null) as string | null;
@@ -1133,10 +1136,13 @@ function CaseSubtypeBadge({
   // Só mostra badge para itens de Parecer/Visita (não polui outros tipos)
   if (!isVisita && !isParecer) return null;
 
-  const label = isVisita ? "V" : "P";
-  const tone = isVisita
-    ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800"
-    : "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-800";
+  const exMeta = exception ? PARECER_EXCEPTION_META[exception] : null;
+  const typeLabel = isVisita ? "Visita" : "Parecer";
+  // Estado normal = neutro e silencioso. Só exceções recebem cor de alerta.
+  const label = exMeta ? `${typeLabel} · ${exMeta.label}` : typeLabel;
+  const tone = exMeta
+    ? PARECER_EXCEPTION_TONE
+    : "bg-muted text-muted-foreground border-border";
   const sourceLabel: Record<string, string> = {
     base: "lido da planilha",
     auto_tuss: "TUSS cadastrado",
@@ -1148,7 +1154,8 @@ function CaseSubtypeBadge({
     inherit: "herdado do lote",
   };
   const sourceText = source ? sourceLabel[source] ?? source : "herdado do lote";
-  const title = `${isVisita ? "Visita" : "Parecer"} — origem: ${sourceText}. Clique para alterar.`;
+  const title = `${exMeta ? `${exMeta.title}. ` : ""}${typeLabel} — origem: ${sourceText}. Clique para alterar.`;
+
 
   if (!canEdit || !onChange || !visitaPaymentTypeId || !parecerPaymentTypeId) {
     return (
