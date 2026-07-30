@@ -958,77 +958,25 @@ const TABLE_HEAD_TEXT_RIGHT = "inline-flex items-center justify-end gap-1 ml-aut
 const TABLE_HEAD_TEXT_CENTER = "inline-flex items-center justify-center gap-1 w-full text-[11px] leading-tight uppercase tracking-wide font-semibold text-primary-foreground";
 const TABLE_HEAD_SORT_BUTTON = "inline-flex items-center gap-1 rounded !text-[11px] !leading-tight uppercase !tracking-wide !font-semibold !text-primary-foreground hover:!text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70";
 
-function ParecerEvidenceBadge({ item }: { item: PaymentItemRowData }) {
-  const evidence = ((item as any).parecer_evidence ?? null) as string | null;
-  const isWeak = (item as any).parecer_evidence_weak === true;
-  const wasReclassified = (item as any).reclassified_from_parecer === true;
-  if (!evidence) return null;
-  if (evidence === "confirmed") {
-    if (wasReclassified) {
-      return (
-        <span
-          className={cn(
-            "inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border",
-            "bg-slate-50 text-slate-700 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700",
-          )}
-          title="Parecer cruzado no relatório, MAS rebaixado para Visita (já existe parecer anterior pago neste atendimento). Pagamento segue a regra de Visita."
-        >
-          <FileText className="h-2.5 w-2.5" />
-          P→V
-        </span>
-      );
-    }
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border",
-          isWeak
-            ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
-            : "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-200 dark:border-emerald-800",
-        )}
-        title={
-          isWeak
-            ? "Parecer cruzado por atendimento e médico, mas com confirmação fraca/divergente"
-            : "Parecer cruzado por atendimento, data e médico"
-        }
-      >
-        <FileText className="h-2.5 w-2.5" />
-        {isWeak ? "P?" : "P✓"}
-      </span>
-    );
-  }
-  if (evidence === "unverified") {
-    return (
-      <span
-        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800"
-        title="Parecer sem registro no relatório do Tasy — analista precisa confirmar ou reclassificar como Visita"
-      >
-        <AlertTriangle className="h-2.5 w-2.5" />
-        Sem registro Tasy
-      </span>
-    );
-  }
-  if (evidence === "not_applicable") {
-    return (
-      <span
-        className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
-        title="Contato subsequente — classificado como visita"
-      >
-        <FileText className="h-2.5 w-2.5" />
-        V
-      </span>
-    );
-  }
-  return (
-    <span
-      className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] bg-muted text-muted-foreground border border-border"
-      title={evidence === "no_report" ? "Nenhum relatório de parecer importado" : "Sem parecer cruzado para atendimento/data/médico"}
-    >
-      <FileText className="h-2.5 w-2.5" />
-      P×
-    </span>
-  );
-}
+/**
+ * Estados de EXCEÇÃO da coluna Parecer/Visita.
+ * Reservados para uso futuro (detecção ainda NÃO implementada):
+ *  - "nao_respondido"  → parecer não respondido
+ *  - "duplicado"       → parecer duplicado no mesmo atendimento
+ *  - "classif_divergente" → classificação divergente
+ * Quando informado, o badge assume cor de alerta e exibe o rótulo abaixo.
+ */
+export type ParecerException = "nao_respondido" | "duplicado" | "classif_divergente";
+
+const PARECER_EXCEPTION_META: Record<ParecerException, { label: string; title: string }> = {
+  nao_respondido: { label: "Não respondido", title: "Parecer sem resposta registrada" },
+  duplicado: { label: "Duplicado", title: "Parecer duplicado no mesmo atendimento" },
+  classif_divergente: { label: "Classificação divergente", title: "Classificação divergente entre as fontes" },
+};
+
+const PARECER_EXCEPTION_TONE =
+  "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800";
+
 
 /** Detecta divergência semântica entre a descrição da linha e a classificação
  *  atual: quando o texto contém "parecer" mas o item foi tratado como Visita
@@ -1163,6 +1111,7 @@ function CaseSubtypeBadge({
   parecerPaymentTypeId,
   onChange,
   canEdit,
+  exception = null,
 }: {
   item: PaymentItemRowData;
   allItems: PaymentItemRowData[];
@@ -1175,6 +1124,8 @@ function CaseSubtypeBadge({
     newTypeLabel: "Visita" | "Parecer",
   ) => void;
   canEdit: boolean;
+  /** Exceção a destacar (detecção ainda não implementada). */
+  exception?: ParecerException | null;
 }) {
   const itemTypeId = ((item as any).item_type_id ?? null) as string | null;
   const source = ((item as any).item_type_source ?? null) as string | null;
@@ -1185,10 +1136,13 @@ function CaseSubtypeBadge({
   // Só mostra badge para itens de Parecer/Visita (não polui outros tipos)
   if (!isVisita && !isParecer) return null;
 
-  const label = isVisita ? "V" : "P";
-  const tone = isVisita
-    ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800"
-    : "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-800";
+  const exMeta = exception ? PARECER_EXCEPTION_META[exception] : null;
+  const typeLabel = isVisita ? "Visita" : "Parecer";
+  // Estado normal = neutro e silencioso. Só exceções recebem cor de alerta.
+  const label = exMeta ? `${typeLabel} · ${exMeta.label}` : typeLabel;
+  const tone = exMeta
+    ? PARECER_EXCEPTION_TONE
+    : "bg-muted text-muted-foreground border-border";
   const sourceLabel: Record<string, string> = {
     base: "lido da planilha",
     auto_tuss: "TUSS cadastrado",
@@ -1200,7 +1154,8 @@ function CaseSubtypeBadge({
     inherit: "herdado do lote",
   };
   const sourceText = source ? sourceLabel[source] ?? source : "herdado do lote";
-  const title = `${isVisita ? "Visita" : "Parecer"} — origem: ${sourceText}. Clique para alterar.`;
+  const title = `${exMeta ? `${exMeta.title}. ` : ""}${typeLabel} — origem: ${sourceText}. Clique para alterar.`;
+
 
   if (!canEdit || !onChange || !visitaPaymentTypeId || !parecerPaymentTypeId) {
     return (
@@ -3813,15 +3768,11 @@ export function ItemsDataGrid({
                         <PopoverContent align="end" className="w-80 text-xs normal-case tracking-normal font-normal text-foreground">
                           <p className="font-semibold mb-2">O que cada sinal significa</p>
                           <ul className="space-y-1.5">
-                            <li><strong>P✓</strong> — Parecer confirmado (forte): cruzado no relatório Tasy por atendimento, data e médico.</li>
-                            <li><strong>P?</strong> — Parecer confirmado (fraco): cruzou por atendimento e médico, mas com data divergente.</li>
-                            <li><strong>Sem registro Tasy</strong> — Parecer sem contrapartida no relatório; o analista precisa confirmar ou reclassificar.</li>
-                            <li><strong>P×</strong> — Nenhum cruzamento encontrado (ou nenhum relatório importado).</li>
-                            <li><strong>P→V</strong> — Reclassificado: cruzou como parecer, mas foi rebaixado para Visita (já havia parecer pago no atendimento).</li>
-                            <li><strong>V</strong> (cinza, evidência) — Contato subsequente: cruzamento não se aplica.</li>
-                            <li><strong>Texto inconsistente</strong> — A descrição da linha menciona "parecer"/"visita" em desacordo com a classificação. Sinal informativo de <em>texto</em>, não de valor.</li>
-                            <li><strong>Badge V / P (classificação)</strong> — Resultado final usado no pagamento (tipo do item). É o que vale para a regra; os demais sinais são apenas evidência.</li>
+                            <li><strong>Parecer</strong> / <strong>Visita</strong> — Classificação final do item, usada pela regra de pagamento. Clique no badge para reclassificar.</li>
+                            <li>Estado normal fica em <strong>cinza neutro</strong>: nada a fazer.</li>
+                            <li><strong>Âmbar</strong> — Exceção que exige atenção (parecer não respondido, parecer duplicado ou classificação divergente).</li>
                           </ul>
+
                           <p className="mt-2 text-muted-foreground">
                             Divergência de <strong>valor</strong> continua sinalizada na coluna Status.
                           </p>
@@ -5462,20 +5413,9 @@ function RowMain({
         {colVis.parecer_info && isParecerPayment && (
           <td className={cn(cellPad, "border-b align-middle", baseCellBg)}>
             <div className="flex items-center gap-1 flex-wrap">
-              <ParecerEvidenceBadge item={it} />
-              {(() => {
-                const div = computeDescriptionDivergence(it, isParecerPayment, visitaPaymentTypeId, parecerPaymentTypeId, lotePaymentTypeId);
-                if (!div) return null;
-                return (
-                  <span
-                    className="inline-flex items-center h-4 gap-0.5 rounded px-1 text-[10px] border bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
-                    title={`${div} Sinal informativo de texto — não indica divergência de valor. Verifique se a classificação está correta.`}
-                  >
-                    <AlertTriangle className="h-2.5 w-2.5" />
-                    Texto inconsistente
-                  </span>
-                );
-              })()}
+              {/* Badge único: a fonte é o TIPO DO ITEM (Parecer/Visita).
+                  Evidência do relatório Tasy não gera mais badge — o relatório
+                  lista apenas pareceres, então ausência ali não é sinal. */}
               <CaseSubtypeBadge
                 item={it}
                 allItems={allItems}
@@ -5486,6 +5426,7 @@ function RowMain({
                 onChange={onChangeCaseSubtype}
               />
             </div>
+
           </td>
         )}
         {colVis.observacao && (
