@@ -11282,20 +11282,26 @@ export type Database = {
       tuss_procedure_names: {
         Row: {
           canonical_name: string
+          categoria_funcional: string | null
           code: string
           created_at: string | null
+          grupo_cbhpm: string | null
           source: string | null
         }
         Insert: {
           canonical_name: string
+          categoria_funcional?: string | null
           code: string
           created_at?: string | null
+          grupo_cbhpm?: string | null
           source?: string | null
         }
         Update: {
           canonical_name?: string
+          categoria_funcional?: string | null
           code?: string
           created_at?: string | null
+          grupo_cbhpm?: string | null
           source?: string | null
         }
         Relationships: []
