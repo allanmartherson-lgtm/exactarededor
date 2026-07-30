@@ -3795,6 +3795,42 @@ export function ItemsDataGrid({
                   </button>
                   <ResizeHandle colKey="status" defaultWidth={132} />
                 </th>
+                {showParecerInfoCol && (
+                  <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}>
+                    <span className={TABLE_HEAD_TEXT}>
+                      Parecer/Visita
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center justify-center rounded-full hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70"
+                            aria-label="Legenda dos sinais de Parecer/Visita"
+                          >
+                            <HelpCircle className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-80 text-xs normal-case tracking-normal font-normal text-foreground">
+                          <p className="font-semibold mb-2">O que cada sinal significa</p>
+                          <ul className="space-y-1.5">
+                            <li><strong>P✓</strong> — Parecer confirmado (forte): cruzado no relatório Tasy por atendimento, data e médico.</li>
+                            <li><strong>P?</strong> — Parecer confirmado (fraco): cruzou por atendimento e médico, mas com data divergente.</li>
+                            <li><strong>Sem registro Tasy</strong> — Parecer sem contrapartida no relatório; o analista precisa confirmar ou reclassificar.</li>
+                            <li><strong>P×</strong> — Nenhum cruzamento encontrado (ou nenhum relatório importado).</li>
+                            <li><strong>P→V</strong> — Reclassificado: cruzou como parecer, mas foi rebaixado para Visita (já havia parecer pago no atendimento).</li>
+                            <li><strong>V</strong> (cinza, evidência) — Contato subsequente: cruzamento não se aplica.</li>
+                            <li><strong>Texto inconsistente</strong> — A descrição da linha menciona "parecer"/"visita" em desacordo com a classificação. Sinal informativo de <em>texto</em>, não de valor.</li>
+                            <li><strong>Badge V / P (classificação)</strong> — Resultado final usado no pagamento (tipo do item). É o que vale para a regra; os demais sinais são apenas evidência.</li>
+                          </ul>
+                          <p className="mt-2 text-muted-foreground">
+                            Divergência de <strong>valor</strong> continua sinalizada na coluna Status.
+                          </p>
+                        </PopoverContent>
+                      </Popover>
+                    </span>
+                    <ResizeHandle colKey="parecer_info" defaultWidth={170} />
+                  </th>
+                )}
                 {colVis.observacao && <th scope="col" className={cn(headPad, "text-left border-b bg-muted whitespace-nowrap")}><span className={TABLE_HEAD_TEXT}>Obs.</span><ResizeHandle colKey="observacao" defaultWidth={70} /></th>}
                 {canEdit && <th scope="col" className={cn(headPad, "text-center border-b bg-muted whitespace-nowrap sticky right-0 z-[80] shadow-[-1px_0_0_0_hsl(var(--primary-foreground)/0.45)]")}><span className={TABLE_HEAD_TEXT_CENTER}>Ações</span></th>}
               </tr>
@@ -3842,6 +3878,7 @@ export function ItemsDataGrid({
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (showDiferencaCol ? 1 : 0) +
+                  (showParecerInfoCol ? 1 : 0) +
                   (colVis.observacao ? 1 : 0) +
                   (canEdit ? 1 : 0);
                 const isExpanded = expandedId === it.id;
@@ -4154,7 +4191,7 @@ export function ItemsDataGrid({
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
-              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
+              const trailingCols = 1 /* status */ + (showParecerInfoCol ? 1 : 0) + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
               const footPad = isCompact ? "px-1.5 py-3" : "px-2 py-4";
               // Footer CURA — fundo primary reforçado, valores em bold destacado.
               return (
