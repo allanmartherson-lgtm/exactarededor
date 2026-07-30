@@ -38,7 +38,9 @@ export type ParecerFieldKey =
   | "espec_destino"
   | "dt_solic_parecer"
   | "dt_resposta_parecer"
-  | "situacao";
+  | "situacao"
+  | "nr_parecer"
+  | "tempo_resposta";
 
 export type ParecerMapping = Partial<Record<ParecerFieldKey, string>>;
 
