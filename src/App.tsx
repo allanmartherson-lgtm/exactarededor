@@ -224,6 +224,7 @@ const ExportAudit = lazy(loadExportAudit);
 const PaymentEvolution = lazy(loadPaymentEvolution);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
+const BatchTotalsAudit = lazy(() => import("./pages/BatchTotalsAudit.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
 const loadRelacionamentoHub = () => import("./pages/RelacionamentoHub.tsx");
@@ -414,6 +415,7 @@ const App = () => (
                   <Route path="/saude-processo" element={<Navigate to="/saude?tab=processo" replace />} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin", "validador"]}><AuditoriaHub /></ProtectedRoute>} />
+                  <Route path="/auditoria/totais-lote" element={<ProtectedRoute roles={["diretor", "admin", "validador", "analista"]}><BatchTotalsAudit /></ProtectedRoute>} />
                   <Route path="/auditoria/hospitais" element={<Navigate to="/auditoria?tab=hospitais" replace />} />
                   <Route path="/auditoria/tuss-principal" element={<Navigate to="/auditoria?tab=tuss" replace />} />
                   <Route path="/anomalias-status" element={<Navigate to="/auditoria?tab=anomalias" replace />} />
