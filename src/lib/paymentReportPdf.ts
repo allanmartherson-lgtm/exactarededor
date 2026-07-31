@@ -146,7 +146,7 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
         "Total geral",
         String(groups.reduce((s, g) => s + (g.items_count ?? 0), 0)),
         "",
-        formatCurrency(groups.reduce((s, g) => s + Number(g.liquido_total ?? g.total_amount ?? 0), 0)),
+        formatCurrency(totalLiquidoGrupos),
       ]],
       styles: { fontSize: 9 },
       footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: "bold" },
