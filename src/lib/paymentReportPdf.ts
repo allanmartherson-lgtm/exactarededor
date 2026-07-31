@@ -96,9 +96,21 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
   doc.setTextColor(17, 24, 39);
   // Total: usa a soma dos itens entregues — assim o relatório por empresa
   // mostra o total da empresa, e o relatório do lote mostra o total do lote.
+  // A tabela "Totais por empresa" soma o LÍQUIDO; para o header não divergir
+  // dela, exibimos os dois valores rotulados quando há grupos.
   const totalItems = items.reduce((s, i) => s + Number(i.gross_amount ?? 0), 0);
+  const totalLiquidoGrupos = groups.reduce(
+    (s, g) => s + Number(g.liquido_total ?? g.total_amount ?? 0),
+    0,
+  );
   let metaY = headerBottomY;
-  doc.text(`Total: ${formatCurrency(totalItems)}`, marginX, metaY);
+  doc.text(
+    groups.length > 0
+      ? `Bruto (itens): ${formatCurrency(totalItems)}  ·  Líquido (empresas): ${formatCurrency(totalLiquidoGrupos)}`
+      : `Total: ${formatCurrency(totalItems)}`,
+    marginX,
+    metaY,
+  );
   metaY += 6;
 
   // Aprovador / data: prioriza payment.approved_*; se ausente, deriva do
@@ -134,7 +146,7 @@ export async function generatePaymentReportPdf(input: GeneratePaymentPdfInput): 
         "Total geral",
         String(groups.reduce((s, g) => s + (g.items_count ?? 0), 0)),
         "",
-        formatCurrency(groups.reduce((s, g) => s + Number(g.liquido_total ?? g.total_amount ?? 0), 0)),
+        formatCurrency(totalLiquidoGrupos),
       ]],
       styles: { fontSize: 9 },
       footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: "bold" },
