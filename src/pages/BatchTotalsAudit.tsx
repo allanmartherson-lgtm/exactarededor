@@ -292,25 +292,27 @@ const BatchTotalsAudit = ({ embedded = false }: { embedded?: boolean } = {}) => 
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
-              title="Bruto (itens)"
+              label="Bruto (itens)"
               value={fmt(summary.brutoItens)}
-              subtitle={`${result.totals.count - result.totals.cancelledCount - result.totals.absorbedCount} itens elegíveis`}
+              hint={`${result.totals.count - result.totals.cancelledCount - result.totals.absorbedCount} itens elegíveis`}
             />
             <KpiCard
-              title="Bruto (empresas)"
+              label="Bruto (empresas)"
               value={fmt(summary.brutoEmpresas)}
-              subtitle={`${result.groups.length} PJ(s) no lote`}
+              hint={`${result.groups.length} PJ(s) no lote`}
             />
             <KpiCard
-              title="Líquido (empresas)"
+              label="Líquido (empresas)"
               value={fmt(summary.liquidoEmpresas)}
-              subtitle={summary.semPcf > 0 ? `${summary.semPcf} PJ(s) sem resumo financeiro` : "Todas as PJs com resumo"}
+              hint={summary.semPcf > 0 ? `${summary.semPcf} PJ(s) sem resumo financeiro` : "Todas as PJs com resumo"}
             />
             <KpiCard
-              title="Diferença Bruto"
+              label="Diferença Bruto"
               value={Math.abs(summary.diffBruto) < TOL ? "OK" : fmt(summary.diffBruto)}
-              subtitle="Itens − Empresas"
+              hint="Itens − Empresas"
+              tone={Math.abs(summary.diffBruto) < TOL ? "success" : "danger"}
             />
+
           </div>
 
           <Card>
