@@ -687,8 +687,90 @@ export function PaymentPivotSection({
                   active={sortKey === "label"}
                   dir={sortDir}
                   onClick={() => toggleSort("label")}
+                  extra={
+                    <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "ml-1 inline-flex h-5 w-5 items-center justify-center rounded hover:bg-primary/15",
+                            labelFilter ? "text-primary" : "text-muted-foreground/60",
+                          )}
+                          title={`Filtrar ${FIELD_LABELS[grouping]}`}
+                          aria-label={`Filtrar ${FIELD_LABELS[grouping]}`}
+                        >
+                          <Filter className="h-3 w-3" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-72 p-2">
+                        <Input
+                          value={filterQuery}
+                          onChange={(e) => setFilterQuery(e.target.value)}
+                          placeholder="Buscar…"
+                          className="h-8 text-xs mb-2"
+                        />
+                        <div className="flex items-center justify-between mb-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px]"
+                            onClick={() => setLabelFilter(null)}
+                          >
+                            Selecionar tudo
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px]"
+                            onClick={() => setLabelFilter(new Set())}
+                          >
+                            Limpar
+                          </Button>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto space-y-1">
+                          {allLabels
+                            .filter((l) =>
+                              l.toLowerCase().includes(filterQuery.trim().toLowerCase()),
+                            )
+                            .map((l) => {
+                              const checked = !labelFilter || labelFilter.has(l);
+                              return (
+                                <label
+                                  key={l}
+                                  className="flex items-start gap-2 rounded px-1 py-1 text-[12px] normal-case font-normal hover:bg-muted/50 cursor-pointer"
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(c) =>
+                                      setLabelFilter((prev) => {
+                                        const base = new Set(prev ?? allLabels);
+                                        if (c) base.add(l);
+                                        else base.delete(l);
+                                        return base;
+                                      })
+                                    }
+                                    className="h-3.5 w-3.5 mt-0.5"
+                                  />
+                                  <span className="leading-tight">{l}</span>
+                                </label>
+                              );
+                            })}
+                          {allLabels.length === 0 && (
+                            <p className="px-1 py-2 text-[11px] text-muted-foreground normal-case">
+                              Sem valores para filtrar.
+                            </p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  }
                 >
                   {FIELD_LABELS[grouping]}
+                  {labelFilter && (
+                    <span className="ml-1 normal-case text-[10px] text-primary">
+                      ({visibleRows.length}/{allLabels.length})
+                    </span>
+                  )}
                 </SortableTh>
                 {months.map((m) => (
                   <SortableTh
