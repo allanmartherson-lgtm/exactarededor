@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown, Filter, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -110,12 +112,14 @@ function SortableTh({
   active,
   dir,
   onClick,
+  extra,
 }: {
   children: React.ReactNode;
   align: "left" | "right";
   active: boolean;
   dir: "asc" | "desc";
   onClick: () => void;
+  extra?: React.ReactNode;
 }) {
   const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown;
   return (
@@ -141,6 +145,11 @@ function SortableTh({
             active ? "text-foreground" : "text-muted-foreground/40",
           )}
         />
+        {extra && (
+          <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+            {extra}
+          </span>
+        )}
       </span>
     </th>
   );
@@ -185,6 +194,12 @@ export function PaymentPivotSection({
   // Default: maior valor do mês atual (mesmo comportamento anterior).
   const [sortKey, setSortKey] = useState<string>("__current__");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Filtro tipo Excel na coluna do agrupamento (null = tudo selecionado).
+  const [labelFilter, setLabelFilter] = useState<Set<string> | null>(null);
+  const [filterQuery, setFilterQuery] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Recolhe o corpo da tabela para ver a linha "Total Geral" imediatamente.
+  const [bodyCollapsed, setBodyCollapsed] = useState(false);
   const toggleSort = (key: string) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -476,6 +491,46 @@ export function PaymentPivotSection({
     return arr;
   }, [primaryRows, sortKey, sortDir]);
 
+  // Filtro "Excel" da coluna do agrupamento.
+  const allLabels = useMemo(
+    () => Array.from(new Set(primaryRows.map((r) => r.key))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [primaryRows],
+  );
+  // Se o agrupamento muda, o filtro anterior perde sentido.
+  useEffect(() => {
+    setLabelFilter(null);
+    setFilterQuery("");
+  }, [grouping, secondary]);
+
+  const visibleRows = useMemo(
+    () => (labelFilter ? sortedRows.filter((r) => labelFilter.has(r.key)) : sortedRows),
+    [sortedRows, labelFilter],
+  );
+
+  // Totais exibidos respeitam o filtro de coluna.
+  const displayTotalsByMonth = useMemo(() => {
+    if (!labelFilter) return totalsByMonth;
+    const m = new Map<string, number>();
+    months.forEach((mo) =>
+      m.set(mo, visibleRows.reduce((s, r) => s + (r.byMonth.get(mo) ?? 0), 0)),
+    );
+    return m;
+  }, [labelFilter, totalsByMonth, months, visibleRows]);
+
+  const displayCurrent = displayTotalsByMonth.get(currentMonth) ?? 0;
+  const displayPrevMonths = useMemo(
+    () => previousMonths.filter((m) => (displayTotalsByMonth.get(m) ?? 0) > 0),
+    [previousMonths, displayTotalsByMonth],
+  );
+  const displayPrevAvg = displayPrevMonths.length
+    ? displayPrevMonths.reduce((a, m) => a + (displayTotalsByMonth.get(m) ?? 0), 0) /
+      displayPrevMonths.length
+    : 0;
+  const displayDelta =
+    displayPrevAvg > 0 ? ((displayCurrent - displayPrevAvg) / displayPrevAvg) * 100 : 0;
+
+
+
   if (variant === "detalhe") return null;
 
   const showAlerts = variant === "compacto";
@@ -505,13 +560,13 @@ export function PaymentPivotSection({
       <CardContent className="p-4 space-y-4">
         {/* KPIs */}
         <div className={cn("grid grid-cols-1 gap-3", showAlerts ? "md:grid-cols-4" : "md:grid-cols-3")}>
-          <KpiTile label="Total deste mês" value={BRL.format(totalCurrent)} />
-          <KpiTile label={`Média ${effectivePrevMonths.length || 0}m`} value={BRL.format(totalPrevAvg)} />
+          <KpiTile label="Total deste mês" value={BRL.format(displayCurrent)} />
+          <KpiTile label={`Média ${displayPrevMonths.length || 0}m`} value={BRL.format(displayPrevAvg)} />
           <KpiTile
             label="Variação vs média"
-            value={`${variationArrow(totalDelta)} ${totalDelta > 0 ? "+" : ""}${totalDelta.toFixed(1)}%`}
-            valueClassName={variationClass(totalDelta)}
-            bgClassName={kpiCardBg(totalDelta)}
+            value={`${variationArrow(displayDelta)} ${displayDelta > 0 ? "+" : ""}${displayDelta.toFixed(1)}%`}
+            valueClassName={variationClass(displayDelta)}
+            bgClassName={kpiCardBg(displayDelta)}
           />
           {showAlerts && (
             <KpiTile
@@ -550,6 +605,25 @@ export function PaymentPivotSection({
           >
             <Plus className="h-3 w-3 mr-1" /> Customizar
           </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setBodyCollapsed((v) => !v);
+              if (!bodyCollapsed) setExpanded(new Set());
+            }}
+            className="h-7 px-3 text-xs"
+            title={bodyCollapsed ? "Mostrar as linhas novamente" : "Recolher todas as linhas e ver só o Total Geral"}
+          >
+            {bodyCollapsed ? (
+              <><ChevronsUpDown className="h-3 w-3 mr-1" /> Expandir tudo</>
+            ) : (
+              <><ChevronsDownUp className="h-3 w-3 mr-1" /> Recolher tudo</>
+            )}
+          </Button>
+
+
 
           {(grouping === "empresa" || secondary === "empresa") && lotCompanyNames && lotCompanyNames.length > 0 && (
             <label
@@ -613,8 +687,90 @@ export function PaymentPivotSection({
                   active={sortKey === "label"}
                   dir={sortDir}
                   onClick={() => toggleSort("label")}
+                  extra={
+                    <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "ml-1 inline-flex h-5 w-5 items-center justify-center rounded hover:bg-primary/15",
+                            labelFilter ? "text-primary" : "text-muted-foreground/60",
+                          )}
+                          title={`Filtrar ${FIELD_LABELS[grouping]}`}
+                          aria-label={`Filtrar ${FIELD_LABELS[grouping]}`}
+                        >
+                          <Filter className="h-3 w-3" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-72 p-2">
+                        <Input
+                          value={filterQuery}
+                          onChange={(e) => setFilterQuery(e.target.value)}
+                          placeholder="Buscar…"
+                          className="h-8 text-xs mb-2"
+                        />
+                        <div className="flex items-center justify-between mb-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px]"
+                            onClick={() => setLabelFilter(null)}
+                          >
+                            Selecionar tudo
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px]"
+                            onClick={() => setLabelFilter(new Set())}
+                          >
+                            Limpar
+                          </Button>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto space-y-1">
+                          {allLabels
+                            .filter((l) =>
+                              l.toLowerCase().includes(filterQuery.trim().toLowerCase()),
+                            )
+                            .map((l) => {
+                              const checked = !labelFilter || labelFilter.has(l);
+                              return (
+                                <label
+                                  key={l}
+                                  className="flex items-start gap-2 rounded px-1 py-1 text-[12px] normal-case font-normal hover:bg-muted/50 cursor-pointer"
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(c) =>
+                                      setLabelFilter((prev) => {
+                                        const base = new Set(prev ?? allLabels);
+                                        if (c) base.add(l);
+                                        else base.delete(l);
+                                        return base;
+                                      })
+                                    }
+                                    className="h-3.5 w-3.5 mt-0.5"
+                                  />
+                                  <span className="leading-tight">{l}</span>
+                                </label>
+                              );
+                            })}
+                          {allLabels.length === 0 && (
+                            <p className="px-1 py-2 text-[11px] text-muted-foreground normal-case">
+                              Sem valores para filtrar.
+                            </p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  }
                 >
                   {FIELD_LABELS[grouping]}
+                  {labelFilter && (
+                    <span className="ml-1 normal-case text-[10px] text-primary">
+                      ({visibleRows.length}/{allLabels.length})
+                    </span>
+                  )}
                 </SortableTh>
                 {months.map((m) => (
                   <SortableTh
@@ -645,15 +801,23 @@ export function PaymentPivotSection({
                   </td>
                 </tr>
               )}
-              {!loading && sortedRows.length === 0 && (
+              {!loading && visibleRows.length === 0 && (
                 <tr>
                   <td colSpan={months.length + 2} className="px-3 py-6 text-center text-muted-foreground text-xs">
-                    Sem dados no período selecionado.
+                    {labelFilter ? "Nenhum item corresponde ao filtro." : "Sem dados no período selecionado."}
+                  </td>
+                </tr>
+              )}
+              {!loading && bodyCollapsed && visibleRows.length > 0 && (
+                <tr>
+                  <td colSpan={months.length + 2} className="px-3 py-3 text-center text-muted-foreground text-xs">
+                    {visibleRows.length} linha(s) recolhida(s) — veja o Total Geral abaixo.
                   </td>
                 </tr>
               )}
               {!loading &&
-                sortedRows.map((r) => {
+                !bodyCollapsed &&
+                visibleRows.map((r) => {
                   const isOpen = expanded.has(r.key);
                   const canDrill = r.children.length > 0;
                   return (
@@ -718,17 +882,17 @@ export function PaymentPivotSection({
                     </>
                   );
                 })}
-              {!loading && primaryRows.length > 0 && (
+              {!loading && visibleRows.length > 0 && (
                 <tr className="border-t-2 border-primary/20 bg-muted font-semibold">
                   <td className="px-3 py-2 font-semibold">Total Geral</td>
                   {months.map((m) => (
                     <td key={m} className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
-                      {BRL.format(totalsByMonth.get(m) ?? 0)}
+                      {BRL.format(displayTotalsByMonth.get(m) ?? 0)}
                     </td>
                   ))}
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
-                    {variationArrow(totalDelta)} {totalDelta > 0 ? "+" : ""}
-                    {totalDelta.toFixed(1)}%
+                    {variationArrow(displayDelta)} {displayDelta > 0 ? "+" : ""}
+                    {displayDelta.toFixed(1)}%
                   </td>
                 </tr>
               )}
