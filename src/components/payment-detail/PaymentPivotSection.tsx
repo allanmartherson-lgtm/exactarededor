@@ -801,15 +801,23 @@ export function PaymentPivotSection({
                   </td>
                 </tr>
               )}
-              {!loading && sortedRows.length === 0 && (
+              {!loading && visibleRows.length === 0 && (
                 <tr>
                   <td colSpan={months.length + 2} className="px-3 py-6 text-center text-muted-foreground text-xs">
-                    Sem dados no período selecionado.
+                    {labelFilter ? "Nenhum item corresponde ao filtro." : "Sem dados no período selecionado."}
+                  </td>
+                </tr>
+              )}
+              {!loading && bodyCollapsed && visibleRows.length > 0 && (
+                <tr>
+                  <td colSpan={months.length + 2} className="px-3 py-3 text-center text-muted-foreground text-xs">
+                    {visibleRows.length} linha(s) recolhida(s) — veja o Total Geral abaixo.
                   </td>
                 </tr>
               )}
               {!loading &&
-                sortedRows.map((r) => {
+                !bodyCollapsed &&
+                visibleRows.map((r) => {
                   const isOpen = expanded.has(r.key);
                   const canDrill = r.children.length > 0;
                   return (
