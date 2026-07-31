@@ -2508,10 +2508,24 @@ const PaymentDetail = () => {
       }
 
       // Recalcula totais do lote a partir de TODOS os itens (não troca status).
-      const { data: remaining } = await supabase
-        .from("payment_items").select("gross_amount").eq("payment_id", id);
-      const total = (remaining ?? []).reduce((s: number, r: any) => s + Number(r.gross_amount ?? 0), 0);
-      const itemsCount = (remaining ?? []).length;
+      // PostgREST devolve no máximo 1000 linhas por request: pagina com .range()
+      // para não travar items_count/total_amount em 1000 em lotes grandes.
+      let total = 0;
+      let itemsCount = 0;
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: page, error: pageErr } = await supabase
+          .from("payment_items")
+          .select("gross_amount")
+          .eq("payment_id", id)
+          .order("id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (pageErr) { toast({ title: "Falha ao recalcular totais", description: pageErr.message, variant: "destructive" }); return; }
+        const rows = page ?? [];
+        total += rows.reduce((s: number, r: any) => s + Number(r.gross_amount ?? 0), 0);
+        itemsCount += rows.length;
+        if (rows.length < PAGE) break;
+      }
       await supabase.from("payments").update({ total_amount: total, items_count: itemsCount }).eq("id", id);
 
       const addedCompanies = [...newGroupsMap.values()].map((g) => g.company_name);
