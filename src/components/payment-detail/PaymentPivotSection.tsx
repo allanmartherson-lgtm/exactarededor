@@ -606,6 +606,25 @@ export function PaymentPivotSection({
             <Plus className="h-3 w-3 mr-1" /> Customizar
           </Button>
 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setBodyCollapsed((v) => !v);
+              if (!bodyCollapsed) setExpanded(new Set());
+            }}
+            className="h-7 px-3 text-xs"
+            title={bodyCollapsed ? "Mostrar as linhas novamente" : "Recolher todas as linhas e ver só o Total Geral"}
+          >
+            {bodyCollapsed ? (
+              <><ChevronsUpDown className="h-3 w-3 mr-1" /> Expandir tudo</>
+            ) : (
+              <><ChevronsDownUp className="h-3 w-3 mr-1" /> Recolher tudo</>
+            )}
+          </Button>
+
+
+
           {(grouping === "empresa" || secondary === "empresa") && lotCompanyNames && lotCompanyNames.length > 0 && (
             <label
               className={cn(
