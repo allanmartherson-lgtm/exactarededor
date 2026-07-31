@@ -194,6 +194,12 @@ export function PaymentPivotSection({
   // Default: maior valor do mês atual (mesmo comportamento anterior).
   const [sortKey, setSortKey] = useState<string>("__current__");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Filtro tipo Excel na coluna do agrupamento (null = tudo selecionado).
+  const [labelFilter, setLabelFilter] = useState<Set<string> | null>(null);
+  const [filterQuery, setFilterQuery] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Recolhe o corpo da tabela para ver a linha "Total Geral" imediatamente.
+  const [bodyCollapsed, setBodyCollapsed] = useState(false);
   const toggleSort = (key: string) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
