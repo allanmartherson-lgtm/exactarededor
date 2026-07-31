@@ -145,6 +145,11 @@ function SortableTh({
             active ? "text-foreground" : "text-muted-foreground/40",
           )}
         />
+        {extra && (
+          <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+            {extra}
+          </span>
+        )}
       </span>
     </th>
   );
