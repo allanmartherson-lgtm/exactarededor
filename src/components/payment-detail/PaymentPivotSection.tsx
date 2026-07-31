@@ -362,23 +362,30 @@ export function PaymentPivotSection({
   const currentMonth = months[months.length - 1];
   const previousMonths = months.slice(0, -1);
 
-  // Agrega rows em estrutura primária + secundária por mês. Quando o
-  // agrupamento é "empresa" e o usuário quer restringir às PJs do lote,
+  // Agrega rows em estrutura primária + secundária por mês. Quando a empresa
+  // está em algum dos eixos e o usuário quer restringir às PJs do lote,
   // filtramos aqui — inclusive nos totais — para que a comparação e os KPIs
   // reflitam apenas o universo do lote.
+  // Eixo em que a empresa aparece: primário (grouping) ou secundário (drilldown).
+  const companyAxis: "primary" | "child" | null =
+    grouping === "empresa" ? "primary" : secondary === "empresa" ? "child" : null;
+  // [fix 2026-07-31] A restrição só faz sentido quando a empresa está em um dos
+  // eixos. Em lotes com 5+ PJs o default de agrupamento permanece
+  // "especialidade" e, antes, as chaves de especialidade eram comparadas contra
+  // a lista de nomes de PJ — nenhuma casava e a tabela abria vazia
+  // ("Sem dados no período selecionado.") até o usuário trocar para "Empresa".
   const restrictActive =
     restrictToLotCompanies &&
+    companyAxis !== null &&
     Array.isArray(lotCompanyNames) &&
     lotCompanyNames.length > 0;
   const lotCompanySet = useMemo(
     () => new Set((lotCompanyNames ?? []).map((n) => n.trim().toLowerCase())),
     [lotCompanyNames],
   );
-  // Eixo em que a empresa aparece: primário (grouping) ou secundário (drilldown).
-  const companyAxis: "primary" | "child" | null =
-    grouping === "empresa" ? "primary" : secondary === "empresa" ? "child" : null;
   const isInLot = (key: string) =>
     !restrictActive || lotCompanySet.has((key ?? "").trim().toLowerCase());
+
 
 
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {

@@ -373,17 +373,42 @@ Deno.serve(async (req) => {
     // orquestrador, para que o motor já calcule as regras com o tipo correto.
     // Mantém override manual e cruzamento de parecer (gates do edge).
     // 2026-07-01: encadeado em background (auto-classify → orchestrate) para
-    // que o dispatch retorne <2s mesmo em lotes com 100+ empresas — antes o
-    // await no auto-classify estourava IDLE_TIMEOUT (150s) do runtime.
+    // que o dispatch retorne <2s mesmo em lotes com 100+ empresas.
+    //
+    // 2026-07-31 [fix 502 na fila ai_retry_queue]: o encadeamento AGUARDAVA a
+    // resposta completa do orquestrador. Como o orquestrador só responde depois
+    // de processar a página inteira (até ~60s), a instância do dispatch ficava
+    // viva além do limite de wall-clock e era derrubada pelo runtime — o cliente
+    // (ai-retry-worker) recebia "502 Bad Gateway" mesmo com o job já criado e
+    // rodando. Agora as chamadas encadeadas têm timeout curto: abortar o fetch
+    // NÃO cancela a execução da function invocada, apenas libera esta instância.
     const orchestratorUrl = `${SUPABASE_URL}/functions/v1/orchestrate-analysis`;
+    const AUTO_CLASSIFY_TIMEOUT_MS = 20_000;
+    const ORCHESTRATOR_KICK_TIMEOUT_MS = 5_000;
+
+    const postWithTimeout = async (url: string, payload: unknown, timeoutMs: number) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
     runInBackground(
       (async () => {
         try {
-          const acResp = await fetch(`${SUPABASE_URL}/functions/v1/auto-classify-payment-types`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-            body: JSON.stringify({ payment_id }),
-          });
+          const acResp = await postWithTimeout(
+            `${SUPABASE_URL}/functions/v1/auto-classify-payment-types`,
+            { payment_id },
+            AUTO_CLASSIFY_TIMEOUT_MS,
+          );
           if (!acResp.ok) {
             console.warn("[dispatch] auto-classify falhou", acResp.status, (await acResp.text()).slice(0, 300));
           } else {
@@ -391,31 +416,46 @@ Deno.serve(async (req) => {
             console.log(`[dispatch] auto-classify ok auto_tuss=${acJson?.auto_tuss} auto_heuristic=${acJson?.auto_heuristic} auto_default=${acJson?.auto_default}`);
           }
         } catch (acErr) {
-          console.warn("[dispatch] auto-classify erro:", (acErr as any)?.message ?? acErr);
+          const name = (acErr as { name?: string })?.name;
+          if (name === "AbortError") {
+            console.warn(`[dispatch] auto-classify excedeu ${AUTO_CLASSIFY_TIMEOUT_MS}ms — segue para o orquestrador (execução continua no servidor)`);
+          } else {
+            console.warn("[dispatch] auto-classify erro:", (acErr as any)?.message ?? acErr);
+          }
         }
 
-        const resp = await fetch(orchestratorUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${SERVICE_KEY}`,
-          },
-          body: JSON.stringify({
-            job_id: job.id,
-            payment_id,
-            page_index: 0,
-            page_size: PAGE_SIZE,
-            ai_statuses,
-            tolerance_pct,
-            force_fresh_rules: force_fresh_rules === true,
-            skip_ai: __skip_ai,
-          }),
-        });
-        if (!resp.ok) console.error("[dispatch] orquestrador retornou erro", resp.status, (await resp.text()).slice(0, 500));
-        else await resp.text();
+        // "Kick" do orquestrador: não esperamos o processamento da página —
+        // apenas garantimos que a invocação foi aceita. O encadeamento das
+        // páginas seguintes é responsabilidade do próprio orquestrador.
+        try {
+          const resp = await postWithTimeout(
+            orchestratorUrl,
+            {
+              job_id: job.id,
+              payment_id,
+              page_index: 0,
+              page_size: PAGE_SIZE,
+              ai_statuses,
+              tolerance_pct,
+              force_fresh_rules: force_fresh_rules === true,
+              skip_ai: __skip_ai,
+            },
+            ORCHESTRATOR_KICK_TIMEOUT_MS,
+          );
+          if (!resp.ok) console.error("[dispatch] orquestrador retornou erro", resp.status, (await resp.text()).slice(0, 500));
+          else await resp.text();
+        } catch (orchErr) {
+          const name = (orchErr as { name?: string })?.name;
+          if (name === "AbortError") {
+            console.log(`[dispatch] orquestrador iniciado (job ${job.id}) — conexão liberada após ${ORCHESTRATOR_KICK_TIMEOUT_MS}ms sem aguardar o fim da página`);
+          } else {
+            console.error("[dispatch] falha ao chamar orquestrador:", (orchErr as any)?.message ?? orchErr);
+          }
+        }
       })(),
       "auto-classify + orquestrador",
     );
+
 
 
     return new Response(
