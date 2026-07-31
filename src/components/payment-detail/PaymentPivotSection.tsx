@@ -352,7 +352,6 @@ export function PaymentPivotSection({
   // filtramos aqui — inclusive nos totais — para que a comparação e os KPIs
   // reflitam apenas o universo do lote.
   const restrictActive =
-    grouping === "empresa" &&
     restrictToLotCompanies &&
     Array.isArray(lotCompanyNames) &&
     lotCompanyNames.length > 0;
@@ -360,8 +359,12 @@ export function PaymentPivotSection({
     () => new Set((lotCompanyNames ?? []).map((n) => n.trim().toLowerCase())),
     [lotCompanyNames],
   );
+  // Eixo em que a empresa aparece: primário (grouping) ou secundário (drilldown).
+  const companyAxis: "primary" | "child" | null =
+    grouping === "empresa" ? "primary" : secondary === "empresa" ? "child" : null;
   const isInLot = (key: string) =>
     !restrictActive || lotCompanySet.has((key ?? "").trim().toLowerCase());
+
 
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {
     const primary = new Map<string, Map<string, number>>();
