@@ -1829,12 +1829,24 @@ export default function CompanyAnalysis() {
       }
 
       // Recalcula totais do lote a partir dos itens remanescentes (todas empresas).
-      const { data: remaining } = await supabase
-        .from("payment_items")
-        .select("gross_amount")
-        .eq("payment_id", id);
-      const total = (remaining ?? []).reduce((s: number, r: any) => s + Number(r.gross_amount ?? 0), 0);
-      const itemsCount = (remaining ?? []).length;
+      // Pagina com .range(): PostgREST limita cada request a 1000 linhas, o que
+      // travava items_count/total_amount em 1000 nos lotes grandes.
+      let total = 0;
+      let itemsCount = 0;
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: page, error: pageErr } = await supabase
+          .from("payment_items")
+          .select("gross_amount")
+          .eq("payment_id", id)
+          .order("id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (pageErr) throw pageErr;
+        const rows = page ?? [];
+        total += rows.reduce((s: number, r: any) => s + Number(r.gross_amount ?? 0), 0);
+        itemsCount += rows.length;
+        if (rows.length < PAGE) break;
+      }
       await supabase.from("payments").update({
         total_amount: total,
         items_count: itemsCount,
