@@ -560,13 +560,13 @@ export function PaymentPivotSection({
       <CardContent className="p-4 space-y-4">
         {/* KPIs */}
         <div className={cn("grid grid-cols-1 gap-3", showAlerts ? "md:grid-cols-4" : "md:grid-cols-3")}>
-          <KpiTile label="Total deste mês" value={BRL.format(totalCurrent)} />
-          <KpiTile label={`Média ${effectivePrevMonths.length || 0}m`} value={BRL.format(totalPrevAvg)} />
+          <KpiTile label="Total deste mês" value={BRL.format(displayCurrent)} />
+          <KpiTile label={`Média ${displayPrevMonths.length || 0}m`} value={BRL.format(displayPrevAvg)} />
           <KpiTile
             label="Variação vs média"
-            value={`${variationArrow(totalDelta)} ${totalDelta > 0 ? "+" : ""}${totalDelta.toFixed(1)}%`}
-            valueClassName={variationClass(totalDelta)}
-            bgClassName={kpiCardBg(totalDelta)}
+            value={`${variationArrow(displayDelta)} ${displayDelta > 0 ? "+" : ""}${displayDelta.toFixed(1)}%`}
+            valueClassName={variationClass(displayDelta)}
+            bgClassName={kpiCardBg(displayDelta)}
           />
           {showAlerts && (
             <KpiTile
