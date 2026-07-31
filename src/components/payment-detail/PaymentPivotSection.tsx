@@ -491,6 +491,46 @@ export function PaymentPivotSection({
     return arr;
   }, [primaryRows, sortKey, sortDir]);
 
+  // Filtro "Excel" da coluna do agrupamento.
+  const allLabels = useMemo(
+    () => Array.from(new Set(primaryRows.map((r) => r.key))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [primaryRows],
+  );
+  // Se o agrupamento muda, o filtro anterior perde sentido.
+  useEffect(() => {
+    setLabelFilter(null);
+    setFilterQuery("");
+  }, [grouping, secondary]);
+
+  const visibleRows = useMemo(
+    () => (labelFilter ? sortedRows.filter((r) => labelFilter.has(r.key)) : sortedRows),
+    [sortedRows, labelFilter],
+  );
+
+  // Totais exibidos respeitam o filtro de coluna.
+  const displayTotalsByMonth = useMemo(() => {
+    if (!labelFilter) return totalsByMonth;
+    const m = new Map<string, number>();
+    months.forEach((mo) =>
+      m.set(mo, visibleRows.reduce((s, r) => s + (r.byMonth.get(mo) ?? 0), 0)),
+    );
+    return m;
+  }, [labelFilter, totalsByMonth, months, visibleRows]);
+
+  const displayCurrent = displayTotalsByMonth.get(currentMonth) ?? 0;
+  const displayPrevMonths = useMemo(
+    () => previousMonths.filter((m) => (displayTotalsByMonth.get(m) ?? 0) > 0),
+    [previousMonths, displayTotalsByMonth],
+  );
+  const displayPrevAvg = displayPrevMonths.length
+    ? displayPrevMonths.reduce((a, m) => a + (displayTotalsByMonth.get(m) ?? 0), 0) /
+      displayPrevMonths.length
+    : 0;
+  const displayDelta =
+    displayPrevAvg > 0 ? ((displayCurrent - displayPrevAvg) / displayPrevAvg) * 100 : 0;
+
+
+
   if (variant === "detalhe") return null;
 
   const showAlerts = variant === "compacto";
