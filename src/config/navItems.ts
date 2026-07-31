@@ -192,6 +192,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Ajustes por intervenção", iconName: "Scale" },
   { label: "Sobreposição assistencial", iconName: "AlertTriangle" },
+  { label: "Auditoria de totais do lote", iconName: "Scale" },
   { label: "Saúde do Processo", iconName: "Activity" },
   { label: "Contas a Pagar", iconName: "TrendingDown" },
   { label: "Inteligência Financeira", iconName: "TrendingUp" },
