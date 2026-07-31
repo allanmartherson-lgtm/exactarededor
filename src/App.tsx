@@ -224,6 +224,7 @@ const ExportAudit = lazy(loadExportAudit);
 const PaymentEvolution = lazy(loadPaymentEvolution);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
+const BatchTotalsAudit = lazy(() => import("./pages/BatchTotalsAudit.tsx"));
 const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
 const loadRelacionamentoHub = () => import("./pages/RelacionamentoHub.tsx");
