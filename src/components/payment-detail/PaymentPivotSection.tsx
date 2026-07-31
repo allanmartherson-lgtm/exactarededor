@@ -371,23 +371,38 @@ export function PaymentPivotSection({
     const childrenMap = new Map<string, Map<string, Map<string, number>>>(); // parent -> child -> month -> total
     let primaryCount = 0;
     let childCount = 0;
+    const childAxis = companyAxis === "child";
     rows.forEach((r) => {
       const monthIso = r.month_bucket.slice(0, 10);
       if (r.parent_key) {
-        // filtra pelo pai (chave primária) quando restrição ativa
-        if (!isInLot(r.parent_key)) return;
+        // Empresa no eixo primário → filtra pelo pai.
+        // Empresa no eixo secundário → filtra pela própria chave do filho.
+        if (childAxis ? !isInLot(r.group_key) : !isInLot(r.parent_key)) return;
         childCount++;
         if (!childrenMap.has(r.parent_key)) childrenMap.set(r.parent_key, new Map());
         const c = childrenMap.get(r.parent_key)!;
         if (!c.has(r.group_key)) c.set(r.group_key, new Map());
         c.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       } else {
-        if (!isInLot(r.group_key)) return;
+        if (!childAxis && !isInLot(r.group_key)) return;
         primaryCount++;
         if (!primary.has(r.group_key)) primary.set(r.group_key, new Map());
         primary.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       }
     });
+    // Empresa no eixo secundário: totais do pai precisam refletir apenas as
+    // PJs do lote — recompõe a partir dos filhos já filtrados.
+    if (childAxis && restrictActive) {
+      primary.clear();
+      childrenMap.forEach((children, parentKey) => {
+        const months = new Map<string, number>();
+        children.forEach((m) =>
+          m.forEach((v, k) => months.set(k, (months.get(k) ?? 0) + v)),
+        );
+        primary.set(parentKey, months);
+      });
+    }
+
     console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size, restrictActive });
 
     const totalsByMonth = new Map<string, number>();
