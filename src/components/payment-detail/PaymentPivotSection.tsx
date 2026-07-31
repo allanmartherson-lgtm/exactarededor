@@ -112,12 +112,14 @@ function SortableTh({
   active,
   dir,
   onClick,
+  extra,
 }: {
   children: React.ReactNode;
   align: "left" | "right";
   active: boolean;
   dir: "asc" | "desc";
   onClick: () => void;
+  extra?: React.ReactNode;
 }) {
   const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown;
   return (
