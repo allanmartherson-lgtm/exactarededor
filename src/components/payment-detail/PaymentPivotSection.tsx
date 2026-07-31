@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown, Filter, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
