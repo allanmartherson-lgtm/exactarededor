@@ -551,7 +551,7 @@ export function PaymentPivotSection({
             <Plus className="h-3 w-3 mr-1" /> Customizar
           </Button>
 
-          {grouping === "empresa" && lotCompanyNames && lotCompanyNames.length > 0 && (
+          {(grouping === "empresa" || secondary === "empresa") && lotCompanyNames && lotCompanyNames.length > 0 && (
             <label
               className={cn(
                 "flex items-center gap-1.5 h-7 px-2 text-[11px] rounded-md border cursor-pointer transition-colors",
