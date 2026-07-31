@@ -882,17 +882,17 @@ export function PaymentPivotSection({
                     </>
                   );
                 })}
-              {!loading && primaryRows.length > 0 && (
+              {!loading && visibleRows.length > 0 && (
                 <tr className="border-t-2 border-primary/20 bg-muted font-semibold">
                   <td className="px-3 py-2 font-semibold">Total Geral</td>
                   {months.map((m) => (
                     <td key={m} className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
-                      {BRL.format(totalsByMonth.get(m) ?? 0)}
+                      {BRL.format(displayTotalsByMonth.get(m) ?? 0)}
                     </td>
                   ))}
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
-                    {variationArrow(totalDelta)} {totalDelta > 0 ? "+" : ""}
-                    {totalDelta.toFixed(1)}%
+                    {variationArrow(displayDelta)} {displayDelta > 0 ? "+" : ""}
+                    {displayDelta.toFixed(1)}%
                   </td>
                 </tr>
               )}
