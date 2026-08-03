@@ -47,6 +47,10 @@ type PivotRow = {
   total: number;
 };
 
+// Separador usado pela RPC para compor "nível1<sep>nível2" no parent_key das
+// linhas de 3º nível (unit separator — não ocorre em nomes reais).
+const LEVEL_SEP = "\u001f";
+
 const PRESETS_BY_VARIANT: Record<Exclude<PivotVariant, "detalhe">, GroupingField[]> = {
   compacto: ["especialidade", "empresa", "medico"],
   executivo: ["especialidade", "empresa"],
@@ -183,6 +187,9 @@ export function PaymentPivotSection({
   // Secundário (drilldown): controlado pelo usuário via "Customizar".
   // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
   const [secondary, setSecondary] = useState<GroupingField | null>(null);
+  // Terciário (3º nível): expansível dentro de cada linha do 2º nível.
+  const [tertiary, setTertiary] = useState<GroupingField | null>(null);
+  const [expandedChildren, setExpandedChildren] = useState<Set<string>>(new Set());
   // Empresas presentes no lote atual (nomes normalizados). Usado para restringir
   // o agrupamento por empresa apenas às PJs deste lote — muito útil em lotes
   // pequenos onde toda a base histórica polui a comparação.
@@ -221,6 +228,8 @@ export function PaymentPivotSection({
     setLoading(true);
     (async () => {
       const sec: GroupingField | null = secondary && secondary !== grouping ? secondary : null;
+      const ter: GroupingField | null =
+        sec && tertiary && tertiary !== grouping && tertiary !== sec ? tertiary : null;
       // Resolve trilha efetiva:
       //  - "auto" → trilha do lote atual (filtra mesmos lotes); se lote não tem trilha, manda nada (= todos)
       //  - "todos" → explicitamente desliga o filtro
@@ -239,6 +248,7 @@ export function PaymentPivotSection({
         p_grouping: grouping,
       };
       if (sec) args.p_secondary = sec;
+      if (ter) args.p_tertiary = ter;
       if (paymentId) args.p_payment_id = paymentId;
       if (effectiveTrack) args.p_track = effectiveTrack;
       const callId = Math.random().toString(36).slice(2, 8);
@@ -259,6 +269,7 @@ export function PaymentPivotSection({
             p_months_back: number;
             p_grouping: string;
             p_secondary?: string;
+            p_tertiary?: string;
             p_payment_id?: string;
             p_track?: string;
           })
@@ -287,7 +298,7 @@ export function PaymentPivotSection({
     return () => {
       alive = false;
     };
-  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId, trackFilter, lotTrack]);
+  }, [variant, grouping, secondary, tertiary, monthsBack, competenceDate, paymentId, trackFilter, lotTrack]);
 
   // Carrega a trilha do lote atual (uma vez por paymentId).
   useEffect(() => {
@@ -387,9 +398,15 @@ export function PaymentPivotSection({
   // está em algum dos eixos e o usuário quer restringir às PJs do lote,
   // filtramos aqui — inclusive nos totais — para que a comparação e os KPIs
   // reflitam apenas o universo do lote.
-  // Eixo em que a empresa aparece: primário (grouping) ou secundário (drilldown).
-  const companyAxis: "primary" | "child" | null =
-    grouping === "empresa" ? "primary" : secondary === "empresa" ? "child" : null;
+  // Eixo em que a empresa aparece: primário (grouping), secundário ou terciário.
+  const companyAxis: "primary" | "child" | "grand" | null =
+    grouping === "empresa"
+      ? "primary"
+      : secondary === "empresa"
+        ? "child"
+        : tertiary === "empresa"
+          ? "grand"
+          : null;
   // [fix 2026-07-31] A restrição só faz sentido quando a empresa está em um dos
   // eixos. Em lotes com 5+ PJs o default de agrupamento permanece
   // "especialidade" e, antes, as chaves de especialidade eram comparadas contra
@@ -412,27 +429,64 @@ export function PaymentPivotSection({
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {
     const primary = new Map<string, Map<string, number>>();
     const childrenMap = new Map<string, Map<string, Map<string, number>>>(); // parent -> child -> month -> total
+    // parent -> child -> grandchild -> month -> total
+    const grandMap = new Map<string, Map<string, Map<string, Map<string, number>>>>();
     let primaryCount = 0;
     let childCount = 0;
+    let grandCount = 0;
     const childAxis = companyAxis === "child";
+    const grandAxis = companyAxis === "grand";
     rows.forEach((r) => {
       const monthIso = r.month_bucket.slice(0, 10);
-      if (r.parent_key) {
+      if (r.parent_key && r.parent_key.includes(LEVEL_SEP)) {
+        // Linha de 3º nível: parent_key = "nível1<sep>nível2".
+        const [p1, p2] = r.parent_key.split(LEVEL_SEP);
+        if (grandAxis ? !isInLot(r.group_key) : childAxis ? !isInLot(p2) : !isInLot(p1)) return;
+        grandCount++;
+        if (!grandMap.has(p1)) grandMap.set(p1, new Map());
+        const byChild = grandMap.get(p1)!;
+        if (!byChild.has(p2)) byChild.set(p2, new Map());
+        const byGrand = byChild.get(p2)!;
+        if (!byGrand.has(r.group_key)) byGrand.set(r.group_key, new Map());
+        byGrand.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
+      } else if (r.parent_key) {
         // Empresa no eixo primário → filtra pelo pai.
         // Empresa no eixo secundário → filtra pela própria chave do filho.
-        if (childAxis ? !isInLot(r.group_key) : !isInLot(r.parent_key)) return;
+        if (childAxis ? !isInLot(r.group_key) : grandAxis ? true : !isInLot(r.parent_key)) return;
         childCount++;
         if (!childrenMap.has(r.parent_key)) childrenMap.set(r.parent_key, new Map());
         const c = childrenMap.get(r.parent_key)!;
         if (!c.has(r.group_key)) c.set(r.group_key, new Map());
         c.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       } else {
-        if (!childAxis && !isInLot(r.group_key)) return;
+        if (!childAxis && !grandAxis && !isInLot(r.group_key)) return;
         primaryCount++;
         if (!primary.has(r.group_key)) primary.set(r.group_key, new Map());
         primary.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       }
     });
+    // Empresa no 3º nível com restrição ativa: os níveis acima precisam refletir
+    // apenas as PJs do lote — recompõe de baixo para cima.
+    if (grandAxis && restrictActive) {
+      childrenMap.clear();
+      primary.clear();
+      grandMap.forEach((byChild, parentKey) => {
+        const parentMonths = new Map<string, number>();
+        const childAgg = new Map<string, Map<string, number>>();
+        byChild.forEach((byGrand, childKey) => {
+          const childMonths = new Map<string, number>();
+          byGrand.forEach((m) =>
+            m.forEach((v, k) => {
+              childMonths.set(k, (childMonths.get(k) ?? 0) + v);
+              parentMonths.set(k, (parentMonths.get(k) ?? 0) + v);
+            }),
+          );
+          childAgg.set(childKey, childMonths);
+        });
+        childrenMap.set(parentKey, childAgg);
+        primary.set(parentKey, parentMonths);
+      });
+    }
     // Empresa no eixo secundário: totais do pai precisam refletir apenas as
     // PJs do lote — recompõe a partir dos filhos já filtrados.
     if (childAxis && restrictActive) {
@@ -446,7 +500,14 @@ export function PaymentPivotSection({
       });
     }
 
-    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size, restrictActive });
+    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, grandCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size, restrictActive });
+
+    const statsOf = (byMonth: Map<string, number>) => {
+      const cur = byMonth.get(currentMonth) ?? 0;
+      const prev = previousMonths.map((m) => byMonth.get(m) ?? 0).filter((v) => v > 0);
+      const avg = prev.length > 0 ? prev.reduce((a, b) => a + b, 0) / prev.length : 0;
+      return { cur, avg, deltaPct: avg > 0 ? ((cur - avg) / avg) * 100 : 0 };
+    };
 
     const totalsByMonth = new Map<string, number>();
     const primaryList = Array.from(primary.entries())
@@ -454,27 +515,30 @@ export function PaymentPivotSection({
         months.forEach((m) => {
           totalsByMonth.set(m, (totalsByMonth.get(m) ?? 0) + (byMonth.get(m) ?? 0));
         });
-        const current = byMonth.get(currentMonth) ?? 0;
         // Considera só meses anteriores com dado (> 0). Meses sem produção
         // (ex.: pré-go-live) não devem reduzir a média.
-        const prevValues = previousMonths
-          .map((m) => byMonth.get(m) ?? 0)
-          .filter((v) => v > 0);
-        const avg =
-          prevValues.length > 0 ? prevValues.reduce((a, b) => a + b, 0) / prevValues.length : 0;
-        const deltaPct = avg > 0 ? ((current - avg) / avg) * 100 : 0;
+        const { cur: current, avg, deltaPct } = statsOf(byMonth);
         const children = childrenMap.get(key);
         const childrenList = children
           ? Array.from(children.entries())
               .map(([ck, cByMonth]) => {
-                const cCur = cByMonth.get(currentMonth) ?? 0;
-                const cPrev = previousMonths
-                  .map((m) => cByMonth.get(m) ?? 0)
-                  .filter((v) => v > 0);
-                const cAvg =
-                  cPrev.length > 0 ? cPrev.reduce((a, b) => a + b, 0) / cPrev.length : 0;
-                const cDelta = cAvg > 0 ? ((cCur - cAvg) / cAvg) * 100 : 0;
-                return { key: ck, byMonth: cByMonth, deltaPct: cDelta, total: cCur };
+                const s = statsOf(cByMonth);
+                const grandchildren = grandMap.get(key)?.get(ck);
+                const grandList = grandchildren
+                  ? Array.from(grandchildren.entries())
+                      .map(([gk, gByMonth]) => {
+                        const gs = statsOf(gByMonth);
+                        return { key: gk, byMonth: gByMonth, deltaPct: gs.deltaPct, total: gs.cur };
+                      })
+                      .sort((a, b) => b.total - a.total)
+                  : [];
+                return {
+                  key: ck,
+                  byMonth: cByMonth,
+                  deltaPct: s.deltaPct,
+                  total: s.cur,
+                  children: grandList,
+                };
               })
               .sort((a, b) => b.total - a.total)
           : [];
@@ -528,7 +592,7 @@ export function PaymentPivotSection({
   useEffect(() => {
     setLabelFilter(null);
     setFilterQuery("");
-  }, [grouping, secondary]);
+  }, [grouping, secondary, tertiary]);
 
   const visibleRows = useMemo(
     () => (labelFilter ? sortedRows.filter((r) => labelFilter.has(r.key)) : sortedRows),
@@ -574,11 +638,22 @@ export function PaymentPivotSection({
     });
   };
 
+  const toggleExpandedChild = (k: string) => {
+    setExpandedChildren((prev) => {
+      const n = new Set(prev);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  };
+
   const applyCustom = () => {
     if (customFields.length > 0) {
       setGrouping(customFields[0]);
       setSecondary(customFields[1] ?? null);
+      setTertiary(customFields[2] ?? null);
       setExpanded(new Set());
+      setExpandedChildren(new Set());
     }
     setCustomOpen(false);
   };
@@ -626,7 +701,7 @@ export function PaymentPivotSection({
             size="sm"
             variant="outline"
             onClick={() => {
-              setCustomFields([grouping, ...(secondary ? [secondary] : [])]);
+              setCustomFields([grouping, ...(secondary ? [secondary] : []), ...(secondary && tertiary ? [tertiary] : [])]);
               setCustomOpen(true);
             }}
             className="h-7 px-3 text-xs border-dashed"
@@ -639,7 +714,7 @@ export function PaymentPivotSection({
             variant="outline"
             onClick={() => {
               setBodyCollapsed((v) => !v);
-              if (!bodyCollapsed) setExpanded(new Set());
+              if (!bodyCollapsed) { setExpanded(new Set()); setExpandedChildren(new Set()); }
             }}
             className="h-7 px-3 text-xs"
             title={bodyCollapsed ? "Mostrar as linhas novamente" : "Recolher todas as linhas e ver só o Total Geral"}
@@ -653,7 +728,7 @@ export function PaymentPivotSection({
 
 
 
-          {(grouping === "empresa" || secondary === "empresa") && lotCompanyNames && lotCompanyNames.length > 0 && (
+          {(grouping === "empresa" || secondary === "empresa" || tertiary === "empresa") && lotCompanyNames && lotCompanyNames.length > 0 && (
             <label
               className={cn(
                 "flex items-center gap-1.5 h-7 px-2 text-[11px] rounded-md border cursor-pointer transition-colors",
@@ -884,29 +959,79 @@ export function PaymentPivotSection({
                       </tr>
                       {canDrill &&
                         isOpen &&
-                        r.children.map((c) => (
-                          <tr key={`${r.key}::${c.key}`} className="border-t border-border/60 bg-muted/10">
-                            <td className="px-3 py-1.5 cell-secondary border-l-2 border-primary/20">
-                              <span className="inline-block" style={{ paddingLeft: 20 }}>
-                                <span className="text-[12px] text-muted-foreground">{c.key}</span>
-                              </span>
-                            </td>
-                            {months.map((m) => (
-                              <td key={m} className="px-3 py-1.5 text-right tabular-nums text-[12px] text-muted-foreground">
-                                {BRL.format(c.byMonth.get(m) ?? 0)}
-                              </td>
-                            ))}
-                            <td
-                              className={cn(
-                                "px-3 py-1.5 text-right tabular-nums text-[12px]",
-                                variationClass(c.deltaPct),
-                              )}
-                            >
-                              {variationArrow(c.deltaPct)} {c.deltaPct > 0 ? "+" : ""}
-                              {c.deltaPct.toFixed(1)}%
-                            </td>
-                          </tr>
-                        ))}
+                        r.children.map((c) => {
+                          const childId = `${r.key}::${c.key}`;
+                          const hasGrand = c.children.length > 0;
+                          const childOpen = expandedChildren.has(childId);
+                          return (
+                            <>
+                              <tr key={childId} className="border-t border-border/60 bg-muted/10">
+                                <td className="px-3 py-1.5 cell-secondary border-l-2 border-primary/20">
+                                  <span className="inline-block" style={{ paddingLeft: 20 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => hasGrand && toggleExpandedChild(childId)}
+                                      className={cn(
+                                        "inline-flex items-center gap-1.5 text-left",
+                                        hasGrand ? "cursor-pointer" : "cursor-default",
+                                      )}
+                                    >
+                                      {hasGrand ? (
+                                        childOpen ? (
+                                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                        )
+                                      ) : (
+                                        <span className="inline-block w-3" />
+                                      )}
+                                      <span className="text-[12px] text-muted-foreground">{c.key}</span>
+                                    </button>
+                                  </span>
+                                </td>
+                                {months.map((m) => (
+                                  <td key={m} className="px-3 py-1.5 text-right tabular-nums text-[12px] text-muted-foreground">
+                                    {BRL.format(c.byMonth.get(m) ?? 0)}
+                                  </td>
+                                ))}
+                                <td
+                                  className={cn(
+                                    "px-3 py-1.5 text-right tabular-nums text-[12px]",
+                                    variationClass(c.deltaPct),
+                                  )}
+                                >
+                                  {variationArrow(c.deltaPct)} {c.deltaPct > 0 ? "+" : ""}
+                                  {c.deltaPct.toFixed(1)}%
+                                </td>
+                              </tr>
+                              {hasGrand &&
+                                childOpen &&
+                                c.children.map((g) => (
+                                  <tr key={`${childId}::${g.key}`} className="border-t border-border/40 bg-muted/5">
+                                    <td className="px-3 py-1 cell-secondary border-l-2 border-primary/10">
+                                      <span className="inline-block" style={{ paddingLeft: 44 }}>
+                                        <span className="text-[11px] text-muted-foreground">{g.key}</span>
+                                      </span>
+                                    </td>
+                                    {months.map((m) => (
+                                      <td key={m} className="px-3 py-1 text-right tabular-nums text-[11px] text-muted-foreground">
+                                        {BRL.format(g.byMonth.get(m) ?? 0)}
+                                      </td>
+                                    ))}
+                                    <td
+                                      className={cn(
+                                        "px-3 py-1 text-right tabular-nums text-[11px]",
+                                        variationClass(g.deltaPct),
+                                      )}
+                                    >
+                                      {variationArrow(g.deltaPct)} {g.deltaPct > 0 ? "+" : ""}
+                                      {g.deltaPct.toFixed(1)}%
+                                    </td>
+                                  </tr>
+                                ))}
+                            </>
+                          );
+                        })}
                     </>
                   );
                 })}
@@ -940,14 +1065,13 @@ export function PaymentPivotSection({
           </DialogHeader>
           <div className="space-y-2 py-2">
             <p className="text-xs text-muted-foreground">
-              Selecione e ordene os campos. O primeiro define o agrupamento principal; o segundo, o
-              drilldown (expansível em cada linha). A tabela suporta no máximo 2 níveis.
+              Selecione e ordene os campos. O primeiro define o agrupamento principal; o segundo e o
+              terceiro viram drilldowns expansíveis. A tabela suporta no máximo 3 níveis.
             </p>
             {allowedFields.map((f) => {
               const selectedIndex = customFields.indexOf(f);
-              // Só 2 níveis são suportados pela tabela — impedir marcar um 3º
-              // evita a impressão de que o campo extra está sendo aplicado.
-              const disabled = selectedIndex < 0 && customFields.length >= 2;
+              // Máximo de 3 níveis suportados pela tabela.
+              const disabled = selectedIndex < 0 && customFields.length >= 3;
               return (
                 <label
                   key={f}
@@ -961,7 +1085,7 @@ export function PaymentPivotSection({
                     disabled={disabled}
                     onCheckedChange={(checked) => {
                       setCustomFields((prev) => {
-                        if (checked) return prev.includes(f) || prev.length >= 2 ? prev : [...prev, f];
+                        if (checked) return prev.includes(f) || prev.length >= 3 ? prev : [...prev, f];
                         return prev.filter((x) => x !== f);
                       });
                     }}
@@ -973,7 +1097,7 @@ export function PaymentPivotSection({
                 </label>
               );
             })}
-            {customFields.length >= 2 && (
+            {customFields.length >= 3 && (
               <p className="text-[11px] text-muted-foreground">
                 Desmarque um campo para trocar a combinação.
               </p>
