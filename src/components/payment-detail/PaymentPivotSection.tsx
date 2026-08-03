@@ -577,11 +577,22 @@ export function PaymentPivotSection({
     });
   };
 
+  const toggleExpandedChild = (k: string) => {
+    setExpandedChildren((prev) => {
+      const n = new Set(prev);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  };
+
   const applyCustom = () => {
     if (customFields.length > 0) {
       setGrouping(customFields[0]);
       setSecondary(customFields[1] ?? null);
+      setTertiary(customFields[2] ?? null);
       setExpanded(new Set());
+      setExpandedChildren(new Set());
     }
     setCustomOpen(false);
   };
