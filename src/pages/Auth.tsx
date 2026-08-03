@@ -18,6 +18,8 @@ import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import LoginAnimation from "@/components/auth/LoginAnimation";
 import { DateInput } from "@/components/ui/date-input";
 import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
+import { TURNSTILE_SITE_KEY } from "@/config/turnstile";
 
 
 
