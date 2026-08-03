@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_request_attempts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          ip_hash: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip_hash?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip_hash?: string | null
+        }
+        Relationships: []
+      }
       access_requests: {
         Row: {
           birth_date: string
