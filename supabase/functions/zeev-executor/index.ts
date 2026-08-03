@@ -808,6 +808,29 @@ async function userCanWriteDoctorPii(sb: SB, userId: string): Promise<boolean> {
   return (data?.length ?? 0) > 0;
 }
 
+/** Checagem genérica de papéis — espelha os gates de RLS das tabelas alvo. */
+async function userHasAnyRole(sb: SB, userId: string, roles: string[]): Promise<boolean> {
+  const { data } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", roles);
+  return (data?.length ?? 0) > 0;
+}
+
+/**
+ * Espelha public.state_scope_allows(): admin passa direto; demais só operam
+ * em UFs dos hospitais/estados aos quais estão vinculados.
+ */
+async function callerStateScopeAllows(sb: SB, userId: string, stateUf: string | null): Promise<boolean> {
+  if (!stateUf) return true;
+  if (await userHasAnyRole(sb, userId, ["admin"])) return true;
+  const { data, error } = await sb.rpc("user_state_ufs", { _uid: userId });
+  if (error) return false;
+  return Array.isArray(data) && (data as string[]).includes(stateUf);
+}
+
+
 async function execRegisterDoctorPending(
   sb: SB,
   payload: Record<string, unknown>,
