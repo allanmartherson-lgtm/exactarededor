@@ -1558,9 +1558,10 @@ Deno.serve(async (req) => {
         const ok = await userHasInternalRole(sb, actorId);
         if (!ok) return jsonResp({ error: "Apenas papéis internos (analista+) podem cadastrar." }, 403);
 
-        let result: { affected: number; before: unknown; after: unknown };
+        let result: { affected: number; before: unknown; after: unknown; pii_omitted?: boolean };
         if (p.action === "register_doctor_pending") {
-          result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null);
+          const canWritePii = await userCanWriteDoctorPii(sb, actorId);
+          result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null, canWritePii);
         } else if (p.action === "register_company") {
           result = await execRegisterCompany(sb, p.payload, actorId);
         } else {
