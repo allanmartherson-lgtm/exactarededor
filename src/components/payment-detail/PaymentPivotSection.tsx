@@ -592,7 +592,7 @@ export function PaymentPivotSection({
   useEffect(() => {
     setLabelFilter(null);
     setFilterQuery("");
-  }, [grouping, secondary]);
+  }, [grouping, secondary, tertiary]);
 
   const visibleRows = useMemo(
     () => (labelFilter ? sortedRows.filter((r) => labelFilter.has(r.key)) : sortedRows),
