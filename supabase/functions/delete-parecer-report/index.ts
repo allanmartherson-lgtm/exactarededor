@@ -1,11 +1,19 @@
 // delete-parecer-report
-// Remove um payment_parecer_reports + suas linhas. RLS exige admin para DELETE,
-// mas o painel de análise precisa permitir que o analista corrija um upload
-// quebrado (0 linhas / arquivo errado). Esta função valida JWT e executa com
-// service role.
+// Remove um payment_parecer_reports + suas linhas via RPC (service role, para
+// elevar o statement_timeout em relatórios com milhares de linhas).
+//
+// Autorização espelha a RLS das tabelas payment_parecer_reports /
+// payment_parecer_report_rows:
+//   DELETE => has_role(auth.uid(), 'admin') AND hospital_scope_allows(hospital_id)
+// Identidade vem SEMPRE do JWT da sessão — nada enviado pelo client é usado.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import {
+  requireInternalOrRole,
+  unauthorizedResponse,
+  assertCallerHospital,
+} from "../_shared/requireInternalRole.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -13,55 +21,65 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
-  const _auth = await requireInternalOrRole(req);
-  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // (a) exige caller autenticado; só papel admin (mesma regra da RLS).
+  const _auth = await requireInternalOrRole(req, ["admin"]);
+  if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    // Validação de JWT — qualquer usuário autenticado pode remover.
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userRes, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userRes?.user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const { report_id } = await req.json();
     if (!report_id || typeof report_id !== "string") {
-      return new Response(JSON.stringify({ error: "report_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "report_id required" }, 400);
     }
 
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-    // RPC eleva statement_timeout p/ 120s — DELETE direto via PostgREST
-    // estourava o limite em relatórios com milhares de linhas.
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    // (c) escopo de hospital: hospital_id vem do próprio registro, nunca do body.
+    const { data: report, error: loadErr } = await admin
+      .from("payment_parecer_reports")
+      .select("id, hospital_id")
+      .eq("id", report_id)
+      .maybeSingle();
+    if (loadErr) return json({ error: loadErr.message }, 500);
+    if (!report) return json({ error: "not_found" }, 404);
+
+    const hospitalId = (report as { hospital_id: string | null }).hospital_id;
+    // hospital_id NULL = registro global (a RLS permite); demais validam vínculo.
+    if (hospitalId && !assertCallerHospital(_auth, hospitalId)) {
+      return json(
+        {
+          error: "hospital_scope_denied",
+          message:
+            "Seu hospital ativo não corresponde ao hospital deste relatório.",
+        },
+        403,
+      );
+    }
+
     const { error: rpcErr } = await admin.rpc("delete_parecer_report", {
       p_report_id: report_id,
     });
     if (rpcErr) throw rpcErr;
 
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e: any) {
+    return json({ ok: true });
+  } catch (e) {
     console.error("[delete-parecer-report]", e);
-    return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const msg = e instanceof Error ? e.message : String(e);
+    return json({ error: msg }, 500);
   }
 });
