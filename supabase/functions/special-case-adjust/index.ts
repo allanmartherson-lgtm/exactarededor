@@ -19,7 +19,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 const functionCorsHeaders = {
   ...corsHeaders,
   "Access-Control-Allow-Headers": "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer, x-active-hospital",
@@ -99,6 +99,12 @@ Deno.serve(async (req) => {
     if (!payment) {
       return new Response(JSON.stringify({ error: "payment_not_found" }), {
         status: 404, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Gate de hospital: ajuste financeiro só no hospital do chamador.
+    if (!assertCallerHospital(_auth, (payment as { hospital_id?: string }).hospital_id ?? "")) {
+      return new Response(JSON.stringify({ error: "hospital_scope_denied", message: "Sem acesso a este hospital." }), {
+        status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }
     if (!CLOSED.has(payment.status)) {
