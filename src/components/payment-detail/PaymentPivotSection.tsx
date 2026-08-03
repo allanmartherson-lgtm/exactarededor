@@ -415,27 +415,64 @@ export function PaymentPivotSection({
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {
     const primary = new Map<string, Map<string, number>>();
     const childrenMap = new Map<string, Map<string, Map<string, number>>>(); // parent -> child -> month -> total
+    // parent -> child -> grandchild -> month -> total
+    const grandMap = new Map<string, Map<string, Map<string, Map<string, number>>>>();
     let primaryCount = 0;
     let childCount = 0;
+    let grandCount = 0;
     const childAxis = companyAxis === "child";
+    const grandAxis = companyAxis === "grand";
     rows.forEach((r) => {
       const monthIso = r.month_bucket.slice(0, 10);
-      if (r.parent_key) {
+      if (r.parent_key && r.parent_key.includes(LEVEL_SEP)) {
+        // Linha de 3º nível: parent_key = "nível1<sep>nível2".
+        const [p1, p2] = r.parent_key.split(LEVEL_SEP);
+        if (grandAxis ? !isInLot(r.group_key) : childAxis ? !isInLot(p2) : !isInLot(p1)) return;
+        grandCount++;
+        if (!grandMap.has(p1)) grandMap.set(p1, new Map());
+        const byChild = grandMap.get(p1)!;
+        if (!byChild.has(p2)) byChild.set(p2, new Map());
+        const byGrand = byChild.get(p2)!;
+        if (!byGrand.has(r.group_key)) byGrand.set(r.group_key, new Map());
+        byGrand.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
+      } else if (r.parent_key) {
         // Empresa no eixo primário → filtra pelo pai.
         // Empresa no eixo secundário → filtra pela própria chave do filho.
-        if (childAxis ? !isInLot(r.group_key) : !isInLot(r.parent_key)) return;
+        if (childAxis ? !isInLot(r.group_key) : grandAxis ? true : !isInLot(r.parent_key)) return;
         childCount++;
         if (!childrenMap.has(r.parent_key)) childrenMap.set(r.parent_key, new Map());
         const c = childrenMap.get(r.parent_key)!;
         if (!c.has(r.group_key)) c.set(r.group_key, new Map());
         c.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       } else {
-        if (!childAxis && !isInLot(r.group_key)) return;
+        if (!childAxis && !grandAxis && !isInLot(r.group_key)) return;
         primaryCount++;
         if (!primary.has(r.group_key)) primary.set(r.group_key, new Map());
         primary.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       }
     });
+    // Empresa no 3º nível com restrição ativa: os níveis acima precisam refletir
+    // apenas as PJs do lote — recompõe de baixo para cima.
+    if (grandAxis && restrictActive) {
+      childrenMap.clear();
+      primary.clear();
+      grandMap.forEach((byChild, parentKey) => {
+        const parentMonths = new Map<string, number>();
+        const childAgg = new Map<string, Map<string, number>>();
+        byChild.forEach((byGrand, childKey) => {
+          const childMonths = new Map<string, number>();
+          byGrand.forEach((m) =>
+            m.forEach((v, k) => {
+              childMonths.set(k, (childMonths.get(k) ?? 0) + v);
+              parentMonths.set(k, (parentMonths.get(k) ?? 0) + v);
+            }),
+          );
+          childAgg.set(childKey, childMonths);
+        });
+        childrenMap.set(parentKey, childAgg);
+        primary.set(parentKey, parentMonths);
+      });
+    }
     // Empresa no eixo secundário: totais do pai precisam refletir apenas as
     // PJs do lote — recompõe a partir dos filhos já filtrados.
     if (childAxis && restrictActive) {
@@ -449,7 +486,14 @@ export function PaymentPivotSection({
       });
     }
 
-    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size, restrictActive });
+    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, grandCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size, restrictActive });
+
+    const statsOf = (byMonth: Map<string, number>) => {
+      const cur = byMonth.get(currentMonth) ?? 0;
+      const prev = previousMonths.map((m) => byMonth.get(m) ?? 0).filter((v) => v > 0);
+      const avg = prev.length > 0 ? prev.reduce((a, b) => a + b, 0) / prev.length : 0;
+      return { cur, avg, deltaPct: avg > 0 ? ((cur - avg) / avg) * 100 : 0 };
+    };
 
     const totalsByMonth = new Map<string, number>();
     const primaryList = Array.from(primary.entries())
@@ -457,27 +501,30 @@ export function PaymentPivotSection({
         months.forEach((m) => {
           totalsByMonth.set(m, (totalsByMonth.get(m) ?? 0) + (byMonth.get(m) ?? 0));
         });
-        const current = byMonth.get(currentMonth) ?? 0;
         // Considera só meses anteriores com dado (> 0). Meses sem produção
         // (ex.: pré-go-live) não devem reduzir a média.
-        const prevValues = previousMonths
-          .map((m) => byMonth.get(m) ?? 0)
-          .filter((v) => v > 0);
-        const avg =
-          prevValues.length > 0 ? prevValues.reduce((a, b) => a + b, 0) / prevValues.length : 0;
-        const deltaPct = avg > 0 ? ((current - avg) / avg) * 100 : 0;
+        const { cur: current, avg, deltaPct } = statsOf(byMonth);
         const children = childrenMap.get(key);
         const childrenList = children
           ? Array.from(children.entries())
               .map(([ck, cByMonth]) => {
-                const cCur = cByMonth.get(currentMonth) ?? 0;
-                const cPrev = previousMonths
-                  .map((m) => cByMonth.get(m) ?? 0)
-                  .filter((v) => v > 0);
-                const cAvg =
-                  cPrev.length > 0 ? cPrev.reduce((a, b) => a + b, 0) / cPrev.length : 0;
-                const cDelta = cAvg > 0 ? ((cCur - cAvg) / cAvg) * 100 : 0;
-                return { key: ck, byMonth: cByMonth, deltaPct: cDelta, total: cCur };
+                const s = statsOf(cByMonth);
+                const grandchildren = grandMap.get(key)?.get(ck);
+                const grandList = grandchildren
+                  ? Array.from(grandchildren.entries())
+                      .map(([gk, gByMonth]) => {
+                        const gs = statsOf(gByMonth);
+                        return { key: gk, byMonth: gByMonth, deltaPct: gs.deltaPct, total: gs.cur };
+                      })
+                      .sort((a, b) => b.total - a.total)
+                  : [];
+                return {
+                  key: ck,
+                  byMonth: cByMonth,
+                  deltaPct: s.deltaPct,
+                  total: s.cur,
+                  children: grandList,
+                };
               })
               .sort((a, b) => b.total - a.total)
           : [];
