@@ -2781,7 +2781,13 @@ const PaymentDetail = () => {
   const isAdmin = hasRole("admin");
   const showAnalystActions =
     isAdmin || (hasRole("analista") && !hasRole("validador") && !hasRole("diretor"));
-  const canSendForValidation = showAnalystActions && (groupsReadyToSend.length > 0 || groupsPendingAnalyst.length > 0);
+  // O lote só está na etapa do analista até ser enviado; depois disso (aguardando
+  // validação, aprovação, pós-NF...) as ações de "concluir e enviar" não fazem sentido.
+  const inAnalystStage = (
+    ["rascunho", "em_confeccao", "em_analise_ia", "revisao_analista", "devolvido_analista"] as string[]
+  ).includes(String(payment.status));
+  const canSendForValidation =
+    showAnalystActions && inAnalystStage && (groupsReadyToSend.length > 0 || groupsPendingAnalyst.length > 0);
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor || isAnalista || isValidador) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
