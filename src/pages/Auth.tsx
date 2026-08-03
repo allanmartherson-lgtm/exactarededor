@@ -186,6 +186,8 @@ const Auth = () => {
   const { user, loading, roles, rolesLoading, accountActive, signIn } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [resetting, setResetting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [noAccess, setNoAccess] = useState(false);
