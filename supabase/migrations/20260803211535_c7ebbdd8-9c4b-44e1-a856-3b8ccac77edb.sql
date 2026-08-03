@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.find_doctor_for_login(text);

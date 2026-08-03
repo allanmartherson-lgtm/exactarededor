@@ -12598,19 +12598,6 @@ export type Database = {
           specialties: string[]
         }[]
       }
-      find_doctor_for_login: {
-        Args: { identifier: string }
-        Returns: {
-          active: boolean
-          cpf: string
-          crm: string
-          crm_uf: string
-          doctor_id: string
-          email: string
-          full_name: string
-          matched_by: string
-        }[]
-      }
       find_status_inconsistent_payments: {
         Args: { _limit?: number }
         Returns: {
