@@ -62,6 +62,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Gate de hospital: a marca pertence a um lote; o chamador precisa ter acesso a ele.
+    const { data: markRow } = await admin
+      .from("special_case_marks").select("id, payment_id").eq("id", mark_id).maybeSingle();
+    if (!markRow) {
+      return new Response(JSON.stringify({ error: "mark_not_found" }), {
+        status: 404, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: markPayment } = await admin
+      .from("payments").select("id, hospital_id").eq("id", markRow.payment_id).maybeSingle();
+    if (!assertCallerHospital(_auth, (markPayment as { hospital_id?: string } | null)?.hospital_id ?? "")) {
+      return new Response(JSON.stringify({ error: "hospital_scope_denied", message: "Sem acesso a este hospital." }), {
+        status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const nowIso = new Date().toISOString();
     const patch: any = {};
     if (decision === "approve") {
