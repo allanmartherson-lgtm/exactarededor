@@ -183,6 +183,9 @@ export function PaymentPivotSection({
   // Secundário (drilldown): controlado pelo usuário via "Customizar".
   // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
   const [secondary, setSecondary] = useState<GroupingField | null>(null);
+  // Terciário (3º nível): expansível dentro de cada linha do 2º nível.
+  const [tertiary, setTertiary] = useState<GroupingField | null>(null);
+  const [expandedChildren, setExpandedChildren] = useState<Set<string>>(new Set());
   // Empresas presentes no lote atual (nomes normalizados). Usado para restringir
   // o agrupamento por empresa apenas às PJs deste lote — muito útil em lotes
   // pequenos onde toda a base histórica polui a comparação.
