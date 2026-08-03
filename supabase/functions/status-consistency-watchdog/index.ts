@@ -23,7 +23,10 @@ const BATCH_LIMIT = 100;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const _auth = await requireInternalOrRole(req);
+  // Job de reparo global (varre todos os hospitais) sem parâmetro de escopo:
+  // restrito a cron/service_role e papéis globais (admin/diretor).
+  const _auth = await requireInternalOrRole(req, ["admin", "diretor"]);
+
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   const startedAt = Date.now();
