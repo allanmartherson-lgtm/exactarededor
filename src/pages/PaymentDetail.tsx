@@ -2781,7 +2781,13 @@ const PaymentDetail = () => {
   const isAdmin = hasRole("admin");
   const showAnalystActions =
     isAdmin || (hasRole("analista") && !hasRole("validador") && !hasRole("diretor"));
-  const canSendForValidation = showAnalystActions && (groupsReadyToSend.length > 0 || groupsPendingAnalyst.length > 0);
+  // O lote só está na etapa do analista até ser enviado; depois disso (aguardando
+  // validação, aprovação, pós-NF...) as ações de "concluir e enviar" não fazem sentido.
+  const inAnalystStage = (
+    ["rascunho", "em_confeccao", "em_analise_ia", "revisao_analista", "devolvido_analista"] as string[]
+  ).includes(String(payment.status));
+  const canSendForValidation =
+    showAnalystActions && inAnalystStage && (groupsReadyToSend.length > 0 || groupsPendingAnalyst.length > 0);
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor || isAnalista || isValidador) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
@@ -4654,10 +4660,11 @@ const PaymentDetail = () => {
         })()}
 
 
-          {showAnalystActions && (groupsPendingAnalyst.length > 0 || groupsReadyToSend.length > 0 || groups.some((g) => g.status === "revisao_pos_aprovacao")) && (() => {
+          {showAnalystActions && ((inAnalystStage && (groupsPendingAnalyst.length > 0 || groupsReadyToSend.length > 0)) || groups.some((g) => g.status === "revisao_pos_aprovacao")) && (() => {
             const releaseCount = groups.filter((g) => g.status === "revisao_pos_aprovacao").length;
-            const concludeCount = groupsPendingAnalyst.length;
-            const readyCount = groupsReadyToSend.length;
+            // Contadores de envio só valem enquanto o lote está na etapa do analista.
+            const concludeCount = inAnalystStage ? groupsPendingAnalyst.length : 0;
+            const readyCount = inAnalystStage ? groupsReadyToSend.length : 0;
             const divergentGroups = groupsReadyToSend.filter((g) => {
               const inv = invoices.filter((i) =>
                 i.received_amount != null &&
