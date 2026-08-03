@@ -390,9 +390,15 @@ export function PaymentPivotSection({
   // está em algum dos eixos e o usuário quer restringir às PJs do lote,
   // filtramos aqui — inclusive nos totais — para que a comparação e os KPIs
   // reflitam apenas o universo do lote.
-  // Eixo em que a empresa aparece: primário (grouping) ou secundário (drilldown).
-  const companyAxis: "primary" | "child" | null =
-    grouping === "empresa" ? "primary" : secondary === "empresa" ? "child" : null;
+  // Eixo em que a empresa aparece: primário (grouping), secundário ou terciário.
+  const companyAxis: "primary" | "child" | "grand" | null =
+    grouping === "empresa"
+      ? "primary"
+      : secondary === "empresa"
+        ? "child"
+        : tertiary === "empresa"
+          ? "grand"
+          : null;
   // [fix 2026-07-31] A restrição só faz sentido quando a empresa está em um dos
   // eixos. Em lotes com 5+ PJs o default de agrupamento permanece
   // "especialidade" e, antes, as chaves de especialidade eram comparadas contra
