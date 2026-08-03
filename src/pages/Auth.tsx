@@ -528,6 +528,7 @@ const Auth = () => {
                       <Label htmlFor="req-msg">Mensagem (opcional)</Label>
                       <Textarea id="req-msg" rows={2} value={reqForm.message} onChange={(e) => setReqForm({ ...reqForm, message: e.target.value })} />
                     </div>
+                    <TurnstileWidget onToken={setCaptchaToken} resetKey={captchaResetKey} />
                     <Button type="submit" className="w-full" disabled={submitting}>
                       {submitting ? "Enviando..." : "Solicitar acesso"}
                     </Button>
