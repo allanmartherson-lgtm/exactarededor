@@ -243,24 +243,45 @@ export function PaymentPivotSection({
       if (effectiveTrack) args.p_track = effectiveTrack;
       const callId = Math.random().toString(36).slice(2, 8);
       console.log(`[PaymentPivot ${callId}] rpc args:`, args);
-      const { data, error } = await supabase.rpc("get_payment_pivot", args as {
-        p_current_month: string;
-        p_months_back: number;
-        p_grouping: string;
-        p_secondary?: string;
-        p_payment_id?: string;
-        p_track?: string;
-      });
+      // PostgREST corta o retorno em 1000 linhas. Com eixo secundário
+      // (ex.: empresa × médico) o resultado passa disso facilmente e os
+      // filhos excedentes sumiam da tabela. Paginamos até esgotar.
+      const PAGE = 1000;
+      const all: PivotRow[] = [];
+      let page = 0;
+      let failed = false;
+      // Teto defensivo: 50 páginas (50k linhas) evita loop infinito.
+      for (; page < 50; page++) {
+        const from = page * PAGE;
+        const { data, error } = await supabase
+          .rpc("get_payment_pivot", args as {
+            p_current_month: string;
+            p_months_back: number;
+            p_grouping: string;
+            p_secondary?: string;
+            p_payment_id?: string;
+            p_track?: string;
+          })
+          .range(from, from + PAGE - 1);
+        if (!alive) return;
+        if (error) {
+          console.error(`[PaymentPivot ${callId}] rpc error:`, error);
+          console.error(`[PaymentPivot ${callId}] rpc error stringified:`, JSON.stringify(error, null, 2));
+          failed = true;
+          break;
+        }
+        const chunk = (data ?? []) as PivotRow[];
+        all.push(...chunk);
+        if (chunk.length < PAGE) break;
+      }
       if (!alive) return;
-      if (error) {
-        console.error(`[PaymentPivot ${callId}] rpc error:`, error);
-        console.error(`[PaymentPivot ${callId}] rpc error stringified:`, JSON.stringify(error, null, 2));
-        console.error(`[PaymentPivot ${callId}] rpc error keys:`, Object.keys(error || {}));
+      if (failed) {
         setRows([]);
       } else {
-        console.log(`[PaymentPivot ${callId}] rpc rows count:`, data?.length ?? 0);
-        setRows((data ?? []) as PivotRow[]);
+        console.log(`[PaymentPivot ${callId}] rpc rows count:`, all.length, `pages: ${page + 1}`);
+        setRows(all);
       }
+
       setLoading(false);
     })();
     return () => {
