@@ -714,7 +714,7 @@ export function PaymentPivotSection({
             variant="outline"
             onClick={() => {
               setBodyCollapsed((v) => !v);
-              if (!bodyCollapsed) setExpanded(new Set());
+              if (!bodyCollapsed) { setExpanded(new Set()); setExpandedChildren(new Set()); }
             }}
             className="h-7 px-3 text-xs"
             title={bodyCollapsed ? "Mostrar as linhas novamente" : "Recolher todas as linhas e ver só o Total Geral"}
