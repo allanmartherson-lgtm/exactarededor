@@ -12,3 +12,6 @@ verify_jwt = false
 [functions.finalize-payment-engine]
 verify_jwt = false
 
+[functions.submit-access-request]
+verify_jwt = false
+

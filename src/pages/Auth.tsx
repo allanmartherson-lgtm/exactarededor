@@ -18,6 +18,8 @@ import { formatPhone, userExtraSchema } from "@/lib/userFields";
 import LoginAnimation from "@/components/auth/LoginAnimation";
 import { DateInput } from "@/components/ui/date-input";
 import { CuraSubmitButton } from "@/components/brand/CuraSubmitButton";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
+import { TURNSTILE_SITE_KEY } from "@/config/turnstile";
 
 
 
@@ -186,6 +188,8 @@ const Auth = () => {
   const { user, loading, roles, rolesLoading, accountActive, signIn } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [resetting, setResetting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [noAccess, setNoAccess] = useState(false);
@@ -374,28 +378,49 @@ const Auth = () => {
       toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
       return;
     }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      toast({ title: "Verificação pendente", description: "Conclua a verificação de segurança antes de enviar.", variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
-    const { error } = await supabase.from("access_requests").insert({
-      full_name: parsed.data.full_name,
-      email: parsed.data.email.toLowerCase(),
-      phone: parsed.data.phone,
-      role_title: parsed.data.role_title,
-      department: parsed.data.department,
-      birth_date: parsed.data.birth_date,
-      message: parsed.data.message || null,
-      requested_roles: ["analista"],
+    // Escrita direta na tabela foi revogada — a única via é a edge function,
+    // que valida CAPTCHA e aplica rate-limit antes de gravar.
+    const { data, error } = await supabase.functions.invoke("submit-access-request", {
+      body: {
+        full_name: parsed.data.full_name,
+        email: parsed.data.email.toLowerCase(),
+        phone: parsed.data.phone,
+        role_title: parsed.data.role_title,
+        department: parsed.data.department,
+        birth_date: parsed.data.birth_date,
+        message: parsed.data.message || null,
+        captcha_token: captchaToken,
+      },
     });
     setSubmitting(false);
-    if (error) {
-      const desc = /duplicate|unique/i.test(error.message)
-        ? "Já existe uma solicitação pendente para este e-mail."
-        : error.message;
+    setCaptchaToken("");
+    setCaptchaResetKey((k) => k + 1);
+
+    const responseError = (data as { error?: string } | null)?.error;
+    if (error || responseError) {
+      const code = responseError ?? "";
+      const desc =
+        code === "rate_limited"
+          ? "Muitas solicitações enviadas recentemente. Tente novamente mais tarde."
+          : code === "duplicate_pending"
+            ? "Já existe uma solicitação pendente para este e-mail."
+            : code.startsWith("captcha")
+              ? "Não foi possível validar a verificação de segurança. Tente novamente."
+              : code === "validation_failed"
+                ? "Verifique os dados informados e tente novamente."
+                : "Não foi possível enviar sua solicitação agora. Tente novamente em alguns minutos.";
       toast({ title: "Não foi possível enviar a solicitação", description: desc, variant: "destructive" });
       return;
     }
     setReqForm({ full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "" });
     toast({ title: "Solicitação enviada", description: "Um administrador analisará seu pedido. Você receberá um e-mail com o convite após a aprovação." });
   };
+
 
   return (
     <div className="min-h-screen flex">
@@ -503,6 +528,7 @@ const Auth = () => {
                       <Label htmlFor="req-msg">Mensagem (opcional)</Label>
                       <Textarea id="req-msg" rows={2} value={reqForm.message} onChange={(e) => setReqForm({ ...reqForm, message: e.target.value })} />
                     </div>
+                    <TurnstileWidget onToken={setCaptchaToken} resetKey={captchaResetKey} />
                     <Button type="submit" className="w-full" disabled={submitting}>
                       {submitting ? "Enviando..." : "Solicitar acesso"}
                     </Button>
