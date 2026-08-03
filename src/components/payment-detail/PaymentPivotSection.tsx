@@ -701,7 +701,7 @@ export function PaymentPivotSection({
             size="sm"
             variant="outline"
             onClick={() => {
-              setCustomFields([grouping, ...(secondary ? [secondary] : [])]);
+              setCustomFields([grouping, ...(secondary ? [secondary] : []), ...(secondary && tertiary ? [tertiary] : [])]);
               setCustomOpen(true);
             }}
             className="h-7 px-3 text-xs border-dashed"
