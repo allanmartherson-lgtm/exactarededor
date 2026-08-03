@@ -798,13 +798,36 @@ async function userHasInternalRole(sb: SB, userId: string): Promise<boolean> {
   return (data?.length ?? 0) > 0;
 }
 
-async function execRegisterDoctorPending(sb: SB, payload: Record<string, unknown>, actorId: string, hospitalId: string | null) {
+/** Só admin/diretor podem gravar PII sensível (CPF, data de nascimento). */
+async function userCanWriteDoctorPii(sb: SB, userId: string): Promise<boolean> {
+  const { data } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["admin", "diretor"]);
+  return (data?.length ?? 0) > 0;
+}
+
+async function execRegisterDoctorPending(
+  sb: SB,
+  payload: Record<string, unknown>,
+  actorId: string,
+  hospitalId: string | null,
+  canWritePii = false,
+) {
   const full_name = String(payload.full_name ?? "").trim();
   const crm = String(payload.crm ?? "").trim();
   const crm_uf = String(payload.crm_uf ?? "").trim().toUpperCase();
-  const cpf = payload.cpf ? digitsOnly(String(payload.cpf)) : null;
+  const rawCpf = payload.cpf ? digitsOnly(String(payload.cpf)) : null;
+  const rawBirthDate = payload.birth_date ? String(payload.birth_date).trim() : null;
   const vinculo = payload.vinculo ? String(payload.vinculo).trim() : null;
   if (!full_name || !crm || crm_uf.length !== 2) throw new Error("full_name, crm e crm_uf (2 letras) obrigatórios.");
+
+  // PII (CPF/nascimento) só é gravada quando o ator é admin ou diretor.
+  // Para os demais papéis internos o cadastro segue sem esses campos.
+  const piiOmitted = !canWritePii && Boolean(rawCpf || rawBirthDate);
+  const cpf = canWritePii ? rawCpf : null;
+  const birth_date = canWritePii ? rawBirthDate : null;
 
   // Dedup: mesmo CRM+UF já existente?
   const { data: existing } = await sb
@@ -829,6 +852,7 @@ async function execRegisterDoctorPending(sb: SB, payload: Record<string, unknown
     created_by_user_id: actorId,
     active: true,
   };
+  if (birth_date) insertRow.birth_date = birth_date;
   if (hospitalId) insertRow.state_uf = crm_uf; // referência inicial
 
   const { data: inserted, error } = await sb
@@ -842,6 +866,7 @@ async function execRegisterDoctorPending(sb: SB, payload: Record<string, unknown
     affected: 1,
     before: null,
     after: inserted,
+    pii_omitted: piiOmitted,
   };
 }
 
@@ -1533,9 +1558,10 @@ Deno.serve(async (req) => {
         const ok = await userHasInternalRole(sb, actorId);
         if (!ok) return jsonResp({ error: "Apenas papéis internos (analista+) podem cadastrar." }, 403);
 
-        let result: { affected: number; before: unknown; after: unknown };
+        let result: { affected: number; before: unknown; after: unknown; pii_omitted?: boolean };
         if (p.action === "register_doctor_pending") {
-          result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null);
+          const canWritePii = await userCanWriteDoctorPii(sb, actorId);
+          result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null, canWritePii);
         } else if (p.action === "register_company") {
           result = await execRegisterCompany(sb, p.payload, actorId);
         } else {
@@ -1562,9 +1588,13 @@ Deno.serve(async (req) => {
 
         await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id ?? null);
 
-        const msg = p.action === "register_doctor_pending" ? "Médico cadastrado (pendente aprovação)."
+        const baseMsg = p.action === "register_doctor_pending" ? "Médico cadastrado (pendente aprovação)."
                   : p.action === "register_company" ? "Empresa cadastrada."
                   : "Alias registrado.";
+        // Avisa quando CPF/nascimento foram omitidos por falta de permissão.
+        const msg = result.pii_omitted
+          ? `${baseMsg} CPF e/ou data de nascimento não foram salvos: apenas admin ou diretor podem registrar esses dados.`
+          : baseMsg;
         return jsonResp({ step: "executed", action: p.action, affected: 1, message: msg });
       }
 
