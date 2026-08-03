@@ -13,7 +13,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 import { maskPatients, unmaskDeep } from "../_shared/aiPrivacy.ts";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1325,6 +1325,13 @@ Deno.serve(async (req) => {
         return jsonResp({ error: `Falha ao carregar pagamento: ${payErr.message}` }, 500);
       }
       if (!data) return jsonResp({ error: "Pagamento não encontrado" }, 404);
+
+      // Escopo multi-tenant: o chamador só opera sobre lotes de hospitais aos
+      // quais tem vínculo. service_role/cron e papéis globais passam direto.
+      if (!assertCallerHospital(_auth, (data as { hospital_id: string | null }).hospital_id ?? "")) {
+        return jsonResp({ error: "hospital_scope_denied" }, 403);
+      }
+
 
       // Escopo de empresa — autoritativo via company_group_id da tela quando disponível.
       let scopeCompanyId: string | null = null;

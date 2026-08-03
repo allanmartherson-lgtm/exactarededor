@@ -5,7 +5,7 @@
 // ai_status — grava resultados apenas em payment_items.validation_findings.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -771,6 +771,15 @@ Deno.serve(async (req) => {
     }
     const paymentHospitalId = (paymentMeta as any).hospital_id as string | null;
     if (!paymentHospitalId) throw new Error("payment sem hospital_id — não é possível validar com segurança multi-tenant");
+
+    // Escopo multi-tenant: o chamador precisa ter acesso ao hospital do lote.
+    // Bypass automático para service_role/cron e papéis globais (admin/diretor).
+    if (!assertCallerHospital(_auth, paymentHospitalId)) {
+      return new Response(JSON.stringify({ error: "hospital_scope_denied" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
 
     // 1. Carrega lote (para filtros de escopo), itens, regras, médicos e grupos
