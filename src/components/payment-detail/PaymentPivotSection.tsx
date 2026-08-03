@@ -243,24 +243,45 @@ export function PaymentPivotSection({
       if (effectiveTrack) args.p_track = effectiveTrack;
       const callId = Math.random().toString(36).slice(2, 8);
       console.log(`[PaymentPivot ${callId}] rpc args:`, args);
-      const { data, error } = await supabase.rpc("get_payment_pivot", args as {
-        p_current_month: string;
-        p_months_back: number;
-        p_grouping: string;
-        p_secondary?: string;
-        p_payment_id?: string;
-        p_track?: string;
-      });
+      // PostgREST corta o retorno em 1000 linhas. Com eixo secundário
+      // (ex.: empresa × médico) o resultado passa disso facilmente e os
+      // filhos excedentes sumiam da tabela. Paginamos até esgotar.
+      const PAGE = 1000;
+      const all: PivotRow[] = [];
+      let page = 0;
+      let failed = false;
+      // Teto defensivo: 50 páginas (50k linhas) evita loop infinito.
+      for (; page < 50; page++) {
+        const from = page * PAGE;
+        const { data, error } = await supabase
+          .rpc("get_payment_pivot", args as {
+            p_current_month: string;
+            p_months_back: number;
+            p_grouping: string;
+            p_secondary?: string;
+            p_payment_id?: string;
+            p_track?: string;
+          })
+          .range(from, from + PAGE - 1);
+        if (!alive) return;
+        if (error) {
+          console.error(`[PaymentPivot ${callId}] rpc error:`, error);
+          console.error(`[PaymentPivot ${callId}] rpc error stringified:`, JSON.stringify(error, null, 2));
+          failed = true;
+          break;
+        }
+        const chunk = (data ?? []) as PivotRow[];
+        all.push(...chunk);
+        if (chunk.length < PAGE) break;
+      }
       if (!alive) return;
-      if (error) {
-        console.error(`[PaymentPivot ${callId}] rpc error:`, error);
-        console.error(`[PaymentPivot ${callId}] rpc error stringified:`, JSON.stringify(error, null, 2));
-        console.error(`[PaymentPivot ${callId}] rpc error keys:`, Object.keys(error || {}));
+      if (failed) {
         setRows([]);
       } else {
-        console.log(`[PaymentPivot ${callId}] rpc rows count:`, data?.length ?? 0);
-        setRows((data ?? []) as PivotRow[]);
+        console.log(`[PaymentPivot ${callId}] rpc rows count:`, all.length, `pages: ${page + 1}`);
+        setRows(all);
       }
+
       setLoading(false);
     })();
     return () => {
@@ -920,20 +941,27 @@ export function PaymentPivotSection({
           <div className="space-y-2 py-2">
             <p className="text-xs text-muted-foreground">
               Selecione e ordene os campos. O primeiro define o agrupamento principal; o segundo, o
-              drilldown (expansível em cada linha).
+              drilldown (expansível em cada linha). A tabela suporta no máximo 2 níveis.
             </p>
             {allowedFields.map((f) => {
               const selectedIndex = customFields.indexOf(f);
+              // Só 2 níveis são suportados pela tabela — impedir marcar um 3º
+              // evita a impressão de que o campo extra está sendo aplicado.
+              const disabled = selectedIndex < 0 && customFields.length >= 2;
               return (
                 <label
                   key={f}
-                  className="flex items-center gap-2 rounded-md border border-border p-2 text-sm cursor-pointer hover:bg-muted/30"
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border border-border p-2 text-sm",
+                    disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted/30",
+                  )}
                 >
                   <Checkbox
                     checked={selectedIndex >= 0}
+                    disabled={disabled}
                     onCheckedChange={(checked) => {
                       setCustomFields((prev) => {
-                        if (checked) return prev.includes(f) ? prev : [...prev, f];
+                        if (checked) return prev.includes(f) || prev.length >= 2 ? prev : [...prev, f];
                         return prev.filter((x) => x !== f);
                       });
                     }}
@@ -945,6 +973,12 @@ export function PaymentPivotSection({
                 </label>
               );
             })}
+            {customFields.length >= 2 && (
+              <p className="text-[11px] text-muted-foreground">
+                Desmarque um campo para trocar a combinação.
+              </p>
+            )}
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCustomOpen(false)}>
