@@ -887,29 +887,79 @@ export function PaymentPivotSection({
                       </tr>
                       {canDrill &&
                         isOpen &&
-                        r.children.map((c) => (
-                          <tr key={`${r.key}::${c.key}`} className="border-t border-border/60 bg-muted/10">
-                            <td className="px-3 py-1.5 cell-secondary border-l-2 border-primary/20">
-                              <span className="inline-block" style={{ paddingLeft: 20 }}>
-                                <span className="text-[12px] text-muted-foreground">{c.key}</span>
-                              </span>
-                            </td>
-                            {months.map((m) => (
-                              <td key={m} className="px-3 py-1.5 text-right tabular-nums text-[12px] text-muted-foreground">
-                                {BRL.format(c.byMonth.get(m) ?? 0)}
-                              </td>
-                            ))}
-                            <td
-                              className={cn(
-                                "px-3 py-1.5 text-right tabular-nums text-[12px]",
-                                variationClass(c.deltaPct),
-                              )}
-                            >
-                              {variationArrow(c.deltaPct)} {c.deltaPct > 0 ? "+" : ""}
-                              {c.deltaPct.toFixed(1)}%
-                            </td>
-                          </tr>
-                        ))}
+                        r.children.map((c) => {
+                          const childId = `${r.key}::${c.key}`;
+                          const hasGrand = c.children.length > 0;
+                          const childOpen = expandedChildren.has(childId);
+                          return (
+                            <>
+                              <tr key={childId} className="border-t border-border/60 bg-muted/10">
+                                <td className="px-3 py-1.5 cell-secondary border-l-2 border-primary/20">
+                                  <span className="inline-block" style={{ paddingLeft: 20 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => hasGrand && toggleExpandedChild(childId)}
+                                      className={cn(
+                                        "inline-flex items-center gap-1.5 text-left",
+                                        hasGrand ? "cursor-pointer" : "cursor-default",
+                                      )}
+                                    >
+                                      {hasGrand ? (
+                                        childOpen ? (
+                                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                        )
+                                      ) : (
+                                        <span className="inline-block w-3" />
+                                      )}
+                                      <span className="text-[12px] text-muted-foreground">{c.key}</span>
+                                    </button>
+                                  </span>
+                                </td>
+                                {months.map((m) => (
+                                  <td key={m} className="px-3 py-1.5 text-right tabular-nums text-[12px] text-muted-foreground">
+                                    {BRL.format(c.byMonth.get(m) ?? 0)}
+                                  </td>
+                                ))}
+                                <td
+                                  className={cn(
+                                    "px-3 py-1.5 text-right tabular-nums text-[12px]",
+                                    variationClass(c.deltaPct),
+                                  )}
+                                >
+                                  {variationArrow(c.deltaPct)} {c.deltaPct > 0 ? "+" : ""}
+                                  {c.deltaPct.toFixed(1)}%
+                                </td>
+                              </tr>
+                              {hasGrand &&
+                                childOpen &&
+                                c.children.map((g) => (
+                                  <tr key={`${childId}::${g.key}`} className="border-t border-border/40 bg-muted/5">
+                                    <td className="px-3 py-1 cell-secondary border-l-2 border-primary/10">
+                                      <span className="inline-block" style={{ paddingLeft: 44 }}>
+                                        <span className="text-[11px] text-muted-foreground">{g.key}</span>
+                                      </span>
+                                    </td>
+                                    {months.map((m) => (
+                                      <td key={m} className="px-3 py-1 text-right tabular-nums text-[11px] text-muted-foreground">
+                                        {BRL.format(g.byMonth.get(m) ?? 0)}
+                                      </td>
+                                    ))}
+                                    <td
+                                      className={cn(
+                                        "px-3 py-1 text-right tabular-nums text-[11px]",
+                                        variationClass(g.deltaPct),
+                                      )}
+                                    >
+                                      {variationArrow(g.deltaPct)} {g.deltaPct > 0 ? "+" : ""}
+                                      {g.deltaPct.toFixed(1)}%
+                                    </td>
+                                  </tr>
+                                ))}
+                            </>
+                          );
+                        })}
                     </>
                   );
                 })}
