@@ -14,6 +14,7 @@ import { walk } from "https://deno.land/std@0.224.0/fs/walk.ts";
 const PUBLIC_ALLOWLIST: Record<string, string> = {
   "approve-via-magic-link": "público por design — valida JWT do magic link",
   "submit-invoice": "público por design — valida upload_token do convite",
+  "submit-access-request": "público por design — form de solicitação de acesso; valida CAPTCHA (Turnstile) + rate-limit por IP/e-mail",
   "mcp": "auto-gerado — MCP OAuth server tem auth próprio",
   // Chamados por pg_cron/trigger com anon key (sem service-role em SQL).
   // São idempotentes, não recebem input do usuário externo — payloads vêm do próprio DB.
