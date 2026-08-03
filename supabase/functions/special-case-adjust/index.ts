@@ -143,6 +143,30 @@ Deno.serve(async (req) => {
       byCompany.set(it.company_id, cur);
     }
 
+    // Anti-fraude: company_id vem do client. Só empresas oficialmente vinculadas
+    // a este pagamento (payment_company_groups) podem receber ajuste — vale
+    // também no preview, para não aceitar PJ arbitrária silenciosamente.
+    const { data: pcg, error: pcgErr } = await admin
+      .from("payment_company_groups")
+      .select("company_id")
+      .eq("payment_id", body.payment_id);
+    if (pcgErr) {
+      return new Response(JSON.stringify({ error: pcgErr.message }), {
+        status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const allowedCompanies = new Set(
+      (pcg ?? []).map((r: { company_id: string | null }) => r.company_id).filter(Boolean) as string[],
+    );
+    for (const company_id of byCompany.keys()) {
+      if (!allowedCompanies.has(company_id)) {
+        return new Response(JSON.stringify({ error: "company_not_in_payment", company_id }), {
+          status: 400, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+
     const summary = Array.from(byCompany.entries()).map(([company_id, v]) => ({
       company_id,
       valor: Math.round(v.valor * 100) / 100,
