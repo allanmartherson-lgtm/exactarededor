@@ -28,6 +28,23 @@ type SetupInfo = {
   email_b: string;
 };
 
+// Ids das fixtures criadas pelo rls_test_setup — usados nos testes de escrita
+// cross-hospital e de falsificação de autor/status.
+type Fixtures = {
+  hosp_a: string;
+  hosp_b: string;
+  pay_a: string | null;
+  pay_b: string | null;
+  group_a: string | null;
+  group_b: string | null;
+  invoice_a: string | null;
+  invoice_b: string | null;
+  item_b: string | null;
+  obs_b: string | null;
+  company_id: string | null;
+};
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
@@ -76,7 +93,8 @@ Deno.serve(async (req) => {
       _user_a: user_a, _user_b: user_b,
     });
     if (setupErr) throw new Error("setup: " + setupErr.message);
-    const setupJson = setupData as { hosp_a: string; hosp_b: string };
+    const fx = setupData as Fixtures;
+    const setupJson = fx;
     setup = {
       hosp_a: setupJson.hosp_a, hosp_b: setupJson.hosp_b,
       user_a, user_b, email_a, email_b,
@@ -149,6 +167,123 @@ Deno.serve(async (req) => {
       if ((count ?? 0) > 0) {
         leaks++;
         failures.push(`LEAK ${t} (B<-A): user B viu ${count} linhas do hospital A`);
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 6) Regressão das correções de segurança: leitura dirigida, escrita
+    //    cross-hospital e falsificação de autor/status.
+    //    Convenção: toda checagem incrementa `checked`; qualquer sucesso
+    //    indevido vira `failures` (e `leaks` quando for vazamento de dado).
+    // ------------------------------------------------------------------
+
+    // 6a) Leitura dirigida por id nas tabelas corrigidas nesta rodada.
+    //     Um SELECT por id é mais estrito que a varredura genérica: prova
+    //     que a linha do hospital B é invisível para o analista do A.
+    const readTargets: Array<{ table: string; id: string | null }> = [
+      { table: "payment_items", id: fx.item_b },
+      { table: "invoices", id: fx.invoice_b },
+      { table: "payment_observations", id: fx.obs_b },
+      { table: "payment_company_groups", id: fx.group_b },
+      { table: "payments", id: fx.pay_b },
+    ];
+    for (const t of readTargets) {
+      if (!t.id) {
+        failures.push(
+          `FIXTURE AUSENTE ${t.table}: setup não criou registro no hospital B` +
+            ((setupData as { item_err?: string | null })?.item_err
+              ? ` (${(setupData as { item_err?: string | null }).item_err})`
+              : ""),
+        );
+        continue;
+      }
+      checked++;
+      const { data, error } = await clientA.from(t.table).select("id").eq("id", t.id);
+      if (error) continue; // policy negou de forma dura — comportamento aceitável
+      if ((data ?? []).length > 0) {
+        leaks++;
+        failures.push(`LEAK ${t.table} (read by id): user A leu registro do hospital B`);
+      }
+    }
+
+    // 6b) invoices.upload_token não pode ser selecionável por usuário logado
+    //     (privilégio de coluna revogado; leitura só via RPC scoped).
+    checked++;
+    {
+      const { error } = await clientA.from("invoices").select("upload_token").limit(1);
+      if (!error) {
+        leaks++;
+        failures.push("LEAK invoices.upload_token: SELECT direto permitido para authenticated");
+      }
+    }
+
+    // 6c) Escrita cross-hospital: UPDATE em linha do hospital B deve afetar 0 linhas.
+    const writeTargets: Array<{ table: string; id: string | null; patch: Record<string, unknown> }> = [
+      { table: "payment_items", id: fx.item_b, patch: { doctor_name: "RLS SPOOF" } },
+      { table: "invoices", id: fx.invoice_b, patch: { reconciliation_notes: "RLS SPOOF" } },
+      { table: "payment_observations", id: fx.obs_b, patch: { message: "RLS SPOOF" } },
+      { table: "payment_company_groups", id: fx.group_b, patch: { company_name: "RLS SPOOF" } },
+      { table: "payments", id: fx.pay_b, patch: { description: "RLS SPOOF" } },
+    ];
+    for (const t of writeTargets) {
+      if (!t.id) continue;
+      checked++;
+      const { data, error } = await clientA.from(t.table).update(t.patch).eq("id", t.id).select("id");
+      if (error) continue; // negado — esperado
+      if ((data ?? []).length > 0) {
+        failures.push(`WRITE CROSS-HOSPITAL ${t.table}: user A alterou registro do hospital B`);
+      }
+    }
+
+    // 6d) INSERT com hospital_id do outro hospital deve ser rejeitado.
+    if (fx.pay_b) {
+      checked++;
+      const insId = crypto.randomUUID();
+      const { data, error } = await clientA
+        .from("payment_observations")
+        .insert({
+          id: insId,
+          hospital_id: fx.hosp_b,
+          payment_id: fx.pay_b,
+          author_type: "sistema",
+          message: "RLS SPOOF INSERT",
+        })
+        .select("id");
+      if (!error && (data ?? []).length > 0) {
+        failures.push("WRITE CROSS-HOSPITAL payment_observations: INSERT com hospital_id alheio aceitou");
+        await admin.from("payment_observations").delete().eq("id", insId);
+      }
+    }
+
+    // 6e) Trigger guard_group_workflow_transition: analista não pode aprovar
+    //     grupo do próprio hospital nem falsificar o aprovador.
+    if (fx.group_a) {
+      checked++;
+      const { data, error } = await clientA
+        .from("payment_company_groups")
+        .update({ status: "aprovado", approved_by: setup.user_a })
+        .eq("id", fx.group_a)
+        .select("id, status");
+      const blocked = !!error || (data ?? []).length === 0;
+      if (!blocked) {
+        failures.push(
+          "TRIGGER guard_group_workflow_transition: analista conseguiu marcar grupo como aprovado",
+        );
+      }
+    }
+
+    // 6f) Trigger guard_payment_author_spoof: analista não pode gravar
+    //     approved_by/validated_by apontando para si mesmo.
+    if (fx.pay_a) {
+      checked++;
+      const { data, error } = await clientA
+        .from("payments")
+        .update({ approved_by: setup.user_a })
+        .eq("id", fx.pay_a)
+        .select("id, approved_by");
+      const blocked = !!error || (data ?? []).length === 0;
+      if (!blocked) {
+        failures.push("TRIGGER guard_payment_author_spoof: analista gravou approved_by em si mesmo");
       }
     }
   } catch (e) {
