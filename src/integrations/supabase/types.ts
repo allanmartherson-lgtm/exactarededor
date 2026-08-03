@@ -13433,6 +13433,7 @@ export type Database = {
         Returns: boolean
       }
       is_portal_user: { Args: { _uid: string }; Returns: boolean }
+      is_service_role_call: { Args: never; Returns: boolean }
       is_valid_status_transition: {
         Args: {
           _from: Database["public"]["Enums"]["payment_status"]
