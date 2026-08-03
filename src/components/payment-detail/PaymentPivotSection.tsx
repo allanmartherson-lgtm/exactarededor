@@ -244,6 +244,7 @@ export function PaymentPivotSection({
         p_grouping: grouping,
       };
       if (sec) args.p_secondary = sec;
+      if (ter) args.p_tertiary = ter;
       if (paymentId) args.p_payment_id = paymentId;
       if (effectiveTrack) args.p_track = effectiveTrack;
       const callId = Math.random().toString(36).slice(2, 8);
