@@ -1586,10 +1586,21 @@ Deno.serve(async (req) => {
           const canWritePii = await userCanWriteDoctorPii(sb, actorId);
           result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null, canWritePii);
         } else if (p.action === "register_company") {
+          // Espelha a RLS companies_insert_workflow: gestao_medica não cria PJ,
+          // e a UF precisa estar dentro do escopo estadual do usuário.
+          const canRegisterCompany = await userHasAnyRole(sb, actorId, ["admin", "diretor", "analista", "validador"]);
+          if (!canRegisterCompany) {
+            return jsonResp({ error: "Apenas analista, validador, diretor ou admin podem cadastrar empresa." }, 403);
+          }
+          const stateUf = p.payload?.state_uf ? String(p.payload.state_uf).trim().toUpperCase() : null;
+          if (!(await callerStateScopeAllows(sb, actorId, stateUf))) {
+            return jsonResp({ error: `Sem escopo para cadastrar empresa na UF ${stateUf}.` }, 403);
+          }
           result = await execRegisterCompany(sb, p.payload, actorId);
         } else {
           result = await execResolveRegistryMatch(sb, p.payload, actorId);
         }
+
 
         const after = result.after as { id?: string };
         await sb.from("audit_log").insert({
