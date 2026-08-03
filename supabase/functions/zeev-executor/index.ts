@@ -1588,9 +1588,13 @@ Deno.serve(async (req) => {
 
         await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id ?? null);
 
-        const msg = p.action === "register_doctor_pending" ? "Médico cadastrado (pendente aprovação)."
+        const baseMsg = p.action === "register_doctor_pending" ? "Médico cadastrado (pendente aprovação)."
                   : p.action === "register_company" ? "Empresa cadastrada."
                   : "Alias registrado.";
+        // Avisa quando CPF/nascimento foram omitidos por falta de permissão.
+        const msg = result.pii_omitted
+          ? `${baseMsg} CPF e/ou data de nascimento não foram salvos: apenas admin ou diretor podem registrar esses dados.`
+          : baseMsg;
         return jsonResp({ step: "executed", action: p.action, affected: 1, message: msg });
       }
 
