@@ -290,7 +290,7 @@ export function PaymentPivotSection({
     return () => {
       alive = false;
     };
-  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId, trackFilter, lotTrack]);
+  }, [variant, grouping, secondary, tertiary, monthsBack, competenceDate, paymentId, trackFilter, lotTrack]);
 
   // Carrega a trilha do lote atual (uma vez por paymentId).
   useEffect(() => {
