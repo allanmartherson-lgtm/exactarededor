@@ -13076,69 +13076,23 @@ export type Database = {
           z_score: number
         }[]
       }
-      get_payment_pivot:
-        | {
-            Args: {
-              p_current_month: string
-              p_grouping: string
-              p_months_back: number
-              p_secondary?: string
-            }
-            Returns: {
-              group_key: string
-              month_bucket: string
-              parent_key: string
-              total: number
-            }[]
-          }
-        | {
-            Args: {
-              p_current_month: string
-              p_grouping: string
-              p_months_back: number
-              p_payment_id?: string
-              p_secondary?: string
-            }
-            Returns: {
-              group_key: string
-              month_bucket: string
-              parent_key: string
-              total: number
-            }[]
-          }
-        | {
-            Args: {
-              p_current_month: string
-              p_grouping: string
-              p_months_back: number
-              p_payment_id?: string
-              p_secondary?: string
-              p_track?: string
-            }
-            Returns: {
-              group_key: string
-              month_bucket: string
-              parent_key: string
-              total: number
-            }[]
-          }
-        | {
-            Args: {
-              p_current_month: string
-              p_grouping: string
-              p_months_back: number
-              p_payment_id?: string
-              p_secondary?: string
-              p_tertiary?: string
-              p_track?: string
-            }
-            Returns: {
-              group_key: string
-              month_bucket: string
-              parent_key: string
-              total: number
-            }[]
-          }
+      get_payment_pivot: {
+        Args: {
+          p_current_month: string
+          p_grouping: string
+          p_months_back: number
+          p_payment_id?: string
+          p_secondary?: string
+          p_tertiary?: string
+          p_track?: string
+        }
+        Returns: {
+          group_key: string
+          month_bucket: string
+          parent_key: string
+          total: number
+        }[]
+      }
       get_portal_company_breakdown: {
         Args: { p_doctor_id: string; p_months?: number }
         Returns: {
