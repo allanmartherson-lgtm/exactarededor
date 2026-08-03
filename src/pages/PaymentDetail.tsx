@@ -3332,14 +3332,19 @@ const PaymentDetail = () => {
               default: return null;
             }
           })();
-          // KPIs leves — alertas/críticos só aparecem quando > 0
+          // KPIs leves — contam apenas pendências AINDA em aberto.
+          // Itens de empresas já tratadas pelo analista (itemAnalystDone) ou
+          // já acatados não entram: senão o cabeçalho passa falsa sensação de
+          // trabalho pendente mesmo depois da resolução.
           let alertCount = 0;
           let criticalCount = 0;
           for (const it of items as any[]) {
             const s = it?.ai_status as ItemAiStatus | undefined;
+            if (itemAnalystDone(it as PaymentItemRowType)) continue;
             if (s === "alerta") alertCount++;
             else if (s === "reprovado" || s === "erro_duplicidade_pagamento" || s === "erro_duplicidade_calculo") criticalCount++;
           }
+
           return (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground min-w-0">
