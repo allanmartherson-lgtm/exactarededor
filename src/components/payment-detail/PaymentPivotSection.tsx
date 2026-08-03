@@ -265,6 +265,7 @@ export function PaymentPivotSection({
             p_months_back: number;
             p_grouping: string;
             p_secondary?: string;
+            p_tertiary?: string;
             p_payment_id?: string;
             p_track?: string;
           })
