@@ -1326,6 +1326,13 @@ Deno.serve(async (req) => {
       }
       if (!data) return jsonResp({ error: "Pagamento não encontrado" }, 404);
 
+      // Escopo multi-tenant: o chamador só opera sobre lotes de hospitais aos
+      // quais tem vínculo. service_role/cron e papéis globais passam direto.
+      if (!assertCallerHospital(_auth, (data as { hospital_id: string | null }).hospital_id ?? "")) {
+        return jsonResp({ error: "hospital_scope_denied" }, 403);
+      }
+
+
       // Escopo de empresa — autoritativo via company_group_id da tela quando disponível.
       let scopeCompanyId: string | null = null;
       let companyName: string | null = body.company_name ?? null;
