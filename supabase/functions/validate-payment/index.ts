@@ -772,6 +772,15 @@ Deno.serve(async (req) => {
     const paymentHospitalId = (paymentMeta as any).hospital_id as string | null;
     if (!paymentHospitalId) throw new Error("payment sem hospital_id — não é possível validar com segurança multi-tenant");
 
+    // Escopo multi-tenant: o chamador precisa ter acesso ao hospital do lote.
+    // Bypass automático para service_role/cron e papéis globais (admin/diretor).
+    if (!assertCallerHospital(_auth, paymentHospitalId)) {
+      return new Response(JSON.stringify({ error: "hospital_scope_denied" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
 
     // 1. Carrega lote (para filtros de escopo), itens, regras, médicos e grupos
     const [
