@@ -8,7 +8,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 type Extracted = {
   approver_name: string | null;
@@ -68,6 +68,13 @@ Deno.serve(async (req) => {
       status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  // Gate de hospital: chamadores não-internos só acessam aprovações do próprio hospital.
+  if (!assertCallerHospital(auth, (approval as { hospital_id?: string }).hospital_id ?? "")) {
+    return new Response(JSON.stringify({ error: "hospital_scope_denied", message: "Sem acesso a este hospital." }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (approval.status === "applied" || approval.status === "rejected") {
     return new Response(JSON.stringify({ error: "approval_already_finalized", status: approval.status }), {
       status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },

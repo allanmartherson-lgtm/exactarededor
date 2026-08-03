@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 const functionCorsHeaders = {
   ...corsHeaders,
   "Access-Control-Allow-Headers": "authorization, x-client-info, x-supabase-api-version, apikey, content-type, prefer, x-active-hospital",
@@ -58,6 +58,22 @@ Deno.serve(async (req) => {
     const canDecide = roleSet.has("admin") || roleSet.has("diretor") || roleSet.has("gestao_medica");
     if (!canDecide) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Gate de hospital: a marca pertence a um lote; o chamador precisa ter acesso a ele.
+    const { data: markRow } = await admin
+      .from("special_case_marks").select("id, payment_id").eq("id", mark_id).maybeSingle();
+    if (!markRow) {
+      return new Response(JSON.stringify({ error: "mark_not_found" }), {
+        status: 404, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: markPayment } = await admin
+      .from("payments").select("id, hospital_id").eq("id", markRow.payment_id).maybeSingle();
+    if (!assertCallerHospital(_auth, (markPayment as { hospital_id?: string } | null)?.hospital_id ?? "")) {
+      return new Response(JSON.stringify({ error: "hospital_scope_denied", message: "Sem acesso a este hospital." }), {
         status: 403, headers: { ...functionCorsHeaders, "Content-Type": "application/json" },
       });
     }

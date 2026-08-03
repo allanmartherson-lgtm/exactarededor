@@ -3,7 +3,7 @@
 // complemento_retroativo) a partir dos itens nao_pago / pago_a_menos
 // de uma apuração retroativa. Agrupa por PJ vinculada ao médico.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +41,13 @@ Deno.serve(async (req) => {
     if (rErr || !recon) {
       return new Response(JSON.stringify({ error: "apuração não encontrada" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Gate de hospital: escrita financeira só no hospital do chamador.
+    if (!assertCallerHospital(auth, recon.hospital_id ?? "")) {
+      return new Response(JSON.stringify({ error: "hospital_scope_denied", message: "Sem acesso a este hospital." }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

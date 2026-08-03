@@ -6,7 +6,7 @@
 // somando quantidade e valor — assim, se o médico alegou 2 vias e só 1 foi
 // paga, a diferença de quantidade aparece como pago_a_menos.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { requireInternalOrRole, unauthorizedResponse, assertCallerHospital } from "../_shared/requireInternalRole.ts";
 
 
 const corsHeaders = {
@@ -83,6 +83,13 @@ Deno.serve(async (req) => {
     if (reconErr || !recon) {
       return new Response(JSON.stringify({ error: "apuração não encontrada" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Gate de hospital: apuração de outro hospital não pode ser reprocessada.
+    if (!assertCallerHospital(auth, recon.hospital_id ?? "")) {
+      return new Response(JSON.stringify({ error: "hospital_scope_denied", message: "Sem acesso a este hospital." }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
