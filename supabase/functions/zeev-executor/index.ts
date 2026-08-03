@@ -808,6 +808,29 @@ async function userCanWriteDoctorPii(sb: SB, userId: string): Promise<boolean> {
   return (data?.length ?? 0) > 0;
 }
 
+/** Checagem genérica de papéis — espelha os gates de RLS das tabelas alvo. */
+async function userHasAnyRole(sb: SB, userId: string, roles: string[]): Promise<boolean> {
+  const { data } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", roles);
+  return (data?.length ?? 0) > 0;
+}
+
+/**
+ * Espelha public.state_scope_allows(): admin passa direto; demais só operam
+ * em UFs dos hospitais/estados aos quais estão vinculados.
+ */
+async function callerStateScopeAllows(sb: SB, userId: string, stateUf: string | null): Promise<boolean> {
+  if (!stateUf) return true;
+  if (await userHasAnyRole(sb, userId, ["admin"])) return true;
+  const { data, error } = await sb.rpc("user_state_ufs", { _uid: userId });
+  if (error) return false;
+  return Array.isArray(data) && (data as string[]).includes(stateUf);
+}
+
+
 async function execRegisterDoctorPending(
   sb: SB,
   payload: Record<string, unknown>,
@@ -1563,10 +1586,21 @@ Deno.serve(async (req) => {
           const canWritePii = await userCanWriteDoctorPii(sb, actorId);
           result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null, canWritePii);
         } else if (p.action === "register_company") {
+          // Espelha a RLS companies_insert_workflow: gestao_medica não cria PJ,
+          // e a UF precisa estar dentro do escopo estadual do usuário.
+          const canRegisterCompany = await userHasAnyRole(sb, actorId, ["admin", "diretor", "analista", "validador"]);
+          if (!canRegisterCompany) {
+            return jsonResp({ error: "Apenas analista, validador, diretor ou admin podem cadastrar empresa." }, 403);
+          }
+          const stateUf = p.payload?.state_uf ? String(p.payload.state_uf).trim().toUpperCase() : null;
+          if (!(await callerStateScopeAllows(sb, actorId, stateUf))) {
+            return jsonResp({ error: `Sem escopo para cadastrar empresa na UF ${stateUf}.` }, 403);
+          }
           result = await execRegisterCompany(sb, p.payload, actorId);
         } else {
           result = await execResolveRegistryMatch(sb, p.payload, actorId);
         }
+
 
         const after = result.after as { id?: string };
         await sb.from("audit_log").insert({
@@ -1630,7 +1664,14 @@ Deno.serve(async (req) => {
       } else if (p.action === "set_cost_center") {
         result = await execSetCostCenter(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "link_doctor_company") {
+        // Espelha a RLS dc_manage_admin_diretor: criar vínculo médico↔PJ é
+        // decisão de admin/diretor — analista/validador/gestao_medica não podem.
+        const canLink = await userHasAnyRole(sb, actorId, ["admin", "diretor"]);
+        if (!canLink) {
+          return jsonResp({ error: "Apenas diretor ou admin podem vincular médicos a uma empresa." }, 403);
+        }
         result = await execLinkDoctorCompany(sb, body.payment_id, p.scope, p.payload);
+
       } else if (p.action === "accept_keep_paid") {
         result = await execAcceptKeepPaid(sb, body.payment_id, p.scope, p.payload, actorId);
       } else if (p.action === "accept_keep_expected") {
