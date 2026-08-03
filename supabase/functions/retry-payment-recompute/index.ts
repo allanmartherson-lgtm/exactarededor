@@ -14,7 +14,11 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const _auth = await requireInternalOrRole(req);
+  // Fila global (multi-hospital) sem parâmetro de escopo: só cron/service_role
+  // ou papéis globais (admin/diretor) podem drenar. Analista/validador de um
+  // hospital não pode disparar recálculo em lotes de outras unidades.
+  const _auth = await requireInternalOrRole(req, ["admin", "diretor"]);
+
   if (!_auth.ok) return unauthorizedResponse(_auth, corsHeaders);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
