@@ -47,6 +47,10 @@ type PivotRow = {
   total: number;
 };
 
+// Separador usado pela RPC para compor "nível1<sep>nível2" no parent_key das
+// linhas de 3º nível (unit separator — não ocorre em nomes reais).
+const LEVEL_SEP = "\u001f";
+
 const PRESETS_BY_VARIANT: Record<Exclude<PivotVariant, "detalhe">, GroupingField[]> = {
   compacto: ["especialidade", "empresa", "medico"],
   executivo: ["especialidade", "empresa"],
