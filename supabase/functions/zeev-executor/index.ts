@@ -1664,7 +1664,14 @@ Deno.serve(async (req) => {
       } else if (p.action === "set_cost_center") {
         result = await execSetCostCenter(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "link_doctor_company") {
+        // Espelha a RLS dc_manage_admin_diretor: criar vínculo médico↔PJ é
+        // decisão de admin/diretor — analista/validador/gestao_medica não podem.
+        const canLink = await userHasAnyRole(sb, actorId, ["admin", "diretor"]);
+        if (!canLink) {
+          return jsonResp({ error: "Apenas diretor ou admin podem vincular médicos a uma empresa." }, 403);
+        }
         result = await execLinkDoctorCompany(sb, body.payment_id, p.scope, p.payload);
+
       } else if (p.action === "accept_keep_paid") {
         result = await execAcceptKeepPaid(sb, body.payment_id, p.scope, p.payload, actorId);
       } else if (p.action === "accept_keep_expected") {
