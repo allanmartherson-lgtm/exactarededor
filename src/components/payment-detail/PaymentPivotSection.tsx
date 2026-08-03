@@ -224,6 +224,8 @@ export function PaymentPivotSection({
     setLoading(true);
     (async () => {
       const sec: GroupingField | null = secondary && secondary !== grouping ? secondary : null;
+      const ter: GroupingField | null =
+        sec && tertiary && tertiary !== grouping && tertiary !== sec ? tertiary : null;
       // Resolve trilha efetiva:
       //  - "auto" → trilha do lote atual (filtra mesmos lotes); se lote não tem trilha, manda nada (= todos)
       //  - "todos" → explicitamente desliga o filtro
