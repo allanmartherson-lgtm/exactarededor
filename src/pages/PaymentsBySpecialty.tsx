@@ -112,8 +112,16 @@ interface FinancialRow {
 type GroupBy = "company" | "doctor";
 type DoctorMode = "doctor" | "company";
 
+// Colapsa espaços internos: o cadastro tem variações como
+// "Paliativismo e  terminalidade" (2 espaços, caixa diferente) que não podem
+// deixar de casar com "Paliativismo e Terminalidade" da tabela specialties.
 const norm = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
 const money = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
