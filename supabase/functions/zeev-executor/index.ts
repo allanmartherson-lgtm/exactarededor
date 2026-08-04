@@ -830,6 +830,29 @@ async function callerStateScopeAllows(sb: SB, userId: string, stateUf: string | 
   return Array.isArray(data) && (data as string[]).includes(stateUf);
 }
 
+/**
+ * Regionalização de cadastros: o `state_uf` de médico/PJ é SEMPRE o estado do
+ * hospital onde o cadastro foi feito — nunca a UF do CRM nem valor vindo do
+ * payload. O trigger `enforce_state_uf_from_hospital` no banco rejeita insert
+ * de service_role sem `state_uf`, então esta resolução é obrigatória.
+ */
+async function resolveHospitalStateUf(sb: SB, hospitalId: string | null): Promise<string> {
+  if (!hospitalId) {
+    throw new Error(
+      "Não foi possível determinar o hospital do cadastro. Abra um lote ou selecione uma unidade ativa antes de cadastrar.",
+    );
+  }
+  const { data, error } = await sb
+    .from("hospitals")
+    .select("state_uf")
+    .eq("id", hospitalId)
+    .maybeSingle();
+  const uf = (data?.state_uf as string | null)?.trim().toUpperCase() ?? null;
+  if (error || !uf) throw new Error("Hospital ativo sem UF cadastrada — corrija o cadastro do hospital.");
+  return uf;
+}
+
+
 
 async function execRegisterDoctorPending(
   sb: SB,
@@ -876,7 +899,9 @@ async function execRegisterDoctorPending(
     active: true,
   };
   if (birth_date) insertRow.birth_date = birth_date;
-  if (hospitalId) insertRow.state_uf = crm_uf; // referência inicial
+  // Estado do cadastro = estado do hospital, nunca a UF do CRM (o médico pode
+  // ter CRM de outro estado e atuar aqui).
+  insertRow.state_uf = await resolveHospitalStateUf(sb, hospitalId);
 
   const { data: inserted, error } = await sb
     .from("doctors")
@@ -893,12 +918,24 @@ async function execRegisterDoctorPending(
   };
 }
 
-async function execRegisterCompany(sb: SB, payload: Record<string, unknown>, actorId: string) {
+async function execRegisterCompany(
+  sb: SB,
+  payload: Record<string, unknown>,
+  actorId: string,
+  hospitalId: string | null,
+) {
   const name = String(payload.name ?? "").trim();
   const document = digitsOnly(String(payload.document ?? ""));
-  const state_uf = payload.state_uf ? String(payload.state_uf).trim().toUpperCase() : null;
   if (!name) throw new Error("name obrigatório.");
   if (!isValidCnpj(document)) throw new Error("CNPJ inválido.");
+
+  // A UF final é sempre a do hospital. Se o payload trouxe UF divergente,
+  // recusamos em vez de gravar silenciosamente outro valor.
+  const state_uf = await resolveHospitalStateUf(sb, hospitalId);
+  const payloadUf = payload.state_uf ? String(payload.state_uf).trim().toUpperCase() : null;
+  if (payloadUf && payloadUf !== state_uf) {
+    throw new Error(`UF informada (${payloadUf}) diverge da UF do hospital do cadastro (${state_uf}).`);
+  }
 
   const { data: existing } = await sb
     .from("companies")
@@ -1582,9 +1619,11 @@ Deno.serve(async (req) => {
         if (!ok) return jsonResp({ error: "Apenas papéis internos (analista+) podem cadastrar." }, 403);
 
         let result: { affected: number; before: unknown; after: unknown; pii_omitted?: boolean };
+        // Cadastro sempre pertence ao hospital do lote; sem lote, à unidade ativa do ator.
+        const registryHospitalId = pay?.hospital_id ?? activeHospitalId;
         if (p.action === "register_doctor_pending") {
           const canWritePii = await userCanWriteDoctorPii(sb, actorId);
-          result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null, canWritePii);
+          result = await execRegisterDoctorPending(sb, p.payload, actorId, registryHospitalId, canWritePii);
         } else if (p.action === "register_company") {
           // Espelha a RLS companies_insert_workflow: gestao_medica não cria PJ,
           // e a UF precisa estar dentro do escopo estadual do usuário.
@@ -1592,11 +1631,12 @@ Deno.serve(async (req) => {
           if (!canRegisterCompany) {
             return jsonResp({ error: "Apenas analista, validador, diretor ou admin podem cadastrar empresa." }, 403);
           }
-          const stateUf = p.payload?.state_uf ? String(p.payload.state_uf).trim().toUpperCase() : null;
+          // Valida o escopo estadual contra a UF real do hospital, não contra o payload.
+          const stateUf = await resolveHospitalStateUf(sb, registryHospitalId);
           if (!(await callerStateScopeAllows(sb, actorId, stateUf))) {
             return jsonResp({ error: `Sem escopo para cadastrar empresa na UF ${stateUf}.` }, 403);
           }
-          result = await execRegisterCompany(sb, p.payload, actorId);
+          result = await execRegisterCompany(sb, p.payload, actorId, registryHospitalId);
         } else {
           result = await execResolveRegistryMatch(sb, p.payload, actorId);
         }

@@ -13825,6 +13825,10 @@ export type Database = {
         Returns: undefined
       }
       state_scope_allows: { Args: { _state_uf: string }; Returns: boolean }
+      state_scope_allows_strict: {
+        Args: { _state_uf: string }
+        Returns: boolean
+      }
       storage_object_hospital_allows: {
         Args: { _bucket: string; _name: string }
         Returns: boolean
