@@ -296,6 +296,119 @@ export type Database = {
           },
         ]
       }
+      analysis_group_members: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          doctor_id: string | null
+          group_id: string
+          hospital_id: string
+          id: string
+          member_type: string
+          specialty_code: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          group_id: string
+          hospital_id: string
+          id?: string
+          member_type: string
+          specialty_code?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          group_id?: string
+          hospital_id?: string
+          id?: string
+          member_type?: string
+          specialty_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_group_members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_group_members_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_group_members_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_group_members_specialty_code_fkey"
+            columns: ["specialty_code"]
+            isOneToOne: false
+            referencedRelation: "specialties"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      analysis_groups: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          hospital_id: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hospital_id: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          hospital_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_groups_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analysis_telemetry: {
         Row: {
           ai_items_count: number
