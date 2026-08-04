@@ -115,7 +115,7 @@ export async function exportSpecialtyReportPdf(params: {
 
   let y = await drawReportHeader(doc, {
     title: "Pagamentos por especialidade / PJ",
-    subtitle: filterLines(filters),
+    subtitle: filterLines(filters).join("  ·  "),
     marginX,
     logoHeightMm: 12,
   });
