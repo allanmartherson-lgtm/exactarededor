@@ -1069,8 +1069,9 @@ export default function PaymentsBySpecialty() {
                     </TableBody>
                   </Table>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
           </>
         )}
       </div>
