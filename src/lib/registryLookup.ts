@@ -261,14 +261,17 @@ async function fetchAllPaginated<T>(
   const out: T[] = [];
   for (let from = 0; ; from += pageSize) {
     const to = from + pageSize - 1;
-    const { data, error } = await buildQuery(from, to);
-    if (error) throw error;
-    const rows = (data ?? []) as T[];
+    // Passa por runLookupQuery para herdar timeout + retry com backoff:
+    // antes, uma falha transitória em convenios/sectors/aliases derrubava
+    // toda a carga de cadastros sem nenhuma tentativa de recuperação.
+    const rows = await runLookupQuery<T>(() => buildQuery(from, to));
     out.push(...rows);
     if (rows.length < pageSize) break;
+    if (out.length >= 200_000) break;
   }
   return out;
 }
+
 
 /**
  * Paginação por chave primária. Evita OFFSET em tabelas com RLS, que precisa
