@@ -213,17 +213,12 @@ export default function PaymentsBySpecialty() {
       const start = monthStart(fromMonth);
       const end = monthEnd(toMonth);
 
-      const [itemRows, doctorRows, companyRows, groupRes, memberRes, dcRows] = await Promise.all([
-        fetchAggregatedItems(hospitalId, start, end),
-        fetchAllPaginated<DoctorRow>((from, to) =>
+      // Itens primeiro: os médicos carregados depois são só os que aparecem no
+      // período. Carregar a tabela `doctors` inteira por offset estourava o
+      // statement timeout (RLS pesada, ~8s por página de 1000).
+      const itemRows = await fetchAggregatedItems(hospitalId, start, end);
 
-          supabase
-            .from("doctors")
-            .select("id,full_name,crm,crm_uf,specialties")
-            .order("full_name")
-            .range(from, to),
-        ),
-
+      const [companyRows, groupRes, memberRes, dcRows] = await Promise.all([
         fetchAllPaginated<CompanyRow>((from, to) =>
           supabase.from("companies").select("id,name,document").order("name").range(from, to),
         ),
@@ -248,6 +243,27 @@ export default function PaymentsBySpecialty() {
 
       if (groupRes.error) throw groupRes.error;
       if (memberRes.error) throw memberRes.error;
+
+      // Médicos necessários: os que têm itens no período + os citados
+      // diretamente em grupos de análise + o médico selecionado no filtro.
+      const doctorIdsNeeded = new Set<string>();
+      itemRows.forEach((i) => i.doctor_id && doctorIdsNeeded.add(i.doctor_id));
+      ((memberRes.data ?? []) as GroupMemberRow[]).forEach(
+        (m) => m.doctor_id && doctorIdsNeeded.add(m.doctor_id),
+      );
+      if (selectedDoctorIdRef.current) doctorIdsNeeded.add(selectedDoctorIdRef.current);
+
+      const doctorRows: DoctorRow[] = [];
+      const doctorIdList = Array.from(doctorIdsNeeded);
+      for (let i = 0; i < doctorIdList.length; i += 200) {
+        const { data, error: dErr } = await supabase
+          .from("doctors")
+          .select("id,full_name,crm,crm_uf,specialties")
+          .in("id", doctorIdList.slice(i, i + 200));
+        if (dErr) throw dErr;
+        doctorRows.push(...((data ?? []) as DoctorRow[]));
+      }
+
 
       // A RPC já exclui itens cancelados.
       const live = itemRows;
