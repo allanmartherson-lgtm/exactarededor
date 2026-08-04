@@ -112,8 +112,16 @@ interface FinancialRow {
 type GroupBy = "company" | "doctor";
 type DoctorMode = "doctor" | "company";
 
+// Colapsa espaços internos: o cadastro tem variações como
+// "Paliativismo e  terminalidade" (2 espaços, caixa diferente) que não podem
+// deixar de casar com "Paliativismo e Terminalidade" da tabela specialties.
 const norm = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
 const money = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -175,30 +183,46 @@ export default function PaymentsBySpecialty() {
    */
   const fetchAggregatedItems = useCallback(
     async (hid: string, from: string, to: string): Promise<ItemRow[]> => {
-      const { data, error: rErr } = await supabase.rpc("get_specialty_payments_agg", {
-        p_hospital: hid,
-        p_from: from,
-        p_to: to,
-      });
-      if (rErr) throw rErr;
-      return ((data ?? []) as Array<{
+      type AggRow = {
         competence: string | null;
         payment_id: string | null;
         company_id: string | null;
         doctor_id: string | null;
         gross: number | string | null;
         items: number | string | null;
-      }>).map((r) => ({
-        payment_id: r.payment_id,
-        company_id: r.company_id,
-        doctor_id: r.doctor_id,
-        gross_amount: Number(r.gross ?? 0),
-        item_competence: r.competence,
-        qty: Number(r.items ?? 0),
-      }));
+      };
+
+      // PostgREST corta a resposta em 1000 linhas (max-rows) mesmo em RPC —
+      // no período jan-jun/2026 a agregação tem 3.513 linhas, então sem
+      // paginação o relatório perdia ~70% dos itens silenciosamente
+      // (competências inteiras sumiam do gráfico). Paginar por .range() é
+      // obrigatório aqui.
+      const PAGE = 1000;
+      const out: ItemRow[] = [];
+      for (let offset = 0; ; offset += PAGE) {
+        const { data, error: rErr } = await supabase
+          .rpc("get_specialty_payments_agg", { p_hospital: hid, p_from: from, p_to: to })
+          .range(offset, offset + PAGE - 1);
+        if (rErr) throw rErr;
+        const rows = (data ?? []) as AggRow[];
+        out.push(
+          ...rows.map((r) => ({
+            payment_id: r.payment_id,
+            company_id: r.company_id,
+            doctor_id: r.doctor_id,
+            gross_amount: Number(r.gross ?? 0),
+            item_competence: r.competence,
+            qty: Number(r.items ?? 0),
+          })),
+        );
+        if (rows.length < PAGE) break;
+        if (out.length >= 200_000) break; // trava de segurança
+      }
+      return out;
     },
     [],
   );
+
 
 
   const load = useCallback(async () => {
