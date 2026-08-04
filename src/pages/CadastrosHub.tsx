@@ -19,6 +19,7 @@ import ItemTypes from "./ItemTypes";
 import ManualInterventionReasons from "./ManualInterventionReasons";
 import PayoutModels from "./PayoutModels";
 import Specialties from "./Specialties";
+import AnalysisGroups from "./AnalysisGroups";
 
 type TabValue =
   | "empresas"
@@ -31,6 +32,7 @@ type TabValue =
   | "motivos-intervencao-manual"
   | "mapa-especialidades"
   | "especialidades"
+  | "grupos-analise"
   | "modelos-repasse";
 
 const TABS: { value: TabValue; label: string }[] = [
@@ -43,8 +45,10 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "motivos-intervencao-manual", label: "Motivos de Tratamento Manual" },
   { value: "especialidades", label: "Especialidades" },
   { value: "mapa-especialidades", label: "Mapa de Especialidades" },
+  { value: "grupos-analise", label: "Grupos de Análise" },
   { value: "modelos-repasse", label: "Modelos de Repasse" },
 ];
+
 
 const VALID = new Set(TABS.map((t) => t.value));
 
