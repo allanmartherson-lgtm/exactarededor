@@ -2600,6 +2600,9 @@ const NewPayment = () => {
   const [convenioReg, setConvenioReg] = useState<ConvenioRegistry | null>(null);
   const [sectorReg, setSectorReg] = useState<SectorRegistry | null>(null);
   const [registryVersion, setRegistryVersion] = useState(0);
+  // Guarda o erro da última tentativa de carga: sem isso a tela ficava presa
+  // em "Carregando cadastros oficiais" para sempre quando a query falhava.
+  const [registryLoadError, setRegistryLoadError] = useState<string | null>(null);
 
   const reloadRegistries = async (force = false) => {
     if (!force && registriesLoadPromiseRef.current) return registriesLoadPromiseRef.current;
@@ -2614,13 +2617,18 @@ const NewPayment = () => {
       setConvenioReg(c);
       setSectorReg(s);
       setRegistryVersion((v) => v + 1);
+      setRegistryLoadError(null);
     })();
     try {
       await registriesLoadPromiseRef.current;
+    } catch (err) {
+      setRegistryLoadError(err instanceof Error ? err.message : "Falha ao carregar cadastros oficiais");
+      throw err;
     } finally {
       registriesLoadPromiseRef.current = null;
     }
   };
+
 
   // Recarrega cadastros sempre que houver linhas E o hospital ativo mudar/carregar.
   // Bug anterior: se o `hospital` ainda estava carregando quando `allRows` chegava,
