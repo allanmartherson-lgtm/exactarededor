@@ -907,21 +907,28 @@ export default function PaymentsBySpecialty() {
           </div>
         ) : (
           <>
-            {/* ---------------- KPIs ---------------- */}
-            <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-              <KpiCard label="Total bruto" value={money(kpis.bruto)} tone="primary" />
+            {/* ---------------- KPIs ----------------
+                Padrão BI: um único card de destaque (tone="primary") ancora a
+                leitura; os demais permanecem neutros para não competir. */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+              <KpiCard
+                label="Total bruto"
+                value={money(kpis.bruto)}
+                tone="primary"
+                hint={`${monthLabel(fromMonth)} a ${monthLabel(toMonth)}`}
+              />
               <KpiCard
                 label="Total líquido (PJ/lote)"
                 value={money(kpis.liquido)}
                 hint="Líquido existe por lote × PJ; não é rateável por especialidade."
               />
-              <KpiCard label="Itens" value={kpis.items.toLocaleString("pt-BR")} />
-              <KpiCard label="PJs" value={kpis.companies} />
-              <KpiCard label="Médicos" value={kpis.doctors} />
+              <KpiCard label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
+              <KpiCard label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
+              <KpiCard label="Médicos" value={kpis.doctors} hint="Com pagamento no recorte" />
             </div>
 
             {/* Integridade: itens sem doctor_id não podem ser atribuídos a especialidade */}
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               <KpiCard
                 label="Sem médico vinculado"
                 value={money(kpis.semMedicoBruto)}
@@ -936,48 +943,87 @@ export default function PaymentsBySpecialty() {
             </div>
 
             {/* ---------------- Gráfico ---------------- */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Bruto por competência</CardTitle>
-              </CardHeader>
-              <CardContent className="h-72">
+            <div className="rounded-2xl border border-border/60 bg-card p-6">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Bruto por competência
+                </h2>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Valores em reais sobre cada barra; passe o mouse para o valor exato.
+                </p>
+              </div>
+              <div className="h-72">
                 {computed.months.length === 0 ? (
                   <div className="h-full grid place-items-center text-sm text-muted-foreground">
                     Sem dados no recorte selecionado.
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={computed.months}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <BarChart data={computed.months} margin={{ top: 24, right: 16, left: 0, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis
+                        dataKey="month"
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: "hsl(var(--border))" }}
+                      />
                       <YAxis
                         tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
                         tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
                       />
                       <Tooltip
+                        cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                         formatter={(v: number) => money(Number(v))}
                         labelFormatter={(l: string) => `Competência ${l}`}
+                        contentStyle={{
+                          background: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
                       />
-                      <Bar dataKey="bruto" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="bruto" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} maxBarSize={64}>
+                        <LabelList
+                          dataKey="bruto"
+                          position="top"
+                          offset={8}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            fill: "hsl(var(--foreground))",
+                          }}
+                          formatter={(v: number) => (Number(v) ? moneyShort(Number(v)) : "")}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* ---------------- Tabela ---------------- */}
-            <Card>
-              <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-sm">Detalhamento</CardTitle>
+            <div className="rounded-2xl border border-border/60 bg-card p-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Detalhamento
+                  </h2>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Especialidades exibidas vêm do cadastro do médico.
+                  </p>
+                </div>
                 <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
                   <TabsList>
                     <TabsTrigger value="company">Por PJ</TabsTrigger>
                     <TabsTrigger value="doctor">Por médico</TabsTrigger>
                   </TabsList>
                 </Tabs>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border overflow-hidden">
+              </div>
+              <div>
+                <div className="rounded-xl border border-border/60 overflow-hidden">
+
                   <Table>
                     <TableHeader>
                       <TableRow>
