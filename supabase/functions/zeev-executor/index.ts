@@ -1619,9 +1619,11 @@ Deno.serve(async (req) => {
         if (!ok) return jsonResp({ error: "Apenas papéis internos (analista+) podem cadastrar." }, 403);
 
         let result: { affected: number; before: unknown; after: unknown; pii_omitted?: boolean };
+        // Cadastro sempre pertence ao hospital do lote; sem lote, à unidade ativa do ator.
+        const registryHospitalId = pay?.hospital_id ?? activeHospitalId;
         if (p.action === "register_doctor_pending") {
           const canWritePii = await userCanWriteDoctorPii(sb, actorId);
-          result = await execRegisterDoctorPending(sb, p.payload, actorId, pay?.hospital_id ?? null, canWritePii);
+          result = await execRegisterDoctorPending(sb, p.payload, actorId, registryHospitalId, canWritePii);
         } else if (p.action === "register_company") {
           // Espelha a RLS companies_insert_workflow: gestao_medica não cria PJ,
           // e a UF precisa estar dentro do escopo estadual do usuário.
@@ -1629,11 +1631,12 @@ Deno.serve(async (req) => {
           if (!canRegisterCompany) {
             return jsonResp({ error: "Apenas analista, validador, diretor ou admin podem cadastrar empresa." }, 403);
           }
-          const stateUf = p.payload?.state_uf ? String(p.payload.state_uf).trim().toUpperCase() : null;
+          // Valida o escopo estadual contra a UF real do hospital, não contra o payload.
+          const stateUf = await resolveHospitalStateUf(sb, registryHospitalId);
           if (!(await callerStateScopeAllows(sb, actorId, stateUf))) {
             return jsonResp({ error: `Sem escopo para cadastrar empresa na UF ${stateUf}.` }, 403);
           }
-          result = await execRegisterCompany(sb, p.payload, actorId);
+          result = await execRegisterCompany(sb, p.payload, actorId, registryHospitalId);
         } else {
           result = await execResolveRegistryMatch(sb, p.payload, actorId);
         }
