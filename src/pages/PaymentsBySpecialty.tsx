@@ -210,29 +210,13 @@ export default function PaymentsBySpecialty() {
     setLoading(true);
     setError(null);
     try {
+      const start = monthStart(fromMonth);
+      const end = monthEnd(toMonth);
 
-      // Lista de competências (YYYY-MM) do intervalo selecionado.
-      const monthsInRange: string[] = [];
-      {
-        const [fy, fm] = fromMonth.split("-").map(Number);
-        const [ty, tm] = toMonth.split("-").map(Number);
-        let cur = new Date(Date.UTC(fy, fm - 1, 1));
-        const limit = new Date(Date.UTC(ty, tm - 1, 1));
-        while (cur <= limit && monthsInRange.length < 60) {
-          monthsInRange.push(
-            `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, "0")}`,
-          );
-          cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + 1, 1));
-        }
-      }
-
-      const [itemsPerMonth, doctorRows, companyRows, groupRes, memberRes, dcRows] = await Promise.all([
-        Promise.all(
-          monthsInRange.map((ym) =>
-            fetchItemsByKeyset(hospitalId, monthStart(ym), monthEnd(ym)),
-          ),
-        ),
+      const [itemRows, doctorRows, companyRows, groupRes, memberRes, dcRows] = await Promise.all([
+        fetchAggregatedItems(hospitalId, start, end),
         fetchAllPaginated<DoctorRow>((from, to) =>
+
           supabase
             .from("doctors")
             .select("id,full_name,crm,crm_uf,specialties")
