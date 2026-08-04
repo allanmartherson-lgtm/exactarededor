@@ -264,7 +264,9 @@ export default function PaymentsBySpecialty() {
       if (groupRes.error) throw groupRes.error;
       if (memberRes.error) throw memberRes.error;
 
+      const itemRows = itemsPerMonth.flat();
       const live = itemRows.filter((i) => !i.is_cancelled);
+
       setItems(live);
       setDoctors(doctorRows);
       setCompanies(companyRows);
