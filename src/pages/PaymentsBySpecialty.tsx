@@ -395,7 +395,7 @@ export default function PaymentsBySpecialty() {
     for (const it of items) {
       const gross = Number(it.gross_amount ?? 0);
       baseBruto += gross;
-      baseItems += 1;
+      baseItems += it.qty;
 
       // Itens sem doctor_id NUNCA são atribuídos a especialidade pelo cadastro:
       // ficam numa linha própria para o total do relatório bater com o real.
@@ -443,7 +443,7 @@ export default function PaymentsBySpecialty() {
       if (!ym) continue;
       const cur = byMonth.get(ym) ?? { bruto: 0, items: 0 };
       cur.bruto += Number(i.gross_amount ?? 0);
-      cur.items += 1;
+      cur.items += i.qty;
       byMonth.set(ym, cur);
     }
     const months = Array.from(byMonth.entries())
@@ -455,7 +455,7 @@ export default function PaymentsBySpecialty() {
     for (const i of matched) {
       const key = groupBy === "company" ? i.company_id ?? "sem_pj" : i.doctor_id ?? "sem_medico";
       const cur = agg.get(key) ?? { items: 0, bruto: 0, specialties: new Set<string>() };
-      cur.items += 1;
+      cur.items += i.qty;
       cur.bruto += Number(i.gross_amount ?? 0);
       if (i.doctor_id) {
         (doctorById.get(i.doctor_id)?.specialties ?? []).forEach((s) => cur.specialties.add(s));
@@ -552,11 +552,11 @@ export default function PaymentsBySpecialty() {
   const kpis = {
     bruto: computed.bruto,
     liquido: computed.liquido,
-    items: computed.matched.length,
+    items: computed.matched.reduce((s2, i) => s2 + i.qty, 0),
     companies: computed.companies,
     doctors: computed.doctors,
     semMedicoBruto: computed.semMedicoBruto,
-    semMedicoItems: computed.noDoctor.length,
+    semMedicoItems: computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
   };
 
   const clearFilters = () => {
