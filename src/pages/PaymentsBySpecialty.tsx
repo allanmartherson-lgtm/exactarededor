@@ -680,13 +680,16 @@ export default function PaymentsBySpecialty() {
         icon={BarChart3}
       />
 
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="p-6 space-y-6">
         {/* ---------------- Filtros ---------------- */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Filtros</CardTitle>
+        <Card className="rounded-2xl border-border/60">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Filtros
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
+
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-1.5">
                 <Label htmlFor="from-month">Competência inicial</Label>
