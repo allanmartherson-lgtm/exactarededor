@@ -288,7 +288,7 @@ export default function PaymentsBySpecialty() {
     } finally {
       setLoading(false);
     }
-  }, [hospitalId, fromMonth, toMonth, fetchItemsByKeyset]);
+  }, [hospitalId, fromMonth, toMonth, fetchAggregatedItems]);
 
 
   useEffect(() => {
