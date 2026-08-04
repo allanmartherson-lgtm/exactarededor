@@ -527,7 +527,7 @@ const NewPayment = () => {
   const canImportHistorico =
     roles.includes("admin") || roles.includes("diretor") || (roles.includes("analista") && isSenior);
 
-  const { hospital } = useHospital();
+  const { hospital, loading: hospitalLoading } = useHospital();
   const navigate = useNavigate();
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
@@ -2605,7 +2605,10 @@ const NewPayment = () => {
   const [registryLoadError, setRegistryLoadError] = useState<string | null>(null);
 
   const reloadRegistries = async (force = false) => {
-    if (!force && registriesLoadPromiseRef.current) return registriesLoadPromiseRef.current;
+    // `force` ignora apenas o cache; nunca deve abrir outra carga concorrente.
+    // Durante a hidratação/troca de hospital, efeitos consecutivos podem disparar
+    // no mesmo instante e duplicar todas as consultas paginadas de cadastros.
+    if (registriesLoadPromiseRef.current) return registriesLoadPromiseRef.current;
     const activeHospitalId = hospital?.id ?? null;
     registriesLoadPromiseRef.current = (async () => {
       // Auto-recuperação: a falha da carga não pode depender de o usuário
@@ -2650,7 +2653,7 @@ const NewPayment = () => {
   // aliases escopados ao hospital (ex.: "Codevasf - Casec" no Santa Helena) e
   // fazendo o alias já salvo reaparecer como "não resolvido".
   useEffect(() => {
-    if (allRows.length === 0) return;
+    if (allRows.length === 0 || hospitalLoading || !hospital?.id) return;
     // Força recarregar quando o hospital muda: cache é por hospitalId, então
     // não há custo desnecessário caso o hospital já esteja estável.
     reloadRegistries(true).catch((error) => {
@@ -2662,7 +2665,7 @@ const NewPayment = () => {
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRows.length, hospital?.id]);
+  }, [allRows.length, hospital?.id, hospitalLoading]);
 
   // Quando a linha já traz setor, ela é a fonte de verdade. O seletor do bucket
   // é apenas fallback para arquivo sem setor reconhecido — não pode transformar
