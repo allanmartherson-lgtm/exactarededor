@@ -805,7 +805,7 @@ export type Database = {
           invoice_emails: string[]
           name: string
           notes: string | null
-          state_uf: string
+          state_uf: string | null
           tem_pool: boolean
           updated_at: string
         }
@@ -822,7 +822,7 @@ export type Database = {
           invoice_emails?: string[]
           name: string
           notes?: string | null
-          state_uf: string
+          state_uf?: string | null
           tem_pool?: boolean
           updated_at?: string
         }
@@ -839,7 +839,7 @@ export type Database = {
           invoice_emails?: string[]
           name?: string
           notes?: string | null
-          state_uf?: string
+          state_uf?: string | null
           tem_pool?: boolean
           updated_at?: string
         }
@@ -2666,7 +2666,7 @@ export type Database = {
           pending_review_note: string | null
           phone: string | null
           specialties: string[]
-          state_uf: string
+          state_uf: string | null
           updated_at: string
           vinculo: string | null
         }
@@ -2689,7 +2689,7 @@ export type Database = {
           pending_review_note?: string | null
           phone?: string | null
           specialties?: string[]
-          state_uf: string
+          state_uf?: string | null
           updated_at?: string
           vinculo?: string | null
         }
@@ -2712,7 +2712,7 @@ export type Database = {
           pending_review_note?: string | null
           phone?: string | null
           specialties?: string[]
-          state_uf?: string
+          state_uf?: string | null
           updated_at?: string
           vinculo?: string | null
         }
