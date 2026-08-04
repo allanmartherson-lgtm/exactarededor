@@ -658,6 +658,7 @@ export default function PaymentsBySpecialty() {
                 <Input
                   id="from-month"
                   type="month"
+                  className="w-auto max-w-[170px]"
                   value={fromMonth}
                   onChange={(e) => setFromMonth(e.target.value)}
                 />
@@ -667,10 +668,12 @@ export default function PaymentsBySpecialty() {
                 <Input
                   id="to-month"
                   type="month"
+                  className="w-auto max-w-[170px]"
                   value={toMonth}
                   onChange={(e) => setToMonth(e.target.value)}
                 />
               </div>
+
 
               <div className="space-y-1.5">
                 <Label>Especialidades (cadastro)</Label>
