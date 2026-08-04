@@ -223,6 +223,7 @@ const ProcessHealth = lazy(loadProcessHealth);
 const ReportsCentral = lazy(loadReportsCentral);
 const ExportAudit = lazy(loadExportAudit);
 const PaymentEvolution = lazy(loadPaymentEvolution);
+const PaymentsBySpecialty = lazy(loadPaymentsBySpecialty);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const BatchTotalsAudit = lazy(() => import("./pages/BatchTotalsAudit.tsx"));
