@@ -830,6 +830,29 @@ async function callerStateScopeAllows(sb: SB, userId: string, stateUf: string | 
   return Array.isArray(data) && (data as string[]).includes(stateUf);
 }
 
+/**
+ * Regionalização de cadastros: o `state_uf` de médico/PJ é SEMPRE o estado do
+ * hospital onde o cadastro foi feito — nunca a UF do CRM nem valor vindo do
+ * payload. O trigger `enforce_state_uf_from_hospital` no banco rejeita insert
+ * de service_role sem `state_uf`, então esta resolução é obrigatória.
+ */
+async function resolveHospitalStateUf(sb: SB, hospitalId: string | null): Promise<string> {
+  if (!hospitalId) {
+    throw new Error(
+      "Não foi possível determinar o hospital do cadastro. Abra um lote ou selecione uma unidade ativa antes de cadastrar.",
+    );
+  }
+  const { data, error } = await sb
+    .from("hospitals")
+    .select("state_uf")
+    .eq("id", hospitalId)
+    .maybeSingle();
+  const uf = (data?.state_uf as string | null)?.trim().toUpperCase() ?? null;
+  if (error || !uf) throw new Error("Hospital ativo sem UF cadastrada — corrija o cadastro do hospital.");
+  return uf;
+}
+
+
 
 async function execRegisterDoctorPending(
   sb: SB,
