@@ -126,10 +126,19 @@ const norm = (s: string) =>
 const money = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+/** Formato curto para rótulos dentro do gráfico (evita poluir a barra). */
+const moneyShort = (v: number) => {
+  const n = Number(v) || 0;
+  if (Math.abs(n) >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `R$ ${Math.round(n / 1_000)}k`;
+  return `R$ ${Math.round(n)}`;
+};
+
 const monthLabel = (ym: string) => {
   const [y, m] = ym.split("-");
   return `${m}/${y}`;
 };
+
 
 /** Primeiro dia do mês N meses atrás, em YYYY-MM. */
 const monthsAgo = (n: number) => {
