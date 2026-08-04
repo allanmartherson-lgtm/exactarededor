@@ -863,7 +863,7 @@ export default function PaymentsBySpecialty() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
               <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
                 Limpar filtros
               </Button>
