@@ -41,7 +41,9 @@ type Fixtures = {
   invoice_b: string | null;
   item_b: string | null;
   obs_b: string | null;
+  fin_b: string | null;
   company_id: string | null;
+
 };
 
 
