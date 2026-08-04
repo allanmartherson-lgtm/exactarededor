@@ -5472,14 +5472,40 @@ const NewPayment = () => {
         )}
 
         {allRows.length > 0 && !registriesReady && (
-          <Alert>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <AlertTitle>Carregando cadastros oficiais</AlertTitle>
-            <AlertDescription>
-              Estou carregando médicos, convênios e setores para validar a base antes do envio.
+          <Alert variant={registryLoadError ? "destructive" : "default"}>
+            {registryLoadError ? (
+              <AlertCircle className="h-4 w-4" />
+            ) : (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            <AlertTitle>
+              {registryLoadError
+                ? "Não foi possível carregar os cadastros oficiais"
+                : "Carregando cadastros oficiais"}
+            </AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>
+                {registryLoadError
+                  ? "A validação da base contra médicos, convênios e setores não pôde ser concluída. Tente novamente."
+                  : "Estou carregando médicos, convênios e setores para validar a base antes do envio."}
+              </p>
+              {registryLoadError && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setRegistryLoadError(null);
+                    reloadRegistries(true).catch(() => {});
+                  }}
+                >
+                  Tentar novamente
+                </Button>
+              )}
             </AlertDescription>
           </Alert>
         )}
+
 
         {allRows.length > 0 && doctorReg && convenioReg && sectorReg && (
           <RegistryResolutionPanel
