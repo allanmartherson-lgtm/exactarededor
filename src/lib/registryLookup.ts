@@ -103,20 +103,61 @@ const crmUfKey = (number: string, uf: string | null | undefined) =>
 // ====== loaders ======
 
 const REGISTRY_CACHE_TTL_MS = 5 * 60_000;
+/**
+ * Janela em que um cache vencido ainda pode ser usado como rede de segurança
+ * quando o banco falha. Sem isso, uma única falha transitória deixava a tela
+ * de confecção/análise presa em "Carregando cadastros oficiais" para sempre.
+ */
+const REGISTRY_STALE_FALLBACK_MS = 24 * 60 * 60_000;
+/** Teto por tentativa: query pendurada nunca pode travar a UI indefinidamente. */
+const REGISTRY_QUERY_TIMEOUT_MS = 25_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const isRetriableLookupError = (error: any) =>
-  error?.code === "57014" || /timeout|temporar/i.test(String(error?.message ?? ""));
+/**
+ * Falhas transitórias que devem ser retentadas. Antes só cobria statement
+ * timeout (57014) — perda de rede, 5xx do gateway e rate limit caíam direto
+ * no `throw`, que era exatamente o cenário reportado em produção.
+ */
+const isRetriableLookupError = (error: any) => {
+  const code = String(error?.code ?? "");
+  const status = Number(error?.status ?? error?.statusCode ?? 0);
+  const msg = String(error?.message ?? error ?? "");
+  if (["57014", "08000", "08006", "08003", "53300", "57P01", "40001", "XX000"].includes(code)) return true;
+  if (status === 408 || status === 429 || (status >= 500 && status <= 599)) return true;
+  return /timeout|temporar|failed to fetch|networkerror|network error|load failed|fetch failed|aborted|connection|socket|too many requests/i.test(msg);
+};
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timeout: consulta de cadastros excedeu ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 async function runLookupQuery<T>(queryFactory: () => any, attempts = 4): Promise<T[]> {
   let lastErr: any = null;
   for (let attempt = 0; attempt < attempts; attempt++) {
-    const { data, error } = await queryFactory();
-    if (!error) return (data ?? []) as T[];
-    lastErr = error;
-    if (!isRetriableLookupError(error)) break;
-    await sleep(500 * Math.pow(2, attempt));
+    try {
+      const { data, error } = await withTimeout(
+        Promise.resolve(queryFactory()),
+        REGISTRY_QUERY_TIMEOUT_MS,
+      );
+      if (!error) return (data ?? []) as T[];
+      lastErr = error;
+    } catch (e) {
+      // timeout do wrapper ou erro de rede lançado pelo fetch
+      lastErr = e;
+    }
+    if (!isRetriableLookupError(lastErr)) break;
+    if (attempt < attempts - 1) await sleep(500 * Math.pow(2, attempt));
   }
   throw lastErr;
 }
@@ -137,15 +178,43 @@ function writeSessionCache<T>(key: string, value: T): void {
   try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), value })); } catch { /* quota — ignore */ }
 }
 
+/**
+ * Deduplica cargas concorrentes da mesma chave. Sem isso, cada consumidor
+ * (confecção, análise, painel de resolução) abria a sua própria rajada de
+ * queries no mesmo instante — o que ajudava a estourar statement_timeout.
+ */
+const inflightRegistryLoads = new Map<string, Promise<unknown>>();
+
 async function cachedRows<T>(key: string, force: boolean, loader: () => Promise<T>): Promise<T> {
   if (!force) {
     const cached = readSessionCache<T>(key, REGISTRY_CACHE_TTL_MS);
     if (cached) return cached;
+    const pending = inflightRegistryLoads.get(key) as Promise<T> | undefined;
+    if (pending) return pending;
   }
-  const value = await loader();
-  writeSessionCache(key, value);
-  return value;
+  const run = (async () => {
+    try {
+      const value = await loader();
+      writeSessionCache(key, value);
+      return value;
+    } catch (err) {
+      // Rede de segurança: prefere cadastro levemente desatualizado a bloquear
+      // o fluxo. Pior caso, um cadastro novo aparece como "não resolvido" e o
+      // analista resolve manualmente — o que já é o comportamento esperado.
+      const stale = readSessionCache<T>(key, REGISTRY_STALE_FALLBACK_MS);
+      if (stale) {
+        console.warn(`[registryLookup] usando cache expirado de "${key}" após falha`, err);
+        return stale;
+      }
+      throw err;
+    } finally {
+      inflightRegistryLoads.delete(key);
+    }
+  })();
+  inflightRegistryLoads.set(key, run);
+  return run;
 }
+
 
 /**
  * Invalida o cache em sessionStorage dos cadastros. Chame após qualquer
@@ -192,14 +261,17 @@ async function fetchAllPaginated<T>(
   const out: T[] = [];
   for (let from = 0; ; from += pageSize) {
     const to = from + pageSize - 1;
-    const { data, error } = await buildQuery(from, to);
-    if (error) throw error;
-    const rows = (data ?? []) as T[];
+    // Passa por runLookupQuery para herdar timeout + retry com backoff:
+    // antes, uma falha transitória em convenios/sectors/aliases derrubava
+    // toda a carga de cadastros sem nenhuma tentativa de recuperação.
+    const rows = await runLookupQuery<T>(() => buildQuery(from, to));
     out.push(...rows);
     if (rows.length < pageSize) break;
+    if (out.length >= 200_000) break;
   }
   return out;
 }
+
 
 /**
  * Paginação por chave primária. Evita OFFSET em tabelas com RLS, que precisa

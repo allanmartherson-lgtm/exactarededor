@@ -2608,16 +2608,29 @@ const NewPayment = () => {
     if (!force && registriesLoadPromiseRef.current) return registriesLoadPromiseRef.current;
     const activeHospitalId = hospital?.id ?? null;
     registriesLoadPromiseRef.current = (async () => {
-      const [d, c, s] = await Promise.all([
-        loadDoctorRegistry(force),
-        loadConvenioRegistry(activeHospitalId, force),
-        loadSectorRegistry(activeHospitalId, force),
-      ]);
-      setDoctorReg(d);
-      setConvenioReg(c);
-      setSectorReg(s);
-      setRegistryVersion((v) => v + 1);
-      setRegistryLoadError(null);
+      // Auto-recuperação: a falha da carga não pode depender de o usuário
+      // clicar em "Tentar novamente". Três tentativas com backoff antes de
+      // expor o erro — a camada de lookup ainda tem retry/queda para cache.
+      let lastErr: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const [d, c, s] = await Promise.all([
+            loadDoctorRegistry(force),
+            loadConvenioRegistry(activeHospitalId, force),
+            loadSectorRegistry(activeHospitalId, force),
+          ]);
+          setDoctorReg(d);
+          setConvenioReg(c);
+          setSectorReg(s);
+          setRegistryVersion((v) => v + 1);
+          setRegistryLoadError(null);
+          return;
+        } catch (err) {
+          lastErr = err;
+          if (attempt < 2) await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
+      throw lastErr;
     })();
     try {
       await registriesLoadPromiseRef.current;
@@ -2628,6 +2641,7 @@ const NewPayment = () => {
       registriesLoadPromiseRef.current = null;
     }
   };
+
 
 
   // Recarrega cadastros sempre que houver linhas E o hospital ativo mudar/carregar.
