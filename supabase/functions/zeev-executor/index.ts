@@ -899,7 +899,9 @@ async function execRegisterDoctorPending(
     active: true,
   };
   if (birth_date) insertRow.birth_date = birth_date;
-  if (hospitalId) insertRow.state_uf = crm_uf; // referência inicial
+  // Estado do cadastro = estado do hospital, nunca a UF do CRM (o médico pode
+  // ter CRM de outro estado e atuar aqui).
+  insertRow.state_uf = await resolveHospitalStateUf(sb, hospitalId);
 
   const { data: inserted, error } = await sb
     .from("doctors")
@@ -916,12 +918,24 @@ async function execRegisterDoctorPending(
   };
 }
 
-async function execRegisterCompany(sb: SB, payload: Record<string, unknown>, actorId: string) {
+async function execRegisterCompany(
+  sb: SB,
+  payload: Record<string, unknown>,
+  actorId: string,
+  hospitalId: string | null,
+) {
   const name = String(payload.name ?? "").trim();
   const document = digitsOnly(String(payload.document ?? ""));
-  const state_uf = payload.state_uf ? String(payload.state_uf).trim().toUpperCase() : null;
   if (!name) throw new Error("name obrigatório.");
   if (!isValidCnpj(document)) throw new Error("CNPJ inválido.");
+
+  // A UF final é sempre a do hospital. Se o payload trouxe UF divergente,
+  // recusamos em vez de gravar silenciosamente outro valor.
+  const state_uf = await resolveHospitalStateUf(sb, hospitalId);
+  const payloadUf = payload.state_uf ? String(payload.state_uf).trim().toUpperCase() : null;
+  if (payloadUf && payloadUf !== state_uf) {
+    throw new Error(`UF informada (${payloadUf}) diverge da UF do hospital do cadastro (${state_uf}).`);
+  }
 
   const { data: existing } = await sb
     .from("companies")
