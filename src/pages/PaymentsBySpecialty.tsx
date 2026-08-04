@@ -251,7 +251,7 @@ export default function PaymentsBySpecialty() {
       ((memberRes.data ?? []) as GroupMemberRow[]).forEach(
         (m) => m.doctor_id && doctorIdsNeeded.add(m.doctor_id),
       );
-      if (selectedDoctorIdRef.current) doctorIdsNeeded.add(selectedDoctorIdRef.current);
+      if (selectedDoctorId) doctorIdsNeeded.add(selectedDoctorId);
 
       const doctorRows: DoctorRow[] = [];
       const doctorIdList = Array.from(doctorIdsNeeded);
