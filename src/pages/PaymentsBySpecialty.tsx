@@ -292,12 +292,18 @@ export default function PaymentsBySpecialty() {
         setFinancials([]);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Falha ao carregar o relatório");
+    } catch (e: unknown) {
+      // Erros do PostgREST não são instâncias de Error — sem isto o usuário via
+      // apenas "Falha ao carregar o relatório", escondendo a causa real.
+      const err = e as { message?: string; code?: string; details?: string } | null;
+      const base = err?.message || "Falha ao carregar o relatório";
+      setError(err?.code ? `${base} (código ${err.code})` : base);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [hospitalId, fromMonth, toMonth]);
+  }, [hospitalId, fromMonth, toMonth, fetchItemsByKeyset]);
+
 
   useEffect(() => {
     if (hospitalLoading) return;
