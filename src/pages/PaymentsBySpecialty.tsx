@@ -529,17 +529,42 @@ export default function PaymentsBySpecialty() {
   ]);
 
   // ---------- buscas de médico / PJ ----------
-  const doctorResults = useMemo(() => {
-    const q = norm(doctorQuery);
-    if (!q) return [];
-    return doctors
-      .filter(
-        (d) =>
-          norm(d.full_name).includes(q) ||
-          norm(`${d.crm ?? ""}${d.crm_uf ?? ""}`).includes(q.replace(/[^a-z0-9]/g, "")),
-      )
-      .slice(0, 8);
-  }, [doctors, doctorQuery]);
+  // A busca de médico é feita no servidor: só carregamos localmente os médicos
+  // com itens no período, então filtrar a lista local esconderia médicos válidos.
+  const [doctorResults, setDoctorResults] = useState<DoctorRow[]>([]);
+  useEffect(() => {
+    const q = doctorQuery.trim();
+    if (q.length < 2) {
+      setDoctorResults([]);
+      return;
+    }
+    let cancel = false;
+    const timer = window.setTimeout(async () => {
+      const digits = q.replace(/\D/g, "");
+      const or = [`full_name.ilike.*${q.replace(/[,()*]/g, "")}*`];
+      if (digits.length >= 3) or.push(`crm.ilike.*${digits}*`);
+      const { data } = await supabase
+        .from("doctors")
+        .select("id,full_name,crm,crm_uf,specialties")
+        .or(or.join(","))
+        .order("full_name")
+        .limit(8);
+      if (cancel) return;
+      const rows = (data ?? []) as DoctorRow[];
+      setDoctorResults(rows);
+      // Mantém o cadastro do médico buscado disponível para nome/CRM/especialidades.
+      setDoctors((prev) => {
+        const known = new Set(prev.map((d) => d.id));
+        const extra = rows.filter((d) => !known.has(d.id));
+        return extra.length ? [...prev, ...extra] : prev;
+      });
+    }, 300);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timer);
+    };
+  }, [doctorQuery]);
+
 
   const companyResults = useMemo(() => {
     const q = norm(companyQuery);
