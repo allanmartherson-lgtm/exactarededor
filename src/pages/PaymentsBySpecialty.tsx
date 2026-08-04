@@ -53,17 +53,21 @@ import {
   type SpecialtyReportGroupRow,
 } from "@/lib/specialtyPaymentsReport";
 
+/**
+ * Linha AGREGADA de itens vinda da RPC get_specialty_payments_agg:
+ * uma linha por (competência × lote × PJ × médico). Não baixamos mais os
+ * ~50 mil itens crus — isso estourava o statement timeout do banco.
+ */
 interface ItemRow {
-  id: string;
   payment_id: string | null;
   company_id: string | null;
   doctor_id: string | null;
-  doctor_name: string | null;
-  specialty: string | null; // informativo apenas (texto livre do analista)
   gross_amount: number | null;
   item_competence: string | null;
-  is_cancelled: boolean | null;
+  /** Quantidade de itens representados por esta linha agregada. */
+  qty: number;
 }
+
 
 interface DoctorRow {
   id: string;
