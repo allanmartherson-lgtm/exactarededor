@@ -162,6 +162,42 @@ export default function PaymentsBySpecialty() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Itens do período. Paginação por CHAVE (id > último), nunca por offset:
+   * com ~84k itens no período o `.range(offset, ...)` do PostgREST estoura o
+   * statement timeout (erro 57014) a partir de ~20k linhas, o que derrubava o
+   * relatório inteiro. Além disso, quebramos por competência mensal e
+   * carregamos os meses em paralelo para reduzir o tempo total.
+   */
+  const fetchItemsByKeyset = useCallback(
+    async (hid: string, mStart: string, mEnd: string): Promise<ItemRow[]> => {
+      const out: ItemRow[] = [];
+      let lastId = "00000000-0000-0000-0000-000000000000";
+      const PAGE = 1000; // teto do PostgREST
+      for (;;) {
+        const { data, error: pErr } = await supabase
+          .from("payment_items")
+          .select(
+            "id,payment_id,company_id,doctor_id,doctor_name,specialty,gross_amount,item_competence,is_cancelled",
+          )
+          .eq("hospital_id", hid)
+          .gte("item_competence", mStart)
+          .lte("item_competence", mEnd)
+          .gt("id", lastId)
+          .order("id")
+          .limit(PAGE);
+        if (pErr) throw pErr;
+        const rows = (data ?? []) as ItemRow[];
+        out.push(...rows);
+        if (rows.length < PAGE) break;
+        lastId = rows[rows.length - 1].id;
+        if (out.length >= 300_000) break; // trava de segurança
+      }
+      return out;
+    },
+    [],
+  );
+
   const load = useCallback(async () => {
     if (!hospitalId) {
       setItems([]);
@@ -174,18 +210,26 @@ export default function PaymentsBySpecialty() {
       const start = monthStart(fromMonth);
       const end = monthEnd(toMonth);
 
-      const [itemRows, doctorRows, companyRows, groupRes, memberRes, dcRows] = await Promise.all([
-        fetchAllPaginated<ItemRow>((from, to) =>
-          supabase
-            .from("payment_items")
-            .select(
-              "id,payment_id,company_id,doctor_id,doctor_name,specialty,gross_amount,item_competence,is_cancelled",
-            )
-            .eq("hospital_id", hospitalId)
-            .gte("item_competence", start)
-            .lte("item_competence", end)
-            .order("id")
-            .range(from, to),
+      // Lista de competências (YYYY-MM) do intervalo selecionado.
+      const monthsInRange: string[] = [];
+      {
+        const [fy, fm] = fromMonth.split("-").map(Number);
+        const [ty, tm] = toMonth.split("-").map(Number);
+        let cur = new Date(Date.UTC(fy, fm - 1, 1));
+        const limit = new Date(Date.UTC(ty, tm - 1, 1));
+        while (cur <= limit && monthsInRange.length < 60) {
+          monthsInRange.push(
+            `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, "0")}`,
+          );
+          cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + 1, 1));
+        }
+      }
+
+      const [itemsPerMonth, doctorRows, companyRows, groupRes, memberRes, dcRows] = await Promise.all([
+        Promise.all(
+          monthsInRange.map((ym) =>
+            fetchItemsByKeyset(hospitalId, monthStart(ym), monthEnd(ym)),
+          ),
         ),
         fetchAllPaginated<DoctorRow>((from, to) =>
           supabase
@@ -194,6 +238,7 @@ export default function PaymentsBySpecialty() {
             .order("full_name")
             .range(from, to),
         ),
+
         fetchAllPaginated<CompanyRow>((from, to) =>
           supabase.from("companies").select("id,name,document").order("name").range(from, to),
         ),
