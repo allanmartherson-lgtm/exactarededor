@@ -40,11 +40,13 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LabelList,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
 } from "recharts";
+
 import { BarChart3, Download, FileText, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import {
