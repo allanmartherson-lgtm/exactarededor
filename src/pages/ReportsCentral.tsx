@@ -166,7 +166,7 @@ const REPORTS: ReportSpec[] = [
     route: "/relatorios/pagamentos-por-especialidade",
     category: "Financeiro",
     icon: LineChart,
-    roles: ["diretor", "admin", "analista", "validador", "gestao_medica"],
+    roles: ["diretor", "admin", "analista", "validador"],
   },
   {
     key: "pools",

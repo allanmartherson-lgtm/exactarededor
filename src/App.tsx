@@ -351,7 +351,7 @@ const App = () => (
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<Navigate to="/auditoria?tab=exportacoes" replace />} />
                   <Route path="/relatorios/evolucao-pagamentos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><PaymentEvolution /></ProtectedRoute>} />
-                  <Route path="/relatorios/pagamentos-por-especialidade" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador", "gestao_medica"]}><PaymentsBySpecialty /></ProtectedRoute>} />
+                  <Route path="/relatorios/pagamentos-por-especialidade" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><PaymentsBySpecialty /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/bi/diretoria" element={<BiDiretoria />} />
                   <Route path="/bi/pagamentos" element={<BiPagamentos />} />
