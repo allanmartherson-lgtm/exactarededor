@@ -910,22 +910,26 @@ export default function PaymentsBySpecialty() {
             {/* ---------------- KPIs ----------------
                 Padrão BI: um único card de destaque (tone="primary") ancora a
                 leitura; os demais permanecem neutros para não competir. */}
-            <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-5 items-stretch">
               <KpiCard
+                className="h-full"
                 label="Total bruto"
-                value={money(kpis.bruto)}
+                // Valores em milhões estouram o text-3xl padrão do KpiCard.
+                value={<span className="text-2xl">{money(kpis.bruto)}</span>}
                 tone="primary"
                 hint={`${monthLabel(fromMonth)} a ${monthLabel(toMonth)}`}
               />
               <KpiCard
+                className="h-full"
                 label="Total líquido (PJ/lote)"
-                value={money(kpis.liquido)}
+                value={<span className="text-2xl">{money(kpis.liquido)}</span>}
                 hint="Líquido existe por lote × PJ; não é rateável por especialidade."
               />
-              <KpiCard label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
-              <KpiCard label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
-              <KpiCard label="Médicos" value={kpis.doctors} hint="Com pagamento no recorte" />
+              <KpiCard className="h-full" label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
+              <KpiCard className="h-full" label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
+              <KpiCard className="h-full" label="Médicos" value={kpis.doctors} hint="Com pagamento no recorte" />
             </div>
+
 
             {/* Integridade: itens sem doctor_id não podem ser atribuídos a especialidade */}
             <div className="grid gap-4 md:grid-cols-2">
