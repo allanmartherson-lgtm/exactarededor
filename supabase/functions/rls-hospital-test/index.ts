@@ -41,7 +41,9 @@ type Fixtures = {
   invoice_b: string | null;
   item_b: string | null;
   obs_b: string | null;
+  fin_b: string | null;
   company_id: string | null;
+
 };
 
 
@@ -286,6 +288,96 @@ Deno.serve(async (req) => {
         failures.push("TRIGGER guard_payment_author_spoof: analista gravou approved_by em si mesmo");
       }
     }
+
+    // 6g) payment_company_financials — leitura e escrita cross-hospital.
+    if (!fx.fin_b) {
+      failures.push("FIXTURE AUSENTE payment_company_financials: setup não criou registro no hospital B");
+    } else {
+      checked++;
+      const readFin = await clientA.from("payment_company_financials").select("id").eq("id", fx.fin_b);
+      if (!readFin.error && (readFin.data ?? []).length > 0) {
+        leaks++;
+        failures.push("LEAK payment_company_financials: user A leu financeiro do hospital B");
+      }
+      checked++;
+      const wFin = await clientA
+        .from("payment_company_financials")
+        .update({ bruto_total: 999999 })
+        .eq("id", fx.fin_b)
+        .select("id");
+      if (!wFin.error && (wFin.data ?? []).length > 0) {
+        failures.push("WRITE CROSS-HOSPITAL payment_company_financials: user A alterou financeiro do hospital B");
+      }
+    }
+
+    // 6h) RPC apply_calc_duplicity_resolution (SECURITY DEFINER) — deve
+    //     rejeitar item de outro hospital via assert_hospital_access.
+    if (fx.item_b) {
+      checked++;
+      const { error } = await clientA.rpc("apply_calc_duplicity_resolution", {
+        _item_id: fx.item_b,
+        _chosen_calc_id: crypto.randomUUID(),
+        _justification: "RLS SPOOF",
+      });
+      if (!error) {
+        failures.push(
+          "RPC apply_calc_duplicity_resolution: aceitou item de outro hospital (IDOR cross-hospital)",
+        );
+      }
+    }
+
+    // 6i) Edge function special-case-adjust — payment de outro hospital deve
+    //     ser recusado (assertCallerHospital).
+    if (fx.pay_b && fx.company_id) {
+      checked++;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/special-case-adjust`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${signInA.data.session.access_token}`,
+        },
+        body: JSON.stringify({
+          payment_id: fx.pay_b,
+          items: [{ company_id: fx.company_id, valor: -100, descricao: "RLS SPOOF" }],
+          mark_ids: [crypto.randomUUID()],
+          preview: true,
+        }),
+      });
+      if (res.ok) {
+        failures.push("EDGE special-case-adjust: aceitou payment_id de outro hospital");
+      }
+      await res.body?.cancel();
+    }
+
+    // 6j) Edge function zeev-executor — analista não pode executar
+    //     link_doctor_company (gate admin/diretor).
+    if (fx.pay_a && fx.company_id) {
+      checked++;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/zeev-executor`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${signInA.data.session.access_token}`,
+        },
+        body: JSON.stringify({
+          step: "execute",
+          payment_id: fx.pay_a,
+          proposal: {
+            action: "link_doctor_company",
+            summary: "RLS SPOOF",
+            scope: { doctor_company_missing: true },
+            payload: { company_id: fx.company_id },
+          },
+        }),
+      });
+      const bodyTxt = await res.text();
+      if (res.ok && !bodyTxt.includes("Apenas diretor ou admin")) {
+        failures.push("EDGE zeev-executor: analista conseguiu executar link_doctor_company");
+      }
+    }
+
   } catch (e) {
     failures.push("EXCEPTION: " + (e as Error).message);
   } finally {

@@ -48,8 +48,16 @@ Resposta em caso de falha:
 
 ## Escopo
 
-- ✅ Isolamento por hospital em todas as tabelas com coluna `hospital_id`.
-- ✅ Simétrico (A→B e B→A).
-- ✅ Cleanup garantido mesmo em erro.
+- ✅ Isolamento por hospital em todas as tabelas com coluna `hospital_id` (varredura genérica).
+- ✅ Leitura dirigida por id e escrita cross-hospital em `payment_items`, `invoices`, `payment_observations`, `payment_company_groups`, `payments`, `payment_company_financials`.
+- ✅ `invoices.upload_token` não selecionável por usuário autenticado.
+- ✅ Triggers `guard_group_workflow_transition` e `guard_payment_author_spoof` (spoof de status/aprovador).
+- ✅ RPC `apply_calc_duplicity_resolution` recusa item de outro hospital.
+- ✅ Edge functions `special-case-adjust` (payment de outro hospital) e `zeev-executor` (`link_doctor_company` por analista).
+- ✅ Simétrico (A→B e B→A) e cleanup garantido mesmo em erro.
 - ❌ Isolamento entre roles (analista vs empresa/portal) — não coberto aqui.
+- ❌ `zeev-executor register_company` (escopo estadual) — não coberto.
 - ❌ Tabelas de cadastros híbridos (`companies`, `doctors`, `convenios`, `sectors`) — usam `company_hospital_overrides` etc., não `hospital_id` direto.
+
+> A função exige credencial privilegiada (`service_role` ou `x-cron-secret`); anon key retorna 401.
+
