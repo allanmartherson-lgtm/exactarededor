@@ -207,8 +207,6 @@ export default function PaymentsBySpecialty() {
     setLoading(true);
     setError(null);
     try {
-      const start = monthStart(fromMonth);
-      const end = monthEnd(toMonth);
 
       // Lista de competências (YYYY-MM) do intervalo selecionado.
       const monthsInRange: string[] = [];
