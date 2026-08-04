@@ -141,7 +141,9 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
   }, [load]);
 
   const runSearch = useCallback(async (term: string) => {
-    const q = term.trim();
+    // Remove caracteres que o PostgREST interpreta como sintaxe de filtro,
+    // evitando que o texto digitado injete condições extras no .or().
+    const q = term.trim().replace(/[,()%.]/g, " ").trim();
     if (!q) {
       setSearchResults([]);
       return;
@@ -151,6 +153,7 @@ export function BatchAIFailureReport({ paymentId }: { paymentId: string }) {
       .from("companies")
       .select("id, name, document, code")
       .or(`name.ilike.%${q}%,document.ilike.%${q}%,code.ilike.%${q}%`)
+
       .eq("active", true)
       .order("name")
       .limit(20);

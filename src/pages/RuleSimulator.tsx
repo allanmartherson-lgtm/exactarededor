@@ -476,8 +476,11 @@ function AgreementCombobox({ value, onChange }: { value: string; onChange: (v: s
       .order("sort_order")
       .order("name")
       .limit(500);
-    const term = search.trim();
+    // Sanitiza a busca: caracteres de sintaxe do PostgREST poderiam injetar
+    // condições extras dentro do .or().
+    const term = search.trim().replace(/[,()%.]/g, " ").trim();
     if (term) q = q.or(`name.ilike.%${term}%,slug.ilike.%${term}%`);
+
     q.then(({ data }) => {
       const out = (data ?? []).map((r: any) => ({ slug: String(r.slug), name: String(r.name) }));
       setItems(out);
