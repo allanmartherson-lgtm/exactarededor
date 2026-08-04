@@ -75,6 +75,8 @@ export default function CadastrosHub() {
       case "motivos-intervencao-manual": return <ManualInterventionReasons embedded />;
       case "especialidades": return <Specialties embedded />;
       case "mapa-especialidades": return <ProcedureSpecialtyMap embedded />;
+      case "grupos-analise": return <AnalysisGroups embedded />;
+
       case "modelos-repasse": return <PayoutModels embedded />;
     }
   }, [active]);
