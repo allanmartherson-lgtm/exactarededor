@@ -160,6 +160,15 @@ const REPORTS: ReportSpec[] = [
     roles: ["diretor", "admin", "analista", "validador"],
   },
   {
+    key: "payments-by-specialty",
+    label: "Pagamentos por especialidade / PJ",
+    description: "Bruto e líquido por especialidade (cadastro do médico), grupo de análise, médico ou PJ.",
+    route: "/relatorios/pagamentos-por-especialidade",
+    category: "Financeiro",
+    icon: LineChart,
+    roles: ["diretor", "admin", "analista", "validador"],
+  },
+  {
     key: "pools",
     label: "Pools de rateio",
     description: "Distribuição de pools e participantes.",

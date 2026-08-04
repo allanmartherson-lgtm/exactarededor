@@ -121,6 +121,7 @@ const loadBatchPatterns = () => import("./pages/BatchPatterns.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 const loadPaymentEvolution = () => import("./pages/PaymentEvolution.tsx");
+const loadPaymentsBySpecialty = () => import("./pages/PaymentsBySpecialty.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -222,6 +223,7 @@ const ProcessHealth = lazy(loadProcessHealth);
 const ReportsCentral = lazy(loadReportsCentral);
 const ExportAudit = lazy(loadExportAudit);
 const PaymentEvolution = lazy(loadPaymentEvolution);
+const PaymentsBySpecialty = lazy(loadPaymentsBySpecialty);
 const AuditoriaTussPrincipal = lazy(() => import("./pages/AuditoriaTussPrincipal.tsx"));
 const AuditoriaHub = lazy(() => import("./pages/AuditoriaHub.tsx"));
 const BatchTotalsAudit = lazy(() => import("./pages/BatchTotalsAudit.tsx"));
@@ -349,6 +351,7 @@ const App = () => (
                   <Route path="/relatorios/central" element={<ReportsCentral />} />
                   <Route path="/relatorios/auditoria-exportacoes" element={<Navigate to="/auditoria?tab=exportacoes" replace />} />
                   <Route path="/relatorios/evolucao-pagamentos" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><PaymentEvolution /></ProtectedRoute>} />
+                  <Route path="/relatorios/pagamentos-por-especialidade" element={<ProtectedRoute roles={["diretor", "admin", "analista", "validador"]}><PaymentsBySpecialty /></ProtectedRoute>} />
                   <Route path="/executivo" element={<Navigate to="/inteligencia-financeira" replace />} />
                   <Route path="/bi/diretoria" element={<BiDiretoria />} />
                   <Route path="/bi/pagamentos" element={<BiPagamentos />} />
