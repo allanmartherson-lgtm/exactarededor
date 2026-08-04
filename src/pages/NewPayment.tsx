@@ -1455,11 +1455,7 @@ const NewPayment = () => {
             : parecerItemTypeIdsRef.current.parecer;
           if (tid) {
             payment_type_id_override = tid;
-            // "report_cross" = classificação vinda do relatório/base original do
-            // Tasy. Valor precisa existir no check constraint
-            // payment_items_item_type_source_check e é protegido contra
-            // sobrescrita do auto-classify ("base_tipo" não era aceito no banco).
-            item_type_source_override = "report_cross";
+            item_type_source_override = "base_tipo";
           }
           parecer_medico_solicitante = cls.medico_solicitante;
           parecer_espec_origem = cls.espec_origem;
