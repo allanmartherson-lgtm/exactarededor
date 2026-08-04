@@ -292,7 +292,7 @@ export default function PaymentsBySpecialty() {
         setFinancials([]);
       }
     } catch (e: unknown) {
-    } catch (e: unknown) {
+
       // Erros do PostgREST não são instâncias de Error — sem isto o usuário via
       // apenas "Falha ao carregar o relatório", escondendo a causa real.
       const err = e as { message?: string; code?: string; details?: string } | null;
