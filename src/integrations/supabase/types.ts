@@ -13386,6 +13386,17 @@ export type Database = {
         }
         Returns: string[]
       }
+      get_specialty_payments_agg: {
+        Args: { p_from: string; p_hospital: string; p_to: string }
+        Returns: {
+          company_id: string
+          competence: string
+          doctor_id: string
+          gross: number
+          items: number
+          payment_id: string
+        }[]
+      }
       get_spend_trend:
         | {
             Args: {

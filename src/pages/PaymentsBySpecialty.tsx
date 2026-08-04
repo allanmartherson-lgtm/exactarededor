@@ -53,17 +53,21 @@ import {
   type SpecialtyReportGroupRow,
 } from "@/lib/specialtyPaymentsReport";
 
+/**
+ * Linha AGREGADA de itens vinda da RPC get_specialty_payments_agg:
+ * uma linha por (competência × lote × PJ × médico). Não baixamos mais os
+ * ~50 mil itens crus — isso estourava o statement timeout do banco.
+ */
 interface ItemRow {
-  id: string;
   payment_id: string | null;
   company_id: string | null;
   doctor_id: string | null;
-  doctor_name: string | null;
-  specialty: string | null; // informativo apenas (texto livre do analista)
   gross_amount: number | null;
   item_competence: string | null;
-  is_cancelled: boolean | null;
+  /** Quantidade de itens representados por esta linha agregada. */
+  qty: number;
 }
+
 
 interface DoctorRow {
   id: string;
@@ -162,6 +166,41 @@ export default function PaymentsBySpecialty() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Itens do período, já somados no banco pela RPC get_specialty_payments_agg.
+   * Baixar os itens crus (~50 mil linhas no período) estourava o statement
+   * timeout do PostgREST (erro 57014) e derrubava o relatório inteiro.
+   * A RPC devolve ~3 mil linhas (competência × lote × PJ × médico), o que
+   * preserva todos os filtros da tela: especialidade é derivada de doctor_id.
+   */
+  const fetchAggregatedItems = useCallback(
+    async (hid: string, from: string, to: string): Promise<ItemRow[]> => {
+      const { data, error: rErr } = await supabase.rpc("get_specialty_payments_agg", {
+        p_hospital: hid,
+        p_from: from,
+        p_to: to,
+      });
+      if (rErr) throw rErr;
+      return ((data ?? []) as Array<{
+        competence: string | null;
+        payment_id: string | null;
+        company_id: string | null;
+        doctor_id: string | null;
+        gross: number | string | null;
+        items: number | string | null;
+      }>).map((r) => ({
+        payment_id: r.payment_id,
+        company_id: r.company_id,
+        doctor_id: r.doctor_id,
+        gross_amount: Number(r.gross ?? 0),
+        item_competence: r.competence,
+        qty: Number(r.items ?? 0),
+      }));
+    },
+    [],
+  );
+
+
   const load = useCallback(async () => {
     if (!hospitalId) {
       setItems([]);
@@ -174,26 +213,12 @@ export default function PaymentsBySpecialty() {
       const start = monthStart(fromMonth);
       const end = monthEnd(toMonth);
 
-      const [itemRows, doctorRows, companyRows, groupRes, memberRes, dcRows] = await Promise.all([
-        fetchAllPaginated<ItemRow>((from, to) =>
-          supabase
-            .from("payment_items")
-            .select(
-              "id,payment_id,company_id,doctor_id,doctor_name,specialty,gross_amount,item_competence,is_cancelled",
-            )
-            .eq("hospital_id", hospitalId)
-            .gte("item_competence", start)
-            .lte("item_competence", end)
-            .order("id")
-            .range(from, to),
-        ),
-        fetchAllPaginated<DoctorRow>((from, to) =>
-          supabase
-            .from("doctors")
-            .select("id,full_name,crm,crm_uf,specialties")
-            .order("full_name")
-            .range(from, to),
-        ),
+      // Itens primeiro: os médicos carregados depois são só os que aparecem no
+      // período. Carregar a tabela `doctors` inteira por offset estourava o
+      // statement timeout (RLS pesada, ~8s por página de 1000).
+      const itemRows = await fetchAggregatedItems(hospitalId, start, end);
+
+      const [companyRows, groupRes, memberRes, dcRows] = await Promise.all([
         fetchAllPaginated<CompanyRow>((from, to) =>
           supabase.from("companies").select("id,name,document").order("name").range(from, to),
         ),
@@ -219,8 +244,32 @@ export default function PaymentsBySpecialty() {
       if (groupRes.error) throw groupRes.error;
       if (memberRes.error) throw memberRes.error;
 
-      const live = itemRows.filter((i) => !i.is_cancelled);
+      // Médicos necessários: os que têm itens no período + os citados
+      // diretamente em grupos de análise + o médico selecionado no filtro.
+      const doctorIdsNeeded = new Set<string>();
+      itemRows.forEach((i) => i.doctor_id && doctorIdsNeeded.add(i.doctor_id));
+      ((memberRes.data ?? []) as GroupMemberRow[]).forEach(
+        (m) => m.doctor_id && doctorIdsNeeded.add(m.doctor_id),
+      );
+      if (selectedDoctorId) doctorIdsNeeded.add(selectedDoctorId);
+
+      const doctorRows: DoctorRow[] = [];
+      const doctorIdList = Array.from(doctorIdsNeeded);
+      for (let i = 0; i < doctorIdList.length; i += 200) {
+        const { data, error: dErr } = await supabase
+          .from("doctors")
+          .select("id,full_name,crm,crm_uf,specialties")
+          .in("id", doctorIdList.slice(i, i + 200));
+        if (dErr) throw dErr;
+        doctorRows.push(...((data ?? []) as DoctorRow[]));
+      }
+
+
+      // A RPC já exclui itens cancelados.
+      const live = itemRows;
+
       setItems(live);
+
       setDoctors(doctorRows);
       setCompanies(companyRows);
       setGroups((groupRes.data ?? []) as GroupRow[]);
@@ -245,12 +294,18 @@ export default function PaymentsBySpecialty() {
         setFinancials([]);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Falha ao carregar o relatório");
+
+      // Erros do PostgREST não são instâncias de Error — sem isto o usuário via
+      // apenas "Falha ao carregar o relatório", escondendo a causa real.
+      const err = e as { message?: string; code?: string; details?: string } | null;
+      const base = err?.message || "Falha ao carregar o relatório";
+      setError(err?.code ? `${base} (código ${err.code})` : base);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [hospitalId, fromMonth, toMonth]);
+  }, [hospitalId, fromMonth, toMonth, fetchAggregatedItems]);
+
 
   useEffect(() => {
     if (hospitalLoading) return;
@@ -356,7 +411,7 @@ export default function PaymentsBySpecialty() {
     for (const it of items) {
       const gross = Number(it.gross_amount ?? 0);
       baseBruto += gross;
-      baseItems += 1;
+      baseItems += it.qty;
 
       // Itens sem doctor_id NUNCA são atribuídos a especialidade pelo cadastro:
       // ficam numa linha própria para o total do relatório bater com o real.
@@ -404,7 +459,7 @@ export default function PaymentsBySpecialty() {
       if (!ym) continue;
       const cur = byMonth.get(ym) ?? { bruto: 0, items: 0 };
       cur.bruto += Number(i.gross_amount ?? 0);
-      cur.items += 1;
+      cur.items += i.qty;
       byMonth.set(ym, cur);
     }
     const months = Array.from(byMonth.entries())
@@ -416,7 +471,7 @@ export default function PaymentsBySpecialty() {
     for (const i of matched) {
       const key = groupBy === "company" ? i.company_id ?? "sem_pj" : i.doctor_id ?? "sem_medico";
       const cur = agg.get(key) ?? { items: 0, bruto: 0, specialties: new Set<string>() };
-      cur.items += 1;
+      cur.items += i.qty;
       cur.bruto += Number(i.gross_amount ?? 0);
       if (i.doctor_id) {
         (doctorById.get(i.doctor_id)?.specialties ?? []).forEach((s) => cur.specialties.add(s));
@@ -474,17 +529,42 @@ export default function PaymentsBySpecialty() {
   ]);
 
   // ---------- buscas de médico / PJ ----------
-  const doctorResults = useMemo(() => {
-    const q = norm(doctorQuery);
-    if (!q) return [];
-    return doctors
-      .filter(
-        (d) =>
-          norm(d.full_name).includes(q) ||
-          norm(`${d.crm ?? ""}${d.crm_uf ?? ""}`).includes(q.replace(/[^a-z0-9]/g, "")),
-      )
-      .slice(0, 8);
-  }, [doctors, doctorQuery]);
+  // A busca de médico é feita no servidor: só carregamos localmente os médicos
+  // com itens no período, então filtrar a lista local esconderia médicos válidos.
+  const [doctorResults, setDoctorResults] = useState<DoctorRow[]>([]);
+  useEffect(() => {
+    const q = doctorQuery.trim();
+    if (q.length < 2) {
+      setDoctorResults([]);
+      return;
+    }
+    let cancel = false;
+    const timer = window.setTimeout(async () => {
+      const digits = q.replace(/\D/g, "");
+      const or = [`full_name.ilike.*${q.replace(/[,()*]/g, "")}*`];
+      if (digits.length >= 3) or.push(`crm.ilike.*${digits}*`);
+      const { data } = await supabase
+        .from("doctors")
+        .select("id,full_name,crm,crm_uf,specialties")
+        .or(or.join(","))
+        .order("full_name")
+        .limit(8);
+      if (cancel) return;
+      const rows = (data ?? []) as DoctorRow[];
+      setDoctorResults(rows);
+      // Mantém o cadastro do médico buscado disponível para nome/CRM/especialidades.
+      setDoctors((prev) => {
+        const known = new Set(prev.map((d) => d.id));
+        const extra = rows.filter((d) => !known.has(d.id));
+        return extra.length ? [...prev, ...extra] : prev;
+      });
+    }, 300);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timer);
+    };
+  }, [doctorQuery]);
+
 
   const companyResults = useMemo(() => {
     const q = norm(companyQuery);
@@ -513,11 +593,11 @@ export default function PaymentsBySpecialty() {
   const kpis = {
     bruto: computed.bruto,
     liquido: computed.liquido,
-    items: computed.matched.length,
+    items: computed.matched.reduce((s2, i) => s2 + i.qty, 0),
     companies: computed.companies,
     doctors: computed.doctors,
     semMedicoBruto: computed.semMedicoBruto,
-    semMedicoItems: computed.noDoctor.length,
+    semMedicoItems: computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
   };
 
   const clearFilters = () => {
