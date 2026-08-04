@@ -121,6 +121,7 @@ const loadBatchPatterns = () => import("./pages/BatchPatterns.tsx");
 const loadReportsCentral = () => import("./pages/ReportsCentral.tsx");
 const loadExportAudit = () => import("./pages/ExportAudit.tsx");
 const loadPaymentEvolution = () => import("./pages/PaymentEvolution.tsx");
+const loadPaymentsBySpecialty = () => import("./pages/PaymentsBySpecialty.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
