@@ -1022,7 +1022,7 @@ export default function PaymentsBySpecialty() {
                 </Tabs>
               </div>
               <div>
-                <div className="rounded-xl border border-border/60 overflow-hidden">
+                <div className="rounded-xl border border-border/60 overflow-x-auto">
 
                   <Table>
                     <TableHeader>
