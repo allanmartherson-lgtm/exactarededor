@@ -167,40 +167,39 @@ export default function PaymentsBySpecialty() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Itens do período. Paginação por CHAVE (id > último), nunca por offset:
-   * com ~84k itens no período o `.range(offset, ...)` do PostgREST estoura o
-   * statement timeout (erro 57014) a partir de ~20k linhas, o que derrubava o
-   * relatório inteiro. Além disso, quebramos por competência mensal e
-   * carregamos os meses em paralelo para reduzir o tempo total.
+   * Itens do período, já somados no banco pela RPC get_specialty_payments_agg.
+   * Baixar os itens crus (~50 mil linhas no período) estourava o statement
+   * timeout do PostgREST (erro 57014) e derrubava o relatório inteiro.
+   * A RPC devolve ~3 mil linhas (competência × lote × PJ × médico), o que
+   * preserva todos os filtros da tela: especialidade é derivada de doctor_id.
    */
-  const fetchItemsByKeyset = useCallback(
-    async (hid: string, mStart: string, mEnd: string): Promise<ItemRow[]> => {
-      const out: ItemRow[] = [];
-      let lastId = "00000000-0000-0000-0000-000000000000";
-      const PAGE = 1000; // teto do PostgREST
-      for (;;) {
-        const { data, error: pErr } = await supabase
-          .from("payment_items")
-          .select(
-            "id,payment_id,company_id,doctor_id,doctor_name,specialty,gross_amount,item_competence,is_cancelled",
-          )
-          .eq("hospital_id", hid)
-          .gte("item_competence", mStart)
-          .lte("item_competence", mEnd)
-          .gt("id", lastId)
-          .order("id")
-          .limit(PAGE);
-        if (pErr) throw pErr;
-        const rows = (data ?? []) as ItemRow[];
-        out.push(...rows);
-        if (rows.length < PAGE) break;
-        lastId = rows[rows.length - 1].id;
-        if (out.length >= 300_000) break; // trava de segurança
-      }
-      return out;
+  const fetchAggregatedItems = useCallback(
+    async (hid: string, from: string, to: string): Promise<ItemRow[]> => {
+      const { data, error: rErr } = await supabase.rpc("get_specialty_payments_agg", {
+        p_hospital: hid,
+        p_from: from,
+        p_to: to,
+      });
+      if (rErr) throw rErr;
+      return ((data ?? []) as Array<{
+        competence: string | null;
+        payment_id: string | null;
+        company_id: string | null;
+        doctor_id: string | null;
+        gross: number | string | null;
+        items: number | string | null;
+      }>).map((r) => ({
+        payment_id: r.payment_id,
+        company_id: r.company_id,
+        doctor_id: r.doctor_id,
+        gross_amount: Number(r.gross ?? 0),
+        item_competence: r.competence,
+        qty: Number(r.items ?? 0),
+      }));
     },
     [],
   );
+
 
   const load = useCallback(async () => {
     if (!hospitalId) {
