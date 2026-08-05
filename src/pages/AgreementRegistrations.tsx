@@ -126,11 +126,31 @@ export default function AgreementRegistrations() {
   }, [hospitalLoading, load]);
 
 
+  // Cada aba é uma fila do fluxo; "todos" mantém a listagem geral.
+  const TAB_STATUS: Record<string, AgreementStatus[] | null> = {
+    todos: null,
+    supervisor: ["aguardando_supervisor"],
+    diretor: ["aguardando_diretor"],
+    analista: ["aprovado"],
+  };
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { todos: rows.length };
+    Object.entries(TAB_STATUS).forEach(([k, sts]) => {
+      if (!sts) return;
+      c[k] = rows.filter((r) => sts.includes(r.status)).length;
+    });
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = norm(search);
     const qc = norm(codeFilter);
+    const tabStatuses = TAB_STATUS[tab] ?? null;
     return rows.filter((r) => {
-      if (statusFilter !== "todos" && r.status !== statusFilter) return false;
+      if (tabStatuses && !tabStatuses.includes(r.status)) return false;
+      if (tab === "todos" && statusFilter !== "todos" && r.status !== statusFilter) return false;
       if (qc && !norm(r.code).includes(qc)) return false;
       if (q) {
         const companyName = r.company_id ? companies[r.company_id] ?? "" : "";
@@ -138,7 +158,8 @@ export default function AgreementRegistrations() {
       }
       return true;
     });
-  }, [rows, statusFilter, search, codeFilter, companies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, statusFilter, search, codeFilter, companies, tab]);
 
   const openNew = () => {
     if (!ensure("criar um cadastro de acordo")) return;
@@ -146,10 +167,18 @@ export default function AgreementRegistrations() {
     setWizardOpen(true);
   };
 
+  // Rascunho volta para o wizard; qualquer outro status abre a visão de
+  // detalhe read-only com as ações do fluxo.
   const openRecord = (r: AgreementRegistration) => {
-    setEditing(r);
-    setWizardOpen(true);
+    if (r.status === "rascunho") {
+      setEditing(r);
+      setWizardOpen(true);
+      return;
+    }
+    setDetail(r);
+    setDetailOpen(true);
   };
+
 
   return (
     <div>
