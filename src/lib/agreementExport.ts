@@ -240,10 +240,39 @@ export async function buildAgreementExportModel(
     partiesByCompany.set(p.company_id, list);
   }
 
+  // Corpo clínico: PJs do acordo de equipe ou, no modo simples, a PJ única
+  // menos os médicos desabilitados (doctor_exceptions).
+  const staffEntries = partyRows.length
+    ? [...partiesByCompany.keys()].map((cid) => {
+        const docs = partyRows.filter((p) => p.company_id === cid && p.doctor_id).map((p) => p.doctor_id as string);
+        return { companyId: cid, includedDoctorIds: docs.length ? docs : null };
+      })
+    : [
+        {
+          companyId: agreement.company_id ?? null,
+          includedDoctorIds: agreement.applies_to_all_doctors ? null : null,
+        },
+      ];
+  const clinicalStaffRaw = await loadAgreementClinicalStaff(staffEntries);
+  const excluded = new Set(doctorNames);
+  const clinicalStaff = partyRows.length
+    ? clinicalStaffRaw
+    : clinicalStaffRaw.filter((r) => !excluded.has(r.doctor));
+
+  // Acordo exclusivamente de "Valor fixo" oculta os campos de produção
+  const modelIds = (agreement as unknown as { payment_model_ids?: string[] }).payment_model_ids ?? [];
+  let onlyFixedValue = false;
+  if (modelIds.length > 0) {
+    const { data: modelRows } = await supabase.from("payment_models").select("id,code").in("id", modelIds);
+    const codes = ((modelRows ?? []) as Array<{ code: string }>).map((m) => m.code);
+    onlyFixedValue = codes.length > 0 && codes.every((c) => c === "valor_fixo");
+  }
+
   const timeline = buildAgreementTimeline(agreement, hospitals, events, hospitalNames).map((t) => ({
     label: t.label,
     value: [fmtExportDateTime(t.at), t.detail].filter(Boolean).join(" — ") || "—",
   }));
+
 
   return {
     code: agreement.code,
