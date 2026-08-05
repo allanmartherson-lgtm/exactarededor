@@ -166,7 +166,35 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setExclusionsNotes(record?.exclusions_notes ?? "");
     setExtraItems(record?.extra_items ?? []);
     setFreeNotes(record?.free_notes ?? "");
+    setReplicaHospitalIds([]);
+    setLockedHospitalIds([]);
   }, [open, record]);
+
+  // Hospitais já vinculados ao acordo (replicação regional)
+  useEffect(() => {
+    if (!open || !record?.id) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registration_hospitals")
+        .select("hospital_id,is_primary,status")
+        .eq("agreement_id", record.id);
+      if (cancel) return;
+      if (error) {
+        toast.error("Falha ao carregar hospitais do acordo");
+        return;
+      }
+      const rows = data ?? [];
+      setReplicaHospitalIds(rows.filter((r) => !r.is_primary).map((r) => r.hospital_id));
+      // Já aprovado/rejeitado pelo diretor: não pode mais ser removido pelo analista
+      setLockedHospitalIds(
+        rows.filter((r) => !r.is_primary && r.status !== "aguardando_diretor").map((r) => r.hospital_id),
+      );
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, record?.id]);
 
   useEffect(() => {
     if (!open || !hospitalId) return;
@@ -174,7 +202,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (async () => {
       setRegistriesLoading(true);
       try {
-        const [comps, convRes, docs] = await Promise.all([
+        const [comps, convRes, docs, hospRes] = await Promise.all([
           fetchAllPaginated<CompanyOption>((from, to) =>
             supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
           ),
@@ -187,12 +215,15 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           fetchAllPaginated<DoctorOption>((from, to) =>
             supabase.from("doctors").select("id,full_name,crm,crm_uf").order("full_name").range(from, to),
           ),
+          supabase.from("hospitals").select("id,name").order("name"),
         ]);
         if (cancel) return;
         setCompanies(comps);
         if (convRes.error) throw convRes.error;
         setConvenios((convRes.data ?? []) as ConvenioOption[]);
         setDoctors(docs);
+        if (hospRes.error) throw hospRes.error;
+        setHospitalOptions((hospRes.data ?? []) as HospitalOption[]);
       } catch (e: unknown) {
         if (!cancel) toast.error(e instanceof Error ? e.message : "Falha ao carregar cadastros");
       } finally {
@@ -203,6 +234,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       cancel = true;
     };
   }, [open, hospitalId]);
+
 
   // Médicos vinculados à clínica selecionada (doctor_companies)
   useEffect(() => {
