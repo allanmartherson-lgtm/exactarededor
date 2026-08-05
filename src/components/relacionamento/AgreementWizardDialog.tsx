@@ -450,11 +450,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       status,
     }),
     [
-      hospitalId, companyId, effectiveFrom, effectiveTo, allConvenios, convenioExceptions,
+      hospitalId, companyId, registrationType, referenceNote, relatedAgreementId,
+      effectiveFrom, effectiveTo, allConvenios, convenioExceptions,
       allDoctors, doctorExceptions, includesAuxiliary, includesAccessRoute, paymentTableBase,
       paymentPercentage, hasGlosa, glosaConditions, urgencyDiff, urgencyPct, weekendAdd,
       weekendPct, hasFixedValues, fixedUrgencyDiff, exclusionsNotes, extraItems, freeNotes,
     ],
+
   );
 
   const persist = useCallback(
