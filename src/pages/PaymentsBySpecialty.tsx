@@ -639,17 +639,20 @@ export default function PaymentsBySpecialty() {
       rows,
       baseBruto,
       baseItems,
+      brutoByType,
     };
   }, [
     items,
     scope,
     selectedSpecialtiesNorm,
+    selectedItemTypes,
     doctorSpecialtiesNorm,
     financials,
     groupBy,
     companyById,
     doctorById,
   ]);
+
 
   // ---------- buscas de médico / PJ ----------
   // A busca de médico é feita no servidor: só carregamos localmente os médicos
