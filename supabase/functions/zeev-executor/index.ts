@@ -589,7 +589,9 @@ async function execAcceptKeepExpected(
   };
   const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
   // Carrega expected_amount + estado de override (não vinha no select padrão)
-  const ids = items.filter((i) => !i.manual_intervention_reason_id).map((i) => i.id);
+  // Reacate permitido (ver execAcceptKeepPaid): não descarta itens que já têm
+  // motivo manual gravado — senão um lote já tratado vira 0 itens afetados.
+  const ids = items.map((i) => i.id);
   if (ids.length === 0) return { affected: 0, before: [], after: { reason: "acatado_esperado" } };
 
   const { data: extra } = await sb
