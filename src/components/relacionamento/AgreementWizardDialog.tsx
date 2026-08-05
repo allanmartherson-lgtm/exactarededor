@@ -1914,7 +1914,7 @@ function PartyRow({
   onRemove: () => void;
 }) {
   const [companyOpen, setCompanyOpen] = useState(false);
-  const [doctorsOpen, setDoctorsOpen] = useState(false);
+  
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
   const [loading, setLoading] = useState(false);
   const company = companies.find((c) => c.id === party.companyId) ?? null;
