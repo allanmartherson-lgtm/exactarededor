@@ -21,6 +21,7 @@ import {
   FileDown,
   Loader2,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -352,6 +353,52 @@ export function AgreementDetailDialog({
               })}
             </ol>
           </div>
+
+          {/* Rejeição: motivo por hospital + reabertura pelo Contratos */}
+          {agreement.status === "rejeitado" && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+              <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                <XCircle className="h-4 w-4" />
+                Acordo rejeitado
+              </p>
+              {rejectedRows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {agreement.rejection_reason ?? "Motivo não informado."}
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {rejectedRows.map((row) => (
+                    <li key={row.id} className="text-xs">
+                      <span className="font-medium">
+                        {hospitalNames.get(row.hospital_id) ?? row.hospital_id}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {" — "}
+                        {row.director_id ? userNames[row.director_id] ?? "Diretor" : "Diretor"}
+                        {fmtDateTime(row.director_approved_at)
+                          ? ` em ${fmtDateTime(row.director_approved_at)}`
+                          : ""}
+                      </span>
+                      <p className="text-destructive break-words">
+                        Motivo: {row.rejection_reason ?? row.director_notes ?? "não informado"}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {canResubmit && (
+                <div className="pt-1">
+                  <Button type="button" size="sm" onClick={correctAndResubmit} disabled={busy}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Corrigir e reenviar
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    O acordo reabre para edição e volta ao ciclo completo (supervisor → diretores).
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Resumo read-only */}
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
