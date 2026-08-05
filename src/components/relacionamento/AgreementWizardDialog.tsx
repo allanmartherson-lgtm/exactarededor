@@ -576,12 +576,17 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   );
 
 
+  // Acordo rejeitado sendo corrigido: os salvamentos intermediários preservam o
+  // status atual — só o "concluir" dispara o reenvio (RPC) para o novo ciclo.
+  const isResubmission = record?.status === "rejeitado";
+  const draftStatus = isResubmission ? "rejeitado" : "rascunho";
+
   const goNext = async () => {
     if (stepError) {
       toast.error(stepError);
       return;
     }
-    const ok = await persist("rascunho");
+    const ok = await persist(draftStatus);
     if (!ok) return;
     if (step < STEPS.length - 1) setStep((s) => s + 1);
   };
@@ -589,6 +594,21 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const finish = async () => {
     if (stepError) {
       toast.error(stepError);
+      return;
+    }
+    if (isResubmission) {
+      const saved = await persist("rejeitado");
+      if (!saved) return;
+      const { error } = await supabase.rpc("resubmit_agreement_after_rejection", {
+        p_agreement_id: record!.id,
+      });
+      if (error) {
+        toast.error("Falha ao reenviar o acordo", { description: error.message });
+        return;
+      }
+      onSaved();
+      toast.success("Acordo corrigido e reenviado para validação do supervisor");
+      onOpenChange(false);
       return;
     }
     const ok = await persist("aguardando_supervisor");
