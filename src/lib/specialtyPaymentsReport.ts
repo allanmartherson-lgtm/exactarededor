@@ -22,6 +22,8 @@ export interface SpecialtyReportFilters {
   companyLabel: string;
   /** Tipos de pagamento (item_types) selecionados; "Todos" quando sem recorte. */
   itemTypesLabel?: string;
+  /** Modo de visão dos totais: "Especialidade" ou "PJ no período". */
+  viewModeLabel?: string;
 }
 
 export interface SpecialtyReportKpis {
