@@ -2753,6 +2753,47 @@ const NewPayment = () => {
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
   }, [resolvedRows, doctorReg, convenioReg, sectorReg, buckets]);
 
+  // Médicos com nome preenchido na planilha mas que NÃO resolveram para um
+  // doctor_id (cadastro direto ou alias). Sem essa trava o item era salvo com
+  // doctor_id nulo silenciosamente — mesma lacuna que a PJ já cobre.
+  const unresolvedDoctorSummary = useMemo(() => {
+    const map = new Map<string, { name: string; count: number; amount: number }>();
+    let count = 0;
+    let amount = 0;
+    for (const r of resolvedRows) {
+      const res = (r as any)._resolution;
+      if (!res) continue;
+      const name = (r.doctor_name ?? "").trim();
+      if (!name || res.doctor_id) continue;
+      const value = Number(r.gross_amount ?? 0) || 0;
+      count += 1;
+      amount += value;
+      const key = name.toLowerCase();
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += 1;
+        existing.amount += value;
+      } else {
+        map.set(key, { name, count: 1, amount: value });
+      }
+    }
+    return {
+      count,
+      amount,
+      groups: Array.from(map.values()).sort((a, b) => b.count - a.count),
+    };
+  }, [resolvedRows]);
+
+  const [doctorGateOpen, setDoctorGateOpen] = useState(false);
+  // Aceite explícito do analista para prosseguir com médicos não vinculados.
+  const doctorGateAckRef = useRef(false);
+  const registryPanelRef = useRef<HTMLDivElement | null>(null);
+
+  // Qualquer mudança no conjunto de pendências invalida o aceite anterior.
+  useEffect(() => {
+    doctorGateAckRef.current = false;
+  }, [unresolvedDoctorSummary.count, unresolvedDoctorSummary.amount]);
+
 
   const registriesReady = allRows.length === 0 || (!!doctorReg && !!convenioReg && !!sectorReg);
   // Setor NÃO bloqueia envio: não é chave de cálculo (glosa/repasse/pool não usam
@@ -2950,6 +2991,14 @@ const NewPayment = () => {
       );
       if (!ok) return;
     }
+
+    // Trava simétrica à da PJ: médico com nome na planilha mas sem vínculo no
+    // cadastro salvaria doctor_id nulo sem aviso. Exige decisão explícita.
+    if (unresolvedDoctorSummary.count > 0 && !doctorGateAckRef.current) {
+      setDoctorGateOpen(true);
+      return;
+    }
+
 
     if (preValidation.critical > 0) {
       toast({
@@ -5532,14 +5581,70 @@ const NewPayment = () => {
 
 
         {allRows.length > 0 && doctorReg && convenioReg && sectorReg && (
-          <RegistryResolutionPanel
-            unresolved={unresolvedGroups}
-            doctorReg={doctorReg}
-            convenioReg={convenioReg}
-            sectorReg={sectorReg}
-            onResolved={() => reloadRegistries(true)}
-          />
+          <div ref={registryPanelRef}>
+            <RegistryResolutionPanel
+              unresolved={unresolvedGroups}
+              doctorReg={doctorReg}
+              convenioReg={convenioReg}
+              sectorReg={sectorReg}
+              onResolved={() => reloadRegistries(true)}
+            />
+          </div>
         )}
+
+        <Dialog open={doctorGateOpen} onOpenChange={setDoctorGateOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                {unresolvedDoctorSummary.count} item(ns) com médico não vinculado
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                Esses itens têm nome de médico na planilha, mas o nome não casa com nenhum cadastro
+                nem apelido. Eles serão salvos sem vínculo de médico e ficarão fora dos relatórios
+                por médico/especialidade.
+              </p>
+              <div className="max-h-56 overflow-y-auto rounded-md border divide-y">
+                {unresolvedDoctorSummary.groups.map((g) => (
+                  <div key={g.name} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="truncate font-medium">{g.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {g.count} linha(s) · {formatCurrency(g.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total envolvido: <strong>{formatCurrency(unresolvedDoctorSummary.amount)}</strong>
+              </p>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDoctorGateOpen(false);
+                  registryPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Resolver agora
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  // Decisão explícita do analista, equivalente ao confirm de PJ.
+                  doctorGateAckRef.current = true;
+                  setDoctorGateOpen(false);
+                  void submit();
+                }}
+              >
+                Prosseguir mesmo assim
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         {showMixedParecerOption && (
           <MixedParecerSetupCard
