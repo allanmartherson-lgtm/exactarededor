@@ -25,9 +25,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardList, Plus, Search, Pencil, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { AgreementWizardDialog } from "@/components/relacionamento/AgreementWizardDialog";
+import { AgreementDetailDialog } from "@/components/relacionamento/AgreementDetailDialog";
+
 import {
   AGREEMENT_STATUS_LABEL,
   AGREEMENT_STATUS_VARIANT,
@@ -63,6 +66,10 @@ export default function AgreementRegistrations() {
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editing, setEditing] = useState<AgreementRegistration | null>(null);
+  const [tab, setTab] = useState<"todos" | "supervisor" | "diretor" | "analista">("todos");
+  const [detail, setDetail] = useState<AgreementRegistration | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
 
   const load = useCallback(async () => {
     if (!hospitalId) {
@@ -73,22 +80,41 @@ export default function AgreementRegistrations() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [{ data, error }, comps] = await Promise.all([
+      // Acordos da unidade + acordos replicados para ela (podem ter sido
+      // criados em outro hospital da regional).
+      const { data: links, error: linkErr } = await supabase
+        .from("agreement_registration_hospitals")
+        .select("agreement_id")
+        .eq("hospital_id", hospitalId);
+      if (linkErr) throw linkErr;
+      const linkedIds = Array.from(
+        new Set((links ?? []).map((l) => (l as { agreement_id: string }).agreement_id)),
+      );
+
+      const [{ data, error }, replicated, comps] = await Promise.all([
         supabase
           .from("agreement_registrations")
           .select("*")
           .eq("hospital_id", hospitalId)
           .order("created_at", { ascending: false }),
+        linkedIds.length
+          ? supabase.from("agreement_registrations").select("*").in("id", linkedIds)
+          : Promise.resolve({ data: [], error: null }),
         fetchAllPaginated<CompanyLite>((from, to) =>
           supabase.from("companies").select("id,name").order("name").range(from, to),
         ),
       ]);
       if (error) throw error;
-      setRows(
-        (data ?? []).map((r) => ({
+      const byId = new Map<string, AgreementRegistration>();
+      [...(data ?? []), ...((replicated.data ?? []) as unknown[])].forEach((r) => {
+        const row = {
           ...(r as unknown as AgreementRegistration),
           extra_items: parseExtraItems((r as { extra_items: unknown }).extra_items),
-        })),
+        };
+        byId.set(row.id, row);
+      });
+      setRows(
+        Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
       );
       const map: Record<string, string> = {};
       comps.forEach((c) => (map[c.id] = c.name));
@@ -101,16 +127,43 @@ export default function AgreementRegistrations() {
     }
   }, [hospitalId]);
 
+  // Mantém o registro aberto no detalhe sincronizado após cada recarga.
+  useEffect(() => {
+    setDetail((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? prev : prev));
+  }, [rows]);
+
+
   useEffect(() => {
     if (hospitalLoading) return;
     void load();
   }, [hospitalLoading, load]);
 
+
+  // Cada aba é uma fila do fluxo; "todos" mantém a listagem geral.
+  const TAB_STATUS: Record<string, AgreementStatus[] | null> = {
+    todos: null,
+    supervisor: ["aguardando_supervisor"],
+    diretor: ["aguardando_diretor"],
+    analista: ["aprovado"],
+  };
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { todos: rows.length };
+    Object.entries(TAB_STATUS).forEach(([k, sts]) => {
+      if (!sts) return;
+      c[k] = rows.filter((r) => sts.includes(r.status)).length;
+    });
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = norm(search);
     const qc = norm(codeFilter);
+    const tabStatuses = TAB_STATUS[tab] ?? null;
     return rows.filter((r) => {
-      if (statusFilter !== "todos" && r.status !== statusFilter) return false;
+      if (tabStatuses && !tabStatuses.includes(r.status)) return false;
+      if (tab === "todos" && statusFilter !== "todos" && r.status !== statusFilter) return false;
       if (qc && !norm(r.code).includes(qc)) return false;
       if (q) {
         const companyName = r.company_id ? companies[r.company_id] ?? "" : "";
@@ -118,7 +171,8 @@ export default function AgreementRegistrations() {
       }
       return true;
     });
-  }, [rows, statusFilter, search, codeFilter, companies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, statusFilter, search, codeFilter, companies, tab]);
 
   const openNew = () => {
     if (!ensure("criar um cadastro de acordo")) return;
@@ -126,10 +180,18 @@ export default function AgreementRegistrations() {
     setWizardOpen(true);
   };
 
+  // Rascunho volta para o wizard; qualquer outro status abre a visão de
+  // detalhe read-only com as ações do fluxo.
   const openRecord = (r: AgreementRegistration) => {
-    setEditing(r);
-    setWizardOpen(true);
+    if (r.status === "rascunho") {
+      setEditing(r);
+      setWizardOpen(true);
+      return;
+    }
+    setDetail(r);
+    setDetailOpen(true);
   };
+
 
   return (
     <div>
@@ -139,8 +201,19 @@ export default function AgreementRegistrations() {
         icon={ClipboardList}
       />
       <div className="p-4 md:p-6 space-y-4">
+        {/* Abas = filas do fluxo de aprovação */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+          <TabsList>
+            <TabsTrigger value="todos">Todos ({counts.todos ?? 0})</TabsTrigger>
+            <TabsTrigger value="supervisor">Supervisor ({counts.supervisor ?? 0})</TabsTrigger>
+            <TabsTrigger value="diretor">Diretores ({counts.diretor ?? 0})</TabsTrigger>
+            <TabsTrigger value="analista">Analista ({counts.analista ?? 0})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Filtros: busca larga; status e código compactos */}
         <div className="flex flex-wrap items-center gap-3">
+
           <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -286,6 +359,20 @@ export default function AgreementRegistrations() {
           void load();
         }}
       />
+
+      <AgreementDetailDialog
+        open={detailOpen}
+        onOpenChange={(o) => {
+          setDetailOpen(o);
+          if (!o) setDetail(null);
+        }}
+        agreement={detail}
+        companyName={detail?.company_id ? companies[detail.company_id] : undefined}
+        onChanged={() => {
+          void load();
+        }}
+      />
+
     </div>
   );
 }

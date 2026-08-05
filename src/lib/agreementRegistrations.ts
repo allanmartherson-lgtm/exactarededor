@@ -79,3 +79,157 @@ export interface AgreementRegistration {
   created_at: string;
   updated_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Fluxo de aprovação (supervisor → diretores por hospital → analista)
+// ---------------------------------------------------------------------------
+
+export type AgreementHospitalStatus = "aguardando_diretor" | "aprovado" | "rejeitado";
+
+export const AGREEMENT_HOSPITAL_STATUS_LABEL: Record<string, string> = {
+  aguardando_diretor: "Aguardando diretor",
+  aprovado: "Aprovado",
+  rejeitado: "Rejeitado",
+};
+
+export interface AgreementHospitalRow {
+  id: string;
+  agreement_id: string;
+  hospital_id: string;
+  is_primary: boolean;
+  status: AgreementHospitalStatus;
+  director_id: string | null;
+  director_approved_at: string | null;
+  director_notes: string | null;
+  rejection_reason: string | null;
+  linked_rule_id: string | null;
+  created_at: string;
+}
+
+/** Campos de auditoria do fluxo, lidos junto do registro principal. */
+export interface AgreementFlowFields {
+  supervisor_id: string | null;
+  supervisor_validated_at: string | null;
+  supervisor_notes: string | null;
+  analyst_id: string | null;
+  analyst_registered_at: string | null;
+  rejection_reason: string | null;
+  pdf_url: string | null;
+}
+
+export interface ChecklistEntry {
+  key: string;
+  label: string;
+  ok: boolean;
+  /** Bloqueia o avanço quando falso. */
+  required: boolean;
+}
+
+/**
+ * Checklist objetivo que o supervisor precisa conferir antes de encaminhar
+ * aos diretores. Só itens verificáveis pelos dados do próprio acordo.
+ */
+export function buildSupervisorChecklist(
+  a: AgreementRegistration,
+  hospitals: AgreementHospitalRow[],
+): ChecklistEntry[] {
+  const hasBase = !!a.payment_table_base;
+  const hasPct = a.payment_percentage != null && Number(a.payment_percentage) > 0;
+  return [
+    { key: "company", label: "Clínica (PJ) vinculada", ok: !!a.company_id, required: true },
+    { key: "from", label: "Data de início da vigência", ok: !!a.effective_from, required: true },
+    { key: "base", label: "Tabela base definida", ok: hasBase, required: true },
+    {
+      key: "value",
+      label: "Percentual ou valores fixos informados",
+      ok: hasPct || a.has_fixed_values || a.extra_items.length > 0,
+      required: true,
+    },
+    { key: "hospitals", label: "Ao menos um hospital de destino", ok: hospitals.length > 0, required: true },
+    {
+      key: "glosa",
+      label: "Condições de glosa descritas (quando há glosa)",
+      ok: !a.has_glosa || !!(a.glosa_conditions ?? "").trim(),
+      required: true,
+    },
+    {
+      key: "urgency",
+      label: "Adicional de urgência com percentual",
+      ok: !a.urgency_differentiation || a.urgency_addition_pct != null,
+      required: false,
+    },
+    {
+      key: "weekend",
+      label: "Adicional de fim de semana/feriado com percentual",
+      ok: !a.weekend_holiday_addition || a.weekend_holiday_addition_pct != null,
+      required: false,
+    },
+  ];
+}
+
+export interface TimelineEntry {
+  key: string;
+  label: string;
+  at: string | null;
+  detail?: string | null;
+  state: "done" | "current" | "pending" | "error";
+}
+
+/** Linha do tempo do acordo, usada nas telas de fila e no detalhe. */
+export function buildAgreementTimeline(
+  a: AgreementRegistration & Partial<AgreementFlowFields>,
+  hospitals: AgreementHospitalRow[],
+): TimelineEntry[] {
+  const rejected = a.status === "rejeitado";
+  const approvedCount = hospitals.filter((h) => h.status === "aprovado").length;
+  const registeredCount = hospitals.filter((h) => !!h.linked_rule_id).length;
+  const step = (
+    key: string,
+    label: string,
+    done: boolean,
+    current: boolean,
+    at: string | null,
+    detail?: string | null,
+  ): TimelineEntry => ({
+    key,
+    label,
+    at,
+    detail,
+    state: done ? "done" : current ? "current" : "pending",
+  });
+  const entries: TimelineEntry[] = [
+    step("draft", "Preenchimento (Contratos)", a.status !== "rascunho", a.status === "rascunho", a.created_at),
+    step(
+      "supervisor",
+      "Validação do supervisor",
+      !!a.supervisor_validated_at,
+      a.status === "aguardando_supervisor",
+      a.supervisor_validated_at ?? null,
+      a.supervisor_notes ?? null,
+    ),
+    step(
+      "directors",
+      "Aprovação dos diretores",
+      hospitals.length > 0 && approvedCount === hospitals.length,
+      a.status === "aguardando_diretor",
+      null,
+      hospitals.length > 0 ? `${approvedCount}/${hospitals.length} hospital(is) aprovado(s)` : null,
+    ),
+    step(
+      "analyst",
+      "Cadastro da regra (Analista)",
+      a.status === "cadastrado",
+      a.status === "aprovado",
+      a.analyst_registered_at ?? null,
+      hospitals.length > 0 ? `${registeredCount}/${hospitals.length} regra(s) criada(s)` : null,
+    ),
+  ];
+  if (rejected) {
+    return entries.map((e) =>
+      e.state === "current" || e.state === "pending"
+        ? { ...e, state: "error" as const, detail: a.rejection_reason ?? e.detail }
+        : e,
+    );
+  }
+  return entries;
+}
