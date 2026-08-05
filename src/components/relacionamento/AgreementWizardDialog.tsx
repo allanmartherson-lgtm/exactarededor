@@ -542,13 +542,23 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const canExport = !!companyId && !!effectiveFrom;
 
   /** Monta o estado atual do formulário no modelo de exportação (Word/Excel). */
-  const buildExportModel = useCallback((): AgreementExportModel => {
+  const buildExportModel = useCallback(async (): Promise<AgreementExportModel> => {
     const companyName = companies.find((c) => c.id === companyId)?.name ?? "Clínica não informada";
     const doctorName = (dId: string) =>
       linkedDoctors.find((d) => d.id === dId)?.full_name ?? dId;
     const hospitalName = (hId: string) => hospitalOptions.find((h) => h.id === hId)?.name ?? hId;
     const pctText = (v: string) => (numOrNull(v) != null ? `${numOrNull(v)}%` : "—");
     const yn = (b: boolean) => (b ? "Sim" : "Não");
+
+    // Corpo clínico do acordo: médicos habilitados (não a lista de exceções)
+    const clinicalStaff = await loadAgreementClinicalStaff(
+      multiParty
+        ? parties.map((p) => ({
+            companyId: p.companyId,
+            includedDoctorIds: p.allDoctors ? null : p.doctorIds,
+          }))
+        : [{ companyId, includedDoctorIds: allDoctors ? null : enabledDoctorIds }],
+    );
 
     return {
       code: record?.code ?? "Novo acordo",
@@ -571,7 +581,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         },
         { label: "Hospital de origem", value: hospital?.name ?? "—" },
       ],
-      scope: [
+      clinicalStaff,
+      scope: filterFixedOnlyRows([
         { label: "Todos os convênios", value: yn(allConvenios) },
         {
           label: "Convênios de exceção",
@@ -584,8 +595,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         },
         { label: "Inclui auxiliares", value: yn(includesAuxiliary) },
         { label: "Considera via de acesso", value: yn(includesAccessRoute) },
-      ],
-      paymentTable: [
+      ], onlyFixedValue),
+      paymentTable: filterFixedOnlyRows([
         {
           label: "Tipo de pagamento",
           value:
@@ -621,7 +632,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         { label: "Possui valores fixos", value: yn(hasFixedValues) },
         { label: "Valores fixos com urgência diferenciada", value: yn(fixedUrgencyDiff) },
         { label: "Exclusões", value: exclusionsNotes.trim() || "—" },
-      ],
+      ], onlyFixedValue),
       parties: multiParty
         ? parties.map((p) => ({
             company: companies.find((c) => c.id === p.companyId)?.name ?? "—",
@@ -667,6 +678,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     includesAccessRoute,
     includesAuxiliary,
     linkedDoctors,
+    enabledDoctorIds,
+    onlyFixedValue,
     multiParty,
     parties,
     paymentModels,
