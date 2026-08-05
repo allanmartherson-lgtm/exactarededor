@@ -10,6 +10,7 @@ import {
   BorderStyle,
   Document,
   HeadingLevel,
+  ImageRun,
   Packer,
   Paragraph,
   ShadingType,
@@ -20,6 +21,7 @@ import {
   WidthType,
 } from "docx";
 import * as XLSX from "xlsx";
+import { getRedeDOrLogoPng } from "@/lib/brandLogo";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AGREEMENT_HOSPITAL_STATUS_LABEL,
@@ -51,6 +53,16 @@ export interface AgreementExportParty {
   doctors: string;
 }
 
+/** Linha da tabela "Corpo clínico e empresas vinculadas ao acordo". */
+export interface AgreementExportStaff {
+  doctor: string;
+  crm: string;
+  company: string;
+  cnpj: string;
+  email: string;
+  phone: string;
+}
+
 /** Modelo neutro consumido pelos dois exportadores (Word e Excel). */
 export interface AgreementExportModel {
   code: string;
@@ -60,11 +72,91 @@ export interface AgreementExportModel {
   scope: AgreementExportRow[];
   paymentTable: AgreementExportRow[];
   parties: AgreementExportParty[];
+  /** Médicos efetivamente incluídos no acordo (não a lista de exceções). */
+  clinicalStaff: AgreementExportStaff[];
   hospitals: AgreementExportHospital[];
   extraItems: AgreementExportRow[];
   timeline: AgreementExportRow[];
   freeNotes: string;
 }
+
+/**
+ * Resolve o corpo clínico do acordo a partir das PJs envolvidas.
+ * `includedDoctorIds = null` significa "todos os médicos vinculados à PJ".
+ */
+export async function loadAgreementClinicalStaff(
+  entries: Array<{ companyId: string | null; includedDoctorIds: string[] | null }>,
+): Promise<AgreementExportStaff[]> {
+  const valid = entries.filter((e): e is { companyId: string; includedDoctorIds: string[] | null } => !!e.companyId);
+  if (valid.length === 0) return [];
+  const companyIds = [...new Set(valid.map((e) => e.companyId))];
+
+  const [companiesRes, linksRes] = await Promise.all([
+    supabase.from("companies").select("id,name,document").in("id", companyIds),
+    supabase.from("doctor_companies").select("doctor_id,company_id,end_date").in("company_id", companyIds),
+  ]);
+  const companyById = new Map(
+    ((companiesRes.data ?? []) as Array<{ id: string; name: string; document: string | null }>).map((c) => [c.id, c]),
+  );
+  const activeLinks = ((linksRes.data ?? []) as Array<{ doctor_id: string; company_id: string; end_date: string | null }>)
+    .filter((l) => !l.end_date);
+
+  const doctorIds = [
+    ...new Set([
+      ...activeLinks.map((l) => l.doctor_id),
+      ...valid.flatMap((e) => e.includedDoctorIds ?? []),
+    ]),
+  ];
+  const doctorsRes = doctorIds.length
+    ? await supabase.from("doctors").select("id,full_name,crm,crm_uf,email,phone").in("id", doctorIds)
+    : { data: [] };
+  const doctorById = new Map(
+    ((doctorsRes.data ?? []) as Array<{
+      id: string; full_name: string; crm: string | null; crm_uf: string | null;
+      email: string | null; phone: string | null;
+    }>).map((d) => [d.id, d]),
+  );
+
+  const seen = new Set<string>();
+  const rows: AgreementExportStaff[] = [];
+  for (const entry of valid) {
+    const company = companyById.get(entry.companyId);
+    const ids = entry.includedDoctorIds
+      ?? activeLinks.filter((l) => l.company_id === entry.companyId).map((l) => l.doctor_id);
+    for (const id of ids) {
+      const key = `${entry.companyId}|${id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const d = doctorById.get(id);
+      rows.push({
+        doctor: d?.full_name ?? "—",
+        crm: d?.crm ? `${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : "—",
+        company: company?.name ?? "—",
+        cnpj: company?.document ?? "—",
+        email: d?.email ?? "—",
+        phone: d?.phone ?? "—",
+      });
+    }
+  }
+  return rows.sort((a, b) => a.company.localeCompare(b.company) || a.doctor.localeCompare(b.doctor));
+}
+
+/** Campos que só fazem sentido quando o acordo não é exclusivamente de valor fixo. */
+export const FIXED_ONLY_HIDDEN_LABELS = new Set([
+  "Método de cálculo",
+  "Sujeito a glosa",
+  "Condições de glosa",
+  "Diferenciação por urgência",
+  "Adicional fim de semana/feriado",
+  "Possui valores fixos",
+  "Valores fixos com urgência diferenciada",
+  "Considera via de acesso",
+]);
+
+/** Remove do documento os campos que não se aplicam a acordos só de valor fixo. */
+export const filterFixedOnlyRows = (rows: AgreementExportRow[], onlyFixedValue: boolean) =>
+  onlyFixedValue ? rows.filter((r) => !FIXED_ONLY_HIDDEN_LABELS.has(r.label)) : rows;
+
 
 export const fmtExportDate = (v: string | null | undefined) =>
   v ? new Date(`${String(v).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
@@ -150,10 +242,39 @@ export async function buildAgreementExportModel(
     partiesByCompany.set(p.company_id, list);
   }
 
+  // Corpo clínico: PJs do acordo de equipe ou, no modo simples, a PJ única
+  // menos os médicos desabilitados (doctor_exceptions).
+  const staffEntries = partyRows.length
+    ? [...partiesByCompany.keys()].map((cid) => {
+        const docs = partyRows.filter((p) => p.company_id === cid && p.doctor_id).map((p) => p.doctor_id as string);
+        return { companyId: cid, includedDoctorIds: docs.length ? docs : null };
+      })
+    : [
+        {
+          companyId: agreement.company_id ?? null,
+          includedDoctorIds: agreement.applies_to_all_doctors ? null : null,
+        },
+      ];
+  const clinicalStaffRaw = await loadAgreementClinicalStaff(staffEntries);
+  const excluded = new Set(doctorNames);
+  const clinicalStaff = partyRows.length
+    ? clinicalStaffRaw
+    : clinicalStaffRaw.filter((r) => !excluded.has(r.doctor));
+
+  // Acordo exclusivamente de "Valor fixo" oculta os campos de produção
+  const modelIds = (agreement as unknown as { payment_model_ids?: string[] }).payment_model_ids ?? [];
+  let onlyFixedValue = false;
+  if (modelIds.length > 0) {
+    const { data: modelRows } = await supabase.from("payment_models").select("id,code").in("id", modelIds);
+    const codes = ((modelRows ?? []) as Array<{ code: string }>).map((m) => m.code);
+    onlyFixedValue = codes.length > 0 && codes.every((c) => c === "valor_fixo");
+  }
+
   const timeline = buildAgreementTimeline(agreement, hospitals, events, hospitalNames).map((t) => ({
     label: t.label,
     value: [fmtExportDateTime(t.at), t.detail].filter(Boolean).join(" — ") || "—",
   }));
+
 
   return {
     code: agreement.code,
@@ -179,46 +300,54 @@ export async function buildAgreementExportModel(
         value: `${who(agreement.supervisor_id)} (${fmtExportDateTime(agreement.supervisor_validated_at)})`,
       },
     ],
-    scope: [
-      { label: "Todos os convênios", value: yn(agreement.applies_to_all_convenios) },
-      {
-        label: "Convênios de exceção",
-        value: (agreement.convenio_exceptions ?? []).length ? agreement.convenio_exceptions.join(", ") : "—",
-      },
-      { label: "Todos os médicos da PJ", value: yn(agreement.applies_to_all_doctors) },
-      { label: "Médicos de exceção", value: doctorNames.length ? doctorNames.join(", ") : "—" },
-      { label: "Inclui auxiliares", value: yn(agreement.includes_auxiliary) },
-      { label: "Considera via de acesso", value: yn(agreement.includes_access_route) },
-    ],
-    paymentTable: [
-      {
-        label: "Tabela base",
-        value: agreement.payment_table_base
-          ? (PAYMENT_TABLE_BASE_LABEL[agreement.payment_table_base] ?? agreement.payment_table_base)
-          : "—",
-      },
-      { label: "Percentual de repasse", value: pct(agreement.payment_percentage) },
-      { label: "Sujeito a glosa", value: yn(agreement.has_glosa) },
-      { label: "Condições de glosa", value: agreement.glosa_conditions ?? "—" },
-      {
-        label: "Diferenciação por urgência",
-        value: `${yn(agreement.urgency_differentiation)} ${pct(agreement.urgency_addition_pct)}`,
-      },
-      {
-        label: "Adicional fim de semana/feriado",
-        value: `${yn(agreement.weekend_holiday_addition)} ${pct(agreement.weekend_holiday_addition_pct)}`,
-      },
-      { label: "Possui valores fixos", value: yn(agreement.has_fixed_values) },
-      {
-        label: "Valores fixos com urgência diferenciada",
-        value: yn(agreement.fixed_value_urgency_differentiation),
-      },
-      { label: "Exclusões", value: agreement.exclusions_notes ?? "—" },
-    ],
+    scope: filterFixedOnlyRows(
+      [
+        { label: "Todos os convênios", value: yn(agreement.applies_to_all_convenios) },
+        {
+          label: "Convênios de exceção",
+          value: (agreement.convenio_exceptions ?? []).length ? agreement.convenio_exceptions.join(", ") : "—",
+        },
+        { label: "Todos os médicos da PJ", value: yn(agreement.applies_to_all_doctors) },
+        { label: "Médicos de exceção", value: doctorNames.length ? doctorNames.join(", ") : "—" },
+        { label: "Inclui auxiliares", value: yn(agreement.includes_auxiliary) },
+        { label: "Considera via de acesso", value: yn(agreement.includes_access_route) },
+      ],
+      onlyFixedValue,
+    ),
+    paymentTable: filterFixedOnlyRows(
+      [
+        {
+          label: "Tabela base",
+          value: agreement.payment_table_base
+            ? (PAYMENT_TABLE_BASE_LABEL[agreement.payment_table_base] ?? agreement.payment_table_base)
+            : "—",
+        },
+        { label: "Percentual de repasse", value: pct(agreement.payment_percentage) },
+        { label: "Sujeito a glosa", value: yn(agreement.has_glosa) },
+        { label: "Condições de glosa", value: agreement.glosa_conditions ?? "—" },
+        {
+          label: "Diferenciação por urgência",
+          value: `${yn(agreement.urgency_differentiation)} ${pct(agreement.urgency_addition_pct)}`,
+        },
+        {
+          label: "Adicional fim de semana/feriado",
+          value: `${yn(agreement.weekend_holiday_addition)} ${pct(agreement.weekend_holiday_addition_pct)}`,
+        },
+        { label: "Possui valores fixos", value: yn(agreement.has_fixed_values) },
+        {
+          label: "Valores fixos com urgência diferenciada",
+          value: yn(agreement.fixed_value_urgency_differentiation),
+        },
+        { label: "Exclusões", value: agreement.exclusions_notes ?? "—" },
+      ],
+      onlyFixedValue,
+    ),
     parties: [...partiesByCompany.entries()].map(([cid, docs]) => ({
       company: partyCompanyNames.get(cid) ?? cid,
       doctors: docs.length ? docs.join(", ") : "Todos os médicos da PJ",
     })),
+    clinicalStaff,
+
     hospitals: hospitals.map((h) => ({
       name: `${hospitalNames.get(h.hospital_id) ?? h.hospital_id}${h.is_primary ? " (origem)" : ""}`,
       status: AGREEMENT_HOSPITAL_STATUS_LABEL[h.status] ?? h.status,
@@ -313,8 +442,32 @@ const sectionTitle = (text: string) =>
     children: [new TextRun({ text, bold: true, size: 26, font: "Arial" })],
   });
 
+/** Converte o PNG (data URL) da marca em bytes para o ImageRun do docx. */
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1] ?? "";
+  const bin = atob(base64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 export async function exportAgreementDocx(model: AgreementExportModel): Promise<void> {
+  // Mesma marca usada nos relatórios em PDF do Exacta
+  const logo = await getRedeDOrLogoPng("brand", 160);
+  const logoHeight = 34;
+
   const children: Array<Paragraph | Table> = [
+    new Paragraph({
+      spacing: { after: 120 },
+      children: [
+        new ImageRun({
+          type: "png",
+          data: dataUrlToBytes(logo.dataUrl),
+          transformation: { width: Math.round(logoHeight * logo.aspect), height: logoHeight },
+          altText: { title: "Rede D'Or", description: "Logotipo Rede D'Or", name: "logo" },
+        }),
+      ],
+    }),
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
       children: [new TextRun({ text: `Acordo ${model.code}`, bold: true, size: 32, font: "Arial" })],
@@ -333,12 +486,16 @@ export async function exportAgreementDocx(model: AgreementExportModel): Promise<
     keyValueTable(model.paymentTable),
   ];
 
-  if (model.parties.length > 0) {
+  if (model.clinicalStaff.length > 0) {
     children.push(
-      sectionTitle("PJs e médicos vinculados"),
-      gridTable(["PJ", "Médicos"], model.parties.map((p) => [p.company, p.doctors])),
+      sectionTitle("Corpo clínico e empresas vinculadas ao acordo"),
+      gridTable(
+        ["Médico", "CRM", "Empresa (PJ)", "CNPJ", "E-mail", "Telefone"],
+        model.clinicalStaff.map((s) => [s.doctor, s.crm, s.company, s.cnpj, s.email, s.phone]),
+      ),
     );
   }
+
 
   if (model.extraItems.length > 0) {
     children.push(
@@ -431,12 +588,12 @@ export function exportAgreementXlsx(model: AgreementExportModel): void {
   wsResumo["!cols"] = [{ wch: 42 }, { wch: 70 }];
   XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
 
-  const wsParties = XLSX.utils.aoa_to_sheet([
-    ["PJ", "Médicos"],
-    ...model.parties.map((p) => [p.company, p.doctors]),
+  const wsStaff = XLSX.utils.aoa_to_sheet([
+    ["Médico", "CRM", "Empresa (PJ)", "CNPJ", "E-mail", "Telefone"],
+    ...model.clinicalStaff.map((s) => [s.doctor, s.crm, s.company, s.cnpj, s.email, s.phone]),
   ]);
-  wsParties["!cols"] = [{ wch: 40 }, { wch: 70 }];
-  XLSX.utils.book_append_sheet(wb, wsParties, "PJs e médicos");
+  wsStaff["!cols"] = [{ wch: 38 }, { wch: 14 }, { wch: 38 }, { wch: 20 }, { wch: 32 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsStaff, "Corpo clínico");
 
   const wsExtra = XLSX.utils.aoa_to_sheet([
     ["Item extra", "Valor"],
