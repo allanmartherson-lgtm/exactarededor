@@ -743,8 +743,45 @@ async function execApplyManualReason(
 
   // por segurança, não aplica em itens já tratados nem já acatados
   const items = await buildItemsQuery(sb, paymentId, scope);
-  const targets = items.filter((i) => !i.manual_intervention_reason_id && i.ai_status !== "acatado");
-  if (targets.length === 0) return { affected: 0, before: [], after: { reason_code: reason.code } };
+  const candidates = items.filter((i) => !i.manual_intervention_reason_id && i.ai_status !== "acatado");
+  if (candidates.length === 0) return { affected: 0, before: [], after: { reason_code: reason.code } };
+
+  // Estado financeiro dos candidatos: acate explícito já feito pelo usuário e
+  // existência de regra. Motivo aplicado em massa não pode passar por cima
+  // de nenhum dos dois.
+  const { data: state, error: stateErr } = await sb
+    .from("payment_items")
+    .select("id, applied_calc_method, gross_override_reason")
+    .in("id", candidates.map((c) => c.id));
+  if (stateErr) throw new Error(`apply_manual_reason (estado): ${stateErr.message}`);
+  const stateById = new Map(
+    (state ?? []).map((r: { id: string; applied_calc_method: string | null; gross_override_reason: string | null }) => [r.id, r]),
+  );
+
+  const skippedAccepted: string[] = [];
+  const skippedNoRule: string[] = [];
+  const targets = candidates.filter((c) => {
+    const st = stateById.get(c.id);
+    // Acate explícito do usuário prevalece sobre motivo aplicado em lote.
+    if (st?.gross_override_reason === "acatado_esperado" || st?.gross_override_reason === "acatado_pago") {
+      skippedAccepted.push(c.id);
+      return false;
+    }
+    // Item sem regra tem efeito financeiro direto: exige confirmação explícita.
+    if (!st?.applied_calc_method && payload.confirm_financial_impact !== true) {
+      skippedNoRule.push(c.id);
+      return false;
+    }
+    return true;
+  });
+
+  if (targets.length === 0) {
+    throw new Error(
+      skippedNoRule.length > 0
+        ? `Nenhum item aplicado: ${skippedNoRule.length} item(ns) estão SEM regra de cálculo — aplicar motivo neles tem efeito financeiro direto e exige confirmação explícita na tela do item.`
+        : `Nenhum item aplicado: ${skippedAccepted.length} item(ns) já têm marcação de acate feita pelo usuário e não podem ser sobrescritos em lote.`,
+    );
+  }
 
   const notes = String(payload.notes ?? `Aplicado em lote via Zeev — motivo "${reason.code}".`).trim();
   const nowIso = new Date().toISOString();
@@ -760,7 +797,15 @@ async function execApplyManualReason(
     })
     .in("id", targets.map((t) => t.id));
   if (error) throw new Error(`apply_manual_reason: ${error.message}`);
-  return { affected: targets.length, before, after: { reason_id: reason.id, reason_code: reason.code, notes } };
+  return {
+    affected: targets.length,
+    before,
+    skipped: {
+      ja_acatados: skippedAccepted.length,
+      sem_regra_sem_confirmacao: skippedNoRule.length,
+    },
+    after: { reason_id: reason.id, reason_code: reason.code, notes },
+  };
 }
 
 
