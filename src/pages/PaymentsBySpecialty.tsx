@@ -64,11 +64,23 @@ interface ItemRow {
   payment_id: string | null;
   company_id: string | null;
   doctor_id: string | null;
+  /** Tipo de pagamento curado (FK item_types). Nunca texto livre. */
+  item_type_id: string | null;
   gross_amount: number | null;
   item_competence: string | null;
   /** Quantidade de itens representados por esta linha agregada. */
   qty: number;
 }
+
+interface ItemTypeRow {
+  id: string;
+  code: string;
+  label: string;
+}
+
+/** Bucket sintético para itens sem item_type_id preenchido. */
+const UNCLASSIFIED_TYPE = "__sem_tipo__";
+
 
 
 interface DoctorRow {
