@@ -182,6 +182,15 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [lockedHospitalIds, setLockedHospitalIds] = useState<string[]>([]);
 
 
+  // Etapa 1 — tipo de pagamento e mínimo garantido
+  const [paymentModels, setPaymentModels] = useState<PaymentModelOption[]>([]);
+  const [paymentModelIds, setPaymentModelIds] = useState<string[]>([]);
+  const [minGarantidoAtivo, setMinGarantidoAtivo] = useState(false);
+  const [minGarantidoValor, setMinGarantidoValor] = useState("");
+  const [minGarantidoEscopo, setMinGarantidoEscopo] = useState("medico_empresa");
+  const [minGarantidoPeriodicidade, setMinGarantidoPeriodicidade] = useState("competencia");
+  const [minGarantidoBase, setMinGarantidoBase] = useState("liquido");
+
   // Etapa 2
   const [allConvenios, setAllConvenios] = useState(true);
   const [convenioExceptions, setConvenioExceptions] = useState<string[]>([]);
@@ -189,11 +198,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [doctorExceptions, setDoctorExceptions] = useState<string[]>([]);
   const [includesAuxiliary, setIncludesAuxiliary] = useState(false);
   const [includesAccessRoute, setIncludesAccessRoute] = useState(false);
-  // Etapa 3
-  const [paymentTableBase, setPaymentTableBase] = useState<string>("");
-  const [paymentPercentage, setPaymentPercentage] = useState("");
+  // Etapa 3 — rascunho de cálculo no MESMO formato da tela de Regras
+  const [calcItems, setCalcItems] = useState<CalcItem[]>([]);
+  const [fixedValue, setFixedValue] = useState<FixedValueDraft>({ ...EMPTY_FIXED_VALUE });
   const [hasGlosa, setHasGlosa] = useState(false);
   const [glosaConditions, setGlosaConditions] = useState("");
+
   // Etapa 4
   const [urgencyDiff, setUrgencyDiff] = useState(false);
   const [urgencyPct, setUrgencyPct] = useState("");
