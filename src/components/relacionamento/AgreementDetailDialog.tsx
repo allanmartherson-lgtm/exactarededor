@@ -78,6 +78,7 @@ export function AgreementDetailDialog({
 
   const [hospitals, setHospitals] = useState<AgreementHospitalRow[]>([]);
   const [events, setEvents] = useState<AgreementEventRow[]>([]);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [supervisorNotes, setSupervisorNotes] = useState("");
@@ -113,6 +114,30 @@ export function AgreementDetailDialog({
     if (evErr) toast.error("Falha ao carregar o histórico do acordo", { description: evErr.message });
     setHospitals((data ?? []) as unknown as AgreementHospitalRow[]);
     setEvents((evs ?? []) as unknown as AgreementEventRow[]);
+
+    // Nomes dos diretores/autores para exibir na rejeição e no histórico
+    const ids = Array.from(
+      new Set(
+        [
+          ...(data ?? []).map((r) => (r as { director_id: string | null }).director_id),
+          ...(evs ?? []).map((r) => (r as { actor_id: string | null }).actor_id),
+        ].filter((v): v is string => !!v),
+      ),
+    );
+    if (ids.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => {
+        const row = p as { id: string; full_name: string | null; email: string | null };
+        map[row.id] = row.full_name || row.email || row.id;
+      });
+      setUserNames(map);
+    } else {
+      setUserNames({});
+    }
     setLoading(false);
   }, [agreement]);
 
@@ -194,6 +219,21 @@ export function AgreementDetailDialog({
       return toast.error("Sem permissão para devolver este acordo");
     toast.success("Devolvido para Contratos");
     await refresh();
+  };
+
+  // Reabertura do ciclo: o Contratos corrige os dados no wizard e o acordo
+  // volta para o supervisor. A limpeza das decisões e o log ficam na RPC.
+  const canResubmit =
+    agreement.status === "rejeitado" &&
+    (agreement.filled_by === user?.id || isAnalyst || isSupervisor || hasRole("admin"));
+
+  const correctAndResubmit = () => {
+    if (!onEdit) {
+      toast.error("Edição indisponível nesta tela");
+      return;
+    }
+    onEdit(agreement);
+    onOpenChange(false);
   };
 
   const decideHospital = async (row: AgreementHospitalRow, approve: boolean) => {
