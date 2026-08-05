@@ -184,6 +184,11 @@ export default function PaymentsBySpecialty() {
   const [doctorMode, setDoctorMode] = useState<DoctorMode>("doctor");
   const [companyQuery, setCompanyQuery] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  /**
+   * Tipos de pagamento selecionados (ids de item_types; UNCLASSIFIED_TYPE para
+   * itens sem item_type_id). Vazio = todos os tipos.
+   */
+  const [selectedItemTypes, setSelectedItemTypes] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<GroupBy>("company");
 
   // ---------- dados ----------
@@ -194,8 +199,25 @@ export default function PaymentsBySpecialty() {
   const [groupMembers, setGroupMembers] = useState<GroupMemberRow[]>([]);
   const [doctorCompanies, setDoctorCompanies] = useState<DoctorCompanyRow[]>([]);
   const [financials, setFinancials] = useState<FinancialRow[]>([]);
+  const [itemTypes, setItemTypes] = useState<ItemTypeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Tipos de pagamento ativos (catálogo curado; item_types é global, sem hospital_id).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("item_types")
+        .select("id,code,label")
+        .eq("active", true)
+        .order("sort_order", { ascending: true })
+        .order("label", { ascending: true });
+      if (!cancelled) setItemTypes((data ?? []) as ItemTypeRow[]);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
 
   /**
    * Competências disponíveis para os selects de período. Mesma fonte usada
