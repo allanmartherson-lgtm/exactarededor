@@ -1507,20 +1507,14 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
                 value={allDoctors}
                 onChange={setAllDoctors}
               />
-              {!allDoctors && (
-                <MultiPicker
-                  emptyLabel={
-                    doctorsLoading
-                      ? "Carregando médicos da clínica..."
-                      : "Nenhum médico vinculado a esta clínica (doctor_companies)"
-                  }
-                  options={linkedDoctors.map((d) => ({
-                    id: d.id,
-                    label: `${d.full_name}${d.crm ? ` — CRM ${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : ""}`,
-                  }))}
-                  selected={doctorExceptions}
-                  onToggle={(v) => toggleIn(doctorExceptions, v, setDoctorExceptions)}
-                  onClear={() => setDoctorExceptions([])}
+              {!multiParty && companyId && (
+                <CompanyDoctorsToggleList
+                  doctors={linkedDoctors}
+                  loading={doctorsLoading}
+                  enabledIds={enabledDoctorIds}
+                  onChange={setEnabledDoctorIds}
+                  label="Médicos vinculados à clínica"
+                  emptyHint="Nenhum médico vinculado a esta clínica no cadastro (doctor_companies)."
                 />
               )}
             </div>
