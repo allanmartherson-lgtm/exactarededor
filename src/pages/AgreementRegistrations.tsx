@@ -63,6 +63,10 @@ export default function AgreementRegistrations() {
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editing, setEditing] = useState<AgreementRegistration | null>(null);
+  const [tab, setTab] = useState<"todos" | "supervisor" | "diretor" | "analista">("todos");
+  const [detail, setDetail] = useState<AgreementRegistration | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
 
   const load = useCallback(async () => {
     if (!hospitalId) {
