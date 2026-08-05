@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 import type { AgreementRegistration, ExtraItem } from "@/lib/agreementRegistrations";
 import { PAYMENT_TABLE_BASE_LABEL } from "@/lib/agreementRegistrations";
 
@@ -44,7 +45,8 @@ interface CompanyOption {
   active: boolean;
 }
 interface ConvenioOption {
-  id: string;
+  // convenios não tem uuid: a chave do cadastro é o slug
+  slug: string;
   name: string;
 }
 interface DoctorOption {
@@ -165,7 +167,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           fetchAllPaginated<CompanyOption>((from, to) =>
             supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
           ),
-          supabase.from("convenios").select("id,name").eq("hospital_id", hospitalId).eq("active", true).order("name"),
+          supabase
+            .from("convenios")
+            .select("slug,name")
+            .or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
+            .eq("active", true)
+            .order("name"),
           fetchAllPaginated<DoctorOption>((from, to) =>
             supabase.from("doctors").select("id,full_name,crm,crm_uf").order("full_name").range(from, to),
           ),
@@ -281,7 +288,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       has_fixed_values: hasFixedValues,
       fixed_value_urgency_differentiation: hasFixedValues ? fixedUrgencyDiff : false,
       exclusions_notes: exclusionsNotes.trim() || null,
-      extra_items: extraItems.filter((i) => i.label.trim()),
+      extra_items: extraItems.filter((i) => i.label.trim()) as unknown as Json,
       free_notes: freeNotes.trim() || null,
       status,
     }),
@@ -523,7 +530,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               {!allConvenios && (
                 <MultiPicker
                   emptyLabel="Nenhum convênio ativo nesta unidade"
-                  options={convenios.map((c) => ({ id: c.id, label: c.name }))}
+                  options={convenios.map((c) => ({ id: c.slug, label: c.name }))}
                   selected={convenioExceptions}
                   onToggle={(v) => toggleIn(convenioExceptions, v, setConvenioExceptions)}
                   onClear={() => setConvenioExceptions([])}

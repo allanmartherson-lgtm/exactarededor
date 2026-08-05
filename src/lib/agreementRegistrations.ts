@@ -41,6 +41,13 @@ export interface ExtraItem {
   value: string;
 }
 
+export function parseExtraItems(raw: unknown): ExtraItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((i): i is Record<string, unknown> => !!i && typeof i === "object")
+    .map((i) => ({ label: String(i.label ?? ""), value: String(i.value ?? "") }));
+}
+
 export interface AgreementRegistration {
   id: string;
   code: string;
