@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
 
 
     const pool = round2(poolImpactoTotal);
-    const liquido = round2(bruto - debitos + creditos - glosas - pool + conciliacao);
+    const liquido = round2(bruto - reprovados - debitos + creditos - glosas - pool + conciliacao);
 
     // Persiste o snapshot via RPC para adquirir o mesmo advisory lock do fluxo
     // de acate/reanálise antes de tocar em payment_company_financials. Isso evita
