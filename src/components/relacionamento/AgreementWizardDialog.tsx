@@ -770,7 +770,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         {/* Etapa 3 */}
         {step === 2 && (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+
               <div className="space-y-1.5">
                 <Label>Base da tabela de pagamento</Label>
                 <Select value={paymentTableBase} onValueChange={setPaymentTableBase}>
