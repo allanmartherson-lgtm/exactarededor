@@ -135,6 +135,12 @@ Deno.serve(async (req) => {
       bruto = round2(Number(agg.bruto_simple || 0));
     }
 
+    // Reprovados: itens que não serão pagos. O bruto continua sendo o lastro da
+    // base apresentada; o líquido é que precisa descontá-los. Em pool o valor é
+    // sempre 0 porque o rateio já parte do bolo aprovado.
+    const reprovados = round2(Number(agg.reprovados || 0));
+
+
 
     // Débitos/Créditos e Glosas (já agregados no banco)
     const debitos = round2(Number(agg.debitos || 0));
