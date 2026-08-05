@@ -312,6 +312,7 @@ export type Database = {
           analyst_registered_at: string | null
           applies_to_all_convenios: boolean
           applies_to_all_doctors: boolean
+          calculation_draft: Json
           code: string
           company_id: string | null
           convenio_exceptions: string[]
@@ -335,6 +336,12 @@ export type Database = {
           includes_access_route: boolean
           includes_auxiliary: boolean
           linked_rule_id: string | null
+          minimo_garantido_ativo: boolean
+          minimo_garantido_base: string | null
+          minimo_garantido_escopo: string | null
+          minimo_garantido_periodicidade: string | null
+          minimo_garantido_valor: number | null
+          payment_model_ids: string[]
           payment_percentage: number | null
           payment_table_base: string | null
           pdf_url: string | null
@@ -357,6 +364,7 @@ export type Database = {
           analyst_registered_at?: string | null
           applies_to_all_convenios?: boolean
           applies_to_all_doctors?: boolean
+          calculation_draft?: Json
           code?: string
           company_id?: string | null
           convenio_exceptions?: string[]
@@ -380,6 +388,12 @@ export type Database = {
           includes_access_route?: boolean
           includes_auxiliary?: boolean
           linked_rule_id?: string | null
+          minimo_garantido_ativo?: boolean
+          minimo_garantido_base?: string | null
+          minimo_garantido_escopo?: string | null
+          minimo_garantido_periodicidade?: string | null
+          minimo_garantido_valor?: number | null
+          payment_model_ids?: string[]
           payment_percentage?: number | null
           payment_table_base?: string | null
           pdf_url?: string | null
@@ -402,6 +416,7 @@ export type Database = {
           analyst_registered_at?: string | null
           applies_to_all_convenios?: boolean
           applies_to_all_doctors?: boolean
+          calculation_draft?: Json
           code?: string
           company_id?: string | null
           convenio_exceptions?: string[]
@@ -425,6 +440,12 @@ export type Database = {
           includes_access_route?: boolean
           includes_auxiliary?: boolean
           linked_rule_id?: string | null
+          minimo_garantido_ativo?: boolean
+          minimo_garantido_base?: string | null
+          minimo_garantido_escopo?: string | null
+          minimo_garantido_periodicidade?: string | null
+          minimo_garantido_valor?: number | null
+          payment_model_ids?: string[]
           payment_percentage?: number | null
           payment_table_base?: string | null
           pdf_url?: string | null
