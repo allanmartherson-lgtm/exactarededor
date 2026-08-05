@@ -35,8 +35,12 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
-import type { AgreementRegistration, ExtraItem } from "@/lib/agreementRegistrations";
-import { PAYMENT_TABLE_BASE_LABEL } from "@/lib/agreementRegistrations";
+import type {
+  AgreementRegistration,
+  AgreementRegistrationType,
+  ExtraItem,
+} from "@/lib/agreementRegistrations";
+import { AGREEMENT_TYPE_LABEL, PAYMENT_TABLE_BASE_LABEL } from "@/lib/agreementRegistrations";
 
 interface CompanyOption {
   id: string;
@@ -59,6 +63,20 @@ interface HospitalOption {
   id: string;
   name: string;
 }
+/** Acordo já cadastrado, usado como referência em aditivo/retirada. */
+interface RelatedAgreementOption {
+  id: string;
+  code: string;
+  company_id: string | null;
+}
+/** Linha da lista de PJs do acordo de equipe (antes de virar agreement_registration_parties). */
+interface PartyDraft {
+  key: string;
+  companyId: string | null;
+  allDoctors: boolean;
+  doctorIds: string[];
+}
+
 
 
 const STEPS = [
@@ -96,8 +114,17 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [id, setId] = useState<string | null>(null);
 
   // Etapa 1
+  const [registrationType, setRegistrationType] =
+    useState<AgreementRegistrationType>("novo_acordo");
+  const [referenceNote, setReferenceNote] = useState("");
+  const [relatedAgreementId, setRelatedAgreementId] = useState<string | null>(null);
+  const [relatedOpen, setRelatedOpen] = useState(false);
+  const [relatedOptions, setRelatedOptions] = useState<RelatedAgreementOption[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyOpen, setCompanyOpen] = useState(false);
+  // Acordo de equipe: várias PJs, cada uma com todos os médicos ou uma lista específica
+  const [multiParty, setMultiParty] = useState(false);
+  const [parties, setParties] = useState<PartyDraft[]>([]);
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
   // Replicação regional: hospitais adicionais que recebem o mesmo acordo
@@ -105,6 +132,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [hospitalsOpen, setHospitalsOpen] = useState(false);
   const [hospitalOptions, setHospitalOptions] = useState<HospitalOption[]>([]);
   const [lockedHospitalIds, setLockedHospitalIds] = useState<string[]>([]);
+
 
   // Etapa 2
   const [allConvenios, setAllConvenios] = useState(true);
@@ -145,7 +173,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setStep(0);
     setId(record?.id ?? null);
     setCompanyId(record?.company_id ?? null);
+    setRegistrationType(record?.registration_type ?? "novo_acordo");
+    setReferenceNote(record?.reference_note ?? "");
+    setRelatedAgreementId(record?.related_agreement_id ?? null);
+    setMultiParty(false);
+    setParties([]);
     setEffectiveFrom(record?.effective_from ?? "");
+
     setEffectiveTo(record?.effective_to ?? "");
     setAllConvenios(record?.applies_to_all_convenios ?? true);
     setConvenioExceptions(record?.convenio_exceptions ?? []);
@@ -198,6 +232,59 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     };
   }, [open, record?.id]);
 
+  // PJs já vinculadas ao acordo (acordo de equipe)
+  useEffect(() => {
+    if (!open || !record?.id) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registration_parties")
+        .select("company_id,doctor_id")
+        .eq("agreement_id", record.id);
+      if (cancel) return;
+      if (error) {
+        toast.error("Falha ao carregar as PJs do acordo");
+        return;
+      }
+      const rows = data ?? [];
+      if (rows.length === 0) return;
+      const byCompany = new Map<string, PartyDraft>();
+      rows.forEach((r) => {
+        const cur =
+          byCompany.get(r.company_id) ??
+          { key: r.company_id, companyId: r.company_id, allDoctors: false, doctorIds: [] };
+        if (r.doctor_id) cur.doctorIds = [...cur.doctorIds, r.doctor_id];
+        else cur.allDoctors = true;
+        byCompany.set(r.company_id, cur);
+      });
+      setParties(Array.from(byCompany.values()));
+      setMultiParty(true);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, record?.id]);
+
+  // Acordos já cadastrados na unidade — referência para aditivo/retirada
+  useEffect(() => {
+    if (!open || !hospitalId) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registrations")
+        .select("id,code,company_id")
+        .eq("hospital_id", hospitalId)
+        .order("code", { ascending: false })
+        .limit(300);
+      if (cancel || error) return;
+      setRelatedOptions((data ?? []).filter((r) => r.id !== record?.id) as RelatedAgreementOption[]);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, hospitalId, record?.id]);
+
+
   useEffect(() => {
     if (!open || !hospitalId) return;
     let cancel = false;
@@ -232,6 +319,29 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       cancel = true;
     };
   }, [open, hospitalId]);
+
+  // Acordos já cadastrados: só carregados quando o comunicado é aditivo/retirada.
+  useEffect(() => {
+    if (!open || !hospitalId || registrationType === "novo_acordo") return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registrations")
+        .select("id,code,company_id")
+        .neq("id", id ?? "00000000-0000-0000-0000-000000000000")
+        .order("code", { ascending: false })
+        .limit(200);
+      if (cancel) return;
+      if (error) {
+        toast.error("Falha ao carregar acordos de referência");
+        return;
+      }
+      setRelatedOptions((data ?? []) as RelatedAgreementOption[]);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, hospitalId, registrationType, id]);
 
 
   // Médicos vinculados à clínica selecionada (doctor_companies).
@@ -287,6 +397,16 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const stepError = useMemo((): string | null => {
     if (step === 0) {
       if (!companyId) return "Selecione a clínica no cadastro de empresas";
+      if (registrationType !== "novo_acordo" && !relatedAgreementId && !referenceNote.trim())
+        return "Informe o acordo de referência (busca no sistema ou texto livre)";
+      if (multiParty) {
+        if (parties.length === 0) return "Adicione ao menos uma PJ ao acordo de equipe";
+        if (parties.some((p) => !p.companyId)) return "Selecione a PJ em todas as linhas";
+        if (parties.some((p) => !p.allDoctors && p.doctorIds.length === 0))
+          return "Selecione os médicos da PJ ou marque “todos os médicos”";
+        const ids = parties.map((p) => p.companyId);
+        if (new Set(ids).size !== ids.length) return "Há PJ repetida na lista";
+      }
       if (effectiveFrom && effectiveTo && effectiveTo < effectiveFrom)
         return "Fim da vigência anterior ao início";
       return null;
@@ -315,7 +435,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     }
     return null;
   }, [
-    step, companyId, effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
+    step, companyId, registrationType, relatedAgreementId, referenceNote, multiParty, parties,
+    effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
     doctorExceptions, paymentTableBase, paymentPercentage, hasGlosa, glosaConditions, urgencyDiff,
     urgencyPct, weekendAdd, weekendPct, extraItems,
   ]);
@@ -324,8 +445,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (status: string) => ({
       hospital_id: hospitalId as string,
       company_id: companyId,
+      registration_type: registrationType,
+      reference_note: registrationType === "novo_acordo" ? null : referenceNote.trim() || null,
+      related_agreement_id: registrationType === "novo_acordo" ? null : relatedAgreementId,
       effective_from: effectiveFrom || null,
       effective_to: effectiveTo || null,
+
       applies_to_all_convenios: allConvenios,
       convenio_exceptions: allConvenios ? [] : convenioExceptions,
       applies_to_all_doctors: allDoctors,
@@ -348,11 +473,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       status,
     }),
     [
-      hospitalId, companyId, effectiveFrom, effectiveTo, allConvenios, convenioExceptions,
+      hospitalId, companyId, registrationType, referenceNote, relatedAgreementId,
+      effectiveFrom, effectiveTo, allConvenios, convenioExceptions,
       allDoctors, doctorExceptions, includesAuxiliary, includesAccessRoute, paymentTableBase,
       paymentPercentage, hasGlosa, glosaConditions, urgencyDiff, urgencyPct, weekendAdd,
       weekendPct, hasFixedValues, fixedUrgencyDiff, exclusionsNotes, extraItems, freeNotes,
     ],
+
   );
 
   const persist = useCallback(
@@ -409,8 +536,34 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           if (error) throw error;
         }
 
+        // PJs do acordo de equipe: regravadas por inteiro a cada salvamento.
+        // Sem multi-PJ ativo o acordo volta a ter apenas a clínica principal.
+        const { error: delPartiesErr } = await supabase
+          .from("agreement_registration_parties")
+          .delete()
+          .eq("agreement_id", agreementId);
+        if (delPartiesErr) throw delPartiesErr;
+        if (multiParty) {
+          const rows = parties.flatMap((p) =>
+            !p.companyId
+              ? []
+              : p.allDoctors
+                ? [{ agreement_id: agreementId as string, company_id: p.companyId, doctor_id: null }]
+                : p.doctorIds.map((d) => ({
+                    agreement_id: agreementId as string,
+                    company_id: p.companyId as string,
+                    doctor_id: d,
+                  })),
+          );
+          if (rows.length > 0) {
+            const { error } = await supabase.from("agreement_registration_parties").insert(rows);
+            if (error) throw error;
+          }
+        }
+
         onSaved();
         return true;
+
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : "Falha ao salvar o acordo");
         return false;
@@ -418,7 +571,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setSaving(false);
       }
     },
-    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId],
+    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId, multiParty, parties],
   );
 
 
@@ -507,9 +660,99 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 1 */}
         {step === 0 && (
-          <div className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="space-y-4">
+
+            {/* Tipo de comunicado + referência ao acordo anterior */}
+            <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+              <div className="space-y-1.5">
+                <Label>Tipo de comunicado</Label>
+                <SegmentedControl
+                  ariaLabel="Tipo de comunicado"
+                  value={registrationType}
+                  onValueChange={(v) => setRegistrationType(v as AgreementRegistrationType)}
+                  options={[
+                    { value: "novo_acordo", label: AGREEMENT_TYPE_LABEL.novo_acordo },
+                    { value: "aditivo", label: AGREEMENT_TYPE_LABEL.aditivo },
+                    { value: "retirada", label: AGREEMENT_TYPE_LABEL.retirada },
+                  ]}
+                />
+              </div>
+              {registrationType !== "novo_acordo" && (
+                <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                  <div className="space-y-1.5">
+                    <Label>Acordo de referência cadastrado no sistema</Label>
+                    <Popover open={relatedOpen} onOpenChange={setRelatedOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-normal"
+                        >
+                          {relatedAgreementId
+                            ? (relatedOptions.find((o) => o.id === relatedAgreementId)?.code ??
+                              "Acordo selecionado")
+                            : "Buscar acordo anterior (opcional)"}
+                          <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
+                          <CommandInput placeholder="Buscar por código ou clínica" />
+                          <CommandList>
+                            <CommandEmpty>Nenhum acordo cadastrado encontrado</CommandEmpty>
+                            <CommandGroup>
+                              {relatedOptions.map((o) => {
+                                const cName =
+                                  companies.find((c) => c.id === o.company_id)?.name ?? "";
+                                return (
+                                  <CommandItem
+                                    key={o.id}
+                                    value={`${o.code} ${cName}`}
+                                    onSelect={() => {
+                                      setRelatedAgreementId(o.id === relatedAgreementId ? null : o.id);
+                                      setRelatedOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        o.id === relatedAgreementId ? "opacity-100" : "opacity-0",
+                                      )}
+                                    />
+                                    <span className="flex-1">{o.code}</span>
+                                    <span className="text-xs text-muted-foreground">{cName}</span>
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-ref">Referência em texto livre (CIREL, ofício, e-mail)</Label>
+                    <Textarea
+                      id="acd-ref"
+                      rows={2}
+                      value={referenceNote}
+                      onChange={(e) => setReferenceNote(e.target.value)}
+                      placeholder="Ex.: CIREL 123/2024 — acordo firmado antes do sistema"
+                    />
+                    {/* Nem todo acordo antigo existe no sistema: texto livre é a saída válida */}
+                    <p className="text-xs text-muted-foreground">
+                      Informe ao menos uma das duas referências.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-sm">
 
             <div className="space-y-1.5">
+
               <Label>Clínica / grupo médico</Label>
               <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
                 <PopoverTrigger asChild>
@@ -695,12 +938,68 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               </p>
             </div>
 
-
             <p className="text-xs text-muted-foreground">
               Responsável pelo preenchimento: usuário logado (gravado em <code>filled_by</code>).
             </p>
+            </div>
+
+            {/* Acordo de equipe: várias PJs, cada uma com seus médicos */}
+            <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+              <BoolField
+                label="Este acordo envolve mais de uma PJ"
+                value={multiParty}
+                onChange={(v) => {
+                  setMultiParty(v);
+                  if (v && parties.length === 0)
+                    setParties([
+                      {
+                        key: crypto.randomUUID(),
+                        companyId: companyId,
+                        allDoctors: true,
+                        doctorIds: [],
+                      },
+                    ]);
+                }}
+              />
+              {multiParty && (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    A clínica acima segue como PJ principal do acordo. Liste aqui todas as PJs
+                    envolvidas e, em cada uma, se vale para todos os médicos ou apenas para alguns.
+                  </p>
+                  {parties.map((p, idx) => (
+                    <PartyRow
+                      key={p.key}
+                      index={idx}
+                      party={p}
+                      companies={companies}
+                      hospitalId={hospitalId}
+                      onChange={(next) =>
+                        setParties((list) => list.map((x) => (x.key === p.key ? next : x)))
+                      }
+                      onRemove={() => setParties((list) => list.filter((x) => x.key !== p.key))}
+                    />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setParties((list) => [
+                        ...list,
+                        { key: crypto.randomUUID(), companyId: null, allDoctors: true, doctorIds: [] },
+                      ])
+                    }
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    Adicionar PJ
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         )}
+
 
         {/* Etapa 2 */}
         {step === 1 && (
@@ -1057,6 +1356,197 @@ function BoolField({
           { value: "sim", label: "Sim" },
         ]}
       />
+    </div>
+  );
+}
+
+// Linha de PJ do acordo de equipe: empresa + "todos os médicos" ou lista específica.
+// Carrega os médicos apenas da PJ escolhida (doctor_companies) para não varrer o cadastro.
+function PartyRow({
+  index,
+  party,
+  companies,
+  hospitalId,
+  onChange,
+  onRemove,
+}: {
+  index: number;
+  party: PartyDraft;
+  companies: CompanyOption[];
+  hospitalId: string | null;
+  onChange: (next: PartyDraft) => void;
+  onRemove: () => void;
+}) {
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [doctorsOpen, setDoctorsOpen] = useState(false);
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const company = companies.find((c) => c.id === party.companyId) ?? null;
+
+  useEffect(() => {
+    if (!hospitalId || !party.companyId) {
+      setDoctors([]);
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("doctor_companies")
+          .select("doctor_id")
+          .eq("hospital_id", hospitalId)
+          .eq("company_id", party.companyId);
+        if (error) throw error;
+        const ids = Array.from(new Set((data ?? []).map((r: { doctor_id: string }) => r.doctor_id)));
+        if (cancel) return;
+        if (ids.length === 0) {
+          setDoctors([]);
+          return;
+        }
+        const { data: docs, error: docsError } = await supabase
+          .from("doctors")
+          .select("id,full_name,crm,crm_uf")
+          .in("id", ids)
+          .order("full_name");
+        if (docsError) throw docsError;
+        if (!cancel) setDoctors((docs ?? []) as DoctorOption[]);
+      } catch {
+        if (!cancel) {
+          toast.error("Falha ao carregar médicos da PJ");
+          setDoctors([]);
+        }
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [hospitalId, party.companyId]);
+
+  return (
+    <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">PJ {index + 1}</span>
+        <Button type="button" variant="ghost" size="sm" onClick={onRemove} aria-label="Remover PJ">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" role="combobox" className="w-full justify-between bg-background font-normal">
+            {company ? company.name : "Buscar PJ no cadastro"}
+            <ChevronsUpDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
+            <CommandInput placeholder="Buscar por nome ou CNPJ" />
+            <CommandList>
+              <CommandEmpty>Empresa não encontrada no cadastro</CommandEmpty>
+              <CommandGroup>
+                {companies.map((c) => (
+                  <CommandItem
+                    key={c.id}
+                    value={`${c.name} ${c.document ?? ""}`}
+                    onSelect={() => {
+                      onChange({ ...party, companyId: c.id, doctorIds: [] });
+                      setCompanyOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", c.id === party.companyId ? "opacity-100" : "opacity-0")} />
+                    <span className="flex-1">{c.name}</span>
+                    {!c.active && <Badge variant="secondary" className="ml-2">Inativa</Badge>}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      <BoolField
+        label="Todos os médicos dessa PJ"
+        value={party.allDoctors}
+        onChange={(v) => onChange({ ...party, allDoctors: v, doctorIds: v ? [] : party.doctorIds })}
+      />
+
+      {!party.allDoctors && (
+        <div className="space-y-1.5">
+          <Popover open={doctorsOpen} onOpenChange={setDoctorsOpen}>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="outline" role="combobox" className="w-full justify-between bg-background font-normal">
+                {party.doctorIds.length > 0
+                  ? `${party.doctorIds.length} médico(s) selecionado(s)`
+                  : loading
+                    ? "Carregando médicos da PJ..."
+                    : "Selecionar médicos"}
+                <ChevronsUpDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
+                <CommandInput placeholder="Buscar médico" />
+                <CommandList>
+                  <CommandEmpty>
+                    {loading ? "Carregando..." : "Nenhum médico vinculado a esta PJ"}
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {doctors.map((d) => {
+                      const checked = party.doctorIds.includes(d.id);
+                      return (
+                        <CommandItem
+                          key={d.id}
+                          value={`${d.full_name} ${d.crm ?? ""}`}
+                          onSelect={() =>
+                            onChange({
+                              ...party,
+                              doctorIds: checked
+                                ? party.doctorIds.filter((x) => x !== d.id)
+                                : [...party.doctorIds, d.id],
+                            })
+                          }
+                        >
+                          <Checkbox checked={checked} className="mr-2" tabIndex={-1} />
+                          <span className="flex-1">{d.full_name}</span>
+                          {d.crm && (
+                            <span className="text-xs text-muted-foreground">
+                              CRM {d.crm}
+                              {d.crm_uf ? `/${d.crm_uf}` : ""}
+                            </span>
+                          )}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <div className="flex flex-wrap gap-1.5">
+            {party.doctorIds.map((did) => {
+              const d = doctors.find((x) => x.id === did);
+              return (
+                <Badge key={did} variant="secondary" className="gap-1 pl-2 pr-1">
+                  {d?.full_name ?? did}
+                  <button
+                    type="button"
+                    aria-label={`Remover ${d?.full_name ?? "médico"}`}
+                    onClick={() =>
+                      onChange({ ...party, doctorIds: party.doctorIds.filter((x) => x !== did) })
+                    }
+                    className="rounded p-0.5 hover:bg-muted"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

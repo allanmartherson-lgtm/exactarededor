@@ -48,13 +48,35 @@ export function parseExtraItems(raw: unknown): ExtraItem[] {
     .map((i) => ({ label: String(i.label ?? ""), value: String(i.value ?? "") }));
 }
 
+/** Tipo de comunicado: acordo novo, aditivo ou retirada de acordo anterior. */
+export type AgreementRegistrationType = "novo_acordo" | "aditivo" | "retirada";
+
+export const AGREEMENT_TYPE_LABEL: Record<AgreementRegistrationType, string> = {
+  novo_acordo: "Novo acordo",
+  aditivo: "Aditivo a acordo existente",
+  retirada: "Retirada de acordo",
+};
+
+/** PJ envolvida no acordo. doctor_id nulo = todos os médicos daquela PJ. */
+export interface AgreementPartyRow {
+  id: string;
+  agreement_id: string;
+  company_id: string;
+  doctor_id: string | null;
+  created_at: string;
+}
+
 export interface AgreementRegistration {
   id: string;
   code: string;
   hospital_id: string;
   company_id: string | null;
+  registration_type: AgreementRegistrationType;
+  reference_note: string | null;
+  related_agreement_id: string | null;
   effective_from: string | null;
   effective_to: string | null;
+
   filled_by: string | null;
   applies_to_all_convenios: boolean;
   convenio_exceptions: string[];
