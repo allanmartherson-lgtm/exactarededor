@@ -64,11 +64,23 @@ interface ItemRow {
   payment_id: string | null;
   company_id: string | null;
   doctor_id: string | null;
+  /** Tipo de pagamento curado (FK item_types). Nunca texto livre. */
+  item_type_id: string | null;
   gross_amount: number | null;
   item_competence: string | null;
   /** Quantidade de itens representados por esta linha agregada. */
   qty: number;
 }
+
+interface ItemTypeRow {
+  id: string;
+  code: string;
+  label: string;
+}
+
+/** Bucket sintético para itens sem item_type_id preenchido. */
+const UNCLASSIFIED_TYPE = "__sem_tipo__";
+
 
 
 interface DoctorRow {
@@ -172,6 +184,11 @@ export default function PaymentsBySpecialty() {
   const [doctorMode, setDoctorMode] = useState<DoctorMode>("doctor");
   const [companyQuery, setCompanyQuery] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  /**
+   * Tipos de pagamento selecionados (ids de item_types; UNCLASSIFIED_TYPE para
+   * itens sem item_type_id). Vazio = todos os tipos.
+   */
+  const [selectedItemTypes, setSelectedItemTypes] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<GroupBy>("company");
 
   // ---------- dados ----------
@@ -182,8 +199,25 @@ export default function PaymentsBySpecialty() {
   const [groupMembers, setGroupMembers] = useState<GroupMemberRow[]>([]);
   const [doctorCompanies, setDoctorCompanies] = useState<DoctorCompanyRow[]>([]);
   const [financials, setFinancials] = useState<FinancialRow[]>([]);
+  const [itemTypes, setItemTypes] = useState<ItemTypeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Tipos de pagamento ativos (catálogo curado; item_types é global, sem hospital_id).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("item_types")
+        .select("id,code,label")
+        .eq("active", true)
+        .order("sort_order", { ascending: true })
+        .order("label", { ascending: true });
+      if (!cancelled) setItemTypes((data ?? []) as ItemTypeRow[]);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
 
   /**
    * Competências disponíveis para os selects de período. Mesma fonte usada
@@ -234,6 +268,7 @@ export default function PaymentsBySpecialty() {
         payment_id: string | null;
         company_id: string | null;
         doctor_id: string | null;
+        item_type_id: string | null;
         gross: number | string | null;
         items: number | string | null;
       };
@@ -256,6 +291,7 @@ export default function PaymentsBySpecialty() {
             payment_id: r.payment_id,
             company_id: r.company_id,
             doctor_id: r.doctor_id,
+            item_type_id: r.item_type_id ?? null,
             gross_amount: Number(r.gross ?? 0),
             item_competence: r.competence,
             qty: Number(r.items ?? 0),
@@ -268,6 +304,7 @@ export default function PaymentsBySpecialty() {
     },
     [],
   );
+
 
 
 
@@ -477,11 +514,26 @@ export default function PaymentsBySpecialty() {
     const noDoctor: ItemRow[] = [];
     let baseBruto = 0;
     let baseItems = 0;
+    // Bruto do período por tipo de pagamento (antes dos demais recortes) —
+    // usado só para leitura/auditoria do mix ambulatório × cirurgia × parecer.
+    const brutoByType = new Map<string, { bruto: number; items: number }>();
+
+    const typeFilter = new Set(selectedItemTypes);
 
     for (const it of items) {
       const gross = Number(it.gross_amount ?? 0);
+      const typeKey = it.item_type_id ?? UNCLASSIFIED_TYPE;
       baseBruto += gross;
       baseItems += it.qty;
+      const curType = brutoByType.get(typeKey) ?? { bruto: 0, items: 0 };
+      curType.bruto += gross;
+      curType.items += it.qty;
+      brutoByType.set(typeKey, curType);
+
+      // Tipo de pagamento (item_types) — campo curado, FK. Itens sem tipo caem
+      // no bucket "Tipo não classificado" e podem ser filtrados explicitamente,
+      // nunca são descartados em silêncio.
+      if (typeFilter.size > 0 && !typeFilter.has(typeKey)) continue;
 
       // Itens sem doctor_id NUNCA são atribuídos a especialidade pelo cadastro:
       // ficam numa linha própria para o total do relatório bater com o real.
@@ -489,6 +541,7 @@ export default function PaymentsBySpecialty() {
         noDoctor.push(it);
         continue;
       }
+
 
       const byCompany = scope.companySet.size > 0 && it.company_id
         ? scope.companySet.has(it.company_id)
@@ -586,17 +639,20 @@ export default function PaymentsBySpecialty() {
       rows,
       baseBruto,
       baseItems,
+      brutoByType,
     };
   }, [
     items,
     scope,
     selectedSpecialtiesNorm,
+    selectedItemTypes,
     doctorSpecialtiesNorm,
     financials,
     groupBy,
     companyById,
     doctorById,
   ]);
+
 
   // ---------- buscas de médico / PJ ----------
   // A busca de médico é feita no servidor: só carregamos localmente os médicos
@@ -649,6 +705,25 @@ export default function PaymentsBySpecialty() {
       .slice(0, 8);
   }, [companies, companyQuery]);
 
+  /**
+   * Opções do filtro "Tipo de pagamento": catálogo ativo de item_types
+   * (ordenado por sort_order) + bucket "Tipo não classificado", que só aparece
+   * quando existem itens sem item_type_id no período.
+   */
+  const itemTypeOptions = useMemo(() => {
+    const opts = itemTypes.map((t) => ({ value: t.id, label: t.label }));
+    const unclassified = computed.brutoByType.get(UNCLASSIFIED_TYPE);
+    if (unclassified && unclassified.items > 0) {
+      opts.push({ value: UNCLASSIFIED_TYPE, label: "Tipo não classificado" });
+    }
+    return opts;
+  }, [itemTypes, computed.brutoByType]);
+
+  const itemTypeLabelByValue = useMemo(
+    () => new Map(itemTypeOptions.map((o) => [o.value, o.label])),
+    [itemTypeOptions],
+  );
+
   const filtersSummary = {
     hospitalName: hospital?.name ?? "—",
     periodLabel: `${monthLabel(fromMonth)} a ${monthLabel(toMonth)}`,
@@ -658,6 +733,9 @@ export default function PaymentsBySpecialty() {
       ? `${selectedDoctor.full_name}${doctorMode === "company" ? " (total da PJ vinculada)" : ""}`
       : "Todos",
     companyLabel: selectedCompany?.name ?? "Todas",
+    itemTypesLabel: selectedItemTypes.length
+      ? selectedItemTypes.map((v) => itemTypeLabelByValue.get(v) ?? v).join(", ")
+      : "Todos",
   };
 
   const kpis = {
@@ -673,12 +751,14 @@ export default function PaymentsBySpecialty() {
   const clearFilters = () => {
     setSelectedSpecialties([]);
     setSelectedGroupId("all");
+    setSelectedItemTypes([]);
     setSelectedDoctorId(null);
     setDoctorQuery("");
     setDoctorMode("doctor");
     setSelectedCompanyId(null);
     setCompanyQuery("");
   };
+
 
   const handleExportExcel = () => {
     try {
@@ -722,7 +802,10 @@ export default function PaymentsBySpecialty() {
         {(() => {
           const advancedCount = [!!selectedDoctorId, !!selectedCompanyId].filter(Boolean).length;
           const anyActive =
-            advancedCount > 0 || selectedSpecialties.length > 0 || selectedGroupId !== "all";
+            advancedCount > 0 ||
+            selectedSpecialties.length > 0 ||
+            selectedItemTypes.length > 0 ||
+            selectedGroupId !== "all";
 
           const advancedFilters = (
             <div className="grid grid-cols-1 gap-3 w-full">
@@ -894,6 +977,18 @@ export default function PaymentsBySpecialty() {
                 onChange={setSelectedSpecialties}
                 options={specialtyRows.map((s) => ({ value: s.name, label: s.name }))}
               />
+
+              {/* Tipo de pagamento — item_types (campo curado, FK). Evita
+                  somar ambulatório/consulta junto com visita, parecer e cirurgia. */}
+              <MultiSelectPopover
+                width="w-[230px]"
+                placeholder="Todos os tipos"
+                allLabel="Todos os tipos"
+                values={selectedItemTypes}
+                onChange={setSelectedItemTypes}
+                options={itemTypeOptions}
+              />
+
 
               <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
                 <SelectTrigger className="w-[200px]">

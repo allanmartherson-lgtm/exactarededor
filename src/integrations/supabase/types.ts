@@ -13393,6 +13393,7 @@ export type Database = {
           competence: string
           doctor_id: string
           gross: number
+          item_type_id: string
           items: number
           payment_id: string
         }[]
