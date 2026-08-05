@@ -21,6 +21,8 @@ export type PoolPreviewDetail = {
 
 export type FinancialComposition = {
   bruto: number;
+  /** Itens reprovados: compõem o bruto apresentado mas não são pagos. */
+  reprovados: number;
   debitos: number;
   creditos: number;
   glosas: number;
@@ -42,6 +44,7 @@ export type FinancialComposition = {
 
 const emptyState = (brutoFallback: number) => ({
   bruto: brutoFallback,
+  reprovados: 0,
   debitos: 0,
   creditos: 0,
   glosas: 0,
@@ -117,6 +120,7 @@ export function useFinancialComposition(
         lastSnapshotRef.current = true;
         setState({
           bruto: Math.round(bruto * 100) / 100,
+          reprovados: 0,
           debitos: 0,
           creditos: 0,
           glosas: 0,
@@ -162,6 +166,7 @@ export function useFinancialComposition(
       lastSnapshotRef.current = true;
       setState({
         bruto: Number(snap.bruto),
+        reprovados: Number(snap.reprovados ?? 0),
         debitos: Number(snap.debitos),
         creditos: Number(snap.creditos),
         glosas: Number(snap.glosas),
