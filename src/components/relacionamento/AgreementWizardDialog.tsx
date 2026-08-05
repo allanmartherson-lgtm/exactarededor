@@ -644,8 +644,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           </Button>
           {isLast ? (
             <Button type="button" onClick={() => void finish()} disabled={saving}>
-              {saving ? "Salvando..." : "Concluir e enviar ao supervisor"}
+              {saving
+                ? "Salvando..."
+                : isResubmission
+                  ? "Corrigir e reenviar ao supervisor"
+                  : "Concluir e enviar ao supervisor"}
             </Button>
+
           ) : (
             <Button type="button" onClick={() => void goNext()} disabled={saving}>
               {saving ? "Salvando..." : "Salvar e avançar"}
