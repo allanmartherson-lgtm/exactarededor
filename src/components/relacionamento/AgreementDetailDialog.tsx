@@ -37,6 +37,8 @@ import {
   type AgreementRegistration,
 } from "@/lib/agreementRegistrations";
 import { generateAndStoreAgreementPdf, openStoredAgreementPdf } from "@/lib/agreementPdf";
+import { AgreementExportButtons } from "@/components/relacionamento/AgreementExportButtons";
+import { buildAgreementExportModel } from "@/lib/agreementExport";
 
 type FullAgreement = AgreementRegistration & Partial<AgreementFlowFields>;
 
