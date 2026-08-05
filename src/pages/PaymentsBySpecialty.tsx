@@ -66,6 +66,8 @@ interface ItemRow {
   doctor_id: string | null;
   /** Tipo de pagamento curado (FK item_types). Nunca texto livre. */
   item_type_id: string | null;
+  /** Convênio curado do item (payment_items.convenio_slug). */
+  convenio_slug: string | null;
   gross_amount: number | null;
   item_competence: string | null;
   /** Quantidade de itens representados por esta linha agregada. */
@@ -80,6 +82,10 @@ interface ItemTypeRow {
 
 /** Bucket sintético para itens sem item_type_id preenchido. */
 const UNCLASSIFIED_TYPE = "__sem_tipo__";
+
+/** Bucket sintético para itens sem convenio_slug preenchido. */
+const UNKNOWN_CONVENIO = "__sem_convenio__";
+
 
 
 
