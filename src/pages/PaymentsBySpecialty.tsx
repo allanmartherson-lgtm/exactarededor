@@ -908,6 +908,54 @@ export default function PaymentsBySpecialty() {
     }
   };
 
+  // Captura o SVG do recharts já renderizado e o converte em PNG, sem
+  // dependência extra. Falha silenciosa: o PDF sai só com as tabelas.
+  const chartRef = useRef<HTMLDivElement>(null);
+  const captureChartPng = async (): Promise<string | undefined> => {
+    try {
+      const svg = chartRef.current?.querySelector("svg");
+      if (!svg) return undefined;
+      const rect = svg.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
+
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      clone.setAttribute("width", String(width));
+      clone.setAttribute("height", String(height));
+
+      // Tokens CSS (hsl(var(--x))) não resolvem em SVG isolado: trocamos pelo
+      // valor computado do :root antes de serializar.
+      const rootStyle = getComputedStyle(document.documentElement);
+      let markup = new XMLSerializer().serializeToString(clone);
+      markup = markup.replace(/hsl\(var\((--[a-z0-9-]+)\)([^)]*)\)/gi, (_m, name: string, rest: string) => {
+        const val = rootStyle.getPropertyValue(name).trim();
+        return val ? `hsl(${val}${rest})` : "#94a3b8";
+      });
+
+      const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = reject;
+        el.src = url;
+      });
+
+      const scale = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return undefined;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
+    } catch {
+      return undefined;
+    }
+  };
+
   const handleExportPdf = async () => {
     try {
       await exportSpecialtyReportPdf({
