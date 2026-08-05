@@ -953,6 +953,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           </div>
         )}
 
+        </section>
+
         {stepError && <p className="text-xs text-destructive">{stepError}</p>}
       </div>
     </FormDialog>
