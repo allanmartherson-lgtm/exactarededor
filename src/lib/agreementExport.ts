@@ -440,8 +440,32 @@ const sectionTitle = (text: string) =>
     children: [new TextRun({ text, bold: true, size: 26, font: "Arial" })],
   });
 
+/** Converte o PNG (data URL) da marca em bytes para o ImageRun do docx. */
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1] ?? "";
+  const bin = atob(base64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 export async function exportAgreementDocx(model: AgreementExportModel): Promise<void> {
+  // Mesma marca usada nos relatórios em PDF do Exacta
+  const logo = await getRedeDOrLogoPng("brand", 160);
+  const logoHeight = 34;
+
   const children: Array<Paragraph | Table> = [
+    new Paragraph({
+      spacing: { after: 120 },
+      children: [
+        new ImageRun({
+          type: "png",
+          data: dataUrlToBytes(logo.dataUrl),
+          transformation: { width: Math.round(logoHeight * logo.aspect), height: logoHeight },
+          altText: { title: "Rede D'Or", description: "Logotipo Rede D'Or", name: "logo" },
+        }),
+      ],
+    }),
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
       children: [new TextRun({ text: `Acordo ${model.code}`, bold: true, size: 32, font: "Arial" })],
@@ -460,12 +484,16 @@ export async function exportAgreementDocx(model: AgreementExportModel): Promise<
     keyValueTable(model.paymentTable),
   ];
 
-  if (model.parties.length > 0) {
+  if (model.clinicalStaff.length > 0) {
     children.push(
-      sectionTitle("PJs e médicos vinculados"),
-      gridTable(["PJ", "Médicos"], model.parties.map((p) => [p.company, p.doctors])),
+      sectionTitle("Corpo clínico e empresas vinculadas ao acordo"),
+      gridTable(
+        ["Médico", "CRM", "Empresa (PJ)", "CNPJ", "E-mail", "Telefone"],
+        model.clinicalStaff.map((s) => [s.doctor, s.crm, s.company, s.cnpj, s.email, s.phone]),
+      ),
     );
   }
+
 
   if (model.extraItems.length > 0) {
     children.push(
