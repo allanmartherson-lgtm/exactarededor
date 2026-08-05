@@ -197,6 +197,7 @@ export default function PaymentsBySpecialty() {
    */
   const [selectedItemTypes, setSelectedItemTypes] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<GroupBy>("company");
+  const [viewMode, setViewMode] = useState<ViewMode>("specialty");
 
   // ---------- dados ----------
   const [items, setItems] = useState<ItemRow[]>([]);
