@@ -3105,35 +3105,9 @@ export function analyzeItem(
     item.manual_intervention_reason_id &&
     (item.manual_intervention_source ?? "manual") === "auto_parecer_report";
 
-  // TRAVA 1 — massa sem confirmação financeira.
-  // Motivo aplicado em lote pelo assistente ('zeev_bulk') é CLASSIFICAÇÃO, não
-  // valoração: não pode transformar item sem regra em "pago pelo faturamento".
-  // Só a origem 'zeev_bulk_confirmed' (usuário confirmou o impacto em R$) vale
-  // como aceite financeiro.
-  const isUnconfirmedBulk =
-    (item.manual_intervention_source ?? "manual") === "zeev_bulk";
-
-  // TRAVA 2 — item SEM regra cadastrada não pode ser valorado por motivo
-  // genérico. Princípio do projeto: sem regra = sem_regra + alerta, jamais
-  // valor inferido. Exceção: reclassificação clínica, que é decisão clínica
-  // item a item feita pelo analista na tela.
-  const category = item.manual_intervention_reason_category ?? "";
-  const hasNoRule = !item.applied_calc_method;
-  const blockedByNoRule =
-    hasNoRule && category !== "reclassificacao_clinica" &&
-    (item.manual_intervention_source ?? "manual") !== "manual";
-
-  // TRAVA 3 — acate explícito do usuário PREVALECE.
-  // Se o item já tem marcação de acate ('acatado_esperado' / 'acatado_pago'),
-  // o motivo manual não pode sobrescrever a escolha de valor feita antes.
-  const explicitAccept = item.gross_override_reason === "acatado_esperado" ||
-    item.gross_override_reason === "acatado_pago";
-
-  if (
-    item.manual_intervention_reason_id && !isAutoParecerClassification &&
-    !isUnconfirmedBulk && !blockedByNoRule && !explicitAccept
-  ) {
+  if (item.manual_intervention_reason_id && !isAutoParecerClassification) {
     const code = item.manual_intervention_reason_code ?? "manual";
+    const category = item.manual_intervention_reason_category ?? "";
     const procAmount = Number(item.procedure_amount ?? 0);
     const grossAmount = Number(item.gross_amount ?? 0);
     // Aceite financeiro = analista está aceitando o VALOR PAGO como esperado
