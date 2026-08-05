@@ -55,6 +55,11 @@ interface DoctorOption {
   crm: string | null;
   crm_uf: string | null;
 }
+interface HospitalOption {
+  id: string;
+  name: string;
+}
+
 
 const STEPS = [
   "Identificação",
@@ -95,6 +100,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [companyOpen, setCompanyOpen] = useState(false);
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
+  // Replicação regional: hospitais adicionais que recebem o mesmo acordo
+  const [replicaHospitalIds, setReplicaHospitalIds] = useState<string[]>([]);
+  const [hospitalsOpen, setHospitalsOpen] = useState(false);
+  const [hospitalOptions, setHospitalOptions] = useState<HospitalOption[]>([]);
+  const [lockedHospitalIds, setLockedHospitalIds] = useState<string[]>([]);
+
   // Etapa 2
   const [allConvenios, setAllConvenios] = useState(true);
   const [convenioExceptions, setConvenioExceptions] = useState<string[]>([]);
@@ -155,7 +166,35 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setExclusionsNotes(record?.exclusions_notes ?? "");
     setExtraItems(record?.extra_items ?? []);
     setFreeNotes(record?.free_notes ?? "");
+    setReplicaHospitalIds([]);
+    setLockedHospitalIds([]);
   }, [open, record]);
+
+  // Hospitais já vinculados ao acordo (replicação regional)
+  useEffect(() => {
+    if (!open || !record?.id) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registration_hospitals")
+        .select("hospital_id,is_primary,status")
+        .eq("agreement_id", record.id);
+      if (cancel) return;
+      if (error) {
+        toast.error("Falha ao carregar hospitais do acordo");
+        return;
+      }
+      const rows = data ?? [];
+      setReplicaHospitalIds(rows.filter((r) => !r.is_primary).map((r) => r.hospital_id));
+      // Já aprovado/rejeitado pelo diretor: não pode mais ser removido pelo analista
+      setLockedHospitalIds(
+        rows.filter((r) => !r.is_primary && r.status !== "aguardando_diretor").map((r) => r.hospital_id),
+      );
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, record?.id]);
 
   useEffect(() => {
     if (!open || !hospitalId) return;
@@ -163,7 +202,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (async () => {
       setRegistriesLoading(true);
       try {
-        const [comps, convRes, docs] = await Promise.all([
+        const [comps, convRes, docs, hospRes] = await Promise.all([
           fetchAllPaginated<CompanyOption>((from, to) =>
             supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
           ),
@@ -176,12 +215,15 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           fetchAllPaginated<DoctorOption>((from, to) =>
             supabase.from("doctors").select("id,full_name,crm,crm_uf").order("full_name").range(from, to),
           ),
+          supabase.from("hospitals").select("id,name").order("name"),
         ]);
         if (cancel) return;
         setCompanies(comps);
         if (convRes.error) throw convRes.error;
         setConvenios((convRes.data ?? []) as ConvenioOption[]);
         setDoctors(docs);
+        if (hospRes.error) throw hospRes.error;
+        setHospitalOptions((hospRes.data ?? []) as HospitalOption[]);
       } catch (e: unknown) {
         if (!cancel) toast.error(e instanceof Error ? e.message : "Falha ao carregar cadastros");
       } finally {
@@ -192,6 +234,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       cancel = true;
     };
   }, [open, hospitalId]);
+
 
   // Médicos vinculados à clínica selecionada (doctor_companies)
   useEffect(() => {
@@ -306,11 +349,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       setSaving(true);
       try {
         const payload = buildPayload(status);
-        if (id) {
+        let agreementId = id;
+        if (agreementId) {
           const { error } = await supabase
             .from("agreement_registrations")
             .update(payload)
-            .eq("id", id);
+            .eq("id", agreementId);
           if (error) throw error;
         } else {
           const { data: userRes } = await supabase.auth.getUser();
@@ -320,8 +364,39 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             .select("id")
             .single();
           if (error) throw error;
-          setId(data.id as string);
+          agreementId = data.id as string;
+          setId(agreementId);
         }
+
+        // Replicação regional: o hospital principal é criado pelo banco (is_primary).
+        // Aqui sincronizamos apenas os hospitais adicionais ainda aguardando diretor.
+        const { data: existing, error: existingErr } = await supabase
+          .from("agreement_registration_hospitals")
+          .select("hospital_id,is_primary,status")
+          .eq("agreement_id", agreementId);
+        if (existingErr) throw existingErr;
+        const current = (existing ?? []).filter((r) => !r.is_primary);
+        const desired = new Set(replicaHospitalIds.filter((h) => h !== hospitalId));
+        const toInsert = [...desired].filter((h) => !current.some((r) => r.hospital_id === h));
+        const toRemove = current
+          .filter((r) => !desired.has(r.hospital_id) && r.status === "aguardando_diretor")
+          .map((r) => r.hospital_id);
+
+        if (toInsert.length > 0) {
+          const { error } = await supabase.from("agreement_registration_hospitals").insert(
+            toInsert.map((h) => ({ agreement_id: agreementId as string, hospital_id: h, is_primary: false })),
+          );
+          if (error) throw error;
+        }
+        if (toRemove.length > 0) {
+          const { error } = await supabase
+            .from("agreement_registration_hospitals")
+            .delete()
+            .eq("agreement_id", agreementId)
+            .in("hospital_id", toRemove);
+          if (error) throw error;
+        }
+
         onSaved();
         return true;
       } catch (e: unknown) {
@@ -331,8 +406,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setSaving(false);
       }
     },
-    [buildPayload, ensure, id, onSaved],
+    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId],
   );
+
 
   const goNext = async () => {
     if (stepError) {
@@ -512,6 +588,96 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
                 />
               </div>
             </div>
+
+            {/* Replicação regional: acordo fechado num hospital pode valer para os demais */}
+            <div className="space-y-1.5">
+              <Label>Replicar para outros hospitais da regional</Label>
+              <Popover open={hospitalsOpen} onOpenChange={setHospitalsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between font-normal"
+                    disabled={registriesLoading}
+                  >
+                    {replicaHospitalIds.length > 0
+                      ? `${replicaHospitalIds.length} hospital(is) adicional(is)`
+                      : registriesLoading
+                        ? "Carregando hospitais..."
+                        : "Somente o hospital de origem"}
+                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
+                    <CommandInput placeholder="Buscar hospital" />
+                    <CommandList>
+                      <CommandEmpty>Nenhum hospital encontrado</CommandEmpty>
+                      <CommandGroup>
+                        {hospitalOptions
+                          .filter((h) => h.id !== hospitalId)
+                          .map((h) => {
+                            const locked = lockedHospitalIds.includes(h.id);
+                            return (
+                              <CommandItem
+                                key={h.id}
+                                value={h.name}
+                                disabled={locked}
+                                onSelect={() => {
+                                  if (locked) return;
+                                  toggleIn(replicaHospitalIds, h.id, setReplicaHospitalIds);
+                                }}
+                              >
+                                <Checkbox
+                                  checked={replicaHospitalIds.includes(h.id)}
+                                  className="mr-2"
+                                  tabIndex={-1}
+                                />
+                                <span className="flex-1">{h.name}</span>
+                                {locked && (
+                                  <Badge variant="secondary" className="ml-2">
+                                    Já avaliado
+                                  </Badge>
+                                )}
+                              </CommandItem>
+                            );
+                          })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <Badge variant="outline" className="gap-1">
+                  {hospital?.name ?? "Hospital atual"} · origem
+                </Badge>
+                {replicaHospitalIds.map((hid) => {
+                  const h = hospitalOptions.find((o) => o.id === hid);
+                  const locked = lockedHospitalIds.includes(hid);
+                  return (
+                    <Badge key={hid} variant="secondary" className="gap-1 pl-2 pr-1">
+                      {h?.name ?? hid}
+                      {!locked && (
+                        <button
+                          type="button"
+                          aria-label={`Remover ${h?.name ?? "hospital"}`}
+                          onClick={() => toggleIn(replicaHospitalIds, hid, setReplicaHospitalIds)}
+                          className="rounded p-0.5 hover:bg-muted"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </Badge>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Cada hospital adicional entra como “aguardando diretor” e gera sua própria cópia da regra
+                após a aprovação.
+              </p>
+            </div>
+
 
             <p className="text-xs text-muted-foreground">
               Responsável pelo preenchimento: usuário logado (gravado em <code>filled_by</code>).

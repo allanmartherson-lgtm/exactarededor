@@ -100,6 +100,77 @@ export type Database = {
           },
         ]
       }
+      agreement_registration_hospitals: {
+        Row: {
+          agreement_id: string
+          created_at: string
+          director_approved_at: string | null
+          director_id: string | null
+          director_notes: string | null
+          hospital_id: string
+          id: string
+          is_primary: boolean
+          linked_rule_id: string | null
+          rejection_reason: string | null
+          status: string
+        }
+        Insert: {
+          agreement_id: string
+          created_at?: string
+          director_approved_at?: string | null
+          director_id?: string | null
+          director_notes?: string | null
+          hospital_id: string
+          id?: string
+          is_primary?: boolean
+          linked_rule_id?: string | null
+          rejection_reason?: string | null
+          status?: string
+        }
+        Update: {
+          agreement_id?: string
+          created_at?: string
+          director_approved_at?: string | null
+          director_id?: string | null
+          director_notes?: string | null
+          hospital_id?: string
+          id?: string
+          is_primary?: boolean
+          linked_rule_id?: string | null
+          rejection_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreement_registration_hospitals_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "agreement_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registration_hospitals_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registration_hospitals_linked_rule_id_fkey"
+            columns: ["linked_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registration_hospitals_linked_rule_id_fkey"
+            columns: ["linked_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules_pending_doctors_summary"
+            referencedColumns: ["rule_id"]
+          },
+        ]
+      }
       agreement_registrations: {
         Row: {
           analyst_id: string | null
