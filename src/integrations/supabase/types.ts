@@ -13952,6 +13952,7 @@ export type Database = {
         Returns: boolean
       }
       is_global_role: { Args: { _uid: string }; Returns: boolean }
+      is_internal_staff: { Args: { _uid: string }; Returns: boolean }
       is_payment_historico: { Args: { p_payment_id: string }; Returns: boolean }
       is_payment_in_analyst_phase: {
         Args: { p_payment_id: string }
