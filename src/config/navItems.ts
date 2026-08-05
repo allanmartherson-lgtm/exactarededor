@@ -112,6 +112,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
     children: [
       { to: "/relacionamento", label: "Simulador de Margem", icon: TrendingUp, iconName: "TrendingUp", roles: ALL_ROLES },
+      { to: "/relacionamento/cadastro-acordos", label: "Cadastro de Acordos", icon: ClipboardList, iconName: "ClipboardList", roles: ALL_ROLES },
     ],
   },
   {
