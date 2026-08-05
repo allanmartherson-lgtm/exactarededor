@@ -1375,7 +1375,7 @@ export default function PaymentsBySpecialty() {
               </p>
             </div>
 
-            <div className="grid gap-4 grid-cols-2 lg:grid-cols-5 items-stretch">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-6 items-stretch">
               <KpiCard
                 className="h-full"
                 label="Total bruto"
@@ -1394,10 +1394,18 @@ export default function PaymentsBySpecialty() {
                     : "Líquido existe por lote × PJ; não é rateável por especialidade."
                 }
               />
+              <KpiCard
+                className="h-full"
+                label="Valor em risco"
+                value={<span className="text-2xl">{money(valorEmRisco)}</span>}
+                tone={valorEmRisco > 0 ? "warning" : undefined}
+                hint={`${kpis.bruto > 0 ? ((valorEmRisco / kpis.bruto) * 100).toFixed(1) : "0.0"}% do bruto — glosas ativas das PJs do recorte.`}
+              />
               <KpiCard className="h-full" label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
               <KpiCard className="h-full" label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
               <KpiCard className="h-full" label="Médicos" value={kpis.doctors} hint="Com pagamento no recorte" />
             </div>
+
 
 
             {/* Integridade: itens sem doctor_id não podem ser atribuídos a especialidade */}
