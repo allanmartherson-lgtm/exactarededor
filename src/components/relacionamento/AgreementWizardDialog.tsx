@@ -7,6 +7,7 @@ import { useHospital } from "@/contexts/HospitalContext";
 import { useRequireHospital } from "@/hooks/useRequireHospital";
 import { formatCNPJ } from "@/lib/cnpj";
 import { FormDialog } from "@/components/FormDialog";
+import { AgreementAttachmentsPanel } from "@/components/relacionamento/AgreementAttachmentsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
