@@ -721,7 +721,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setSaving(false);
       }
     },
-    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId, multiParty, parties],
+    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId, multiParty, parties, partiesLoaded],
   );
 
 
