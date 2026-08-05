@@ -96,8 +96,17 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [id, setId] = useState<string | null>(null);
 
   // Etapa 1
+  const [registrationType, setRegistrationType] =
+    useState<AgreementRegistrationType>("novo_acordo");
+  const [referenceNote, setReferenceNote] = useState("");
+  const [relatedAgreementId, setRelatedAgreementId] = useState<string | null>(null);
+  const [relatedOpen, setRelatedOpen] = useState(false);
+  const [relatedOptions, setRelatedOptions] = useState<RelatedAgreementOption[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyOpen, setCompanyOpen] = useState(false);
+  // Acordo de equipe: várias PJs, cada uma com todos os médicos ou uma lista específica
+  const [multiParty, setMultiParty] = useState(false);
+  const [parties, setParties] = useState<PartyDraft[]>([]);
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
   // Replicação regional: hospitais adicionais que recebem o mesmo acordo
@@ -105,6 +114,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [hospitalsOpen, setHospitalsOpen] = useState(false);
   const [hospitalOptions, setHospitalOptions] = useState<HospitalOption[]>([]);
   const [lockedHospitalIds, setLockedHospitalIds] = useState<string[]>([]);
+
 
   // Etapa 2
   const [allConvenios, setAllConvenios] = useState(true);
