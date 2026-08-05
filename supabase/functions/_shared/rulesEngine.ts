@@ -401,17 +401,8 @@ export interface ItemInput {
   manual_intervention_reason_code?: string | null;
   /** Categoria do motivo: 'reclassificacao_clinica' | 'aceite_financeiro'. */
   manual_intervention_reason_category?: string | null;
-  /** Origem: 'manual' (analista) | 'auto_parecer_report' (Fase 2)
-   *  | 'zeev_bulk' (assistente, em massa — SEM confirmação financeira)
-   *  | 'zeev_bulk_confirmed' (assistente, com confirmação explícita de impacto). */
+  /** Origem: 'manual' (analista) | 'auto_parecer_report' (Fase 2). */
   manual_intervention_source?: string | null;
-  /** Marcação de acate explícito já feita pelo usuário
-   *  ('acatado_esperado' | 'acatado_pago'). Motivo manual NUNCA sobrescreve. */
-  gross_override_reason?: string | null;
-  /** Status atual do item — usado para detectar acate explícito. */
-  current_ai_status?: string | null;
-  /** Método de cálculo já aplicado (null = item sem regra cadastrada). */
-  applied_calc_method?: string | null;
 }
 
 export interface PaymentContext {
