@@ -1,6 +1,7 @@
 // Detalhe do Cadastro de Acordo — visão read-only com as ações de cada papel
 // (supervisor, diretor por hospital e analista) e linha do tempo do fluxo.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AgreementAttachmentsPanel } from "@/components/relacionamento/AgreementAttachmentsPanel";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
