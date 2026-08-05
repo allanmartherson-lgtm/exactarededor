@@ -997,7 +997,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
                 </div>
               )}
             </div>
+
+            {/* Tabelas de códigos/valores recebidas pelo Contratos */}
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <AgreementAttachmentsPanel agreementId={id} />
+            </div>
           </div>
+
         )}
 
 
