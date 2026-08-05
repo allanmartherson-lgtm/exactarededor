@@ -135,6 +135,12 @@ Deno.serve(async (req) => {
       bruto = round2(Number(agg.bruto_simple || 0));
     }
 
+    // Reprovados: itens que não serão pagos. O bruto continua sendo o lastro da
+    // base apresentada; o líquido é que precisa descontá-los. Em pool o valor é
+    // sempre 0 porque o rateio já parte do bolo aprovado.
+    const reprovados = round2(Number(agg.reprovados || 0));
+
+
 
     // Débitos/Créditos e Glosas (já agregados no banco)
     const debitos = round2(Number(agg.debitos || 0));
@@ -275,7 +281,7 @@ Deno.serve(async (req) => {
 
 
     const pool = round2(poolImpactoTotal);
-    const liquido = round2(bruto - debitos + creditos - glosas - pool + conciliacao);
+    const liquido = round2(bruto - reprovados - debitos + creditos - glosas - pool + conciliacao);
 
     // Persiste o snapshot via RPC para adquirir o mesmo advisory lock do fluxo
     // de acate/reanálise antes de tocar em payment_company_financials. Isso evita
@@ -285,6 +291,8 @@ Deno.serve(async (req) => {
         p_payment_id: payment_id,
         p_company_id: company_id,
         p_bruto: bruto,
+        p_reprovados: reprovados,
+
         p_debitos: round2(debitos),
         p_creditos: round2(creditos),
         p_glosas: glosas,
@@ -305,7 +313,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      ok: true, bruto, debitos, creditos, glosas,
+      ok: true, bruto, reprovados, debitos, creditos, glosas,
       pool, poolAplicado, poolPreview, poolDetalhes: detalhes,
       conciliacao, conciliacaoAplicada, liquido,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -5502,6 +5502,7 @@ export type Database = {
           pool_aplicado: boolean
           pool_detalhes: Json
           pool_preview: boolean
+          reprovados: number
           updated_at: string
         }
         Insert: {
@@ -5523,6 +5524,7 @@ export type Database = {
           pool_aplicado?: boolean
           pool_detalhes?: Json
           pool_preview?: boolean
+          reprovados?: number
           updated_at?: string
         }
         Update: {
@@ -5544,6 +5546,7 @@ export type Database = {
           pool_aplicado?: boolean
           pool_detalhes?: Json
           pool_preview?: boolean
+          reprovados?: number
           updated_at?: string
         }
         Relationships: [
@@ -5634,6 +5637,7 @@ export type Database = {
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
+          reprovado_total: number
           status: Database["public"]["Enums"]["payment_status"]
           total_amount: number
           updated_at: string
@@ -5694,6 +5698,7 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          reprovado_total?: number
           status?: Database["public"]["Enums"]["payment_status"]
           total_amount?: number
           updated_at?: string
@@ -5754,6 +5759,7 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          reprovado_total?: number
           status?: Database["public"]["Enums"]["payment_status"]
           total_amount?: number
           updated_at?: string
@@ -7808,6 +7814,7 @@ export type Database = {
           rateio_source: string | null
           rateio_valor_total: number | null
           reference: string
+          reprovado_total: number
           sectors: string[]
           source_file_path: string | null
           specialties: string[]
@@ -7871,6 +7878,7 @@ export type Database = {
           rateio_source?: string | null
           rateio_valor_total?: number | null
           reference: string
+          reprovado_total?: number
           sectors?: string[]
           source_file_path?: string | null
           specialties?: string[]
@@ -7934,6 +7942,7 @@ export type Database = {
           rateio_source?: string | null
           rateio_valor_total?: number | null
           reference?: string
+          reprovado_total?: number
           sectors?: string[]
           source_file_path?: string | null
           specialties?: string[]
@@ -14417,26 +14426,48 @@ export type Database = {
         Args: { p_email_secundario?: string; p_phone?: string }
         Returns: undefined
       }
-      upsert_payment_company_financials_snapshot: {
-        Args: {
-          p_bruto: number
-          p_company_id: string
-          p_computed_at?: string
-          p_computed_by?: string
-          p_conciliacao: number
-          p_conciliacao_aplicada: boolean
-          p_creditos: number
-          p_debitos: number
-          p_glosas: number
-          p_liquido: number
-          p_payment_id: string
-          p_pool: number
-          p_pool_aplicado: boolean
-          p_pool_detalhes: Json
-          p_pool_preview: boolean
-        }
-        Returns: Json
-      }
+      upsert_payment_company_financials_snapshot:
+        | {
+            Args: {
+              p_bruto: number
+              p_company_id: string
+              p_computed_at?: string
+              p_computed_by?: string
+              p_conciliacao: number
+              p_conciliacao_aplicada: boolean
+              p_creditos: number
+              p_debitos: number
+              p_glosas: number
+              p_liquido: number
+              p_payment_id: string
+              p_pool: number
+              p_pool_aplicado: boolean
+              p_pool_detalhes: Json
+              p_pool_preview: boolean
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_bruto: number
+              p_company_id: string
+              p_computed_at?: string
+              p_computed_by?: string
+              p_conciliacao: number
+              p_conciliacao_aplicada: boolean
+              p_creditos: number
+              p_debitos: number
+              p_glosas: number
+              p_liquido: number
+              p_payment_id: string
+              p_pool: number
+              p_pool_aplicado: boolean
+              p_pool_detalhes: Json
+              p_pool_preview: boolean
+              p_reprovados?: number
+            }
+            Returns: Json
+          }
       user_belongs_to_company: {
         Args: { _company_id: string }
         Returns: boolean
