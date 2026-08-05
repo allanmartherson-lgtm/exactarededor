@@ -351,7 +351,12 @@ export function AgreementDetailDialog({
 
           <Separator />
 
-          {/* Hospitais de destino */}
+          {/* Tabelas de referência anexadas pelo Contratos — consulta na validação e no cadastro da regra */}
+          <AgreementAttachmentsPanel agreementId={agreement.id} readOnly />
+
+          <Separator />
+
+
           <div className="space-y-2">
             <p className="text-sm font-semibold">Hospitais de destino</p>
             {loading ? (
