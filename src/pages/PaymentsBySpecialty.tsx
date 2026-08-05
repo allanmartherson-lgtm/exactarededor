@@ -898,8 +898,8 @@ export default function PaymentsBySpecialty() {
       exportSpecialtyReportExcel({
         filters: filtersSummary,
         kpis,
-        months: computed.months,
-        rows: computed.rows,
+        months: view.months,
+        rows: view.rows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
       });
     } catch (e: unknown) {
@@ -912,7 +912,7 @@ export default function PaymentsBySpecialty() {
       await exportSpecialtyReportPdf({
         filters: filtersSummary,
         kpis,
-        rows: computed.rows,
+        rows: view.rows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
       });
     } catch (e: unknown) {
@@ -1269,13 +1269,13 @@ export default function PaymentsBySpecialty() {
                 </p>
               </div>
               <div className="h-72">
-                {computed.months.length === 0 ? (
+                {view.months.length === 0 ? (
                   <div className="h-full grid place-items-center text-sm text-muted-foreground">
                     Sem dados no recorte selecionado.
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={computed.months} margin={{ top: 24, right: 16, left: 0, bottom: 4 }}>
+                    <BarChart data={view.months} margin={{ top: 24, right: 16, left: 0, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                       <XAxis
                         dataKey="month"
@@ -1353,14 +1353,14 @@ export default function PaymentsBySpecialty() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {computed.rows.length === 0 && (
+                      {view.rows.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                             Sem itens no recorte selecionado.
                           </TableCell>
                         </TableRow>
                       )}
-                      {computed.rows.map((r) => (
+                      {view.rows.map((r) => (
                         <TableRow key={r.key}>
                           <TableCell className="font-medium">{r.label}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{r.sublabel}</TableCell>
