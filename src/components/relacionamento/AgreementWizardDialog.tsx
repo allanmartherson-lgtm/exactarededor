@@ -173,7 +173,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setStep(0);
     setId(record?.id ?? null);
     setCompanyId(record?.company_id ?? null);
+    setRegistrationType(record?.registration_type ?? "novo_acordo");
+    setReferenceNote(record?.reference_note ?? "");
+    setRelatedAgreementId(record?.related_agreement_id ?? null);
+    setMultiParty(false);
+    setParties([]);
     setEffectiveFrom(record?.effective_from ?? "");
+
     setEffectiveTo(record?.effective_to ?? "");
     setAllConvenios(record?.applies_to_all_convenios ?? true);
     setConvenioExceptions(record?.convenio_exceptions ?? []);
