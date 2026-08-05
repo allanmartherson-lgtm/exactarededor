@@ -248,8 +248,32 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setDoctorExceptions(record?.doctor_exceptions ?? []);
     setIncludesAuxiliary(record?.includes_auxiliary ?? false);
     setIncludesAccessRoute(record?.includes_access_route ?? false);
-    setPaymentTableBase(record?.payment_table_base ?? "");
-    setPaymentPercentage(record?.payment_percentage != null ? String(record.payment_percentage) : "");
+    setPaymentModelIds(((record as unknown as { payment_model_ids?: string[] } | null)?.payment_model_ids) ?? []);
+    setMinGarantidoAtivo(!!(record as unknown as { minimo_garantido_ativo?: boolean } | null)?.minimo_garantido_ativo);
+    setMinGarantidoValor(
+      (record as unknown as { minimo_garantido_valor?: number | null } | null)?.minimo_garantido_valor != null
+        ? String((record as unknown as { minimo_garantido_valor?: number }).minimo_garantido_valor)
+        : "",
+    );
+    setMinGarantidoEscopo(
+      (record as unknown as { minimo_garantido_escopo?: string | null } | null)?.minimo_garantido_escopo ?? "medico_empresa",
+    );
+    setMinGarantidoPeriodicidade(
+      (record as unknown as { minimo_garantido_periodicidade?: string | null } | null)?.minimo_garantido_periodicidade ??
+        "competencia",
+    );
+    setMinGarantidoBase(
+      (record as unknown as { minimo_garantido_base?: string | null } | null)?.minimo_garantido_base ?? "liquido",
+    );
+    {
+      // calculation_draft guarda o rascunho no MESMO formato do RuleCalculationsEditor
+      const draft = ((record as unknown as { calculation_draft?: unknown } | null)?.calculation_draft ?? {}) as {
+        items?: CalcItem[];
+        fixed_value?: FixedValueDraft;
+      };
+      setCalcItems(Array.isArray(draft.items) && draft.items.length ? draft.items : [makeEmptyCalc()]);
+      setFixedValue({ ...EMPTY_FIXED_VALUE, ...(draft.fixed_value ?? {}) });
+    }
     setHasGlosa(record?.has_glosa ?? false);
     setGlosaConditions(record?.glosa_conditions ?? "");
     setUrgencyDiff(record?.urgency_differentiation ?? false);
