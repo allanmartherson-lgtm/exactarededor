@@ -674,6 +674,116 @@ export default function PaymentsBySpecialty() {
     doctorById,
   ]);
 
+  /**
+   * Modo "PJ no período": mesmas PJs do modo Especialidade, mas SEM o recorte de
+   * especialidade/grupo — responde "quanto essa PJ recebeu no período, no total".
+   * O filtro de tipo de pagamento continua valendo (é um recorte de escopo, não
+   * de especialidade). Líquido aqui é comparável ao bruto, porque ambos passam a
+   * ser do conjunto completo (lote × PJ).
+   */
+  const pjComputed = useMemo(() => {
+    const companyScope = new Set(
+      computed.matched.map((i) => i.company_id).filter(Boolean) as string[],
+    );
+    const typeFilter = new Set(selectedItemTypes);
+
+    const matched = items.filter((i) => {
+      if (!i.company_id || !companyScope.has(i.company_id)) return false;
+      const typeKey = i.item_type_id ?? UNCLASSIFIED_TYPE;
+      return typeFilter.size === 0 || typeFilter.has(typeKey);
+    });
+
+    const bruto = matched.reduce((s, i) => s + Number(i.gross_amount ?? 0), 0);
+
+    const pairs = new Set(
+      matched.filter((i) => i.payment_id).map((i) => `${i.payment_id}|${i.company_id}`),
+    );
+    const liquidoByCompany = new Map<string, number>();
+    let liquido = 0;
+    for (const f of financials) {
+      if (!pairs.has(`${f.payment_id}|${f.company_id}`)) continue;
+      const v = Number(f.liquido ?? 0);
+      liquido += v;
+      liquidoByCompany.set(f.company_id, (liquidoByCompany.get(f.company_id) ?? 0) + v);
+    }
+
+    const byMonth = new Map<string, { bruto: number; items: number }>();
+    for (const i of matched) {
+      const ym = (i.item_competence ?? "").slice(0, 7);
+      if (!ym) continue;
+      const cur = byMonth.get(ym) ?? { bruto: 0, items: 0 };
+      cur.bruto += Number(i.gross_amount ?? 0);
+      cur.items += i.qty;
+      byMonth.set(ym, cur);
+    }
+    const months = Array.from(byMonth.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([ym, v]) => ({ month: monthLabel(ym), bruto: v.bruto, items: v.items }));
+
+    const agg = new Map<string, { items: number; bruto: number; specialties: Set<string> }>();
+    for (const i of matched) {
+      const key = groupBy === "company" ? i.company_id ?? "sem_pj" : i.doctor_id ?? "sem_medico";
+      const cur = agg.get(key) ?? { items: 0, bruto: 0, specialties: new Set<string>() };
+      cur.items += i.qty;
+      cur.bruto += Number(i.gross_amount ?? 0);
+      if (i.doctor_id) {
+        (doctorById.get(i.doctor_id)?.specialties ?? []).forEach((s) => cur.specialties.add(s));
+      }
+      agg.set(key, cur);
+    }
+
+    const rows: SpecialtyReportGroupRow[] = Array.from(agg.entries())
+      .map(([key, v]) => {
+        if (groupBy === "company") {
+          const c = companyById.get(key);
+          return {
+            key,
+            label: c?.name ?? "PJ não identificada",
+            sublabel: c?.document ? formatCNPJ(c.document) : "—",
+            specialties: Array.from(v.specialties).sort().join(", ") || "—",
+            items: v.items,
+            bruto: v.bruto,
+            liquido: liquidoByCompany.get(key) ?? 0,
+          };
+        }
+        const d = doctorById.get(key);
+        return {
+          key,
+          label: d?.full_name ?? "Sem médico vinculado",
+          sublabel: d?.crm ? `CRM ${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : "—",
+          specialties: (d?.specialties ?? []).join(", ") || "—",
+          items: v.items,
+          bruto: v.bruto,
+          // Líquido não é rateável por médico dentro do lote × PJ.
+          liquido: null,
+        };
+      })
+      .sort((a, b) => b.bruto - a.bruto);
+
+    return {
+      matched,
+      bruto,
+      liquido,
+      companies: companyScope.size,
+      doctors: new Set(matched.map((i) => i.doctor_id).filter(Boolean) as string[]).size,
+      months,
+      rows,
+    };
+  }, [items, computed.matched, selectedItemTypes, financials, groupBy, companyById, doctorById]);
+
+  const isPjView = viewMode === "company";
+  const view = {
+    bruto: isPjView ? pjComputed.bruto : computed.bruto,
+    liquido: isPjView ? pjComputed.liquido : computed.liquido,
+    items: (isPjView ? pjComputed.matched : computed.matched).reduce((s, i) => s + i.qty, 0),
+    companies: isPjView ? pjComputed.companies : computed.companies,
+    doctors: isPjView ? pjComputed.doctors : computed.doctors,
+    months: isPjView ? pjComputed.months : computed.months,
+    rows: isPjView ? pjComputed.rows : computed.rows,
+  };
+
+
+
 
   // ---------- buscas de médico / PJ ----------
   // A busca de médico é feita no servidor: só carregamos localmente os médicos
