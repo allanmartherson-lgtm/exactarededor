@@ -691,7 +691,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       return null;
     }
     if (step === 1) {
-      if (!allConvenios && convenioExceptions.length === 0)
+      if (!onlyFixedValue && !allConvenios && convenioExceptions.length === 0)
         return "Selecione ao menos um convênio";
       if (!allDoctors && doctorExceptions.length === 0) return "Selecione ao menos um médico";
       return null;
