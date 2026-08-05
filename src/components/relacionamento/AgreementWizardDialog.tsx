@@ -132,6 +132,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   // Acordo de equipe: várias PJs, cada uma com todos os médicos ou uma lista específica
   const [multiParty, setMultiParty] = useState(false);
   const [parties, setParties] = useState<PartyDraft[]>([]);
+  // Falso até as PJs já vinculadas serem lidas do banco (evita apagá-las ao salvar cedo demais)
+  const [partiesLoaded, setPartiesLoaded] = useState(true);
+
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
   // Replicação regional: hospitais adicionais que recebem o mesmo acordo
@@ -185,6 +188,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setRelatedAgreementId(record?.related_agreement_id ?? null);
     setMultiParty(false);
     setParties([]);
+    // Enquanto as PJs do banco não chegam, persist() não pode regravá-las
+    setPartiesLoaded(!record?.id);
+
     setEffectiveFrom(record?.effective_from ?? "");
 
     setEffectiveTo(record?.effective_to ?? "");
