@@ -800,11 +800,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               </div>
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Haverá glosa: sim/não
-                <Switch checked={hasGlosa} onCheckedChange={setHasGlosa} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField label="Haverá glosa" value={hasGlosa} onChange={setHasGlosa} />
               {hasGlosa && (
                 <div className="space-y-1.5">
                   <Label htmlFor="acd-glosa">Condições de glosa</Label>
