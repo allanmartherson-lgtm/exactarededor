@@ -1727,9 +1727,7 @@ Deno.serve(async (req) => {
       }
 
 
-      // Auditoria é parte da execução, não "best effort": uma intervenção em
-      // massa sem rastro é falha grave. Se o insert falhar, a resposta falha alto.
-      const { error: auditErr } = await sb.from("audit_log").insert({
+      await sb.from("audit_log").insert({
         entity_type: "payment",
         entity_id: body.payment_id,
         action: `zeev.${p.action}`,
