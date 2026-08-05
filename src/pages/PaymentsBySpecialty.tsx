@@ -966,7 +966,7 @@ export default function PaymentsBySpecialty() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={toMonth} onValueChange={setToMonth}>
+              <Select value={toMonth} onValueChange={(v) => { setPeriodTouched(true); setToMonth(v); }}>
                 <SelectTrigger className="w-[190px]">
                   <SelectValue placeholder="Competência final">
                     {`Até: ${formatCompetence(`${toMonth}-01`)}`}
