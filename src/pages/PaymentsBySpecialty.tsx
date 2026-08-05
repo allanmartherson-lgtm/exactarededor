@@ -13,13 +13,13 @@ import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { formatCNPJ } from "@/lib/cnpj";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MultiSelectPopover } from "@/components/ui/MultiSelectPopover";
+import { formatCompetence } from "@/lib/status";
 import {
   Select,
   SelectContent,
