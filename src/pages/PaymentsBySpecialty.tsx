@@ -952,7 +952,7 @@ export default function PaymentsBySpecialty() {
             <div className="flex flex-wrap items-center gap-2">
               {/* Competência de/até — Select com as competências existentes
                   (mesmo componente e mesmo formatCompetence da tela Pagamentos). */}
-              <Select value={fromMonth} onValueChange={setFromMonth}>
+              <Select value={fromMonth} onValueChange={(v) => { setPeriodTouched(true); setFromMonth(v); }}>
                 <SelectTrigger className="w-[190px]">
                   <SelectValue placeholder="Competência inicial">
                     {`De: ${formatCompetence(`${fromMonth}-01`)}`}
