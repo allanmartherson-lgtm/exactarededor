@@ -808,7 +808,46 @@ export default function PaymentsBySpecialty() {
     doctors: isPjView ? pjComputed.doctors : computed.doctors,
     months: isPjView ? pjComputed.months : computed.months,
     rows: isPjView ? pjComputed.rows : computed.rows,
+    matched: isPjView ? pjComputed.matched : computed.matched,
   };
+
+  /**
+   * Quebra por convênio do MESMO recorte já filtrado (período, especialidade,
+   * tipo de pagamento, grupo, PJ/médico e modo de visão). A fonte é o campo
+   * curado payment_items.convenio_slug — itens sem slug caem no bucket
+   * "Sem convênio identificado", que fica no fim da lista e nunca é descartado.
+   */
+  const convenioRows = useMemo(() => {
+    const agg = new Map<string, { items: number; bruto: number }>();
+    let total = 0;
+    for (const i of view.matched) {
+      const key = i.convenio_slug ?? UNKNOWN_CONVENIO;
+      const cur = agg.get(key) ?? { items: 0, bruto: 0 };
+      const gross = Number(i.gross_amount ?? 0);
+      cur.items += i.qty;
+      cur.bruto += gross;
+      total += gross;
+      agg.set(key, cur);
+    }
+    const rows = Array.from(agg.entries()).map(([key, v]) => ({
+      key,
+      label:
+        key === UNKNOWN_CONVENIO
+          ? "Sem convênio identificado"
+          : convenioNameBySlug.get(key) ?? key,
+      items: v.items,
+      bruto: v.bruto,
+      pct: total > 0 ? (v.bruto / total) * 100 : 0,
+    }));
+    return rows.sort((a, b) => {
+      // O bucket sem convênio sempre fecha a lista, independente do valor.
+      if (a.key === UNKNOWN_CONVENIO) return 1;
+      if (b.key === UNKNOWN_CONVENIO) return -1;
+      return b.bruto - a.bruto;
+    });
+  }, [view.matched, convenioNameBySlug]);
+
+
 
 
 
