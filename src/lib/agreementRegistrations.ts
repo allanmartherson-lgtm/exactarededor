@@ -84,8 +84,17 @@ export interface AgreementRegistration {
   doctor_exceptions: string[];
   includes_auxiliary: boolean;
   includes_access_route: boolean;
+  /** @deprecated substituído por calculation_draft; mantido para acordos antigos */
   payment_table_base: string | null;
+  /** @deprecated substituído por calculation_draft; mantido para acordos antigos */
   payment_percentage: number | null;
+  payment_model_ids: string[];
+  minimo_garantido_ativo: boolean;
+  minimo_garantido_valor: number | null;
+  minimo_garantido_escopo: string | null;
+  minimo_garantido_periodicidade: string | null;
+  minimo_garantido_base: string | null;
+  calculation_draft: AgreementCalculationDraft;
   has_glosa: boolean;
   glosa_conditions: string | null;
   urgency_differentiation: boolean;
