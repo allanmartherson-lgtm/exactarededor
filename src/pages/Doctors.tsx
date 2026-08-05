@@ -110,7 +110,12 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Doctor>(empty);
   const [editingCompanyIds, setEditingCompanyIds] = useState<string[]>([]);
-  const [specInput, setSpecInput] = useState("");
+  const [specOpen, setSpecOpen] = useState(false);
+  const { rows: specialtyRows, loading: specialtiesLoading } = useSpecialties();
+  const specialtyNameSet = useMemo(
+    () => new Set(specialtyRows.map((r) => r.name.toLowerCase())),
+    [specialtyRows],
+  );
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("");
   const [showInactive, setShowInactive] = useState(false);
