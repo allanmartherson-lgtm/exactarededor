@@ -1391,54 +1391,113 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         )}
 
 
-        {/* Etapa 3 */}
+        {/* Etapa 3 — Cálculo de Pagamento (condicional ao tipo de pagamento) */}
         {step === 2 && (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-
-              <div className="space-y-1.5">
-                <Label>Base da tabela de pagamento</Label>
-                <Select value={paymentTableBase} onValueChange={setPaymentTableBase}>
-                  <SelectTrigger className="w-56">
-                    <SelectValue placeholder="Selecione a base" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PAYMENT_TABLE_BASE_LABEL).map(([v, label]) => (
-                      <SelectItem key={v} value={v}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {paymentModelIds.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                Selecione o tipo de pagamento na etapa “Identificação” para configurar o cálculo.
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="acd-pct">Percentual (%)</Label>
-                <Input
-                  id="acd-pct"
-                  inputMode="decimal"
-                  value={paymentPercentage}
-                  onChange={(e) => setPaymentPercentage(e.target.value)}
-                  className="w-28 text-right tabular-nums"
-                  placeholder="100"
-                />
-              </div>
-            </div>
+            )}
 
-            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
-              <BoolField label="Haverá glosa" value={hasGlosa} onChange={setHasGlosa} />
-              {hasGlosa && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="acd-glosa">Condições de glosa</Label>
-                  <Textarea
-                    id="acd-glosa"
-                    rows={3}
-                    value={glosaConditions}
-                    onChange={(e) => setGlosaConditions(e.target.value)}
-                    placeholder="Em que hipóteses a glosa é repassada à clínica"
-                  />
+            {showFixedValueBlock && (
+              <section className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Valor fixo</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Contrato de gestão/coordenação: valor combinado, sem cálculo por produção.
+                  </p>
                 </div>
-              )}
-            </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-fx-valor">Valor do repasse (R$)</Label>
+                    <Input
+                      id="acd-fx-valor"
+                      inputMode="decimal"
+                      value={fixedValue.amount}
+                      onChange={(e) => setFixedValue((f) => ({ ...f, amount: e.target.value }))}
+                      className="text-right tabular-nums"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-fx-parc">Número de repasses</Label>
+                    <Input
+                      id="acd-fx-parc"
+                      inputMode="numeric"
+                      value={fixedValue.installments}
+                      onChange={(e) =>
+                        setFixedValue((f) => ({ ...f, installments: e.target.value }))
+                      }
+                      className="text-right tabular-nums"
+                      placeholder="Deixe vazio se por prazo indeterminado"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Periodicidade</Label>
+                    <Select
+                      value={fixedValue.periodicity}
+                      onValueChange={(v) => setFixedValue((f) => ({ ...f, periodicity: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(FIXED_PERIODICITY_LABEL).map(([v, label]) => (
+                          <SelectItem key={v} value={v}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {showProductionBlock && (
+              <section className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Cálculo de Pagamento</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Mesmo motor da tela de Regras. O que for preenchido aqui chega pronto para o
+                    Analista de Cadastro de Regras, sem redigitação.
+                  </p>
+                </div>
+                <RuleCalculationsEditor
+                  value={calcItems.length ? calcItems : [makeEmptyCalc()]}
+                  onChange={setCalcItems}
+                  refTables={refTables}
+                  specialCaseTypes={specialCaseTypes}
+                  paymentTypes={paymentTypesList.filter(
+                    (p: { origin?: string }) => p.origin !== "payment_model",
+                  )}
+                  enabled={true}
+                />
+              </section>
+            )}
+
+            {showGlosaBlock && (
+              <section className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <BoolField
+                  label="Aplicar desconto de glosa?"
+                  value={hasGlosa}
+                  onChange={setHasGlosa}
+                />
+                {hasGlosa && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-glosa">Condições de glosa</Label>
+                    <Textarea
+                      id="acd-glosa"
+                      rows={3}
+                      value={glosaConditions}
+                      onChange={(e) => setGlosaConditions(e.target.value)}
+                      placeholder="Em que hipóteses a glosa é repassada à clínica"
+                    />
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         )}
 
