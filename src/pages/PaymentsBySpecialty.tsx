@@ -867,6 +867,7 @@ export default function PaymentsBySpecialty() {
     itemTypesLabel: selectedItemTypes.length
       ? selectedItemTypes.map((v) => itemTypeLabelByValue.get(v) ?? v).join(", ")
       : "Todos",
+    viewModeLabel: isPjView ? "PJ no período (todas as especialidades)" : "Especialidade",
   };
 
   const kpis = {
