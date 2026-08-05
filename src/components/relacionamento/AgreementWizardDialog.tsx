@@ -31,6 +31,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
