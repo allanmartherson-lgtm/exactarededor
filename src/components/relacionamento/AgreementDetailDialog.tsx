@@ -30,6 +30,7 @@ import {
   PAYMENT_TABLE_BASE_LABEL,
   buildAgreementTimeline,
   buildSupervisorChecklist,
+  type AgreementEventRow,
   type AgreementFlowFields,
   type AgreementHospitalRow,
   type AgreementRegistration,
@@ -44,6 +45,8 @@ interface Props {
   agreement: FullAgreement | null;
   companyName?: string;
   onChanged: () => void;
+  /** Reabre o wizard editável para o Setor de Contratos corrigir o acordo. */
+  onEdit?: (agreement: FullAgreement) => void;
 }
 
 const fmtDate = (v: string | null | undefined) =>
@@ -67,12 +70,14 @@ export function AgreementDetailDialog({
   agreement,
   companyName,
   onChanged,
+  onEdit,
 }: Props) {
   const { hasRole, user } = useAuth();
   const { hospital, availableHospitals, switchHospital } = useHospital();
   const navigate = useNavigate();
 
   const [hospitals, setHospitals] = useState<AgreementHospitalRow[]>([]);
+  const [events, setEvents] = useState<AgreementEventRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [supervisorNotes, setSupervisorNotes] = useState("");
@@ -92,13 +97,22 @@ export function AgreementDetailDialog({
   const load = useCallback(async () => {
     if (!agreement) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("agreement_registration_hospitals")
-      .select("*")
-      .eq("agreement_id", agreement.id)
-      .order("is_primary", { ascending: false });
+    const [{ data, error }, { data: evs, error: evErr }] = await Promise.all([
+      supabase
+        .from("agreement_registration_hospitals")
+        .select("*")
+        .eq("agreement_id", agreement.id)
+        .order("is_primary", { ascending: false }),
+      supabase
+        .from("agreement_registration_events")
+        .select("*")
+        .eq("agreement_id", agreement.id)
+        .order("created_at", { ascending: true }),
+    ]);
     if (error) toast.error("Falha ao carregar hospitais do acordo", { description: error.message });
+    if (evErr) toast.error("Falha ao carregar o histórico do acordo", { description: evErr.message });
     setHospitals((data ?? []) as unknown as AgreementHospitalRow[]);
+    setEvents((evs ?? []) as unknown as AgreementEventRow[]);
     setLoading(false);
   }, [agreement]);
 
@@ -115,8 +129,12 @@ export function AgreementDetailDialog({
     [agreement, hospitals],
   );
   const timeline = useMemo(
-    () => (agreement ? buildAgreementTimeline(agreement, hospitals) : []),
-    [agreement, hospitals],
+    () => (agreement ? buildAgreementTimeline(agreement, hospitals, events, hospitalNames) : []),
+    [agreement, hospitals, events, hospitalNames],
+  );
+  const rejectedRows = useMemo(
+    () => hospitals.filter((h) => h.status === "rejeitado"),
+    [hospitals],
   );
   const blockingIssues = checklist.filter((c) => c.required && !c.ok);
   const allConfirmed = checklist.every((c) => checked[c.key]);
