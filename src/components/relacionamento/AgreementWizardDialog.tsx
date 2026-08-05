@@ -719,7 +719,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     step, companyId, registrationType, relatedAgreementId, referenceNote, multiParty, parties,
     effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
     doctorExceptions, paymentModelIds, minGarantidoAtivo, minGarantidoValor, calcItems, fixedValue,
-    showFixedValueBlock, showProductionBlock, showGlosaBlock,
+    showFixedValueBlock, showProductionBlock, showGlosaBlock, onlyFixedValue,
     hasGlosa, glosaConditions, urgencyDiff,
     urgencyPct, weekendAdd, weekendPct, extraItems,
   ]);
