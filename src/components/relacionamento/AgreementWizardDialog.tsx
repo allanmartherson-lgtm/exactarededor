@@ -548,7 +548,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setSaving(false);
       }
     },
-    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId],
+    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId, multiParty, parties],
   );
 
 
