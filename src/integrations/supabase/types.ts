@@ -14426,26 +14426,48 @@ export type Database = {
         Args: { p_email_secundario?: string; p_phone?: string }
         Returns: undefined
       }
-      upsert_payment_company_financials_snapshot: {
-        Args: {
-          p_bruto: number
-          p_company_id: string
-          p_computed_at?: string
-          p_computed_by?: string
-          p_conciliacao: number
-          p_conciliacao_aplicada: boolean
-          p_creditos: number
-          p_debitos: number
-          p_glosas: number
-          p_liquido: number
-          p_payment_id: string
-          p_pool: number
-          p_pool_aplicado: boolean
-          p_pool_detalhes: Json
-          p_pool_preview: boolean
-        }
-        Returns: Json
-      }
+      upsert_payment_company_financials_snapshot:
+        | {
+            Args: {
+              p_bruto: number
+              p_company_id: string
+              p_computed_at?: string
+              p_computed_by?: string
+              p_conciliacao: number
+              p_conciliacao_aplicada: boolean
+              p_creditos: number
+              p_debitos: number
+              p_glosas: number
+              p_liquido: number
+              p_payment_id: string
+              p_pool: number
+              p_pool_aplicado: boolean
+              p_pool_detalhes: Json
+              p_pool_preview: boolean
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_bruto: number
+              p_company_id: string
+              p_computed_at?: string
+              p_computed_by?: string
+              p_conciliacao: number
+              p_conciliacao_aplicada: boolean
+              p_creditos: number
+              p_debitos: number
+              p_glosas: number
+              p_liquido: number
+              p_payment_id: string
+              p_pool: number
+              p_pool_aplicado: boolean
+              p_pool_detalhes: Json
+              p_pool_preview: boolean
+              p_reprovados?: number
+            }
+            Returns: Json
+          }
       user_belongs_to_company: {
         Args: { _company_id: string }
         Returns: boolean
