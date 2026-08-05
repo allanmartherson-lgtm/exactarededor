@@ -32,6 +32,12 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  RuleCalculationsEditor,
+  makeEmptyCalc,
+  type CalcItem,
+} from "@/components/rules/RuleCalculationsEditor";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
