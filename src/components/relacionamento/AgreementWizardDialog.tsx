@@ -684,27 +684,30 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         }
 
         // PJs do acordo de equipe: regravadas por inteiro a cada salvamento.
-        // Sem multi-PJ ativo o acordo volta a ter apenas a clínica principal.
-        const { error: delPartiesErr } = await supabase
-          .from("agreement_registration_parties")
-          .delete()
-          .eq("agreement_id", agreementId);
-        if (delPartiesErr) throw delPartiesErr;
-        if (multiParty) {
-          const rows = parties.flatMap((p) =>
-            !p.companyId
-              ? []
-              : p.allDoctors
-                ? [{ agreement_id: agreementId as string, company_id: p.companyId, doctor_id: null }]
-                : p.doctorIds.map((d) => ({
-                    agreement_id: agreementId as string,
-                    company_id: p.companyId as string,
-                    doctor_id: d,
-                  })),
-          );
-          if (rows.length > 0) {
-            const { error } = await supabase.from("agreement_registration_parties").insert(rows);
-            if (error) throw error;
+        // Só mexe nelas depois que as PJs existentes foram lidas do banco — salvar
+        // antes disso apagaria silenciosamente as PJs já vinculadas.
+        if (partiesLoaded) {
+          const { error: delPartiesErr } = await supabase
+            .from("agreement_registration_parties")
+            .delete()
+            .eq("agreement_id", agreementId);
+          if (delPartiesErr) throw delPartiesErr;
+          if (multiParty) {
+            const rows = parties.flatMap((p) =>
+              !p.companyId
+                ? []
+                : p.allDoctors
+                  ? [{ agreement_id: agreementId as string, company_id: p.companyId, doctor_id: null }]
+                  : p.doctorIds.map((d) => ({
+                      agreement_id: agreementId as string,
+                      company_id: p.companyId as string,
+                      doctor_id: d,
+                    })),
+            );
+            if (rows.length > 0) {
+              const { error } = await supabase.from("agreement_registration_parties").insert(rows);
+              if (error) throw error;
+            }
           }
         }
 
