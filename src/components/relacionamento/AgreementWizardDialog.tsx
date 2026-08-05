@@ -394,6 +394,136 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     [companies, companyId],
   );
 
+  // Dados mínimos da Etapa 1 para permitir exportar uma prévia do acordo
+  const canExport = !!companyId && !!effectiveFrom;
+
+  /** Monta o estado atual do formulário no modelo de exportação (Word/Excel). */
+  const buildExportModel = useCallback((): AgreementExportModel => {
+    const companyName = companies.find((c) => c.id === companyId)?.name ?? "Clínica não informada";
+    const doctorName = (dId: string) =>
+      linkedDoctors.find((d) => d.id === dId)?.full_name ?? dId;
+    const hospitalName = (hId: string) => hospitalOptions.find((h) => h.id === hId)?.name ?? hId;
+    const pctText = (v: string) => (numOrNull(v) != null ? `${numOrNull(v)}%` : "—");
+    const yn = (b: boolean) => (b ? "Sim" : "Não");
+
+    return {
+      code: record?.code ?? "Novo acordo",
+      companyName,
+      statusLabel: record ? (AGREEMENT_STATUS_LABEL[record.status] ?? record.status) : "Rascunho",
+      identification: [
+        { label: "Código", value: record?.code ?? "(a gerar)" },
+        { label: "Tipo de comunicado", value: AGREEMENT_TYPE_LABEL[registrationType] },
+        { label: "Clínica (PJ)", value: companyName },
+        {
+          label: "Vigência",
+          value: `${fmtExportDate(effectiveFrom)} a ${fmtExportDate(effectiveTo)}`,
+        },
+        {
+          label: "Referência",
+          value:
+            relatedOptions.find((o) => o.id === relatedAgreementId)?.code ??
+            referenceNote.trim() ??
+            "—",
+        },
+        { label: "Hospital de origem", value: hospital?.name ?? "—" },
+      ],
+      scope: [
+        { label: "Todos os convênios", value: yn(allConvenios) },
+        {
+          label: "Convênios de exceção",
+          value: convenioExceptions.length ? convenioExceptions.join(", ") : "—",
+        },
+        { label: "Todos os médicos da PJ", value: yn(allDoctors) },
+        {
+          label: "Médicos de exceção",
+          value: doctorExceptions.length ? doctorExceptions.map(doctorName).join(", ") : "—",
+        },
+        { label: "Inclui auxiliares", value: yn(includesAuxiliary) },
+        { label: "Considera via de acesso", value: yn(includesAccessRoute) },
+      ],
+      paymentTable: [
+        {
+          label: "Tabela base",
+          value: paymentTableBase
+            ? (PAYMENT_TABLE_BASE_LABEL[paymentTableBase] ?? paymentTableBase)
+            : "—",
+        },
+        { label: "Percentual de repasse", value: pctText(paymentPercentage) },
+        { label: "Sujeito a glosa", value: yn(hasGlosa) },
+        { label: "Condições de glosa", value: glosaConditions.trim() || "—" },
+        {
+          label: "Diferenciação por urgência",
+          value: `${yn(urgencyDiff)} ${urgencyDiff ? pctText(urgencyPct) : ""}`.trim(),
+        },
+        {
+          label: "Adicional fim de semana/feriado",
+          value: `${yn(weekendAdd)} ${weekendAdd ? pctText(weekendPct) : ""}`.trim(),
+        },
+        { label: "Possui valores fixos", value: yn(hasFixedValues) },
+        { label: "Valores fixos com urgência diferenciada", value: yn(fixedUrgencyDiff) },
+        { label: "Exclusões", value: exclusionsNotes.trim() || "—" },
+      ],
+      parties: multiParty
+        ? parties.map((p) => ({
+            company: companies.find((c) => c.id === p.companyId)?.name ?? "—",
+            doctors: p.allDoctors
+              ? "Todos os médicos da PJ"
+              : `${p.doctorIds.length} médico(s) selecionado(s)`,
+          }))
+        : [{ company: companyName, doctors: allDoctors ? "Todos os médicos da PJ" : "Ver exceções" }],
+      hospitals: [
+        ...(hospital ? [{ id: hospital.id, primary: true }] : []),
+        ...replicaHospitalIds
+          .filter((h) => h !== hospital?.id)
+          .map((h) => ({ id: h, primary: false })),
+      ].map((h) => ({
+        name: `${hospitalName(h.id)}${h.primary ? " (origem)" : ""}`,
+        status: "Aguardando diretor",
+        director: "—",
+        approvedAt: "—",
+        rule: "Pendente",
+      })),
+      extraItems: extraItems.map((i) => ({ label: i.label, value: i.value })),
+      timeline: [],
+      freeNotes: freeNotes.trim(),
+    };
+  }, [
+    allConvenios,
+    allDoctors,
+    companies,
+    companyId,
+    convenioExceptions,
+    doctorExceptions,
+    effectiveFrom,
+    effectiveTo,
+    exclusionsNotes,
+    extraItems,
+    fixedUrgencyDiff,
+    freeNotes,
+    glosaConditions,
+    hasFixedValues,
+    hasGlosa,
+    hospital,
+    hospitalOptions,
+    includesAccessRoute,
+    includesAuxiliary,
+    linkedDoctors,
+    multiParty,
+    parties,
+    paymentPercentage,
+    paymentTableBase,
+    record,
+    referenceNote,
+    registrationType,
+    relatedAgreementId,
+    relatedOptions,
+    replicaHospitalIds,
+    urgencyDiff,
+    urgencyPct,
+    weekendAdd,
+    weekendPct,
+  ]);
+
 
   const stepError = useMemo((): string | null => {
     if (step === 0) {
