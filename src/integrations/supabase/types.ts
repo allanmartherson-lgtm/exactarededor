@@ -100,6 +100,164 @@ export type Database = {
           },
         ]
       }
+      agreement_registrations: {
+        Row: {
+          analyst_id: string | null
+          analyst_registered_at: string | null
+          applies_to_all_convenios: boolean
+          applies_to_all_doctors: boolean
+          code: string
+          company_id: string | null
+          convenio_exceptions: string[]
+          created_at: string
+          director_approved_at: string | null
+          director_id: string | null
+          director_notes: string | null
+          doctor_exceptions: string[]
+          effective_from: string | null
+          effective_to: string | null
+          exclusions_notes: string | null
+          extra_items: Json
+          filled_by: string | null
+          fixed_value_urgency_differentiation: boolean
+          free_notes: string | null
+          glosa_conditions: string | null
+          has_fixed_values: boolean
+          has_glosa: boolean
+          hospital_id: string
+          id: string
+          includes_access_route: boolean
+          includes_auxiliary: boolean
+          linked_rule_id: string | null
+          payment_percentage: number | null
+          payment_table_base: string | null
+          pdf_url: string | null
+          rejection_reason: string | null
+          status: string
+          supervisor_id: string | null
+          supervisor_notes: string | null
+          supervisor_validated_at: string | null
+          updated_at: string
+          urgency_addition_pct: number | null
+          urgency_differentiation: boolean
+          weekend_holiday_addition: boolean
+          weekend_holiday_addition_pct: number | null
+        }
+        Insert: {
+          analyst_id?: string | null
+          analyst_registered_at?: string | null
+          applies_to_all_convenios?: boolean
+          applies_to_all_doctors?: boolean
+          code?: string
+          company_id?: string | null
+          convenio_exceptions?: string[]
+          created_at?: string
+          director_approved_at?: string | null
+          director_id?: string | null
+          director_notes?: string | null
+          doctor_exceptions?: string[]
+          effective_from?: string | null
+          effective_to?: string | null
+          exclusions_notes?: string | null
+          extra_items?: Json
+          filled_by?: string | null
+          fixed_value_urgency_differentiation?: boolean
+          free_notes?: string | null
+          glosa_conditions?: string | null
+          has_fixed_values?: boolean
+          has_glosa?: boolean
+          hospital_id: string
+          id?: string
+          includes_access_route?: boolean
+          includes_auxiliary?: boolean
+          linked_rule_id?: string | null
+          payment_percentage?: number | null
+          payment_table_base?: string | null
+          pdf_url?: string | null
+          rejection_reason?: string | null
+          status?: string
+          supervisor_id?: string | null
+          supervisor_notes?: string | null
+          supervisor_validated_at?: string | null
+          updated_at?: string
+          urgency_addition_pct?: number | null
+          urgency_differentiation?: boolean
+          weekend_holiday_addition?: boolean
+          weekend_holiday_addition_pct?: number | null
+        }
+        Update: {
+          analyst_id?: string | null
+          analyst_registered_at?: string | null
+          applies_to_all_convenios?: boolean
+          applies_to_all_doctors?: boolean
+          code?: string
+          company_id?: string | null
+          convenio_exceptions?: string[]
+          created_at?: string
+          director_approved_at?: string | null
+          director_id?: string | null
+          director_notes?: string | null
+          doctor_exceptions?: string[]
+          effective_from?: string | null
+          effective_to?: string | null
+          exclusions_notes?: string | null
+          extra_items?: Json
+          filled_by?: string | null
+          fixed_value_urgency_differentiation?: boolean
+          free_notes?: string | null
+          glosa_conditions?: string | null
+          has_fixed_values?: boolean
+          has_glosa?: boolean
+          hospital_id?: string
+          id?: string
+          includes_access_route?: boolean
+          includes_auxiliary?: boolean
+          linked_rule_id?: string | null
+          payment_percentage?: number | null
+          payment_table_base?: string | null
+          pdf_url?: string | null
+          rejection_reason?: string | null
+          status?: string
+          supervisor_id?: string | null
+          supervisor_notes?: string | null
+          supervisor_validated_at?: string | null
+          updated_at?: string
+          urgency_addition_pct?: number | null
+          urgency_differentiation?: boolean
+          weekend_holiday_addition?: boolean
+          weekend_holiday_addition_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreement_registrations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registrations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registrations_linked_rule_id_fkey"
+            columns: ["linked_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registrations_linked_rule_id_fkey"
+            columns: ["linked_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules_pending_doctors_summary"
+            referencedColumns: ["rule_id"]
+          },
+        ]
+      }
       ai_analysis_versions: {
         Row: {
           ai_status: string
