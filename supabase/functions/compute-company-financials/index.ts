@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      ok: true, bruto, debitos, creditos, glosas,
+      ok: true, bruto, reprovados, debitos, creditos, glosas,
       pool, poolAplicado, poolPreview, poolDetalhes: detalhes,
       conciliacao, conciliacaoAplicada, liquido,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
