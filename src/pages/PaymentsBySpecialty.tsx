@@ -47,7 +47,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-import { BarChart3, Download, FileText, Search, X } from "lucide-react";
+import { BarChart3, Download, FileText, Search, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   exportSpecialtyReportExcel,
