@@ -2992,6 +2992,14 @@ const NewPayment = () => {
       if (!ok) return;
     }
 
+    // Trava simétrica à da PJ: médico com nome na planilha mas sem vínculo no
+    // cadastro salvaria doctor_id nulo sem aviso. Exige decisão explícita.
+    if (unresolvedDoctorSummary.count > 0 && !doctorGateAckRef.current) {
+      setDoctorGateOpen(true);
+      return;
+    }
+
+
     if (preValidation.critical > 0) {
       toast({
         title: `Pré-validação: ${preValidation.critical} erro(s) crítico(s)`,
