@@ -1698,7 +1698,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[]; skipped?: unknown };
+      let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[] };
       if (p.action === "set_sector") {
         result = await execSetSector(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "set_cost_center") {
