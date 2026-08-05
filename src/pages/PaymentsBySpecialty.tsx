@@ -49,6 +49,7 @@ import {
 
 import { BarChart3, Download, FileText, Search, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
+import { useGlosaRiskForCompanies } from "@/hooks/useGlosaRiskForCompanies";
 import {
   exportSpecialtyReportExcel,
   exportSpecialtyReportPdf,
@@ -937,6 +938,13 @@ export default function PaymentsBySpecialty() {
     viewModeLabel: isPjView ? "PJ no período (todas as especialidades)" : "Especialidade",
   };
 
+  // Valor em risco: glosas ativas das PJs presentes no recorte filtrado.
+  const companyIdsInScope = useMemo(
+    () => Array.from(new Set(view.matched.map((i) => i.company_id).filter(Boolean) as string[])),
+    [view.matched],
+  );
+  const { valorEmRisco } = useGlosaRiskForCompanies(companyIdsInScope);
+
   const kpis = {
     bruto: view.bruto,
     liquido: view.liquido,
@@ -948,6 +956,7 @@ export default function PaymentsBySpecialty() {
     semMedicoBruto: isPjView ? 0 : computed.semMedicoBruto,
     semMedicoItems: isPjView ? 0 : computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
   };
+
 
   const clearFilters = () => {
     setSelectedSpecialties([]);
@@ -1366,7 +1375,7 @@ export default function PaymentsBySpecialty() {
               </p>
             </div>
 
-            <div className="grid gap-4 grid-cols-2 lg:grid-cols-5 items-stretch">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-6 items-stretch">
               <KpiCard
                 className="h-full"
                 label="Total bruto"
@@ -1385,10 +1394,18 @@ export default function PaymentsBySpecialty() {
                     : "Líquido existe por lote × PJ; não é rateável por especialidade."
                 }
               />
+              <KpiCard
+                className="h-full"
+                label="Valor em risco"
+                value={<span className="text-2xl">{money(valorEmRisco)}</span>}
+                tone={valorEmRisco > 0 ? "warning" : undefined}
+                hint={`${kpis.bruto > 0 ? ((valorEmRisco / kpis.bruto) * 100).toFixed(1) : "0.0"}% do bruto — glosas ativas das PJs do recorte.`}
+              />
               <KpiCard className="h-full" label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
               <KpiCard className="h-full" label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
               <KpiCard className="h-full" label="Médicos" value={kpis.doctors} hint="Com pagamento no recorte" />
             </div>
+
 
 
             {/* Integridade: itens sem doctor_id não podem ser atribuídos a especialidade */}
