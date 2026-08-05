@@ -353,6 +353,20 @@ export default function AgreementRegistrations() {
           void load();
         }}
       />
+
+      <AgreementDetailDialog
+        open={detailOpen}
+        onOpenChange={(o) => {
+          setDetailOpen(o);
+          if (!o) setDetail(null);
+        }}
+        agreement={detail}
+        companyName={detail?.company_id ? companies[detail.company_id] : undefined}
+        onChanged={() => {
+          void load();
+        }}
+      />
+
     </div>
   );
 }
