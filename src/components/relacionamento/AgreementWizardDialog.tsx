@@ -821,11 +821,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         {/* Etapa 4 */}
         {step === 3 && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Diferenciação por urgência/emergência: sim/não
-                <Switch checked={urgencyDiff} onCheckedChange={setUrgencyDiff} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Diferenciação por urgência/emergência"
+                value={urgencyDiff}
+                onChange={setUrgencyDiff}
+              />
               {urgencyDiff && (
                 <div className="space-y-1.5">
                   <Label htmlFor="acd-urg">Acréscimo de urgência (%)</Label>
@@ -840,11 +841,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Acréscimo fim de semana/feriado: sim/não
-                <Switch checked={weekendAdd} onCheckedChange={setWeekendAdd} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Acréscimo fim de semana/feriado"
+                value={weekendAdd}
+                onChange={setWeekendAdd}
+              />
               {weekendAdd && (
                 <div className="space-y-1.5">
                   <Label htmlFor="acd-fds">Acréscimo fim de semana/feriado (%)</Label>
@@ -859,20 +861,19 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Há valores fixos: sim/não
-                <Switch checked={hasFixedValues} onCheckedChange={setHasFixedValues} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField label="Há valores fixos" value={hasFixedValues} onChange={setHasFixedValues} />
               {hasFixedValues && (
-                <label className="flex items-center justify-between gap-3 text-sm">
-                  Valor fixo com diferenciação por urgência: sim/não
-                  <Switch checked={fixedUrgencyDiff} onCheckedChange={setFixedUrgencyDiff} />
-                </label>
+                <BoolField
+                  label="Valor fixo com diferenciação por urgência"
+                  value={fixedUrgencyDiff}
+                  onChange={setFixedUrgencyDiff}
+                />
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 rounded-lg border border-border bg-card p-4 shadow-sm">
+
               <Label htmlFor="acd-exc">Exclusões / exceções</Label>
               <Textarea
                 id="acd-exc"
