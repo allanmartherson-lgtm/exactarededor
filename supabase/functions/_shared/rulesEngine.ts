@@ -3122,28 +3122,32 @@ export function analyzeItem(
     // Aceite financeiro = analista está aceitando o VALOR PAGO como esperado
     // (ex.: reajuste sem regra atualizada). Reclassificação clínica e demais
     // categorias mantêm o comportamento original (aceita valor do convênio).
-    // Estratégia explícita do analista vence a inferência por categoria.
-    // Sem isso a reanálise disparada logo após o acate em massa reescrevia
-    // expected_amount = gross_amount, apagando a economia da análise.
+    // A estratégia explícita escolhida no acate em massa (quando existir)
+    // VENCE essa inferência — sem isso a reanálise disparada logo após o acate
+    // reescrevia expected_amount = gross_amount e apagava a economia.
     const strategy = item.manual_value_strategy ?? null;
-    const currentExpected = item.current_expected_amount;
-    const acceptsPaidAsExpected =
-      strategy === null ? category === "aceite_financeiro" : strategy === "procedure" ? false : false;
+    const acceptsPaidAsExpected = strategy === null && category === "aceite_financeiro";
     let expected: number;
-    let baseLabelOverride: string | null = null;
+    let baseLabel: string;
     if (strategy === "expected" || strategy === "custom") {
-      // Mantém o valor já gravado (regra ou customizado pelo analista).
-      expected = Number(currentExpected ?? procAmount);
-      baseLabelOverride =
+      // Mantém o valor já gravado no item (regra ou customizado pelo analista).
+      expected = Number(item.current_expected_amount ?? procAmount);
+      baseLabel =
         strategy === "expected"
           ? `Valor mantido da regra (R$ ${expected.toFixed(2)}) por escolha do analista.`
           : `Valor customizado pelo analista (R$ ${expected.toFixed(2)}).`;
     } else if (strategy === "procedure") {
       expected = procAmount;
+      baseLabel = `Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
     } else {
-      expected = category === "aceite_financeiro" ? grossAmount : procAmount;
+      expected = acceptsPaidAsExpected ? grossAmount : procAmount;
+      baseLabel = acceptsPaidAsExpected
+        ? `Valor aceito = gross_amount pago (R$ ${grossAmount.toFixed(2)}).`
+        : `Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
     }
 
+    // Mesmo em tratamento manual, queremos saber se EXISTE regra específica
+    // para o médico/PJ (mesmo informativa) — para que o usuário enxergue o
     // vínculo no card e não veja "Nenhuma regra específica casou". A regra
     // não muda o valor porque o analista fez aceite/intervenção manual.
     let matchedRuleId: string | null = null;
