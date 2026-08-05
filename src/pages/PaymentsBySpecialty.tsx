@@ -186,6 +186,41 @@ export default function PaymentsBySpecialty() {
   const [error, setError] = useState<string | null>(null);
 
   /**
+   * Competências disponíveis para os selects de período. Mesma fonte usada
+   * pela tela de Pagamentos (payments_global_stats) para manter os rótulos
+   * idênticos; unimos as competências dos itens já carregados e os valores
+   * atuais para nunca perder uma opção selecionada.
+   */
+  const [hospitalCompetences, setHospitalCompetences] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!hospitalId) { setHospitalCompetences([]); return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data, error: rpcErr } = await supabase.rpc("payments_global_stats");
+        if (rpcErr) throw rpcErr;
+        const payload = (data ?? {}) as { competences?: string[] };
+        if (!cancelled) {
+          setHospitalCompetences(
+            Array.isArray(payload.competences) ? payload.competences.map((c) => String(c).slice(0, 7)) : [],
+          );
+        }
+      } catch {
+        if (!cancelled) setHospitalCompetences([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+  const competenceOptions = useMemo(() => {
+    const set = new Set<string>([fromMonth, toMonth, ...hospitalCompetences]);
+    items.forEach((i) => { if (i.item_competence) set.add(i.item_competence.slice(0, 7)); });
+    return Array.from(set).filter(Boolean).sort((a, b) => b.localeCompare(a));
+  }, [fromMonth, toMonth, hospitalCompetences, items]);
+
+
+  /**
    * Itens do período, já somados no banco pela RPC get_specialty_payments_agg.
    * Baixar os itens crus (~50 mil linhas no período) estourava o statement
    * timeout do PostgREST (erro 57014) e derrubava o relatório inteiro.
