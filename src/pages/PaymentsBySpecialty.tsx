@@ -514,11 +514,26 @@ export default function PaymentsBySpecialty() {
     const noDoctor: ItemRow[] = [];
     let baseBruto = 0;
     let baseItems = 0;
+    // Bruto do período por tipo de pagamento (antes dos demais recortes) —
+    // usado só para leitura/auditoria do mix ambulatório × cirurgia × parecer.
+    const brutoByType = new Map<string, { bruto: number; items: number }>();
+
+    const typeFilter = new Set(selectedItemTypes);
 
     for (const it of items) {
       const gross = Number(it.gross_amount ?? 0);
+      const typeKey = it.item_type_id ?? UNCLASSIFIED_TYPE;
       baseBruto += gross;
       baseItems += it.qty;
+      const curType = brutoByType.get(typeKey) ?? { bruto: 0, items: 0 };
+      curType.bruto += gross;
+      curType.items += it.qty;
+      brutoByType.set(typeKey, curType);
+
+      // Tipo de pagamento (item_types) — campo curado, FK. Itens sem tipo caem
+      // no bucket "Tipo não classificado" e podem ser filtrados explicitamente,
+      // nunca são descartados em silêncio.
+      if (typeFilter.size > 0 && !typeFilter.has(typeKey)) continue;
 
       // Itens sem doctor_id NUNCA são atribuídos a especialidade pelo cadastro:
       // ficam numa linha própria para o total do relatório bater com o real.
@@ -526,6 +541,7 @@ export default function PaymentsBySpecialty() {
         noDoctor.push(it);
         continue;
       }
+
 
       const byCompany = scope.companySet.size > 0 && it.company_id
         ? scope.companySet.has(it.company_id)
