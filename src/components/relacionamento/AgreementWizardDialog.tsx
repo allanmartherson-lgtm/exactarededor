@@ -224,6 +224,37 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [linkedDoctors, setLinkedDoctors] = useState<DoctorOption[]>([]);
   const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [registriesLoading, setRegistriesLoading] = useState(false);
+  // Cadastros exigidos pelo RuleCalculationsEditor (mesma fonte usada na tela de Regras)
+  const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
+  const [specialCaseTypes, setSpecialCaseTypes] = useState<{ code: string; label: string }[]>([]);
+  const { list: paymentTypesList } = usePaymentTypes({ onlyActive: true });
+
+  const selectedModelCodes = useMemo(
+    () => paymentModels.filter((m) => paymentModelIds.includes(m.id)).map((m) => m.code),
+    [paymentModels, paymentModelIds],
+  );
+  // Produção/Remessa/Plantão/Hora trabalhada exigem o motor de cálculo completo
+  const showProductionBlock = useMemo(
+    () => selectedModelCodes.some((c) => PRODUCTION_LIKE_CODES.includes(c)),
+    [selectedModelCodes],
+  );
+  const showFixedValueBlock = useMemo(
+    () => selectedModelCodes.includes("valor_fixo"),
+    [selectedModelCodes],
+  );
+  // Contrato só de valor fixo não tem convênio, glosa nem via de acesso
+  const onlyFixedValue = showFixedValueBlock && !showProductionBlock;
+  const showGlosaBlock = !onlyFixedValue;
+  const canHaveMinGarantido = useMemo(
+    () => selectedModelCodes.some((c) => MIN_GARANTIDO_CODES.includes(c)),
+    [selectedModelCodes],
+  );
+
+  // Mínimo garantido só existe para produção/remessa: limpa ao desmarcar
+  useEffect(() => {
+    if (!canHaveMinGarantido && minGarantidoAtivo) setMinGarantidoAtivo(false);
+  }, [canHaveMinGarantido, minGarantidoAtivo]);
+
 
   // Reidrata o formulário sempre que abre (novo ou continuação de rascunho)
   useEffect(() => {
