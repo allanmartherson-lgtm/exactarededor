@@ -894,6 +894,96 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
   };
 
+  // ---- Pré-preenchimento a partir do Cadastro de Acordos (?acordo=&acordoHospital=)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const agreementLinkRef = useRef<{ agreementId: string; hospitalRowId: string } | null>(null);
+  const agreementPrefillRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const agreementId = searchParams.get("acordo");
+    const hospitalRowId = searchParams.get("acordoHospital");
+    if (!agreementId || !hospitalRowId) return;
+    const key = `${agreementId}:${hospitalRowId}`;
+    if (agreementPrefillRef.current === key) return;
+    agreementPrefillRef.current = key;
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registrations")
+        .select("*")
+        .eq("id", agreementId)
+        .maybeSingle();
+      if (error || !data) {
+        toast({ title: "Acordo não encontrado", description: error?.message, variant: "destructive" });
+        return;
+      }
+      const a = data as Record<string, any>;
+      const company = a.company_id
+        ? (await supabase.from("companies").select("id,name,document").eq("id", a.company_id).maybeSingle()).data
+        : null;
+
+      resetForm();
+      const pctRaw = a.payment_percentage;
+      const hasPct = pctRaw != null;
+      const pctStr = hasPct ? String(pctRaw) : "";
+      const calcType: RuleCalculationType = hasPct ? "percentual_sobre_convenio" : "informativo";
+
+      setFName(`Acordo ${a.code}${company?.name ? ` — ${company.name}` : ""}`);
+      setFActive(true);
+      setScope("especifica");
+      setTargetType("empresa");
+      setFTargetCompanyId(company?.id ?? null);
+      setFTargetName(company?.name ?? "");
+      setFTargetIdentifier(company?.document ?? "");
+      setFValidFrom(a.effective_from ?? "");
+      setFValidUntil(a.effective_to ?? "");
+      setFNature(hasPct ? "calculavel" : "informativo");
+      setFCalculationType(calcType);
+      setFConvenioPct(pctStr);
+      setFIncludeAux(!!a.includes_auxiliary);
+      setFApplyAccessRoute(!!a.includes_access_route);
+      setFRuleText(
+        [
+          a.payment_table_base ? `Tabela base: ${a.payment_table_base}` : null,
+          hasPct ? `Repasse: ${pctStr}%` : null,
+          a.has_glosa ? `Glosa: ${a.glosa_conditions ?? "sim"}` : null,
+          a.exclusions_notes ? `Exclusões: ${a.exclusions_notes}` : null,
+          a.free_notes ? `Observações: ${a.free_notes}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+      setFCalculations([
+        {
+          ...makeEmptyCalc(),
+          calculation_type: calcType,
+          convenio_percentage: pctStr,
+          include_auxiliaries: !!a.includes_auxiliary,
+          apply_access_route: !!a.includes_access_route,
+          adicional_urgencia_pct:
+            a.urgency_differentiation && a.urgency_addition_pct != null ? String(a.urgency_addition_pct) : "",
+          adicional_fds_pct:
+            a.weekend_holiday_addition && a.weekend_holiday_addition_pct != null
+              ? String(a.weekend_holiday_addition_pct)
+              : "",
+        },
+      ]);
+
+      agreementLinkRef.current = { agreementId, hospitalRowId };
+      setOpen(true);
+      toast({
+        title: `Regra pré-preenchida a partir do acordo ${a.code}`,
+        description: "Revise os cálculos antes de salvar — o acordo será vinculado à regra criada.",
+      });
+
+      const next = new URLSearchParams(searchParams);
+      next.delete("acordo");
+      next.delete("acordoHospital");
+      setSearchParams(next, { replace: true });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
     setEditingId(isDuplicate ? null : r.id);
     setEditingRuleId(isDuplicate ? null : r.id);
@@ -1120,6 +1210,30 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
         console.warn("[Rules] Falha ao persistir campos complementares da regra:", flagErr.message);
         throw new Error(`Regra salva, mas falhou ao persistir campos complementares: ${flagErr.message}`);
       }
+      }
+    }
+    // Vínculo com o Cadastro de Acordos: quando a regra nasce de um acordo
+    // aprovado, gravamos linked_rule_id no hospital de destino. O trigger do
+    // banco promove o acordo para "cadastrado" quando todos os hospitais têm regra.
+    if (savedId && !meta.wasEditing && agreementLinkRef.current) {
+      const link = agreementLinkRef.current;
+      const { error: linkErr } = await supabase
+        .from("agreement_registration_hospitals")
+        .update({ linked_rule_id: savedId })
+        .eq("id", link.hospitalRowId);
+      if (linkErr) {
+        toast({
+          title: "Regra salva, mas sem vínculo com o acordo",
+          description: linkErr.message,
+          variant: "destructive",
+        });
+      } else {
+        await supabase
+          .from("agreement_registrations")
+          .update({ analyst_id: user?.id ?? null, analyst_registered_at: new Date().toISOString() })
+          .eq("id", link.agreementId);
+        agreementLinkRef.current = null;
+        toast({ title: "Regra vinculada ao acordo", description: "O acordo foi atualizado com a regra criada." });
       }
     }
     // Correção B (2026-07-19): invalida snapshot de contexto do motor para
