@@ -66,6 +66,16 @@ export interface AgreementPartyRow {
   created_at: string;
 }
 
+/** Rascunho do cálculo montado pelo Contratos, no mesmo formato do editor de Regras. */
+export interface AgreementCalculationDraft {
+  items?: unknown[];
+  fixed_value?: {
+    amount?: string;
+    installments?: string;
+    periodicity?: string;
+  } | null;
+}
+
 export interface AgreementRegistration {
   id: string;
   code: string;
