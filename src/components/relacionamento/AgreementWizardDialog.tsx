@@ -637,9 +637,99 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 1 */}
         {step === 0 && (
-          <div className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="space-y-4">
+
+            {/* Tipo de comunicado + referência ao acordo anterior */}
+            <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+              <div className="space-y-1.5">
+                <Label>Tipo de comunicado</Label>
+                <SegmentedControl
+                  ariaLabel="Tipo de comunicado"
+                  value={registrationType}
+                  onValueChange={(v) => setRegistrationType(v as AgreementRegistrationType)}
+                  options={[
+                    { value: "novo_acordo", label: AGREEMENT_TYPE_LABEL.novo_acordo },
+                    { value: "aditivo", label: AGREEMENT_TYPE_LABEL.aditivo },
+                    { value: "retirada", label: AGREEMENT_TYPE_LABEL.retirada },
+                  ]}
+                />
+              </div>
+              {registrationType !== "novo_acordo" && (
+                <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                  <div className="space-y-1.5">
+                    <Label>Acordo de referência cadastrado no sistema</Label>
+                    <Popover open={relatedOpen} onOpenChange={setRelatedOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-normal"
+                        >
+                          {relatedAgreementId
+                            ? (relatedOptions.find((o) => o.id === relatedAgreementId)?.code ??
+                              "Acordo selecionado")
+                            : "Buscar acordo anterior (opcional)"}
+                          <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
+                          <CommandInput placeholder="Buscar por código ou clínica" />
+                          <CommandList>
+                            <CommandEmpty>Nenhum acordo cadastrado encontrado</CommandEmpty>
+                            <CommandGroup>
+                              {relatedOptions.map((o) => {
+                                const cName =
+                                  companies.find((c) => c.id === o.company_id)?.name ?? "";
+                                return (
+                                  <CommandItem
+                                    key={o.id}
+                                    value={`${o.code} ${cName}`}
+                                    onSelect={() => {
+                                      setRelatedAgreementId(o.id === relatedAgreementId ? null : o.id);
+                                      setRelatedOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        o.id === relatedAgreementId ? "opacity-100" : "opacity-0",
+                                      )}
+                                    />
+                                    <span className="flex-1">{o.code}</span>
+                                    <span className="text-xs text-muted-foreground">{cName}</span>
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-ref">Referência em texto livre (CIREL, ofício, e-mail)</Label>
+                    <Textarea
+                      id="acd-ref"
+                      rows={2}
+                      value={referenceNote}
+                      onChange={(e) => setReferenceNote(e.target.value)}
+                      placeholder="Ex.: CIREL 123/2024 — acordo firmado antes do sistema"
+                    />
+                    {/* Nem todo acordo antigo existe no sistema: texto livre é a saída válida */}
+                    <p className="text-xs text-muted-foreground">
+                      Informe ao menos uma das duas referências.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-sm">
 
             <div className="space-y-1.5">
+
               <Label>Clínica / grupo médico</Label>
               <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
                 <PopoverTrigger asChild>
