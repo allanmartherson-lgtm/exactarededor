@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1031,6 +1030,33 @@ function MultiPicker({
           </div>
         </ScrollArea>
       )}
+    </div>
+  );
+}
+
+// Campo booleano com rótulos "Não | Sim" sempre visíveis.
+// Switch puro obrigava o usuário a inferir o estado pela posição/cor.
+function BoolField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <span className="text-sm font-medium">{label}</span>
+      <SegmentedControl
+        ariaLabel={label}
+        value={value ? "sim" : "nao"}
+        onValueChange={(v) => onChange(v === "sim")}
+        options={[
+          { value: "nao", label: "Não" },
+          { value: "sim", label: "Sim" },
+        ]}
+      />
     </div>
   );
 }
