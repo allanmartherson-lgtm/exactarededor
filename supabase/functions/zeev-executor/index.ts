@@ -743,8 +743,45 @@ async function execApplyManualReason(
 
   // por segurança, não aplica em itens já tratados nem já acatados
   const items = await buildItemsQuery(sb, paymentId, scope);
-  const targets = items.filter((i) => !i.manual_intervention_reason_id && i.ai_status !== "acatado");
-  if (targets.length === 0) return { affected: 0, before: [], after: { reason_code: reason.code } };
+  const candidates = items.filter((i) => !i.manual_intervention_reason_id && i.ai_status !== "acatado");
+  if (candidates.length === 0) return { affected: 0, before: [], after: { reason_code: reason.code } };
+
+  // Estado financeiro dos candidatos: acate explícito já feito pelo usuário e
+  // existência de regra. Motivo aplicado em massa não pode passar por cima
+  // de nenhum dos dois.
+  const { data: state, error: stateErr } = await sb
+    .from("payment_items")
+    .select("id, applied_calc_method, gross_override_reason")
+    .in("id", candidates.map((c) => c.id));
+  if (stateErr) throw new Error(`apply_manual_reason (estado): ${stateErr.message}`);
+  const stateById = new Map(
+    (state ?? []).map((r: { id: string; applied_calc_method: string | null; gross_override_reason: string | null }) => [r.id, r]),
+  );
+
+  const skippedAccepted: string[] = [];
+  const skippedNoRule: string[] = [];
+  const targets = candidates.filter((c) => {
+    const st = stateById.get(c.id);
+    // Acate explícito do usuário prevalece sobre motivo aplicado em lote.
+    if (st?.gross_override_reason === "acatado_esperado" || st?.gross_override_reason === "acatado_pago") {
+      skippedAccepted.push(c.id);
+      return false;
+    }
+    // Item sem regra tem efeito financeiro direto: exige confirmação explícita.
+    if (!st?.applied_calc_method && payload.confirm_financial_impact !== true) {
+      skippedNoRule.push(c.id);
+      return false;
+    }
+    return true;
+  });
+
+  if (targets.length === 0) {
+    throw new Error(
+      skippedNoRule.length > 0
+        ? `Nenhum item aplicado: ${skippedNoRule.length} item(ns) estão SEM regra de cálculo — aplicar motivo neles tem efeito financeiro direto e exige confirmação explícita na tela do item.`
+        : `Nenhum item aplicado: ${skippedAccepted.length} item(ns) já têm marcação de acate feita pelo usuário e não podem ser sobrescritos em lote.`,
+    );
+  }
 
   const notes = String(payload.notes ?? `Aplicado em lote via Zeev — motivo "${reason.code}".`).trim();
   const nowIso = new Date().toISOString();
@@ -760,7 +797,15 @@ async function execApplyManualReason(
     })
     .in("id", targets.map((t) => t.id));
   if (error) throw new Error(`apply_manual_reason: ${error.message}`);
-  return { affected: targets.length, before, after: { reason_id: reason.id, reason_code: reason.code, notes } };
+  return {
+    affected: targets.length,
+    before,
+    skipped: {
+      ja_acatados: skippedAccepted.length,
+      sem_regra_sem_confirmacao: skippedNoRule.length,
+    },
+    after: { reason_id: reason.id, reason_code: reason.code, notes },
+  };
 }
 
 
@@ -1698,7 +1743,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[] };
+      let result: { affected: number; before: unknown; after: unknown; created_link_ids?: string[]; skipped?: unknown };
       if (p.action === "set_sector") {
         result = await execSetSector(sb, body.payment_id, p.scope, p.payload);
       } else if (p.action === "set_cost_center") {
@@ -1727,7 +1772,9 @@ Deno.serve(async (req) => {
       }
 
 
-      await sb.from("audit_log").insert({
+      // Auditoria é parte da execução, não "best effort": uma intervenção em
+      // massa sem rastro é falha grave. Se o insert falhar, a resposta falha alto.
+      const { error: auditErr } = await sb.from("audit_log").insert({
         entity_type: "payment",
         entity_id: body.payment_id,
         action: `zeev.${p.action}`,
@@ -1745,6 +1792,15 @@ Deno.serve(async (req) => {
           created_link_ids: result.created_link_ids ?? null,
         },
       });
+      if (auditErr) {
+        return jsonResp({
+          error:
+            `Ação aplicada em ${result.affected} itens, mas o registro de auditoria FALHOU (${auditErr.message}). ` +
+            `Avise o administrador — a intervenção precisa ser auditada manualmente.`,
+          audit_failed: true,
+          affected: result.affected,
+        }, 500);
+      }
 
       await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id);
 
@@ -1752,6 +1808,7 @@ Deno.serve(async (req) => {
         step: "executed",
         action: p.action,
         affected: result.affected,
+        skipped: (result as { skipped?: unknown }).skipped ?? null,
         message: `Aplicado em ${result.affected} ${result.affected === 1 ? "item" : "itens"}.`,
       });
     }
