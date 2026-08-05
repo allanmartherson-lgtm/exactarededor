@@ -1217,14 +1217,15 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
     // banco promove o acordo para "cadastrado" quando todos os hospitais têm regra.
     if (savedId && !meta.wasEditing && agreementLinkRef.current) {
       const link = agreementLinkRef.current;
-      const { error: linkErr } = await supabase
+      const { data: linked, error: linkErr } = await supabase
         .from("agreement_registration_hospitals")
         .update({ linked_rule_id: savedId })
-        .eq("id", link.hospitalRowId);
-      if (linkErr) {
+        .eq("id", link.hospitalRowId)
+        .select("id");
+      if (linkErr || !linked || linked.length === 0) {
         toast({
           title: "Regra salva, mas sem vínculo com o acordo",
-          description: linkErr.message,
+          description: linkErr?.message ?? "Sem permissão para gravar o vínculo neste hospital.",
           variant: "destructive",
         });
       } else {

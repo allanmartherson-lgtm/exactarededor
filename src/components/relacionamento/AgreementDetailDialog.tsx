@@ -135,7 +135,7 @@ export function AgreementDetailDialog({
       return;
     }
     setBusy(true);
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("agreement_registrations")
       .update({
         status: "aguardando_diretor",
@@ -143,9 +143,12 @@ export function AgreementDetailDialog({
         supervisor_validated_at: new Date().toISOString(),
         supervisor_notes: supervisorNotes.trim() || null,
       })
-      .eq("id", agreement.id);
+      .eq("id", agreement.id)
+      .select("id");
     setBusy(false);
     if (error) return toast.error("Falha ao encaminhar", { description: error.message });
+    if (!updated || updated.length === 0)
+      return toast.error("Sem permissão para encaminhar este acordo");
     toast.success("Enviado para aprovação dos diretores");
     await refresh();
   };
@@ -156,7 +159,7 @@ export function AgreementDetailDialog({
       return;
     }
     setBusy(true);
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("agreement_registrations")
       .update({
         status: "rascunho",
@@ -164,9 +167,12 @@ export function AgreementDetailDialog({
         supervisor_notes: supervisorNotes.trim(),
         supervisor_validated_at: null,
       })
-      .eq("id", agreement.id);
+      .eq("id", agreement.id)
+      .select("id");
     setBusy(false);
     if (error) return toast.error("Falha ao devolver", { description: error.message });
+    if (!updated || updated.length === 0)
+      return toast.error("Sem permissão para devolver este acordo");
     toast.success("Devolvido para Contratos");
     await refresh();
   };
@@ -178,7 +184,7 @@ export function AgreementDetailDialog({
       return;
     }
     setBusy(true);
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("agreement_registration_hospitals")
       .update({
         status: approve ? "aprovado" : "rejeitado",
@@ -187,9 +193,12 @@ export function AgreementDetailDialog({
         director_notes: approve ? note || null : null,
         rejection_reason: approve ? null : note,
       })
-      .eq("id", row.id);
+      .eq("id", row.id)
+      .select("id");
     setBusy(false);
     if (error) return toast.error("Falha ao registrar decisão", { description: error.message });
+    if (!updated || updated.length === 0)
+      return toast.error("Sem permissão para decidir sobre este hospital");
     toast.success(approve ? "Hospital aprovado" : "Acordo rejeitado");
     await refresh();
   };
