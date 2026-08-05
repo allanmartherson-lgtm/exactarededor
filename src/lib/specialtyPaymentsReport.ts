@@ -114,12 +114,17 @@ export function exportSpecialtyReportExcel(params: {
 export async function exportSpecialtyReportPdf(params: {
   filters: SpecialtyReportFilters;
   kpis: SpecialtyReportKpis;
+  months?: SpecialtyReportMonthRow[];
   rows: SpecialtyReportGroupRow[];
   groupByLabel: string;
+  /** PNG (data URL) do gráfico "Bruto por competência" capturado na tela. */
+  chartPng?: string;
 }) {
-  const { filters, kpis, rows, groupByLabel } = params;
+  const { filters, kpis, months = [], rows, groupByLabel, chartPng } = params;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const marginX = 12;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
   let y = await drawReportHeader(doc, {
     title: "Pagamentos por especialidade / PJ",
@@ -148,6 +153,38 @@ export async function exportSpecialtyReportPdf(params: {
   });
 
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+
+  // Evolução mês a mês: gráfico (quando capturado) + tabela de competências.
+  if (chartPng) {
+    try {
+      const props = doc.getImageProperties(chartPng);
+      const imgW = Math.min(pageWidth - marginX * 2, 180);
+      const imgH = (props.height / props.width) * imgW;
+      if (y + imgH > pageHeight - 15) {
+        doc.addPage();
+        y = 14;
+      }
+      doc.addImage(chartPng, "PNG", marginX, y, imgW, imgH);
+      y += imgH + 6;
+    } catch {
+      // gráfico é opcional — segue só com a tabela
+    }
+  }
+
+  if (months.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Competência", "Bruto", "Itens"]],
+      body: months.map((m) => [m.month, money(m.bruto), String(m.items)]),
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255 },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
+      margin: { left: marginX, right: marginX },
+      tableWidth: 120,
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  }
 
   autoTable(doc, {
     startY: y,
