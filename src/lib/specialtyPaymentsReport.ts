@@ -139,11 +139,12 @@ export async function exportSpecialtyReportPdf(params: {
   kpis: SpecialtyReportKpis;
   months?: SpecialtyReportMonthRow[];
   rows: SpecialtyReportGroupRow[];
+  convenios?: SpecialtyReportConvenioRow[];
   groupByLabel: string;
   /** PNG (data URL) do gráfico "Bruto por competência" capturado na tela. */
   chartPng?: string;
 }) {
-  const { filters, kpis, months = [], rows, groupByLabel, chartPng } = params;
+  const { filters, kpis, months = [], rows, convenios = [], groupByLabel, chartPng } = params;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const marginX = 12;
   const pageWidth = doc.internal.pageSize.getWidth();
