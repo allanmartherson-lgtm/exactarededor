@@ -35,8 +35,12 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
-import type { AgreementRegistration, ExtraItem } from "@/lib/agreementRegistrations";
-import { PAYMENT_TABLE_BASE_LABEL } from "@/lib/agreementRegistrations";
+import type {
+  AgreementRegistration,
+  AgreementRegistrationType,
+  ExtraItem,
+} from "@/lib/agreementRegistrations";
+import { AGREEMENT_TYPE_LABEL, PAYMENT_TABLE_BASE_LABEL } from "@/lib/agreementRegistrations";
 
 interface CompanyOption {
   id: string;
@@ -59,6 +63,20 @@ interface HospitalOption {
   id: string;
   name: string;
 }
+/** Acordo já cadastrado, usado como referência em aditivo/retirada. */
+interface RelatedAgreementOption {
+  id: string;
+  code: string;
+  company_id: string | null;
+}
+/** Linha da lista de PJs do acordo de equipe (antes de virar agreement_registration_parties). */
+interface PartyDraft {
+  key: string;
+  companyId: string | null;
+  allDoctors: boolean;
+  doctorIds: string[];
+}
+
 
 
 const STEPS = [
