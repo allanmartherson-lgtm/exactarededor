@@ -520,6 +520,22 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     [companies, companyId],
   );
 
+  // Habilitados = todos os vinculados menos os gravados em doctor_exceptions
+  const enabledDoctorIds = useMemo(
+    () => linkedDoctors.filter((d) => !doctorExceptions.includes(d.id)).map((d) => d.id),
+    [linkedDoctors, doctorExceptions],
+  );
+
+  // Desabilitar qualquer médico já desliga "todos os médicos" automaticamente
+  const setEnabledDoctorIds = useCallback(
+    (ids: string[]) => {
+      const excluded = linkedDoctors.filter((d) => !ids.includes(d.id)).map((d) => d.id);
+      setDoctorExceptions(excluded);
+      setAllDoctors(excluded.length === 0);
+    },
+    [linkedDoctors],
+  );
+
   // Dados mínimos da Etapa 1 para permitir exportar uma prévia do acordo
   const canExport = !!companyId && !!effectiveFrom;
 
