@@ -27,6 +27,9 @@ import { DoctorMissingSpecialtyPanel } from "@/components/doctors/DoctorMissingS
 import { DoctorLinkSuggestionsPanel } from "@/components/DoctorLinkSuggestionsPanel";
 import { CompanyLinkSuggestionsPanel } from "@/components/CompanyLinkSuggestionsPanel";
 import { DateInput } from "@/components/ui/date-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useSpecialties } from "@/hooks/useSpecialties";
 
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
