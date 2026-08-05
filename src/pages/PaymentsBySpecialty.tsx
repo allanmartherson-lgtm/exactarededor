@@ -1533,18 +1533,21 @@ export default function PaymentsBySpecialty() {
                 // Valores em milhões estouram o text-3xl padrão do KpiCard.
                 value={<span className="text-2xl">{money(kpis.bruto)}</span>}
                 tone="primary"
+                extra={renderDelta(kpis.bruto, prevTotals?.bruto, true)}
                 hint={`${monthLabel(fromMonth)} a ${monthLabel(toMonth)}`}
               />
               <KpiCard
                 className="h-full"
                 label={isPjView ? "Total líquido (PJ)" : "Total líquido (PJ/lote)"}
                 value={<span className="text-2xl">{money(kpis.liquido)}</span>}
+                extra={renderDelta(kpis.liquido, prevTotals?.liquido)}
                 hint={
                   isPjView
                     ? "Líquido total dessas PJs nos lotes do período — comparável ao bruto acima."
                     : "Líquido existe por lote × PJ; não é rateável por especialidade."
                 }
               />
+
               <KpiCard
                 className="h-full"
                 label="Valor em risco"
