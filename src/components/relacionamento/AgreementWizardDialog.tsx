@@ -503,9 +503,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           ))}
         </nav>
 
+        {/* Canvas do formulário: fundo suave para os cards de campos ganharem contraste */}
+        <section className="rounded-xl border border-border bg-muted/40 p-3 sm:p-4">
+
         {/* Etapa 1 */}
         {step === 0 && (
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+
             <div className="space-y-1.5">
               <Label>Clínica / grupo médico</Label>
               <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
