@@ -232,6 +232,59 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     };
   }, [open, record?.id]);
 
+  // PJs já vinculadas ao acordo (acordo de equipe)
+  useEffect(() => {
+    if (!open || !record?.id) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registration_parties")
+        .select("company_id,doctor_id")
+        .eq("agreement_id", record.id);
+      if (cancel) return;
+      if (error) {
+        toast.error("Falha ao carregar as PJs do acordo");
+        return;
+      }
+      const rows = data ?? [];
+      if (rows.length === 0) return;
+      const byCompany = new Map<string, PartyDraft>();
+      rows.forEach((r) => {
+        const cur =
+          byCompany.get(r.company_id) ??
+          { key: r.company_id, companyId: r.company_id, allDoctors: false, doctorIds: [] };
+        if (r.doctor_id) cur.doctorIds = [...cur.doctorIds, r.doctor_id];
+        else cur.allDoctors = true;
+        byCompany.set(r.company_id, cur);
+      });
+      setParties(Array.from(byCompany.values()));
+      setMultiParty(true);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, record?.id]);
+
+  // Acordos já cadastrados na unidade — referência para aditivo/retirada
+  useEffect(() => {
+    if (!open || !hospitalId) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registrations")
+        .select("id,code,company_id")
+        .eq("hospital_id", hospitalId)
+        .order("code", { ascending: false })
+        .limit(300);
+      if (cancel || error) return;
+      setRelatedOptions((data ?? []).filter((r) => r.id !== record?.id) as RelatedAgreementOption[]);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, hospitalId, record?.id]);
+
+
   useEffect(() => {
     if (!open || !hospitalId) return;
     let cancel = false;
