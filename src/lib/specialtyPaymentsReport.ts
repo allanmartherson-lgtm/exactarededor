@@ -20,6 +20,8 @@ export interface SpecialtyReportFilters {
   groupLabel: string;
   doctorLabel: string;
   companyLabel: string;
+  /** Tipos de pagamento (item_types) selecionados; "Todos" quando sem recorte. */
+  itemTypesLabel?: string;
 }
 
 export interface SpecialtyReportKpis {
@@ -58,6 +60,7 @@ function filterLines(f: SpecialtyReportFilters): string[] {
     `Grupo de análise: ${f.groupLabel}`,
     `Médico: ${f.doctorLabel}`,
     `PJ: ${f.companyLabel}`,
+    `Tipo de pagamento: ${f.itemTypesLabel ?? "Todos"}`,
   ];
 }
 
