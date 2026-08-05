@@ -3122,11 +3122,28 @@ export function analyzeItem(
     // Aceite financeiro = analista está aceitando o VALOR PAGO como esperado
     // (ex.: reajuste sem regra atualizada). Reclassificação clínica e demais
     // categorias mantêm o comportamento original (aceita valor do convênio).
-    const acceptsPaidAsExpected = category === "aceite_financeiro";
-    const expected = acceptsPaidAsExpected ? grossAmount : procAmount;
+    // Estratégia explícita do analista vence a inferência por categoria.
+    // Sem isso a reanálise disparada logo após o acate em massa reescrevia
+    // expected_amount = gross_amount, apagando a economia da análise.
+    const strategy = item.manual_value_strategy ?? null;
+    const currentExpected = item.current_expected_amount;
+    const acceptsPaidAsExpected =
+      strategy === null ? category === "aceite_financeiro" : strategy === "procedure" ? false : false;
+    let expected: number;
+    let baseLabelOverride: string | null = null;
+    if (strategy === "expected" || strategy === "custom") {
+      // Mantém o valor já gravado (regra ou customizado pelo analista).
+      expected = Number(currentExpected ?? procAmount);
+      baseLabelOverride =
+        strategy === "expected"
+          ? `Valor mantido da regra (R$ ${expected.toFixed(2)}) por escolha do analista.`
+          : `Valor customizado pelo analista (R$ ${expected.toFixed(2)}).`;
+    } else if (strategy === "procedure") {
+      expected = procAmount;
+    } else {
+      expected = category === "aceite_financeiro" ? grossAmount : procAmount;
+    }
 
-    // Mesmo em tratamento manual, queremos saber se EXISTE regra específica
-    // para o médico/PJ (mesmo informativa) — para que o usuário enxergue o
     // vínculo no card e não veja "Nenhuma regra específica casou". A regra
     // não muda o valor porque o analista fez aceite/intervenção manual.
     let matchedRuleId: string | null = null;
