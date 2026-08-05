@@ -812,6 +812,157 @@ export default function PaymentsBySpecialty() {
     matched: isPjView ? pjComputed.matched : computed.matched,
   };
 
+  // ---------------------------------------------------------------------
+  // Comparativo com o período imediatamente anterior de mesma duração.
+  // Não é ano a ano: a base só tem dados a partir de jan/2026, então o
+  // paralelo é com os N meses anteriores. Sem histórico suficiente antes do
+  // período selecionado, o comparativo simplesmente não aparece.
+  // ---------------------------------------------------------------------
+  const shiftMonth = (ym: string, delta: number) => {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const prevRange = useMemo(() => {
+    if (!fromMonth || !toMonth || fromMonth > toMonth) return null;
+    const [fy, fm] = fromMonth.split("-").map(Number);
+    const [ty, tm] = toMonth.split("-").map(Number);
+    const n = (ty - fy) * 12 + (tm - fm) + 1;
+    if (n <= 0) return null;
+    const prevTo = shiftMonth(fromMonth, -1);
+    const prevFrom = shiftMonth(fromMonth, -n);
+    const earliest = [...hospitalCompetences].sort()[0];
+    // Sem competência conhecida antes do recorte → não há comparativo possível.
+    if (!earliest || prevFrom < earliest) return null;
+    return { from: prevFrom, to: prevTo, months: n };
+  }, [fromMonth, toMonth, hospitalCompetences]);
+
+  const [prevItems, setPrevItems] = useState<ItemRow[]>([]);
+  const [prevFinancials, setPrevFinancials] = useState<FinancialRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!hospitalId || !prevRange) {
+        setPrevItems([]);
+        setPrevFinancials([]);
+        return;
+      }
+      try {
+        const rows = await fetchAggregatedItems(
+          hospitalId,
+          monthStart(prevRange.from),
+          monthEnd(prevRange.to),
+        );
+        if (cancelled) return;
+        setPrevItems(rows);
+
+        const paymentIds = Array.from(
+          new Set(rows.map((i) => i.payment_id).filter(Boolean) as string[]),
+        );
+        const fin: FinancialRow[] = [];
+        for (let i = 0; i < paymentIds.length; i += 200) {
+          const { data, error: fErr } = await supabase
+            .from("payment_company_financials")
+            .select("payment_id,company_id,liquido")
+            .in("payment_id", paymentIds.slice(i, i + 200));
+          if (fErr) throw fErr;
+          fin.push(...((data ?? []) as FinancialRow[]));
+        }
+        if (!cancelled) setPrevFinancials(fin);
+      } catch {
+        // Comparativo é informativo: falha aqui não pode derrubar o relatório.
+        if (!cancelled) {
+          setPrevItems([]);
+          setPrevFinancials([]);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId, prevRange, fetchAggregatedItems]);
+
+  /** Mesmo recorte de filtros do período atual, aplicado ao período anterior. */
+  const prevTotals = useMemo(() => {
+    if (!prevRange || prevItems.length === 0) return null;
+    const typeFilter = new Set(selectedItemTypes);
+    // No modo "PJ no período" o recorte é o conjunto de PJs da visão atual.
+    const companyScope = isPjView
+      ? new Set(computed.matched.map((i) => i.company_id).filter(Boolean) as string[])
+      : null;
+
+    const matched: ItemRow[] = [];
+    for (const it of prevItems) {
+      const typeKey = it.item_type_id ?? UNCLASSIFIED_TYPE;
+      if (typeFilter.size > 0 && !typeFilter.has(typeKey)) continue;
+
+      if (companyScope) {
+        if (!it.company_id || !companyScope.has(it.company_id)) continue;
+        matched.push(it);
+        continue;
+      }
+
+      if (!it.doctor_id) continue;
+      const byCompany = scope.companySet.size > 0 && it.company_id
+        ? scope.companySet.has(it.company_id)
+        : false;
+      const byDoctor = scope.doctorSet.size > 0 ? scope.doctorSet.has(it.doctor_id) : false;
+      if (scope.active && !byCompany && !byDoctor) continue;
+      if (selectedSpecialtiesNorm.length > 0 && !byCompany) {
+        const specs = doctorSpecialtiesNorm.get(it.doctor_id) ?? [];
+        if (!specs.some((s) => selectedSpecialtiesNorm.includes(s))) continue;
+      }
+      matched.push(it);
+    }
+
+    const pairs = new Set(
+      matched.filter((i) => i.payment_id && i.company_id).map((i) => `${i.payment_id}|${i.company_id}`),
+    );
+    return {
+      bruto: matched.reduce((s, i) => s + Number(i.gross_amount ?? 0), 0),
+      items: matched.reduce((s, i) => s + i.qty, 0),
+      liquido: prevFinancials
+        .filter((f) => pairs.has(`${f.payment_id}|${f.company_id}`))
+        .reduce((s, f) => s + Number(f.liquido ?? 0), 0),
+    };
+  }, [
+    prevRange,
+    prevItems,
+    prevFinancials,
+    selectedItemTypes,
+    isPjView,
+    computed.matched,
+    scope,
+    selectedSpecialtiesNorm,
+    doctorSpecialtiesNorm,
+  ]);
+
+  /** Texto de variação abaixo do valor do KPI — verde sobe, vermelho cai. */
+  const renderDelta = (current: number, previous: number | undefined, primary = false) => {
+    if (!prevRange || previous == null) return null;
+    // Base zero não tem variação percentual definida — mostra só o absoluto.
+    const pct = previous !== 0 ? ((current - previous) / Math.abs(previous)) * 100 : null;
+    const up = current >= previous;
+    const label = pct == null
+      ? "sem base no período anterior"
+      : `${up ? "+" : ""}${pct.toFixed(1)}% vs período anterior`;
+    const toneClass = primary
+      ? "text-primary-foreground/80"
+      : up
+        ? "text-success"
+        : "text-destructive";
+    return (
+      <span className={`text-xs font-medium ${toneClass}`}>
+        {label}
+        <span className={primary ? "" : "text-muted-foreground"}>
+          {" "}({monthLabel(prevRange.from)}{prevRange.months > 1 ? `–${monthLabel(prevRange.to)}` : ""})
+        </span>
+      </span>
+    );
+  };
+
+
+
   /**
    * Quebra por convênio do MESMO recorte já filtrado (período, especialidade,
    * tipo de pagamento, grupo, PJ/médico e modo de visão). A fonte é o campo
