@@ -949,7 +949,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 6 */}
         {step === 5 && (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 rounded-lg border border-border bg-card p-4 shadow-sm">
+
             <Label htmlFor="acd-notes">Observações livres</Label>
             <Textarea
               id="acd-notes"
