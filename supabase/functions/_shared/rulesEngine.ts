@@ -403,6 +403,12 @@ export interface ItemInput {
   manual_intervention_reason_category?: string | null;
   /** Origem: 'manual' (analista) | 'auto_parecer_report' (Fase 2). */
   manual_intervention_source?: string | null;
+  /** Estratégia de valor escolhida explicitamente pelo analista no acate em
+   *  massa: 'procedure' (valor do convênio) | 'expected' (mantém o valor da
+   *  regra) | 'custom' (valor já gravado no item). Quando preenchida, vence a
+   *  inferência por categoria do motivo — sem isso a reanálise sobrescrevia a
+   *  decisão humana adotando o valor pago. */
+  manual_value_strategy?: "procedure" | "expected" | "custom" | string | null;
 }
 
 export interface PaymentContext {

@@ -614,6 +614,7 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           calc_exception_skipped_calc_id,
           manual_intervention_reason_id,
           manual_intervention_source,
+          manual_value_strategy,
           manual_intervention_reason:manual_intervention_reasons!manual_intervention_reason_id(code,category),
           item_type_id,
           item_type_source,
@@ -897,6 +898,9 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
       manual_intervention_reason_code: ((it as any).manual_intervention_reason?.code) ?? null,
       manual_intervention_reason_category: ((it as any).manual_intervention_reason?.category) ?? null,
       manual_intervention_source: (it as any).manual_intervention_source ?? null,
+      // Escolha explícita do analista no acate em massa. Quando presente,
+      // vence a inferência por categoria do motivo (ver rulesEngine).
+      manual_value_strategy: (it as any).manual_value_strategy ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
