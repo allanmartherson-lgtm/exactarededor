@@ -888,7 +888,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 5 */}
         {step === 4 && (
-          <div className="space-y-3">
+          <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
             {extraItems.length === 0 && (
               <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 Nenhum item extra. Use o botão abaixo para adicionar pares rótulo/valor.
