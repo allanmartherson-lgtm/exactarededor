@@ -247,10 +247,23 @@ export default function PaymentsBySpecialty() {
     return () => { cancelled = true; };
   }, [hospitalId]);
 
+  // Enquanto o usuário não mexer nos seletores, o período padrão acompanha o
+  // último mês com dado real — o mês calendário de hoje pode não ter lançamento.
+  const [periodTouched, setPeriodTouched] = useState(false);
+
+  useEffect(() => {
+    if (periodTouched || hospitalCompetences.length === 0) return;
+    const sortedDesc = [...hospitalCompetences].sort((a, b) => b.localeCompare(a));
+    const latest = sortedDesc[0];
+    const earliest = sortedDesc[Math.min(5, sortedDesc.length - 1)];
+    setFromMonth(earliest);
+    setToMonth(latest);
+  }, [hospitalCompetences, periodTouched]);
+
   const competenceOptions = useMemo(() => {
     const set = new Set<string>([fromMonth, toMonth, ...hospitalCompetences]);
     items.forEach((i) => { if (i.item_competence) set.add(i.item_competence.slice(0, 7)); });
-    return Array.from(set).filter(Boolean).sort((a, b) => b.localeCompare(a));
+    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [fromMonth, toMonth, hospitalCompetences, items]);
 
 
@@ -939,7 +952,7 @@ export default function PaymentsBySpecialty() {
             <div className="flex flex-wrap items-center gap-2">
               {/* Competência de/até — Select com as competências existentes
                   (mesmo componente e mesmo formatCompetence da tela Pagamentos). */}
-              <Select value={fromMonth} onValueChange={setFromMonth}>
+              <Select value={fromMonth} onValueChange={(v) => { setPeriodTouched(true); setFromMonth(v); }}>
                 <SelectTrigger className="w-[190px]">
                   <SelectValue placeholder="Competência inicial">
                     {`De: ${formatCompetence(`${fromMonth}-01`)}`}
@@ -953,7 +966,7 @@ export default function PaymentsBySpecialty() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={toMonth} onValueChange={setToMonth}>
+              <Select value={toMonth} onValueChange={(v) => { setPeriodTouched(true); setToMonth(v); }}>
                 <SelectTrigger className="w-[190px]">
                   <SelectValue placeholder="Competência final">
                     {`Até: ${formatCompetence(`${toMonth}-01`)}`}
