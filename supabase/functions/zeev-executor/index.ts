@@ -1166,7 +1166,10 @@ async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Act
   }
 
   if (action === "accept_keep_paid" || action === "accept_keep_expected" || action === "apply_manual_reason") {
-    const filtered = items.filter((i) => !i.manual_intervention_reason_id);
+    // Itens já tratados manualmente CONTINUAM elegíveis para reacate/retratamento —
+    // o filtro por status já tira os que estão 'acatado'. Excluí-los aqui fazia
+    // lotes grandes já tocados devolverem "0 itens afetados".
+    const filtered = items;
     return {
       count: filtered.length,
       samples: filtered.slice(0, 3).map((i) => ({
