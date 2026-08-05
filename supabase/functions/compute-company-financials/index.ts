@@ -291,6 +291,8 @@ Deno.serve(async (req) => {
         p_payment_id: payment_id,
         p_company_id: company_id,
         p_bruto: bruto,
+        p_reprovados: reprovados,
+
         p_debitos: round2(debitos),
         p_creditos: round2(creditos),
         p_glosas: glosas,
