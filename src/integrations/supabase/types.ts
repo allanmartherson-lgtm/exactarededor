@@ -171,6 +171,52 @@ export type Database = {
           },
         ]
       }
+      agreement_registration_parties: {
+        Row: {
+          agreement_id: string
+          company_id: string
+          created_at: string
+          doctor_id: string | null
+          id: string
+        }
+        Insert: {
+          agreement_id: string
+          company_id: string
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+        }
+        Update: {
+          agreement_id?: string
+          company_id?: string
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreement_registration_parties_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "agreement_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registration_parties_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registration_parties_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agreement_registrations: {
         Row: {
           analyst_id: string | null
@@ -203,7 +249,10 @@ export type Database = {
           payment_percentage: number | null
           payment_table_base: string | null
           pdf_url: string | null
+          reference_note: string | null
+          registration_type: string
           rejection_reason: string | null
+          related_agreement_id: string | null
           status: string
           supervisor_id: string | null
           supervisor_notes: string | null
@@ -245,7 +294,10 @@ export type Database = {
           payment_percentage?: number | null
           payment_table_base?: string | null
           pdf_url?: string | null
+          reference_note?: string | null
+          registration_type?: string
           rejection_reason?: string | null
+          related_agreement_id?: string | null
           status?: string
           supervisor_id?: string | null
           supervisor_notes?: string | null
@@ -287,7 +339,10 @@ export type Database = {
           payment_percentage?: number | null
           payment_table_base?: string | null
           pdf_url?: string | null
+          reference_note?: string | null
+          registration_type?: string
           rejection_reason?: string | null
+          related_agreement_id?: string | null
           status?: string
           supervisor_id?: string | null
           supervisor_notes?: string | null
@@ -326,6 +381,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rules_pending_doctors_summary"
             referencedColumns: ["rule_id"]
+          },
+          {
+            foreignKeyName: "agreement_registrations_related_agreement_id_fkey"
+            columns: ["related_agreement_id"]
+            isOneToOne: false
+            referencedRelation: "agreement_registrations"
+            referencedColumns: ["id"]
           },
         ]
       }
