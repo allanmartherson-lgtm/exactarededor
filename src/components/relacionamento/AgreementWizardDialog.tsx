@@ -767,9 +767,16 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       description={`Etapa ${step + 1} de ${STEPS.length} — ${STEPS[step]}${hospital ? ` · ${hospital.name}` : ""}`}
       footer={
         <>
+          <AgreementExportButtons
+            size="default"
+            getModel={buildExportModel}
+            disabled={!canExport || saving}
+            disabledHint="Preencha a clínica e o início da vigência para exportar"
+          />
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Fechar
           </Button>
+
           <Button
             type="button"
             variant="outline"
