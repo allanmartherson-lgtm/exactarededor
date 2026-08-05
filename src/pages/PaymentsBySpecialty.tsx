@@ -5,7 +5,7 @@
 // payment_items.specialty é texto livre digitado pelo analista e só aparece
 // como coluna informativa na aba de auditoria — nunca como base de cálculo
 // ou de filtro.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospital } from "@/contexts/HospitalContext";
 import { useSpecialties } from "@/hooks/useSpecialties";
@@ -913,8 +913,10 @@ export default function PaymentsBySpecialty() {
       await exportSpecialtyReportPdf({
         filters: filtersSummary,
         kpis,
+        months: view.months,
         rows: view.rows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
+        chartPng: await captureChartPng(),
       });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Falha ao exportar PDF");
@@ -1292,7 +1294,7 @@ export default function PaymentsBySpecialty() {
                   Valores em reais sobre cada barra; passe o mouse para o valor exato.
                 </p>
               </div>
-              <div className="h-72">
+              <div className="h-72" ref={chartRef}>
                 {view.months.length === 0 ? (
                   <div className="h-full grid place-items-center text-sm text-muted-foreground">
                     Sem dados no recorte selecionado.
