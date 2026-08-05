@@ -975,6 +975,18 @@ export default function PaymentsBySpecialty() {
                 options={specialtyRows.map((s) => ({ value: s.name, label: s.name }))}
               />
 
+              {/* Tipo de pagamento — item_types (campo curado, FK). Evita
+                  somar ambulatório/consulta junto com visita, parecer e cirurgia. */}
+              <MultiSelectPopover
+                width="w-[230px]"
+                placeholder="Todos os tipos"
+                allLabel="Todos os tipos"
+                values={selectedItemTypes}
+                onChange={setSelectedItemTypes}
+                options={itemTypeOptions}
+              />
+
+
               <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Grupo de análise" />
