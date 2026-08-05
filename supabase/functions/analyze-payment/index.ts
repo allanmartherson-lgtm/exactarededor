@@ -897,7 +897,6 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
       manual_intervention_reason_code: ((it as any).manual_intervention_reason?.code) ?? null,
       manual_intervention_reason_category: ((it as any).manual_intervention_reason?.category) ?? null,
       manual_intervention_source: (it as any).manual_intervention_source ?? null,
-      manual_intervention_source: (it as any).manual_intervention_source ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
