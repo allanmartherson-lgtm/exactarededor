@@ -1555,7 +1555,13 @@ export default function PaymentsBySpecialty() {
                 tone={valorEmRisco > 0 ? "warning" : undefined}
                 hint={`${kpis.bruto > 0 ? ((valorEmRisco / kpis.bruto) * 100).toFixed(1) : "0.0"}% do bruto — glosas ativas das PJs do recorte.`}
               />
-              <KpiCard className="h-full" label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
+              <KpiCard
+                className="h-full"
+                label="Itens"
+                value={kpis.items.toLocaleString("pt-BR")}
+                extra={renderDelta(kpis.items, prevTotals?.items)}
+                hint="No recorte atual"
+              />
               <KpiCard className="h-full" label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
               <KpiCard className="h-full" label="Médicos" value={kpis.doctors} hint="Com pagamento no recorte" />
             </div>
