@@ -2044,7 +2044,6 @@ const NewPayment = () => {
           : fresh.rows,
       };
 
-      };
       setBuckets((prevBuckets) => prevBuckets.map((b, i) => (i === idx ? merged : b)));
       toast({
         title: "Arquivo substituído",
