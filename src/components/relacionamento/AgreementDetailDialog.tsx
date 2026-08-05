@@ -315,6 +315,14 @@ export function AgreementDetailDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {/* Exportação disponível em qualquer etapa, para validação externa antes da formalização */}
+        <div className="flex flex-wrap justify-end gap-2">
+          <AgreementExportButtons
+            getModel={() => buildAgreementExportModel(agreement, hospitals, events)}
+          />
+        </div>
+
+
         <div className="space-y-5">
           {/* Linha do tempo */}
           <div className="rounded-lg border border-border p-3">
