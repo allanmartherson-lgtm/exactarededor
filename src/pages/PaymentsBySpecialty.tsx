@@ -232,6 +232,26 @@ export default function PaymentsBySpecialty() {
     return () => { cancelled = true; };
   }, []);
 
+  // Cadastro de convênios do hospital: usado só para exibir o NOME do convênio
+  // a partir do slug curado gravado no item (convenios é escopado por hospital).
+  const [convenioNameBySlug, setConvenioNameBySlug] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!hospitalId) { setConvenioNameBySlug(new Map()); return; }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("convenios")
+        .select("slug,name")
+        .eq("hospital_id", hospitalId);
+      if (cancelled) return;
+      const rows = (data ?? []) as { slug: string; name: string | null }[];
+      setConvenioNameBySlug(new Map(rows.map((r) => [r.slug, r.name || r.slug])));
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+
+
 
   /**
    * Competências disponíveis para os selects de período. Mesma fonte usada
