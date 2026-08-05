@@ -777,11 +777,14 @@ export const stripPaymentTypeTerms = (name: string): string => {
   let out = name;
   for (const re of PAYMENT_TYPE_PATTERNS) out = out.replace(re, " ");
   // limpa separadores órfãos deixados pelo recorte ("Cabral Lenza - - 2026")
-  out = out
-    .replace(/\s+/g, " ")
-    .replace(/(^|\s)[-–—_/|]+(\s|$)/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  out = out.replace(/\s+/g, " ");
+  // laço: separadores adjacentes ("X - - Y") exigem mais de uma passada
+  let prev = "";
+  while (prev !== out) {
+    prev = out;
+    out = out.replace(/(^|\s)[-–—_/|]+(\s|$)/g, " ").replace(/\s+/g, " ");
+  }
+  out = out.trim();
   return out || name.trim();
 };
 
