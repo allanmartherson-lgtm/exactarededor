@@ -85,9 +85,10 @@ export function exportSpecialtyReportExcel(params: {
   kpis: SpecialtyReportKpis;
   months: SpecialtyReportMonthRow[];
   rows: SpecialtyReportGroupRow[];
+  convenios?: SpecialtyReportConvenioRow[];
   groupByLabel: string;
 }) {
-  const { filters, kpis, months, rows, groupByLabel } = params;
+  const { filters, kpis, months, rows, convenios = [], groupByLabel } = params;
   const wb = XLSX.utils.book_new();
 
   const resumo: (string | number)[][] = [
@@ -119,8 +120,19 @@ export function exportSpecialtyReportExcel(params: {
   wsDetalhe["!cols"] = [{ wch: 44 }, { wch: 24 }, { wch: 40 }, { wch: 10 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, wsDetalhe, "Detalhado");
 
+  if (convenios.length > 0) {
+    const porConvenio: (string | number)[][] = [
+      ["Convênio", "Itens", "Bruto", "% do total"],
+      ...convenios.map((c) => [c.label, c.items, c.bruto, `${c.pct.toFixed(1)}%`]),
+    ];
+    const wsConvenio = XLSX.utils.aoa_to_sheet(porConvenio);
+    wsConvenio["!cols"] = [{ wch: 44 }, { wch: 10 }, { wch: 18 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, wsConvenio, "Por convênio");
+  }
+
   XLSX.writeFile(wb, `pagamentos-por-especialidade-${Date.now()}.xlsx`);
 }
+
 
 export async function exportSpecialtyReportPdf(params: {
   filters: SpecialtyReportFilters;
