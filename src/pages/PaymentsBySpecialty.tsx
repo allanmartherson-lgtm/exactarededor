@@ -247,10 +247,23 @@ export default function PaymentsBySpecialty() {
     return () => { cancelled = true; };
   }, [hospitalId]);
 
+  // Enquanto o usuário não mexer nos seletores, o período padrão acompanha o
+  // último mês com dado real — o mês calendário de hoje pode não ter lançamento.
+  const [periodTouched, setPeriodTouched] = useState(false);
+
+  useEffect(() => {
+    if (periodTouched || hospitalCompetences.length === 0) return;
+    const sortedDesc = [...hospitalCompetences].sort((a, b) => b.localeCompare(a));
+    const latest = sortedDesc[0];
+    const earliest = sortedDesc[Math.min(5, sortedDesc.length - 1)];
+    setFromMonth(earliest);
+    setToMonth(latest);
+  }, [hospitalCompetences, periodTouched]);
+
   const competenceOptions = useMemo(() => {
     const set = new Set<string>([fromMonth, toMonth, ...hospitalCompetences]);
     items.forEach((i) => { if (i.item_competence) set.add(i.item_competence.slice(0, 7)); });
-    return Array.from(set).filter(Boolean).sort((a, b) => b.localeCompare(a));
+    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [fromMonth, toMonth, hospitalCompetences, items]);
 
 
