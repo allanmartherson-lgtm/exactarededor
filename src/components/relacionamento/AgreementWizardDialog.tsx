@@ -260,7 +260,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         return;
       }
       const rows = data ?? [];
-      if (rows.length === 0) return;
+      if (rows.length === 0) {
+        setPartiesLoaded(true);
+        return;
+      }
       const byCompany = new Map<string, PartyDraft>();
       rows.forEach((r) => {
         const cur =
@@ -272,6 +275,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       });
       setParties(Array.from(byCompany.values()));
       setMultiParty(true);
+      setPartiesLoaded(true);
     })();
     return () => {
       cancel = true;
