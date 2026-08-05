@@ -705,12 +705,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 2 */}
         {step === 1 && (
-          <div className="space-y-5">
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Aplica-se a todos os convênios: sim/não
-                <Switch checked={allConvenios} onCheckedChange={setAllConvenios} />
-              </label>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Aplica-se a todos os convênios"
+                value={allConvenios}
+                onChange={setAllConvenios}
+              />
               {!allConvenios && (
                 <MultiPicker
                   emptyLabel="Nenhum convênio ativo nesta unidade"
@@ -722,14 +723,19 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Aplica-se a todos os médicos da clínica: sim/não
-                <Switch checked={allDoctors} onCheckedChange={setAllDoctors} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Aplica-se a todos os médicos da clínica"
+                value={allDoctors}
+                onChange={setAllDoctors}
+              />
               {!allDoctors && (
                 <MultiPicker
-                  emptyLabel="Nenhum médico vinculado a esta clínica (doctor_companies)"
+                  emptyLabel={
+                    doctorsLoading
+                      ? "Carregando médicos da clínica..."
+                      : "Nenhum médico vinculado a esta clínica (doctor_companies)"
+                  }
                   options={linkedDoctors.map((d) => ({
                     id: d.id,
                     label: `${d.full_name}${d.crm ? ` — CRM ${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : ""}`,
@@ -742,17 +748,24 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm font-medium">
-                Inclusão de auxiliar: sim/não
-                <Switch checked={includesAuxiliary} onCheckedChange={setIncludesAuxiliary} />
-              </label>
-              <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm font-medium">
-                Inclusão de via de acesso: sim/não
-                <Switch checked={includesAccessRoute} onCheckedChange={setIncludesAccessRoute} />
-              </label>
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <BoolField
+                  label="Inclusão de auxiliar"
+                  value={includesAuxiliary}
+                  onChange={setIncludesAuxiliary}
+                />
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <BoolField
+                  label="Inclusão de via de acesso"
+                  value={includesAccessRoute}
+                  onChange={setIncludesAccessRoute}
+                />
+              </div>
             </div>
           </div>
         )}
+
 
         {/* Etapa 3 */}
         {step === 2 && (
