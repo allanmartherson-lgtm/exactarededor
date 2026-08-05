@@ -1548,6 +1548,50 @@ export default function PaymentsBySpecialty() {
               </div>
             </div>
 
+            {/* ---------------- Por convênio ---------------- */}
+            <div className="rounded-2xl border border-border/60 bg-card p-6">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Por convênio
+                </h2>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Convênio curado do item (não é texto livre). Mesmo recorte de filtros do relatório;
+                  % calculado sobre o bruto do período filtrado.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/60 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Convênio</TableHead>
+                      <TableHead className="w-24 text-right">Itens</TableHead>
+                      <TableHead className="w-36 text-right">Bruto</TableHead>
+                      <TableHead className="w-28 text-right">% do total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {convenioRows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">
+                          Sem itens no recorte selecionado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {convenioRows.map((c) => (
+                      <TableRow key={c.key} className={c.key === "__sem_convenio__" ? "bg-warning/10" : undefined}>
+                        <TableCell className="font-medium">{c.label}</TableCell>
+                        <TableCell className="text-right tabular-nums">{c.items}</TableCell>
+                        <TableCell className="text-right tabular-nums">{money(c.bruto)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{c.pct.toFixed(1)}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+
+
           </>
         )}
       </div>
