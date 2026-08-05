@@ -21,6 +21,7 @@ import {
   FileDown,
   Loader2,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -30,6 +31,7 @@ import {
   PAYMENT_TABLE_BASE_LABEL,
   buildAgreementTimeline,
   buildSupervisorChecklist,
+  type AgreementEventRow,
   type AgreementFlowFields,
   type AgreementHospitalRow,
   type AgreementRegistration,
@@ -44,6 +46,8 @@ interface Props {
   agreement: FullAgreement | null;
   companyName?: string;
   onChanged: () => void;
+  /** Reabre o wizard editável para o Setor de Contratos corrigir o acordo. */
+  onEdit?: (agreement: FullAgreement) => void;
 }
 
 const fmtDate = (v: string | null | undefined) =>
@@ -67,12 +71,15 @@ export function AgreementDetailDialog({
   agreement,
   companyName,
   onChanged,
+  onEdit,
 }: Props) {
   const { hasRole, user } = useAuth();
   const { hospital, availableHospitals, switchHospital } = useHospital();
   const navigate = useNavigate();
 
   const [hospitals, setHospitals] = useState<AgreementHospitalRow[]>([]);
+  const [events, setEvents] = useState<AgreementEventRow[]>([]);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [supervisorNotes, setSupervisorNotes] = useState("");
@@ -92,13 +99,46 @@ export function AgreementDetailDialog({
   const load = useCallback(async () => {
     if (!agreement) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("agreement_registration_hospitals")
-      .select("*")
-      .eq("agreement_id", agreement.id)
-      .order("is_primary", { ascending: false });
+    const [{ data, error }, { data: evs, error: evErr }] = await Promise.all([
+      supabase
+        .from("agreement_registration_hospitals")
+        .select("*")
+        .eq("agreement_id", agreement.id)
+        .order("is_primary", { ascending: false }),
+      supabase
+        .from("agreement_registration_events")
+        .select("*")
+        .eq("agreement_id", agreement.id)
+        .order("created_at", { ascending: true }),
+    ]);
     if (error) toast.error("Falha ao carregar hospitais do acordo", { description: error.message });
+    if (evErr) toast.error("Falha ao carregar o histórico do acordo", { description: evErr.message });
     setHospitals((data ?? []) as unknown as AgreementHospitalRow[]);
+    setEvents((evs ?? []) as unknown as AgreementEventRow[]);
+
+    // Nomes dos diretores/autores para exibir na rejeição e no histórico
+    const ids = Array.from(
+      new Set(
+        [
+          ...(data ?? []).map((r) => (r as { director_id: string | null }).director_id),
+          ...(evs ?? []).map((r) => (r as { actor_id: string | null }).actor_id),
+        ].filter((v): v is string => !!v),
+      ),
+    );
+    if (ids.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => {
+        const row = p as { id: string; full_name: string | null; email: string | null };
+        map[row.id] = row.full_name || row.email || row.id;
+      });
+      setUserNames(map);
+    } else {
+      setUserNames({});
+    }
     setLoading(false);
   }, [agreement]);
 
@@ -115,8 +155,12 @@ export function AgreementDetailDialog({
     [agreement, hospitals],
   );
   const timeline = useMemo(
-    () => (agreement ? buildAgreementTimeline(agreement, hospitals) : []),
-    [agreement, hospitals],
+    () => (agreement ? buildAgreementTimeline(agreement, hospitals, events, hospitalNames) : []),
+    [agreement, hospitals, events, hospitalNames],
+  );
+  const rejectedRows = useMemo(
+    () => hospitals.filter((h) => h.status === "rejeitado"),
+    [hospitals],
   );
   const blockingIssues = checklist.filter((c) => c.required && !c.ok);
   const allConfirmed = checklist.every((c) => checked[c.key]);
@@ -176,6 +220,21 @@ export function AgreementDetailDialog({
       return toast.error("Sem permissão para devolver este acordo");
     toast.success("Devolvido para Contratos");
     await refresh();
+  };
+
+  // Reabertura do ciclo: o Contratos corrige os dados no wizard e o acordo
+  // volta para o supervisor. A limpeza das decisões e o log ficam na RPC.
+  const canResubmit =
+    agreement.status === "rejeitado" &&
+    (agreement.filled_by === user?.id || isAnalyst || isSupervisor || hasRole("admin"));
+
+  const correctAndResubmit = () => {
+    if (!onEdit) {
+      toast.error("Edição indisponível nesta tela");
+      return;
+    }
+    onEdit(agreement);
+    onOpenChange(false);
   };
 
   const decideHospital = async (row: AgreementHospitalRow, approve: boolean) => {
@@ -294,6 +353,52 @@ export function AgreementDetailDialog({
               })}
             </ol>
           </div>
+
+          {/* Rejeição: motivo por hospital + reabertura pelo Contratos */}
+          {agreement.status === "rejeitado" && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+              <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                <XCircle className="h-4 w-4" />
+                Acordo rejeitado
+              </p>
+              {rejectedRows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {agreement.rejection_reason ?? "Motivo não informado."}
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {rejectedRows.map((row) => (
+                    <li key={row.id} className="text-xs">
+                      <span className="font-medium">
+                        {hospitalNames.get(row.hospital_id) ?? row.hospital_id}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {" — "}
+                        {row.director_id ? userNames[row.director_id] ?? "Diretor" : "Diretor"}
+                        {fmtDateTime(row.director_approved_at)
+                          ? ` em ${fmtDateTime(row.director_approved_at)}`
+                          : ""}
+                      </span>
+                      <p className="text-destructive break-words">
+                        Motivo: {row.rejection_reason ?? row.director_notes ?? "não informado"}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {canResubmit && (
+                <div className="pt-1">
+                  <Button type="button" size="sm" onClick={correctAndResubmit} disabled={busy}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Corrigir e reenviar
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    O acordo reabre para edição e volta ao ciclo completo (supervisor → diretores).
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Resumo read-only */}
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">

@@ -52,11 +52,15 @@ const fmtDate = (v: string | null) =>
   v ? new Date(`${v}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 
 export default function AgreementRegistrations() {
-  const { hospital, loading: hospitalLoading } = useHospital();
+  const { hospital, availableHospitals, loading: hospitalLoading } = useHospital();
   const { hospitalId, ensure } = useRequireHospital();
 
   const [rows, setRows] = useState<AgreementRegistration[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
+  // Motivos de rejeição por acordo, para exibir direto na listagem
+  const [rejections, setRejections] = useState<
+    Record<string, { hospitalId: string; reason: string }[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -113,9 +117,35 @@ export default function AgreementRegistrations() {
         };
         byId.set(row.id, row);
       });
-      setRows(
-        Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
+      const list = Array.from(byId.values()).sort((a, b) =>
+        a.created_at < b.created_at ? 1 : -1,
       );
+      setRows(list);
+
+      const rejectedIds = list.filter((r) => r.status === "rejeitado").map((r) => r.id);
+      if (rejectedIds.length > 0) {
+        const { data: rejRows } = await supabase
+          .from("agreement_registration_hospitals")
+          .select("agreement_id,hospital_id,rejection_reason,director_notes")
+          .in("agreement_id", rejectedIds)
+          .eq("status", "rejeitado");
+        const rej: Record<string, { hospitalId: string; reason: string }[]> = {};
+        (rejRows ?? []).forEach((r) => {
+          const row = r as {
+            agreement_id: string;
+            hospital_id: string;
+            rejection_reason: string | null;
+            director_notes: string | null;
+          };
+          (rej[row.agreement_id] ??= []).push({
+            hospitalId: row.hospital_id,
+            reason: row.rejection_reason ?? row.director_notes ?? "Motivo não informado",
+          });
+        });
+        setRejections(rej);
+      } else {
+        setRejections({});
+      }
       const map: Record<string, string> = {};
       comps.forEach((c) => (map[c.id] = c.name));
       setCompanies(map);
@@ -126,6 +156,12 @@ export default function AgreementRegistrations() {
       setLoading(false);
     }
   }, [hospitalId]);
+
+  const hospitalNames = useMemo(() => {
+    const m = new Map<string, string>();
+    availableHospitals.forEach((h) => m.set(h.id, h.name));
+    return m;
+  }, [availableHospitals]);
 
   // Mantém o registro aberto no detalhe sincronizado após cada recarga.
   useEffect(() => {
@@ -323,6 +359,16 @@ export default function AgreementRegistrations() {
                         <Badge variant={AGREEMENT_STATUS_VARIANT[r.status] ?? "secondary"}>
                           {AGREEMENT_STATUS_LABEL[r.status] ?? r.status}
                         </Badge>
+                        {r.status === "rejeitado" &&
+                          (rejections[r.id] ?? []).map((rej, i) => (
+                            <p
+                              key={`${r.id}-${i}`}
+                              className="mt-1 text-[11px] text-destructive line-clamp-2"
+                              title={rej.reason}
+                            >
+                              {hospitalNames.get(rej.hospitalId) ?? "Hospital"}: {rej.reason}
+                            </p>
+                          ))}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button type="button" variant="outline" size="sm" onClick={() => openRecord(r)}>
@@ -370,6 +416,10 @@ export default function AgreementRegistrations() {
         companyName={detail?.company_id ? companies[detail.company_id] : undefined}
         onChanged={() => {
           void load();
+        }}
+        onEdit={(a) => {
+          setEditing(a);
+          setWizardOpen(true);
         }}
       />
 
