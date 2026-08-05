@@ -802,7 +802,10 @@ export default function PaymentsBySpecialty() {
         {(() => {
           const advancedCount = [!!selectedDoctorId, !!selectedCompanyId].filter(Boolean).length;
           const anyActive =
-            advancedCount > 0 || selectedSpecialties.length > 0 || selectedGroupId !== "all";
+            advancedCount > 0 ||
+            selectedSpecialties.length > 0 ||
+            selectedItemTypes.length > 0 ||
+            selectedGroupId !== "all";
 
           const advancedFilters = (
             <div className="grid grid-cols-1 gap-3 w-full">
