@@ -274,7 +274,6 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     setEditing(empty);
     setLinkHospitalId(activeHospital?.id ?? "");
     setEditingCompanyIds([]);
-    setSpecInput("");
     setCompanySearch("");
     setOpen(true);
   };
@@ -284,7 +283,6 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     const hid = activeHospital?.id ?? "";
     setLinkHospitalId(hid);
     setEditingCompanyIds(linksByDoctorHospital.get(`${d.id}|${hid}`) ?? []);
-    setSpecInput("");
     setCompanySearch("");
     setOpen(true);
     // Dados sensíveis (CPF, nascimento, telefone, e-mail) só via RPC restrita a admin/diretor
