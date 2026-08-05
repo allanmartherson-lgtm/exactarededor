@@ -13,13 +13,13 @@ import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
 import { formatCNPJ } from "@/lib/cnpj";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MultiSelectPopover } from "@/components/ui/MultiSelectPopover";
+import { formatCompetence } from "@/lib/status";
 import {
   Select,
   SelectContent,
@@ -47,7 +47,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-import { BarChart3, Download, FileText, Search, X } from "lucide-react";
+import { BarChart3, Download, FileText, Search, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   exportSpecialtyReportExcel,
@@ -184,6 +184,41 @@ export default function PaymentsBySpecialty() {
   const [financials, setFinancials] = useState<FinancialRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Competências disponíveis para os selects de período. Mesma fonte usada
+   * pela tela de Pagamentos (payments_global_stats) para manter os rótulos
+   * idênticos; unimos as competências dos itens já carregados e os valores
+   * atuais para nunca perder uma opção selecionada.
+   */
+  const [hospitalCompetences, setHospitalCompetences] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!hospitalId) { setHospitalCompetences([]); return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data, error: rpcErr } = await supabase.rpc("payments_global_stats");
+        if (rpcErr) throw rpcErr;
+        const payload = (data ?? {}) as { competences?: string[] };
+        if (!cancelled) {
+          setHospitalCompetences(
+            Array.isArray(payload.competences) ? payload.competences.map((c) => String(c).slice(0, 7)) : [],
+          );
+        }
+      } catch {
+        if (!cancelled) setHospitalCompetences([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+  const competenceOptions = useMemo(() => {
+    const set = new Set<string>([fromMonth, toMonth, ...hospitalCompetences]);
+    items.forEach((i) => { if (i.item_competence) set.add(i.item_competence.slice(0, 7)); });
+    return Array.from(set).filter(Boolean).sort((a, b) => b.localeCompare(a));
+  }, [fromMonth, toMonth, hospitalCompetences, items]);
+
 
   /**
    * Itens do período, já somados no banco pela RPC get_specialty_payments_agg.
@@ -681,72 +716,21 @@ export default function PaymentsBySpecialty() {
       />
 
       <div className="p-6 space-y-6">
-        {/* ---------------- Filtros ---------------- */}
-        <Card className="rounded-2xl border-border/60">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
+        {/* ---------------- Filtros (mesmo padrão da tela de Pagamentos) ----------------
+            Barra compacta: primários inline + secundários dentro do popover
+            "Mais filtros" com badge de contagem. Nada de Card "FILTROS" aberto. */}
+        {(() => {
+          const advancedCount = [!!selectedDoctorId, !!selectedCompanyId].filter(Boolean).length;
+          const anyActive =
+            advancedCount > 0 || selectedSpecialties.length > 0 || selectedGroupId !== "all";
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="from-month">Competência inicial</Label>
-                <Input
-                  id="from-month"
-                  type="month"
-                  className="w-auto max-w-[170px]"
-                  value={fromMonth}
-                  onChange={(e) => setFromMonth(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="to-month">Competência final</Label>
-                <Input
-                  id="to-month"
-                  type="month"
-                  className="w-auto max-w-[170px]"
-                  value={toMonth}
-                  onChange={(e) => setToMonth(e.target.value)}
-                />
-              </div>
-
-
-              <div className="space-y-1.5">
-                <Label>Especialidades (cadastro)</Label>
-                <MultiSelectChips
-                  values={selectedSpecialties}
-                  onChange={setSelectedSpecialties}
-                  options={specialtyRows.map((s) => s.name)}
-                  allowCustom={false}
-                  placeholder="Todas as especialidades"
-                  emptyHint="Vazio = todas."
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Grupo de análise</Label>
-                <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {groups.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
+          const advancedFilters = (
+            <div className="grid grid-cols-1 gap-3 w-full">
               {/* Médico */}
-              <div className="space-y-1.5">
-                <Label htmlFor="doctor-search">Médico</Label>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                  Médico
+                </label>
                 {selectedDoctor ? (
                   <div className="space-y-2">
                     <Badge variant="secondary" className="gap-1.5 py-1 pl-2 pr-1">
@@ -770,7 +754,7 @@ export default function PaymentsBySpecialty() {
                       </TabsList>
                     </Tabs>
                     {doctorMode === "company" && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground">
                         PJ vigente no período:{" "}
                         {doctorCompaniesInPeriod(selectedDoctor.id)
                           .map((cid) => companyById.get(cid)?.name ?? "—")
@@ -812,23 +796,27 @@ export default function PaymentsBySpecialty() {
               </div>
 
               {/* PJ */}
-              <div className="space-y-1.5">
-                <Label htmlFor="company-search">PJ / Empresa</Label>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                  PJ / Empresa
+                </label>
                 {selectedCompany ? (
-                  <Badge variant="secondary" className="gap-1.5 py-1 pl-2 pr-1">
-                    {selectedCompany.name}
-                    <button
-                      type="button"
-                      aria-label="Remover PJ"
-                      className="rounded p-0.5 hover:bg-destructive/15 hover:text-destructive"
-                      onClick={() => {
-                        setSelectedCompanyId(null);
-                        setCompanyQuery("");
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
+                  <div>
+                    <Badge variant="secondary" className="gap-1.5 py-1 pl-2 pr-1">
+                      {selectedCompany.name}
+                      <button
+                        type="button"
+                        aria-label="Remover PJ"
+                        className="rounded p-0.5 hover:bg-destructive/15 hover:text-destructive"
+                        onClick={() => {
+                          setSelectedCompanyId(null);
+                          setCompanyQuery("");
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="relative">
@@ -862,15 +850,110 @@ export default function PaymentsBySpecialty() {
                 )}
               </div>
             </div>
+          );
 
-            <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
-              <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
-                Limpar filtros
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
-                Recarregar
-              </Button>
-              <div className="ml-auto flex gap-2">
+          return (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Competência de/até — Select com as competências existentes
+                  (mesmo componente e mesmo formatCompetence da tela Pagamentos). */}
+              <Select value={fromMonth} onValueChange={setFromMonth}>
+                <SelectTrigger className="w-[190px]">
+                  <SelectValue placeholder="Competência inicial">
+                    {`De: ${formatCompetence(`${fromMonth}-01`)}`}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {competenceOptions.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {formatCompetence(`${c}-01`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={toMonth} onValueChange={setToMonth}>
+                <SelectTrigger className="w-[190px]">
+                  <SelectValue placeholder="Competência final">
+                    {`Até: ${formatCompetence(`${toMonth}-01`)}`}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {competenceOptions.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {formatCompetence(`${c}-01`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Filtro principal desta tela — fica visível */}
+              <MultiSelectPopover
+                width="w-[240px]"
+                placeholder="Todas especialidades"
+                allLabel="Todas especialidades"
+                values={selectedSpecialties}
+                onChange={setSelectedSpecialties}
+                options={specialtyRows.map((s) => ({ value: s.name, label: s.name }))}
+              />
+
+              <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Grupo de análise" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os grupos</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Secundários — dentro de popover "Mais filtros" */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="relative">
+                    <SlidersHorizontal className="h-4 w-4 mr-1" /> Mais filtros
+                    {advancedCount > 0 && (
+                      <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-1">
+                        {advancedCount}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[480px] max-w-[90vw] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold">Filtros avançados</h4>
+                    {advancedCount > 0 && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                        onClick={() => {
+                          setSelectedDoctorId(null);
+                          setDoctorQuery("");
+                          setDoctorMode("doctor");
+                          setSelectedCompanyId(null);
+                          setCompanyQuery("");
+                        }}
+                      >
+                        Limpar avançados
+                      </button>
+                    )}
+                  </div>
+                  {advancedFilters}
+                </PopoverContent>
+              </Popover>
+
+              {anyActive && (
+                <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-1" /> Limpar filtros
+                </Button>
+              )}
+
+              <div className="ml-auto flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
+                  Recarregar
+                </Button>
                 <Button type="button" variant="outline" size="sm" onClick={handleExportExcel}>
                   <Download className="h-4 w-4 mr-1.5" />
                   Excel
@@ -881,8 +964,9 @@ export default function PaymentsBySpecialty() {
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          );
+        })()}
+
 
         {!hospitalId ? (
           <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">
