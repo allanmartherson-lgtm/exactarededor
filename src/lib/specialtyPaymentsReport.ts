@@ -22,6 +22,8 @@ export interface SpecialtyReportFilters {
   companyLabel: string;
   /** Tipos de pagamento (item_types) selecionados; "Todos" quando sem recorte. */
   itemTypesLabel?: string;
+  /** Modo de visão dos totais: "Especialidade" ou "PJ no período". */
+  viewModeLabel?: string;
 }
 
 export interface SpecialtyReportKpis {
@@ -41,6 +43,8 @@ export interface SpecialtyReportGroupRow {
   specialties: string;
   items: number;
   bruto: number;
+  /** Só preenchido no modo "PJ no período" — líquido existe por lote × PJ. */
+  liquido?: number | null;
 }
 
 export interface SpecialtyReportMonthRow {
@@ -61,6 +65,7 @@ function filterLines(f: SpecialtyReportFilters): string[] {
     `Médico: ${f.doctorLabel}`,
     `PJ: ${f.companyLabel}`,
     `Tipo de pagamento: ${f.itemTypesLabel ?? "Todos"}`,
+    `Modo de visão: ${f.viewModeLabel ?? "Especialidade"}`,
   ];
 }
 

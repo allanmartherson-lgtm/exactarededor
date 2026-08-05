@@ -125,6 +125,13 @@ interface FinancialRow {
 
 type GroupBy = "company" | "doctor";
 type DoctorMode = "doctor" | "company";
+/**
+ * Modo de leitura dos totais:
+ * - "specialty": só os itens que batem no recorte (bruto exato; líquido é do lote × PJ).
+ * - "company": todos os itens das MESMAS PJs no período, ignorando especialidade/grupo,
+ *   para comparar a fatia da especialidade com o total real recebido pela PJ.
+ */
+type ViewMode = "specialty" | "company";
 
 // Colapsa espaços internos: o cadastro tem variações como
 // "Paliativismo e  terminalidade" (2 espaços, caixa diferente) que não podem
@@ -190,6 +197,7 @@ export default function PaymentsBySpecialty() {
    */
   const [selectedItemTypes, setSelectedItemTypes] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<GroupBy>("company");
+  const [viewMode, setViewMode] = useState<ViewMode>("specialty");
 
   // ---------- dados ----------
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -666,6 +674,116 @@ export default function PaymentsBySpecialty() {
     doctorById,
   ]);
 
+  /**
+   * Modo "PJ no período": mesmas PJs do modo Especialidade, mas SEM o recorte de
+   * especialidade/grupo — responde "quanto essa PJ recebeu no período, no total".
+   * O filtro de tipo de pagamento continua valendo (é um recorte de escopo, não
+   * de especialidade). Líquido aqui é comparável ao bruto, porque ambos passam a
+   * ser do conjunto completo (lote × PJ).
+   */
+  const pjComputed = useMemo(() => {
+    const companyScope = new Set(
+      computed.matched.map((i) => i.company_id).filter(Boolean) as string[],
+    );
+    const typeFilter = new Set(selectedItemTypes);
+
+    const matched = items.filter((i) => {
+      if (!i.company_id || !companyScope.has(i.company_id)) return false;
+      const typeKey = i.item_type_id ?? UNCLASSIFIED_TYPE;
+      return typeFilter.size === 0 || typeFilter.has(typeKey);
+    });
+
+    const bruto = matched.reduce((s, i) => s + Number(i.gross_amount ?? 0), 0);
+
+    const pairs = new Set(
+      matched.filter((i) => i.payment_id).map((i) => `${i.payment_id}|${i.company_id}`),
+    );
+    const liquidoByCompany = new Map<string, number>();
+    let liquido = 0;
+    for (const f of financials) {
+      if (!pairs.has(`${f.payment_id}|${f.company_id}`)) continue;
+      const v = Number(f.liquido ?? 0);
+      liquido += v;
+      liquidoByCompany.set(f.company_id, (liquidoByCompany.get(f.company_id) ?? 0) + v);
+    }
+
+    const byMonth = new Map<string, { bruto: number; items: number }>();
+    for (const i of matched) {
+      const ym = (i.item_competence ?? "").slice(0, 7);
+      if (!ym) continue;
+      const cur = byMonth.get(ym) ?? { bruto: 0, items: 0 };
+      cur.bruto += Number(i.gross_amount ?? 0);
+      cur.items += i.qty;
+      byMonth.set(ym, cur);
+    }
+    const months = Array.from(byMonth.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([ym, v]) => ({ month: monthLabel(ym), bruto: v.bruto, items: v.items }));
+
+    const agg = new Map<string, { items: number; bruto: number; specialties: Set<string> }>();
+    for (const i of matched) {
+      const key = groupBy === "company" ? i.company_id ?? "sem_pj" : i.doctor_id ?? "sem_medico";
+      const cur = agg.get(key) ?? { items: 0, bruto: 0, specialties: new Set<string>() };
+      cur.items += i.qty;
+      cur.bruto += Number(i.gross_amount ?? 0);
+      if (i.doctor_id) {
+        (doctorById.get(i.doctor_id)?.specialties ?? []).forEach((s) => cur.specialties.add(s));
+      }
+      agg.set(key, cur);
+    }
+
+    const rows: SpecialtyReportGroupRow[] = Array.from(agg.entries())
+      .map(([key, v]) => {
+        if (groupBy === "company") {
+          const c = companyById.get(key);
+          return {
+            key,
+            label: c?.name ?? "PJ não identificada",
+            sublabel: c?.document ? formatCNPJ(c.document) : "—",
+            specialties: Array.from(v.specialties).sort().join(", ") || "—",
+            items: v.items,
+            bruto: v.bruto,
+            liquido: liquidoByCompany.get(key) ?? 0,
+          };
+        }
+        const d = doctorById.get(key);
+        return {
+          key,
+          label: d?.full_name ?? "Sem médico vinculado",
+          sublabel: d?.crm ? `CRM ${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : "—",
+          specialties: (d?.specialties ?? []).join(", ") || "—",
+          items: v.items,
+          bruto: v.bruto,
+          // Líquido não é rateável por médico dentro do lote × PJ.
+          liquido: null,
+        };
+      })
+      .sort((a, b) => b.bruto - a.bruto);
+
+    return {
+      matched,
+      bruto,
+      liquido,
+      companies: companyScope.size,
+      doctors: new Set(matched.map((i) => i.doctor_id).filter(Boolean) as string[]).size,
+      months,
+      rows,
+    };
+  }, [items, computed.matched, selectedItemTypes, financials, groupBy, companyById, doctorById]);
+
+  const isPjView = viewMode === "company";
+  const view = {
+    bruto: isPjView ? pjComputed.bruto : computed.bruto,
+    liquido: isPjView ? pjComputed.liquido : computed.liquido,
+    items: (isPjView ? pjComputed.matched : computed.matched).reduce((s, i) => s + i.qty, 0),
+    companies: isPjView ? pjComputed.companies : computed.companies,
+    doctors: isPjView ? pjComputed.doctors : computed.doctors,
+    months: isPjView ? pjComputed.months : computed.months,
+    rows: isPjView ? pjComputed.rows : computed.rows,
+  };
+
+
+
 
   // ---------- buscas de médico / PJ ----------
   // A busca de médico é feita no servidor: só carregamos localmente os médicos
@@ -749,16 +867,19 @@ export default function PaymentsBySpecialty() {
     itemTypesLabel: selectedItemTypes.length
       ? selectedItemTypes.map((v) => itemTypeLabelByValue.get(v) ?? v).join(", ")
       : "Todos",
+    viewModeLabel: isPjView ? "PJ no período (todas as especialidades)" : "Especialidade",
   };
 
   const kpis = {
-    bruto: computed.bruto,
-    liquido: computed.liquido,
-    items: computed.matched.reduce((s2, i) => s2 + i.qty, 0),
-    companies: computed.companies,
-    doctors: computed.doctors,
-    semMedicoBruto: computed.semMedicoBruto,
-    semMedicoItems: computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
+    bruto: view.bruto,
+    liquido: view.liquido,
+    items: view.items,
+    companies: view.companies,
+    doctors: view.doctors,
+    // No modo "PJ no período" os itens sem médico já entram no total da PJ,
+    // então não existe fatia "não atribuível" para destacar.
+    semMedicoBruto: isPjView ? 0 : computed.semMedicoBruto,
+    semMedicoItems: isPjView ? 0 : computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
   };
 
   const clearFilters = () => {
@@ -778,8 +899,8 @@ export default function PaymentsBySpecialty() {
       exportSpecialtyReportExcel({
         filters: filtersSummary,
         kpis,
-        months: computed.months,
-        rows: computed.rows,
+        months: view.months,
+        rows: view.rows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
       });
     } catch (e: unknown) {
@@ -792,7 +913,7 @@ export default function PaymentsBySpecialty() {
       await exportSpecialtyReportPdf({
         filters: filtersSummary,
         kpis,
-        rows: computed.rows,
+        rows: view.rows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
       });
     } catch (e: unknown) {
@@ -1102,6 +1223,22 @@ export default function PaymentsBySpecialty() {
             {/* ---------------- KPIs ----------------
                 Padrão BI: um único card de destaque (tone="primary") ancora a
                 leitura; os demais permanecem neutros para não competir. */}
+            {/* Alternador de modo: o "líquido" só é comparável ao bruto quando a
+                visão é da PJ inteira no período. */}
+            <div className="rounded-2xl border border-border/60 bg-card px-4 py-3">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+                <TabsList>
+                  <TabsTrigger value="specialty">Especialidade</TabsTrigger>
+                  <TabsTrigger value="company">PJ no período</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Especialidade: só o que bate no filtro (bruto exato; líquido é do lote × PJ
+                inteiro). PJ no período: tudo que essas mesmas PJs receberam no período, todas as
+                especialidades — para comparação.
+              </p>
+            </div>
+
             <div className="grid gap-4 grid-cols-2 lg:grid-cols-5 items-stretch">
               <KpiCard
                 className="h-full"
@@ -1113,9 +1250,13 @@ export default function PaymentsBySpecialty() {
               />
               <KpiCard
                 className="h-full"
-                label="Total líquido (PJ/lote)"
+                label={isPjView ? "Total líquido (PJ)" : "Total líquido (PJ/lote)"}
                 value={<span className="text-2xl">{money(kpis.liquido)}</span>}
-                hint="Líquido existe por lote × PJ; não é rateável por especialidade."
+                hint={
+                  isPjView
+                    ? "Líquido total dessas PJs nos lotes do período — comparável ao bruto acima."
+                    : "Líquido existe por lote × PJ; não é rateável por especialidade."
+                }
               />
               <KpiCard className="h-full" label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
               <KpiCard className="h-full" label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
@@ -1125,18 +1266,21 @@ export default function PaymentsBySpecialty() {
 
             {/* Integridade: itens sem doctor_id não podem ser atribuídos a especialidade */}
             <div className="grid gap-4 md:grid-cols-2">
-              <KpiCard
-                label="Sem médico vinculado"
-                value={money(kpis.semMedicoBruto)}
-                tone="warning"
-                hint={`${kpis.semMedicoItems} itens do período cujo nome na planilha não bate com nenhum médico do cadastro nem com apelido cadastrado — cadastre o apelido em Médicos para recuperá-los.`}
-              />
+              {!isPjView && (
+                <KpiCard
+                  label="Sem médico vinculado"
+                  value={money(kpis.semMedicoBruto)}
+                  tone="warning"
+                  hint={`${kpis.semMedicoItems} itens do período cujo nome na planilha não bate com nenhum médico do cadastro nem com apelido cadastrado — cadastre o apelido em Médicos para recuperá-los.`}
+                />
+              )}
               <KpiCard
                 label="Total do período (sem recorte)"
                 value={money(computed.baseBruto)}
                 hint={`${computed.baseItems.toLocaleString("pt-BR")} itens na unidade e período filtrados (referência de conferência).`}
               />
             </div>
+
 
             {/* ---------------- Gráfico ---------------- */}
             <div className="rounded-2xl border border-border/60 bg-card p-6">
@@ -1149,13 +1293,13 @@ export default function PaymentsBySpecialty() {
                 </p>
               </div>
               <div className="h-72">
-                {computed.months.length === 0 ? (
+                {view.months.length === 0 ? (
                   <div className="h-full grid place-items-center text-sm text-muted-foreground">
                     Sem dados no recorte selecionado.
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={computed.months} margin={{ top: 24, right: 16, left: 0, bottom: 4 }}>
+                    <BarChart data={view.months} margin={{ top: 24, right: 16, left: 0, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                       <XAxis
                         dataKey="month"
@@ -1207,7 +1351,9 @@ export default function PaymentsBySpecialty() {
                     Detalhamento
                   </h2>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Especialidades exibidas vêm do cadastro do médico.
+                    {isPjView
+                      ? "Total de cada PJ no período (todas as especialidades). Especialidades exibidas vêm do cadastro do médico."
+                      : "Especialidades exibidas vêm do cadastro do médico."}
                   </p>
                 </div>
                 <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
@@ -1230,23 +1376,30 @@ export default function PaymentsBySpecialty() {
                         <TableHead>Especialidades (cadastro)</TableHead>
                         <TableHead className="w-24 text-right">Itens</TableHead>
                         <TableHead className="w-36 text-right">Bruto</TableHead>
+                        {isPjView && <TableHead className="w-36 text-right">Líquido</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {computed.rows.length === 0 && (
+                      {view.rows.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                          <TableCell colSpan={isPjView ? 6 : 5} className="text-center text-sm text-muted-foreground py-8">
                             Sem itens no recorte selecionado.
                           </TableCell>
                         </TableRow>
                       )}
-                      {computed.rows.map((r) => (
+                      {view.rows.map((r) => (
                         <TableRow key={r.key}>
                           <TableCell className="font-medium">{r.label}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{r.sublabel}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{r.specialties}</TableCell>
                           <TableCell className="text-right tabular-nums">{r.items}</TableCell>
                           <TableCell className="text-right tabular-nums">{money(r.bruto)}</TableCell>
+                          {isPjView && (
+                            <TableCell className="text-right tabular-nums">
+                              {/* Líquido só existe por lote × PJ: sem valor no agrupamento por médico. */}
+                              {r.liquido == null ? "—" : money(r.liquido)}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                       {kpis.semMedicoItems > 0 && (
