@@ -531,12 +531,27 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       ],
       paymentTable: [
         {
-          label: "Tabela base",
-          value: paymentTableBase
-            ? (PAYMENT_TABLE_BASE_LABEL[paymentTableBase] ?? paymentTableBase)
+          label: "Tipo de pagamento",
+          value:
+            paymentModels
+              .filter((m) => paymentModelIds.includes(m.id))
+              .map((m) => m.label)
+              .join(", ") || "—",
+        },
+        {
+          label: "Mínimo garantido",
+          value: minGarantidoAtivo ? `Sim — ${minGarantidoValor || "valor não informado"}` : "Não",
+        },
+        {
+          label: "Método de cálculo",
+          value: calcItems.map((c) => c.calculation_type).join(", ") || "—",
+        },
+        {
+          label: "Valor fixo",
+          value: fixedValue.amount
+            ? `${fixedValue.amount} — ${FIXED_PERIODICITY_LABEL[fixedValue.periodicity] ?? fixedValue.periodicity}`
             : "—",
         },
-        { label: "Percentual de repasse", value: pctText(paymentPercentage) },
         { label: "Sujeito a glosa", value: yn(hasGlosa) },
         { label: "Condições de glosa", value: glosaConditions.trim() || "—" },
         {
@@ -598,8 +613,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     linkedDoctors,
     multiParty,
     parties,
-    paymentPercentage,
-    paymentTableBase,
+    paymentModels,
+    paymentModelIds,
+    minGarantidoAtivo,
+    minGarantidoValor,
+    calcItems,
+    fixedValue,
     record,
     referenceNote,
     registrationType,
@@ -637,9 +656,11 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       return null;
     }
     if (step === 2) {
-      if (!paymentTableBase) return "Selecione a base da tabela de pagamento";
-      if (paymentPercentage && numOrNull(paymentPercentage) == null) return "Percentual inválido";
-      if (hasGlosa && !glosaConditions.trim()) return "Descreva as condições de glosa";
+      if (showFixedValueBlock && fixedValue.amount && numOrNull(fixedValue.amount) == null)
+        return "Valor fixo inválido";
+      if (showProductionBlock && calcItems.length === 0) return "Adicione ao menos um cálculo";
+      if (showGlosaBlock && hasGlosa && !glosaConditions.trim())
+        return "Descreva as condições de glosa";
       return null;
     }
     if (step === 3) {
@@ -656,7 +677,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   }, [
     step, companyId, registrationType, relatedAgreementId, referenceNote, multiParty, parties,
     effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
-    doctorExceptions, paymentTableBase, paymentPercentage, hasGlosa, glosaConditions, urgencyDiff,
+    doctorExceptions, paymentModelIds, minGarantidoAtivo, minGarantidoValor, calcItems, fixedValue,
+    showFixedValueBlock, showProductionBlock, showGlosaBlock,
+    hasGlosa, glosaConditions, urgencyDiff,
     urgencyPct, weekendAdd, weekendPct, extraItems,
   ]);
 
@@ -676,8 +699,17 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       doctor_exceptions: allDoctors ? [] : doctorExceptions,
       includes_auxiliary: includesAuxiliary,
       includes_access_route: includesAccessRoute,
-      payment_table_base: paymentTableBase || null,
-      payment_percentage: numOrNull(paymentPercentage),
+      payment_model_ids: paymentModelIds,
+      minimo_garantido_ativo: minGarantidoAtivo,
+      minimo_garantido_valor: minGarantidoAtivo ? numOrNull(minGarantidoValor) : null,
+      minimo_garantido_escopo: minGarantidoAtivo ? minGarantidoEscopo : null,
+      minimo_garantido_periodicidade: minGarantidoAtivo ? minGarantidoPeriodicidade : null,
+      minimo_garantido_base: minGarantidoAtivo ? minGarantidoBase : null,
+      // Rascunho no formato do RuleCalculationsEditor: o Analista carrega sem redigitar
+      calculation_draft: {
+        items: showProductionBlock ? calcItems : [],
+        fixed_value: showFixedValueBlock ? fixedValue : null,
+      } as unknown as Json,
       has_glosa: hasGlosa,
       glosa_conditions: hasGlosa ? glosaConditions.trim() || null : null,
       urgency_differentiation: urgencyDiff,
@@ -694,8 +726,11 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     [
       hospitalId, companyId, registrationType, referenceNote, relatedAgreementId,
       effectiveFrom, effectiveTo, allConvenios, convenioExceptions,
-      allDoctors, doctorExceptions, includesAuxiliary, includesAccessRoute, paymentTableBase,
-      paymentPercentage, hasGlosa, glosaConditions, urgencyDiff, urgencyPct, weekendAdd,
+      allDoctors, doctorExceptions, includesAuxiliary, includesAccessRoute,
+      paymentModelIds, minGarantidoAtivo, minGarantidoValor, minGarantidoEscopo,
+      minGarantidoPeriodicidade, minGarantidoBase, calcItems, fixedValue,
+      showProductionBlock, showFixedValueBlock,
+      hasGlosa, glosaConditions, urgencyDiff, urgencyPct, weekendAdd,
       weekendPct, hasFixedValues, fixedUrgencyDiff, exclusionsNotes, extraItems, freeNotes,
     ],
 
