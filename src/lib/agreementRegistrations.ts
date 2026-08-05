@@ -221,6 +221,9 @@ export interface TimelineEntry {
 export function buildAgreementTimeline(
   a: AgreementRegistration & Partial<AgreementFlowFields>,
   hospitals: AgreementHospitalRow[],
+  /** Eventos de ciclos anteriores; entram como entradas históricas no fim. */
+  events: AgreementEventRow[] = [],
+  hospitalNames?: Map<string, string>,
 ): TimelineEntry[] {
   const rejected = a.status === "rejeitado";
   const approvedCount = hospitals.filter((h) => h.status === "aprovado").length;
@@ -266,12 +269,30 @@ export function buildAgreementTimeline(
       hospitals.length > 0 ? `${registeredCount}/${hospitals.length} regra(s) criada(s)` : null,
     ),
   ];
+  const history: TimelineEntry[] = [...events]
+    .sort((x, y) => (x.created_at < y.created_at ? -1 : 1))
+    .map((ev) => ({
+      key: `event-${ev.id}`,
+      label: `Ciclo ${ev.cycle} — ${AGREEMENT_EVENT_LABEL[ev.event_type] ?? ev.event_type}`,
+      at: ev.created_at,
+      detail: [
+        ev.hospital_id ? hospitalNames?.get(ev.hospital_id) ?? null : null,
+        ev.notes,
+      ]
+        .filter(Boolean)
+        .join(" — ") || null,
+      state: ev.event_type === "rejeicao_diretor" ? ("error" as const) : ("done" as const),
+    }));
+
   if (rejected) {
-    return entries.map((e) =>
-      e.state === "current" || e.state === "pending"
-        ? { ...e, state: "error" as const, detail: a.rejection_reason ?? e.detail }
-        : e,
-    );
+    return [
+      ...entries.map((e) =>
+        e.state === "current" || e.state === "pending"
+          ? { ...e, state: "error" as const, detail: a.rejection_reason ?? e.detail }
+          : e,
+      ),
+      ...history,
+    ];
   }
-  return entries;
+  return [...entries, ...history];
 }
