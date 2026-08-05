@@ -53,6 +53,17 @@ export interface SpecialtyReportMonthRow {
   items: number;
 }
 
+/** Quebra por convênio (payment_items.convenio_slug — campo curado). */
+export interface SpecialtyReportConvenioRow {
+  key: string;
+  label: string;
+  items: number;
+  bruto: number;
+  /** Participação no bruto do recorte filtrado. */
+  pct: number;
+}
+
+
 const money = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
