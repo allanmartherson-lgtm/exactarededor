@@ -1745,15 +1745,6 @@ Deno.serve(async (req) => {
           created_link_ids: result.created_link_ids ?? null,
         },
       });
-      if (auditErr) {
-        return jsonResp({
-          error:
-            `Ação aplicada em ${result.affected} itens, mas o registro de auditoria FALHOU (${auditErr.message}). ` +
-            `Avise o administrador — a intervenção precisa ser auditada manualmente.`,
-          audit_failed: true,
-          affected: result.affected,
-        }, 500);
-      }
 
       await recordZeevPreference(sb, activeHospitalId, p.action, p.scope ?? {}, p.payload ?? {}, body.payment_id);
 
@@ -1761,7 +1752,6 @@ Deno.serve(async (req) => {
         step: "executed",
         action: p.action,
         affected: result.affected,
-        skipped: (result as { skipped?: unknown }).skipped ?? null,
         message: `Aplicado em ${result.affected} ${result.affected === 1 ? "item" : "itens"}.`,
       });
     }
