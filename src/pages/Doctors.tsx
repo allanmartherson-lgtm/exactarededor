@@ -27,6 +27,9 @@ import { DoctorMissingSpecialtyPanel } from "@/components/doctors/DoctorMissingS
 import { DoctorLinkSuggestionsPanel } from "@/components/DoctorLinkSuggestionsPanel";
 import { CompanyLinkSuggestionsPanel } from "@/components/CompanyLinkSuggestionsPanel";
 import { DateInput } from "@/components/ui/date-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useSpecialties } from "@/hooks/useSpecialties";
 
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
@@ -107,7 +110,12 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Doctor>(empty);
   const [editingCompanyIds, setEditingCompanyIds] = useState<string[]>([]);
-  const [specInput, setSpecInput] = useState("");
+  const [specOpen, setSpecOpen] = useState(false);
+  const { rows: specialtyRows, loading: specialtiesLoading } = useSpecialties();
+  const specialtyNameSet = useMemo(
+    () => new Set(specialtyRows.map((r) => r.name.toLowerCase())),
+    [specialtyRows],
+  );
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("");
   const [showInactive, setShowInactive] = useState(false);
@@ -266,7 +274,6 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     setEditing(empty);
     setLinkHospitalId(activeHospital?.id ?? "");
     setEditingCompanyIds([]);
-    setSpecInput("");
     setCompanySearch("");
     setOpen(true);
   };
@@ -276,7 +283,6 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
     const hid = activeHospital?.id ?? "";
     setLinkHospitalId(hid);
     setEditingCompanyIds(linksByDoctorHospital.get(`${d.id}|${hid}`) ?? []);
-    setSpecInput("");
     setCompanySearch("");
     setOpen(true);
     // Dados sensíveis (CPF, nascimento, telefone, e-mail) só via RPC restrita a admin/diretor
@@ -778,25 +784,71 @@ export default function Doctors({ embedded = false }: { embedded?: boolean } = {
                     </div>
                     <div className="space-y-1.5">
                       <Label>Especialidade(s)</Label>
-                      <Input
-                        value={specInput}
-                        onChange={(e) => setSpecInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && specInput.trim()) {
-                            e.preventDefault();
-                            setEditing({ ...editing, specialties: [...editing.specialties, specInput.trim()] });
-                            setSpecInput("");
-                          }
-                        }}
-                        placeholder="Pressione Enter para adicionar"
-                      />
+                      {/* Somente valores do catálogo (tela de Especialidades): texto livre gerava divergência nos relatórios */}
+                      <Popover open={specOpen} onOpenChange={setSpecOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between font-normal"
+                          >
+                            {editing.specialties.length > 0
+                              ? `${editing.specialties.length} selecionada(s)`
+                              : "Selecionar especialidade..."}
+                            <Tag className="h-3.5 w-3.5 opacity-60" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Buscar especialidade..." />
+                            <CommandList>
+                              <CommandEmpty>
+                                {specialtiesLoading
+                                  ? "Carregando..."
+                                  : "Nenhuma especialidade encontrada. Cadastre em Cadastros › Especialidades."}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {specialtyRows.map((row) => {
+                                  const selected = editing.specialties.includes(row.name);
+                                  return (
+                                    <CommandItem
+                                      key={row.id}
+                                      value={row.name}
+                                      onSelect={() => {
+                                        setEditing({
+                                          ...editing,
+                                          specialties: selected
+                                            ? editing.specialties.filter((s) => s !== row.name)
+                                            : [...editing.specialties, row.name],
+                                        });
+                                      }}
+                                    >
+                                      <span className={selected ? "font-medium" : ""}>{row.name}</span>
+                                      {selected && <span className="ml-auto text-xs text-primary">✓</span>}
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <div className="flex flex-wrap gap-1.5">
-                        {editing.specialties.map((s, i) => (
-                          <Badge key={i} variant="secondary" className="gap-1">
-                            {s}
-                            <button type="button" onClick={() => setEditing({ ...editing, specialties: editing.specialties.filter((_, j) => j !== i) })}>×</button>
-                          </Badge>
-                        ))}
+                        {editing.specialties.map((s, i) => {
+                          const known = specialtyNameSet.has(s.toLowerCase());
+                          return (
+                            <Badge
+                              key={i}
+                              variant={known ? "secondary" : "outline"}
+                              className={known ? "gap-1" : "gap-1 border-destructive/50 text-destructive"}
+                              title={known ? undefined : "Especialidade fora do catálogo — revise o cadastro"}
+                            >
+                              {s}
+                              <button type="button" onClick={() => setEditing({ ...editing, specialties: editing.specialties.filter((_, j) => j !== i) })}>×</button>
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </div>
                   </section>
