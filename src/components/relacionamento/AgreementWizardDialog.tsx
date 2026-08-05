@@ -374,6 +374,16 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const stepError = useMemo((): string | null => {
     if (step === 0) {
       if (!companyId) return "Selecione a clínica no cadastro de empresas";
+      if (registrationType !== "novo_acordo" && !relatedAgreementId && !referenceNote.trim())
+        return "Informe o acordo de referência (busca no sistema ou texto livre)";
+      if (multiParty) {
+        if (parties.length === 0) return "Adicione ao menos uma PJ ao acordo de equipe";
+        if (parties.some((p) => !p.companyId)) return "Selecione a PJ em todas as linhas";
+        if (parties.some((p) => !p.allDoctors && p.doctorIds.length === 0))
+          return "Selecione os médicos da PJ ou marque “todos os médicos”";
+        const ids = parties.map((p) => p.companyId);
+        if (new Set(ids).size !== ids.length) return "Há PJ repetida na lista";
+      }
       if (effectiveFrom && effectiveTo && effectiveTo < effectiveFrom)
         return "Fim da vigência anterior ao início";
       return null;
@@ -402,7 +412,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     }
     return null;
   }, [
-    step, companyId, effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
+    step, companyId, registrationType, relatedAgreementId, referenceNote, multiParty, parties,
+    effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
     doctorExceptions, paymentTableBase, paymentPercentage, hasGlosa, glosaConditions, urgencyDiff,
     urgencyPct, weekendAdd, weekendPct, extraItems,
   ]);
@@ -411,8 +422,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (status: string) => ({
       hospital_id: hospitalId as string,
       company_id: companyId,
+      registration_type: registrationType,
+      reference_note: registrationType === "novo_acordo" ? null : referenceNote.trim() || null,
+      related_agreement_id: registrationType === "novo_acordo" ? null : relatedAgreementId,
       effective_from: effectiveFrom || null,
       effective_to: effectiveTo || null,
+
       applies_to_all_convenios: allConvenios,
       convenio_exceptions: allConvenios ? [] : convenioExceptions,
       applies_to_all_doctors: allDoctors,
