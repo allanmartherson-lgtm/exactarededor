@@ -10,6 +10,7 @@ import {
   BorderStyle,
   Document,
   HeadingLevel,
+  ImageRun,
   Packer,
   Paragraph,
   ShadingType,
@@ -20,6 +21,7 @@ import {
   WidthType,
 } from "docx";
 import * as XLSX from "xlsx";
+import { getRedeDOrLogoPng } from "@/lib/brandLogo";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AGREEMENT_HOSPITAL_STATUS_LABEL,
@@ -586,12 +588,12 @@ export function exportAgreementXlsx(model: AgreementExportModel): void {
   wsResumo["!cols"] = [{ wch: 42 }, { wch: 70 }];
   XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
 
-  const wsParties = XLSX.utils.aoa_to_sheet([
-    ["PJ", "Médicos"],
-    ...model.parties.map((p) => [p.company, p.doctors]),
+  const wsStaff = XLSX.utils.aoa_to_sheet([
+    ["Médico", "CRM", "Empresa (PJ)", "CNPJ", "E-mail", "Telefone"],
+    ...model.clinicalStaff.map((s) => [s.doctor, s.crm, s.company, s.cnpj, s.email, s.phone]),
   ]);
-  wsParties["!cols"] = [{ wch: 40 }, { wch: 70 }];
-  XLSX.utils.book_append_sheet(wb, wsParties, "PJs e médicos");
+  wsStaff["!cols"] = [{ wch: 38 }, { wch: 14 }, { wch: 38 }, { wch: 20 }, { wch: 32 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsStaff, "Corpo clínico");
 
   const wsExtra = XLSX.utils.aoa_to_sheet([
     ["Item extra", "Valor"],
