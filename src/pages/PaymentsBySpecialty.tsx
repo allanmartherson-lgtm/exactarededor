@@ -1351,7 +1351,9 @@ export default function PaymentsBySpecialty() {
                     Detalhamento
                   </h2>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Especialidades exibidas vêm do cadastro do médico.
+                    {isPjView
+                      ? "Total de cada PJ no período (todas as especialidades). Especialidades exibidas vêm do cadastro do médico."
+                      : "Especialidades exibidas vêm do cadastro do médico."}
                   </p>
                 </div>
                 <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
@@ -1374,12 +1376,13 @@ export default function PaymentsBySpecialty() {
                         <TableHead>Especialidades (cadastro)</TableHead>
                         <TableHead className="w-24 text-right">Itens</TableHead>
                         <TableHead className="w-36 text-right">Bruto</TableHead>
+                        {isPjView && <TableHead className="w-36 text-right">Líquido</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {view.rows.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                          <TableCell colSpan={isPjView ? 6 : 5} className="text-center text-sm text-muted-foreground py-8">
                             Sem itens no recorte selecionado.
                           </TableCell>
                         </TableRow>
@@ -1391,6 +1394,12 @@ export default function PaymentsBySpecialty() {
                           <TableCell className="text-sm text-muted-foreground">{r.specialties}</TableCell>
                           <TableCell className="text-right tabular-nums">{r.items}</TableCell>
                           <TableCell className="text-right tabular-nums">{money(r.bruto)}</TableCell>
+                          {isPjView && (
+                            <TableCell className="text-right tabular-nums">
+                              {/* Líquido só existe por lote × PJ: sem valor no agrupamento por médico. */}
+                              {r.liquido == null ? "—" : money(r.liquido)}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                       {kpis.semMedicoItems > 0 && (
