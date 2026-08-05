@@ -1,0 +1,830 @@
+// Wizard de Cadastro de Acordos (6 etapas) — grava em agreement_registrations.
+// Cada avanço persiste como rascunho, permitindo sair e continuar depois.
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllPaginated";
+import { useHospital } from "@/contexts/HospitalContext";
+import { useRequireHospital } from "@/hooks/useRequireHospital";
+import { formatCNPJ } from "@/lib/cnpj";
+import { FormDialog } from "@/components/FormDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import type { AgreementRegistration, ExtraItem } from "@/lib/agreementRegistrations";
+import { PAYMENT_TABLE_BASE_LABEL } from "@/lib/agreementRegistrations";
+
+interface CompanyOption {
+  id: string;
+  name: string;
+  document: string | null;
+  active: boolean;
+}
+interface ConvenioOption {
+  id: string;
+  name: string;
+}
+interface DoctorOption {
+  id: string;
+  full_name: string;
+  crm: string | null;
+  crm_uf: string | null;
+}
+
+const STEPS = [
+  "Identificação",
+  "Abrangência",
+  "Tabela de pagamento",
+  "Regras especiais",
+  "Itens extras",
+  "Observações",
+] as const;
+
+const norm = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+const numOrNull = (v: string): number | null => {
+  const t = v.replace(",", ".").trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+};
+
+interface Props {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  record: AgreementRegistration | null;
+  onSaved: () => void;
+}
+
+export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: Props) {
+  const { hospital } = useHospital();
+  const { hospitalId, ensure } = useRequireHospital();
+
+  const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [id, setId] = useState<string | null>(null);
+
+  // Etapa 1
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [effectiveTo, setEffectiveTo] = useState("");
+  // Etapa 2
+  const [allConvenios, setAllConvenios] = useState(true);
+  const [convenioExceptions, setConvenioExceptions] = useState<string[]>([]);
+  const [allDoctors, setAllDoctors] = useState(true);
+  const [doctorExceptions, setDoctorExceptions] = useState<string[]>([]);
+  const [includesAuxiliary, setIncludesAuxiliary] = useState(false);
+  const [includesAccessRoute, setIncludesAccessRoute] = useState(false);
+  // Etapa 3
+  const [paymentTableBase, setPaymentTableBase] = useState<string>("");
+  const [paymentPercentage, setPaymentPercentage] = useState("");
+  const [hasGlosa, setHasGlosa] = useState(false);
+  const [glosaConditions, setGlosaConditions] = useState("");
+  // Etapa 4
+  const [urgencyDiff, setUrgencyDiff] = useState(false);
+  const [urgencyPct, setUrgencyPct] = useState("");
+  const [weekendAdd, setWeekendAdd] = useState(false);
+  const [weekendPct, setWeekendPct] = useState("");
+  const [hasFixedValues, setHasFixedValues] = useState(false);
+  const [fixedUrgencyDiff, setFixedUrgencyDiff] = useState(false);
+  const [exclusionsNotes, setExclusionsNotes] = useState("");
+  // Etapa 5/6
+  const [extraItems, setExtraItems] = useState<ExtraItem[]>([]);
+  const [freeNotes, setFreeNotes] = useState("");
+
+  // Cadastros
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [convenios, setConvenios] = useState<ConvenioOption[]>([]);
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+  const [linkedDoctorIds, setLinkedDoctorIds] = useState<string[]>([]);
+  const [registriesLoading, setRegistriesLoading] = useState(false);
+
+  // Reidrata o formulário sempre que abre (novo ou continuação de rascunho)
+  useEffect(() => {
+    if (!open) return;
+    setStep(0);
+    setId(record?.id ?? null);
+    setCompanyId(record?.company_id ?? null);
+    setEffectiveFrom(record?.effective_from ?? "");
+    setEffectiveTo(record?.effective_to ?? "");
+    setAllConvenios(record?.applies_to_all_convenios ?? true);
+    setConvenioExceptions(record?.convenio_exceptions ?? []);
+    setAllDoctors(record?.applies_to_all_doctors ?? true);
+    setDoctorExceptions(record?.doctor_exceptions ?? []);
+    setIncludesAuxiliary(record?.includes_auxiliary ?? false);
+    setIncludesAccessRoute(record?.includes_access_route ?? false);
+    setPaymentTableBase(record?.payment_table_base ?? "");
+    setPaymentPercentage(record?.payment_percentage != null ? String(record.payment_percentage) : "");
+    setHasGlosa(record?.has_glosa ?? false);
+    setGlosaConditions(record?.glosa_conditions ?? "");
+    setUrgencyDiff(record?.urgency_differentiation ?? false);
+    setUrgencyPct(record?.urgency_addition_pct != null ? String(record.urgency_addition_pct) : "");
+    setWeekendAdd(record?.weekend_holiday_addition ?? false);
+    setWeekendPct(
+      record?.weekend_holiday_addition_pct != null ? String(record.weekend_holiday_addition_pct) : "",
+    );
+    setHasFixedValues(record?.has_fixed_values ?? false);
+    setFixedUrgencyDiff(record?.fixed_value_urgency_differentiation ?? false);
+    setExclusionsNotes(record?.exclusions_notes ?? "");
+    setExtraItems(record?.extra_items ?? []);
+    setFreeNotes(record?.free_notes ?? "");
+  }, [open, record]);
+
+  useEffect(() => {
+    if (!open || !hospitalId) return;
+    let cancel = false;
+    (async () => {
+      setRegistriesLoading(true);
+      try {
+        const [comps, convRes, docs] = await Promise.all([
+          fetchAllPaginated<CompanyOption>((from, to) =>
+            supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
+          ),
+          supabase.from("convenios").select("id,name").eq("hospital_id", hospitalId).eq("active", true).order("name"),
+          fetchAllPaginated<DoctorOption>((from, to) =>
+            supabase.from("doctors").select("id,full_name,crm,crm_uf").order("full_name").range(from, to),
+          ),
+        ]);
+        if (cancel) return;
+        setCompanies(comps);
+        if (convRes.error) throw convRes.error;
+        setConvenios((convRes.data ?? []) as ConvenioOption[]);
+        setDoctors(docs);
+      } catch (e: unknown) {
+        if (!cancel) toast.error(e instanceof Error ? e.message : "Falha ao carregar cadastros");
+      } finally {
+        if (!cancel) setRegistriesLoading(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, hospitalId]);
+
+  // Médicos vinculados à clínica selecionada (doctor_companies)
+  useEffect(() => {
+    if (!open || !hospitalId || !companyId) {
+      setLinkedDoctorIds([]);
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("doctor_companies")
+        .select("doctor_id")
+        .eq("hospital_id", hospitalId)
+        .eq("company_id", companyId);
+      if (cancel) return;
+      if (error) {
+        toast.error("Falha ao carregar médicos vinculados à clínica");
+        setLinkedDoctorIds([]);
+        return;
+      }
+      setLinkedDoctorIds((data ?? []).map((r: { doctor_id: string }) => r.doctor_id));
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, hospitalId, companyId]);
+
+  const company = useMemo(
+    () => companies.find((c) => c.id === companyId) ?? null,
+    [companies, companyId],
+  );
+
+  const linkedDoctors = useMemo(() => {
+    const set = new Set(linkedDoctorIds);
+    return doctors.filter((d) => set.has(d.id));
+  }, [doctors, linkedDoctorIds]);
+
+  const stepError = useMemo((): string | null => {
+    if (step === 0) {
+      if (!companyId) return "Selecione a clínica no cadastro de empresas";
+      if (effectiveFrom && effectiveTo && effectiveTo < effectiveFrom)
+        return "Fim da vigência anterior ao início";
+      return null;
+    }
+    if (step === 1) {
+      if (!allConvenios && convenioExceptions.length === 0)
+        return "Selecione ao menos um convênio";
+      if (!allDoctors && doctorExceptions.length === 0) return "Selecione ao menos um médico";
+      return null;
+    }
+    if (step === 2) {
+      if (!paymentTableBase) return "Selecione a base da tabela de pagamento";
+      if (paymentPercentage && numOrNull(paymentPercentage) == null) return "Percentual inválido";
+      if (hasGlosa && !glosaConditions.trim()) return "Descreva as condições de glosa";
+      return null;
+    }
+    if (step === 3) {
+      if (urgencyDiff && numOrNull(urgencyPct) == null) return "Informe o acréscimo de urgência";
+      if (weekendAdd && numOrNull(weekendPct) == null)
+        return "Informe o acréscimo de fim de semana/feriado";
+      return null;
+    }
+    if (step === 4) {
+      if (extraItems.some((i) => !i.label.trim())) return "Preencha o rótulo dos itens extras";
+      return null;
+    }
+    return null;
+  }, [
+    step, companyId, effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
+    doctorExceptions, paymentTableBase, paymentPercentage, hasGlosa, glosaConditions, urgencyDiff,
+    urgencyPct, weekendAdd, weekendPct, extraItems,
+  ]);
+
+  const buildPayload = useCallback(
+    (status: string) => ({
+      hospital_id: hospitalId as string,
+      company_id: companyId,
+      effective_from: effectiveFrom || null,
+      effective_to: effectiveTo || null,
+      applies_to_all_convenios: allConvenios,
+      convenio_exceptions: allConvenios ? [] : convenioExceptions,
+      applies_to_all_doctors: allDoctors,
+      doctor_exceptions: allDoctors ? [] : doctorExceptions,
+      includes_auxiliary: includesAuxiliary,
+      includes_access_route: includesAccessRoute,
+      payment_table_base: paymentTableBase || null,
+      payment_percentage: numOrNull(paymentPercentage),
+      has_glosa: hasGlosa,
+      glosa_conditions: hasGlosa ? glosaConditions.trim() || null : null,
+      urgency_differentiation: urgencyDiff,
+      urgency_addition_pct: urgencyDiff ? numOrNull(urgencyPct) : null,
+      weekend_holiday_addition: weekendAdd,
+      weekend_holiday_addition_pct: weekendAdd ? numOrNull(weekendPct) : null,
+      has_fixed_values: hasFixedValues,
+      fixed_value_urgency_differentiation: hasFixedValues ? fixedUrgencyDiff : false,
+      exclusions_notes: exclusionsNotes.trim() || null,
+      extra_items: extraItems.filter((i) => i.label.trim()),
+      free_notes: freeNotes.trim() || null,
+      status,
+    }),
+    [
+      hospitalId, companyId, effectiveFrom, effectiveTo, allConvenios, convenioExceptions,
+      allDoctors, doctorExceptions, includesAuxiliary, includesAccessRoute, paymentTableBase,
+      paymentPercentage, hasGlosa, glosaConditions, urgencyDiff, urgencyPct, weekendAdd,
+      weekendPct, hasFixedValues, fixedUrgencyDiff, exclusionsNotes, extraItems, freeNotes,
+    ],
+  );
+
+  const persist = useCallback(
+    async (status: string): Promise<boolean> => {
+      if (!ensure("salvar o cadastro de acordo")) return false;
+      setSaving(true);
+      try {
+        const payload = buildPayload(status);
+        if (id) {
+          const { error } = await supabase
+            .from("agreement_registrations")
+            .update(payload)
+            .eq("id", id);
+          if (error) throw error;
+        } else {
+          const { data: userRes } = await supabase.auth.getUser();
+          const { data, error } = await supabase
+            .from("agreement_registrations")
+            .insert({ ...payload, filled_by: userRes?.user?.id ?? null })
+            .select("id")
+            .single();
+          if (error) throw error;
+          setId(data.id as string);
+        }
+        onSaved();
+        return true;
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Falha ao salvar o acordo");
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [buildPayload, ensure, id, onSaved],
+  );
+
+  const goNext = async () => {
+    if (stepError) {
+      toast.error(stepError);
+      return;
+    }
+    const ok = await persist("rascunho");
+    if (!ok) return;
+    if (step < STEPS.length - 1) setStep((s) => s + 1);
+  };
+
+  const finish = async () => {
+    if (stepError) {
+      toast.error(stepError);
+      return;
+    }
+    const ok = await persist("aguardando_supervisor");
+    if (!ok) return;
+    toast.success("Acordo enviado para validação do supervisor");
+    onOpenChange(false);
+  };
+
+  const toggleIn = (list: string[], value: string, set: (v: string[]) => void) =>
+    set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+
+  const isLast = step === STEPS.length - 1;
+
+  return (
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      maxWidth="3xl"
+      title={record ? `Acordo ${record.code}` : "Novo acordo"}
+      description={`Etapa ${step + 1} de ${STEPS.length} — ${STEPS[step]}${hospital ? ` · ${hospital.name}` : ""}`}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Fechar
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            disabled={saving || step === 0}
+          >
+            Voltar
+          </Button>
+          {isLast ? (
+            <Button type="button" onClick={() => void finish()} disabled={saving}>
+              {saving ? "Salvando..." : "Concluir e enviar ao supervisor"}
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => void goNext()} disabled={saving}>
+              {saving ? "Salvando..." : "Salvar e avançar"}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {/* Trilha de etapas */}
+        <nav className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/50 p-1" aria-label="Etapas do acordo">
+          {STEPS.map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setStep(i)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                i === step
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+              )}
+              aria-pressed={i === step}
+            >
+              {i + 1}. {label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Etapa 1 */}
+        {step === 0 && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Clínica / grupo médico</Label>
+              <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between font-normal"
+                    disabled={registriesLoading}
+                  >
+                    {company ? company.name : registriesLoading ? "Carregando cadastro..." : "Buscar empresa no cadastro"}
+                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command
+                    filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}
+                  >
+                    <CommandInput placeholder="Buscar por nome ou CNPJ" />
+                    <CommandList>
+                      <CommandEmpty>
+                        <div className="p-3 text-left text-sm space-y-2">
+                          <p className="font-medium">Empresa não encontrada no cadastro</p>
+                          <p className="text-muted-foreground">
+                            Não é permitido texto livre. Cadastre a empresa (entra como pendente de
+                            revisão do admin) e volte para selecioná-la.
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open("/cadastros?tab=empresas", "_blank")}
+                          >
+                            Abrir cadastro de empresas
+                          </Button>
+                        </div>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {companies.map((c) => (
+                          <CommandItem
+                            key={c.id}
+                            value={`${c.name} ${c.document ?? ""}`}
+                            onSelect={() => {
+                              setCompanyId(c.id);
+                              setDoctorExceptions([]);
+                              setCompanyOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn("mr-2 h-4 w-4", c.id === companyId ? "opacity-100" : "opacity-0")}
+                            />
+                            <span className="flex-1">{c.name}</span>
+                            {!c.active && <Badge variant="secondary" className="ml-2">Inativa</Badge>}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex flex-wrap gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="acd-cnpj">CNPJ</Label>
+                <Input
+                  id="acd-cnpj"
+                  value={company?.document ? formatCNPJ(company.document) : ""}
+                  readOnly
+                  disabled
+                  className="w-52 bg-muted/50"
+                  placeholder="Preenchido pela empresa"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="acd-from">Início da vigência</Label>
+                <Input
+                  id="acd-from"
+                  type="date"
+                  value={effectiveFrom}
+                  onChange={(e) => setEffectiveFrom(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="acd-to">Fim da vigência</Label>
+                <Input
+                  id="acd-to"
+                  type="date"
+                  value={effectiveTo}
+                  onChange={(e) => setEffectiveTo(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Responsável pelo preenchimento: usuário logado (gravado em <code>filled_by</code>).
+            </p>
+          </div>
+        )}
+
+        {/* Etapa 2 */}
+        {step === 1 && (
+          <div className="space-y-5">
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                Aplica-se a todos os convênios: sim/não
+                <Switch checked={allConvenios} onCheckedChange={setAllConvenios} />
+              </label>
+              {!allConvenios && (
+                <MultiPicker
+                  emptyLabel="Nenhum convênio ativo nesta unidade"
+                  options={convenios.map((c) => ({ id: c.id, label: c.name }))}
+                  selected={convenioExceptions}
+                  onToggle={(v) => toggleIn(convenioExceptions, v, setConvenioExceptions)}
+                  onClear={() => setConvenioExceptions([])}
+                />
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                Aplica-se a todos os médicos da clínica: sim/não
+                <Switch checked={allDoctors} onCheckedChange={setAllDoctors} />
+              </label>
+              {!allDoctors && (
+                <MultiPicker
+                  emptyLabel="Nenhum médico vinculado a esta clínica (doctor_companies)"
+                  options={linkedDoctors.map((d) => ({
+                    id: d.id,
+                    label: `${d.full_name}${d.crm ? ` — CRM ${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : ""}`,
+                  }))}
+                  selected={doctorExceptions}
+                  onToggle={(v) => toggleIn(doctorExceptions, v, setDoctorExceptions)}
+                  onClear={() => setDoctorExceptions([])}
+                />
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm font-medium">
+                Inclusão de auxiliar: sim/não
+                <Switch checked={includesAuxiliary} onCheckedChange={setIncludesAuxiliary} />
+              </label>
+              <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm font-medium">
+                Inclusão de via de acesso: sim/não
+                <Switch checked={includesAccessRoute} onCheckedChange={setIncludesAccessRoute} />
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Etapa 3 */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="space-y-1.5">
+                <Label>Base da tabela de pagamento</Label>
+                <Select value={paymentTableBase} onValueChange={setPaymentTableBase}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Selecione a base" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PAYMENT_TABLE_BASE_LABEL).map(([v, label]) => (
+                      <SelectItem key={v} value={v}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="acd-pct">Percentual (%)</Label>
+                <Input
+                  id="acd-pct"
+                  inputMode="decimal"
+                  value={paymentPercentage}
+                  onChange={(e) => setPaymentPercentage(e.target.value)}
+                  className="w-28 text-right tabular-nums"
+                  placeholder="100"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                Haverá glosa: sim/não
+                <Switch checked={hasGlosa} onCheckedChange={setHasGlosa} />
+              </label>
+              {hasGlosa && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="acd-glosa">Condições de glosa</Label>
+                  <Textarea
+                    id="acd-glosa"
+                    rows={3}
+                    value={glosaConditions}
+                    onChange={(e) => setGlosaConditions(e.target.value)}
+                    placeholder="Em que hipóteses a glosa é repassada à clínica"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Etapa 4 */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                Diferenciação por urgência/emergência: sim/não
+                <Switch checked={urgencyDiff} onCheckedChange={setUrgencyDiff} />
+              </label>
+              {urgencyDiff && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="acd-urg">Acréscimo de urgência (%)</Label>
+                  <Input
+                    id="acd-urg"
+                    inputMode="decimal"
+                    value={urgencyPct}
+                    onChange={(e) => setUrgencyPct(e.target.value)}
+                    className="w-28 text-right tabular-nums"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                Acréscimo fim de semana/feriado: sim/não
+                <Switch checked={weekendAdd} onCheckedChange={setWeekendAdd} />
+              </label>
+              {weekendAdd && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="acd-fds">Acréscimo fim de semana/feriado (%)</Label>
+                  <Input
+                    id="acd-fds"
+                    inputMode="decimal"
+                    value={weekendPct}
+                    onChange={(e) => setWeekendPct(e.target.value)}
+                    className="w-28 text-right tabular-nums"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                Há valores fixos: sim/não
+                <Switch checked={hasFixedValues} onCheckedChange={setHasFixedValues} />
+              </label>
+              {hasFixedValues && (
+                <label className="flex items-center justify-between gap-3 text-sm">
+                  Valor fixo com diferenciação por urgência: sim/não
+                  <Switch checked={fixedUrgencyDiff} onCheckedChange={setFixedUrgencyDiff} />
+                </label>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="acd-exc">Exclusões / exceções</Label>
+              <Textarea
+                id="acd-exc"
+                rows={4}
+                value={exclusionsNotes}
+                onChange={(e) => setExclusionsNotes(e.target.value)}
+                placeholder="Procedimentos, códigos ou situações fora do acordo"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Etapa 5 */}
+        {step === 4 && (
+          <div className="space-y-3">
+            {extraItems.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                Nenhum item extra. Use o botão abaixo para adicionar pares rótulo/valor.
+              </div>
+            )}
+            {extraItems.map((item, idx) => (
+              <div key={idx} className="flex flex-wrap items-end gap-2">
+                <div className="space-y-1.5 flex-1 min-w-[200px]">
+                  <Label htmlFor={`acd-extra-l-${idx}`}>Rótulo</Label>
+                  <Input
+                    id={`acd-extra-l-${idx}`}
+                    value={item.label}
+                    onChange={(e) =>
+                      setExtraItems((prev) =>
+                        prev.map((it, i) => (i === idx ? { ...it, label: e.target.value } : it)),
+                      )
+                    }
+                    placeholder="Ex.: Taxa de sala"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`acd-extra-v-${idx}`}>Valor</Label>
+                  <Input
+                    id={`acd-extra-v-${idx}`}
+                    value={item.value}
+                    onChange={(e) =>
+                      setExtraItems((prev) =>
+                        prev.map((it, i) => (i === idx ? { ...it, value: e.target.value } : it)),
+                      )
+                    }
+                    className="w-40"
+                    placeholder="Ex.: R$ 500,00"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setExtraItems((prev) => prev.filter((_, i) => i !== idx))}
+                  aria-label="Remover item extra"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setExtraItems((prev) => [...prev, { label: "", value: "" }])}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar item
+            </Button>
+          </div>
+        )}
+
+        {/* Etapa 6 */}
+        {step === 5 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="acd-notes">Observações livres</Label>
+            <Textarea
+              id="acd-notes"
+              rows={8}
+              value={freeNotes}
+              onChange={(e) => setFreeNotes(e.target.value)}
+              placeholder="Qualquer condição acordada que não coube nos campos acima"
+            />
+            <p className="text-xs text-muted-foreground">
+              Ao concluir, o registro passa para <strong>Aguardando supervisor</strong> e deixa de ser
+              rascunho.
+            </p>
+          </div>
+        )}
+
+        {stepError && <p className="text-xs text-destructive">{stepError}</p>}
+      </div>
+    </FormDialog>
+  );
+}
+
+// Seletor múltiplo simples com busca — usado em convênios e médicos.
+function MultiPicker({
+  options,
+  selected,
+  onToggle,
+  onClear,
+  emptyLabel,
+}: {
+  options: { id: string; label: string }[];
+  selected: string[];
+  onToggle: (id: string) => void;
+  onClear: () => void;
+  emptyLabel: string;
+}) {
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const n = norm(q);
+    return n ? options.filter((o) => norm(o.label).includes(n)) : options;
+  }, [options, q]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar"
+          className="flex-1 min-w-[200px]"
+        />
+        <Badge variant="secondary">{selected.length} selecionado(s)</Badge>
+        {selected.length > 0 && (
+          <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+            <X className="h-3.5 w-3.5 mr-1" />
+            Limpar
+          </Button>
+        )}
+      </div>
+      {options.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+      ) : (
+        <ScrollArea className="h-52 rounded-lg border border-border">
+          <div className="p-2 space-y-1">
+            {filtered.map((o) => (
+              <label
+                key={o.id}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60 cursor-pointer"
+              >
+                <Checkbox checked={selected.includes(o.id)} onCheckedChange={() => onToggle(o.id)} />
+                <span>{o.label}</span>
+              </label>
+            ))}
+            {filtered.length === 0 && (
+              <p className="p-2 text-sm text-muted-foreground">Nada encontrado para "{q}"</p>
+            )}
+          </div>
+        </ScrollArea>
+      )}
+    </div>
+  );
+}
