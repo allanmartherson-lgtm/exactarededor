@@ -320,6 +320,29 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     };
   }, [open, hospitalId]);
 
+  // Acordos já cadastrados: só carregados quando o comunicado é aditivo/retirada.
+  useEffect(() => {
+    if (!open || !hospitalId || registrationType === "novo_acordo") return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agreement_registrations")
+        .select("id,code,company_id")
+        .neq("id", id ?? "00000000-0000-0000-0000-000000000000")
+        .order("code", { ascending: false })
+        .limit(200);
+      if (cancel) return;
+      if (error) {
+        toast.error("Falha ao carregar acordos de referência");
+        return;
+      }
+      setRelatedOptions((data ?? []) as RelatedAgreementOption[]);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, hospitalId, registrationType, id]);
+
 
   // Médicos vinculados à clínica selecionada (doctor_companies).
   // Busca em duas etapas e só dos ids vinculados — evita varrer a tabela inteira.
