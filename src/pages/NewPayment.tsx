@@ -5606,11 +5606,23 @@ const NewPayment = () => {
                 variant="outline"
                 onClick={() => {
                   setDoctorGateOpen(false);
-                  registryPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  const panel = registryPanelRef.current;
+                  if (panel) {
+                    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+                    return;
+                  }
+                  // Painel indisponível (cadastros ainda carregando): avisa em vez
+                  // de fechar o diálogo sem nenhuma ação visível para o analista.
+                  toast({
+                    title: "Painel de resolução indisponível",
+                    description:
+                      "Aguarde o carregamento dos cadastros ou vincule o médico em Cadastro > Médicos. Você também pode prosseguir mesmo assim.",
+                  });
                 }}
               >
                 Resolver agora
               </Button>
+
               <Button
                 variant="destructive"
                 onClick={() => {
