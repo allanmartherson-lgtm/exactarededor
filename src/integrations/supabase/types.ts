@@ -100,6 +100,47 @@ export type Database = {
           },
         ]
       }
+      agreement_registration_attachments: {
+        Row: {
+          agreement_id: string
+          file_mime: string | null
+          file_name: string
+          file_path: string
+          file_size_bytes: number | null
+          id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          agreement_id: string
+          file_mime?: string | null
+          file_name: string
+          file_path: string
+          file_size_bytes?: number | null
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          agreement_id?: string
+          file_mime?: string | null
+          file_name?: string
+          file_path?: string
+          file_size_bytes?: number | null
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreement_registration_attachments_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "agreement_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agreement_registration_hospitals: {
         Row: {
           agreement_id: string
@@ -12718,6 +12759,10 @@ export type Database = {
           notified_count: number
           question_id: string
         }[]
+      }
+      can_access_agreement: {
+        Args: { _agreement_id: string }
+        Returns: boolean
       }
       can_access_hospital: {
         Args: { _hid: string; _uid: string }

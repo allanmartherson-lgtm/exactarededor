@@ -7,6 +7,7 @@ import { useHospital } from "@/contexts/HospitalContext";
 import { useRequireHospital } from "@/hooks/useRequireHospital";
 import { formatCNPJ } from "@/lib/cnpj";
 import { FormDialog } from "@/components/FormDialog";
+import { AgreementAttachmentsPanel } from "@/components/relacionamento/AgreementAttachmentsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -997,7 +998,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
                 </div>
               )}
             </div>
+
+            {/* Tabelas de códigos/valores recebidas pelo Contratos */}
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <AgreementAttachmentsPanel agreementId={id} />
+            </div>
           </div>
+
         )}
 
 

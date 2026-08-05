@@ -1,6 +1,7 @@
 // Detalhe do Cadastro de Acordo — visão read-only com as ações de cada papel
 // (supervisor, diretor por hospital e analista) e linha do tempo do fluxo.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AgreementAttachmentsPanel } from "@/components/relacionamento/AgreementAttachmentsPanel";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -351,7 +352,12 @@ export function AgreementDetailDialog({
 
           <Separator />
 
-          {/* Hospitais de destino */}
+          {/* Tabelas de referência anexadas pelo Contratos — consulta na validação e no cadastro da regra */}
+          <AgreementAttachmentsPanel agreementId={agreement.id} readOnly />
+
+          <Separator />
+
+
           <div className="space-y-2">
             <p className="text-sm font-semibold">Hospitais de destino</p>
             {loading ? (
