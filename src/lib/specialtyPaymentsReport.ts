@@ -227,5 +227,27 @@ export async function exportSpecialtyReportPdf(params: {
     margin: { left: marginX, right: marginX },
   });
 
+  // Quebra por convênio (payment_items.convenio_slug), mesmo recorte de filtros.
+  if (convenios.length > 0) {
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+    autoTable(doc, {
+      startY: y,
+      head: [["Convênio", "Itens", "Bruto", "% do total"]],
+      body: convenios.map((c) => [
+        c.label,
+        String(c.items),
+        money(c.bruto),
+        `${c.pct.toFixed(1)}%`,
+      ]),
+      theme: "striped",
+      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255 },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      margin: { left: marginX, right: marginX },
+      tableWidth: 180,
+    });
+  }
+
   doc.save(`pagamentos-por-especialidade-${Date.now()}.pdf`);
 }
+
