@@ -65,6 +65,7 @@ function filterLines(f: SpecialtyReportFilters): string[] {
     `Médico: ${f.doctorLabel}`,
     `PJ: ${f.companyLabel}`,
     `Tipo de pagamento: ${f.itemTypesLabel ?? "Todos"}`,
+    `Modo de visão: ${f.viewModeLabel ?? "Especialidade"}`,
   ];
 }
 
