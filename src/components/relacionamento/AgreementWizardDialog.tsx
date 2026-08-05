@@ -349,11 +349,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       setSaving(true);
       try {
         const payload = buildPayload(status);
-        if (id) {
+        let agreementId = id;
+        if (agreementId) {
           const { error } = await supabase
             .from("agreement_registrations")
             .update(payload)
-            .eq("id", id);
+            .eq("id", agreementId);
           if (error) throw error;
         } else {
           const { data: userRes } = await supabase.auth.getUser();
@@ -363,8 +364,39 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             .select("id")
             .single();
           if (error) throw error;
-          setId(data.id as string);
+          agreementId = data.id as string;
+          setId(agreementId);
         }
+
+        // Replicação regional: o hospital principal é criado pelo banco (is_primary).
+        // Aqui sincronizamos apenas os hospitais adicionais ainda aguardando diretor.
+        const { data: existing, error: existingErr } = await supabase
+          .from("agreement_registration_hospitals")
+          .select("hospital_id,is_primary,status")
+          .eq("agreement_id", agreementId);
+        if (existingErr) throw existingErr;
+        const current = (existing ?? []).filter((r) => !r.is_primary);
+        const desired = new Set(replicaHospitalIds.filter((h) => h !== hospitalId));
+        const toInsert = [...desired].filter((h) => !current.some((r) => r.hospital_id === h));
+        const toRemove = current
+          .filter((r) => !desired.has(r.hospital_id) && r.status === "aguardando_diretor")
+          .map((r) => r.hospital_id);
+
+        if (toInsert.length > 0) {
+          const { error } = await supabase.from("agreement_registration_hospitals").insert(
+            toInsert.map((h) => ({ agreement_id: agreementId as string, hospital_id: h, is_primary: false })),
+          );
+          if (error) throw error;
+        }
+        if (toRemove.length > 0) {
+          const { error } = await supabase
+            .from("agreement_registration_hospitals")
+            .delete()
+            .eq("agreement_id", agreementId)
+            .in("hospital_id", toRemove);
+          if (error) throw error;
+        }
+
         onSaved();
         return true;
       } catch (e: unknown) {
@@ -374,8 +406,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setSaving(false);
       }
     },
-    [buildPayload, ensure, id, onSaved],
+    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId],
   );
+
 
   const goNext = async () => {
     if (stepError) {
