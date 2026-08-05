@@ -51,6 +51,16 @@ export interface AgreementExportParty {
   doctors: string;
 }
 
+/** Linha da tabela "Corpo clínico e empresas vinculadas ao acordo". */
+export interface AgreementExportStaff {
+  doctor: string;
+  crm: string;
+  company: string;
+  cnpj: string;
+  email: string;
+  phone: string;
+}
+
 /** Modelo neutro consumido pelos dois exportadores (Word e Excel). */
 export interface AgreementExportModel {
   code: string;
@@ -60,11 +70,91 @@ export interface AgreementExportModel {
   scope: AgreementExportRow[];
   paymentTable: AgreementExportRow[];
   parties: AgreementExportParty[];
+  /** Médicos efetivamente incluídos no acordo (não a lista de exceções). */
+  clinicalStaff: AgreementExportStaff[];
   hospitals: AgreementExportHospital[];
   extraItems: AgreementExportRow[];
   timeline: AgreementExportRow[];
   freeNotes: string;
 }
+
+/**
+ * Resolve o corpo clínico do acordo a partir das PJs envolvidas.
+ * `includedDoctorIds = null` significa "todos os médicos vinculados à PJ".
+ */
+export async function loadAgreementClinicalStaff(
+  entries: Array<{ companyId: string | null; includedDoctorIds: string[] | null }>,
+): Promise<AgreementExportStaff[]> {
+  const valid = entries.filter((e): e is { companyId: string; includedDoctorIds: string[] | null } => !!e.companyId);
+  if (valid.length === 0) return [];
+  const companyIds = [...new Set(valid.map((e) => e.companyId))];
+
+  const [companiesRes, linksRes] = await Promise.all([
+    supabase.from("companies").select("id,name,document").in("id", companyIds),
+    supabase.from("doctor_companies").select("doctor_id,company_id,end_date").in("company_id", companyIds),
+  ]);
+  const companyById = new Map(
+    ((companiesRes.data ?? []) as Array<{ id: string; name: string; document: string | null }>).map((c) => [c.id, c]),
+  );
+  const activeLinks = ((linksRes.data ?? []) as Array<{ doctor_id: string; company_id: string; end_date: string | null }>)
+    .filter((l) => !l.end_date);
+
+  const doctorIds = [
+    ...new Set([
+      ...activeLinks.map((l) => l.doctor_id),
+      ...valid.flatMap((e) => e.includedDoctorIds ?? []),
+    ]),
+  ];
+  const doctorsRes = doctorIds.length
+    ? await supabase.from("doctors").select("id,full_name,crm,crm_uf,email,phone").in("id", doctorIds)
+    : { data: [] };
+  const doctorById = new Map(
+    ((doctorsRes.data ?? []) as Array<{
+      id: string; full_name: string; crm: string | null; crm_uf: string | null;
+      email: string | null; phone: string | null;
+    }>).map((d) => [d.id, d]),
+  );
+
+  const seen = new Set<string>();
+  const rows: AgreementExportStaff[] = [];
+  for (const entry of valid) {
+    const company = companyById.get(entry.companyId);
+    const ids = entry.includedDoctorIds
+      ?? activeLinks.filter((l) => l.company_id === entry.companyId).map((l) => l.doctor_id);
+    for (const id of ids) {
+      const key = `${entry.companyId}|${id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const d = doctorById.get(id);
+      rows.push({
+        doctor: d?.full_name ?? "—",
+        crm: d?.crm ? `${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : "—",
+        company: company?.name ?? "—",
+        cnpj: company?.document ?? "—",
+        email: d?.email ?? "—",
+        phone: d?.phone ?? "—",
+      });
+    }
+  }
+  return rows.sort((a, b) => a.company.localeCompare(b.company) || a.doctor.localeCompare(b.doctor));
+}
+
+/** Campos que só fazem sentido quando o acordo não é exclusivamente de valor fixo. */
+export const FIXED_ONLY_HIDDEN_LABELS = new Set([
+  "Método de cálculo",
+  "Sujeito a glosa",
+  "Condições de glosa",
+  "Diferenciação por urgência",
+  "Adicional fim de semana/feriado",
+  "Possui valores fixos",
+  "Valores fixos com urgência diferenciada",
+  "Considera via de acesso",
+]);
+
+/** Remove do documento os campos que não se aplicam a acordos só de valor fixo. */
+export const filterFixedOnlyRows = (rows: AgreementExportRow[], onlyFixedValue: boolean) =>
+  onlyFixedValue ? rows.filter((r) => !FIXED_ONLY_HIDDEN_LABELS.has(r.label)) : rows;
+
 
 export const fmtExportDate = (v: string | null | undefined) =>
   v ? new Date(`${String(v).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
