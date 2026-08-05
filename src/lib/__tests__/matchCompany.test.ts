@@ -70,3 +70,25 @@ describe("matchCompany — guarda de token distintivo", () => {
     expect(s).toBeLessThan(MATCH_REVIEW_THRESHOLD);
   });
 });
+
+describe("extractCompanyFromFilename — sufixo de conteúdo", () => {
+  it('remove "- Parecer Adulto" para não colidir com alias de outra marca', async () => {
+    const { extractCompanyFromFilename } = await import("../parsePaymentFile");
+    expect(
+      extractCompanyFromFilename("CABRAL LENZA SERVICOS MEDICOS LTDA - Parecer Adulto.xlsx"),
+    ).toBe("CABRAL LENZA SERVICOS MEDICOS LTDA");
+  });
+
+  it("marca distinta com o mesmo sufixo não vira sugestão automática", async () => {
+    const { extractCompanyFromFilename } = await import("../parsePaymentFile");
+    const raw = extractCompanyFromFilename("CABRAL LENZA SERVICOS MEDICOS LTDA - Parecer Adulto.xlsx");
+    const { score } = matchCompany(raw, [
+      {
+        id: "c-canto",
+        name: "CANTO NERY SERVICOS MEDICOS LTDA",
+        aliases: ["CANTO NERY SERVICOS MEDICOS LTDA - Parecer Adulto"],
+      },
+    ]);
+    expect(score).toBeLessThan(MATCH_REVIEW_THRESHOLD);
+  });
+});
