@@ -510,8 +510,10 @@ async function execAcceptKeepPaid(
       : ["reprovado", "alerta"],
   };
   const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
-  // Filtra apenas itens ainda não tratados manualmente
-  const targets = items.filter((i) => !i.manual_intervention_reason_id);
+  // Reacate permitido: itens já tocados por outra intervenção manual continuam
+  // elegíveis (o escopo de status já exclui os que estão 'acatado'). Antes eles
+  // eram descartados e o lote inteiro caía para 0 itens afetados.
+  const targets = items;
   if (targets.length === 0) {
     return { affected: 0, before: [], after: { reason: "acatado_pago" } };
   }
