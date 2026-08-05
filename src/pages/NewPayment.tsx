@@ -60,6 +60,7 @@ import {
   type ConvenioRegistry,
   type SectorRegistry,
 } from "@/lib/registryLookup";
+import { summarizeUnresolvedDoctors } from "@/lib/unresolvedDoctorGate";
 import { RegistryResolutionPanel, type UnresolvedGroup } from "@/components/RegistryResolutionPanel";
 import {
   extractCompanyFromFilename,
