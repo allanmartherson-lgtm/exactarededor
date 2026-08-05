@@ -481,7 +481,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         </>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
+
         {/* Trilha de etapas */}
         <nav className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/50 p-1" aria-label="Etapas do acordo">
           {STEPS.map((label, i) => (
