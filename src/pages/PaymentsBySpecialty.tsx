@@ -125,6 +125,13 @@ interface FinancialRow {
 
 type GroupBy = "company" | "doctor";
 type DoctorMode = "doctor" | "company";
+/**
+ * Modo de leitura dos totais:
+ * - "specialty": só os itens que batem no recorte (bruto exato; líquido é do lote × PJ).
+ * - "company": todos os itens das MESMAS PJs no período, ignorando especialidade/grupo,
+ *   para comparar a fatia da especialidade com o total real recebido pela PJ.
+ */
+type ViewMode = "specialty" | "company";
 
 // Colapsa espaços internos: o cadastro tem variações como
 // "Paliativismo e  terminalidade" (2 espaços, caixa diferente) que não podem
