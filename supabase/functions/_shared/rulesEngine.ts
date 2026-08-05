@@ -409,6 +409,9 @@ export interface ItemInput {
    *  inferência por categoria do motivo — sem isso a reanálise sobrescrevia a
    *  decisão humana adotando o valor pago. */
   manual_value_strategy?: "procedure" | "expected" | "custom" | string | null;
+  /** expected_amount atual do item no banco — usado apenas para preservar o
+   *  valor quando manual_value_strategy = 'expected' | 'custom'. */
+  current_expected_amount?: number | null;
 }
 
 export interface PaymentContext {
