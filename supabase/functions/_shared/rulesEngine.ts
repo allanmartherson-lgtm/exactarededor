@@ -3163,13 +3163,10 @@ export function analyzeItem(
     } catch (_e) { /* ignore: tratamento manual prossegue */ }
 
     const ruleLabel = matchedRuleName ? ` Regra aderente: "${matchedRuleName}".` : "";
-    const baseLabel = acceptsPaidAsExpected
-      ? `Valor aceito = gross_amount pago (R$ ${grossAmount.toFixed(2)}).`
-      : `Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
     const explanation = `Tratamento manual — motivo "${code}"${category ? ` (${category})` : ""}. ${baseLabel}${ruleLabel}`;
     const alerts: string[] = [];
-    if (!acceptsPaidAsExpected && Math.abs(expected - grossAmount) > 0.01) {
-      alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do convênio (R$ ${procAmount.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
+    if (Math.abs(expected - grossAmount) > 0.01) {
+      alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do valor aceito (R$ ${expected.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
     }
 
     return {
