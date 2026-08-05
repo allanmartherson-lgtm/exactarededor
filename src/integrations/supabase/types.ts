@@ -141,6 +141,54 @@ export type Database = {
           },
         ]
       }
+      agreement_registration_events: {
+        Row: {
+          actor_id: string | null
+          agreement_id: string
+          created_at: string
+          cycle: number
+          event_type: string
+          hospital_id: string | null
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          agreement_id: string
+          created_at?: string
+          cycle?: number
+          event_type: string
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          agreement_id?: string
+          created_at?: string
+          cycle?: number
+          event_type?: string
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreement_registration_events_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "agreement_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_registration_events_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agreement_registration_hospitals: {
         Row: {
           agreement_id: string
@@ -14189,6 +14237,10 @@ export type Database = {
       restore_rule_from_snapshot: {
         Args: { _snapshot_id: string }
         Returns: Json
+      }
+      resubmit_agreement_after_rejection: {
+        Args: { p_agreement_id: string }
+        Returns: undefined
       }
       retry_payment_recompute_failures: {
         Args: { _limit?: number }
