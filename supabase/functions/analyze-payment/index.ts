@@ -606,8 +606,6 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           package_ambiguity,
           ai_status,
           gross_override_at,
-          gross_override_reason,
-          applied_calc_method,
           item_hash,
           ai_findings,
           special_case_code,
