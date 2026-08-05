@@ -705,6 +705,25 @@ export default function PaymentsBySpecialty() {
       .slice(0, 8);
   }, [companies, companyQuery]);
 
+  /**
+   * Opções do filtro "Tipo de pagamento": catálogo ativo de item_types
+   * (ordenado por sort_order) + bucket "Tipo não classificado", que só aparece
+   * quando existem itens sem item_type_id no período.
+   */
+  const itemTypeOptions = useMemo(() => {
+    const opts = itemTypes.map((t) => ({ value: t.id, label: t.label }));
+    const unclassified = computed.brutoByType.get(UNCLASSIFIED_TYPE);
+    if (unclassified && unclassified.items > 0) {
+      opts.push({ value: UNCLASSIFIED_TYPE, label: "Tipo não classificado" });
+    }
+    return opts;
+  }, [itemTypes, computed.brutoByType]);
+
+  const itemTypeLabelByValue = useMemo(
+    () => new Map(itemTypeOptions.map((o) => [o.value, o.label])),
+    [itemTypeOptions],
+  );
+
   const filtersSummary = {
     hospitalName: hospital?.name ?? "—",
     periodLabel: `${monthLabel(fromMonth)} a ${monthLabel(toMonth)}`,
@@ -714,6 +733,9 @@ export default function PaymentsBySpecialty() {
       ? `${selectedDoctor.full_name}${doctorMode === "company" ? " (total da PJ vinculada)" : ""}`
       : "Todos",
     companyLabel: selectedCompany?.name ?? "Todas",
+    itemTypesLabel: selectedItemTypes.length
+      ? selectedItemTypes.map((v) => itemTypeLabelByValue.get(v) ?? v).join(", ")
+      : "Todos",
   };
 
   const kpis = {
@@ -729,12 +751,14 @@ export default function PaymentsBySpecialty() {
   const clearFilters = () => {
     setSelectedSpecialties([]);
     setSelectedGroupId("all");
+    setSelectedItemTypes([]);
     setSelectedDoctorId(null);
     setDoctorQuery("");
     setDoctorMode("doctor");
     setSelectedCompanyId(null);
     setCompanyQuery("");
   };
+
 
   const handleExportExcel = () => {
     try {
