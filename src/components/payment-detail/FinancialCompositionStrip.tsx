@@ -8,7 +8,9 @@ const brl = (n: number) =>
 /**
  * Faixa visual de composição financeira da empresa no lote.
  * Modo "analise" (default): mostra a equação completa
- *   Bruto − Débitos (+ Créditos) − Glosas − Pool = Líquido
+ *   Bruto apresentado − Reprovado − Débitos (+ Créditos) − Glosas − Pool = Líquido
+ *   Bruto = lastro do que o hospital enviou (inclui reprovados); Reprovado é
+ *   destacado para tornar visível a economia da análise.
  *   A conciliação NÃO aparece como parcela: ela age dentro do bruto.
  *
  * Modo "confeccao": ainda não há pagamento real. A faixa exibe o que o motor
@@ -53,6 +55,7 @@ export function FinancialCompositionStrip({
     );
   }
 
+  const hasReprovado = comp.reprovados > 0;
   const hasCredito = comp.creditos > 0;
   const hasDebito = comp.debitos > 0;
   const hasGlosa = comp.glosas > 0;
@@ -60,7 +63,9 @@ export function FinancialCompositionStrip({
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-muted/30 rounded-lg border border-border/50">
-      <Term label="Bruto" value={brl(comp.bruto)} />
+      <Term label="Bruto apresentado" value={brl(comp.bruto)} />
+      <FormulaOp>−</FormulaOp>
+      <Term label="Reprovado" value={hasReprovado ? brl(comp.reprovados) : "—"} muted={!hasReprovado} />
       <FormulaOp>−</FormulaOp>
       <Term label="Débitos" value={hasDebito ? brl(comp.debitos) : "—"} muted={!hasDebito} />
       {hasCredito && (
