@@ -6249,6 +6249,7 @@ export type Database = {
           manual_intervention_source: string | null
           manual_note: string | null
           manual_source_attachment_path: string | null
+          manual_value_strategy: string | null
           origem_reconciliation_item_id: string | null
           origem_referencia: string | null
           package_absorbed: boolean | null
@@ -6394,6 +6395,7 @@ export type Database = {
           manual_intervention_source?: string | null
           manual_note?: string | null
           manual_source_attachment_path?: string | null
+          manual_value_strategy?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
           package_absorbed?: boolean | null
@@ -6539,6 +6541,7 @@ export type Database = {
           manual_intervention_source?: string | null
           manual_note?: string | null
           manual_source_attachment_path?: string | null
+          manual_value_strategy?: string | null
           origem_reconciliation_item_id?: string | null
           origem_referencia?: string | null
           package_absorbed?: boolean | null

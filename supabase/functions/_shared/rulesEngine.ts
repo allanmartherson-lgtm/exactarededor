@@ -403,6 +403,15 @@ export interface ItemInput {
   manual_intervention_reason_category?: string | null;
   /** Origem: 'manual' (analista) | 'auto_parecer_report' (Fase 2). */
   manual_intervention_source?: string | null;
+  /** Estratégia de valor escolhida explicitamente pelo analista no acate em
+   *  massa: 'procedure' (valor do convênio) | 'expected' (mantém o valor da
+   *  regra) | 'custom' (valor já gravado no item). Quando preenchida, vence a
+   *  inferência por categoria do motivo — sem isso a reanálise sobrescrevia a
+   *  decisão humana adotando o valor pago. */
+  manual_value_strategy?: "procedure" | "expected" | "custom" | string | null;
+  /** expected_amount atual do item no banco — usado apenas para preservar o
+   *  valor quando manual_value_strategy = 'expected' | 'custom'. */
+  current_expected_amount?: number | null;
 }
 
 export interface PaymentContext {
@@ -3113,8 +3122,29 @@ export function analyzeItem(
     // Aceite financeiro = analista está aceitando o VALOR PAGO como esperado
     // (ex.: reajuste sem regra atualizada). Reclassificação clínica e demais
     // categorias mantêm o comportamento original (aceita valor do convênio).
-    const acceptsPaidAsExpected = category === "aceite_financeiro";
-    const expected = acceptsPaidAsExpected ? grossAmount : procAmount;
+    // A estratégia explícita escolhida no acate em massa (quando existir)
+    // VENCE essa inferência — sem isso a reanálise disparada logo após o acate
+    // reescrevia expected_amount = gross_amount e apagava a economia.
+    const strategy = item.manual_value_strategy ?? null;
+    const acceptsPaidAsExpected = strategy === null && category === "aceite_financeiro";
+    let expected: number;
+    let baseLabel: string;
+    if (strategy === "expected" || strategy === "custom") {
+      // Mantém o valor já gravado no item (regra ou customizado pelo analista).
+      expected = Number(item.current_expected_amount ?? procAmount);
+      baseLabel =
+        strategy === "expected"
+          ? `Valor mantido da regra (R$ ${expected.toFixed(2)}) por escolha do analista.`
+          : `Valor customizado pelo analista (R$ ${expected.toFixed(2)}).`;
+    } else if (strategy === "procedure") {
+      expected = procAmount;
+      baseLabel = `Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
+    } else {
+      expected = acceptsPaidAsExpected ? grossAmount : procAmount;
+      baseLabel = acceptsPaidAsExpected
+        ? `Valor aceito = gross_amount pago (R$ ${grossAmount.toFixed(2)}).`
+        : `Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
+    }
 
     // Mesmo em tratamento manual, queremos saber se EXISTE regra específica
     // para o médico/PJ (mesmo informativa) — para que o usuário enxergue o
@@ -3133,13 +3163,10 @@ export function analyzeItem(
     } catch (_e) { /* ignore: tratamento manual prossegue */ }
 
     const ruleLabel = matchedRuleName ? ` Regra aderente: "${matchedRuleName}".` : "";
-    const baseLabel = acceptsPaidAsExpected
-      ? `Valor aceito = gross_amount pago (R$ ${grossAmount.toFixed(2)}).`
-      : `Valor aceito = procedure_amount (R$ ${procAmount.toFixed(2)}).`;
     const explanation = `Tratamento manual — motivo "${code}"${category ? ` (${category})` : ""}. ${baseLabel}${ruleLabel}`;
     const alerts: string[] = [];
-    if (!acceptsPaidAsExpected && Math.abs(expected - grossAmount) > 0.01) {
-      alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do convênio (R$ ${procAmount.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
+    if (Math.abs(expected - grossAmount) > 0.01) {
+      alerts.push(`Pago (R$ ${grossAmount.toFixed(2)}) difere do valor aceito (R$ ${expected.toFixed(2)}) — diferença assumida pelo tratamento manual.`);
     }
 
     return {
