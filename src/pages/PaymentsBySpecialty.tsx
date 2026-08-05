@@ -246,6 +246,7 @@ export default function PaymentsBySpecialty() {
         payment_id: string | null;
         company_id: string | null;
         doctor_id: string | null;
+        item_type_id: string | null;
         gross: number | string | null;
         items: number | string | null;
       };
@@ -268,6 +269,7 @@ export default function PaymentsBySpecialty() {
             payment_id: r.payment_id,
             company_id: r.company_id,
             doctor_id: r.doctor_id,
+            item_type_id: r.item_type_id ?? null,
             gross_amount: Number(r.gross ?? 0),
             item_competence: r.competence,
             qty: Number(r.items ?? 0),
@@ -280,6 +282,7 @@ export default function PaymentsBySpecialty() {
     },
     [],
   );
+
 
 
 
