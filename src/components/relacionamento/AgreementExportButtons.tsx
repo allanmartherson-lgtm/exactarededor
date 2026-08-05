@@ -4,7 +4,7 @@
  * pelo chamador (registro salvo ou rascunho em edição no wizard).
  */
 import { useState } from "react";
-import { FileDown, FileSpreadsheet } from "lucide-react";
+import { FileDown, FileSpreadsheet, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
   exportAgreementXlsx,
   type AgreementExportModel,
 } from "@/lib/agreementExport";
+import { exportAgreementPdf } from "@/lib/agreementDraftPdf";
 
 interface Props {
   /** Monta o estado atual do acordo no formato de exportação. */
@@ -23,13 +24,14 @@ interface Props {
 }
 
 export function AgreementExportButtons({ getModel, disabled, disabledHint, size = "sm" }: Props) {
-  const [busy, setBusy] = useState<"docx" | "xlsx" | null>(null);
+  const [busy, setBusy] = useState<"docx" | "xlsx" | "pdf" | null>(null);
 
-  const run = async (kind: "docx" | "xlsx") => {
+  const run = async (kind: "docx" | "xlsx" | "pdf") => {
     setBusy(kind);
     try {
       const model = await getModel();
       if (kind === "docx") await exportAgreementDocx(model);
+      else if (kind === "pdf") await exportAgreementPdf(model);
       else exportAgreementXlsx(model);
     } catch (e) {
       toast.error("Não foi possível gerar o arquivo", {
@@ -63,6 +65,17 @@ export function AgreementExportButtons({ getModel, disabled, disabledHint, size 
       >
         <FileSpreadsheet className="h-4 w-4 mr-2" />
         {busy === "xlsx" ? "Gerando..." : "Exportar Excel"}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size={size}
+        disabled={disabled || busy !== null}
+        title={disabled ? disabledHint : "Exportar o acordo em PDF (versão informativa)"}
+        onClick={() => void run("pdf")}
+      >
+        <FileText className="h-4 w-4 mr-2" />
+        {busy === "pdf" ? "Gerando..." : "Exportar PDF"}
       </Button>
     </>
   );
