@@ -734,6 +734,60 @@ export const similarity = (a: string, b: string): number => {
   return Math.min(1, score);
 };
 
+// ===== Remoção de termos de TIPO DE PAGAMENTO do nome da empresa =====
+// Analistas nomeiam arquivos como "PARECER ADULTO CABRAL LENZA", "Cabral Lenza
+// Visita 03-2026" ou "Empresa X Centro Cirurgico". Esses termos descrevem o
+// TIPO DE PAGAMENTO, não a razão social — se ficarem no texto comparado, dois
+// arquivos de PJs diferentes ganham similaridade só por compartilhar "Parecer
+// Adulto". O motor precisa cruzar apenas o nome real da empresa.
+//
+// Frases longas vêm antes das curtas (ex.: "parecer adulto" antes de "parecer")
+// para o recorte remover a expressão inteira. Regex tolerante a acento.
+const PAYMENT_TYPE_PATTERNS: RegExp[] = [
+  /parecer(es)?\s+(adulto|adultos|infantil|infantis|pediatric[oa]s?|ped)\b/gi,
+  /visitas?\s+(adulto|adultos|infantil|infantis|pediatric[oa]s?|hospitalar(es)?|leito)\b/gi,
+  /centro\s*cir[uú]rgic[oa]s?\b/gi,
+  /bl?oco\s*cir[uú]rgic[oa]s?\b/gi,
+  /pronto\s*(socorro|atendimento)\b/gi,
+  /exames?\s+(sadt|cardiologia|cardiol[oó]gic[oa]s?)\b/gi,
+  /b[oô]nus\s+(por\s+)?paciente\b/gi,
+  /plant[aã]o\s*(fixo|m[eé]dico)?\b/gi,
+  /parecer(es|ista)?\b/gi,
+  /visitas?\b/gi,
+  /consultas?\b/gi,
+  /ambulat[oó]ri(o|al)\b/gi,
+  /hemodin[aâ]mica\b/gi,
+  /procedimentos?\b/gi,
+  /interna[cç][aã]o\b/gi,
+  /enfermaria\b/gi,
+  /sadt\b/gi,
+  /\buti\b/gi,
+];
+
+/**
+ * Remove termos de tipo de pagamento de qualquer posição do nome (prefixo,
+ * meio ou sufixo) devolvendo só o nome real da empresa.
+ *
+ * Salvaguarda: se a limpeza esvaziar o texto (ex.: arquivo chamado só
+ * "Parecer Adulto"), devolve o original — melhor um nome ruim e visível do que
+ * uma string vazia que casaria com qualquer PJ.
+ */
+export const stripPaymentTypeTerms = (name: string): string => {
+  if (!name) return "";
+  let out = name;
+  for (const re of PAYMENT_TYPE_PATTERNS) out = out.replace(re, " ");
+  // limpa separadores órfãos deixados pelo recorte ("Cabral Lenza - - 2026")
+  out = out.replace(/\s+/g, " ");
+  // laço: separadores adjacentes ("X - - Y") exigem mais de uma passada
+  let prev = "";
+  while (prev !== out) {
+    prev = out;
+    out = out.replace(/(^|\s)[-–—_/|]+(\s|$)/g, " ").replace(/\s+/g, " ");
+  }
+  out = out.trim();
+  return out || name.trim();
+};
+
 // ===== Extração de empresa do nome do arquivo =====
 // Remove tokens de período, prefixos de cópia/versão, sufixos de setor e separadores.
 export const extractCompanyFromFilename = (filename: string): string => {
@@ -754,10 +808,14 @@ export const extractCompanyFromFilename = (filename: string): string => {
   name = name.replace(/\s*[-_]?\s*(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zçé]*[\s_\-./]*\d{2,4}\s*$/i, "");
   name = name.replace(/\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b.*/i, "");
   name = name.replace(/\s*[-_]?\s*\d{4}\s*$/g, ""); // ano isolado no final
+  // Tipo de pagamento em QUALQUER posição (prefixo/meio/sufixo) — o match deve
+  // cruzar apenas o nome real da empresa.
+  name = stripPaymentTypeTerms(name);
   // colapsa espaços
   name = name.replace(/\s+/g, " ").trim();
   return name;
 };
+
 
 /**
  * Varre um texto (nome de arquivo, célula, cabeçalho) procurando sequências
