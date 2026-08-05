@@ -127,6 +127,12 @@ export default function AgreementRegistrations() {
     }
   }, [hospitalId]);
 
+  // Mantém o registro aberto no detalhe sincronizado após cada recarga.
+  useEffect(() => {
+    setDetail((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? prev : prev));
+  }, [rows]);
+
+
   useEffect(() => {
     if (hospitalLoading) return;
     void load();
