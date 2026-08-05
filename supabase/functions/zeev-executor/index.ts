@@ -510,8 +510,10 @@ async function execAcceptKeepPaid(
       : ["reprovado", "alerta"],
   };
   const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
-  // Filtra apenas itens ainda não tratados manualmente
-  const targets = items.filter((i) => !i.manual_intervention_reason_id);
+  // Reacate permitido: itens já tocados por outra intervenção manual continuam
+  // elegíveis (o escopo de status já exclui os que estão 'acatado'). Antes eles
+  // eram descartados e o lote inteiro caía para 0 itens afetados.
+  const targets = items;
   if (targets.length === 0) {
     return { affected: 0, before: [], after: { reason: "acatado_pago" } };
   }
@@ -587,7 +589,9 @@ async function execAcceptKeepExpected(
   };
   const items = await buildItemsQuery(sb, paymentId, scopeWithStatus);
   // Carrega expected_amount + estado de override (não vinha no select padrão)
-  const ids = items.filter((i) => !i.manual_intervention_reason_id).map((i) => i.id);
+  // Reacate permitido (ver execAcceptKeepPaid): não descarta itens que já têm
+  // motivo manual gravado — senão um lote já tratado vira 0 itens afetados.
+  const ids = items.map((i) => i.id);
   if (ids.length === 0) return { affected: 0, before: [], after: { reason: "acatado_esperado" } };
 
   const { data: extra } = await sb
@@ -616,6 +620,9 @@ async function execAcceptKeepExpected(
       gross_override_at: nowIso,
       gross_override_by: actorId,
       gross_override_reason: "acatado_esperado",
+      // Trava a decisão do analista: a reanálise posterior não pode readotar o
+      // valor pago como esperado (ver rulesEngine, ramo tratamento_manual).
+      manual_value_strategy: "expected",
     };
     if (!wasOverridden) patch.gross_amount_original = t.gross_amount;
     const { error } = await sb.from("payment_items").update(patch).eq("id", t.id);
@@ -1159,7 +1166,10 @@ async function buildPreview(sb: SB, paymentId: string, scope: Scope, action: Act
   }
 
   if (action === "accept_keep_paid" || action === "accept_keep_expected" || action === "apply_manual_reason") {
-    const filtered = items.filter((i) => !i.manual_intervention_reason_id);
+    // Itens já tratados manualmente CONTINUAM elegíveis para reacate/retratamento —
+    // o filtro por status já tira os que estão 'acatado'. Excluí-los aqui fazia
+    // lotes grandes já tocados devolverem "0 itens afetados".
+    const filtered = items;
     return {
       count: filtered.length,
       samples: filtered.slice(0, 3).map((i) => ({
