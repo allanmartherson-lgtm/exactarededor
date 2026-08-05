@@ -1039,6 +1039,7 @@ export default function PaymentsBySpecialty() {
         kpis,
         months: view.months,
         rows: view.rows,
+        convenios: convenioRows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
         chartPng: await captureChartPng(),
       });
