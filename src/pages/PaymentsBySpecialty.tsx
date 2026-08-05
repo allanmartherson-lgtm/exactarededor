@@ -915,14 +915,22 @@ export default function PaymentsBySpecialty() {
     try {
       const svg = chartRef.current?.querySelector("svg");
       if (!svg) return undefined;
-      const rect = svg.getBoundingClientRect();
-      const width = Math.max(1, Math.round(rect.width));
-      const height = Math.max(1, Math.round(rect.height));
+      // Tamanho fixo orientado a impressão: o viewBox do recharts preserva as
+      // proporções internas, então re-escala sem distorcer o container h-72.
+      const width = 1100;
+      const height = 480;
 
       const clone = svg.cloneNode(true) as SVGSVGElement;
       clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
       clone.setAttribute("width", String(width));
       clone.setAttribute("height", String(height));
+
+      // Alinha a tipografia do gráfico com a fonte padrão do jsPDF (Helvetica).
+      clone.style.fontFamily = "helvetica, Arial, sans-serif";
+      clone.querySelectorAll("text, tspan").forEach((el) => {
+        (el as SVGElement).style.fontFamily = "helvetica, Arial, sans-serif";
+      });
+
 
       // Tokens CSS (hsl(var(--x))) não resolvem em SVG isolado: trocamos pelo
       // valor computado do :root antes de serializar.

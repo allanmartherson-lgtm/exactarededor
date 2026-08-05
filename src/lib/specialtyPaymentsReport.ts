@@ -158,7 +158,7 @@ export async function exportSpecialtyReportPdf(params: {
   if (chartPng) {
     try {
       const props = doc.getImageProperties(chartPng);
-      const imgW = Math.min(pageWidth - marginX * 2, 180);
+      const imgW = Math.min(pageWidth - marginX * 2, 215);
       const imgH = (props.height / props.width) * imgW;
       if (y + imgH > pageHeight - 15) {
         doc.addPage();
