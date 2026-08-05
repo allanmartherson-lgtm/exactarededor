@@ -95,6 +95,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [companyOpen, setCompanyOpen] = useState(false);
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
+  // Replicação regional: hospitais adicionais que recebem o mesmo acordo
+  const [replicaHospitalIds, setReplicaHospitalIds] = useState<string[]>([]);
+  const [hospitalsOpen, setHospitalsOpen] = useState(false);
+  const [hospitalOptions, setHospitalOptions] = useState<HospitalOption[]>([]);
+  const [lockedHospitalIds, setLockedHospitalIds] = useState<string[]>([]);
+
   // Etapa 2
   const [allConvenios, setAllConvenios] = useState(true);
   const [convenioExceptions, setConvenioExceptions] = useState<string[]>([]);
