@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,6 +30,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -133,8 +133,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   // Cadastros
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [convenios, setConvenios] = useState<ConvenioOption[]>([]);
-  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
-  const [linkedDoctorIds, setLinkedDoctorIds] = useState<string[]>([]);
+  // Somente os médicos vinculados à clínica selecionada (doctor_companies).
+  // Carregar o cadastro inteiro estourava o statement timeout do banco.
+  const [linkedDoctors, setLinkedDoctors] = useState<DoctorOption[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [registriesLoading, setRegistriesLoading] = useState(false);
 
   // Reidrata o formulário sempre que abre (novo ou continuação de rascunho)
@@ -202,7 +204,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (async () => {
       setRegistriesLoading(true);
       try {
-        const [comps, convRes, docs, hospRes] = await Promise.all([
+        const [comps, convRes, hospRes] = await Promise.all([
           fetchAllPaginated<CompanyOption>((from, to) =>
             supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
           ),
@@ -212,16 +214,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             .or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
             .eq("active", true)
             .order("name"),
-          fetchAllPaginated<DoctorOption>((from, to) =>
-            supabase.from("doctors").select("id,full_name,crm,crm_uf").order("full_name").range(from, to),
-          ),
           supabase.from("hospitals").select("id,name").order("name"),
         ]);
         if (cancel) return;
         setCompanies(comps);
         if (convRes.error) throw convRes.error;
         setConvenios((convRes.data ?? []) as ConvenioOption[]);
-        setDoctors(docs);
         if (hospRes.error) throw hospRes.error;
         setHospitalOptions((hospRes.data ?? []) as HospitalOption[]);
       } catch (e: unknown) {
@@ -236,26 +234,44 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   }, [open, hospitalId]);
 
 
-  // Médicos vinculados à clínica selecionada (doctor_companies)
+  // Médicos vinculados à clínica selecionada (doctor_companies).
+  // Busca em duas etapas e só dos ids vinculados — evita varrer a tabela inteira.
   useEffect(() => {
     if (!open || !hospitalId || !companyId) {
-      setLinkedDoctorIds([]);
+      setLinkedDoctors([]);
       return;
     }
     let cancel = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("doctor_companies")
-        .select("doctor_id")
-        .eq("hospital_id", hospitalId)
-        .eq("company_id", companyId);
-      if (cancel) return;
-      if (error) {
-        toast.error("Falha ao carregar médicos vinculados à clínica");
-        setLinkedDoctorIds([]);
-        return;
+      setDoctorsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("doctor_companies")
+          .select("doctor_id")
+          .eq("hospital_id", hospitalId)
+          .eq("company_id", companyId);
+        if (error) throw error;
+        const ids = Array.from(new Set((data ?? []).map((r: { doctor_id: string }) => r.doctor_id)));
+        if (cancel) return;
+        if (ids.length === 0) {
+          setLinkedDoctors([]);
+          return;
+        }
+        const { data: docs, error: docsError } = await supabase
+          .from("doctors")
+          .select("id,full_name,crm,crm_uf")
+          .in("id", ids)
+          .order("full_name");
+        if (docsError) throw docsError;
+        if (!cancel) setLinkedDoctors((docs ?? []) as DoctorOption[]);
+      } catch {
+        if (!cancel) {
+          toast.error("Falha ao carregar médicos vinculados à clínica");
+          setLinkedDoctors([]);
+        }
+      } finally {
+        if (!cancel) setDoctorsLoading(false);
       }
-      setLinkedDoctorIds((data ?? []).map((r: { doctor_id: string }) => r.doctor_id));
     })();
     return () => {
       cancel = true;
@@ -267,10 +283,6 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     [companies, companyId],
   );
 
-  const linkedDoctors = useMemo(() => {
-    const set = new Set(linkedDoctorIds);
-    return doctors.filter((d) => set.has(d.id));
-  }, [doctors, linkedDoctorIds]);
 
   const stepError = useMemo((): string | null => {
     if (step === 0) {
@@ -468,7 +480,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         </>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
+
         {/* Trilha de etapas */}
         <nav className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/50 p-1" aria-label="Etapas do acordo">
           {STEPS.map((label, i) => (
@@ -489,9 +502,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           ))}
         </nav>
 
+        {/* Canvas do formulário: fundo suave para os cards de campos ganharem contraste */}
+        <section className="rounded-xl border border-border bg-muted/40 p-3 sm:p-4">
+
         {/* Etapa 1 */}
         {step === 0 && (
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+
             <div className="space-y-1.5">
               <Label>Clínica / grupo médico</Label>
               <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
@@ -687,12 +704,13 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 2 */}
         {step === 1 && (
-          <div className="space-y-5">
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Aplica-se a todos os convênios: sim/não
-                <Switch checked={allConvenios} onCheckedChange={setAllConvenios} />
-              </label>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Aplica-se a todos os convênios"
+                value={allConvenios}
+                onChange={setAllConvenios}
+              />
               {!allConvenios && (
                 <MultiPicker
                   emptyLabel="Nenhum convênio ativo nesta unidade"
@@ -704,14 +722,19 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Aplica-se a todos os médicos da clínica: sim/não
-                <Switch checked={allDoctors} onCheckedChange={setAllDoctors} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Aplica-se a todos os médicos da clínica"
+                value={allDoctors}
+                onChange={setAllDoctors}
+              />
               {!allDoctors && (
                 <MultiPicker
-                  emptyLabel="Nenhum médico vinculado a esta clínica (doctor_companies)"
+                  emptyLabel={
+                    doctorsLoading
+                      ? "Carregando médicos da clínica..."
+                      : "Nenhum médico vinculado a esta clínica (doctor_companies)"
+                  }
                   options={linkedDoctors.map((d) => ({
                     id: d.id,
                     label: `${d.full_name}${d.crm ? ` — CRM ${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : ""}`,
@@ -724,22 +747,30 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm font-medium">
-                Inclusão de auxiliar: sim/não
-                <Switch checked={includesAuxiliary} onCheckedChange={setIncludesAuxiliary} />
-              </label>
-              <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm font-medium">
-                Inclusão de via de acesso: sim/não
-                <Switch checked={includesAccessRoute} onCheckedChange={setIncludesAccessRoute} />
-              </label>
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <BoolField
+                  label="Inclusão de auxiliar"
+                  value={includesAuxiliary}
+                  onChange={setIncludesAuxiliary}
+                />
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <BoolField
+                  label="Inclusão de via de acesso"
+                  value={includesAccessRoute}
+                  onChange={setIncludesAccessRoute}
+                />
+              </div>
             </div>
           </div>
         )}
 
+
         {/* Etapa 3 */}
         {step === 2 && (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+
               <div className="space-y-1.5">
                 <Label>Base da tabela de pagamento</Label>
                 <Select value={paymentTableBase} onValueChange={setPaymentTableBase}>
@@ -768,11 +799,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               </div>
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Haverá glosa: sim/não
-                <Switch checked={hasGlosa} onCheckedChange={setHasGlosa} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField label="Haverá glosa" value={hasGlosa} onChange={setHasGlosa} />
               {hasGlosa && (
                 <div className="space-y-1.5">
                   <Label htmlFor="acd-glosa">Condições de glosa</Label>
@@ -792,11 +820,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         {/* Etapa 4 */}
         {step === 3 && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Diferenciação por urgência/emergência: sim/não
-                <Switch checked={urgencyDiff} onCheckedChange={setUrgencyDiff} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Diferenciação por urgência/emergência"
+                value={urgencyDiff}
+                onChange={setUrgencyDiff}
+              />
               {urgencyDiff && (
                 <div className="space-y-1.5">
                   <Label htmlFor="acd-urg">Acréscimo de urgência (%)</Label>
@@ -811,11 +840,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Acréscimo fim de semana/feriado: sim/não
-                <Switch checked={weekendAdd} onCheckedChange={setWeekendAdd} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField
+                label="Acréscimo fim de semana/feriado"
+                value={weekendAdd}
+                onChange={setWeekendAdd}
+              />
               {weekendAdd && (
                 <div className="space-y-1.5">
                   <Label htmlFor="acd-fds">Acréscimo fim de semana/feriado (%)</Label>
@@ -830,20 +860,19 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
-            <div className="rounded-lg border border-border p-3 space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium">
-                Há valores fixos: sim/não
-                <Switch checked={hasFixedValues} onCheckedChange={setHasFixedValues} />
-              </label>
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <BoolField label="Há valores fixos" value={hasFixedValues} onChange={setHasFixedValues} />
               {hasFixedValues && (
-                <label className="flex items-center justify-between gap-3 text-sm">
-                  Valor fixo com diferenciação por urgência: sim/não
-                  <Switch checked={fixedUrgencyDiff} onCheckedChange={setFixedUrgencyDiff} />
-                </label>
+                <BoolField
+                  label="Valor fixo com diferenciação por urgência"
+                  value={fixedUrgencyDiff}
+                  onChange={setFixedUrgencyDiff}
+                />
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 rounded-lg border border-border bg-card p-4 shadow-sm">
+
               <Label htmlFor="acd-exc">Exclusões / exceções</Label>
               <Textarea
                 id="acd-exc"
@@ -858,7 +887,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 5 */}
         {step === 4 && (
-          <div className="space-y-3">
+          <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
             {extraItems.length === 0 && (
               <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 Nenhum item extra. Use o botão abaixo para adicionar pares rótulo/valor.
@@ -919,7 +948,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
 
         {/* Etapa 6 */}
         {step === 5 && (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 rounded-lg border border-border bg-card p-4 shadow-sm">
+
             <Label htmlFor="acd-notes">Observações livres</Label>
             <Textarea
               id="acd-notes"
@@ -934,6 +964,8 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             </p>
           </div>
         )}
+
+        </section>
 
         {stepError && <p className="text-xs text-destructive">{stepError}</p>}
       </div>
@@ -998,6 +1030,33 @@ function MultiPicker({
           </div>
         </ScrollArea>
       )}
+    </div>
+  );
+}
+
+// Campo booleano com rótulos "Não | Sim" sempre visíveis.
+// Switch puro obrigava o usuário a inferir o estado pela posição/cor.
+function BoolField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <span className="text-sm font-medium">{label}</span>
+      <SegmentedControl
+        ariaLabel={label}
+        value={value ? "sim" : "nao"}
+        onValueChange={(v) => onChange(v === "sim")}
+        options={[
+          { value: "nao", label: "Não" },
+          { value: "sim", label: "Sim" },
+        ]}
+      />
     </div>
   );
 }
