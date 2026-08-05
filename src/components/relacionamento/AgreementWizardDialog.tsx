@@ -53,6 +53,7 @@ import {
   PAYMENT_TABLE_BASE_LABEL,
 } from "@/lib/agreementRegistrations";
 import { AgreementExportButtons } from "@/components/relacionamento/AgreementExportButtons";
+import { CurrencyInputBR } from "@/components/ui/currency-input-br";
 import { CompanyDoctorsToggleList } from "@/components/rules/CompanyDoctorsToggleList";
 import { fmtExportDate, type AgreementExportModel } from "@/lib/agreementExport";
 
@@ -722,6 +723,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       return null;
     }
     if (step === 3) {
+      if (onlyFixedValue) return null;
       if (urgencyDiff && numOrNull(urgencyPct) == null) return "Informe o acréscimo de urgência";
       if (weekendAdd && numOrNull(weekendPct) == null)
         return "Informe o acréscimo de fim de semana/feriado";
@@ -902,7 +904,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     }
     const ok = await persist(draftStatus);
     if (!ok) return;
-    if (step < STEPS.length - 1) setStep((s) => s + 1);
+    if (step < STEPS.length - 1) setStep(nextStep());
   };
 
   const finish = async () => {
@@ -934,6 +936,19 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const toggleIn = (list: string[], value: string, set: (v: string[]) => void) =>
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
+  // Etapa "Regras especiais" não se aplica quando o acordo é só valor fixo
+  const isStepDisabled = useCallback((i: number) => onlyFixedValue && i === 3, [onlyFixedValue]);
+  const nextStep = useCallback(() => {
+    let i = step + 1;
+    while (i < STEPS.length && isStepDisabled(i)) i += 1;
+    return Math.min(i, STEPS.length - 1);
+  }, [step, isStepDisabled]);
+  const prevStep = useCallback(() => {
+    let i = step - 1;
+    while (i > 0 && isStepDisabled(i)) i -= 1;
+    return Math.max(0, i);
+  }, [step, isStepDisabled]);
+
   const isLast = step === STEPS.length - 1;
 
   return (
@@ -958,11 +973,22 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           <Button
             type="button"
             variant="outline"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            onClick={() => setStep(prevStep())}
             disabled={saving || step === 0}
           >
-            Voltar
+            Etapa anterior
           </Button>
+          {!isLast && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep(nextStep())}
+              disabled={saving}
+              title="Ir para a próxima etapa sem salvar"
+            >
+              Próxima etapa
+            </Button>
+          )}
           {isLast ? (
             <Button type="button" onClick={() => void finish()} disabled={saving}>
               {saving
@@ -989,8 +1015,11 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               key={label}
               type="button"
               onClick={() => setStep(i)}
+              disabled={isStepDisabled(i)}
+              title={isStepDisabled(i) ? "Não se aplica a acordos somente de valor fixo" : undefined}
               className={cn(
                 "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                isStepDisabled(i) && "opacity-40 cursor-not-allowed",
                 i === step
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
@@ -1413,11 +1442,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label htmlFor="acd-mg-valor">Valor mínimo (R$) *</Label>
-                        <Input
+                        <CurrencyInputBR
                           id="acd-mg-valor"
-                          inputMode="decimal"
                           value={minGarantidoValor}
-                          onChange={(e) => setMinGarantidoValor(e.target.value)}
+                          onChange={setMinGarantidoValor}
                           className="text-right tabular-nums"
                           placeholder="0,00"
                         />
@@ -1562,11 +1590,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="acd-fx-valor">Valor do repasse (R$)</Label>
-                    <Input
+                    <CurrencyInputBR
                       id="acd-fx-valor"
-                      inputMode="decimal"
                       value={fixedValue.amount}
-                      onChange={(e) => setFixedValue((f) => ({ ...f, amount: e.target.value }))}
+                      onChange={(raw) => setFixedValue((f) => ({ ...f, amount: raw }))}
                       className="text-right tabular-nums"
                       placeholder="0,00"
                     />
@@ -1653,7 +1680,15 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         )}
 
         {/* Etapa 4 */}
-        {step === 3 && (
+        {step === 3 && onlyFixedValue && (
+          <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+            Regras especiais não se aplicam a acordos somente de <strong>valor fixo</strong>. Marque
+            Produção, Remessa, Plantão ou Hora trabalhada na etapa “Identificação” para habilitar
+            esta etapa.
+          </div>
+        )}
+
+        {step === 3 && !onlyFixedValue && (
           <div className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
               <BoolField
