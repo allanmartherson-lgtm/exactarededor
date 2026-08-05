@@ -915,12 +915,68 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               </p>
             </div>
 
-
             <p className="text-xs text-muted-foreground">
               Responsável pelo preenchimento: usuário logado (gravado em <code>filled_by</code>).
             </p>
+            </div>
+
+            {/* Acordo de equipe: várias PJs, cada uma com seus médicos */}
+            <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+              <BoolField
+                label="Este acordo envolve mais de uma PJ"
+                value={multiParty}
+                onChange={(v) => {
+                  setMultiParty(v);
+                  if (v && parties.length === 0)
+                    setParties([
+                      {
+                        key: crypto.randomUUID(),
+                        companyId: companyId,
+                        allDoctors: true,
+                        doctorIds: [],
+                      },
+                    ]);
+                }}
+              />
+              {multiParty && (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    A clínica acima segue como PJ principal do acordo. Liste aqui todas as PJs
+                    envolvidas e, em cada uma, se vale para todos os médicos ou apenas para alguns.
+                  </p>
+                  {parties.map((p, idx) => (
+                    <PartyRow
+                      key={p.key}
+                      index={idx}
+                      party={p}
+                      companies={companies}
+                      hospitalId={hospitalId}
+                      onChange={(next) =>
+                        setParties((list) => list.map((x) => (x.key === p.key ? next : x)))
+                      }
+                      onRemove={() => setParties((list) => list.filter((x) => x.key !== p.key))}
+                    />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setParties((list) => [
+                        ...list,
+                        { key: crypto.randomUUID(), companyId: null, allDoctors: true, doctorIds: [] },
+                      ])
+                    }
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    Adicionar PJ
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         )}
+
 
         {/* Etapa 2 */}
         {step === 1 && (
