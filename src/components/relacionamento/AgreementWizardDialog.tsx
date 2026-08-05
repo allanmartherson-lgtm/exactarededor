@@ -589,6 +589,96 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               </div>
             </div>
 
+            {/* Replicação regional: acordo fechado num hospital pode valer para os demais */}
+            <div className="space-y-1.5">
+              <Label>Replicar para outros hospitais da regional</Label>
+              <Popover open={hospitalsOpen} onOpenChange={setHospitalsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between font-normal"
+                    disabled={registriesLoading}
+                  >
+                    {replicaHospitalIds.length > 0
+                      ? `${replicaHospitalIds.length} hospital(is) adicional(is)`
+                      : registriesLoading
+                        ? "Carregando hospitais..."
+                        : "Somente o hospital de origem"}
+                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
+                    <CommandInput placeholder="Buscar hospital" />
+                    <CommandList>
+                      <CommandEmpty>Nenhum hospital encontrado</CommandEmpty>
+                      <CommandGroup>
+                        {hospitalOptions
+                          .filter((h) => h.id !== hospitalId)
+                          .map((h) => {
+                            const locked = lockedHospitalIds.includes(h.id);
+                            return (
+                              <CommandItem
+                                key={h.id}
+                                value={h.name}
+                                disabled={locked}
+                                onSelect={() => {
+                                  if (locked) return;
+                                  toggleIn(replicaHospitalIds, h.id, setReplicaHospitalIds);
+                                }}
+                              >
+                                <Checkbox
+                                  checked={replicaHospitalIds.includes(h.id)}
+                                  className="mr-2"
+                                  tabIndex={-1}
+                                />
+                                <span className="flex-1">{h.name}</span>
+                                {locked && (
+                                  <Badge variant="secondary" className="ml-2">
+                                    Já avaliado
+                                  </Badge>
+                                )}
+                              </CommandItem>
+                            );
+                          })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <Badge variant="outline" className="gap-1">
+                  {hospital?.name ?? "Hospital atual"} · origem
+                </Badge>
+                {replicaHospitalIds.map((hid) => {
+                  const h = hospitalOptions.find((o) => o.id === hid);
+                  const locked = lockedHospitalIds.includes(hid);
+                  return (
+                    <Badge key={hid} variant="secondary" className="gap-1 pl-2 pr-1">
+                      {h?.name ?? hid}
+                      {!locked && (
+                        <button
+                          type="button"
+                          aria-label={`Remover ${h?.name ?? "hospital"}`}
+                          onClick={() => toggleIn(replicaHospitalIds, hid, setReplicaHospitalIds)}
+                          className="rounded p-0.5 hover:bg-muted"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </Badge>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Cada hospital adicional entra como “aguardando diretor” e gera sua própria cópia da regra
+                após a aprovação.
+              </p>
+            </div>
+
+
             <p className="text-xs text-muted-foreground">
               Responsável pelo preenchimento: usuário logado (gravado em <code>filled_by</code>).
             </p>
