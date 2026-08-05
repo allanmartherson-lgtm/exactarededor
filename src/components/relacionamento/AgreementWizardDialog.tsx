@@ -1145,6 +1145,22 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               </Popover>
             </div>
 
+            {/* Médicos da PJ principal — mesma lista com switch usada no escopo "Grupo" das Regras */}
+            {!multiParty && companyId && (
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <CompanyDoctorsToggleList
+                  doctors={linkedDoctors}
+                  loading={doctorsLoading}
+                  enabledIds={enabledDoctorIds}
+                  onChange={setEnabledDoctorIds}
+                  label="Médicos vinculados à clínica"
+                  emptyHint="Nenhum médico vinculado a esta clínica no cadastro (doctor_companies)."
+                  footnote="Médicos desabilitados ficam de fora do acordo (gravados como exceções)."
+                />
+              </div>
+            )}
+
+
             <div className="flex flex-wrap gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="acd-cnpj">CNPJ</Label>
