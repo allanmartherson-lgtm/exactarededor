@@ -25,9 +25,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardList, Plus, Search, Pencil, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { AgreementWizardDialog } from "@/components/relacionamento/AgreementWizardDialog";
+import { AgreementDetailDialog } from "@/components/relacionamento/AgreementDetailDialog";
+
 import {
   AGREEMENT_STATUS_LABEL,
   AGREEMENT_STATUS_VARIANT,
