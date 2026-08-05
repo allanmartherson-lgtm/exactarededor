@@ -55,7 +55,13 @@ import {
 import { AgreementExportButtons } from "@/components/relacionamento/AgreementExportButtons";
 import { CurrencyInputBR } from "@/components/ui/currency-input-br";
 import { CompanyDoctorsToggleList } from "@/components/rules/CompanyDoctorsToggleList";
-import { fmtExportDate, type AgreementExportModel } from "@/lib/agreementExport";
+import {
+  filterFixedOnlyRows,
+  fmtExportDate,
+  loadAgreementClinicalStaff,
+  type AgreementExportModel,
+} from "@/lib/agreementExport";
+
 
 interface CompanyOption {
   id: string;
