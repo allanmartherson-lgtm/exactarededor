@@ -205,7 +205,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (async () => {
       setRegistriesLoading(true);
       try {
-        const [comps, convRes, docs, hospRes] = await Promise.all([
+        const [comps, convRes, hospRes] = await Promise.all([
           fetchAllPaginated<CompanyOption>((from, to) =>
             supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
           ),
@@ -215,16 +215,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             .or(`hospital_id.eq.${hospitalId},hospital_id.is.null`)
             .eq("active", true)
             .order("name"),
-          fetchAllPaginated<DoctorOption>((from, to) =>
-            supabase.from("doctors").select("id,full_name,crm,crm_uf").order("full_name").range(from, to),
-          ),
           supabase.from("hospitals").select("id,name").order("name"),
         ]);
         if (cancel) return;
         setCompanies(comps);
         if (convRes.error) throw convRes.error;
         setConvenios((convRes.data ?? []) as ConvenioOption[]);
-        setDoctors(docs);
         if (hospRes.error) throw hospRes.error;
         setHospitalOptions((hospRes.data ?? []) as HospitalOption[]);
       } catch (e: unknown) {
