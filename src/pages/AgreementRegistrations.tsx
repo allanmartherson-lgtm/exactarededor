@@ -73,22 +73,41 @@ export default function AgreementRegistrations() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [{ data, error }, comps] = await Promise.all([
+      // Acordos da unidade + acordos replicados para ela (podem ter sido
+      // criados em outro hospital da regional).
+      const { data: links, error: linkErr } = await supabase
+        .from("agreement_registration_hospitals")
+        .select("agreement_id")
+        .eq("hospital_id", hospitalId);
+      if (linkErr) throw linkErr;
+      const linkedIds = Array.from(
+        new Set((links ?? []).map((l) => (l as { agreement_id: string }).agreement_id)),
+      );
+
+      const [{ data, error }, replicated, comps] = await Promise.all([
         supabase
           .from("agreement_registrations")
           .select("*")
           .eq("hospital_id", hospitalId)
           .order("created_at", { ascending: false }),
+        linkedIds.length
+          ? supabase.from("agreement_registrations").select("*").in("id", linkedIds)
+          : Promise.resolve({ data: [], error: null }),
         fetchAllPaginated<CompanyLite>((from, to) =>
           supabase.from("companies").select("id,name").order("name").range(from, to),
         ),
       ]);
       if (error) throw error;
-      setRows(
-        (data ?? []).map((r) => ({
+      const byId = new Map<string, AgreementRegistration>();
+      [...(data ?? []), ...((replicated.data ?? []) as unknown[])].forEach((r) => {
+        const row = {
           ...(r as unknown as AgreementRegistration),
           extra_items: parseExtraItems((r as { extra_items: unknown }).extra_items),
-        })),
+        };
+        byId.set(row.id, row);
+      });
+      setRows(
+        Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
       );
       const map: Record<string, string> = {};
       comps.forEach((c) => (map[c.id] = c.name));
@@ -105,6 +124,7 @@ export default function AgreementRegistrations() {
     if (hospitalLoading) return;
     void load();
   }, [hospitalLoading, load]);
+
 
   const filtered = useMemo(() => {
     const q = norm(search);
