@@ -673,6 +673,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const stepError = useMemo((): string | null => {
     if (step === 0) {
       if (!companyId) return "Selecione a clínica no cadastro de empresas";
+      if (paymentModelIds.length === 0) return "Selecione ao menos um tipo de pagamento";
+      if (minGarantidoAtivo && numOrNull(minGarantidoValor) == null)
+        return "Informe o valor do mínimo garantido";
       if (registrationType !== "novo_acordo" && !relatedAgreementId && !referenceNote.trim())
         return "Informe o acordo de referência (busca no sistema ou texto livre)";
       if (multiParty) {
@@ -1445,22 +1448,25 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         {/* Etapa 2 */}
         {step === 1 && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
-              <BoolField
-                label="Aplica-se a todos os convênios"
-                value={allConvenios}
-                onChange={setAllConvenios}
-              />
-              {!allConvenios && (
-                <MultiPicker
-                  emptyLabel="Nenhum convênio ativo nesta unidade"
-                  options={convenios.map((c) => ({ id: c.slug, label: c.name }))}
-                  selected={convenioExceptions}
-                  onToggle={(v) => toggleIn(convenioExceptions, v, setConvenioExceptions)}
-                  onClear={() => setConvenioExceptions([])}
+            {/* Convênio não se aplica a contrato exclusivamente de valor fixo */}
+            {!onlyFixedValue && (
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <BoolField
+                  label="Aplica-se a todos os convênios"
+                  value={allConvenios}
+                  onChange={setAllConvenios}
                 />
-              )}
-            </div>
+                {!allConvenios && (
+                  <MultiPicker
+                    emptyLabel="Nenhum convênio ativo nesta unidade"
+                    options={convenios.map((c) => ({ id: c.slug, label: c.name }))}
+                    selected={convenioExceptions}
+                    onToggle={(v) => toggleIn(convenioExceptions, v, setConvenioExceptions)}
+                    onClear={() => setConvenioExceptions([])}
+                  />
+                )}
+              </div>
+            )}
 
             <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
               <BoolField
@@ -1489,18 +1495,21 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                 <BoolField
-                  label="Inclusão de auxiliar"
+                  label="Acordo aplica-se aos auxiliares da cirurgia?"
                   value={includesAuxiliary}
                   onChange={setIncludesAuxiliary}
                 />
               </div>
-              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-                <BoolField
-                  label="Inclusão de via de acesso"
-                  value={includesAccessRoute}
-                  onChange={setIncludesAccessRoute}
-                />
-              </div>
+              {/* Via de acesso não faz sentido em contrato exclusivamente de valor fixo */}
+              {!onlyFixedValue && (
+                <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                  <BoolField
+                    label="Os cálculos devem seguir a via de acesso?"
+                    value={includesAccessRoute}
+                    onChange={setIncludesAccessRoute}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
