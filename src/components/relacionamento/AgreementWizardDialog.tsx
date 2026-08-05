@@ -53,6 +53,7 @@ import {
   PAYMENT_TABLE_BASE_LABEL,
 } from "@/lib/agreementRegistrations";
 import { AgreementExportButtons } from "@/components/relacionamento/AgreementExportButtons";
+import { CompanyDoctorsToggleList } from "@/components/rules/CompanyDoctorsToggleList";
 import { fmtExportDate, type AgreementExportModel } from "@/lib/agreementExport";
 
 interface CompanyOption {
