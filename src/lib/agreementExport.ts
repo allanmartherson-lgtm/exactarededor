@@ -298,46 +298,54 @@ export async function buildAgreementExportModel(
         value: `${who(agreement.supervisor_id)} (${fmtExportDateTime(agreement.supervisor_validated_at)})`,
       },
     ],
-    scope: [
-      { label: "Todos os convênios", value: yn(agreement.applies_to_all_convenios) },
-      {
-        label: "Convênios de exceção",
-        value: (agreement.convenio_exceptions ?? []).length ? agreement.convenio_exceptions.join(", ") : "—",
-      },
-      { label: "Todos os médicos da PJ", value: yn(agreement.applies_to_all_doctors) },
-      { label: "Médicos de exceção", value: doctorNames.length ? doctorNames.join(", ") : "—" },
-      { label: "Inclui auxiliares", value: yn(agreement.includes_auxiliary) },
-      { label: "Considera via de acesso", value: yn(agreement.includes_access_route) },
-    ],
-    paymentTable: [
-      {
-        label: "Tabela base",
-        value: agreement.payment_table_base
-          ? (PAYMENT_TABLE_BASE_LABEL[agreement.payment_table_base] ?? agreement.payment_table_base)
-          : "—",
-      },
-      { label: "Percentual de repasse", value: pct(agreement.payment_percentage) },
-      { label: "Sujeito a glosa", value: yn(agreement.has_glosa) },
-      { label: "Condições de glosa", value: agreement.glosa_conditions ?? "—" },
-      {
-        label: "Diferenciação por urgência",
-        value: `${yn(agreement.urgency_differentiation)} ${pct(agreement.urgency_addition_pct)}`,
-      },
-      {
-        label: "Adicional fim de semana/feriado",
-        value: `${yn(agreement.weekend_holiday_addition)} ${pct(agreement.weekend_holiday_addition_pct)}`,
-      },
-      { label: "Possui valores fixos", value: yn(agreement.has_fixed_values) },
-      {
-        label: "Valores fixos com urgência diferenciada",
-        value: yn(agreement.fixed_value_urgency_differentiation),
-      },
-      { label: "Exclusões", value: agreement.exclusions_notes ?? "—" },
-    ],
+    scope: filterFixedOnlyRows(
+      [
+        { label: "Todos os convênios", value: yn(agreement.applies_to_all_convenios) },
+        {
+          label: "Convênios de exceção",
+          value: (agreement.convenio_exceptions ?? []).length ? agreement.convenio_exceptions.join(", ") : "—",
+        },
+        { label: "Todos os médicos da PJ", value: yn(agreement.applies_to_all_doctors) },
+        { label: "Médicos de exceção", value: doctorNames.length ? doctorNames.join(", ") : "—" },
+        { label: "Inclui auxiliares", value: yn(agreement.includes_auxiliary) },
+        { label: "Considera via de acesso", value: yn(agreement.includes_access_route) },
+      ],
+      onlyFixedValue,
+    ),
+    paymentTable: filterFixedOnlyRows(
+      [
+        {
+          label: "Tabela base",
+          value: agreement.payment_table_base
+            ? (PAYMENT_TABLE_BASE_LABEL[agreement.payment_table_base] ?? agreement.payment_table_base)
+            : "—",
+        },
+        { label: "Percentual de repasse", value: pct(agreement.payment_percentage) },
+        { label: "Sujeito a glosa", value: yn(agreement.has_glosa) },
+        { label: "Condições de glosa", value: agreement.glosa_conditions ?? "—" },
+        {
+          label: "Diferenciação por urgência",
+          value: `${yn(agreement.urgency_differentiation)} ${pct(agreement.urgency_addition_pct)}`,
+        },
+        {
+          label: "Adicional fim de semana/feriado",
+          value: `${yn(agreement.weekend_holiday_addition)} ${pct(agreement.weekend_holiday_addition_pct)}`,
+        },
+        { label: "Possui valores fixos", value: yn(agreement.has_fixed_values) },
+        {
+          label: "Valores fixos com urgência diferenciada",
+          value: yn(agreement.fixed_value_urgency_differentiation),
+        },
+        { label: "Exclusões", value: agreement.exclusions_notes ?? "—" },
+      ],
+      onlyFixedValue,
+    ),
     parties: [...partiesByCompany.entries()].map(([cid, docs]) => ({
       company: partyCompanyNames.get(cid) ?? cid,
       doctors: docs.length ? docs.join(", ") : "Todos os médicos da PJ",
     })),
+    clinicalStaff,
+
     hospitals: hospitals.map((h) => ({
       name: `${hospitalNames.get(h.hospital_id) ?? h.hospital_id}${h.is_primary ? " (origem)" : ""}`,
       status: AGREEMENT_HOSPITAL_STATUS_LABEL[h.status] ?? h.status,
