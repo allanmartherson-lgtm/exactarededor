@@ -41,6 +41,8 @@ export interface SpecialtyReportGroupRow {
   specialties: string;
   items: number;
   bruto: number;
+  /** Só preenchido no modo "PJ no período" — líquido existe por lote × PJ. */
+  liquido?: number | null;
 }
 
 export interface SpecialtyReportMonthRow {
