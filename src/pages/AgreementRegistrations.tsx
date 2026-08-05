@@ -192,8 +192,19 @@ export default function AgreementRegistrations() {
         icon={ClipboardList}
       />
       <div className="p-4 md:p-6 space-y-4">
+        {/* Abas = filas do fluxo de aprovação */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+          <TabsList>
+            <TabsTrigger value="todos">Todos ({counts.todos ?? 0})</TabsTrigger>
+            <TabsTrigger value="supervisor">Supervisor ({counts.supervisor ?? 0})</TabsTrigger>
+            <TabsTrigger value="diretor">Diretores ({counts.diretor ?? 0})</TabsTrigger>
+            <TabsTrigger value="analista">Analista ({counts.analista ?? 0})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Filtros: busca larga; status e código compactos */}
         <div className="flex flex-wrap items-center gap-3">
+
           <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
