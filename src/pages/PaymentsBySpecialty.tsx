@@ -1129,7 +1129,7 @@ export default function PaymentsBySpecialty() {
                 label="Sem médico vinculado"
                 value={money(kpis.semMedicoBruto)}
                 tone="warning"
-                hint={`${kpis.semMedicoItems} itens do período sem doctor_id — não atribuíveis a nenhuma especialidade pelo cadastro.`}
+                hint={`${kpis.semMedicoItems} itens do período cujo nome na planilha não bate com nenhum médico do cadastro nem com apelido cadastrado — cadastre o apelido em Médicos para recuperá-los.`}
               />
               <KpiCard
                 label="Total do período (sem recorte)"
