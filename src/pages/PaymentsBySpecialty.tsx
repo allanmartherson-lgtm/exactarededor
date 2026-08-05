@@ -937,6 +937,13 @@ export default function PaymentsBySpecialty() {
     viewModeLabel: isPjView ? "PJ no período (todas as especialidades)" : "Especialidade",
   };
 
+  // Valor em risco: glosas ativas das PJs presentes no recorte filtrado.
+  const companyIdsInScope = useMemo(
+    () => Array.from(new Set(view.matched.map((i) => i.company_id).filter(Boolean) as string[])),
+    [view.matched],
+  );
+  const { valorEmRisco } = useGlosaRiskForCompanies(companyIdsInScope);
+
   const kpis = {
     bruto: view.bruto,
     liquido: view.liquido,
@@ -948,6 +955,7 @@ export default function PaymentsBySpecialty() {
     semMedicoBruto: isPjView ? 0 : computed.semMedicoBruto,
     semMedicoItems: isPjView ? 0 : computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
   };
+
 
   const clearFilters = () => {
     setSelectedSpecialties([]);
