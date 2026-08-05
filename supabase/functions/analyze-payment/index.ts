@@ -606,8 +606,6 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
           package_ambiguity,
           ai_status,
           gross_override_at,
-          gross_override_reason,
-          applied_calc_method,
           item_hash,
           ai_findings,
           special_case_code,
@@ -899,11 +897,6 @@ async function handleAnalyzePayment(req: Request, auth: Awaited<ReturnType<typeo
       manual_intervention_reason_code: ((it as any).manual_intervention_reason?.code) ?? null,
       manual_intervention_reason_category: ((it as any).manual_intervention_reason?.category) ?? null,
       manual_intervention_source: (it as any).manual_intervention_source ?? null,
-      // Travas do tratamento manual: acate explícito prevalece e item sem regra
-      // não pode ser valorado por motivo aplicado em massa.
-      gross_override_reason: (it as any).gross_override_reason ?? null,
-      current_ai_status: (it as any).ai_status ?? null,
-      applied_calc_method: (it as any).applied_calc_method ?? null,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
         ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
