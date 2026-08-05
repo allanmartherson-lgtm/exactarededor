@@ -134,8 +134,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   // Cadastros
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [convenios, setConvenios] = useState<ConvenioOption[]>([]);
-  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
-  const [linkedDoctorIds, setLinkedDoctorIds] = useState<string[]>([]);
+  // Somente os médicos vinculados à clínica selecionada (doctor_companies).
+  // Carregar o cadastro inteiro estourava o statement timeout do banco.
+  const [linkedDoctors, setLinkedDoctors] = useState<DoctorOption[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [registriesLoading, setRegistriesLoading] = useState(false);
 
   // Reidrata o formulário sempre que abre (novo ou continuação de rascunho)
