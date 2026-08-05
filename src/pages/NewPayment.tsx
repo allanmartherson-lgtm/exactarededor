@@ -2020,22 +2020,30 @@ const NewPayment = () => {
       // Preserva escolhas manuais que o analista já fez sobre este bucket —
       // trocar o arquivo (ex.: corrigir formato) não deve apagar empresa
       // manual, setor, mapeamento de colunas ou toggle de valor totalizado.
-      const preservedCompany =
-        prev?.manualOverride && prev.matchedCompany ? prev.matchedCompany : fresh.matchedCompany;
+      // IMPORTANTE: só preserva a empresa quando houve decisão MANUAL. Uma
+      // sugestão automática de baixa confiança do bucket anterior nunca pode
+      // ser reaplicada ao arquivo novo — isso vinculava PJ errada sem passar
+      // pela quarentena.
       const preservedManualOverride = prev?.manualOverride ?? false;
+      const preservedCompany =
+        preservedManualOverride && prev?.matchedCompany ? prev.matchedCompany : fresh.matchedCompany;
       const merged: FileBucket = {
         ...fresh,
         matchedCompany: preservedCompany,
-        matchScore: preservedCompany && preservedManualOverride ? 1 : fresh.matchScore,
+        matchScore: preservedManualOverride ? 1 : fresh.matchScore,
         manualOverride: preservedManualOverride || fresh.manualOverride,
         sectorMapping: prev?.sectorMapping ?? fresh.sectorMapping,
         convenioValueTotalized: prev?.convenioValueTotalized ?? fresh.convenioValueTotalized,
         columnMapping: prev?.columnMapping ?? fresh.columnMapping,
         columnOverrides: prev?.columnOverrides ?? fresh.columnOverrides,
-        // Re-estampa empresa preservada nas linhas recém-parseadas.
-        rows: preservedCompany
+        // Re-estampa a empresa nas linhas SOMENTE quando a decisão foi manual.
+        // Sem confirmação humana, as linhas mantêm o que o parser resolveu
+        // (normalmente sem company_id → quarentena).
+        rows: preservedManualOverride && preservedCompany
           ? fresh.rows.map((r) => ({ ...r, company_id: preservedCompany.id, company_name: preservedCompany.name }))
           : fresh.rows,
+      };
+
       };
       setBuckets((prevBuckets) => prevBuckets.map((b, i) => (i === idx ? merged : b)));
       toast({
