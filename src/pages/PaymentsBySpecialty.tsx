@@ -870,13 +870,15 @@ export default function PaymentsBySpecialty() {
   };
 
   const kpis = {
-    bruto: computed.bruto,
-    liquido: computed.liquido,
-    items: computed.matched.reduce((s2, i) => s2 + i.qty, 0),
-    companies: computed.companies,
-    doctors: computed.doctors,
-    semMedicoBruto: computed.semMedicoBruto,
-    semMedicoItems: computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
+    bruto: view.bruto,
+    liquido: view.liquido,
+    items: view.items,
+    companies: view.companies,
+    doctors: view.doctors,
+    // No modo "PJ no período" os itens sem médico já entram no total da PJ,
+    // então não existe fatia "não atribuível" para destacar.
+    semMedicoBruto: isPjView ? 0 : computed.semMedicoBruto,
+    semMedicoItems: isPjView ? 0 : computed.noDoctor.reduce((s2, i) => s2 + i.qty, 0),
   };
 
   const clearFilters = () => {
