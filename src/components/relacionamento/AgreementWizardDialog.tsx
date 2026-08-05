@@ -411,7 +411,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (async () => {
       setRegistriesLoading(true);
       try {
-        const [comps, convRes, hospRes] = await Promise.all([
+        const [comps, convRes, hospRes, modelsRes, refRes, sctRes] = await Promise.all([
           fetchAllPaginated<CompanyOption>((from, to) =>
             supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
           ),
@@ -422,6 +422,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             .eq("active", true)
             .order("name"),
           supabase.from("hospitals").select("id,name").order("name"),
+          supabase.from("payment_models").select("id,code,label").eq("active", true).order("sort_order"),
+          supabase.from("reference_tables").select("id,name,purpose").order("name"),
+          supabase.from("special_case_types").select("code,label").order("label"),
         ]);
         if (cancel) return;
         setCompanies(comps);
@@ -429,6 +432,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setConvenios((convRes.data ?? []) as ConvenioOption[]);
         if (hospRes.error) throw hospRes.error;
         setHospitalOptions((hospRes.data ?? []) as HospitalOption[]);
+        if (modelsRes.error) throw modelsRes.error;
+        setPaymentModels((modelsRes.data ?? []) as PaymentModelOption[]);
+        setRefTables((refRes.data ?? []) as { id: string; name: string; purpose?: string }[]);
+        setSpecialCaseTypes((sctRes.data ?? []) as { code: string; label: string }[]);
       } catch (e: unknown) {
         if (!cancel) toast.error(e instanceof Error ? e.message : "Falha ao carregar cadastros");
       } finally {
