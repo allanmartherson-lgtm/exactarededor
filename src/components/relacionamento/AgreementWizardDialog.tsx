@@ -235,26 +235,44 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   }, [open, hospitalId]);
 
 
-  // Médicos vinculados à clínica selecionada (doctor_companies)
+  // Médicos vinculados à clínica selecionada (doctor_companies).
+  // Busca em duas etapas e só dos ids vinculados — evita varrer a tabela inteira.
   useEffect(() => {
     if (!open || !hospitalId || !companyId) {
-      setLinkedDoctorIds([]);
+      setLinkedDoctors([]);
       return;
     }
     let cancel = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("doctor_companies")
-        .select("doctor_id")
-        .eq("hospital_id", hospitalId)
-        .eq("company_id", companyId);
-      if (cancel) return;
-      if (error) {
-        toast.error("Falha ao carregar médicos vinculados à clínica");
-        setLinkedDoctorIds([]);
-        return;
+      setDoctorsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("doctor_companies")
+          .select("doctor_id")
+          .eq("hospital_id", hospitalId)
+          .eq("company_id", companyId);
+        if (error) throw error;
+        const ids = Array.from(new Set((data ?? []).map((r: { doctor_id: string }) => r.doctor_id)));
+        if (cancel) return;
+        if (ids.length === 0) {
+          setLinkedDoctors([]);
+          return;
+        }
+        const { data: docs, error: docsError } = await supabase
+          .from("doctors")
+          .select("id,full_name,crm,crm_uf")
+          .in("id", ids)
+          .order("full_name");
+        if (docsError) throw docsError;
+        if (!cancel) setLinkedDoctors((docs ?? []) as DoctorOption[]);
+      } catch {
+        if (!cancel) {
+          toast.error("Falha ao carregar médicos vinculados à clínica");
+          setLinkedDoctors([]);
+        }
+      } finally {
+        if (!cancel) setDoctorsLoading(false);
       }
-      setLinkedDoctorIds((data ?? []).map((r: { doctor_id: string }) => r.doctor_id));
     })();
     return () => {
       cancel = true;
@@ -266,10 +284,6 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     [companies, companyId],
   );
 
-  const linkedDoctors = useMemo(() => {
-    const set = new Set(linkedDoctorIds);
-    return doctors.filter((d) => set.has(d.id));
-  }, [doctors, linkedDoctorIds]);
 
   const stepError = useMemo((): string | null => {
     if (step === 0) {
