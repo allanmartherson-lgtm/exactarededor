@@ -620,6 +620,9 @@ async function execAcceptKeepExpected(
       gross_override_at: nowIso,
       gross_override_by: actorId,
       gross_override_reason: "acatado_esperado",
+      // Trava a decisão do analista: a reanálise posterior não pode readotar o
+      // valor pago como esperado (ver rulesEngine, ramo tratamento_manual).
+      manual_value_strategy: "expected",
     };
     if (!wasOverridden) patch.gross_amount_original = t.gross_amount;
     const { error } = await sb.from("payment_items").update(patch).eq("id", t.id);
