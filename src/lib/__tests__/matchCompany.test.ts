@@ -92,3 +92,31 @@ describe("extractCompanyFromFilename — sufixo de conteúdo", () => {
     expect(score).toBeLessThan(MATCH_REVIEW_THRESHOLD);
   });
 });
+
+describe("stripPaymentTypeTerms — tipo de pagamento não entra no match", () => {
+  const companies = [
+    { id: "1", name: "CABRAL LENZA SERVICOS MEDICOS LTDA", document: null, aliases: [] },
+    { id: "2", name: "CANTO NERY SERVICOS MEDICOS LTDA", document: null, aliases: [] },
+  ] as never;
+
+  it("remove o tipo em prefixo, meio e sufixo", () => {
+    expect(stripPaymentTypeTerms("PARECER ADULTO CABRAL LENZA")).toBe("CABRAL LENZA");
+    expect(stripPaymentTypeTerms("CABRAL LENZA VISITA")).toBe("CABRAL LENZA");
+    expect(stripPaymentTypeTerms("CABRAL - CENTRO CIRURGICO - LENZA")).toBe("CABRAL LENZA");
+  });
+
+  it("nunca devolve vazio quando o nome é só tipo de pagamento", () => {
+    expect(stripPaymentTypeTerms("Parecer Adulto")).toBe("Parecer Adulto");
+  });
+
+  it("casa a PJ real mesmo com o tipo colado no nome do arquivo", () => {
+    const r = matchCompany("PARECER ADULTO CABRAL LENZA 03-2026.xlsx", companies);
+    expect(r.company?.id).toBe("1");
+    expect(r.score).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it("não infla score entre PJs distintas que compartilham o tipo", () => {
+    const r = matchCompany("PARECER ADULTO NOME QUE NAO EXISTE LTDA.xlsx", companies);
+    expect(r.score).toBeLessThan(0.9);
+  });
+});
