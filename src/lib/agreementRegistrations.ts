@@ -66,6 +66,16 @@ export interface AgreementPartyRow {
   created_at: string;
 }
 
+/** Rascunho do cálculo montado pelo Contratos, no mesmo formato do editor de Regras. */
+export interface AgreementCalculationDraft {
+  items?: unknown[];
+  fixed_value?: {
+    amount?: string;
+    installments?: string;
+    periodicity?: string;
+  } | null;
+}
+
 export interface AgreementRegistration {
   id: string;
   code: string;
@@ -84,8 +94,17 @@ export interface AgreementRegistration {
   doctor_exceptions: string[];
   includes_auxiliary: boolean;
   includes_access_route: boolean;
+  /** @deprecated substituído por calculation_draft; mantido para acordos antigos */
   payment_table_base: string | null;
+  /** @deprecated substituído por calculation_draft; mantido para acordos antigos */
   payment_percentage: number | null;
+  payment_model_ids: string[];
+  minimo_garantido_ativo: boolean;
+  minimo_garantido_valor: number | null;
+  minimo_garantido_escopo: string | null;
+  minimo_garantido_periodicidade: string | null;
+  minimo_garantido_base: string | null;
+  calculation_draft: AgreementCalculationDraft;
   has_glosa: boolean;
   glosa_conditions: string | null;
   urgency_differentiation: boolean;
@@ -175,16 +194,27 @@ export function buildSupervisorChecklist(
   a: AgreementRegistration,
   hospitals: AgreementHospitalRow[],
 ): ChecklistEntry[] {
-  const hasBase = !!a.payment_table_base;
-  const hasPct = a.payment_percentage != null && Number(a.payment_percentage) > 0;
+  const draft = a.calculation_draft ?? {};
+  const draftItems = Array.isArray(draft.items) ? draft.items : [];
+  // Acordo novo declara o cálculo no rascunho; acordos antigos ainda usam tabela base
+  const hasBase = draftItems.length > 0 || !!a.payment_table_base;
+  const hasPct =
+    draftItems.length > 0 ||
+    (a.payment_percentage != null && Number(a.payment_percentage) > 0);
   return [
     { key: "company", label: "Clínica (PJ) vinculada", ok: !!a.company_id, required: true },
     { key: "from", label: "Data de início da vigência", ok: !!a.effective_from, required: true },
-    { key: "base", label: "Tabela base definida", ok: hasBase, required: true },
+    {
+      key: "payment_models",
+      label: "Tipo de pagamento informado",
+      ok: (a.payment_model_ids ?? []).length > 0,
+      required: true,
+    },
+    { key: "base", label: "Método de cálculo definido", ok: hasBase, required: true },
     {
       key: "value",
       label: "Percentual ou valores fixos informados",
-      ok: hasPct || a.has_fixed_values || a.extra_items.length > 0,
+      ok: hasPct || a.has_fixed_values || a.extra_items.length > 0 || !!draft.fixed_value?.amount,
       required: true,
     },
     { key: "hospitals", label: "Ao menos um hospital de destino", ok: hospitals.length > 0, required: true },

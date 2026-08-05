@@ -923,10 +923,22 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
         : null;
 
       resetForm();
+      // Rascunho de cálculo montado pelo Contratos no wizard do acordo (mesmo formato do editor)
+      const draft = (a.calculation_draft ?? {}) as {
+        items?: CalcItem[];
+        fixed_value?: { amount?: string; installments?: string; periodicity?: string } | null;
+      };
+      const draftItems = Array.isArray(draft.items) ? draft.items : [];
       const pctRaw = a.payment_percentage;
       const hasPct = pctRaw != null;
       const pctStr = hasPct ? String(pctRaw) : "";
-      const calcType: RuleCalculationType = hasPct ? "percentual_sobre_convenio" : "informativo";
+      const hasDraft = draftItems.length > 0;
+      // Sem rascunho (acordo antigo), cai no comportamento legado por percentual
+      const calcType: RuleCalculationType = hasDraft
+        ? draftItems[0].calculation_type
+        : hasPct
+          ? "percentual_sobre_convenio"
+          : "informativo";
 
       setFName(`Acordo ${a.code}${company?.name ? ` — ${company.name}` : ""}`);
       setFActive(true);
@@ -937,15 +949,24 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
       setFTargetIdentifier(company?.document ?? "");
       setFValidFrom(a.effective_from ?? "");
       setFValidUntil(a.effective_to ?? "");
-      setFNature(hasPct ? "calculavel" : "informativo");
+      setFNature(hasDraft || hasPct ? "calculavel" : "informativo");
       setFCalculationType(calcType);
-      setFConvenioPct(pctStr);
+      setFConvenioPct(hasDraft ? (draftItems[0].convenio_percentage ?? "") : pctStr);
       setFIncludeAux(!!a.includes_auxiliary);
       setFApplyAccessRoute(!!a.includes_access_route);
+      // Mínimo garantido declarado no acordo entra direto na regra
+      setFMinGarantidoAtivo(!!a.minimo_garantido_ativo);
+      setFMinGarantidoValor(a.minimo_garantido_valor != null ? String(a.minimo_garantido_valor) : "");
+      setFMinGarantidoEscopo(a.minimo_garantido_escopo === "empresa" ? "empresa" : "medico_empresa");
       setFRuleText(
         [
-          a.payment_table_base ? `Tabela base: ${a.payment_table_base}` : null,
-          hasPct ? `Repasse: ${pctStr}%` : null,
+          draft.fixed_value?.amount
+            ? `Valor fixo: ${draft.fixed_value.amount} (${draft.fixed_value.periodicity ?? "mensal"}${
+                draft.fixed_value.installments ? `, ${draft.fixed_value.installments} repasses` : ""
+              })`
+            : null,
+          !hasDraft && a.payment_table_base ? `Tabela base: ${a.payment_table_base}` : null,
+          !hasDraft && hasPct ? `Repasse: ${pctStr}%` : null,
           a.has_glosa ? `Glosa: ${a.glosa_conditions ?? "sim"}` : null,
           a.exclusions_notes ? `Exclusões: ${a.exclusions_notes}` : null,
           a.free_notes ? `Observações: ${a.free_notes}` : null,
@@ -953,21 +974,27 @@ const Rules = ({ embedded = false }: { embedded?: boolean } = {}) => {
           .filter(Boolean)
           .join("\n"),
       );
-      setFCalculations([
-        {
-          ...makeEmptyCalc(),
-          calculation_type: calcType,
-          convenio_percentage: pctStr,
-          include_auxiliaries: !!a.includes_auxiliary,
-          apply_access_route: !!a.includes_access_route,
-          adicional_urgencia_pct:
-            a.urgency_differentiation && a.urgency_addition_pct != null ? String(a.urgency_addition_pct) : "",
-          adicional_fds_pct:
-            a.weekend_holiday_addition && a.weekend_holiday_addition_pct != null
-              ? String(a.weekend_holiday_addition_pct)
-              : "",
-        },
-      ]);
+      setFCalculations(
+        hasDraft
+          ? draftItems.map((c) => ({ ...makeEmptyCalc(), ...c }))
+          : [
+              {
+                ...makeEmptyCalc(),
+                calculation_type: calcType,
+                convenio_percentage: pctStr,
+                include_auxiliaries: !!a.includes_auxiliary,
+                apply_access_route: !!a.includes_access_route,
+                adicional_urgencia_pct:
+                  a.urgency_differentiation && a.urgency_addition_pct != null
+                    ? String(a.urgency_addition_pct)
+                    : "",
+                adicional_fds_pct:
+                  a.weekend_holiday_addition && a.weekend_holiday_addition_pct != null
+                    ? String(a.weekend_holiday_addition_pct)
+                    : "",
+              },
+            ],
+      );
 
       agreementLinkRef.current = { agreementId, hospitalRowId };
       setOpen(true);

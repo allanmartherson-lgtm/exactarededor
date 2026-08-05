@@ -32,6 +32,12 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  RuleCalculationsEditor,
+  makeEmptyCalc,
+  type CalcItem,
+} from "@/components/rules/RuleCalculationsEditor";
+import { usePaymentTypes } from "@/hooks/usePaymentTypes";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -84,16 +90,48 @@ interface PartyDraft {
   doctorIds: string[];
 }
 
+/** Modelo de pagamento do acordo (payment_models): Produção, Remessa, Plantão, etc. */
+interface PaymentModelOption {
+  id: string;
+  code: string;
+  label: string;
+}
 
+/** Bloco do contrato de valor fixo — vive dentro de calculation_draft. */
+interface FixedValueDraft {
+  amount: string;
+  installments: string;
+  periodicity: string;
+}
+
+const EMPTY_FIXED_VALUE: FixedValueDraft = { amount: "", installments: "", periodicity: "mensal" };
+
+const FIXED_PERIODICITY_LABEL: Record<string, string> = {
+  mensal: "Mensal",
+  quinzenal: "Quinzenal",
+  semanal: "Semanal",
+  unico: "Pagamento único",
+};
+
+const MIN_GARANTIDO_ESCOPO_LABEL: Record<string, string> = {
+  medico_empresa: "Por médico dentro da PJ",
+  empresa: "Por PJ (consolidado)",
+};
+
+/** Códigos que exigem a etapa de cálculo por produção. */
+const PRODUCTION_LIKE_CODES = ["producao", "remessa", "plantao", "hora_trabalhada"];
+/** Códigos que habilitam o toggle de mínimo garantido. */
+const MIN_GARANTIDO_CODES = ["producao", "remessa"];
 
 const STEPS = [
   "Identificação",
   "Abrangência",
-  "Tabela de pagamento",
+  "Cálculo de Pagamento",
   "Regras especiais",
   "Itens extras",
   "Observações",
 ] as const;
+
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -144,6 +182,15 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [lockedHospitalIds, setLockedHospitalIds] = useState<string[]>([]);
 
 
+  // Etapa 1 — tipo de pagamento e mínimo garantido
+  const [paymentModels, setPaymentModels] = useState<PaymentModelOption[]>([]);
+  const [paymentModelIds, setPaymentModelIds] = useState<string[]>([]);
+  const [minGarantidoAtivo, setMinGarantidoAtivo] = useState(false);
+  const [minGarantidoValor, setMinGarantidoValor] = useState("");
+  const [minGarantidoEscopo, setMinGarantidoEscopo] = useState("medico_empresa");
+  const [minGarantidoPeriodicidade, setMinGarantidoPeriodicidade] = useState("competencia");
+  const [minGarantidoBase, setMinGarantidoBase] = useState("liquido");
+
   // Etapa 2
   const [allConvenios, setAllConvenios] = useState(true);
   const [convenioExceptions, setConvenioExceptions] = useState<string[]>([]);
@@ -151,11 +198,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [doctorExceptions, setDoctorExceptions] = useState<string[]>([]);
   const [includesAuxiliary, setIncludesAuxiliary] = useState(false);
   const [includesAccessRoute, setIncludesAccessRoute] = useState(false);
-  // Etapa 3
-  const [paymentTableBase, setPaymentTableBase] = useState<string>("");
-  const [paymentPercentage, setPaymentPercentage] = useState("");
+  // Etapa 3 — rascunho de cálculo no MESMO formato da tela de Regras
+  const [calcItems, setCalcItems] = useState<CalcItem[]>([]);
+  const [fixedValue, setFixedValue] = useState<FixedValueDraft>({ ...EMPTY_FIXED_VALUE });
   const [hasGlosa, setHasGlosa] = useState(false);
   const [glosaConditions, setGlosaConditions] = useState("");
+
   // Etapa 4
   const [urgencyDiff, setUrgencyDiff] = useState(false);
   const [urgencyPct, setUrgencyPct] = useState("");
@@ -176,6 +224,37 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const [linkedDoctors, setLinkedDoctors] = useState<DoctorOption[]>([]);
   const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [registriesLoading, setRegistriesLoading] = useState(false);
+  // Cadastros exigidos pelo RuleCalculationsEditor (mesma fonte usada na tela de Regras)
+  const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
+  const [specialCaseTypes, setSpecialCaseTypes] = useState<{ code: string; label: string }[]>([]);
+  const { list: paymentTypesList } = usePaymentTypes({ onlyActive: true });
+
+  const selectedModelCodes = useMemo(
+    () => paymentModels.filter((m) => paymentModelIds.includes(m.id)).map((m) => m.code),
+    [paymentModels, paymentModelIds],
+  );
+  // Produção/Remessa/Plantão/Hora trabalhada exigem o motor de cálculo completo
+  const showProductionBlock = useMemo(
+    () => selectedModelCodes.some((c) => PRODUCTION_LIKE_CODES.includes(c)),
+    [selectedModelCodes],
+  );
+  const showFixedValueBlock = useMemo(
+    () => selectedModelCodes.includes("valor_fixo"),
+    [selectedModelCodes],
+  );
+  // Contrato só de valor fixo não tem convênio, glosa nem via de acesso
+  const onlyFixedValue = showFixedValueBlock && !showProductionBlock;
+  const showGlosaBlock = !onlyFixedValue;
+  const canHaveMinGarantido = useMemo(
+    () => selectedModelCodes.some((c) => MIN_GARANTIDO_CODES.includes(c)),
+    [selectedModelCodes],
+  );
+
+  // Mínimo garantido só existe para produção/remessa: limpa ao desmarcar
+  useEffect(() => {
+    if (!canHaveMinGarantido && minGarantidoAtivo) setMinGarantidoAtivo(false);
+  }, [canHaveMinGarantido, minGarantidoAtivo]);
+
 
   // Reidrata o formulário sempre que abre (novo ou continuação de rascunho)
   useEffect(() => {
@@ -200,8 +279,32 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setDoctorExceptions(record?.doctor_exceptions ?? []);
     setIncludesAuxiliary(record?.includes_auxiliary ?? false);
     setIncludesAccessRoute(record?.includes_access_route ?? false);
-    setPaymentTableBase(record?.payment_table_base ?? "");
-    setPaymentPercentage(record?.payment_percentage != null ? String(record.payment_percentage) : "");
+    setPaymentModelIds(((record as unknown as { payment_model_ids?: string[] } | null)?.payment_model_ids) ?? []);
+    setMinGarantidoAtivo(!!(record as unknown as { minimo_garantido_ativo?: boolean } | null)?.minimo_garantido_ativo);
+    setMinGarantidoValor(
+      (record as unknown as { minimo_garantido_valor?: number | null } | null)?.minimo_garantido_valor != null
+        ? String((record as unknown as { minimo_garantido_valor?: number }).minimo_garantido_valor)
+        : "",
+    );
+    setMinGarantidoEscopo(
+      (record as unknown as { minimo_garantido_escopo?: string | null } | null)?.minimo_garantido_escopo ?? "medico_empresa",
+    );
+    setMinGarantidoPeriodicidade(
+      (record as unknown as { minimo_garantido_periodicidade?: string | null } | null)?.minimo_garantido_periodicidade ??
+        "competencia",
+    );
+    setMinGarantidoBase(
+      (record as unknown as { minimo_garantido_base?: string | null } | null)?.minimo_garantido_base ?? "liquido",
+    );
+    {
+      // calculation_draft guarda o rascunho no MESMO formato do RuleCalculationsEditor
+      const draft = ((record as unknown as { calculation_draft?: unknown } | null)?.calculation_draft ?? {}) as {
+        items?: CalcItem[];
+        fixed_value?: FixedValueDraft;
+      };
+      setCalcItems(Array.isArray(draft.items) && draft.items.length ? draft.items : [makeEmptyCalc()]);
+      setFixedValue({ ...EMPTY_FIXED_VALUE, ...(draft.fixed_value ?? {}) });
+    }
     setHasGlosa(record?.has_glosa ?? false);
     setGlosaConditions(record?.glosa_conditions ?? "");
     setUrgencyDiff(record?.urgency_differentiation ?? false);
@@ -308,7 +411,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     (async () => {
       setRegistriesLoading(true);
       try {
-        const [comps, convRes, hospRes] = await Promise.all([
+        const [comps, convRes, hospRes, modelsRes, refRes, sctRes] = await Promise.all([
           fetchAllPaginated<CompanyOption>((from, to) =>
             supabase.from("companies").select("id,name,document,active").order("name").range(from, to),
           ),
@@ -319,6 +422,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             .eq("active", true)
             .order("name"),
           supabase.from("hospitals").select("id,name").order("name"),
+          supabase.from("payment_models").select("id,code,label").eq("active", true).order("sort_order"),
+          supabase.from("reference_tables").select("id,name,purpose").order("name"),
+          supabase.from("special_case_types").select("code,label").order("label"),
         ]);
         if (cancel) return;
         setCompanies(comps);
@@ -326,6 +432,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setConvenios((convRes.data ?? []) as ConvenioOption[]);
         if (hospRes.error) throw hospRes.error;
         setHospitalOptions((hospRes.data ?? []) as HospitalOption[]);
+        if (modelsRes.error) throw modelsRes.error;
+        setPaymentModels((modelsRes.data ?? []) as PaymentModelOption[]);
+        setRefTables((refRes.data ?? []) as { id: string; name: string; purpose?: string }[]);
+        setSpecialCaseTypes((sctRes.data ?? []) as { code: string; label: string }[]);
       } catch (e: unknown) {
         if (!cancel) toast.error(e instanceof Error ? e.message : "Falha ao carregar cadastros");
       } finally {
@@ -459,12 +569,27 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       ],
       paymentTable: [
         {
-          label: "Tabela base",
-          value: paymentTableBase
-            ? (PAYMENT_TABLE_BASE_LABEL[paymentTableBase] ?? paymentTableBase)
+          label: "Tipo de pagamento",
+          value:
+            paymentModels
+              .filter((m) => paymentModelIds.includes(m.id))
+              .map((m) => m.label)
+              .join(", ") || "—",
+        },
+        {
+          label: "Mínimo garantido",
+          value: minGarantidoAtivo ? `Sim — ${minGarantidoValor || "valor não informado"}` : "Não",
+        },
+        {
+          label: "Método de cálculo",
+          value: calcItems.map((c) => c.calculation_type).join(", ") || "—",
+        },
+        {
+          label: "Valor fixo",
+          value: fixedValue.amount
+            ? `${fixedValue.amount} — ${FIXED_PERIODICITY_LABEL[fixedValue.periodicity] ?? fixedValue.periodicity}`
             : "—",
         },
-        { label: "Percentual de repasse", value: pctText(paymentPercentage) },
         { label: "Sujeito a glosa", value: yn(hasGlosa) },
         { label: "Condições de glosa", value: glosaConditions.trim() || "—" },
         {
@@ -526,8 +651,12 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     linkedDoctors,
     multiParty,
     parties,
-    paymentPercentage,
-    paymentTableBase,
+    paymentModels,
+    paymentModelIds,
+    minGarantidoAtivo,
+    minGarantidoValor,
+    calcItems,
+    fixedValue,
     record,
     referenceNote,
     registrationType,
@@ -544,6 +673,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const stepError = useMemo((): string | null => {
     if (step === 0) {
       if (!companyId) return "Selecione a clínica no cadastro de empresas";
+      if (paymentModelIds.length === 0) return "Selecione ao menos um tipo de pagamento";
+      if (minGarantidoAtivo && numOrNull(minGarantidoValor) == null)
+        return "Informe o valor do mínimo garantido";
       if (registrationType !== "novo_acordo" && !relatedAgreementId && !referenceNote.trim())
         return "Informe o acordo de referência (busca no sistema ou texto livre)";
       if (multiParty) {
@@ -559,15 +691,17 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       return null;
     }
     if (step === 1) {
-      if (!allConvenios && convenioExceptions.length === 0)
+      if (!onlyFixedValue && !allConvenios && convenioExceptions.length === 0)
         return "Selecione ao menos um convênio";
       if (!allDoctors && doctorExceptions.length === 0) return "Selecione ao menos um médico";
       return null;
     }
     if (step === 2) {
-      if (!paymentTableBase) return "Selecione a base da tabela de pagamento";
-      if (paymentPercentage && numOrNull(paymentPercentage) == null) return "Percentual inválido";
-      if (hasGlosa && !glosaConditions.trim()) return "Descreva as condições de glosa";
+      if (showFixedValueBlock && fixedValue.amount && numOrNull(fixedValue.amount) == null)
+        return "Valor fixo inválido";
+      if (showProductionBlock && calcItems.length === 0) return "Adicione ao menos um cálculo";
+      if (showGlosaBlock && hasGlosa && !glosaConditions.trim())
+        return "Descreva as condições de glosa";
       return null;
     }
     if (step === 3) {
@@ -584,7 +718,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   }, [
     step, companyId, registrationType, relatedAgreementId, referenceNote, multiParty, parties,
     effectiveFrom, effectiveTo, allConvenios, convenioExceptions, allDoctors,
-    doctorExceptions, paymentTableBase, paymentPercentage, hasGlosa, glosaConditions, urgencyDiff,
+    doctorExceptions, paymentModelIds, minGarantidoAtivo, minGarantidoValor, calcItems, fixedValue,
+    showFixedValueBlock, showProductionBlock, showGlosaBlock, onlyFixedValue,
+    hasGlosa, glosaConditions, urgencyDiff,
     urgencyPct, weekendAdd, weekendPct, extraItems,
   ]);
 
@@ -604,8 +740,17 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       doctor_exceptions: allDoctors ? [] : doctorExceptions,
       includes_auxiliary: includesAuxiliary,
       includes_access_route: includesAccessRoute,
-      payment_table_base: paymentTableBase || null,
-      payment_percentage: numOrNull(paymentPercentage),
+      payment_model_ids: paymentModelIds,
+      minimo_garantido_ativo: minGarantidoAtivo,
+      minimo_garantido_valor: minGarantidoAtivo ? numOrNull(minGarantidoValor) : null,
+      minimo_garantido_escopo: minGarantidoAtivo ? minGarantidoEscopo : null,
+      minimo_garantido_periodicidade: minGarantidoAtivo ? minGarantidoPeriodicidade : null,
+      minimo_garantido_base: minGarantidoAtivo ? minGarantidoBase : null,
+      // Rascunho no formato do RuleCalculationsEditor: o Analista carrega sem redigitar
+      calculation_draft: {
+        items: showProductionBlock ? calcItems : [],
+        fixed_value: showFixedValueBlock ? fixedValue : null,
+      } as unknown as Json,
       has_glosa: hasGlosa,
       glosa_conditions: hasGlosa ? glosaConditions.trim() || null : null,
       urgency_differentiation: urgencyDiff,
@@ -622,8 +767,11 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     [
       hospitalId, companyId, registrationType, referenceNote, relatedAgreementId,
       effectiveFrom, effectiveTo, allConvenios, convenioExceptions,
-      allDoctors, doctorExceptions, includesAuxiliary, includesAccessRoute, paymentTableBase,
-      paymentPercentage, hasGlosa, glosaConditions, urgencyDiff, urgencyPct, weekendAdd,
+      allDoctors, doctorExceptions, includesAuxiliary, includesAccessRoute,
+      paymentModelIds, minGarantidoAtivo, minGarantidoValor, minGarantidoEscopo,
+      minGarantidoPeriodicidade, minGarantidoBase, calcItems, fixedValue,
+      showProductionBlock, showFixedValueBlock,
+      hasGlosa, glosaConditions, urgencyDiff, urgencyPct, weekendAdd,
       weekendPct, hasFixedValues, fixedUrgencyDiff, exclusionsNotes, extraItems, freeNotes,
     ],
 
@@ -1180,6 +1328,114 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
+            {/* Tipo de pagamento — define quais etapas de cálculo aparecem adiante */}
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Tipo de pagamento</h3>
+                <p className="text-xs text-muted-foreground">
+                  Pode marcar mais de um. A etapa “Cálculo de Pagamento” se adapta ao que for
+                  escolhido aqui.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {paymentModels.map((m) => {
+                  const active = paymentModelIds.includes(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() =>
+                        setPaymentModelIds((list) =>
+                          list.includes(m.id) ? list.filter((x) => x !== m.id) : [...list, m.id],
+                        )
+                      }
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-150",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-foreground hover:bg-muted",
+                      )}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
+                {paymentModels.length === 0 && (
+                  <span className="text-sm text-muted-foreground">
+                    {registriesLoading ? "Carregando tipos de pagamento..." : "Nenhum tipo de pagamento ativo"}
+                  </span>
+                )}
+              </div>
+
+              {canHaveMinGarantido && (
+                <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                  <BoolField
+                    label="Com mínimo garantido"
+                    value={minGarantidoAtivo}
+                    onChange={setMinGarantidoAtivo}
+                  />
+                  {minGarantidoAtivo && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="acd-mg-valor">Valor mínimo (R$) *</Label>
+                        <Input
+                          id="acd-mg-valor"
+                          inputMode="decimal"
+                          value={minGarantidoValor}
+                          onChange={(e) => setMinGarantidoValor(e.target.value)}
+                          className="text-right tabular-nums"
+                          placeholder="0,00"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Escopo</Label>
+                        <Select value={minGarantidoEscopo} onValueChange={setMinGarantidoEscopo}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(MIN_GARANTIDO_ESCOPO_LABEL).map(([v, label]) => (
+                              <SelectItem key={v} value={v}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Periodicidade</Label>
+                        <Select
+                          value={minGarantidoPeriodicidade}
+                          onValueChange={setMinGarantidoPeriodicidade}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="competencia">Por competência</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Base de comparação</Label>
+                        <Select value={minGarantidoBase} onValueChange={setMinGarantidoBase}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="liquido">Líquido</SelectItem>
+                            <SelectItem value="bruto">Bruto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Tabelas de códigos/valores recebidas pelo Contratos */}
             <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
               <AgreementAttachmentsPanel agreementId={id} />
@@ -1192,22 +1448,25 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         {/* Etapa 2 */}
         {step === 1 && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
-              <BoolField
-                label="Aplica-se a todos os convênios"
-                value={allConvenios}
-                onChange={setAllConvenios}
-              />
-              {!allConvenios && (
-                <MultiPicker
-                  emptyLabel="Nenhum convênio ativo nesta unidade"
-                  options={convenios.map((c) => ({ id: c.slug, label: c.name }))}
-                  selected={convenioExceptions}
-                  onToggle={(v) => toggleIn(convenioExceptions, v, setConvenioExceptions)}
-                  onClear={() => setConvenioExceptions([])}
+            {/* Convênio não se aplica a contrato exclusivamente de valor fixo */}
+            {!onlyFixedValue && (
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <BoolField
+                  label="Aplica-se a todos os convênios"
+                  value={allConvenios}
+                  onChange={setAllConvenios}
                 />
-              )}
-            </div>
+                {!allConvenios && (
+                  <MultiPicker
+                    emptyLabel="Nenhum convênio ativo nesta unidade"
+                    options={convenios.map((c) => ({ id: c.slug, label: c.name }))}
+                    selected={convenioExceptions}
+                    onToggle={(v) => toggleIn(convenioExceptions, v, setConvenioExceptions)}
+                    onClear={() => setConvenioExceptions([])}
+                  />
+                )}
+              </div>
+            )}
 
             <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
               <BoolField
@@ -1236,71 +1495,133 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                 <BoolField
-                  label="Inclusão de auxiliar"
+                  label="Acordo aplica-se aos auxiliares da cirurgia?"
                   value={includesAuxiliary}
                   onChange={setIncludesAuxiliary}
                 />
               </div>
-              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-                <BoolField
-                  label="Inclusão de via de acesso"
-                  value={includesAccessRoute}
-                  onChange={setIncludesAccessRoute}
-                />
-              </div>
+              {/* Via de acesso não faz sentido em contrato exclusivamente de valor fixo */}
+              {!onlyFixedValue && (
+                <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                  <BoolField
+                    label="Os cálculos devem seguir a via de acesso?"
+                    value={includesAccessRoute}
+                    onChange={setIncludesAccessRoute}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
 
 
-        {/* Etapa 3 */}
+        {/* Etapa 3 — Cálculo de Pagamento (condicional ao tipo de pagamento) */}
         {step === 2 && (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-
-              <div className="space-y-1.5">
-                <Label>Base da tabela de pagamento</Label>
-                <Select value={paymentTableBase} onValueChange={setPaymentTableBase}>
-                  <SelectTrigger className="w-56">
-                    <SelectValue placeholder="Selecione a base" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PAYMENT_TABLE_BASE_LABEL).map(([v, label]) => (
-                      <SelectItem key={v} value={v}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {paymentModelIds.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                Selecione o tipo de pagamento na etapa “Identificação” para configurar o cálculo.
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="acd-pct">Percentual (%)</Label>
-                <Input
-                  id="acd-pct"
-                  inputMode="decimal"
-                  value={paymentPercentage}
-                  onChange={(e) => setPaymentPercentage(e.target.value)}
-                  className="w-28 text-right tabular-nums"
-                  placeholder="100"
-                />
-              </div>
-            </div>
+            )}
 
-            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
-              <BoolField label="Haverá glosa" value={hasGlosa} onChange={setHasGlosa} />
-              {hasGlosa && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="acd-glosa">Condições de glosa</Label>
-                  <Textarea
-                    id="acd-glosa"
-                    rows={3}
-                    value={glosaConditions}
-                    onChange={(e) => setGlosaConditions(e.target.value)}
-                    placeholder="Em que hipóteses a glosa é repassada à clínica"
-                  />
+            {showFixedValueBlock && (
+              <section className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Valor fixo</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Contrato de gestão/coordenação: valor combinado, sem cálculo por produção.
+                  </p>
                 </div>
-              )}
-            </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-fx-valor">Valor do repasse (R$)</Label>
+                    <Input
+                      id="acd-fx-valor"
+                      inputMode="decimal"
+                      value={fixedValue.amount}
+                      onChange={(e) => setFixedValue((f) => ({ ...f, amount: e.target.value }))}
+                      className="text-right tabular-nums"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-fx-parc">Número de repasses</Label>
+                    <Input
+                      id="acd-fx-parc"
+                      inputMode="numeric"
+                      value={fixedValue.installments}
+                      onChange={(e) =>
+                        setFixedValue((f) => ({ ...f, installments: e.target.value }))
+                      }
+                      className="text-right tabular-nums"
+                      placeholder="Deixe vazio se por prazo indeterminado"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Periodicidade</Label>
+                    <Select
+                      value={fixedValue.periodicity}
+                      onValueChange={(v) => setFixedValue((f) => ({ ...f, periodicity: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(FIXED_PERIODICITY_LABEL).map(([v, label]) => (
+                          <SelectItem key={v} value={v}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {showProductionBlock && (
+              <section className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Cálculo de Pagamento</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Mesmo motor da tela de Regras. O que for preenchido aqui chega pronto para o
+                    Analista de Cadastro de Regras, sem redigitação.
+                  </p>
+                </div>
+                <RuleCalculationsEditor
+                  value={calcItems.length ? calcItems : [makeEmptyCalc()]}
+                  onChange={setCalcItems}
+                  refTables={refTables}
+                  specialCaseTypes={specialCaseTypes}
+                  paymentTypes={paymentTypesList.filter(
+                    (p: { origin?: string }) => p.origin !== "payment_model",
+                  )}
+                  enabled={true}
+                />
+              </section>
+            )}
+
+            {showGlosaBlock && (
+              <section className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+                <BoolField
+                  label="Aplicar desconto de glosa?"
+                  value={hasGlosa}
+                  onChange={setHasGlosa}
+                />
+                {hasGlosa && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="acd-glosa">Condições de glosa</Label>
+                    <Textarea
+                      id="acd-glosa"
+                      rows={3}
+                      value={glosaConditions}
+                      onChange={(e) => setGlosaConditions(e.target.value)}
+                      placeholder="Em que hipóteses a glosa é repassada à clínica"
+                    />
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         )}
 
