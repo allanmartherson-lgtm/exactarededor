@@ -37,6 +37,8 @@ import {
   type AgreementRegistration,
 } from "@/lib/agreementRegistrations";
 import { generateAndStoreAgreementPdf, openStoredAgreementPdf } from "@/lib/agreementPdf";
+import { AgreementExportButtons } from "@/components/relacionamento/AgreementExportButtons";
+import { buildAgreementExportModel } from "@/lib/agreementExport";
 
 type FullAgreement = AgreementRegistration & Partial<AgreementFlowFields>;
 
@@ -314,6 +316,14 @@ export function AgreementDetailDialog({
             </Badge>
           </DialogTitle>
         </DialogHeader>
+
+        {/* Exportação disponível em qualquer etapa, para validação externa antes da formalização */}
+        <div className="flex flex-wrap justify-end gap-2">
+          <AgreementExportButtons
+            getModel={() => buildAgreementExportModel(agreement, hospitals, events)}
+          />
+        </div>
+
 
         <div className="space-y-5">
           {/* Linha do tempo */}
