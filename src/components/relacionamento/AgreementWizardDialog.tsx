@@ -2003,85 +2003,23 @@ function PartyRow({
         </PopoverContent>
       </Popover>
 
-      <BoolField
-        label="Todos os médicos dessa PJ"
-        value={party.allDoctors}
-        onChange={(v) => onChange({ ...party, allDoctors: v, doctorIds: v ? [] : party.doctorIds })}
-      />
-
-      {!party.allDoctors && (
-        <div className="space-y-1.5">
-          <Popover open={doctorsOpen} onOpenChange={setDoctorsOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="outline" role="combobox" className="w-full justify-between bg-background font-normal">
-                {party.doctorIds.length > 0
-                  ? `${party.doctorIds.length} médico(s) selecionado(s)`
-                  : loading
-                    ? "Carregando médicos da PJ..."
-                    : "Selecionar médicos"}
-                <ChevronsUpDown className="h-4 w-4 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
-                <CommandInput placeholder="Buscar médico" />
-                <CommandList>
-                  <CommandEmpty>
-                    {loading ? "Carregando..." : "Nenhum médico vinculado a esta PJ"}
-                  </CommandEmpty>
-                  <CommandGroup>
-                    {doctors.map((d) => {
-                      const checked = party.doctorIds.includes(d.id);
-                      return (
-                        <CommandItem
-                          key={d.id}
-                          value={`${d.full_name} ${d.crm ?? ""}`}
-                          onSelect={() =>
-                            onChange({
-                              ...party,
-                              doctorIds: checked
-                                ? party.doctorIds.filter((x) => x !== d.id)
-                                : [...party.doctorIds, d.id],
-                            })
-                          }
-                        >
-                          <Checkbox checked={checked} className="mr-2" tabIndex={-1} />
-                          <span className="flex-1">{d.full_name}</span>
-                          {d.crm && (
-                            <span className="text-xs text-muted-foreground">
-                              CRM {d.crm}
-                              {d.crm_uf ? `/${d.crm_uf}` : ""}
-                            </span>
-                          )}
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          <div className="flex flex-wrap gap-1.5">
-            {party.doctorIds.map((did) => {
-              const d = doctors.find((x) => x.id === did);
-              return (
-                <Badge key={did} variant="secondary" className="gap-1 pl-2 pr-1">
-                  {d?.full_name ?? did}
-                  <button
-                    type="button"
-                    aria-label={`Remover ${d?.full_name ?? "médico"}`}
-                    onClick={() =>
-                      onChange({ ...party, doctorIds: party.doctorIds.filter((x) => x !== did) })
-                    }
-                    className="rounded p-0.5 hover:bg-muted"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              );
-            })}
-          </div>
-        </div>
+      {party.companyId && (
+        <CompanyDoctorsToggleList
+          doctors={doctors}
+          loading={loading}
+          enabledIds={party.allDoctors ? doctors.map((d) => d.id) : party.doctorIds}
+          onChange={(ids) => {
+            // Todos habilitados = vale para a PJ inteira (doctor_id nulo na gravação)
+            const all = doctors.length > 0 && ids.length === doctors.length;
+            onChange({ ...party, allDoctors: all, doctorIds: all ? [] : ids });
+          }}
+          label="Médicos vinculados a esta PJ"
+          footnote={
+            party.allDoctors
+              ? "Todos habilitados: o acordo vale para a PJ inteira."
+              : "Somente os médicos habilitados entram neste acordo."
+          }
+        />
       )}
     </div>
   );
