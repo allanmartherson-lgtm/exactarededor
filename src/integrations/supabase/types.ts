@@ -3242,6 +3242,7 @@ export type Database = {
           crm_uf: string
           email: string | null
           full_name: string
+          hospital_id: string
           id: number
           imported_by: string | null
           notes_cnpj: string | null
@@ -3259,6 +3260,7 @@ export type Database = {
           crm_uf: string
           email?: string | null
           full_name: string
+          hospital_id?: string
           id?: number
           imported_by?: string | null
           notes_cnpj?: string | null
@@ -3276,6 +3278,7 @@ export type Database = {
           crm_uf?: string
           email?: string | null
           full_name?: string
+          hospital_id?: string
           id?: number
           imported_by?: string | null
           notes_cnpj?: string | null
