@@ -132,6 +132,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   // Acordo de equipe: várias PJs, cada uma com todos os médicos ou uma lista específica
   const [multiParty, setMultiParty] = useState(false);
   const [parties, setParties] = useState<PartyDraft[]>([]);
+  // Falso até as PJs já vinculadas serem lidas do banco (evita apagá-las ao salvar cedo demais)
+  const [partiesLoaded, setPartiesLoaded] = useState(true);
+
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
   // Replicação regional: hospitais adicionais que recebem o mesmo acordo
@@ -185,6 +188,9 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
     setRelatedAgreementId(record?.related_agreement_id ?? null);
     setMultiParty(false);
     setParties([]);
+    // Enquanto as PJs do banco não chegam, persist() não pode regravá-las
+    setPartiesLoaded(!record?.id);
+
     setEffectiveFrom(record?.effective_from ?? "");
 
     setEffectiveTo(record?.effective_to ?? "");
@@ -254,7 +260,10 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         return;
       }
       const rows = data ?? [];
-      if (rows.length === 0) return;
+      if (rows.length === 0) {
+        setPartiesLoaded(true);
+        return;
+      }
       const byCompany = new Map<string, PartyDraft>();
       rows.forEach((r) => {
         const cur =
@@ -266,6 +275,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
       });
       setParties(Array.from(byCompany.values()));
       setMultiParty(true);
+      setPartiesLoaded(true);
     })();
     return () => {
       cancel = true;
@@ -674,27 +684,30 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         }
 
         // PJs do acordo de equipe: regravadas por inteiro a cada salvamento.
-        // Sem multi-PJ ativo o acordo volta a ter apenas a clínica principal.
-        const { error: delPartiesErr } = await supabase
-          .from("agreement_registration_parties")
-          .delete()
-          .eq("agreement_id", agreementId);
-        if (delPartiesErr) throw delPartiesErr;
-        if (multiParty) {
-          const rows = parties.flatMap((p) =>
-            !p.companyId
-              ? []
-              : p.allDoctors
-                ? [{ agreement_id: agreementId as string, company_id: p.companyId, doctor_id: null }]
-                : p.doctorIds.map((d) => ({
-                    agreement_id: agreementId as string,
-                    company_id: p.companyId as string,
-                    doctor_id: d,
-                  })),
-          );
-          if (rows.length > 0) {
-            const { error } = await supabase.from("agreement_registration_parties").insert(rows);
-            if (error) throw error;
+        // Só mexe nelas depois que as PJs existentes foram lidas do banco — salvar
+        // antes disso apagaria silenciosamente as PJs já vinculadas.
+        if (partiesLoaded) {
+          const { error: delPartiesErr } = await supabase
+            .from("agreement_registration_parties")
+            .delete()
+            .eq("agreement_id", agreementId);
+          if (delPartiesErr) throw delPartiesErr;
+          if (multiParty) {
+            const rows = parties.flatMap((p) =>
+              !p.companyId
+                ? []
+                : p.allDoctors
+                  ? [{ agreement_id: agreementId as string, company_id: p.companyId, doctor_id: null }]
+                  : p.doctorIds.map((d) => ({
+                      agreement_id: agreementId as string,
+                      company_id: p.companyId as string,
+                      doctor_id: d,
+                    })),
+            );
+            if (rows.length > 0) {
+              const { error } = await supabase.from("agreement_registration_parties").insert(rows);
+              if (error) throw error;
+            }
           }
         }
 
@@ -708,7 +721,7 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
         setSaving(false);
       }
     },
-    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId, multiParty, parties],
+    [buildPayload, ensure, id, onSaved, replicaHospitalIds, hospitalId, multiParty, parties, partiesLoaded],
   );
 
 
