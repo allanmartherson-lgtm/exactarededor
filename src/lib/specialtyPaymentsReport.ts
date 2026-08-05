@@ -53,6 +53,17 @@ export interface SpecialtyReportMonthRow {
   items: number;
 }
 
+/** Quebra por convênio (payment_items.convenio_slug — campo curado). */
+export interface SpecialtyReportConvenioRow {
+  key: string;
+  label: string;
+  items: number;
+  bruto: number;
+  /** Participação no bruto do recorte filtrado. */
+  pct: number;
+}
+
+
 const money = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -74,9 +85,10 @@ export function exportSpecialtyReportExcel(params: {
   kpis: SpecialtyReportKpis;
   months: SpecialtyReportMonthRow[];
   rows: SpecialtyReportGroupRow[];
+  convenios?: SpecialtyReportConvenioRow[];
   groupByLabel: string;
 }) {
-  const { filters, kpis, months, rows, groupByLabel } = params;
+  const { filters, kpis, months, rows, convenios = [], groupByLabel } = params;
   const wb = XLSX.utils.book_new();
 
   const resumo: (string | number)[][] = [
@@ -108,19 +120,31 @@ export function exportSpecialtyReportExcel(params: {
   wsDetalhe["!cols"] = [{ wch: 44 }, { wch: 24 }, { wch: 40 }, { wch: 10 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, wsDetalhe, "Detalhado");
 
+  if (convenios.length > 0) {
+    const porConvenio: (string | number)[][] = [
+      ["Convênio", "Itens", "Bruto", "% do total"],
+      ...convenios.map((c) => [c.label, c.items, c.bruto, `${c.pct.toFixed(1)}%`]),
+    ];
+    const wsConvenio = XLSX.utils.aoa_to_sheet(porConvenio);
+    wsConvenio["!cols"] = [{ wch: 44 }, { wch: 10 }, { wch: 18 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, wsConvenio, "Por convênio");
+  }
+
   XLSX.writeFile(wb, `pagamentos-por-especialidade-${Date.now()}.xlsx`);
 }
+
 
 export async function exportSpecialtyReportPdf(params: {
   filters: SpecialtyReportFilters;
   kpis: SpecialtyReportKpis;
   months?: SpecialtyReportMonthRow[];
   rows: SpecialtyReportGroupRow[];
+  convenios?: SpecialtyReportConvenioRow[];
   groupByLabel: string;
   /** PNG (data URL) do gráfico "Bruto por competência" capturado na tela. */
   chartPng?: string;
 }) {
-  const { filters, kpis, months = [], rows, groupByLabel, chartPng } = params;
+  const { filters, kpis, months = [], rows, convenios = [], groupByLabel, chartPng } = params;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const marginX = 12;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -203,5 +227,27 @@ export async function exportSpecialtyReportPdf(params: {
     margin: { left: marginX, right: marginX },
   });
 
+  // Quebra por convênio (payment_items.convenio_slug), mesmo recorte de filtros.
+  if (convenios.length > 0) {
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+    autoTable(doc, {
+      startY: y,
+      head: [["Convênio", "Itens", "Bruto", "% do total"]],
+      body: convenios.map((c) => [
+        c.label,
+        String(c.items),
+        money(c.bruto),
+        `${c.pct.toFixed(1)}%`,
+      ]),
+      theme: "striped",
+      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      headStyles: { fillColor: REDE_DOR_BRAND_BLUE_RGB, textColor: 255 },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      margin: { left: marginX, right: marginX },
+      tableWidth: 180,
+    });
+  }
+
   doc.save(`pagamentos-por-especialidade-${Date.now()}.pdf`);
 }
+

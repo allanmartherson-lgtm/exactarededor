@@ -13620,6 +13620,7 @@ export type Database = {
         Returns: {
           company_id: string
           competence: string
+          convenio_slug: string
           doctor_id: string
           gross: number
           item_type_id: string

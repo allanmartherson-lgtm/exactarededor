@@ -66,6 +66,8 @@ interface ItemRow {
   doctor_id: string | null;
   /** Tipo de pagamento curado (FK item_types). Nunca texto livre. */
   item_type_id: string | null;
+  /** Convênio curado do item (payment_items.convenio_slug). */
+  convenio_slug: string | null;
   gross_amount: number | null;
   item_competence: string | null;
   /** Quantidade de itens representados por esta linha agregada. */
@@ -80,6 +82,10 @@ interface ItemTypeRow {
 
 /** Bucket sintético para itens sem item_type_id preenchido. */
 const UNCLASSIFIED_TYPE = "__sem_tipo__";
+
+/** Bucket sintético para itens sem convenio_slug preenchido. */
+const UNKNOWN_CONVENIO = "__sem_convenio__";
+
 
 
 
@@ -226,6 +232,26 @@ export default function PaymentsBySpecialty() {
     return () => { cancelled = true; };
   }, []);
 
+  // Cadastro de convênios do hospital: usado só para exibir o NOME do convênio
+  // a partir do slug curado gravado no item (convenios é escopado por hospital).
+  const [convenioNameBySlug, setConvenioNameBySlug] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!hospitalId) { setConvenioNameBySlug(new Map()); return; }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("convenios")
+        .select("slug,name")
+        .eq("hospital_id", hospitalId);
+      if (cancelled) return;
+      const rows = (data ?? []) as { slug: string; name: string | null }[];
+      setConvenioNameBySlug(new Map(rows.map((r) => [r.slug, r.name || r.slug])));
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId]);
+
+
+
 
   /**
    * Competências disponíveis para os selects de período. Mesma fonte usada
@@ -290,6 +316,7 @@ export default function PaymentsBySpecialty() {
         company_id: string | null;
         doctor_id: string | null;
         item_type_id: string | null;
+        convenio_slug: string | null;
         gross: number | string | null;
         items: number | string | null;
       };
@@ -313,6 +340,7 @@ export default function PaymentsBySpecialty() {
             company_id: r.company_id,
             doctor_id: r.doctor_id,
             item_type_id: r.item_type_id ?? null,
+            convenio_slug: r.convenio_slug ?? null,
             gross_amount: Number(r.gross ?? 0),
             item_competence: r.competence,
             qty: Number(r.items ?? 0),
@@ -780,7 +808,46 @@ export default function PaymentsBySpecialty() {
     doctors: isPjView ? pjComputed.doctors : computed.doctors,
     months: isPjView ? pjComputed.months : computed.months,
     rows: isPjView ? pjComputed.rows : computed.rows,
+    matched: isPjView ? pjComputed.matched : computed.matched,
   };
+
+  /**
+   * Quebra por convênio do MESMO recorte já filtrado (período, especialidade,
+   * tipo de pagamento, grupo, PJ/médico e modo de visão). A fonte é o campo
+   * curado payment_items.convenio_slug — itens sem slug caem no bucket
+   * "Sem convênio identificado", que fica no fim da lista e nunca é descartado.
+   */
+  const convenioRows = useMemo(() => {
+    const agg = new Map<string, { items: number; bruto: number }>();
+    let total = 0;
+    for (const i of view.matched) {
+      const key = i.convenio_slug ?? UNKNOWN_CONVENIO;
+      const cur = agg.get(key) ?? { items: 0, bruto: 0 };
+      const gross = Number(i.gross_amount ?? 0);
+      cur.items += i.qty;
+      cur.bruto += gross;
+      total += gross;
+      agg.set(key, cur);
+    }
+    const rows = Array.from(agg.entries()).map(([key, v]) => ({
+      key,
+      label:
+        key === UNKNOWN_CONVENIO
+          ? "Sem convênio identificado"
+          : convenioNameBySlug.get(key) ?? key,
+      items: v.items,
+      bruto: v.bruto,
+      pct: total > 0 ? (v.bruto / total) * 100 : 0,
+    }));
+    return rows.sort((a, b) => {
+      // O bucket sem convênio sempre fecha a lista, independente do valor.
+      if (a.key === UNKNOWN_CONVENIO) return 1;
+      if (b.key === UNKNOWN_CONVENIO) return -1;
+      return b.bruto - a.bruto;
+    });
+  }, [view.matched, convenioNameBySlug]);
+
+
 
 
 
@@ -901,6 +968,7 @@ export default function PaymentsBySpecialty() {
         kpis,
         months: view.months,
         rows: view.rows,
+        convenios: convenioRows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
       });
     } catch (e: unknown) {
@@ -971,6 +1039,7 @@ export default function PaymentsBySpecialty() {
         kpis,
         months: view.months,
         rows: view.rows,
+        convenios: convenioRows,
         groupByLabel: groupBy === "company" ? "PJ / Empresa" : "Médico",
         chartPng: await captureChartPng(),
       });
@@ -1478,6 +1547,50 @@ export default function PaymentsBySpecialty() {
                 </div>
               </div>
             </div>
+
+            {/* ---------------- Por convênio ---------------- */}
+            <div className="rounded-2xl border border-border/60 bg-card p-6">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Por convênio
+                </h2>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Convênio curado do item (não é texto livre). Mesmo recorte de filtros do relatório;
+                  % calculado sobre o bruto do período filtrado.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/60 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Convênio</TableHead>
+                      <TableHead className="w-24 text-right">Itens</TableHead>
+                      <TableHead className="w-36 text-right">Bruto</TableHead>
+                      <TableHead className="w-28 text-right">% do total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {convenioRows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">
+                          Sem itens no recorte selecionado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {convenioRows.map((c) => (
+                      <TableRow key={c.key} className={c.key === "__sem_convenio__" ? "bg-warning/10" : undefined}>
+                        <TableCell className="font-medium">{c.label}</TableCell>
+                        <TableCell className="text-right tabular-nums">{c.items}</TableCell>
+                        <TableCell className="text-right tabular-nums">{money(c.bruto)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{c.pct.toFixed(1)}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+
 
           </>
         )}
