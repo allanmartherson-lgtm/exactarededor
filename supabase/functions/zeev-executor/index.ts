@@ -760,15 +760,7 @@ async function execApplyManualReason(
     })
     .in("id", targets.map((t) => t.id));
   if (error) throw new Error(`apply_manual_reason: ${error.message}`);
-  return {
-    affected: targets.length,
-    before,
-    skipped: {
-      ja_acatados: skippedAccepted.length,
-      sem_regra_sem_confirmacao: skippedNoRule.length,
-    },
-    after: { reason_id: reason.id, reason_code: reason.code, notes },
-  };
+  return { affected: targets.length, before, after: { reason_id: reason.id, reason_code: reason.code, notes } };
 }
 
 
