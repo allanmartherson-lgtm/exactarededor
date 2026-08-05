@@ -53,6 +53,7 @@ import {
   PAYMENT_TABLE_BASE_LABEL,
 } from "@/lib/agreementRegistrations";
 import { AgreementExportButtons } from "@/components/relacionamento/AgreementExportButtons";
+import { CompanyDoctorsToggleList } from "@/components/rules/CompanyDoctorsToggleList";
 import { fmtExportDate, type AgreementExportModel } from "@/lib/agreementExport";
 
 interface CompanyOption {
@@ -518,6 +519,22 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
   const company = useMemo(
     () => companies.find((c) => c.id === companyId) ?? null,
     [companies, companyId],
+  );
+
+  // Habilitados = todos os vinculados menos os gravados em doctor_exceptions
+  const enabledDoctorIds = useMemo(
+    () => linkedDoctors.filter((d) => !doctorExceptions.includes(d.id)).map((d) => d.id),
+    [linkedDoctors, doctorExceptions],
+  );
+
+  // Desabilitar qualquer médico já desliga "todos os médicos" automaticamente
+  const setEnabledDoctorIds = useCallback(
+    (ids: string[]) => {
+      const excluded = linkedDoctors.filter((d) => !ids.includes(d.id)).map((d) => d.id);
+      setDoctorExceptions(excluded);
+      setAllDoctors(excluded.length === 0);
+    },
+    [linkedDoctors],
   );
 
   // Dados mínimos da Etapa 1 para permitir exportar uma prévia do acordo
@@ -1145,6 +1162,22 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               </Popover>
             </div>
 
+            {/* Médicos da PJ principal — mesma lista com switch usada no escopo "Grupo" das Regras */}
+            {!multiParty && companyId && (
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <CompanyDoctorsToggleList
+                  doctors={linkedDoctors}
+                  loading={doctorsLoading}
+                  enabledIds={enabledDoctorIds}
+                  onChange={setEnabledDoctorIds}
+                  label="Médicos vinculados à clínica"
+                  emptyHint="Nenhum médico vinculado a esta clínica no cadastro (doctor_companies)."
+                  footnote="Médicos desabilitados ficam de fora do acordo (gravados como exceções)."
+                />
+              </div>
+            )}
+
+
             <div className="flex flex-wrap gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="acd-cnpj">CNPJ</Label>
@@ -1474,20 +1507,14 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
                 value={allDoctors}
                 onChange={setAllDoctors}
               />
-              {!allDoctors && (
-                <MultiPicker
-                  emptyLabel={
-                    doctorsLoading
-                      ? "Carregando médicos da clínica..."
-                      : "Nenhum médico vinculado a esta clínica (doctor_companies)"
-                  }
-                  options={linkedDoctors.map((d) => ({
-                    id: d.id,
-                    label: `${d.full_name}${d.crm ? ` — CRM ${d.crm}${d.crm_uf ? `/${d.crm_uf}` : ""}` : ""}`,
-                  }))}
-                  selected={doctorExceptions}
-                  onToggle={(v) => toggleIn(doctorExceptions, v, setDoctorExceptions)}
-                  onClear={() => setDoctorExceptions([])}
+              {!multiParty && companyId && (
+                <CompanyDoctorsToggleList
+                  doctors={linkedDoctors}
+                  loading={doctorsLoading}
+                  enabledIds={enabledDoctorIds}
+                  onChange={setEnabledDoctorIds}
+                  label="Médicos vinculados à clínica"
+                  emptyHint="Nenhum médico vinculado a esta clínica no cadastro (doctor_companies)."
                 />
               )}
             </div>
@@ -1887,7 +1914,7 @@ function PartyRow({
   onRemove: () => void;
 }) {
   const [companyOpen, setCompanyOpen] = useState(false);
-  const [doctorsOpen, setDoctorsOpen] = useState(false);
+  
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
   const [loading, setLoading] = useState(false);
   const company = companies.find((c) => c.id === party.companyId) ?? null;
@@ -1976,85 +2003,23 @@ function PartyRow({
         </PopoverContent>
       </Popover>
 
-      <BoolField
-        label="Todos os médicos dessa PJ"
-        value={party.allDoctors}
-        onChange={(v) => onChange({ ...party, allDoctors: v, doctorIds: v ? [] : party.doctorIds })}
-      />
-
-      {!party.allDoctors && (
-        <div className="space-y-1.5">
-          <Popover open={doctorsOpen} onOpenChange={setDoctorsOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="outline" role="combobox" className="w-full justify-between bg-background font-normal">
-                {party.doctorIds.length > 0
-                  ? `${party.doctorIds.length} médico(s) selecionado(s)`
-                  : loading
-                    ? "Carregando médicos da PJ..."
-                    : "Selecionar médicos"}
-                <ChevronsUpDown className="h-4 w-4 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command filter={(value, search) => (norm(value).includes(norm(search)) ? 1 : 0)}>
-                <CommandInput placeholder="Buscar médico" />
-                <CommandList>
-                  <CommandEmpty>
-                    {loading ? "Carregando..." : "Nenhum médico vinculado a esta PJ"}
-                  </CommandEmpty>
-                  <CommandGroup>
-                    {doctors.map((d) => {
-                      const checked = party.doctorIds.includes(d.id);
-                      return (
-                        <CommandItem
-                          key={d.id}
-                          value={`${d.full_name} ${d.crm ?? ""}`}
-                          onSelect={() =>
-                            onChange({
-                              ...party,
-                              doctorIds: checked
-                                ? party.doctorIds.filter((x) => x !== d.id)
-                                : [...party.doctorIds, d.id],
-                            })
-                          }
-                        >
-                          <Checkbox checked={checked} className="mr-2" tabIndex={-1} />
-                          <span className="flex-1">{d.full_name}</span>
-                          {d.crm && (
-                            <span className="text-xs text-muted-foreground">
-                              CRM {d.crm}
-                              {d.crm_uf ? `/${d.crm_uf}` : ""}
-                            </span>
-                          )}
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          <div className="flex flex-wrap gap-1.5">
-            {party.doctorIds.map((did) => {
-              const d = doctors.find((x) => x.id === did);
-              return (
-                <Badge key={did} variant="secondary" className="gap-1 pl-2 pr-1">
-                  {d?.full_name ?? did}
-                  <button
-                    type="button"
-                    aria-label={`Remover ${d?.full_name ?? "médico"}`}
-                    onClick={() =>
-                      onChange({ ...party, doctorIds: party.doctorIds.filter((x) => x !== did) })
-                    }
-                    className="rounded p-0.5 hover:bg-muted"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              );
-            })}
-          </div>
-        </div>
+      {party.companyId && (
+        <CompanyDoctorsToggleList
+          doctors={doctors}
+          loading={loading}
+          enabledIds={party.allDoctors ? doctors.map((d) => d.id) : party.doctorIds}
+          onChange={(ids) => {
+            // Todos habilitados = vale para a PJ inteira (doctor_id nulo na gravação)
+            const all = doctors.length > 0 && ids.length === doctors.length;
+            onChange({ ...party, allDoctors: all, doctorIds: all ? [] : ids });
+          }}
+          label="Médicos vinculados a esta PJ"
+          footnote={
+            party.allDoctors
+              ? "Todos habilitados: o acordo vale para a PJ inteira."
+              : "Somente os médicos habilitados entram neste acordo."
+          }
+        />
       )}
     </div>
   );
