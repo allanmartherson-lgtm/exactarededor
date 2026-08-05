@@ -49,6 +49,7 @@ import {
 
 import { BarChart3, Download, FileText, Search, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
+import { useGlosaRiskForCompanies } from "@/hooks/useGlosaRiskForCompanies";
 import {
   exportSpecialtyReportExcel,
   exportSpecialtyReportPdf,
