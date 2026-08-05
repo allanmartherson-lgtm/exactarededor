@@ -1325,6 +1325,114 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
               )}
             </div>
 
+            {/* Tipo de pagamento — define quais etapas de cálculo aparecem adiante */}
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Tipo de pagamento</h3>
+                <p className="text-xs text-muted-foreground">
+                  Pode marcar mais de um. A etapa “Cálculo de Pagamento” se adapta ao que for
+                  escolhido aqui.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {paymentModels.map((m) => {
+                  const active = paymentModelIds.includes(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() =>
+                        setPaymentModelIds((list) =>
+                          list.includes(m.id) ? list.filter((x) => x !== m.id) : [...list, m.id],
+                        )
+                      }
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-150",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-foreground hover:bg-muted",
+                      )}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
+                {paymentModels.length === 0 && (
+                  <span className="text-sm text-muted-foreground">
+                    {registriesLoading ? "Carregando tipos de pagamento..." : "Nenhum tipo de pagamento ativo"}
+                  </span>
+                )}
+              </div>
+
+              {canHaveMinGarantido && (
+                <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                  <BoolField
+                    label="Com mínimo garantido"
+                    value={minGarantidoAtivo}
+                    onChange={setMinGarantidoAtivo}
+                  />
+                  {minGarantidoAtivo && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="acd-mg-valor">Valor mínimo (R$) *</Label>
+                        <Input
+                          id="acd-mg-valor"
+                          inputMode="decimal"
+                          value={minGarantidoValor}
+                          onChange={(e) => setMinGarantidoValor(e.target.value)}
+                          className="text-right tabular-nums"
+                          placeholder="0,00"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Escopo</Label>
+                        <Select value={minGarantidoEscopo} onValueChange={setMinGarantidoEscopo}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(MIN_GARANTIDO_ESCOPO_LABEL).map(([v, label]) => (
+                              <SelectItem key={v} value={v}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Periodicidade</Label>
+                        <Select
+                          value={minGarantidoPeriodicidade}
+                          onValueChange={setMinGarantidoPeriodicidade}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="competencia">Por competência</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Base de comparação</Label>
+                        <Select value={minGarantidoBase} onValueChange={setMinGarantidoBase}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="liquido">Líquido</SelectItem>
+                            <SelectItem value="bruto">Bruto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Tabelas de códigos/valores recebidas pelo Contratos */}
             <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
               <AgreementAttachmentsPanel agreementId={id} />
