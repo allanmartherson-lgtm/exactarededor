@@ -1223,6 +1223,22 @@ export default function PaymentsBySpecialty() {
             {/* ---------------- KPIs ----------------
                 Padrão BI: um único card de destaque (tone="primary") ancora a
                 leitura; os demais permanecem neutros para não competir. */}
+            {/* Alternador de modo: o "líquido" só é comparável ao bruto quando a
+                visão é da PJ inteira no período. */}
+            <div className="rounded-2xl border border-border/60 bg-card px-4 py-3">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+                <TabsList>
+                  <TabsTrigger value="specialty">Especialidade</TabsTrigger>
+                  <TabsTrigger value="company">PJ no período</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Especialidade: só o que bate no filtro (bruto exato; líquido é do lote × PJ
+                inteiro). PJ no período: tudo que essas mesmas PJs receberam no período, todas as
+                especialidades — para comparação.
+              </p>
+            </div>
+
             <div className="grid gap-4 grid-cols-2 lg:grid-cols-5 items-stretch">
               <KpiCard
                 className="h-full"
@@ -1234,9 +1250,13 @@ export default function PaymentsBySpecialty() {
               />
               <KpiCard
                 className="h-full"
-                label="Total líquido (PJ/lote)"
+                label={isPjView ? "Total líquido (PJ)" : "Total líquido (PJ/lote)"}
                 value={<span className="text-2xl">{money(kpis.liquido)}</span>}
-                hint="Líquido existe por lote × PJ; não é rateável por especialidade."
+                hint={
+                  isPjView
+                    ? "Líquido total dessas PJs nos lotes do período — comparável ao bruto acima."
+                    : "Líquido existe por lote × PJ; não é rateável por especialidade."
+                }
               />
               <KpiCard className="h-full" label="Itens" value={kpis.items.toLocaleString("pt-BR")} hint="No recorte atual" />
               <KpiCard className="h-full" label="PJs" value={kpis.companies} hint="Com pagamento no recorte" />
@@ -1246,18 +1266,21 @@ export default function PaymentsBySpecialty() {
 
             {/* Integridade: itens sem doctor_id não podem ser atribuídos a especialidade */}
             <div className="grid gap-4 md:grid-cols-2">
-              <KpiCard
-                label="Sem médico vinculado"
-                value={money(kpis.semMedicoBruto)}
-                tone="warning"
-                hint={`${kpis.semMedicoItems} itens do período cujo nome na planilha não bate com nenhum médico do cadastro nem com apelido cadastrado — cadastre o apelido em Médicos para recuperá-los.`}
-              />
+              {!isPjView && (
+                <KpiCard
+                  label="Sem médico vinculado"
+                  value={money(kpis.semMedicoBruto)}
+                  tone="warning"
+                  hint={`${kpis.semMedicoItems} itens do período cujo nome na planilha não bate com nenhum médico do cadastro nem com apelido cadastrado — cadastre o apelido em Médicos para recuperá-los.`}
+                />
+              )}
               <KpiCard
                 label="Total do período (sem recorte)"
                 value={money(computed.baseBruto)}
                 hint={`${computed.baseItems.toLocaleString("pt-BR")} itens na unidade e período filtrados (referência de conferência).`}
               />
             </div>
+
 
             {/* ---------------- Gráfico ---------------- */}
             <div className="rounded-2xl border border-border/60 bg-card p-6">
