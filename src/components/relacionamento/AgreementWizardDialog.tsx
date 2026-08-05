@@ -55,6 +55,11 @@ interface DoctorOption {
   crm: string | null;
   crm_uf: string | null;
 }
+interface HospitalOption {
+  id: string;
+  name: string;
+}
+
 
 const STEPS = [
   "Identificação",
