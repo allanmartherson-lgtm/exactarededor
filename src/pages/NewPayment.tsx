@@ -5581,14 +5581,70 @@ const NewPayment = () => {
 
 
         {allRows.length > 0 && doctorReg && convenioReg && sectorReg && (
-          <RegistryResolutionPanel
-            unresolved={unresolvedGroups}
-            doctorReg={doctorReg}
-            convenioReg={convenioReg}
-            sectorReg={sectorReg}
-            onResolved={() => reloadRegistries(true)}
-          />
+          <div ref={registryPanelRef}>
+            <RegistryResolutionPanel
+              unresolved={unresolvedGroups}
+              doctorReg={doctorReg}
+              convenioReg={convenioReg}
+              sectorReg={sectorReg}
+              onResolved={() => reloadRegistries(true)}
+            />
+          </div>
         )}
+
+        <Dialog open={doctorGateOpen} onOpenChange={setDoctorGateOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                {unresolvedDoctorSummary.count} item(ns) com médico não vinculado
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                Esses itens têm nome de médico na planilha, mas o nome não casa com nenhum cadastro
+                nem apelido. Eles serão salvos sem vínculo de médico e ficarão fora dos relatórios
+                por médico/especialidade.
+              </p>
+              <div className="max-h-56 overflow-y-auto rounded-md border divide-y">
+                {unresolvedDoctorSummary.groups.map((g) => (
+                  <div key={g.name} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="truncate font-medium">{g.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {g.count} linha(s) · {formatCurrency(g.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total envolvido: <strong>{formatCurrency(unresolvedDoctorSummary.amount)}</strong>
+              </p>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDoctorGateOpen(false);
+                  registryPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Resolver agora
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  // Decisão explícita do analista, equivalente ao confirm de PJ.
+                  doctorGateAckRef.current = true;
+                  setDoctorGateOpen(false);
+                  void submit();
+                }}
+              >
+                Prosseguir mesmo assim
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         {showMixedParecerOption && (
           <MixedParecerSetupCard
