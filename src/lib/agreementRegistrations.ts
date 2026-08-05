@@ -139,6 +139,25 @@ export interface AgreementFlowFields {
   pdf_url: string | null;
 }
 
+/** Histórico imutável de ciclos anteriores (rejeições e reenvios). */
+export type AgreementEventType = "rejeicao_diretor" | "reenvio_contratos";
+
+export const AGREEMENT_EVENT_LABEL: Record<AgreementEventType, string> = {
+  rejeicao_diretor: "Rejeitado pelo diretor",
+  reenvio_contratos: "Corrigido e reenviado pelo Contratos",
+};
+
+export interface AgreementEventRow {
+  id: string;
+  agreement_id: string;
+  hospital_id: string | null;
+  cycle: number;
+  event_type: AgreementEventType;
+  actor_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface ChecklistEntry {
   key: string;
   label: string;
@@ -146,6 +165,7 @@ export interface ChecklistEntry {
   /** Bloqueia o avanço quando falso. */
   required: boolean;
 }
+
 
 /**
  * Checklist objetivo que o supervisor precisa conferir antes de encaminhar
