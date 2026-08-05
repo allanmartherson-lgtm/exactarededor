@@ -231,6 +231,8 @@ const SaudeHub = lazy(() => import("./pages/SaudeHub.tsx"));
 const ComunicacaoHub = lazy(() => import("./pages/ComunicacaoHub.tsx"));
 const loadRelacionamentoHub = () => import("./pages/RelacionamentoHub.tsx");
 const RelacionamentoHub = lazy(loadRelacionamentoHub);
+const loadAgreementRegistrations = () => import("./pages/AgreementRegistrations.tsx");
+const AgreementRegistrations = lazy(loadAgreementRegistrations);
 const RegrasHub = lazy(() => import("./pages/RegrasHub.tsx"));
 const SistemaHub = lazy(() => import("./pages/SistemaHub.tsx"));
 const SystemParameters = lazy(() => import("./pages/SystemParameters.tsx"));
@@ -373,6 +375,7 @@ const App = () => (
                   <Route path="/comunicacao/aprovacoes" element={<Navigate to="/comunicacao?tab=aprovacoes" replace />} />
                   <Route path="/comunicacao/supervisao" element={<Navigate to="/comunicacao?tab=supervisao" replace />} />
                   <Route path="/relacionamento" element={<ProtectedRoute><RelacionamentoHub /></ProtectedRoute>} />
+                  <Route path="/relacionamento/cadastro-acordos" element={<ProtectedRoute><AgreementRegistrations /></ProtectedRoute>} />
 
                   <Route path="/notificacoes" element={<ProtectedRoute><NotificationsInbox /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><SaudeHub /></ProtectedRoute>} />
