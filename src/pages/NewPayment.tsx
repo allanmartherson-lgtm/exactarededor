@@ -2756,33 +2756,11 @@ const NewPayment = () => {
   // Médicos com nome preenchido na planilha mas que NÃO resolveram para um
   // doctor_id (cadastro direto ou alias). Sem essa trava o item era salvo com
   // doctor_id nulo silenciosamente — mesma lacuna que a PJ já cobre.
-  const unresolvedDoctorSummary = useMemo(() => {
-    const map = new Map<string, { name: string; count: number; amount: number }>();
-    let count = 0;
-    let amount = 0;
-    for (const r of resolvedRows) {
-      const res = (r as any)._resolution;
-      if (!res) continue;
-      const name = (r.doctor_name ?? "").trim();
-      if (!name || res.doctor_id) continue;
-      const value = Number(r.gross_amount ?? 0) || 0;
-      count += 1;
-      amount += value;
-      const key = name.toLowerCase();
-      const existing = map.get(key);
-      if (existing) {
-        existing.count += 1;
-        existing.amount += value;
-      } else {
-        map.set(key, { name, count: 1, amount: value });
-      }
-    }
-    return {
-      count,
-      amount,
-      groups: Array.from(map.values()).sort((a, b) => b.count - a.count),
-    };
-  }, [resolvedRows]);
+  const unresolvedDoctorSummary = useMemo(
+    () => summarizeUnresolvedDoctors(resolvedRows as any),
+    [resolvedRows],
+  );
+
 
   const [doctorGateOpen, setDoctorGateOpen] = useState(false);
   // Aceite explícito do analista para prosseguir com médicos não vinculados.
