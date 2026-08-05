@@ -513,8 +513,34 @@ export function AgreementWizardDialog({ open, onOpenChange, record, onSaved }: P
           if (error) throw error;
         }
 
+        // PJs do acordo de equipe: regravadas por inteiro a cada salvamento.
+        // Sem multi-PJ ativo o acordo volta a ter apenas a clínica principal.
+        const { error: delPartiesErr } = await supabase
+          .from("agreement_registration_parties")
+          .delete()
+          .eq("agreement_id", agreementId);
+        if (delPartiesErr) throw delPartiesErr;
+        if (multiParty) {
+          const rows = parties.flatMap((p) =>
+            !p.companyId
+              ? []
+              : p.allDoctors
+                ? [{ agreement_id: agreementId as string, company_id: p.companyId, doctor_id: null }]
+                : p.doctorIds.map((d) => ({
+                    agreement_id: agreementId as string,
+                    company_id: p.companyId as string,
+                    doctor_id: d,
+                  })),
+          );
+          if (rows.length > 0) {
+            const { error } = await supabase.from("agreement_registration_parties").insert(rows);
+            if (error) throw error;
+          }
+        }
+
         onSaved();
         return true;
+
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : "Falha ao salvar o acordo");
         return false;
