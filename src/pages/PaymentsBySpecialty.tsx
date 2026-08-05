@@ -296,6 +296,7 @@ export default function PaymentsBySpecialty() {
         company_id: string | null;
         doctor_id: string | null;
         item_type_id: string | null;
+        convenio_slug: string | null;
         gross: number | string | null;
         items: number | string | null;
       };
@@ -319,6 +320,7 @@ export default function PaymentsBySpecialty() {
             company_id: r.company_id,
             doctor_id: r.doctor_id,
             item_type_id: r.item_type_id ?? null,
+            convenio_slug: r.convenio_slug ?? null,
             gross_amount: Number(r.gross ?? 0),
             item_competence: r.competence,
             qty: Number(r.items ?? 0),
