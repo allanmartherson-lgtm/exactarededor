@@ -15,6 +15,7 @@ import {
   similarity,
   MATCH_AUTO_THRESHOLD,
   MATCH_REVIEW_THRESHOLD,
+  stripPaymentTypeTerms,
   type CompanyRow,
 } from "../parsePaymentFile";
 
