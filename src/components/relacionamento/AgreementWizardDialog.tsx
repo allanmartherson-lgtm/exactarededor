@@ -90,16 +90,48 @@ interface PartyDraft {
   doctorIds: string[];
 }
 
+/** Modelo de pagamento do acordo (payment_models): Produção, Remessa, Plantão, etc. */
+interface PaymentModelOption {
+  id: string;
+  code: string;
+  label: string;
+}
 
+/** Bloco do contrato de valor fixo — vive dentro de calculation_draft. */
+interface FixedValueDraft {
+  amount: string;
+  installments: string;
+  periodicity: string;
+}
+
+const EMPTY_FIXED_VALUE: FixedValueDraft = { amount: "", installments: "", periodicity: "mensal" };
+
+const FIXED_PERIODICITY_LABEL: Record<string, string> = {
+  mensal: "Mensal",
+  quinzenal: "Quinzenal",
+  semanal: "Semanal",
+  unico: "Pagamento único",
+};
+
+const MIN_GARANTIDO_ESCOPO_LABEL: Record<string, string> = {
+  medico_empresa: "Por médico dentro da PJ",
+  empresa: "Por PJ (consolidado)",
+};
+
+/** Códigos que exigem a etapa de cálculo por produção. */
+const PRODUCTION_LIKE_CODES = ["producao", "remessa", "plantao", "hora_trabalhada"];
+/** Códigos que habilitam o toggle de mínimo garantido. */
+const MIN_GARANTIDO_CODES = ["producao", "remessa"];
 
 const STEPS = [
   "Identificação",
   "Abrangência",
-  "Tabela de pagamento",
+  "Cálculo de Pagamento",
   "Regras especiais",
   "Itens extras",
   "Observações",
 ] as const;
+
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
