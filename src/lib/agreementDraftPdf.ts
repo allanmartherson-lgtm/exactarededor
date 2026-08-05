@@ -49,17 +49,18 @@ export async function generateAgreementDraftPdf(model: AgreementExportModel): Pr
   y = section(doc, y, "Abrangência", model.scope);
   y = section(doc, y, "Cálculo de pagamento", model.paymentTable);
 
-  if (model.parties.length > 0) {
+  if (model.clinicalStaff.length > 0) {
     autoTable(doc, {
       startY: y,
-      head: [["PJ do acordo", "Médicos"]],
-      body: model.parties.map((p) => [p.company, p.doctors]),
-      styles: { fontSize: 9, cellPadding: 2 },
+      head: [["Médico", "CRM", "Empresa (PJ)", "CNPJ", "E-mail", "Telefone"]],
+      body: model.clinicalStaff.map((s) => [s.doctor, s.crm, s.company, s.cnpj, s.email, s.phone]),
+      styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: HEAD_FILL },
       margin: { left: MARGIN_X, right: MARGIN_X },
     });
     y = lastY(doc) + 6;
   }
+
 
   if (model.hospitals.length > 0) {
     autoTable(doc, {
