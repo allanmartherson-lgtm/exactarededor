@@ -150,7 +150,7 @@ export function ManualInterventionDialog({
       if (next) {
         const { data: row, error: readErr } = await supabase
           .from("payment_items")
-          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at,gross_override_reason")
+          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at,gross_override_reason,ai_status,acatado_status_original")
           .eq("id", itemId)
           .maybeSingle();
         if (readErr) throw readErr;
@@ -195,6 +195,15 @@ export function ManualInterventionDialog({
         (patch as any).gross_override_by = user.id;
         (patch as any).gross_override_reason = "tratamento_manual";
         (patch as any).ai_status = "aprovado";
+        // Trilha de acate: espelha accept_payment_item para que a conciliação
+        // do grupo não fique com divergência gross × expected pendente.
+        (patch as any).acatado_at = new Date().toISOString();
+        (patch as any).acatado_by = user.id;
+        if ((row as any)?.acatado_status_original == null) {
+          (patch as any).acatado_status_original = (row as any)?.ai_status ?? null;
+        }
+
+
 
       } else {
         const { data: row, error: readErr } = await supabase
@@ -214,6 +223,10 @@ export function ManualInterventionDialog({
           (patch as any).gross_override_by = null;
           (patch as any).gross_override_reason = null;
         }
+        // Limpa a trilha de acate gravada na aplicação do tratamento manual.
+        (patch as any).acatado_at = null;
+        (patch as any).acatado_by = null;
+        (patch as any).acatado_status_original = null;
       }
 
       const { error } = await supabase
