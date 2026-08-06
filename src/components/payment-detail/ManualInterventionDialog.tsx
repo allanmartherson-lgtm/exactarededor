@@ -223,6 +223,10 @@ export function ManualInterventionDialog({
           (patch as any).gross_override_by = null;
           (patch as any).gross_override_reason = null;
         }
+        // Limpa a trilha de acate gravada na aplicação do tratamento manual.
+        (patch as any).acatado_at = null;
+        (patch as any).acatado_by = null;
+        (patch as any).acatado_status_original = null;
       }
 
       const { error } = await supabase
