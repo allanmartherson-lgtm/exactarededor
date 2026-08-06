@@ -195,6 +195,15 @@ export function ManualInterventionDialog({
         (patch as any).gross_override_by = user.id;
         (patch as any).gross_override_reason = "tratamento_manual";
         (patch as any).ai_status = "aprovado";
+        // Trilha de acate: espelha accept_payment_item para que a conciliação
+        // do grupo não fique com divergência gross × expected pendente.
+        (patch as any).acatado_at = new Date().toISOString();
+        (patch as any).acatado_by = user.id;
+        if ((row as any)?.acatado_status_original == null) {
+          (patch as any).acatado_status_original = (row as any)?.ai_status ?? null;
+        }
+
+
 
       } else {
         const { data: row, error: readErr } = await supabase
