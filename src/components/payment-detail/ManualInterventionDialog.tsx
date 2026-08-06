@@ -150,7 +150,7 @@ export function ManualInterventionDialog({
       if (next) {
         const { data: row, error: readErr } = await supabase
           .from("payment_items")
-          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at,gross_override_reason")
+          .select("procedure_amount,gross_amount,gross_amount_original,gross_override_at,gross_override_reason,ai_status,acatado_status_original")
           .eq("id", itemId)
           .maybeSingle();
         if (readErr) throw readErr;
