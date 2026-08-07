@@ -193,7 +193,7 @@ serve(async (req) => {
         }
         const { data: invoice } = await supabase.from("invoices").select("id, payment_id, status").eq("upload_token", token).maybeSingle();
         if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (invoice.status !== "aguardando") {
+        if (!CHAT_OPEN_STATUSES.has(String(invoice.status))) {
           return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         const __hid1 = await getHospitalId(invoice.payment_id);
@@ -287,9 +287,15 @@ serve(async (req) => {
         const previousSnapshot = invoice.invoice_number || invoice.received_amount
           ? `NF anterior: ${invoice.invoice_number ?? "—"} / valor ${invoice.received_amount ?? "—"}.`
           : "Nenhum upload anterior registrado.";
-        // Apaga o arquivo anterior pra não acumular lixo no storage.
-        if (invoice.file_path) {
-          await supabase.storage.from("invoices").remove([invoice.file_path]).catch(() => null);
+        // NUNCA apagar o arquivo: versiona (move para v{n}) e registra em invoice_file_versions.
+        const __hidReset = await getHospitalId(invoice.payment_id);
+        const versionRes = await archiveInvoiceFileVersion(supabase, invoice as never, {
+          source: "reenvio_empresa",
+          reason: justification || null,
+          hospitalId: __hidReset,
+        });
+        if (!versionRes.ok) {
+          console.error("[submit-invoice] falha ao versionar arquivo da NF:", versionRes.error);
         }
         await supabase.from("invoices").update({
           status: "aguardando",
@@ -351,7 +357,7 @@ serve(async (req) => {
       }
       const { data: invoice } = await supabase.from("invoices").select("id, payment_id, status").eq("upload_token", token).maybeSingle();
       if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (invoice.status !== "aguardando") {
+      if (!CHAT_OPEN_STATUSES.has(String(invoice.status))) {
         return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
