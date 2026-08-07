@@ -7856,6 +7856,7 @@ export type Database = {
           ai_summary: string | null
           analysis_mode: Database["public"]["Enums"]["payment_analysis_mode"]
           analysis_note: string | null
+          analysis_notified_at: string | null
           analysis_on_behalf_of: string | null
           analysis_registered_by: string | null
           analysis_source: string
@@ -7920,6 +7921,7 @@ export type Database = {
           ai_summary?: string | null
           analysis_mode?: Database["public"]["Enums"]["payment_analysis_mode"]
           analysis_note?: string | null
+          analysis_notified_at?: string | null
           analysis_on_behalf_of?: string | null
           analysis_registered_by?: string | null
           analysis_source?: string
@@ -7984,6 +7986,7 @@ export type Database = {
           ai_summary?: string | null
           analysis_mode?: Database["public"]["Enums"]["payment_analysis_mode"]
           analysis_note?: string | null
+          analysis_notified_at?: string | null
           analysis_on_behalf_of?: string | null
           analysis_registered_by?: string | null
           analysis_source?: string
