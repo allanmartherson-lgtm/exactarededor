@@ -611,7 +611,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
                 const expanded = expandedId === i.id;
                 const invVersions = versions.get(i.id) ?? [];
                 return (
-                  <div key={i.id}>
+                  <div key={i.id} className="list-row-group">
                     <div className="list-row">
                       {/* Coluna 1 — Identificação */}
                       <div className="list-row__main">
