@@ -166,6 +166,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { hasRole } = useAuth();
   const activeHospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
   const [openQuestions, setOpenQuestions] = useState<InvoiceQuestion[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -200,12 +201,21 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const canActOnNF = hasRole("analista") || isAdmin || hasRole("diretor");
 
   const load = async () => {
-    const { data: invoices } = await supabase
+    setLoadError(null);
+    const { data: invoices, error: invoicesError } = await supabase
       .from("invoices")
       .select(
         "id,payment_id,expected_amount,received_amount,invoice_number,file_path,status,recipient_email,sent_at,received_at,reconciliation_notes,created_at,updated_at,company_id,company_name,ai_validation,ai_validated_at,ai_extracted_amount,ai_extracted_number,ai_extracted_cnpj,recipient_cc,request_message,items_count,send_error,company_group_id,hospital_id,erp_document_number,erp_posted_at,erp_posted_by,paid_at,paid_by,manual_conciliation_note,manual_conciliated_at,manual_conciliated_by, payments(reference,status)",
       )
       .order("created_at", { ascending: false });
+    // NUNCA cair em lista vazia silenciosa: erro de query vira banner + toast.
+    if (invoicesError) {
+      const msg = `${invoicesError.message}${invoicesError.hint ? ` — ${invoicesError.hint}` : ""}`;
+      setLoadError(msg);
+      toast({ title: "Falha ao carregar notas fiscais", description: msg, variant: "destructive" });
+      setRows([]);
+      return;
+    }
     const ids = (invoices ?? []).map((i: { id: string }) => i.id);
     const countByInvoice = new Map<string, number>();
     if (ids.length > 0) {
@@ -543,6 +553,22 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
             ))}
           </TabsList>
         </Tabs>
+
+        {loadError && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive-soft px-4 py-3">
+            <div className="flex items-start gap-2 text-sm">
+              <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+              <div>
+                <p className="font-medium text-destructive">Não foi possível carregar as notas fiscais</p>
+                <p className="text-xs text-muted-foreground break-all">{loadError}</p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => void load()}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              Tentar novamente
+            </Button>
+          </div>
+        )}
 
         {canActOnNF && failedInvoices.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive-soft px-4 py-3">
