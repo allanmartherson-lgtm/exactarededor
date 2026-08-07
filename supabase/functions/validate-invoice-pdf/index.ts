@@ -125,10 +125,12 @@ serve(async (req) => {
       `Você está conferindo uma nota fiscal anexada por um prestador.\n` +
       `Pedido: valor esperado R$ ${Number(invoice.expected_amount).toFixed(2)}` +
       (invoice.invoice_number ? `, número informado pelo prestador: ${invoice.invoice_number}` : "") +
+      (expectedCnpj ? `, CNPJ esperado do emissor (cadastro): ${expectedCnpj}` : "") +
       `.\nExtraia os campos da NF (valor bruto, número, CNPJ do emissor, data) e liste qualquer divergência ` +
       `entre a NF e o pedido. Se o valor bruto da NF for diferente do esperado em mais de R$ 0,01, ` +
       `liste a divergência. Se o número informado pelo prestador não bater com o número impresso na NF, ` +
-      `liste a divergência. Use a função report_invoice_fields para responder.`;
+      `liste a divergência. Se o CNPJ do emissor não for o CNPJ esperado, liste a divergência. ` +
+      `Use a função report_invoice_fields para responder.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
