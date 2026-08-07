@@ -9,17 +9,26 @@ import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireI
 
 const GATEWAY = "https://connector-gateway.lovable.dev";
 
+const AttachmentSchema = z.object({
+  filename: z.string().min(1).max(255),
+  content_base64: z.string().min(1),
+  content_type: z.string().min(1).max(200).optional(),
+});
+
 const BodySchema = z.object({
   to: z.string().email(),
+  cc: z.array(z.string().email()).max(50).optional(),
   subject: z.string().min(1).max(500),
   html: z.string().min(1),
   text: z.string().optional(),
+  attachments: z.array(AttachmentSchema).max(20).optional(),
   user_id: z.string().uuid().optional(),
   payment_id: z.string().uuid().optional(),
   event_key: z.string().min(1),
   template_key: z.string().optional(),
   queue_id: z.string().uuid().optional(),
 });
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
