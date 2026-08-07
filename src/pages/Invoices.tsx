@@ -929,9 +929,12 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
                     })()}
 
                     {/* Linha extra ocupando largura inteira: notas/erros/IA */}
-                    {((i.reconciliation_notes && i.status !== "divergente" && i.status !== "recebida") || i.send_error || i.ai_validation) && (
+                    {(() => {
+                      const hideNotes = ["divergente", "recebida", "conciliada", "lancada", "paga"].includes(i.status);
+                      const showNotes = !!i.reconciliation_notes && !hideNotes;
+                      return (showNotes || i.send_error || i.ai_validation) && (
                       <div className="px-5 pb-3 -mt-2 space-y-1.5 text-[12px]">
-                        {i.reconciliation_notes && i.status !== "divergente" && i.status !== "recebida" && (
+                        {showNotes && (
                           <p className="text-muted-foreground">{i.reconciliation_notes}</p>
                         )}
                         {i.send_error && (
