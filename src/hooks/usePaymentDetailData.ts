@@ -286,10 +286,26 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setPaymentMissing(!paymentRes.error && !p);
     if (itemsRes.error) {
       console.error("[PaymentDetail] Falha ao carregar itens; mantendo estado anterior", itemsRes.error);
+      const errCode = String((itemsRes.error as { code?: string } | null)?.code ?? "");
+      const errMsg = String((itemsRes.error as { message?: string } | null)?.message ?? "").toLowerCase();
+      const isAuthErr =
+        errCode === "42501" ||
+        errCode === "PGRST301" ||
+        errMsg.includes("permission denied") ||
+        errMsg.includes("jwt");
+      if (isAuthErr) {
+        // Erro de permissão NUNCA deve reagendar: sem sessão válida o retry vira
+        // rajada de requisições anônimas negadas contra payment_items.
+        setItemsLoading(false);
+        setItemsLoadIssue("Sessão expirada ou sem permissão para este lote. Faça login novamente.");
+        loadPendingRef.current = false;
+        return;
+      }
       setItemsLoadIssue("Falha temporária ao carregar itens. Recarregando…");
       loadPendingRef.current = true;
       return;
     }
+
     // Itens cancelados: suprime todos os ai_findings, alerts e validation_findings
     // antes de qualquer consumidor (badges, contagens, alertas, tooltips).
     // Item cancelado não deve mais "gritar" como alerta/validação em nenhuma tela
