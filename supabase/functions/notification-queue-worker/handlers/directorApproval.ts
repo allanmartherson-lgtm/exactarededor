@@ -3,13 +3,12 @@
 // Envia e-mail HTML (template e1) + WhatsApp.
 
 import { e1_productionValidation } from "../../_shared/emailTemplates/templates.ts";
+import { sendCorporateEmail } from "../../_shared/sendCorporateEmail.ts";
 
-const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
-const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 
 const greetingForBrazil = (now = new Date()) => {
@@ -117,7 +116,6 @@ export async function processDirectorApproval(supabase: any, row: any): Promise<
   const totalFormatted = brl(payment.total_amount);
 
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
 
   // deno-lint-ignore no-explicit-any
@@ -129,7 +127,7 @@ export async function processDirectorApproval(supabase: any, row: any): Promise<
     const name = firstName(d.full_name);
 
     // Email
-    if (d.email && LOVABLE_API_KEY && RESEND_API_KEY) {
+    if (d.email) {
       const rendered = e1_productionValidation({
         director_name: name,
         payment_reference: payment.reference,
@@ -141,30 +139,19 @@ export async function processDirectorApproval(supabase: any, row: any): Promise<
         approve_link: link,
         reject_link: null,
       });
-      try {
-        const r = await fetch(`${RESEND_GATEWAY}/emails`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": RESEND_API_KEY,
-          },
-          body: JSON.stringify({
-            from: EMAIL_FROM,
-            to: [d.email],
-            subject: rendered.subject,
-            html: rendered.html,
-            text: rendered.text,
-          }),
-        });
-
-        const json = await r.json().catch(() => ({}));
-        emailResults.push({ director_id: d.id, ok: r.ok, status: r.status, response: json });
-      } catch (e) {
-        emailResults.push({ director_id: d.id, ok: false, error: String(e) });
-      }
+      const res = await sendCorporateEmail({
+        to: d.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        user_id: d.id,
+        payment_id: payment.id,
+        event_key: "director_approval",
+        template_key: "e1_production_validation",
+      });
+      emailResults.push({ director_id: d.id, ok: res.ok, status: res.status, response: res.response });
     } else {
-      emailResults.push({ director_id: d.id, ok: false, skipped: "missing_email_or_keys" });
+      emailResults.push({ director_id: d.id, ok: false, skipped: "missing_email" });
     }
 
     // WhatsApp

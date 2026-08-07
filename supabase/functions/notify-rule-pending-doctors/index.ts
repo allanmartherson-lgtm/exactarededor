@@ -7,14 +7,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ?? "https://exacta-approval.lovable.app";
-const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 type PendingRow = {
   rule_id: string;
@@ -27,25 +26,18 @@ type PendingRow = {
 };
 
 async function sendEmail(to: string, subject: string, text: string) {
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  const resendKey = Deno.env.get("RESEND_API_KEY");
-  if (!lovableKey || !resendKey) {
-    console.warn("[notify-rule-pending-doctors] resend creds ausentes, pulando e-mail");
-    return { skipped: true };
-  }
-  const res = await fetch(`${RESEND_GATEWAY}/emails`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": resendKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: EMAIL_FROM, to, subject, text }),
+  const html = `<p>${text.replace(/\n/g, "<br/>")}</p>`;
+  const res = await sendCorporateEmail({
+    to,
+    subject,
+    html,
+    text,
+    event_key: "rule_pending_doctors",
+    template_key: "rule_pending_doctors",
   });
-  const body = await res.text();
   if (!res.ok) {
-    console.error("[notify-rule-pending-doctors] resend falhou", res.status, body);
-    return { ok: false, status: res.status, body };
+    console.error("[notify-rule-pending-doctors] envio falhou", res.status, res.error);
+    return { ok: false, status: res.status, body: res.error };
   }
   return { ok: true };
 }

@@ -1,14 +1,14 @@
+import { sendCorporateEmail } from "../../_shared/sendCorporateEmail.ts";
+
 // Handler: director_reapproval
 // Notifica diretores quando UM grupo de empresa (já aprovado) sofreu alteração
 // relevante e precisa de novo "de acordo". Mostra diff antes vs depois e
 // dispara magic link com action=approve_reapproval.
 
-const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_FROM = "whatsapp:+14155238886";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
-const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;
@@ -87,7 +87,6 @@ export async function processDirectorReapproval(supabase: any, row: any): Promis
   const trigger = triggerLabel(group.reapproval_trigger_source);
 
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
 
   // deno-lint-ignore no-explicit-any
@@ -162,29 +161,19 @@ Líquido: ${liqBefore} → ${liqAfter}
 
 Acessar: ${link}`;
 
-    if (d.email && LOVABLE_API_KEY && RESEND_API_KEY) {
-      try {
-        const r = await fetch(`${RESEND_GATEWAY}/emails`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": RESEND_API_KEY,
-          },
-          body: JSON.stringify({
-            from: EMAIL_FROM,
-            to: [d.email],
-            subject: `Re-aprovação: ${group.company_name} (${paymentRef}) — Δ ${deltaLabel}`,
-            html, text,
-          }),
-        });
-        const j = await r.json().catch(() => ({}));
-        emailResults.push({ director_id: d.id, ok: r.ok, status: r.status, response: j });
-      } catch (e) {
-        emailResults.push({ director_id: d.id, ok: false, error: String(e) });
-      }
+    if (d.email) {
+      const res = await sendCorporateEmail({
+        to: d.email,
+        subject: `Re-aprovação: ${group.company_name} (${paymentRef}) — Δ ${deltaLabel}`,
+        html,
+        text,
+        user_id: d.id,
+        event_key: "director_reapproval",
+        template_key: "director_reapproval",
+      });
+      emailResults.push({ director_id: d.id, ok: res.ok, status: res.status, response: res.response });
     } else {
-      emailResults.push({ director_id: d.id, ok: false, skipped: "missing_email_or_keys" });
+      emailResults.push({ director_id: d.id, ok: false, skipped: "missing_email" });
     }
 
     const phoneDigits = onlyDigits(d.phone ?? "");
