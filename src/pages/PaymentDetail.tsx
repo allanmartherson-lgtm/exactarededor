@@ -227,6 +227,10 @@ const PaymentDetail = () => {
   const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  // Lançamento no P12 por empresa — quando o grupo tem NF conciliada, o
+  // lançamento passa pelo RPC mark_invoice_lancada (que sincroniza o grupo).
+  const [p12Target, setP12Target] = useState<{ groupId: string; companyName: string; invoiceIds: string[] } | null>(null);
+  const [p12Doc, setP12Doc] = useState("");
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
   const [reconTargets, setReconTargets] = useState<string[]>([]);
   const [poolInfo, setPoolInfo] = useState<{ id: string; nome: string; deducao?: string | null } | null>(null);
