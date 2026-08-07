@@ -5164,6 +5164,11 @@ const NewPayment = () => {
                               >
                                 <Pencil className="h-3 w-3 mr-1" />
                                 {`Setor: ${b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}`}
+                                {b.sectorSuggested && b.sectorMapping && (
+                                  <span className="ml-1 rounded px-1 py-px text-[9px] uppercase tracking-wide border border-border text-muted-foreground">
+                                    sugerido
+                                  </span>
+                                )}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-3" align="end">
