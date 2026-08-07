@@ -106,6 +106,17 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
   const load = useCallback(async () => {
     if (!id) return;
+    // Guard de sessão: sem sessão válida o supabase-js cai para a chave anon e
+    // TODAS as queries desta tela batem em "permission denied" (42501). Como o
+    // fluxo de erro reagenda o load, isso vira uma rajada de dezenas de
+    // requisições anônimas contra payment_items. Nunca consultar sem sessão.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      setItemsLoading(false);
+      setItemsLoadIssue("Sessão expirada. Faça login novamente para carregar o lote.");
+      loadPendingRef.current = false;
+      return;
+    }
     setItemsLoading(true);
     // NÃO abortamos o request anterior aqui. Durante a análise por IA, o
     // realtime dispara muitos refetches em sequência; abortar o anterior
@@ -114,6 +125,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     const ac = new AbortController();
     abortRef.current = ac;
     const myToken = ++loadTokenRef.current;
+
     const [
       paymentRes,
       itemsRes,
