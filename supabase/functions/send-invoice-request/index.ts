@@ -20,7 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
 import { addBusinessDays, fmtMoney, formatCompetenceBR, formatDateBR, greetingBrasilia, joinPt } from "./text.ts";
 import { buildEmail } from "./templates.ts";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import * as XLSX from "https://esm.sh/xlsx-js-style@1.2.0";
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 import { a1_sendInvoiceRequest } from "../_shared/emailTemplates/templates.ts";
