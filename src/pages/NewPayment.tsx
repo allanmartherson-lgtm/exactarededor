@@ -2536,7 +2536,7 @@ const NewPayment = () => {
         priority: missingSector.length >= 3 ? "alta" : "media",
         icon: AlertTriangle,
         title: `${missingSector.length} arquivo${missingSector.length === 1 ? "" : "s"} sem setor`,
-        message: `Sem setor o motor não calcula. Escolha um setor abaixo pra aplicar de uma vez. Afetados: ${preview}.`,
+        message: `Setor ajuda na organização e nos relatórios (não bloqueia a importação). Escolha um setor abaixo pra aplicar de uma vez. Afetados: ${preview}.`,
         inlineActionsHint: `Aplicar em ${missingSector.length} ${missingSector.length === 1 ? "arquivo" : "arquivos"}:`,
         inlineActions: (Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((s) => ({
           id: `apply-${s}`,
