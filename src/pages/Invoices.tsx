@@ -929,9 +929,12 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
                     })()}
 
                     {/* Linha extra ocupando largura inteira: notas/erros/IA */}
-                    {((i.reconciliation_notes && i.status !== "divergente" && i.status !== "recebida") || i.send_error || i.ai_validation) && (
+                    {(() => {
+                      const hideNotes = ["divergente", "recebida", "conciliada", "lancada", "paga"].includes(i.status);
+                      const showNotes = !!i.reconciliation_notes && !hideNotes;
+                      return (showNotes || i.send_error || i.ai_validation) && (
                       <div className="px-5 pb-3 -mt-2 space-y-1.5 text-[12px]">
-                        {i.reconciliation_notes && i.status !== "divergente" && i.status !== "recebida" && (
+                        {showNotes && (
                           <p className="text-muted-foreground">{i.reconciliation_notes}</p>
                         )}
                         {i.send_error && (
@@ -962,7 +965,8 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
                           </div>
                         )}
                       </div>
-                    )}
+                      );
+                    })()}
 
                {expanded && (
                  <div className="mx-5 mb-4 rounded-md border border-border bg-muted/30 p-3 space-y-3 text-xs">
@@ -1186,7 +1190,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
       {/* Modal — visualizador de PDF */}
       <Dialog open={viewerOpen} onOpenChange={(v) => { setViewerOpen(v); if (!v) setViewerUrl(null); }}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-6xl w-[95vw] h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="truncate">{viewerTitle || "Nota fiscal"}</DialogTitle>
           </DialogHeader>
@@ -1194,7 +1198,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
             <iframe
               src={viewerUrl}
               title="Nota fiscal"
-              className="w-full h-[70vh] rounded-md border border-border bg-background"
+              className="w-full flex-1 min-h-0 rounded-md border border-border bg-background"
             />
           ) : (
             <p className="text-sm text-muted-foreground py-8 text-center">Carregando arquivo…</p>
