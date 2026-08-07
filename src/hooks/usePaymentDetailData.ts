@@ -397,7 +397,10 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     });
     setRulesIndex(idx);
     setRulesByName(nameIdx);
-  }, [id]);
+    // `groupId` PRECISA estar nas deps: ao trocar a PJ do grupo o app navega
+    // para outro groupId sem desmontar a tela. Sem isso o load nunca refazia
+    // e a UI ficava presa em "Carregando análise…" até um F5 manual.
+  }, [id, options?.groupId]);
 
   // Wrapper com lock + trailing single-flight (ver loadInFlightRef acima).
   const loadGuarded = useCallback(async () => {
