@@ -1,10 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { archiveInvoiceFileVersion } from "../_shared/invoiceVersioning.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+/** Status da NF em que a empresa ainda pode conversar pelo portal. */
+const CHAT_OPEN_STATUSES = new Set(["aguardando", "recebida", "divergente"]);
+const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -187,7 +193,7 @@ serve(async (req) => {
         }
         const { data: invoice } = await supabase.from("invoices").select("id, payment_id, status").eq("upload_token", token).maybeSingle();
         if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (invoice.status !== "aguardando") {
+        if (!CHAT_OPEN_STATUSES.has(String(invoice.status))) {
           return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         const __hid1 = await getHospitalId(invoice.payment_id);
@@ -242,7 +248,7 @@ serve(async (req) => {
         const authorName = String(body?.author_name ?? "").trim().slice(0, 120) || null;
         const { data: invoice } = await supabase
           .from("invoices")
-          .select("id, payment_id, status, file_path, invoice_number, received_amount")
+          .select("id, payment_id, hospital_id, status, file_path, invoice_number, received_amount, ai_validation, ai_extracted_amount, ai_extracted_number, ai_extracted_cnpj")
           .eq("upload_token", token)
           .maybeSingle();
         if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -281,9 +287,15 @@ serve(async (req) => {
         const previousSnapshot = invoice.invoice_number || invoice.received_amount
           ? `NF anterior: ${invoice.invoice_number ?? "—"} / valor ${invoice.received_amount ?? "—"}.`
           : "Nenhum upload anterior registrado.";
-        // Apaga o arquivo anterior pra não acumular lixo no storage.
-        if (invoice.file_path) {
-          await supabase.storage.from("invoices").remove([invoice.file_path]).catch(() => null);
+        // NUNCA apagar o arquivo: versiona (move para v{n}) e registra em invoice_file_versions.
+        const __hidReset = await getHospitalId(invoice.payment_id);
+        const versionRes = await archiveInvoiceFileVersion(supabase, invoice as never, {
+          source: "reenvio_empresa",
+          reason: justification || null,
+          hospitalId: __hidReset,
+        });
+        if (!versionRes.ok) {
+          console.error("[submit-invoice] falha ao versionar arquivo da NF:", versionRes.error);
         }
         await supabase.from("invoices").update({
           status: "aguardando",
@@ -345,7 +357,7 @@ serve(async (req) => {
       }
       const { data: invoice } = await supabase.from("invoices").select("id, payment_id, status").eq("upload_token", token).maybeSingle();
       if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (invoice.status !== "aguardando") {
+      if (!CHAT_OPEN_STATUSES.has(String(invoice.status))) {
         return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -431,12 +443,23 @@ serve(async (req) => {
       reconciliation_notes: "Validando documento...",
     }).eq("id", invoice.id);
 
+    // CNPJ esperado da empresa (cadastro) — comparado programaticamente e
+    // também enviado como contexto para a IA.
+    let expectedCnpj: string | null = null;
+    if (invoice.company_id) {
+      const { data: comp } = await supabase
+        .from("companies").select("document").eq("id", invoice.company_id).maybeSingle();
+      expectedCnpj = onlyDigits(comp?.document) || null;
+    }
+
     // Validação SÍNCRONA por IA: lê o PDF/XML, extrai valor e compara com o pedido.
     // Bloqueia o fluxo até decidir; se a IA falhar, fica em divergência por precaução.
     const FN_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/validate-invoice-pdf`;
     let aiAmount: number | null = null;
     let aiDivergences: string[] = [];
     let aiError: string | null = null;
+    let aiConfidence: string | null = null;
+    let aiCnpj: string | null = null;
     try {
       const aiResp = await fetch(FN_URL, {
         method: "POST",
@@ -444,7 +467,7 @@ serve(async (req) => {
           Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ invoice_id: invoice.id }),
+        body: JSON.stringify({ invoice_id: invoice.id, expected_cnpj: expectedCnpj }),
       });
       const aiJson = await aiResp.json().catch(() => ({}));
       if (!aiResp.ok) {
@@ -452,6 +475,8 @@ serve(async (req) => {
       } else {
         aiAmount = typeof aiJson.extracted_amount === "number" ? aiJson.extracted_amount : null;
         aiDivergences = Array.isArray(aiJson.divergences) ? aiJson.divergences : [];
+        aiConfidence = typeof aiJson.confidence === "string" ? aiJson.confidence : null;
+        aiCnpj = onlyDigits(aiJson.extracted_cnpj) || null;
       }
     } catch (e) {
       aiError = e instanceof Error ? e.message : "ai_unreachable";
@@ -460,6 +485,9 @@ serve(async (req) => {
     // Comparação dos valores com a NF (digitado e extraído da NF pela IA).
     const aiDiff = aiAmount != null ? Math.abs(expected - aiAmount) : null;
     const matchesByAi = aiDiff != null ? aiDiff <= tolerance : null;
+
+    // Conferência programática do CNPJ do emissor contra o cadastro da PJ.
+    const cnpjMismatch = !!(expectedCnpj && aiCnpj && expectedCnpj !== aiCnpj);
 
     // Política: precisa bater nos dois (form + NF). Se IA falhou, marcamos como
     // divergente pra forçar conferência humana — bloqueia o avanço do fluxo.
@@ -472,62 +500,95 @@ serve(async (req) => {
       notes += (notes ? " " : "") +
         `Divergência (valor na NF): pedido ${expected.toFixed(2)} vs NF ${aiAmount!.toFixed(2)} (Δ ${aiDiff!.toFixed(2)}).`;
     }
+    if (cnpjMismatch) {
+      notes += (notes ? " " : "") +
+        `Divergência (CNPJ do emissor): cadastro ${expectedCnpj} vs NF ${aiCnpj}.`;
+    }
     if (aiDivergences.length > 0) {
       notes += (notes ? " " : "") + `IA: ${aiDivergences.join("; ")}`;
     }
     if (aiError) {
       notes += (notes ? " " : "") + `Falha na validação automática (${aiError}). Conferência manual obrigatória.`;
     }
-    if (matchesByForm && matchesByAi === true) {
+    if (matchesByForm && matchesByAi === true && !cnpjMismatch) {
       finalMatches = true;
       notes = "Valor digitado e valor extraído da NF conferem com o pedido.";
     }
 
+    // Confiança baixa na leitura da IA: mesmo batendo o valor, NÃO auto-concilia.
+    const lowConfidence = finalMatches && aiConfidence === "baixa";
+    if (lowConfidence) {
+      notes = "Leitura com confiança baixa — revisão manual necessária. " + notes;
+    }
+    const finalStatus = lowConfidence ? "recebida" : (finalMatches ? "conciliada" : "divergente");
+
     await supabase.from("invoices").update({
-      status: finalMatches ? "conciliada" : "divergente",
+      status: finalStatus,
       reconciliation_notes: notes,
     }).eq("id", invoice.id);
 
-    // Verifica se todas as NF do pagamento foram recebidas
+    // Verifica se todas as NF do pagamento já foram processadas
     const { data: allInv } = await supabase.from("invoices").select("status").eq("payment_id", invoice.payment_id);
-    const allDone = allInv?.every((i) => i.status === "conciliada" || i.status === "divergente");
-    const anyDiverg = allInv?.some((i) => i.status === "divergente");
+    const relevant = (allInv ?? []).filter((i) => i.status !== "cancelada");
+    const allDone = relevant.every((i) =>
+      i.status === "conciliada" || i.status === "divergente" || i.status === "recebida"
+    );
+    const anyDiverg = relevant.some((i) => i.status === "divergente");
+    const anyManual = relevant.some((i) => i.status === "recebida");
+    let paymentStatus = "nf_recebida";
     if (allDone) {
-      await supabase.from("payments").update({ status: anyDiverg ? "nf_divergente" : "nf_conciliada" }).eq("id", invoice.payment_id);
+      paymentStatus = anyDiverg ? "nf_divergente" : (anyManual ? "nf_recebida" : "nf_conciliada");
+      await supabase.from("payments").update({ status: paymentStatus }).eq("id", invoice.payment_id);
       const __hid4 = await getHospitalId(invoice.payment_id);
       const { error: obsErr4 } = await supabase.from("payment_observations").insert({
         payment_id: invoice.payment_id,
         hospital_id: __hid4,
         author_type: "sistema",
-        message: anyDiverg ? "Todas as NF recebidas, mas há divergência de valor." : "Todas as NF recebidas e conciliadas com sucesso.",
-        status_to: anyDiverg ? "nf_divergente" : "nf_conciliada",
+        message: anyDiverg
+          ? "Todas as NF recebidas, mas há divergência."
+          : anyManual
+            ? "Todas as NF recebidas; há NF aguardando revisão manual (confiança baixa na leitura)."
+            : "Todas as NF recebidas e conciliadas com sucesso.",
+        status_to: paymentStatus,
       });
       if (obsErr4) console.error("[submit-invoice] payment_observations insert error", obsErr4);
     } else {
       await supabase.from("payments").update({ status: "nf_recebida" }).eq("id", invoice.payment_id);
-      
-      // Busca o nome da empresa para a notificação
-      const { data: grp } = await supabase
-        .from("payment_company_groups")
-        .select("company_name")
-        .eq("id", invoice.payment_company_group_id)
-        .maybeSingle();
+    }
 
-      // Notifica o analista que a NF foi recebida (Evento 3)
-      console.log(`Triggering notify-analyst-event (nf_received) for payment ${invoice.payment_id}`);
-      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-analyst-event`, {
+    // Notifica o analista em TODA chegada de NF (independente de ser a última do
+    // lote) — inclusive quando o resultado exige atenção (divergência/revisão).
+    {
+      const { data: grp } = invoice.company_group_id
+        ? await supabase
+          .from("payment_company_groups")
+          .select("company_name")
+          .eq("id", invoice.company_group_id)
+          .maybeSingle()
+        : { data: null as { company_name?: string } | null };
+
+      const reason = finalStatus === "divergente"
+        ? `NF recebida com divergência. ${notes}`
+        : finalStatus === "recebida"
+          ? `NF recebida — revisão manual necessária. ${notes}`
+          : null;
+
+      console.log(`Triggering notify-analyst-event (nf_received) for payment ${invoice.payment_id} [${finalStatus}]`);
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-analyst-event`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
         },
-        body: JSON.stringify({ 
-          paymentId: invoice.payment_id, 
+        body: JSON.stringify({
+          paymentId: invoice.payment_id,
           eventType: "nf_received",
-          actorName: grp?.company_name 
+          actorName: grp?.company_name ?? invoice.company_name ?? undefined,
+          reason,
         }),
-      }).catch(e => console.error("Failed to notify analyst (nf_received):", e));
+      }).catch((e) => console.error("Failed to notify analyst (nf_received):", e));
     }
+
 
     return new Response(
       JSON.stringify({

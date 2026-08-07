@@ -147,6 +147,15 @@ Deno.serve(async (req) => {
           invoice_link: link,
         });
         subject = r.subject; html = r.html; bodyText = r.text;
+        // Quando a chegada exige atenção (divergência / revisão manual), o
+        // motivo escrito pelo motor entra no corpo do e-mail.
+        if (reason) {
+          subject = `[Atenção] ${subject}`;
+          html += `<p style="margin:16px 0;padding:12px;border-left:4px solid #C6A27C;background:#FAF6F0;">
+            <strong>Motivo:</strong> ${String(reason).replace(/</g, "&lt;")}
+          </p>`;
+          bodyText += `\n\nMotivo: ${reason}`;
+        }
         break;
       }
     }

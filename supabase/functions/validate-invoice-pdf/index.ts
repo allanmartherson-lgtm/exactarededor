@@ -43,7 +43,9 @@ serve(async (req) => {
   if (!isInternal) return json({ error: "Unauthorized" }, 401);
 
   try {
-    const { invoice_id } = await req.json();
+    const body = await req.json();
+    const invoice_id = body?.invoice_id;
+    const expectedCnpjInput = onlyDigits(body?.expected_cnpj) || null;
     if (!invoice_id || typeof invoice_id !== "string") {
       return json({ error: "invoice_id is required" }, 400);
     }
@@ -55,11 +57,19 @@ serve(async (req) => {
 
     const { data: invoice, error: invErr } = await supabase
       .from("invoices")
-      .select("id, file_path, expected_amount, received_amount, invoice_number, payment_id")
+      .select("id, file_path, expected_amount, received_amount, invoice_number, payment_id, company_id")
       .eq("id", invoice_id)
       .maybeSingle();
     if (invErr || !invoice) return json({ error: "invoice not found" }, 404);
     if (!invoice.file_path) return json({ error: "no file attached" }, 400);
+
+    // CNPJ esperado: vem do chamador ou é resolvido pelo cadastro da PJ.
+    let expectedCnpj = expectedCnpjInput;
+    if (!expectedCnpj && invoice.company_id) {
+      const { data: comp } = await supabase
+        .from("companies").select("document").eq("id", invoice.company_id).maybeSingle();
+      expectedCnpj = onlyDigits(comp?.document) || null;
+    }
 
     // Baixa o PDF do storage (bucket privado) com a service role
     const { data: fileBlob, error: dlErr } = await supabase
@@ -115,10 +125,12 @@ serve(async (req) => {
       `Você está conferindo uma nota fiscal anexada por um prestador.\n` +
       `Pedido: valor esperado R$ ${Number(invoice.expected_amount).toFixed(2)}` +
       (invoice.invoice_number ? `, número informado pelo prestador: ${invoice.invoice_number}` : "") +
+      (expectedCnpj ? `, CNPJ esperado do emissor (cadastro): ${expectedCnpj}` : "") +
       `.\nExtraia os campos da NF (valor bruto, número, CNPJ do emissor, data) e liste qualquer divergência ` +
       `entre a NF e o pedido. Se o valor bruto da NF for diferente do esperado em mais de R$ 0,01, ` +
       `liste a divergência. Se o número informado pelo prestador não bater com o número impresso na NF, ` +
-      `liste a divergência. Use a função report_invoice_fields para responder.`;
+      `liste a divergência. Se o CNPJ do emissor não for o CNPJ esperado, liste a divergência. ` +
+      `Use a função report_invoice_fields para responder.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -163,15 +175,35 @@ serve(async (req) => {
     const divergences     = Array.isArray(parsed.divergences) ? parsed.divergences as string[] : [];
     const confidence      = (parsed.confidence as string) ?? "media";
 
+    // Conferência programática do CNPJ (não depende do parecer da IA).
+    const cnpjMismatch = !!(expectedCnpj && extractedCnpj && expectedCnpj !== extractedCnpj);
+    if (cnpjMismatch) {
+      const msg = `CNPJ do emissor (${extractedCnpj}) diferente do CNPJ cadastrado da empresa (${expectedCnpj}).`;
+      if (!divergences.some((d) => d.toLowerCase().includes("cnpj"))) divergences.push(msg);
+    }
+
     await supabase.from("invoices").update({
-      ai_validation: { ...parsed, model: "google/gemini-2.5-pro" },
+      ai_validation: {
+        ...parsed,
+        model: "google/gemini-2.5-pro",
+        expected_cnpj: expectedCnpj,
+        cnpj_mismatch: cnpjMismatch,
+      },
       ai_validated_at: new Date().toISOString(),
       ai_extracted_amount: extractedAmount,
       ai_extracted_number: extractedNumber,
       ai_extracted_cnpj: extractedCnpj,
     }).eq("id", invoice.id);
 
-    return json({ ok: true, divergences, confidence, extracted_amount: extractedAmount });
+    return json({
+      ok: true,
+      divergences,
+      confidence,
+      extracted_amount: extractedAmount,
+      extracted_cnpj: extractedCnpj,
+      expected_cnpj: expectedCnpj,
+      cnpj_mismatch: cnpjMismatch,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     console.error("validate-invoice-pdf error", msg);
