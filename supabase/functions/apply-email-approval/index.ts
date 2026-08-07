@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
   // 1) Carrega aprovação e exige status=validated
   const { data: approval, error: loadErr } = await admin
     .from("payment_email_approvals")
-    .select("id, payment_id, hospital_id, status, extracted, matched_director_id")
+    .select("id, payment_id, hospital_id, status, extracted, matched_director_id, file_path")
     .eq("id", approval_id)
     .maybeSingle();
   if (loadErr || !approval) {
@@ -153,6 +153,10 @@ Deno.serve(async (req) => {
     p_registered_by: user.id,
     p_director_name: approverName,
     p_source: "email",
+    // Evidência = o próprio e-mail/anexo original que originou este registro
+    // (payment_email_approvals.file_path) — register_external_approval agora
+    // exige p_evidence_path não vazio.
+    p_evidence_path: approval.file_path,
     p_note: note,
     p_decisor_id: approval.matched_director_id ?? null,
   });

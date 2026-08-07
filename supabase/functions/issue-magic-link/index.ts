@@ -87,17 +87,27 @@ Deno.serve(async (req) => {
   }
 
   // Destinatário do link deve ser um diretor cadastrado no hospital do pagamento.
+  // Duas queries separadas (não .or() com string interpolada) — z.string().email()
+  // aceita local-part entre aspas contendo vírgula/parênteses, o que permitiria
+  // injetar condições extras num .or() montado por template string.
   if (pay.hospital_id) {
-    const { data: dir } = await admin
-      .from("hospital_directors")
-      .select("id, user_id, email, active")
-      .eq("hospital_id", pay.hospital_id)
-      .eq("active", true)
-      .or(
-        `user_id.eq.${body.issued_to_user_id},email.eq.${body.issued_to_email}`,
-      )
-      .maybeSingle();
-    if (!dir) return json({ error: "recipient_not_authorized_director" }, 403);
+    const [{ data: dirByUser }, { data: dirByEmail }] = await Promise.all([
+      admin
+        .from("hospital_directors")
+        .select("id, user_id, email, active")
+        .eq("hospital_id", pay.hospital_id)
+        .eq("active", true)
+        .eq("user_id", body.issued_to_user_id)
+        .maybeSingle(),
+      admin
+        .from("hospital_directors")
+        .select("id, user_id, email, active")
+        .eq("hospital_id", pay.hospital_id)
+        .eq("active", true)
+        .eq("email", body.issued_to_email)
+        .maybeSingle(),
+    ]);
+    if (!dirByUser && !dirByEmail) return json({ error: "recipient_not_authorized_director" }, 403);
   }
 
   // Pre-insert record to obtain the canonical id, then sign with that id.
