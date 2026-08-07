@@ -442,31 +442,53 @@ const InvoicePortal = () => {
                   </>
                 )}
               </div>
-            ) : expired ? (
+            ) : !chatEnabled ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  {inv.status === "divergente"
-                    ? "Esta nota foi rejeitada por divergência com o pedido. Cancele a NF e emita uma nova com os dados corretos."
-                    : inv.status === "conciliada"
+                  {inv.status === "conciliada"
                     ? "Esta nota já foi recebida e conciliada — nada mais a fazer por aqui."
+                    : inv.status === "lancada"
+                    ? "Esta nota já foi lançada pelo time fiscal — nada mais a fazer por aqui."
+                    : inv.status === "paga"
+                    ? "Pagamento efetuado. Obrigado!"
                     : "Esta nota já foi enviada anteriormente."}
                 </p>
-                {inv.status === "divergente" && (
-                  resetOpen ? resetForm : reuploadLocked ? (
-                    <p className="text-xs text-muted-foreground italic">
-                      Pagamento já encaminhado pelo time fiscal — reenvio bloqueado. Fale com o analista.
-                    </p>
-                  ) : (
-                    <Button type="button" variant="outline" className="w-full" onClick={() => setResetOpen(true)}>
-                      Corrigir e enviar novamente
-                    </Button>
-                  )
-                )}
               </div>
             ) : (
-              <Tabs defaultValue="upload">
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="upload">Enviar nota</TabsTrigger>
+              <div className="space-y-3">
+                {inv.status === "divergente" && (
+                  <div className="rounded-lg border border-destructive/40 bg-destructive-soft p-3 text-sm space-y-2">
+                    <p className="font-semibold text-destructive">Nota com divergência em relação ao pedido</p>
+                    {notes && <p className="text-xs whitespace-pre-wrap text-destructive/90">{notes}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      Cancele a NF junto à sua contabilidade, emita uma nova com os dados corretos e reenvie por aqui.
+                      O arquivo enviado anteriormente <strong>fica registrado no histórico</strong> — nada é apagado.
+                    </p>
+                    {resetOpen ? resetForm : reuploadLocked ? (
+                      <p className="text-xs text-muted-foreground italic">
+                        Pagamento já encaminhado pelo time fiscal — reenvio bloqueado. Use a aba <strong>"Falar com analista"</strong>.
+                      </p>
+                    ) : (
+                      <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setResetOpen(true)}>
+                        Corrigir e enviar novamente
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {inv.status === "recebida" && (
+                  <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                    <p className="font-medium">NF recebida — em conferência pela equipe</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Recebemos sua nota fiscal e ela está em conferência. Se precisar de algo, use a aba
+                      {" "}<strong>"Falar com analista"</strong>.
+                    </p>
+                  </div>
+                )}
+
+                <Tabs defaultValue={canUpload ? "upload" : "question"}>
+                <TabsList className={`w-full grid ${canUpload ? "grid-cols-2" : "grid-cols-1"}`}>
+                  {canUpload && <TabsTrigger value="upload">Enviar nota</TabsTrigger>}
                   <TabsTrigger value="question">
                     <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Falar com analista
                     {questions.length > 0 && (
@@ -476,6 +498,7 @@ const InvoicePortal = () => {
                     )}
                   </TabsTrigger>
                 </TabsList>
+                {canUpload && (
                 <TabsContent value="upload" className="mt-4">
                   <div className="rounded-lg bg-muted/40 border px-3 py-2.5 text-xs text-muted-foreground space-y-1 mb-3">
                     <p className="font-medium text-foreground">Como funciona:</p>
