@@ -1,20 +1,20 @@
-// Notifica o analista responsável via Email (Resend) e WhatsApp (Twilio Sandbox) quando
-// um pagamento é aprovado pelo diretor e entra em "aprovado_em_revisao".
+// Notifica o analista responsável via Email (mailbox corporativo) e WhatsApp (Twilio Sandbox)
+// quando um pagamento é aprovado pelo diretor e entra em "aprovado_em_revisao".
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://exacta-approval.lovable.app";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
-const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
+
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;
