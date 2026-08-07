@@ -34,7 +34,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
 import { resolvePaymentAmounts } from "@/lib/resolvePaymentAmounts";
-import { loadSectorAliases } from "@/hooks/useSectorAliases";
+import { loadSectorAliases, type SectorAliasMap } from "@/hooks/useSectorAliases";
 import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
 import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type FileDecision } from "@/lib/newPaymentDraft";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
@@ -582,6 +582,8 @@ const NewPayment = () => {
   const commitPreviewResolverRef = useRef<((v: "confirm" | "cancel") => void) | null>(null);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
+  // Aliases de setor carregados no parse — usados por mapSectorFromRaw fora do fluxo async.
+  const sectorAliasesRef = useRef<SectorAliasMap | null>(null);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
   const registriesLoadPromiseRef = useRef<Promise<void> | null>(null);
   const [searchParams] = useSearchParams();
@@ -1676,8 +1678,13 @@ const NewPayment = () => {
     // "Unidade de Atendimento"). Quando a detecção foi por valores, deixamos
     // para o usuário confirmar manualmente — nunca inferimos sozinhos.
     const sectorAliasesMap = await loadSectorAliases(hospital?.id ?? null);
+    sectorAliasesRef.current = sectorAliasesMap;
     const detection = detectSectorColumn(headerNames, json, sectorAliasesMap.resolveSlug);
-    const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
+    // Aceita também detecção por VALORES (>=60% dos valores casam com setores
+    // cadastrados) — continua editável pelo usuário no card do arquivo.
+    const autoSectorColumn = detection.confidence === "header" || detection.confidence === "values"
+      ? detection.recommended
+      : null;
 
     // Tenta achar template salvo com a mesma assinatura de cabeçalho.
     // Quando encontra, aplica automaticamente e marca para incrementar o use_count.
