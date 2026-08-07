@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { recordObservation, type ObservationType } from "@/lib/observations";
+import { transitionGroupWorkflow } from "@/lib/groupWorkflowActions";
 import { confirmDialog } from "@/lib/confirm";
 import { promptJustification } from "@/lib/promptJustification";
 import { formatDateTimeBR } from "@/lib/dateUtils";
@@ -2120,6 +2121,14 @@ export default function CompanyAnalysis() {
   };
 
   // Transições de fluxo do validador/diretor para esta empresa.
+  // Núcleo de guardas + escrita vive em src/lib/groupWorkflowActions.ts
+  // (compartilhado com PaymentDetail.tsx). Diferente da versão anterior
+  // desta função, agora passa pelas mesmas guardas de segregação de funções
+  // e de transição válida que PaymentDetail.tsx já aplicava — antes, essas
+  // duas telas podiam divergir sobre o que era permitido. O gate de "motivo
+  // de intervenção manual" continua fora daqui (esta tela não tem o modal
+  // correspondente) e o autoClaim continua não sendo chamado — igual ao
+  // comportamento anterior.
   const transitionGroupStatus = async (
     nextStatus: PaymentStatus,
     authorType: "validador" | "diretor" | "analista",
@@ -2128,41 +2137,31 @@ export default function CompanyAnalysis() {
   ) => {
     if (!id || !group) return;
     const text = groupDraft.trim();
-    if (requireMsg && !text) {
-      toast.error("Adicione um motivo", { description: "Justifique a devolução ou rejeição no campo de observação." });
+    setBusy(true);
+    const res = await transitionGroupWorkflow({
+      paymentId: id,
+      paymentCreatedBy: payment?.created_by,
+      group,
+      newStatus: nextStatus,
+      authorType,
+      userId: user!.id,
+      message: groupDraft,
+      messagePrefix: actionLabel,
+      requireMsg,
+    });
+    if (!res.ok) {
+      setBusy(false);
+      if (res.reason === "missing_message") {
+        toast.error("Adicione um motivo", { description: "Justifique a devolução ou rejeição no campo de observação." });
+      } else if (res.reason === "segregation_of_duties") {
+        toast.error("Ação bloqueada", { description: res.message });
+      } else if (res.reason === "invalid_transition") {
+        toast.error("Transição não permitida", { description: res.message });
+      } else if (res.reason === "db_error") {
+        toast.error("Falha ao atualizar", { description: res.message });
+      }
       return;
     }
-    setBusy(true);
-    const updates: Record<string, unknown> = { status: nextStatus };
-    if (authorType === "validador" && nextStatus === "aguardando_aprovacao") {
-      updates.validated_by = user!.id;
-      updates.validated_at = new Date().toISOString();
-    }
-    if (authorType === "diretor" && nextStatus === "aprovado") {
-      updates.approved_by = user!.id;
-      updates.approved_at = new Date().toISOString();
-    }
-    if (authorType === "diretor" && nextStatus === "rejeitado") {
-      updates.rejected_by = user!.id;
-      updates.rejected_at = new Date().toISOString();
-      updates.rejection_reason = text || null;
-    }
-    const { error } = await supabase
-      .from("payment_company_groups")
-      .update(updates as never)
-      .eq("id", group.id);
-    if (error) {
-      setBusy(false);
-      return toast.error("Falha ao atualizar", { description: error.message });
-    }
-    await recordObservation({
-      payment_id: id,
-      author_type: authorType,
-      author_id: user!.id,
-      message: `[${group.company_name}] ${actionLabel}${text ? `: ${text}` : "."}`,
-      status_from: group.status,
-      status_to: nextStatus,
-    });
     if (nextStatus === "aguardando_aprovacao") {
       supabase.functions.invoke("notify-director-approval", { body: { paymentId: id } })
         .catch((e) => console.warn("notify-director-approval failed", e));

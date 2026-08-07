@@ -36,6 +36,41 @@ export const ANALYST_DONE_STATUSES: ReadonlySet<PaymentStatus> = new Set<Payment
  ]);
 
 /**
+ * Status "pendentes de ação" por papel — usado para priorizar/ordenar a
+ * lista de empresas em PaymentDetail.tsx (quem precisa olhar isso agora).
+ *
+ * Fonte ÚNICA para essa pergunta: antes desta constante, PaymentDetail.tsx
+ * mantinha esse array escrito à mão dentro do componente, divergente deste
+ * módulo (não incluía revisao_pos_aprovacao/aprovado_parcial/nf_questionada
+ * etc.). Qualquer tela que precise saber "isso é pendente para o papel X"
+ * deve importar daqui, não reimplementar a lista.
+ *
+ * NÃO confundir com `ROLE_APPROVABLE_STATUSES` de PaymentBatchActionsFooter.tsx
+ * — aquele responde uma pergunta diferente ("a partir de quais status a RPC
+ * conclude_groups_at_validator/forward_groups_to_director pode ser chamada
+ * para este papel"), e está correto ficar assim, alinhado ao `origin status`
+ * aceito por essas RPCs no banco — não é a mesma lista por definição.
+ */
+export const PENDING_STATUSES_BY_ROLE: Record<ActorRole, ReadonlySet<PaymentStatus>> = {
+  analista: new Set<PaymentStatus>([
+    "revisao_analista",
+    "devolvido_analista",
+    "revisao_pos_aprovacao",
+    "aprovado_em_revisao",
+    "aprovado",
+    "aprovado_com_ressalva",
+    "aprovado_parcial",
+    "pedido_nf_enviado",
+    "nf_recebida",
+    "nf_questionada",
+    "nf_divergente",
+    "nf_conciliada",
+  ]),
+  validador: new Set<PaymentStatus>(["aguardando_validacao"]),
+  diretor: new Set<PaymentStatus>(["aguardando_aprovacao"]),
+};
+
+/**
  * Estados em que o lote ainda pode ser editado pelo analista.
  * Inclui o `em_analise_ia` (IA processando) e `rascunho` para a janela inicial,
  * além dos estados em que o analista é o "dono" da bola. A partir de

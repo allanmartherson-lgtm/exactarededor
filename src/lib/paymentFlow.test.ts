@@ -5,6 +5,7 @@ import {
   canAssumeBatch,
   ANALYST_EDITABLE_STATUSES,
   REIMPORT_ALLOWED_STATUSES,
+  PENDING_STATUSES_BY_ROLE,
 } from "./paymentFlow";
 import type { PaymentStatus } from "./status";
 
@@ -179,5 +180,45 @@ describe("canAssumeBatch — segregação", () => {
     for (const s of ALL_STATUSES) {
       expect(canAssumeBatch(s, { isAnalista: false, isValidador: false, isDiretor: false, isOwner: false })).toBe(false);
     }
+  });
+});
+
+describe("PENDING_STATUSES_BY_ROLE — fonte única de 'pendente pra este papel' (usada por PaymentDetail.tsx)", () => {
+  it("analista cobre o ciclo pós-aprovação inteiro até nf_conciliada", () => {
+    const expected: PaymentStatus[] = [
+      "revisao_analista",
+      "devolvido_analista",
+      "revisao_pos_aprovacao",
+      "aprovado_em_revisao",
+      "aprovado",
+      "aprovado_com_ressalva",
+      "aprovado_parcial",
+      "pedido_nf_enviado",
+      "nf_recebida",
+      "nf_questionada",
+      "nf_divergente",
+      "nf_conciliada",
+    ];
+    for (const s of expected) {
+      expect(PENDING_STATUSES_BY_ROLE.analista.has(s)).toBe(true);
+    }
+    expect(PENDING_STATUSES_BY_ROLE.analista.size).toBe(expected.length);
+  });
+
+  it("validador só tem aguardando_validacao", () => {
+    expect([...PENDING_STATUSES_BY_ROLE.validador]).toEqual(["aguardando_validacao"]);
+  });
+
+  it("diretor só tem aguardando_aprovacao", () => {
+    expect([...PENDING_STATUSES_BY_ROLE.diretor]).toEqual(["aguardando_aprovacao"]);
+  });
+
+  it("os 3 conjuntos são disjuntos (nenhum status pertence a mais de um papel)", () => {
+    const all = [
+      ...PENDING_STATUSES_BY_ROLE.analista,
+      ...PENDING_STATUSES_BY_ROLE.validador,
+      ...PENDING_STATUSES_BY_ROLE.diretor,
+    ];
+    expect(new Set(all).size).toBe(all.length);
   });
 });

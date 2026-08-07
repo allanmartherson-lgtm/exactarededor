@@ -117,6 +117,27 @@ describe("recomputePaymentStatus — consistência analista↔validador", () => 
     }
   });
 
+  it("concluido_validacao (módulo validação, sem etapa de diretor) ⇒ concluido_validacao", () => {
+    const groups: GroupStatus[] = ["concluido_validacao", "concluido_validacao"];
+    for (const o of runForAllProfiles(groups)) {
+      expect(o.status).toBe("concluido_validacao");
+    }
+  });
+
+  it("concluido_validacao tem prioridade sobre pedido_nf_enviado (mesmo degrau de revisao_pos_aprovacao)", () => {
+    const groups: GroupStatus[] = ["concluido_validacao", "pedido_nf_enviado"];
+    for (const o of runForAllProfiles(groups)) {
+      expect(o.status).toBe("concluido_validacao");
+    }
+  });
+
+  it("revisao_pos_aprovacao tem prioridade sobre concluido_validacao (não deveriam coexistir na prática, mas a ordem é determinística)", () => {
+    const groups: GroupStatus[] = ["aprovado_em_revisao", "concluido_validacao"];
+    for (const o of runForAllProfiles(groups)) {
+      expect(o.status).toBe("revisao_pos_aprovacao");
+    }
+  });
+
   it("pedido_nf_enviado / nf_recebida ⇒ pedido_nf_enviado", () => {
     for (const groups of [
       ["pedido_nf_enviado"] as GroupStatus[],

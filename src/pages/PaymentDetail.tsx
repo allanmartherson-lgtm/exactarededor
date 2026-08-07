@@ -101,7 +101,6 @@ import type {
 import type { Database } from "@/integrations/supabase/types";
 
 type PaymentUpdate = Database["public"]["Tables"]["payments"]["Update"];
-type GroupUpdate = Database["public"]["Tables"]["payment_company_groups"]["Update"];
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, PAYMENT_TRACK_LABELS, PAYMENT_TRACK_SHORT_LABELS, type PaymentStatus, type ItemAiStatus, type PaymentTrack, TONE_CLASSES } from "@/lib/status";
 import {
   ANALYST_DONE_STATUSES,
@@ -111,8 +110,10 @@ import {
   canAssumeBatch,
   canActAsValidatorOrDirector,
   resolveResendTarget,
+  PENDING_STATUSES_BY_ROLE,
   type ActorRole,
 } from "@/lib/paymentFlow";
+import { transitionGroupWorkflow } from "@/lib/groupWorkflowActions";
 import { AlertTriangle, ArrowLeft, Ban, CalendarDays, Calculator, ChevronDown, ChevronRight, ClipboardList, Download, FileDown, Filter, GitCompare, History, Layers, Mail, MailCheck, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Settings2, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx-js-style";
@@ -885,6 +886,9 @@ const PaymentDetail = () => {
   };
 
   // ===== Ações por grupo (empresa) =====
+  // Núcleo de guardas + escrita vive em src/lib/groupWorkflowActions.ts
+  // (compartilhado com CompanyAnalysis.tsx) — aqui só ficam os efeitos de UI
+  // específicos desta página (toast, modal de motivo manual, navegação).
   const transitionGroup = async (
     groupId: string,
     newStatus: PaymentStatus,
@@ -895,80 +899,51 @@ const PaymentDetail = () => {
     if (!id || !payment) return;
     const g = groups.find((x) => x.id === groupId);
     if (!g) return;
-    // Segregação de funções: criador não valida nem aprova.
-    if ((authorType === "validador" || authorType === "diretor") && !canActAsValidatorOrDirector(payment.created_by, user?.id)) {
-      toast({
-        title: "Ação bloqueada",
-        description: "Quem cria o lote não pode validar nem aprovar. Outro usuário precisa concluir esta etapa.",
-        variant: "destructive",
-      });
-      return;
-    }
-    // Guarda autoritativa: bloqueia transições inválidas no cliente.
-    if (!canTransition(authorType, g.status as PaymentStatus, newStatus)) {
-      toast({
-        title: "Transição não permitida",
-        description: `${authorType} não pode mover ${g.status} → ${newStatus}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    const text = (groupComment[groupId] ?? "").trim();
-    if (requireMsg && !text) {
-      toast({ title: "Adicione um motivo para esta empresa", variant: "destructive" });
-      return;
-    }
-    // Gate: por empresa, mesma checagem que no transition global.
-    if (newStatus === "aguardando_aprovacao" || newStatus === "aprovado") {
-      try {
-        const pending = await findItemsNeedingManualReason(id, g.company_id ?? null);
-        if (pending.length > 0) {
-          toast({
-            title: `${pending.length} ${pending.length === 1 ? "item exige" : "itens exigem"} motivo de intervenção`,
-            description: `Empresa ${g.company_name}: valor zerado/ausente sem justificativa.`,
-            variant: "destructive",
-          });
-          setManualReasonGate({
-            open: true,
-            items: pending.map((p) => ({
-              id: p.id,
-              doctor_name: p.doctor_name,
-              procedure_code: p.procedure_code,
-              procedure_description: p.procedure_name,
-              procedure_amount: p.procedure_amount,
-              attendance_number: p.attendance_number,
-            })),
-            companyName: g.company_name,
-          });
-          return;
-        }
-      } catch (e) {
-        console.warn("[manualReasonGate group] falhou (não bloqueante):", e);
-      }
-    }
     setBusy(true);
-
-    if (authorType === "analista") await autoClaim();
-    const updates: GroupUpdate = { status: newStatus };
-    if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
-      updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
-    }
-    if (authorType === "diretor" && newStatus === "aprovado") {
-      updates.approved_by = user!.id; updates.approved_at = new Date().toISOString();
-    }
-    if (authorType === "diretor" && newStatus === "rejeitado") {
-      updates.rejected_by = user!.id; updates.rejected_at = new Date().toISOString();
-      updates.rejection_reason = text || null;
-    }
-    const { error } = await supabase.from("payment_company_groups").update(updates).eq("id", groupId);
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setBusy(false); return; }
-    const obsRes = await recordObservation({
-      payment_id: id, author_type: authorType, author_id: user!.id,
-      message: `[${g.company_name}] ${messagePrefix}${text ? `: ${text}` : ""}`,
-      status_from: g.status, status_to: newStatus,
+    const res = await transitionGroupWorkflow({
+      paymentId: id,
+      paymentCreatedBy: payment.created_by,
+      group: g,
+      newStatus,
+      authorType,
+      userId: user!.id,
+      message: groupComment[groupId] ?? "",
+      messagePrefix,
+      requireMsg,
+      onBeforeWrite: authorType === "analista" ? autoClaim : undefined,
+      onManualReasonGateNeeded: (pending) => {
+        toast({
+          title: `${pending.length} ${pending.length === 1 ? "item exige" : "itens exigem"} motivo de intervenção`,
+          description: `Empresa ${g.company_name}: valor zerado/ausente sem justificativa.`,
+          variant: "destructive",
+        });
+        setManualReasonGate({
+          open: true,
+          items: pending.map((p) => ({
+            id: p.id,
+            doctor_name: p.doctor_name,
+            procedure_code: p.procedure_code,
+            procedure_description: p.procedure_name,
+            procedure_amount: p.procedure_amount,
+            attendance_number: p.attendance_number,
+          })),
+          companyName: g.company_name,
+        });
+      },
     });
-    if (!obsRes.ok) {
-      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    if (!res.ok) {
+      setBusy(false);
+      if (res.reason === "segregation_of_duties") {
+        toast({ title: "Ação bloqueada", description: res.message, variant: "destructive" });
+      } else if (res.reason === "invalid_transition") {
+        toast({ title: "Transição não permitida", description: res.message, variant: "destructive" });
+      } else if (res.reason === "missing_message") {
+        toast({ title: "Adicione um motivo para esta empresa", variant: "destructive" });
+      } else if (res.reason === "db_error") {
+        toast({ title: "Erro", description: res.message, variant: "destructive" });
+      }
+      // "manual_reason_gate" já mostrou seu próprio toast/modal em onManualReasonGateNeeded.
+      return;
     }
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
@@ -5555,26 +5530,13 @@ const PaymentDetail = () => {
               //   - diretor: aguardando aprovação
               const pendingStatusesForMe = new Set<string>();
               if (isAnalista) {
-                [
-                  "revisao_analista",
-                  "devolvido_analista",
-                  "revisao_pos_aprovacao",
-                  "aprovado_em_revisao",
-                  "aprovado",
-                  "aprovado_com_ressalva",
-                  "aprovado_parcial",
-                  "pedido_nf_enviado",
-                  "nf_recebida",
-                  "nf_questionada",
-                  "nf_divergente",
-                  "nf_conciliada",
-                ].forEach((s) => pendingStatusesForMe.add(s));
+                PENDING_STATUSES_BY_ROLE.analista.forEach((s) => pendingStatusesForMe.add(s));
               }
               if (isValidador) {
-                ["aguardando_validacao"].forEach((s) => pendingStatusesForMe.add(s));
+                PENDING_STATUSES_BY_ROLE.validador.forEach((s) => pendingStatusesForMe.add(s));
               }
               if (isDiretor) {
-                ["aguardando_aprovacao"].forEach((s) => pendingStatusesForMe.add(s));
+                PENDING_STATUSES_BY_ROLE.diretor.forEach((s) => pendingStatusesForMe.add(s));
               }
               const isPendingForMe = (g: typeof visibleGroups[number]) =>
                 pendingStatusesForMe.has(String(g.status));

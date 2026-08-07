@@ -56,6 +56,18 @@ interface Props {
   onReviewPendencias?: () => void;
 }
 
+// Estes 3 conjuntos respondem "a partir de quais status a RPC
+// conclude_groups_at_validator/forward_groups_to_director pode agir para
+// este papel" — propositalmente DIFERENTE de
+// `PENDING_STATUSES_BY_ROLE` em @/lib/paymentFlow.ts (que responde "isso é
+// pendente pra priorizar na lista de PaymentDetail"). Não são a mesma
+// pergunta: ROLE_APPROVABLE_STATUSES.validador inclui em_questionamento e
+// devolvido_analista porque essas RPCs aceitam esses status de origem
+// diretamente (ver `conclude_groups_at_validator`/`forward_groups_to_director`
+// em supabase/migrations/20260803112306_...sql), enquanto
+// PENDING_STATUSES_BY_ROLE.validador só marca aguardando_validacao como
+// prioridade de leitura. Se um dia divergirem do que as RPCs aceitam,
+// atualize aqui — não tente unificar com paymentFlow.ts.
 const PENDING_GROUP_STATUSES = new Set<string>(["em_questionamento", "devolvido_analista"]);
 const ALREADY_DONE_STATUSES = new Set<string>(["aprovado", "rejeitado", "cancelado", "arquivado", "revisao_pos_aprovacao", "pedido_nf_enviado", "nf_recebida", "nf_conciliada", "lancado", "pago"]);
 const ROLE_APPROVABLE_STATUSES: Record<Props["actorRole"], Set<string>> = {

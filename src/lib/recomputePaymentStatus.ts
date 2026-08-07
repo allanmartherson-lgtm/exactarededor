@@ -29,7 +29,8 @@ export type GroupStatus =
   | "nf_recebida"
   | "nf_conciliada"
   | "lancado"
-  | "pago";
+  | "pago"
+  | "concluido_validacao";
 
 export interface RecomputeInput {
   /** Lista bruta dos status dos `payment_company_groups` do lote. */
@@ -64,6 +65,7 @@ export function recomputePaymentStatus(input: RecomputeInput): PaymentStatus | n
   const s_nf_concil = c("nf_conciliada");
   const s_lancado = c("lancado");
   const s_pago = c("pago");
+  const s_concl_valid = c("concluido_validacao");
 
   if (
     hasActiveJob &&
@@ -82,6 +84,9 @@ export function recomputePaymentStatus(input: RecomputeInput): PaymentStatus | n
   if (s_aguard_val > 0 || s_concluida > 0) return "aguardando_validacao";
   if (s_aguard_apr > 0 || s_questionado > 0) return "aguardando_aprovacao";
   if (s_apr_revisao > 0 || s_rev_pos_apr > 0) return "revisao_pos_aprovacao";
+  // Desfecho do módulo "validação" (hospitais sem etapa de diretor) — mesmo
+  // degrau de prioridade de revisao_pos_aprovacao, rótulo próprio.
+  if (s_concl_valid > 0) return "concluido_validacao";
   if (s_pedido_nf > 0 || s_nf_recebida > 0) return "pedido_nf_enviado";
   if (s_arquivado === total) return "arquivado";
   if (

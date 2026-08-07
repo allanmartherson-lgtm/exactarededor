@@ -1,6 +1,13 @@
 // Edge function: apply-email-approval
-// Aplica uma aprovação por e-mail já VALIDADA chamando o mesmo RPC approve_payment
-// que o botão "Aprovar lote" no sistema. Registra a origem como "email" no audit_log.
+// Aplica uma aprovação por e-mail já VALIDADA via register_external_approval
+// (source="email") — o mesmo caminho usado pelo diálogo de "Registrar
+// aprovação externa" na UI. Antes chamava approve_payment diretamente, o que
+// tinha dois problemas: (1) approve_payment exige papel de diretor no ator
+// (p_author_id = quem clicou "Aplicar"), então analista/validador clicando
+// aqui sempre falhava, apesar do gate de papel abaixo permitir; (2) a
+// aprovação ficava sem approval_source/evidence — indistinguível de uma
+// aprovação feita normalmente pela UI, perdendo a proveniência de que veio
+// de e-mail.
 //
 // Input:  { approval_id: string }
 // Output: { approved_groups: number }
@@ -133,17 +140,24 @@ Deno.serve(async (req) => {
     if (ex?.approver_name) approverName = ex.approver_name;
   }
 
-  // 3) Chama approve_payment usando o uid do clicador como ator
+  // 3) Registra como aprovação externa (source="email"). p_registered_by é
+  // quem operou (clicou "Aplicar" no sistema); p_decisor_id, quando o
+  // diretor foi identificado no e-mail, é quem de fato decidiu — ambos ficam
+  // registrados separadamente (register_external_approval nunca credita a
+  // aprovação a alguém que não seja o operador real, p_decisor_id é só
+  // indicador informativo).
   const note = `Aprovação por e-mail anexada (id: ${approval.id}). Aprovador identificado: ${approverName}.`;
-  const { error: rpcErr } = await admin.rpc("approve_payment", {
+  const { error: rpcErr } = await admin.rpc("register_external_approval", {
     p_payment_id: approval.payment_id,
     p_group_ids: groups.map((g) => g.id),
-    p_author_id: user.id,
-    p_author_name: approverName,
+    p_registered_by: user.id,
+    p_director_name: approverName,
+    p_source: "email",
     p_note: note,
+    p_decisor_id: approval.matched_director_id ?? null,
   });
   if (rpcErr) {
-    return new Response(JSON.stringify({ error: "approve_payment_failed", details: rpcErr.message }), {
+    return new Response(JSON.stringify({ error: "register_external_approval_failed", details: rpcErr.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
