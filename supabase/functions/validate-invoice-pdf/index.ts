@@ -43,7 +43,9 @@ serve(async (req) => {
   if (!isInternal) return json({ error: "Unauthorized" }, 401);
 
   try {
-    const { invoice_id } = await req.json();
+    const body = await req.json();
+    const invoice_id = body?.invoice_id;
+    const expectedCnpjInput = onlyDigits(body?.expected_cnpj) || null;
     if (!invoice_id || typeof invoice_id !== "string") {
       return json({ error: "invoice_id is required" }, 400);
     }
@@ -55,11 +57,19 @@ serve(async (req) => {
 
     const { data: invoice, error: invErr } = await supabase
       .from("invoices")
-      .select("id, file_path, expected_amount, received_amount, invoice_number, payment_id")
+      .select("id, file_path, expected_amount, received_amount, invoice_number, payment_id, company_id")
       .eq("id", invoice_id)
       .maybeSingle();
     if (invErr || !invoice) return json({ error: "invoice not found" }, 404);
     if (!invoice.file_path) return json({ error: "no file attached" }, 400);
+
+    // CNPJ esperado: vem do chamador ou é resolvido pelo cadastro da PJ.
+    let expectedCnpj = expectedCnpjInput;
+    if (!expectedCnpj && invoice.company_id) {
+      const { data: comp } = await supabase
+        .from("companies").select("document").eq("id", invoice.company_id).maybeSingle();
+      expectedCnpj = onlyDigits(comp?.document) || null;
+    }
 
     // Baixa o PDF do storage (bucket privado) com a service role
     const { data: fileBlob, error: dlErr } = await supabase
