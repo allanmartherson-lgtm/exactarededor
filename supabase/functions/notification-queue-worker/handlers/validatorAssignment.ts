@@ -3,13 +3,12 @@
 // e registra observação no histórico do pagamento.
 
 import { b1_validatorAssignment } from "../../_shared/emailTemplates/templates.ts";
+import { sendCorporateEmail } from "../../_shared/sendCorporateEmail.ts";
 
-const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
-const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 
 const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
@@ -151,11 +150,6 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
   const totalFormatted = brl(consolidatedTotal);
 
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
-    // Faltam keys de e-mail — marca como enviado para não loop infinito
-    return { ok: true, meta: { error: "missing_email_keys" } };
-  }
 
   // deno-lint-ignore no-explicit-any
   const results: any[] = [];
@@ -176,28 +170,23 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
     });
     const senderSuffix = senderNames.length > 0 ? ` (enviado por ${senderNames.join(", ")})` : "";
 
-    try {
-      const r = await fetch(`${RESEND_GATEWAY}/emails`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-          "X-Connection-Api-Key": RESEND_API_KEY,
-        },
-        body: JSON.stringify({
-          from: EMAIL_FROM,
-          to: [p.email],
-          subject: `${rendered.subject}${senderSuffix}`,
-          html: rendered.html,
-          text: rendered.text + (senderSuffix ? `\n${senderSuffix.trim()}` : ""),
-        }),
-      });
-
-      const json = await r.json().catch(() => ({}));
-      results.push({ recipient_id: p.id, ok: r.ok, status: r.status, response: json });
-    } catch (e) {
-      results.push({ recipient_id: p.id, ok: false, error: String(e) });
-    }
+    const res = await sendCorporateEmail({
+      to: p.email,
+      subject: `${rendered.subject}${senderSuffix}`,
+      html: rendered.html,
+      text: rendered.text + (senderSuffix ? `\n${senderSuffix.trim()}` : ""),
+      user_id: p.id,
+      payment_id: payment.id,
+      event_key: "validator_assignment",
+      template_key: "b1_validator_assignment",
+    });
+    results.push({
+      recipient_id: p.id,
+      ok: res.ok,
+      status: res.status,
+      response: res.response,
+      ...(res.ok ? {} : { error: res.error }),
+    });
   }
 
   const okCount = results.filter((x) => x.ok).length;
