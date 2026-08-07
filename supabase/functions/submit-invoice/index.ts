@@ -248,7 +248,7 @@ serve(async (req) => {
         const authorName = String(body?.author_name ?? "").trim().slice(0, 120) || null;
         const { data: invoice } = await supabase
           .from("invoices")
-          .select("id, payment_id, status, file_path, invoice_number, received_amount")
+          .select("id, payment_id, hospital_id, status, file_path, invoice_number, received_amount, ai_validation, ai_extracted_amount, ai_extracted_number, ai_extracted_cnpj")
           .eq("upload_token", token)
           .maybeSingle();
         if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
