@@ -1190,7 +1190,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
 
       {/* Modal — visualizador de PDF */}
       <Dialog open={viewerOpen} onOpenChange={(v) => { setViewerOpen(v); if (!v) setViewerUrl(null); }}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-6xl w-[95vw] h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="truncate">{viewerTitle || "Nota fiscal"}</DialogTitle>
           </DialogHeader>
@@ -1198,7 +1198,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
             <iframe
               src={viewerUrl}
               title="Nota fiscal"
-              className="w-full h-[70vh] rounded-md border border-border bg-background"
+              className="w-full flex-1 min-h-0 rounded-md border border-border bg-background"
             />
           ) : (
             <p className="text-sm text-muted-foreground py-8 text-center">Carregando arquivo…</p>
