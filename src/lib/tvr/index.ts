@@ -8,17 +8,9 @@ export type { TasyRow, PagRow, TvrStatus, TvrResult, TvrAcao } from "./types";
 
 export { num, brl, formatTvrDate } from "./format";
 
-export {
-  normTuss,
-  tvrTussKey,
-  isExcludedTvrTuss,
-  normAtt,
-  normDoctorName,
-  doctorKeyPart,
-  dateKeyPart,
-  tvrMatchKey,
-  isYmdWithinInclusive,
-} from "./keys";
+// Nota: as chaves de cruzamento (tvrMatchKey e companhia) NÃO são reexportadas
+// aqui — quem precisa delas é o motor, que importa direto de "./keys".
+export { normTuss, isExcludedTvrTuss, normAtt, normDoctorName } from "./keys";
 
 export {
   TVR_SOURCE,
@@ -37,7 +29,6 @@ export {
 export {
   getTvrValorRecuperar,
   computeTvrFinancialTotals,
-  computeTvrComplementarBreakdown,
   computeTvrHeadlineTotals,
 } from "./totals";
 

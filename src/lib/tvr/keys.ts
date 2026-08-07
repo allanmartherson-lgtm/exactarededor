@@ -41,7 +41,7 @@ export function normDoctorName(v: string | undefined): string {
 // Prefere doctor_id (confiável). Cai para nome normalizado quando id ausente.
 // `nameToId` é um índice compartilhado (construído a partir do lado Repasse) que
 // permite ao lado TASY também "cair" em `d:<id>` quando o nome bate.
-export function doctorKeyPart(id: string | undefined, name: string | undefined, nameToId?: Map<string, string>): string {
+function doctorKeyPart(id: string | undefined, name: string | undefined, nameToId?: Map<string, string>): string {
   const did = (id ?? "").trim();
   if (did) return `d:${did}`;
   const n = normDoctorName(name);

@@ -84,7 +84,7 @@ export function computeTvrFinancialTotals(list: TvrResult[]): { totalComplementa
  *  - `coverage`: fração simulada / total de "Faltou pagar" (0..1). Serve
  *    para o card avisar quando a cobertura é baixa.
  */
-export function computeTvrComplementarBreakdown(list: TvrResult[]): {
+function computeTvrComplementarBreakdown(list: TvrResult[]): {
   simulated: number;
   tasyCeiling: number;
   naoPagoTotal: number;

@@ -1,6 +1,6 @@
 import { type ReconMode } from "./reconTypes";
 
-export const MODE_STORAGE_PREFIX = "retro_mode__";
+const MODE_STORAGE_PREFIX = "retro_mode__";
 
 export function getStoredMode(id: string): ReconMode {
   if (typeof window === "undefined") return "alegacao_medico";
