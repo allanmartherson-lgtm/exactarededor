@@ -24,7 +24,7 @@ serve(async (req) => {
       if (!token) return new Response(JSON.stringify({ error: "token" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const { data: invoice } = await supabase
         .from("invoices")
-        .select("id, expected_amount, status, recipient_email, payment_id, company_name, received_at")
+        .select("id, expected_amount, status, recipient_email, payment_id, company_name, received_at, reconciliation_notes")
         .eq("upload_token", token)
         .maybeSingle();
       if (!invoice) return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });

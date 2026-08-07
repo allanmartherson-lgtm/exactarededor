@@ -15,6 +15,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -227,6 +228,10 @@ const PaymentDetail = () => {
   const [markerFilter, setMarkerFilter] = useState<"all" | "pinned" | "waiting" | "reviewed">("all");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  // Lançamento no P12 por empresa — quando o grupo tem NF conciliada, o
+  // lançamento passa pelo RPC mark_invoice_lancada (que sincroniza o grupo).
+  const [p12Target, setP12Target] = useState<{ groupId: string; companyName: string; invoiceIds: string[] } | null>(null);
+  const [p12Doc, setP12Doc] = useState("");
   const [reconBlock, setReconBlock] = useState<ReconciliationBlockPayload | null>(null);
   const [reconTargets, setReconTargets] = useState<string[]>([]);
   const [poolInfo, setPoolInfo] = useState<{ id: string; nome: string; deducao?: string | null } | null>(null);
@@ -5648,19 +5653,27 @@ const PaymentDetail = () => {
             </Card>
           )}
 
-          {/* Lançamento contábil/ERP — analista marca por empresa após NF conciliada. */}
+          {/* Lançamento no P12 — analista marca por empresa após NF conciliada. */}
           {isAnalista && groups.some((g) => g.status === "nf_conciliada") && (
             <Card className="shadow-card border-primary/30">
               <CardHeader>
-                <CardTitle className="text-base">Lançamento contábil</CardTitle>
+                <CardTitle className="text-base">Lançamento no P12</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  Marque cada empresa como lançada após registrar no ERP/contábil. Data e usuário ficam no histórico.
+                  Marque cada empresa como lançada após registrar no P12. Data e usuário ficam no histórico.
                 </p>
                 {groups
                   .filter((g) => g.status === "nf_conciliada")
-                  .map((g) => (
+                  .map((g) => {
+                    const groupConciliatedInvoices = invoices.filter(
+                      (i) =>
+                        i.status === "conciliada" &&
+                        ((i as any).company_group_id === g.id ||
+                          (i.company_id && g.company_id && i.company_id === g.company_id) ||
+                          (i.company_name ?? "").trim().toLowerCase() === g.company_name.trim().toLowerCase()),
+                    );
+                    return (
                     <div
                       key={g.id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2"
@@ -5669,6 +5682,7 @@ const PaymentDetail = () => {
                         <p className="text-sm font-medium truncate">{g.company_name}</p>
                         <p className="text-xs text-muted-foreground">
                           {g.items_count} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount ?? 0))}
+                          {groupConciliatedInvoices.length > 0 && " · NF conciliada"}
                         </p>
                       </div>
                       <Button
@@ -5676,6 +5690,17 @@ const PaymentDetail = () => {
                         disabled={busy}
                         onClick={async () => {
                           if (!id || !user) return;
+                          // Com NF conciliada, o lançamento é feito pela invoice (RPC).
+                          if (groupConciliatedInvoices.length > 0) {
+                            setP12Doc("");
+                            setP12Target({
+                              groupId: g.id,
+                              companyName: g.company_name,
+                              invoiceIds: groupConciliatedInvoices.map((i) => i.id),
+                            });
+                            return;
+                          }
+                          // Sem NF: mantém o comportamento anterior para não travar o lote.
                           setBusy(true);
                           const { error } = await supabase
                             .from("payment_company_groups")
@@ -5690,7 +5715,7 @@ const PaymentDetail = () => {
                             payment_id: id,
                             author_type: "analista",
                             author_id: user.id,
-                            message: `[${g.company_name}] Lançado no contábil/ERP por ${user.email ?? user.id}.`,
+                            message: `[${g.company_name}] Lançado no P12 por ${user.email ?? user.id} (grupo sem NF).`,
                             status_from: "nf_conciliada",
                             status_to: "lancado",
                           });
@@ -5702,10 +5727,71 @@ const PaymentDetail = () => {
                         Marcar como lançado
                       </Button>
                     </div>
-                  ))}
+                  );})}
               </CardContent>
             </Card>
           )}
+
+          {/* Modal do nº do documento P12 — obrigatório quando há NF conciliada. */}
+          <Dialog open={!!p12Target} onOpenChange={(o) => { if (!o) setP12Target(null); }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Lançar no P12 — {p12Target?.companyName}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="p12-doc">Nº do documento no P12</Label>
+                  <Input
+                    id="p12-doc"
+                    value={p12Doc}
+                    onChange={(e) => setP12Doc(e.target.value)}
+                    maxLength={60}
+                    placeholder="Ex.: 4500123456"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    O lançamento é registrado na nota fiscal e o grupo é sincronizado automaticamente.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setP12Target(null)} disabled={busy}>Cancelar</Button>
+                  <Button
+                    size="sm"
+                    disabled={busy || p12Doc.trim().length === 0}
+                    onClick={async () => {
+                      if (!p12Target || !id || !user) return;
+                      setBusy(true);
+                      for (const invId of p12Target.invoiceIds) {
+                        const { error } = await supabase.rpc("mark_invoice_lancada", {
+                          p_invoice_id: invId,
+                          p_erp_document_number: p12Doc.trim(),
+                        });
+                        if (error) {
+                          toast({ title: "Falha ao lançar no P12", description: error.message, variant: "destructive" });
+                          setBusy(false);
+                          return;
+                        }
+                      }
+                      await recordObservation({
+                        payment_id: id,
+                        author_type: "analista",
+                        author_id: user.id,
+                        message: `[${p12Target.companyName}] Lançado no P12 (documento ${p12Doc.trim()}) por ${user.email ?? user.id}.`,
+                        status_from: "nf_conciliada",
+                        status_to: "lancado",
+                      });
+                      toast({ title: "Lançado no P12", description: p12Target.companyName });
+                      setP12Target(null);
+                      await load();
+                      setBusy(false);
+                    }}
+                  >
+                    Confirmar lançamento
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
 
           {/* Gap 4: Confirmar e arquivar — irreversível. Só analista, em grupos lancados. */}
           {isAnalista && groups.some((g) => g.status === "lancado") && (
