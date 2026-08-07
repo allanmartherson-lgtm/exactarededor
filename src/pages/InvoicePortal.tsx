@@ -222,7 +222,16 @@ const InvoicePortal = () => {
 
   const inv = info.invoice;
   const pay = info.payment ?? {};
-  const expired = inv.status !== "aguardando";
+  // O envio só é permitido em "aguardando"; o canal com o analista continua
+  // aberto em "recebida" e "divergente" (etapa 4 do ciclo de NF).
+  const canUpload = inv.status === "aguardando";
+  const chatEnabled = ["aguardando", "recebida", "divergente"].includes(inv.status);
+  const notes: string = typeof inv.reconciliation_notes === "string" ? inv.reconciliation_notes : "";
+  // Quando o analista pede correção, o backend reabre a NF e grava o motivo
+  // em reconciliation_notes com este prefixo.
+  const correctionReason = /^Corre[çc][ãa]o solicitada pelo analista:/i.test(notes)
+    ? notes.replace(/^Corre[çc][ãa]o solicitada pelo analista:\s*/i, "").trim()
+    : null;
 
   // Trava de UI: depois que o pagamento foi encaminhado pelo time fiscal,
   // não dá mais pra reabrir o envio. Mantém em sincronia com o backend.
@@ -271,8 +280,22 @@ const InvoicePortal = () => {
         </header>
 
 
+        {/* Motivo enviado pelo analista quando a NF foi reaberta para correção. */}
+        {canUpload && correctionReason && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 flex items-start gap-2">
+            <MessageCircleQuestion className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">Correção solicitada pelo analista</p>
+              <p className="text-xs mt-0.5 whitespace-pre-wrap">{correctionReason}</p>
+              <p className="text-[11px] mt-1 text-blue-800/80">
+                O arquivo enviado anteriormente foi arquivado no histórico — nada foi perdido.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Prazo fiscal: 30 dias após aprovação */}
-        {!expired && (
+        {canUpload && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
             <Clock className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
@@ -402,7 +425,7 @@ const InvoicePortal = () => {
                     {resetOpen ? resetForm : (
                       reuploadLocked ? (
                         <p className="text-xs italic">
-                          Este pagamento já está em aprovação ou foi efetivado pelo time fiscal — não é mais possível reabrir o envio. Use a aba <strong>"Tenho uma dúvida"</strong> para falar com o analista.
+                          Este pagamento já está em aprovação ou foi efetivado pelo time fiscal — não é mais possível reabrir o envio. Use a aba <strong>"Falar com analista"</strong>.
                         </p>
                       ) : (
                       <Button
@@ -419,31 +442,53 @@ const InvoicePortal = () => {
                   </>
                 )}
               </div>
-            ) : expired ? (
+            ) : !chatEnabled ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  {inv.status === "divergente"
-                    ? "Esta nota foi rejeitada por divergência com o pedido. Cancele a NF e emita uma nova com os dados corretos."
-                    : inv.status === "conciliada"
+                  {inv.status === "conciliada"
                     ? "Esta nota já foi recebida e conciliada — nada mais a fazer por aqui."
+                    : inv.status === "lancada"
+                    ? "Esta nota já foi lançada pelo time fiscal — nada mais a fazer por aqui."
+                    : inv.status === "paga"
+                    ? "Pagamento efetuado. Obrigado!"
                     : "Esta nota já foi enviada anteriormente."}
                 </p>
-                {inv.status === "divergente" && (
-                  resetOpen ? resetForm : reuploadLocked ? (
-                    <p className="text-xs text-muted-foreground italic">
-                      Pagamento já encaminhado pelo time fiscal — reenvio bloqueado. Fale com o analista.
-                    </p>
-                  ) : (
-                    <Button type="button" variant="outline" className="w-full" onClick={() => setResetOpen(true)}>
-                      Corrigir e enviar novamente
-                    </Button>
-                  )
-                )}
               </div>
             ) : (
-              <Tabs defaultValue="upload">
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="upload">Enviar nota</TabsTrigger>
+              <div className="space-y-3">
+                {inv.status === "divergente" && (
+                  <div className="rounded-lg border border-destructive/40 bg-destructive-soft p-3 text-sm space-y-2">
+                    <p className="font-semibold text-destructive">Nota com divergência em relação ao pedido</p>
+                    {notes && <p className="text-xs whitespace-pre-wrap text-destructive/90">{notes}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      Cancele a NF junto à sua contabilidade, emita uma nova com os dados corretos e reenvie por aqui.
+                      O arquivo enviado anteriormente <strong>fica registrado no histórico</strong> — nada é apagado.
+                    </p>
+                    {resetOpen ? resetForm : reuploadLocked ? (
+                      <p className="text-xs text-muted-foreground italic">
+                        Pagamento já encaminhado pelo time fiscal — reenvio bloqueado. Use a aba <strong>"Falar com analista"</strong>.
+                      </p>
+                    ) : (
+                      <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setResetOpen(true)}>
+                        Corrigir e enviar novamente
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {inv.status === "recebida" && (
+                  <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                    <p className="font-medium">NF recebida — em conferência pela equipe</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Recebemos sua nota fiscal e ela está em conferência. Se precisar de algo, use a aba
+                      {" "}<strong>"Falar com analista"</strong>.
+                    </p>
+                  </div>
+                )}
+
+                <Tabs defaultValue={canUpload ? "upload" : "question"}>
+                <TabsList className={`w-full grid ${canUpload ? "grid-cols-2" : "grid-cols-1"}`}>
+                  {canUpload && <TabsTrigger value="upload">Enviar nota</TabsTrigger>}
                   <TabsTrigger value="question">
                     <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Falar com analista
                     {questions.length > 0 && (
@@ -453,6 +498,7 @@ const InvoicePortal = () => {
                     )}
                   </TabsTrigger>
                 </TabsList>
+                {canUpload && (
                 <TabsContent value="upload" className="mt-4">
                   <div className="rounded-lg bg-muted/40 border px-3 py-2.5 text-xs text-muted-foreground space-y-1 mb-3">
                     <p className="font-medium text-foreground">Como funciona:</p>
@@ -476,6 +522,7 @@ const InvoicePortal = () => {
                     <Button type="submit" disabled={submitting} className="w-full">{submitting ? "Enviando..." : "Enviar nota"}</Button>
                   </form>
                 </TabsContent>
+                )}
                 <TabsContent value="question" className="mt-4 space-y-3">
                   <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800">
                     💡 <strong>Dúvida antes de emitir?</strong> Use este espaço para confirmar valores ou pedir esclarecimentos antes de emitir a nota — isso evita rejeições.
@@ -569,7 +616,8 @@ const InvoicePortal = () => {
                     {sendingQuestion ? "Enviando..." : "Enviar dúvida"}
                   </Button>
                 </TabsContent>
-              </Tabs>
+                </Tabs>
+              </div>
             )}
           </CardContent>
         </Card>

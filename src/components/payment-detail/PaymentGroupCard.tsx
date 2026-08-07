@@ -2,6 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import {
   AlertTriangle,
   ArrowRight,
@@ -15,6 +17,8 @@ import {
   Mail,
   MessageCircle,
   MessageCircleQuestion,
+  Download,
+  Eye,
   Receipt,
   Sparkles,
 } from "lucide-react";
@@ -168,6 +172,23 @@ export const PaymentGroupCard = ({
     ? Number((nfReceivedTotal - Number(g.total_amount)).toFixed(2))
     : 0;
   const nfDivergent = groupInvoices.length > 0 && Math.abs(nfDiff) > 0;
+
+  // Todas as NFs da empresa (independente de recebimento) — usadas para os
+  // atalhos de visualizar/baixar o arquivo e mostrar o lançamento no P12.
+  const groupAllInvoices = invoices.filter((inv) => {
+    if (inv.company_id && g.company_id) return inv.company_id === g.company_id;
+    return (inv.company_name ?? "").trim().toLowerCase() === g.company_name.trim().toLowerCase();
+  });
+  const invoicesWithFile = groupAllInvoices.filter((inv) => !!inv.file_path);
+
+  const openInvoiceFile = async (path: string, download: boolean) => {
+    const { data, error } = await supabase.storage.from("invoices").createSignedUrl(path, 300, download ? { download: true } : undefined);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Falha ao abrir a NF", description: error?.message ?? "Arquivo indisponível.", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener");
+  };
   const groupExpandedEffective = searchActive ? true : isExpanded;
 
   // === Priorização por risco ===
@@ -448,6 +469,37 @@ export const PaymentGroupCard = ({
         </div>
         </div>
       </button>
+
+      {invoicesWithFile.length > 0 && (
+        <div className="border-t border-border/60 bg-muted/20 px-3 py-2 md:px-4 space-y-1.5">
+          {invoicesWithFile.map((inv) => (
+            <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div className="min-w-0">
+                <span className="font-medium text-foreground">NF {inv.invoice_number ?? "—"}</span>
+                <span className="text-muted-foreground"> · {formatCurrency(Number(inv.received_amount ?? inv.expected_amount ?? 0))}</span>
+                {(inv.status === "lancada" || inv.status === "paga") && (
+                  <span className="text-muted-foreground">
+                    {" · "}P12 #{(inv as unknown as { erp_document_number?: string | null }).erp_document_number ?? "—"}
+                    {(inv as unknown as { erp_posted_at?: string | null }).erp_posted_at && (
+                      <> · {new Date(String((inv as unknown as { erp_posted_at?: string | null }).erp_posted_at)).toLocaleDateString("pt-BR")}</>
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px] gap-1"
+                  onClick={(e) => { e.stopPropagation(); void openInvoiceFile(inv.file_path as string, false); }}>
+                  <Eye className="h-3 w-3" /> Visualizar NF
+                </Button>
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px] gap-1"
+                  onClick={(e) => { e.stopPropagation(); void openInvoiceFile(inv.file_path as string, true); }}>
+                  <Download className="h-3 w-3" /> Baixar NF
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {gStatus === "revisao_pos_aprovacao" && canReleaseInvoice && onReleaseInvoice && (
         <div className="border-t border-teal-200/60 bg-teal-50/60 px-4 py-2.5 flex items-center justify-between gap-3">
