@@ -180,7 +180,7 @@ export function b2_iaConcluded(ctx: B2Ctx): Rendered {
     bodyHtml: body,
     preferencesLink: ctx.preferences_link,
   });
-  const text = `Análise concluída — ${ctx.payment_reference}\n\nItens: ${ctx.items_count} · Alertas: ${ctx.alerts_count} · Divergências: ${ctx.divergences_count}\n\nAcessar: ${ctx.payment_link}`;
+  const text = `Análise concluída — ${ctx.payment_reference}\n\n${parts.slice(1).map((p) => `${p.label}: ${p.value}`).join(" · ")}\n\nAcessar: ${ctx.payment_link}`;
   return { subject: `Análise concluída — Lote ${ctx.payment_reference}`, html, text };
 }
 
