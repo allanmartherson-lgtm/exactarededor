@@ -185,7 +185,7 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
       ok: res.ok,
       status: res.status,
       response: res.response,
-      ...(res.ok ? {} : { error: res.error }),
+      ...(!res.ok && res.status === 0 ? { error: res.error } : {}),
     });
   }
 
