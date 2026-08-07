@@ -124,13 +124,55 @@ Deno.serve(async (req) => {
         break;
       }
       case "ia_concluded": {
+        // Bug (08/2026): estes indicadores eram enviados como "—" fixo e o
+        // `reason` (texto de progresso) ia no lugar do tempo de análise.
+        // Agora buscamos os números reais do lote no momento do envio.
+        const countItems = async (filter?: (q: any) => any) => {
+          let q = supabase
+            .from("payment_items")
+            .select("id", { count: "exact", head: true })
+            .eq("payment_id", paymentId);
+          if (filter) q = filter(q);
+          const { count, error } = await q;
+          if (error) {
+            console.error("count payment_items error", error);
+            return null;
+          }
+          return count ?? 0;
+        };
+
+        const [itemsCount, alertsCount, divergencesCount] = await Promise.all([
+          countItems(),
+          countItems((q) => q.eq("ai_status", "alerta")),
+          countItems((q) => q.eq("ai_status", "reprovado")),
+        ]);
+
+        // Tempo de análise: derivado do job de processamento mais recente.
+        let duration: string | null = null;
+        const { data: job } = await supabase
+          .from("payment_processing_jobs")
+          .select("started_at, finished_at")
+          .eq("payment_id", paymentId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (job?.started_at && job?.finished_at) {
+          const ms = new Date(job.finished_at).getTime() - new Date(job.started_at).getTime();
+          if (Number.isFinite(ms) && ms >= 0) {
+            const totalSec = Math.round(ms / 1000);
+            const min = Math.floor(totalSec / 60);
+            const sec = totalSec % 60;
+            duration = min > 0 ? `${min} min ${sec}s` : `${sec}s`;
+          }
+        }
+
         const r = b2_iaConcluded({
           analyst_name: name,
           payment_reference: reference,
-          items_count: "—",
-          alerts_count: "—",
-          divergences_count: "—",
-          analysis_duration: reason ?? null,
+          items_count: itemsCount,
+          alerts_count: alertsCount,
+          divergences_count: divergencesCount,
+          analysis_duration: duration,
           payment_link: link,
         });
         subject = r.subject; html = r.html; bodyText = r.text;
