@@ -4406,6 +4406,68 @@ export type Database = {
           },
         ]
       }
+      invoice_file_versions: {
+        Row: {
+          ai_extracted_amount: number | null
+          ai_extracted_cnpj: string | null
+          ai_extracted_number: string | null
+          ai_validation: Json | null
+          created_at: string
+          file_path: string | null
+          hospital_id: string
+          id: string
+          invoice_id: string
+          invoice_number: string | null
+          payment_id: string | null
+          reason: string | null
+          received_amount: number | null
+          source: string
+          version: number
+        }
+        Insert: {
+          ai_extracted_amount?: number | null
+          ai_extracted_cnpj?: string | null
+          ai_extracted_number?: string | null
+          ai_validation?: Json | null
+          created_at?: string
+          file_path?: string | null
+          hospital_id: string
+          id?: string
+          invoice_id: string
+          invoice_number?: string | null
+          payment_id?: string | null
+          reason?: string | null
+          received_amount?: number | null
+          source: string
+          version: number
+        }
+        Update: {
+          ai_extracted_amount?: number | null
+          ai_extracted_cnpj?: string | null
+          ai_extracted_number?: string | null
+          ai_validation?: Json | null
+          created_at?: string
+          file_path?: string | null
+          hospital_id?: string
+          id?: string
+          invoice_id?: string
+          invoice_number?: string | null
+          payment_id?: string | null
+          reason?: string | null
+          received_amount?: number | null
+          source?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_file_versions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_question_attachments: {
         Row: {
           author_id: string | null
@@ -4567,12 +4629,20 @@ export type Database = {
           company_id: string | null
           company_name: string | null
           created_at: string
+          erp_document_number: string | null
+          erp_posted_at: string | null
+          erp_posted_by: string | null
           expected_amount: number
           file_path: string | null
           hospital_id: string
           id: string
           invoice_number: string | null
           items_count: number
+          manual_conciliated_at: string | null
+          manual_conciliated_by: string | null
+          manual_conciliation_note: string | null
+          paid_at: string | null
+          paid_by: string | null
           payment_id: string
           received_amount: number | null
           received_at: string | null
@@ -4596,12 +4666,20 @@ export type Database = {
           company_id?: string | null
           company_name?: string | null
           created_at?: string
+          erp_document_number?: string | null
+          erp_posted_at?: string | null
+          erp_posted_by?: string | null
           expected_amount: number
           file_path?: string | null
           hospital_id: string
           id?: string
           invoice_number?: string | null
           items_count?: number
+          manual_conciliated_at?: string | null
+          manual_conciliated_by?: string | null
+          manual_conciliation_note?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           payment_id: string
           received_amount?: number | null
           received_at?: string | null
@@ -4625,12 +4703,20 @@ export type Database = {
           company_id?: string | null
           company_name?: string | null
           created_at?: string
+          erp_document_number?: string | null
+          erp_posted_at?: string | null
+          erp_posted_by?: string | null
           expected_amount?: number
           file_path?: string | null
           hospital_id?: string
           id?: string
           invoice_number?: string | null
           items_count?: number
+          manual_conciliated_at?: string | null
+          manual_conciliated_by?: string | null
+          manual_conciliation_note?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           payment_id?: string
           received_amount?: number | null
           received_at?: string | null
@@ -14038,6 +14124,144 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_invoice_conciliada_manual: {
+        Args: { p_invoice_id: string; p_justificativa: string }
+        Returns: {
+          ai_extracted_amount: number | null
+          ai_extracted_cnpj: string | null
+          ai_extracted_number: string | null
+          ai_validated_at: string | null
+          ai_validation: Json | null
+          company_group_id: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string
+          erp_document_number: string | null
+          erp_posted_at: string | null
+          erp_posted_by: string | null
+          expected_amount: number
+          file_path: string | null
+          hospital_id: string
+          id: string
+          invoice_number: string | null
+          items_count: number
+          manual_conciliated_at: string | null
+          manual_conciliated_by: string | null
+          manual_conciliation_note: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_id: string
+          received_amount: number | null
+          received_at: string | null
+          recipient_cc: string[]
+          recipient_email: string
+          reconciliation_notes: string | null
+          request_message: string | null
+          send_error: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          upload_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      mark_invoice_lancada: {
+        Args: { p_erp_document_number: string; p_invoice_id: string }
+        Returns: {
+          ai_extracted_amount: number | null
+          ai_extracted_cnpj: string | null
+          ai_extracted_number: string | null
+          ai_validated_at: string | null
+          ai_validation: Json | null
+          company_group_id: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string
+          erp_document_number: string | null
+          erp_posted_at: string | null
+          erp_posted_by: string | null
+          expected_amount: number
+          file_path: string | null
+          hospital_id: string
+          id: string
+          invoice_number: string | null
+          items_count: number
+          manual_conciliated_at: string | null
+          manual_conciliated_by: string | null
+          manual_conciliation_note: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_id: string
+          received_amount: number | null
+          received_at: string | null
+          recipient_cc: string[]
+          recipient_email: string
+          reconciliation_notes: string | null
+          request_message: string | null
+          send_error: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          upload_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      mark_invoice_paga: {
+        Args: { p_invoice_id: string }
+        Returns: {
+          ai_extracted_amount: number | null
+          ai_extracted_cnpj: string | null
+          ai_extracted_number: string | null
+          ai_validated_at: string | null
+          ai_validation: Json | null
+          company_group_id: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string
+          erp_document_number: string | null
+          erp_posted_at: string | null
+          erp_posted_by: string | null
+          expected_amount: number
+          file_path: string | null
+          hospital_id: string
+          id: string
+          invoice_number: string | null
+          items_count: number
+          manual_conciliated_at: string | null
+          manual_conciliated_by: string | null
+          manual_conciliation_note: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_id: string
+          received_amount: number | null
+          received_at: string | null
+          recipient_cc: string[]
+          recipient_email: string
+          reconciliation_notes: string | null
+          request_message: string | null
+          send_error: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          upload_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       mark_notification_read: { Args: { _id: string }; Returns: undefined }
       mark_portal_thread_read: {
         Args: { p_payment_id: string; p_payment_item_id?: string }
@@ -14318,6 +14542,98 @@ export type Database = {
         Args: { p_debt_id: string; p_reason: string }
         Returns: Json
       }
+      revert_invoice_lancamento: {
+        Args: { p_invoice_id: string; p_justificativa: string }
+        Returns: {
+          ai_extracted_amount: number | null
+          ai_extracted_cnpj: string | null
+          ai_extracted_number: string | null
+          ai_validated_at: string | null
+          ai_validation: Json | null
+          company_group_id: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string
+          erp_document_number: string | null
+          erp_posted_at: string | null
+          erp_posted_by: string | null
+          expected_amount: number
+          file_path: string | null
+          hospital_id: string
+          id: string
+          invoice_number: string | null
+          items_count: number
+          manual_conciliated_at: string | null
+          manual_conciliated_by: string | null
+          manual_conciliation_note: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_id: string
+          received_amount: number | null
+          received_at: string | null
+          recipient_cc: string[]
+          recipient_email: string
+          reconciliation_notes: string | null
+          request_message: string | null
+          send_error: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          upload_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      revert_invoice_paga: {
+        Args: { p_invoice_id: string; p_justificativa: string }
+        Returns: {
+          ai_extracted_amount: number | null
+          ai_extracted_cnpj: string | null
+          ai_extracted_number: string | null
+          ai_validated_at: string | null
+          ai_validation: Json | null
+          company_group_id: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string
+          erp_document_number: string | null
+          erp_posted_at: string | null
+          erp_posted_by: string | null
+          expected_amount: number
+          file_path: string | null
+          hospital_id: string
+          id: string
+          invoice_number: string | null
+          items_count: number
+          manual_conciliated_at: string | null
+          manual_conciliated_by: string | null
+          manual_conciliation_note: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_id: string
+          received_amount: number | null
+          received_at: string | null
+          recipient_cc: string[]
+          recipient_email: string
+          reconciliation_notes: string | null
+          request_message: string | null
+          send_error: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          upload_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       rls_test_cleanup: {
         Args: {
           _hosp_a: string
@@ -14550,6 +14866,8 @@ export type Database = {
         | "conciliada"
         | "divergente"
         | "cancelada"
+        | "lancada"
+        | "paga"
       item_ai_status:
         | "pendente"
         | "aprovado"
@@ -14860,6 +15178,8 @@ export const Constants = {
         "conciliada",
         "divergente",
         "cancelada",
+        "lancada",
+        "paga",
       ],
       item_ai_status: [
         "pendente",
