@@ -65,6 +65,24 @@ Deno.serve(async (req) => {
 
   try {
     if (outlookKey) {
+      // Microsoft Graph: anexos simples via fileAttachment (contentBytes base64).
+      // Limite prático do /sendMail: ~3 MB por requisição (mensagem + anexos).
+      const graphAttachments = (body.attachments ?? []).map((a) => ({
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: a.filename,
+        contentType: a.content_type ?? "application/octet-stream",
+        contentBytes: a.content_base64,
+      }));
+      const message: Record<string, unknown> = {
+        subject: body.subject,
+        body: { contentType: "HTML", content: body.html },
+        toRecipients: [{ emailAddress: { address: body.to } }],
+      };
+      if (body.cc && body.cc.length > 0) {
+        message.ccRecipients = body.cc.map((c) => ({ emailAddress: { address: c } }));
+      }
+      if (graphAttachments.length > 0) message.attachments = graphAttachments;
+
       const r = await fetch(`${GATEWAY}/microsoft_outlook/me/sendMail`, {
         method: "POST",
         headers: {
@@ -72,19 +90,13 @@ Deno.serve(async (req) => {
           "X-Connection-Api-Key": outlookKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          message: {
-            subject: body.subject,
-            body: { contentType: "HTML", content: body.html },
-            toRecipients: [{ emailAddress: { address: body.to } }],
-          },
-          saveToSentItems: true,
-        }),
+        body: JSON.stringify({ message, saveToSentItems: true }),
       });
       const txt = await r.text();
       if (!r.ok) return finalize(admin, deliv?.id, "failed", null, `Outlook ${r.status}: ${txt}`);
       return finalize(admin, deliv?.id, "sent", null, null);
     }
+
 
     if (gmailKey) {
       const raw = buildRfc2822({ to: body.to, subject: body.subject, html: body.html, text: body.text });
