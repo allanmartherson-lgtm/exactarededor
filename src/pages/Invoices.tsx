@@ -166,6 +166,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { hasRole } = useAuth();
   const activeHospitalId = useActiveHospitalId();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
   const [openQuestions, setOpenQuestions] = useState<InvoiceQuestion[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
