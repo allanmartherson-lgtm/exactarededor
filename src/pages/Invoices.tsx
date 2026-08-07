@@ -22,9 +22,11 @@ import { formatCNPJ, onlyDigits } from "@/lib/cnpj";
 
 const pillVariant: Record<InvoiceStatus, "warning" | "info" | "success" | "danger"> = {
   aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger", cancelada: "danger",
+  lancada: "info", paga: "success",
 };
 const labels: Record<InvoiceStatus, string> = {
   aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente", cancelada: "Cancelada",
+  lancada: "Lançada no P12", paga: "Paga",
 };
 
 type TabKey = "todas" | InvoiceStatus;
@@ -215,7 +217,7 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   };
 
   const counts = useMemo(() => {
-    const c: Record<TabKey, number> = { todas: rows.length, aguardando: 0, recebida: 0, conciliada: 0, divergente: 0, cancelada: 0 };
+    const c: Record<TabKey, number> = { todas: rows.length, aguardando: 0, recebida: 0, conciliada: 0, divergente: 0, cancelada: 0, lancada: 0, paga: 0 };
     rows.forEach((r) => { c[r.status as InvoiceStatus] = (c[r.status as InvoiceStatus] ?? 0) + 1; });
     return c;
   }, [rows]);
