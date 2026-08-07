@@ -155,13 +155,19 @@ export type B2Ctx = {
   preferences_link?: string;
 };
 export function b2_iaConcluded(ctx: B2Ctx): Rendered {
-  const rows = [
-    detailRow("Referência", escapeHtml(ctx.payment_reference)),
-    detailRow("Itens analisados", escapeHtml(String(ctx.items_count))),
-    detailRow("Alertas", escapeHtml(String(ctx.alerts_count)), { valueColor: BRAND.warn }),
-    detailRow("Divergências", escapeHtml(String(ctx.divergences_count)), { valueColor: BRAND.danger }),
-    detailRow("Tempo de análise", escapeHtml(asText(ctx.analysis_duration)), { last: true }),
-  ].join("");
+  // Zero é informação ("0 alertas"). Só omitimos a linha quando o dado é
+  // realmente indisponível (null/undefined/"").
+  const has = (v: unknown) => v !== null && v !== undefined && String(v).trim() !== "";
+  const parts: Array<{ label: string; value: string; color?: string }> = [
+    { label: "Referência", value: escapeHtml(ctx.payment_reference) },
+  ];
+  if (has(ctx.items_count)) parts.push({ label: "Itens analisados", value: escapeHtml(String(ctx.items_count)) });
+  if (has(ctx.alerts_count)) parts.push({ label: "Alertas", value: escapeHtml(String(ctx.alerts_count)), color: BRAND.warn });
+  if (has(ctx.divergences_count)) parts.push({ label: "Divergências", value: escapeHtml(String(ctx.divergences_count)), color: BRAND.danger });
+  if (has(ctx.analysis_duration)) parts.push({ label: "Tempo de análise", value: escapeHtml(String(ctx.analysis_duration)) });
+  const rows = parts
+    .map((p, i) => detailRow(p.label, p.value, { last: i === parts.length - 1, valueColor: p.color }))
+    .join("");
   const body = `
     ${chip("Análise concluída")}
     <h2 style="margin:14px 0 16px;font-size:22px;font-weight:600;color:${BRAND.text};">Análise pelo motor de regras concluída</h2>
