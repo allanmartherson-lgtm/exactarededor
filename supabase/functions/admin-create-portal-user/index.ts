@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { APP_URL } from "../_shared/appUrl.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,7 +60,8 @@ serve(async (req) => {
       } catch { return false; }
     };
     const appOrigin = isAllowedOrigin(rawOrigin) ? rawOrigin.replace(/\/+$/, "") : "";
-    const redirectTo = appOrigin ? `${appOrigin}/auth/reset-password` : undefined;
+    // Link vai por e-mail: usa sempre a URL canônica, nunca a origin do cliente.
+    const redirectTo = `${APP_URL}/auth/reset-password`;
 
     if (!["company", "doctor"].includes(kind)) return json({ error: "kind inválido" }, 400);
     if (!entityId) return json({ error: kind === "company" ? "Empresa obrigatória" : "Médico obrigatório" }, 400);

@@ -29,6 +29,7 @@ import { a1_sendInvoiceRequest } from "../_shared/emailTemplates/templates.ts";
 
 
 import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
+import { APP_URL } from "../_shared/appUrl.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -227,7 +228,8 @@ serve(async (req) => {
       return json({ error: "Nenhum destinatário válido (sem empresa com e-mail e sem e-mail de médico)." }, 400);
     }
 
-    const baseUrl = req.headers.get("origin") ?? Deno.env.get("PUBLIC_APP_URL") ?? "";
+    // Links de e-mail SEMPRE usam a URL canônica de produção (nunca a origin da requisição).
+    const baseUrl = APP_URL;
     const created: string[] = [];
     let sentOk = 0;
     let sentErr = 0;

@@ -1,4 +1,5 @@
 import { sendCorporateEmail } from "../../_shared/sendCorporateEmail.ts";
+import { APP_URL } from "../../_shared/appUrl.ts";
 
 // Handler: director_reapproval
 // Notifica diretores quando UM grupo de empresa (já aprovado) sofreu alteração
@@ -7,8 +8,7 @@ import { sendCorporateEmail } from "../../_shared/sendCorporateEmail.ts";
 
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_FROM = "whatsapp:+14155238886";
-const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
-  "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
+const APP_BASE_URL = APP_URL;
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;

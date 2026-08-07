@@ -4,11 +4,11 @@
 
 import { b1_validatorAssignment } from "../../_shared/emailTemplates/templates.ts";
 import { sendCorporateEmail } from "../../_shared/sendCorporateEmail.ts";
+import { APP_URL } from "../../_shared/appUrl.ts";
 
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
-const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
-  "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
+const APP_BASE_URL = APP_URL;
 
 
 const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
