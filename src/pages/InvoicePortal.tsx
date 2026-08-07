@@ -616,7 +616,8 @@ const InvoicePortal = () => {
                     {sendingQuestion ? "Enviando..." : "Enviar dúvida"}
                   </Button>
                 </TabsContent>
-              </Tabs>
+                </Tabs>
+              </div>
             )}
           </CardContent>
         </Card>
