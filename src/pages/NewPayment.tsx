@@ -277,6 +277,8 @@ interface FileBucket {
   sectorMapping?: string | null;
   /** true quando NENHUMA linha da planilha trouxe coluna de setor preenchida — exige mapeamento manual antes do envio. */
   sectorMissing?: boolean;
+  /** true quando o sectorMapping veio de sugestão (nome do arquivo) e não de dado da planilha. Editável pelo usuário. */
+  sectorSuggested?: boolean;
   /** Se verdadeiro, o valor do convênio nesta planilha já é o total (Unitário * Qtd). */
   convenioValueTotalized?: boolean;
   /** Override manual de colunas quando o auto-detect falha em planilhas atípicas. */
