@@ -554,6 +554,22 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
           </TabsList>
         </Tabs>
 
+        {loadError && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive-soft px-4 py-3">
+            <div className="flex items-start gap-2 text-sm">
+              <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+              <div>
+                <p className="font-medium text-destructive">Não foi possível carregar as notas fiscais</p>
+                <p className="text-xs text-muted-foreground break-all">{loadError}</p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => void load()}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              Tentar novamente
+            </Button>
+          </div>
+        )}
+
         {canActOnNF && failedInvoices.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive-soft px-4 py-3">
             <div className="flex items-start gap-2 text-sm">
