@@ -510,7 +510,10 @@ export default function CompanyAnalysis() {
     return () => { active = false; };
   }, [id, obs.length]);
 
-  const loading = !payment || !group;
+  // Só considera "carregando" enquanto o fetch está em voo. Se o load terminou
+  // e o grupo não existe (ex.: grupo de origem apagado após troca de PJ),
+  // caímos na tela "Empresa não encontrada" em vez de girar para sempre.
+  const loading = itemsLoading && (!payment || !group);
 
   const gStatus = (group?.status ?? "em_analise_ia") as PaymentStatus;
 
