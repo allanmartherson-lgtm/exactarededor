@@ -1504,19 +1504,19 @@ const NewPayment = () => {
     });
   };
 
-  const mapSectorFromRaw = (raw: string | null): RuleSector | null => {
-    if (!raw) return null;
-    const normalize = (s: string) =>
-      s.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/\(.*?\)/g, "")
-        .replace(/[^a-z0-9\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    const normRaw = normalize(raw);
+  const normalizeSectorText = (s: string) =>
+    s.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\(.*?\)/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  /** Casa um texto já normalizado contra os rótulos do enum de setor. */
+  const matchSectorLabel = (normRaw: string): RuleSector | null => {
     if (!normRaw) return null;
     for (const [key, label] of Object.entries(RULE_SECTOR_LABELS)) {
-      const normLabel = normalize(label);
+      const normLabel = normalizeSectorText(label);
       if (!normLabel) continue;
       if (normRaw.includes(normLabel) || normLabel.includes(normRaw)) {
         return key as RuleSector;
@@ -1524,6 +1524,52 @@ const NewPayment = () => {
     }
     return null;
   };
+
+  const mapSectorFromRaw = (raw: string | null): RuleSector | null => {
+    if (!raw) return null;
+    const normRaw = normalizeSectorText(raw);
+    if (!normRaw) return null;
+    const direct = matchSectorLabel(normRaw);
+    if (direct) return direct;
+    // Fallback: consulta os aliases cadastrados (sector_aliases/sectors) já
+    // carregados no parse — alias "CC 3º andar" → "Centro Cirúrgico" → cirurgia.
+    const aliases = sectorAliasesRef.current;
+    if (aliases) {
+      const canonical = aliases.resolve(raw) ?? aliases.resolveSlug(raw);
+      if (canonical) {
+        const viaAlias = matchSectorLabel(normalizeSectorText(canonical));
+        if (viaAlias) return viaAlias;
+      }
+    }
+    return null;
+  };
+
+  /**
+   * Sugestão por NOME DO ARQUIVO (ex.: "Parecer Abril.xlsx" → parecer).
+   * É apenas sugestão — o usuário pode trocar no card do arquivo.
+   */
+  const suggestSectorFromFilename = (fileName: string): RuleSector | null => {
+    const norm = normalizeSectorText(fileName.replace(/\.[a-z0-9]+$/i, ""));
+    if (!norm) return null;
+    for (const [key, label] of Object.entries(RULE_SECTOR_LABELS)) {
+      if (key === "outro") continue;
+      const normLabel = normalizeSectorText(label);
+      if (normLabel && norm.includes(normLabel)) return key as RuleSector;
+    }
+    // Tokens curtos comuns em nome de arquivo.
+    const tokens: Array<[RegExp, RuleSector]> = [
+      [/\bpareceres?\b/, "parecer"],
+      [/\bvisitas?\b/, "visita"],
+      [/\bcirurgias?\b|\bcc\b/, "cirurgia"],
+      [/\bhemodin\w*/, "hemodinamica"],
+      [/\bendoscopias?\b|\bendo\b/, "sadt_endoscopia"],
+      [/\bconsultas?\b/, "consulta"],
+      [/\bprocedimentos?\b/, "procedimento"],
+    ];
+    for (const [re, sector] of tokens) if (re.test(norm)) return sector;
+    return null;
+  };
+
 
   const parseFile = async (
     f: File,
