@@ -16,6 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 import { b5_internalQuestion, b6_questionReply } from "../_shared/emailTemplates/templates.ts";
+import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
 
 
 const corsHeaders = {
@@ -23,12 +24,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
-const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;
@@ -214,7 +213,6 @@ Deno.serve(async (req) => {
       : `Questionamento respondido no lote ${payment.reference}`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
     const emailResults: unknown[] = [];
     const whatsappResults: unknown[] = [];
@@ -242,23 +240,19 @@ Deno.serve(async (req) => {
       const html = rendered.html;
 
 
-      // Envia Email
-      if (r.email && LOVABLE_API_KEY && RESEND_API_KEY) {
-        try {
-          const resp = await fetch(`${RESEND_GATEWAY}/emails`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-              "X-Connection-Api-Key": RESEND_API_KEY,
-            },
-            body: JSON.stringify({ from: EMAIL_FROM, to: [r.email], subject, html, text }),
-          });
-          const j = await resp.json().catch(() => ({}));
-          emailResults.push({ recipient_id: r.id, ok: resp.ok, status: resp.status, response: j });
-        } catch (e) {
-          emailResults.push({ recipient_id: r.id, ok: false, error: String(e) });
-        }
+      // Envia Email via mailbox corporativo (send-email-corporate)
+      if (r.email) {
+        const resp = await sendCorporateEmail({
+          to: r.email,
+          subject,
+          html,
+          text,
+          user_id: r.id,
+          payment_id: payment.id,
+          event_key: isCreated ? "internal_question_created" : "internal_question_replied",
+          template_key: isCreated ? "b5_internal_question" : "b6_question_reply",
+        });
+        emailResults.push({ recipient_id: r.id, ok: resp.ok, status: resp.status, response: resp.response });
       }
 
       // Envia WhatsApp (apenas se for diretor ou for o encerramento do ciclo)
