@@ -17,6 +17,7 @@ import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireI
 import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 import { b5_internalQuestion, b6_questionReply } from "../_shared/emailTemplates/templates.ts";
 import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
+import { APP_URL } from "../_shared/appUrl.ts";
 
 
 const corsHeaders = {
@@ -25,8 +26,7 @@ const corsHeaders = {
 };
 
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
-const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
-  "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
+const APP_BASE_URL = APP_URL;
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 
 const greetingForBrazil = (now = new Date()) => {

@@ -5,6 +5,7 @@ import { b6_questionReply } from "../_shared/emailTemplates/templates.ts";
 
 
 import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
+import { APP_URL } from "../_shared/appUrl.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,11 +88,8 @@ serve(async (req) => {
       }
     }
 
-    const portalUrl = `${Deno.env.get("SUPABASE_URL")!.replace(".supabase.co", ".lovable.app")}/portal/nf/${invoice.upload_token}`;
-    // Não dá pra adivinhar o domínio do portal aqui de forma 100% confiável. O e-mail
-    // mostra o link mesmo assim — o cliente pode customizar via PUBLIC_PORTAL_URL.
     const publicBase = Deno.env.get("PUBLIC_PORTAL_URL");
-    const link = publicBase ? `${publicBase.replace(/\/$/, "")}/portal/nf/${invoice.upload_token}` : portalUrl;
+    const link = `${(publicBase ? publicBase.replace(/\/+$/, "") : APP_URL)}/portal/nf/${invoice.upload_token}`;
 
     const rendered = b6_questionReply({
       recipient_name: invoice.company_name ?? "prezado(a)",

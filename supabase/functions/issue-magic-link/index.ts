@@ -7,6 +7,7 @@ import { z } from "npm:zod@3.23.8";
 import { signMagicLink, sha256Hex } from "../_shared/magicLink.ts";
 
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
+import { APP_URL } from "../_shared/appUrl.ts";
 const BodySchema = z.object({
   action: z.enum([
     "approve",
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
   const hash = await sha256Hex(jwt);
   await admin.from("magic_link_tokens").update({ token_hash: hash }).eq("id", row.id);
 
-  const appUrl = Deno.env.get("APP_PUBLIC_URL") ?? "";
+  const appUrl = APP_URL;
   const url = `${appUrl}/aprovar/${jwt}`;
 
   return json({ token: jwt, url, expires_at: expiresAt, id: row.id }, 200);
