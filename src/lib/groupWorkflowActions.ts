@@ -59,7 +59,7 @@ export interface TransitionGroupWorkflowParams {
 }
 
 export type TransitionGroupWorkflowResult =
-  | { ok: true }
+  | { ok: true; reason?: undefined; message?: undefined }
   | {
       ok: false;
       reason:

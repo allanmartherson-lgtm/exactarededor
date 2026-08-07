@@ -20,7 +20,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
 import { addBusinessDays, fmtMoney, formatCompetenceBR, formatDateBR, greetingBrasilia, joinPt } from "./text.ts";
 import { buildEmail } from "./templates.ts";
-import * as XLSX from "https://esm.sh/xlsx-js-style@1.2.0";
+// esm.sh entrega xlsx-js-style como CJS: o namespace import fica sem `utils`.
+// Usar o default export (interop) é o único caminho que funciona no Deno.
+import XLSX from "https://esm.sh/xlsx-js-style@1.2.0";
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 import { a1_sendInvoiceRequest } from "../_shared/emailTemplates/templates.ts";
@@ -514,7 +516,8 @@ serve(async (req) => {
               const addr = enc(r, c);
               if (!ws[addr]) ws[addr] = { t: "s", v: "" };
               const cell = ws[addr];
-              if (c === 8 || moneyCols.has(c)) cell.t = "n";
+              // Só marca como numérico se o valor realmente for número (t:"n" com "" quebra o writer).
+              if ((c === 8 || moneyCols.has(c)) && typeof cell.v === "number") cell.t = "n";
               cell.s = {
                 font: { name: "Calibri", sz: 9, color: { rgb: TEXT } },
                 border: allThin,
