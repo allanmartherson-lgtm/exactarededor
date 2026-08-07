@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTvrFinancialTotals, type TvrResult } from "../RetroactiveReconciliationsTab";
+import { computeTvrFinancialTotals, type TvrResult } from "@/lib/tvr";
 
 /**
  * Invariante: o modal "Encaminhar apuração" e os cards do relatório precisam

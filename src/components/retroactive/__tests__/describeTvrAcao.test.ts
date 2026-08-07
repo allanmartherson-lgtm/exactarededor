@@ -4,7 +4,7 @@ import {
   describeTvrAcao,
   getTvrValorRecuperar,
   type TvrResult,
-} from "../RetroactiveReconciliationsTab";
+} from "@/lib/tvr";
 
 /**
  * Factory minimalista — mesma abordagem usada em tvrReplaceSummary.test.ts.

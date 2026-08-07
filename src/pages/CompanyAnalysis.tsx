@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { ReimportDiffDialog } from "@/components/ReimportDiffDialog";
+import { useReimportDiffGate } from "@/hooks/useReimportDiffGate";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -395,6 +397,7 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
+  const { diffState: reimportDiffState, runDiffGate, resolveDiff } = useReimportDiffGate();
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
@@ -1674,6 +1677,9 @@ export default function CompanyAnalysis() {
           const scopedRows = fileMatchesGroup
             ? bucket.rows.map((r) => ({ ...r, company_name: group.company_name, company_id: targetId ?? r.company_id }))
             : bucket.rows;
+          // Proveniência do arquivo: o parser não preenche, e sem ela o item
+          // perde a origem e o diff não consegue casar com o que está no banco.
+          for (const row of scopedRows) (row as { source_file_name?: string }).source_file_name = file.name;
 
           parsedRows = [...parsedRows, ...scopedRows];
           fileNames.push(file.name);
@@ -1699,6 +1705,36 @@ export default function CompanyAnalysis() {
         toast.error("Nenhuma linha da empresa", {
           description: `Os arquivos não contêm linhas de "${group.company_name}". A reimportação local exige a base apenas desta empresa.`,
         });
+        return;
+      }
+
+      // Preview de diff antes de qualquer escrita: a partir daqui a operação é
+      // destrutiva (apaga os itens da PJ e reinsere). Escopado à empresa, já
+      // que só os itens dela serão apagados.
+      const decision = await runDiffGate({
+        paymentId: id,
+        files,
+        companyName: group.company_name,
+        parsedRows: (companyRows as Array<{
+          attendance_number?: string | null;
+          procedure_code?: string | null;
+          doctor_name?: string | null;
+          source_file_name?: string | null;
+          gross_amount?: number | null;
+        }>).map((r) => ({
+          attendance_number: r.attendance_number ?? null,
+          procedure_code: r.procedure_code ?? null,
+          doctor_name: r.doctor_name ?? null,
+          source_file_name: r.source_file_name ?? null,
+          gross_amount: r.gross_amount ?? null,
+        })),
+      });
+      if (decision === "cancel") {
+        toast.info("Reimportação cancelada");
+        return;
+      }
+      if (decision === "skip") {
+        toast.info("Arquivo pulado", { description: "SHA-256 idêntico ao já processado — nada foi alterado." });
         return;
       }
 
@@ -1748,6 +1784,7 @@ export default function CompanyAnalysis() {
         attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        source_file_name: r.source_file_name ?? null,
         ...(r.payment_type_id_override
           ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
           : {}),
@@ -3513,6 +3550,16 @@ export default function CompanyAnalysis() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ReimportDiffDialog
+        open={!!reimportDiffState}
+        diff={reimportDiffState?.diff ?? null}
+        sha256Matched={reimportDiffState?.sha256Matched ?? false}
+        busy={reimporting}
+        onCancel={() => resolveDiff("cancel")}
+        onConfirm={() => resolveDiff("confirm")}
+        onSkip={() => resolveDiff("skip")}
+      />
 
       {/* FAB Conversas — abre o modal de bate-papo já escopado a esta empresa,
           em vez de rolar até o bloco interno de questionamentos. */}

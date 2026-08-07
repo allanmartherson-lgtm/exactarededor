@@ -1,28 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { num } from "@/lib/tvr";
 
-// Reproduz a função `num` do RetroactiveReconciliationsTab.tsx para blindar
-// contra a regressão do "dot-thousand": valores como "900.025" (unit_tasy
-// derivado de 1800.05/2 em re-hidratação) NÃO devem ser interpretados como
-// R$ 900.025,00 — devem ser R$ 900,03.
-function num(v: string | number | undefined | null): number {
-  if (v === null || v === undefined || v === "") return 0;
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  let s = String(v).trim().replace(/[^\d,.\-]/g, "");
-  if (!s) return 0;
-  const hasComma = s.includes(",");
-  const hasDot = s.includes(".");
-  if (hasComma && hasDot) {
-    s = s.replace(/\./g, "").replace(",", ".");
-  } else if (hasComma) {
-    s = s.replace(",", ".");
-  } else if (hasDot) {
-    const parts = s.split(".");
-    if (parts.length > 2) s = s.replace(/\./g, "");
-  }
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-}
-
+// Blinda contra a regressão do "dot-thousand": valores como "900.025"
+// (unit_tasy derivado de 1800.05/2 em re-hidratação) NÃO devem ser
+// interpretados como R$ 900.025,00 — devem ser R$ 900,03.
+//
+// Este teste importa a `num` de produção. Antes ele mantinha uma cópia da
+// função, então blindava a cópia e não o código que roda.
 describe("num() — regressão dot-thousand", () => {
   it("String(number) com 3 decimais deve preservar decimais (não inflar 1000×)", () => {
     // Bug histórico: num("900.025") => 900025. Correto: 900.025.

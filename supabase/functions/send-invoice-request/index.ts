@@ -17,9 +17,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
+import { formatDoc, validateDoc } from "./docs.ts";
 import { addBusinessDays, fmtMoney, formatCompetenceBR, formatDateBR, greetingBrasilia, joinPt } from "./text.ts";
 import { buildEmail } from "./templates.ts";
+import {
+  collectInvalidDocuments,
+  groupItemsForInvoicing,
+  type CompanyInfo,
+  type CompanyBucket as GroupedCompanyBucket,
+  type DoctorBucket as GroupedDoctorBucket,
+} from "./grouping.ts";
 // esm.sh entrega xlsx-js-style como CJS: o namespace import fica sem `utils`.
 // Usar o default export (interop) é o único caminho que funciona no Deno.
 import XLSX from "https://esm.sh/xlsx-js-style@1.2.0";
@@ -72,16 +79,9 @@ type Item = {
   attendance_character: string | null;
   raw_data: Record<string, unknown> | null;
 };
-type CompanyInfo = { name: string; document: string | null; invoice_emails: string[] };
-type CompanyBucket = {
-  company_id: string;
-  company_name: string;
-  to: string[];
-  cc: Set<string>;
-  total: number;
-  items: Item[];
-};
-type DoctorBucket = { doctor_email: string; total: number; items: Item[] };
+// Formas dos buckets vêm de grouping.ts — aqui só fixamos o Item completo.
+type CompanyBucket = GroupedCompanyBucket<Item>;
+type DoctorBucket = GroupedDoctorBucket<Item>;
 type InvoiceRow = {
   id: string;
   upload_token: string;
@@ -132,7 +132,6 @@ serve(async (req) => {
     const items = itemsRaw as Item[];
 
     // ---- Pré-validação: CNPJ + carrega lista de e-mails das empresas ----
-    const invalid: Array<{ item_id: string; doctor_name: string; document: string | null; company_name: string | null; reason: string }> = [];
     const companyIds = Array.from(new Set(items.map((i) => i.company_id).filter(Boolean))) as string[];
     const companyMap = new Map<string, CompanyInfo>();
     if (companyIds.length) {
@@ -149,24 +148,7 @@ serve(async (req) => {
       );
     }
 
-    for (const it of items) {
-      if (it.company_id) {
-        const c = companyMap.get(it.company_id);
-        if (c?.document && !isValidCNPJ(c.document)) {
-          invalid.push({
-            item_id: it.id, doctor_name: it.doctor_name, document: c.document,
-            company_name: c.name, reason: `CNPJ da empresa "${c.name}" é inválido.`,
-          });
-        }
-      }
-      const itemCnpjDigits = onlyDigits(it.company_document ?? "");
-      if (itemCnpjDigits.length === 14 && !isValidCNPJ(itemCnpjDigits)) {
-        invalid.push({
-          item_id: it.id, doctor_name: it.doctor_name, document: it.company_document,
-          company_name: it.company_name, reason: "CNPJ informado no item é inválido.",
-        });
-      }
-    }
+    const invalid = collectInvalidDocuments(items, companyMap);
 
     if (invalid.length > 0) {
       return json({
@@ -177,44 +159,7 @@ serve(async (req) => {
     }
 
     // ---- Agrupamento por EMPRESA (com fallback por médico para itens sem empresa) ----
-    const byCompany = new Map<string, CompanyBucket>();
-    const byDoctorFallback = new Map<string, DoctorBucket>();
-    const missingCompanyEmails: Array<{ company_id: string; company_name: string }> = [];
-
-    for (const it of items) {
-      const docEmail = (it.doctor_email ?? "").trim().toLowerCase();
-      if (it.company_id && companyMap.has(it.company_id)) {
-        const c = companyMap.get(it.company_id)!;
-        if (!c.invoice_emails.length) {
-          if (!missingCompanyEmails.find((m) => m.company_id === it.company_id)) {
-            missingCompanyEmails.push({ company_id: it.company_id!, company_name: c.name });
-          }
-          continue;
-        }
-        const cur = byCompany.get(it.company_id) ?? {
-          company_id: it.company_id,
-          company_name: c.name,
-          to: c.invoice_emails,
-          cc: new Set<string>(),
-          total: 0,
-          items: [] as Item[],
-        };
-        cur.total += Number(it.gross_amount ?? 0);
-        cur.items.push(it);
-        if (docEmail) cur.cc.add(docEmail);
-        byCompany.set(it.company_id, cur);
-      } else {
-        if (!docEmail) continue;
-        const cur = byDoctorFallback.get(docEmail) ?? {
-          doctor_email: docEmail,
-          total: 0,
-          items: [] as Item[],
-        };
-        cur.total += Number(it.gross_amount ?? 0);
-        cur.items.push(it);
-        byDoctorFallback.set(docEmail, cur);
-      }
-    }
+    const { byCompany, byDoctorFallback, missingCompanyEmails } = groupItemsForInvoicing(items, companyMap);
 
     if (!targetInvoice && missingCompanyEmails.length > 0) {
       return json({
