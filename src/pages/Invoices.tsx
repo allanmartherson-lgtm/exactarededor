@@ -200,12 +200,21 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const canActOnNF = hasRole("analista") || isAdmin || hasRole("diretor");
 
   const load = async () => {
-    const { data: invoices } = await supabase
+    setLoadError(null);
+    const { data: invoices, error: invoicesError } = await supabase
       .from("invoices")
       .select(
         "id,payment_id,expected_amount,received_amount,invoice_number,file_path,status,recipient_email,sent_at,received_at,reconciliation_notes,created_at,updated_at,company_id,company_name,ai_validation,ai_validated_at,ai_extracted_amount,ai_extracted_number,ai_extracted_cnpj,recipient_cc,request_message,items_count,send_error,company_group_id,hospital_id,erp_document_number,erp_posted_at,erp_posted_by,paid_at,paid_by,manual_conciliation_note,manual_conciliated_at,manual_conciliated_by, payments(reference,status)",
       )
       .order("created_at", { ascending: false });
+    // NUNCA cair em lista vazia silenciosa: erro de query vira banner + toast.
+    if (invoicesError) {
+      const msg = `${invoicesError.message}${invoicesError.hint ? ` — ${invoicesError.hint}` : ""}`;
+      setLoadError(msg);
+      toast({ title: "Falha ao carregar notas fiscais", description: msg, variant: "destructive" });
+      setRows([]);
+      return;
+    }
     const ids = (invoices ?? []).map((i: { id: string }) => i.id);
     const countByInvoice = new Map<string, number>();
     if (ids.length > 0) {
