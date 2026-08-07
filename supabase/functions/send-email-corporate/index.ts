@@ -141,16 +141,49 @@ async function finalize(admin: any, id: string | undefined, status: string, prov
   return json({ success: status === "sent", delivery_id: id, error }, status === "sent" ? 200 : 502);
 }
 
-function buildRfc2822(p: { to: string; subject: string; html: string; text?: string }): string {
-  return [
-    `To: ${p.to}`,
-    `Subject: ${p.subject}`,
-    `MIME-Version: 1.0`,
+function buildRfc2822(p: {
+  to: string;
+  cc?: string[];
+  subject: string;
+  html: string;
+  text?: string;
+  attachments?: { filename: string; content_base64: string; content_type?: string }[];
+}): string {
+  const headers = [`To: ${p.to}`];
+  if (p.cc && p.cc.length > 0) headers.push(`Cc: ${p.cc.join(", ")}`);
+  headers.push(`Subject: ${p.subject}`, `MIME-Version: 1.0`);
+
+  if (!p.attachments || p.attachments.length === 0) {
+    return [...headers, `Content-Type: text/html; charset="UTF-8"`, ``, p.html].join("\r\n");
+  }
+
+  const boundary = `exacta_${crypto.randomUUID().replace(/-/g, "")}`;
+  const parts = [
+    `--${boundary}`,
     `Content-Type: text/html; charset="UTF-8"`,
     ``,
     p.html,
+  ];
+  for (const a of p.attachments) {
+    parts.push(
+      `--${boundary}`,
+      `Content-Type: ${a.content_type ?? "application/octet-stream"}; name="${a.filename}"`,
+      `Content-Disposition: attachment; filename="${a.filename}"`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      a.content_base64.replace(/(.{76})/g, "$1\r\n"),
+    );
+  }
+  parts.push(`--${boundary}--`);
+
+  return [
+    ...headers,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    ``,
+    ...parts,
   ].join("\r\n");
 }
+
 
 function base64url(s: string): string {
   return btoa(unescape(encodeURIComponent(s)))
