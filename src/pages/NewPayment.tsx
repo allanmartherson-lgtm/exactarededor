@@ -1750,6 +1750,8 @@ const NewPayment = () => {
     }
     const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
     const dominantMapped = mapSectorFromRaw(dominantSectorRaw);
+    // Fallback por nome do arquivo — apenas SUGESTÃO quando a planilha não trouxe setor.
+    const filenameSector = dominantMapped ? null : suggestSectorFromFilename(f.name);
     const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
     // Hits do mapeamento (com override aplicado se houver template/manual)
@@ -1770,7 +1772,8 @@ const NewPayment = () => {
       matchedCompany: company ? { id: company.id, name: company.name } : null,
       matchScore: score,
       matchVia: via,
-      sectorMapping: dominantMapped,
+      sectorMapping: dominantMapped ?? filenameSector,
+      sectorSuggested: !dominantMapped && !!filenameSector,
       sectorMissing,
       rawMatrix: matrix,
       headerRowIndex: headerIdx,
