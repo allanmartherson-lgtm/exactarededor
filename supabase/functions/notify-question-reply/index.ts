@@ -55,9 +55,10 @@ serve(async (req) => {
       .eq("id", invoice.payment_id)
       .maybeSingle();
 
-    // Anexos da resposta — só inclui no e-mail se couberem em ~10MB no total
-    // (limite prático do Resend). Se exceder, manda só o link pro portal.
-    const MAX_TOTAL = 10 * 1024 * 1024;
+    // Anexos da resposta — só inclui no e-mail se couberem em ~3MB no total.
+    // Limite prático do Microsoft Graph /sendMail (anexo simples, base64 inline).
+    // Se exceder, manda só o link pro portal.
+    const MAX_TOTAL = 3 * 1024 * 1024;
     type EmailAttachment = { filename: string; content: string; contentType?: string };
     const emailAttachments: EmailAttachment[] = [];
     let attachedAll = true;

@@ -26,6 +26,8 @@ import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 import { a1_sendInvoiceRequest } from "../_shared/emailTemplates/templates.ts";
 
 
+import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -363,11 +365,6 @@ serve(async (req) => {
       });
 
       try {
-        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
-        const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-        if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
-          throw new Error("LOVABLE_API_KEY ou RESEND_API_KEY ausente");
-        }
         const ccList = [...opts.to.slice(1), ...opts.cc];
 
         // Setor/especialidade e competência (mesma lógica do template)
@@ -508,28 +505,23 @@ serve(async (req) => {
         const html = rendered.html;
 
 
-        const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": RESEND_API_KEY,
-          },
-          body: JSON.stringify({
-            from: "Exacta <onboarding@resend.dev>",
-            to: [opts.to[0]],
-            cc: ccList.length > 0 ? ccList : undefined,
-            subject: emailSubject,
-            html,
-            attachments: xlsxBuffer
-              ? [{ filename: fileName, content: xlsxBuffer }]
-              : undefined,
-          }),
+        const sendRes = await sendCorporateEmail({
+          to: opts.to[0],
+          cc: ccList.length > 0 ? ccList : undefined,
+          subject: emailSubject,
+          html,
+          attachments: xlsxBuffer
+            ? [{
+                filename: fileName,
+                content_base64: xlsxBuffer,
+                content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              }]
+            : undefined,
+          payment_id: payment?.id ?? undefined,
+          event_key: "invoice_request",
+          template_key: "a1_send_invoice_request",
         });
-        if (!resendResp.ok) {
-          const errBody = await resendResp.text();
-          throw new Error(`Resend ${resendResp.status}: ${errBody}`);
-        }
+        if (!sendRes.ok) throw new Error(sendRes.error ?? "Falha no envio corporativo");
         await supabase.from("invoices").update({
           sent_at: new Date().toISOString(),
           send_error: null,
