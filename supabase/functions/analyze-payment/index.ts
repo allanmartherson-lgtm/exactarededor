@@ -3539,18 +3539,12 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
 
 
-    // Notifica o analista que a IA concluiu (Evento 2)
-    if (obsTransition) {
-      console.log(`Triggering notify-analyst-event (ia_concluded) for payment ${payment_id}`);
-      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-analyst-event`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
-        body: JSON.stringify({ paymentId: payment_id, eventType: "ia_concluded" }),
-      }).catch(e => console.error("Failed to notify analyst (ia_concluded):", e));
-    }
+    // [2026-08-07] Notificação `ia_concluded` REMOVIDA daqui.
+    // analyze-payment roda UMA VEZ POR EMPRESA — disparar aqui gerava vários
+    // e-mails por lote. O disparo único agora vive em `orchestrate-analysis`,
+    // quando a análise do lote inteiro termina (com claim atômico em
+    // payments.analysis_notified_at).
+
 
     // ---------- 11. Atualiza Diagnósticos no Banco ----------
     // 2026-06-24: analyze-payment é invocado UMA VEZ POR EMPRESA. Antes, cada
