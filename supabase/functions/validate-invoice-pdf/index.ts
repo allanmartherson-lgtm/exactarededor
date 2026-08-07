@@ -175,15 +175,35 @@ serve(async (req) => {
     const divergences     = Array.isArray(parsed.divergences) ? parsed.divergences as string[] : [];
     const confidence      = (parsed.confidence as string) ?? "media";
 
+    // Conferência programática do CNPJ (não depende do parecer da IA).
+    const cnpjMismatch = !!(expectedCnpj && extractedCnpj && expectedCnpj !== extractedCnpj);
+    if (cnpjMismatch) {
+      const msg = `CNPJ do emissor (${extractedCnpj}) diferente do CNPJ cadastrado da empresa (${expectedCnpj}).`;
+      if (!divergences.some((d) => d.toLowerCase().includes("cnpj"))) divergences.push(msg);
+    }
+
     await supabase.from("invoices").update({
-      ai_validation: { ...parsed, model: "google/gemini-2.5-pro" },
+      ai_validation: {
+        ...parsed,
+        model: "google/gemini-2.5-pro",
+        expected_cnpj: expectedCnpj,
+        cnpj_mismatch: cnpjMismatch,
+      },
       ai_validated_at: new Date().toISOString(),
       ai_extracted_amount: extractedAmount,
       ai_extracted_number: extractedNumber,
       ai_extracted_cnpj: extractedCnpj,
     }).eq("id", invoice.id);
 
-    return json({ ok: true, divergences, confidence, extracted_amount: extractedAmount });
+    return json({
+      ok: true,
+      divergences,
+      confidence,
+      extracted_amount: extractedAmount,
+      extracted_cnpj: extractedCnpj,
+      expected_cnpj: expectedCnpj,
+      cnpj_mismatch: cnpjMismatch,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     console.error("validate-invoice-pdf error", msg);
