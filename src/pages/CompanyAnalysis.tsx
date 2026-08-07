@@ -213,6 +213,7 @@ export default function CompanyAnalysis() {
   const {
     payment,
     items: allItems,
+    itemsLoading,
     obs,
     groups,
     rulesIndex,
