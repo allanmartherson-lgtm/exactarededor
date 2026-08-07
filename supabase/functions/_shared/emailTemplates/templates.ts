@@ -56,7 +56,7 @@ export function a1_sendInvoiceRequest(ctx: A1Ctx): Rendered {
     ${ctaButton(ctx.upload_url, "Enviar Nota Fiscal →")}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
       <tr><td style="padding:14px 0;border-top:1px solid ${BRAND.border};font-family:'SF Mono','Menlo','Courier New',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:${BRAND.textMuted};">Dados cadastrais do tomador</td></tr>
-      <tr><td style="padding:0 0 4px;font-size:13px;line-height:1.6;color:${BRAND.text};white-space:pre-line;">${escapeHtml(ctx.hospital_dados_cadastrais)}</td></tr>
+      <tr><td style="padding:0 0 4px;font-size:13px;line-height:1.6;color:${BRAND.text};white-space:pre-line;">${escapeHtml(ctx.hospital_dados_cadastrais).replace(/\r?\n/g, "<br/>")}</td></tr>
     </table>
   `;
   const footerExtra = `
