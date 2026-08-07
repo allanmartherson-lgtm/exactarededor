@@ -147,9 +147,9 @@ export function b1_validatorAssignment(ctx: B1Ctx): Rendered {
 export type B2Ctx = {
   analyst_name: string;
   payment_reference: string;
-  items_count: number | string;
-  alerts_count: number | string;
-  divergences_count: number | string;
+  items_count?: number | string | null;
+  alerts_count?: number | string | null;
+  divergences_count?: number | string | null;
   analysis_duration?: string | null;
   payment_link: string;
   preferences_link?: string;
