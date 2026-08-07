@@ -425,7 +425,7 @@ const InvoicePortal = () => {
                     {resetOpen ? resetForm : (
                       reuploadLocked ? (
                         <p className="text-xs italic">
-                          Este pagamento já está em aprovação ou foi efetivado pelo time fiscal — não é mais possível reabrir o envio. Use a aba <strong>"Tenho uma dúvida"</strong> para falar com o analista.
+                          Este pagamento já está em aprovação ou foi efetivado pelo time fiscal — não é mais possível reabrir o envio. Use a aba <strong>"Falar com analista"</strong>.
                         </p>
                       ) : (
                       <Button
