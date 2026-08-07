@@ -355,6 +355,9 @@ Deno.serve(async (req) => {
     try {
       await supabase.from("payments").update({
         processing_timeout_occurred: false,
+        // [2026-08-07] Nova rodada de análise → libera o aviso `ia_concluded`
+        // para ser enviado uma vez ao fim deste run.
+        analysis_notified_at: null,
         processing_diagnostics: {
           status: "running",
           job_id: job.id,
