@@ -99,7 +99,15 @@ Deno.serve(async (req) => {
 
 
     if (gmailKey) {
-      const raw = buildRfc2822({ to: body.to, subject: body.subject, html: body.html, text: body.text });
+      const raw = buildRfc2822({
+        to: body.to,
+        cc: body.cc,
+        subject: body.subject,
+        html: body.html,
+        text: body.text,
+        attachments: body.attachments,
+      });
+
       const r = await fetch(`${GATEWAY}/google_mail/gmail/v1/users/me/messages/send`, {
         method: "POST",
         headers: {
