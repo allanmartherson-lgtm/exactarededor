@@ -280,8 +280,22 @@ const InvoicePortal = () => {
         </header>
 
 
+        {/* Motivo enviado pelo analista quando a NF foi reaberta para correção. */}
+        {canUpload && correctionReason && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 flex items-start gap-2">
+            <MessageCircleQuestion className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">Correção solicitada pelo analista</p>
+              <p className="text-xs mt-0.5 whitespace-pre-wrap">{correctionReason}</p>
+              <p className="text-[11px] mt-1 text-blue-800/80">
+                O arquivo enviado anteriormente foi arquivado no histórico — nada foi perdido.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Prazo fiscal: 30 dias após aprovação */}
-        {!expired && (
+        {canUpload && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
             <Clock className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
