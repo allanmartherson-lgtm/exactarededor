@@ -965,7 +965,8 @@ const Invoices = ({ embedded = false }: { embedded?: boolean } = {}) => {
                           </div>
                         )}
                       </div>
-                    )}
+                      );
+                    })()}
 
                {expanded && (
                  <div className="mx-5 mb-4 rounded-md border border-border bg-muted/30 p-3 space-y-3 text-xs">
