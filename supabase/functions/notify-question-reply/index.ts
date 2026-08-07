@@ -4,6 +4,8 @@ import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireI
 import { b6_questionReply } from "../_shared/emailTemplates/templates.ts";
 
 
+import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -107,41 +109,30 @@ serve(async (req) => {
 
 
     try {
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
-      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-      if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
-        throw new Error("LOVABLE_API_KEY ou RESEND_API_KEY ausente");
-      }
       const toList = [invoice.recipient_email].filter((x): x is string => Boolean(x));
       if (toList.length === 0) throw new Error("Invoice sem recipient_email");
       const rawCc = (invoice as { recipient_cc?: string[] | string | null }).recipient_cc;
       const ccList = (Array.isArray(rawCc) ? rawCc : rawCc ? [rawCc] : [])
         .filter((x): x is string => Boolean(x) && x !== invoice.recipient_email);
 
-      const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-          "X-Connection-Api-Key": RESEND_API_KEY,
-        },
-        body: JSON.stringify({
-          from: "Exacta <onboarding@resend.dev>",
-          to: toList,
-          cc: ccList.length > 0 ? ccList : undefined,
-          subject,
-          html,
-          text: body,
-
-          attachments: emailAttachments.length > 0
-            ? emailAttachments.map((a) => ({ filename: a.filename, content: a.content }))
-            : undefined,
-        }),
+      const sendRes = await sendCorporateEmail({
+        to: toList[0],
+        cc: ccList.length > 0 ? ccList : undefined,
+        subject,
+        html,
+        text: body,
+        attachments: emailAttachments.length > 0
+          ? emailAttachments.map((a) => ({
+              filename: a.filename,
+              content_base64: a.content,
+              content_type: a.contentType,
+            }))
+          : undefined,
+        payment_id: payment?.id ?? undefined,
+        event_key: "invoice_question_reply",
+        template_key: "b6_question_reply",
       });
-      if (!resendResp.ok) {
-        const errBody = await resendResp.text();
-        throw new Error(`Resend ${resendResp.status}: ${errBody}`);
-      }
+      if (!sendRes.ok) throw new Error(sendRes.error ?? "Falha no envio corporativo");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.warn("[notify-question-reply] falha ao enviar e-mail:", msg);
