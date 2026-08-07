@@ -3611,24 +3611,10 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         __progress_reported = true;
         console.timeEnd(`${__t} increment_progress`);
 
-        if (!jobErr && jobStatus && (jobStatus.status === "concluido" || jobStatus.status === "parcial")) {
-          const successCount = jobStatus.processed_companies - (jobStatus.failed_companies?.length ?? 0);
-          const failCount = jobStatus.failed_companies?.length ?? 0;
-          const reason = `${successCount} sucesso(s), ${failCount} falha(s).`;
-          
-          fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-analyst-event`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({ 
-              paymentId: payment_id, 
-              eventType: "ia_concluded",
-              reason
-            }),
-          }).catch(e => console.error("Failed to notify analyst (job_finished):", e));
-        }
+        // [2026-08-07] Disparo de `ia_concluded` removido daqui: cada worker
+        // via o job "concluido" em corrida e mandava e-mails em rajada.
+        // Agora o aviso sai uma única vez em `orchestrate-analysis`.
+
       } catch (e) {
         console.error("Falha ao reportar progresso", e);
       }
