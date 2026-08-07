@@ -222,7 +222,16 @@ const InvoicePortal = () => {
 
   const inv = info.invoice;
   const pay = info.payment ?? {};
-  const expired = inv.status !== "aguardando";
+  // O envio só é permitido em "aguardando"; o canal com o analista continua
+  // aberto em "recebida" e "divergente" (etapa 4 do ciclo de NF).
+  const canUpload = inv.status === "aguardando";
+  const chatEnabled = ["aguardando", "recebida", "divergente"].includes(inv.status);
+  const notes: string = typeof inv.reconciliation_notes === "string" ? inv.reconciliation_notes : "";
+  // Quando o analista pede correção, o backend reabre a NF e grava o motivo
+  // em reconciliation_notes com este prefixo.
+  const correctionReason = /^Corre[çc][ãa]o solicitada pelo analista:/i.test(notes)
+    ? notes.replace(/^Corre[çc][ãa]o solicitada pelo analista:\s*/i, "").trim()
+    : null;
 
   // Trava de UI: depois que o pagamento foi encaminhado pelo time fiscal,
   // não dá mais pra reabrir o envio. Mantém em sincronia com o backend.
