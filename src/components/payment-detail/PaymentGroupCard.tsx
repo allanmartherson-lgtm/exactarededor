@@ -131,32 +131,10 @@ export const PaymentGroupCard = ({
     { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0, erro_duplicidade_pagamento: 0, erro_duplicidade_calculo: 0 } as Record<ItemAiStatus, number>,
   );
 
-  // Alertas/críticos pendentes — usa o mesmo critério do card ALERTAS na tela da empresa:
-  // só conta itens ainda em aberto (não acatados/aprovados/seguidos/cancelados),
-  // não informativos (bônus/complemento/manual), e que ainda têm findings registrados.
-  // Sem esse alinhamento o badge do lote ficava com contagem antiga após o analista
-  // resolver alertas dentro da empresa.
-  const outstanding = groupItems.reduce(
-    (acc, it) => {
-      const tl = (it as { tipo_linha?: string | null }).tipo_linha ?? null;
-      const src = (it as { source?: string | null }).source ?? null;
-      const origem = (it as { item_origem?: string | null }).item_origem ?? null;
-      const isInformativo =
-        tl === "complemento_bonus" || tl === "complemento" || tl === "outros" ||
-        src === "manual" || origem === "inclusao_manual";
-      if (isInformativo) return acc;
-      const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus, (it as { is_cancelled?: boolean | null }).is_cancelled);
-      if (eff === "cancelado" || eff === "acatado" || eff === "aprovado" || eff === "seguido") return acc;
-      const alerts = (it.ai_findings?.alerts ?? []) as string[];
-      if (alerts.length === 0) return acc;
-      if (it.ai_status === "reprovado") acc.criticos += 1;
-      else if (it.ai_status === "alerta") acc.alertas += 1;
-      return acc;
-    },
-    { alertas: 0, criticos: 0 },
-  );
-  gCounts.alerta = outstanding.alertas;
-  gCounts.reprovado = outstanding.criticos;
+  // Os selos do header refletem o ai_status real dos itens do grupo
+  // (aprovado / alerta / reprovado). Não filtramos por "pendência em aberto":
+  // isso escondia itens em alerta que ainda bloqueiam a aprovação.
+
 
   // Conferência bruto x NF (por empresa) — apenas notas RECEBIDAS.
   const groupInvoices = invoices.filter((inv) => {
