@@ -327,6 +327,45 @@ Deno.serve(async (req) => {
       const done = finalJob && (finalJob.status === "concluido" || finalJob.status === "parcial"
         || (finalJob.processed_companies ?? 0) >= (finalJob.total_companies ?? 0));
       if (done) {
+        // [2026-08-07] Disparo ÚNICO do e-mail "Análise concluída".
+        // Claim atômico: só envia quem conseguir marcar analysis_notified_at
+        // (era NULL). Protege contra retries/concorrência da última página.
+        try {
+          const { data: claimedNotify, error: notifyClaimErr } = await supabase
+            .from("payments")
+            .update({ analysis_notified_at: new Date().toISOString() })
+            .eq("id", payment_id)
+            .is("analysis_notified_at", null)
+            .select("id");
+          if (notifyClaimErr) {
+            console.error("[orchestrate] claim de notificação falhou", notifyClaimErr);
+          } else if (claimedNotify && claimedNotify.length > 0) {
+            const successCount = (finalJob?.processed_companies ?? 0)
+              - ((finalJob as any)?.failed_companies?.length ?? 0);
+            const failCount = (finalJob as any)?.failed_companies?.length ?? 0;
+            runInBackground(fetch(`${SUPABASE_URL}/functions/v1/notify-analyst-event`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${SERVICE_KEY}`,
+              },
+              body: JSON.stringify({
+                paymentId: payment_id,
+                eventType: "ia_concluded",
+                reason: `${successCount} sucesso(s), ${failCount} falha(s).`,
+              }),
+            }).then(async (resp) => {
+              if (!resp.ok) console.error("[orchestrate] notify-analyst-event erro", resp.status, (await resp.text()).slice(0, 300));
+              else await resp.text();
+            }), "falha ao notificar ia_concluded");
+          } else {
+            console.log(`[orchestrate] ia_concluded já notificado para payment ${payment_id} — skip`);
+          }
+        } catch (e) {
+          console.error("[orchestrate] erro ao notificar ia_concluded", e);
+        }
+
+
         // [Pipeline único] Substituímos a colcha de retalhos (recalc-pools +
         // loops manuais por PJ) por uma chamada a `finalize-payment-engine`,
         // que garante leitura idempotente e auditável de TODAS as fontes:
