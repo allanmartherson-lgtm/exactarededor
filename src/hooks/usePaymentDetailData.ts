@@ -106,6 +106,17 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
   const load = useCallback(async () => {
     if (!id) return;
+    // Guard de sessão: sem sessão válida o supabase-js cai para a chave anon e
+    // TODAS as queries desta tela batem em "permission denied" (42501). Como o
+    // fluxo de erro reagenda o load, isso vira uma rajada de dezenas de
+    // requisições anônimas contra payment_items. Nunca consultar sem sessão.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      setItemsLoading(false);
+      setItemsLoadIssue("Sessão expirada. Faça login novamente para carregar o lote.");
+      loadPendingRef.current = false;
+      return;
+    }
     setItemsLoading(true);
     // NÃO abortamos o request anterior aqui. Durante a análise por IA, o
     // realtime dispara muitos refetches em sequência; abortar o anterior
@@ -114,6 +125,7 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     const ac = new AbortController();
     abortRef.current = ac;
     const myToken = ++loadTokenRef.current;
+
     const [
       paymentRes,
       itemsRes,
@@ -274,10 +286,26 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
     setPaymentMissing(!paymentRes.error && !p);
     if (itemsRes.error) {
       console.error("[PaymentDetail] Falha ao carregar itens; mantendo estado anterior", itemsRes.error);
+      const errCode = String((itemsRes.error as { code?: string } | null)?.code ?? "");
+      const errMsg = String((itemsRes.error as { message?: string } | null)?.message ?? "").toLowerCase();
+      const isAuthErr =
+        errCode === "42501" ||
+        errCode === "PGRST301" ||
+        errMsg.includes("permission denied") ||
+        errMsg.includes("jwt");
+      if (isAuthErr) {
+        // Erro de permissão NUNCA deve reagendar: sem sessão válida o retry vira
+        // rajada de requisições anônimas negadas contra payment_items.
+        setItemsLoading(false);
+        setItemsLoadIssue("Sessão expirada ou sem permissão para este lote. Faça login novamente.");
+        loadPendingRef.current = false;
+        return;
+      }
       setItemsLoadIssue("Falha temporária ao carregar itens. Recarregando…");
       loadPendingRef.current = true;
       return;
     }
+
     // Itens cancelados: suprime todos os ai_findings, alerts e validation_findings
     // antes de qualquer consumidor (badges, contagens, alertas, tooltips).
     // Item cancelado não deve mais "gritar" como alerta/validação em nenhuma tela
