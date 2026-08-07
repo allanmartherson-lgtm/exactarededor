@@ -34,7 +34,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
 import { resolvePaymentAmounts } from "@/lib/resolvePaymentAmounts";
-import { loadSectorAliases } from "@/hooks/useSectorAliases";
+import { loadSectorAliases, type SectorAliasMap } from "@/hooks/useSectorAliases";
 import { learnCompanyAlias, shouldLearnAlias } from "@/lib/learnCompanyAlias";
 import { loadDraft, saveDraft, clearDraft, fileKey, isDraftMeaningful, type FileDecision } from "@/lib/newPaymentDraft";
 import { detectSectorColumn, type SectorColumnDetection } from "@/lib/detectSectorColumn";
@@ -277,6 +277,8 @@ interface FileBucket {
   sectorMapping?: string | null;
   /** true quando NENHUMA linha da planilha trouxe coluna de setor preenchida — exige mapeamento manual antes do envio. */
   sectorMissing?: boolean;
+  /** true quando o sectorMapping veio de sugestão (nome do arquivo) e não de dado da planilha. Editável pelo usuário. */
+  sectorSuggested?: boolean;
   /** Se verdadeiro, o valor do convênio nesta planilha já é o total (Unitário * Qtd). */
   convenioValueTotalized?: boolean;
   /** Override manual de colunas quando o auto-detect falha em planilhas atípicas. */
@@ -580,6 +582,8 @@ const NewPayment = () => {
   const commitPreviewResolverRef = useRef<((v: "confirm" | "cancel") => void) | null>(null);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const companiesRef = useRef<CompanyRow[]>([]);
+  // Aliases de setor carregados no parse — usados por mapSectorFromRaw fora do fluxo async.
+  const sectorAliasesRef = useRef<SectorAliasMap | null>(null);
   const companiesLoadPromiseRef = useRef<Promise<CompanyRow[]> | null>(null);
   const registriesLoadPromiseRef = useRef<Promise<void> | null>(null);
   const [searchParams] = useSearchParams();
@@ -1502,19 +1506,19 @@ const NewPayment = () => {
     });
   };
 
-  const mapSectorFromRaw = (raw: string | null): RuleSector | null => {
-    if (!raw) return null;
-    const normalize = (s: string) =>
-      s.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/\(.*?\)/g, "")
-        .replace(/[^a-z0-9\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    const normRaw = normalize(raw);
+  const normalizeSectorText = (s: string) =>
+    s.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\(.*?\)/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  /** Casa um texto já normalizado contra os rótulos do enum de setor. */
+  const matchSectorLabel = (normRaw: string): RuleSector | null => {
     if (!normRaw) return null;
     for (const [key, label] of Object.entries(RULE_SECTOR_LABELS)) {
-      const normLabel = normalize(label);
+      const normLabel = normalizeSectorText(label);
       if (!normLabel) continue;
       if (normRaw.includes(normLabel) || normLabel.includes(normRaw)) {
         return key as RuleSector;
@@ -1522,6 +1526,52 @@ const NewPayment = () => {
     }
     return null;
   };
+
+  const mapSectorFromRaw = (raw: string | null): RuleSector | null => {
+    if (!raw) return null;
+    const normRaw = normalizeSectorText(raw);
+    if (!normRaw) return null;
+    const direct = matchSectorLabel(normRaw);
+    if (direct) return direct;
+    // Fallback: consulta os aliases cadastrados (sector_aliases/sectors) já
+    // carregados no parse — alias "CC 3º andar" → "Centro Cirúrgico" → cirurgia.
+    const aliases = sectorAliasesRef.current;
+    if (aliases) {
+      const canonical = aliases.resolve(raw) ?? aliases.resolveSlug(raw);
+      if (canonical) {
+        const viaAlias = matchSectorLabel(normalizeSectorText(canonical));
+        if (viaAlias) return viaAlias;
+      }
+    }
+    return null;
+  };
+
+  /**
+   * Sugestão por NOME DO ARQUIVO (ex.: "Parecer Abril.xlsx" → parecer).
+   * É apenas sugestão — o usuário pode trocar no card do arquivo.
+   */
+  const suggestSectorFromFilename = (fileName: string): RuleSector | null => {
+    const norm = normalizeSectorText(fileName.replace(/\.[a-z0-9]+$/i, ""));
+    if (!norm) return null;
+    for (const [key, label] of Object.entries(RULE_SECTOR_LABELS)) {
+      if (key === "outro") continue;
+      const normLabel = normalizeSectorText(label);
+      if (normLabel && norm.includes(normLabel)) return key as RuleSector;
+    }
+    // Tokens curtos comuns em nome de arquivo.
+    const tokens: Array<[RegExp, RuleSector]> = [
+      [/\bpareceres?\b/, "parecer"],
+      [/\bvisitas?\b/, "visita"],
+      [/\bcirurgias?\b|\bcc\b/, "cirurgia"],
+      [/\bhemodin\w*/, "hemodinamica"],
+      [/\bendoscopias?\b|\bendo\b/, "sadt_endoscopia"],
+      [/\bconsultas?\b/, "consulta"],
+      [/\bprocedimentos?\b/, "procedimento"],
+    ];
+    for (const [re, sector] of tokens) if (re.test(norm)) return sector;
+    return null;
+  };
+
 
   const parseFile = async (
     f: File,
@@ -1628,8 +1678,13 @@ const NewPayment = () => {
     // "Unidade de Atendimento"). Quando a detecção foi por valores, deixamos
     // para o usuário confirmar manualmente — nunca inferimos sozinhos.
     const sectorAliasesMap = await loadSectorAliases(hospital?.id ?? null);
+    sectorAliasesRef.current = sectorAliasesMap;
     const detection = detectSectorColumn(headerNames, json, sectorAliasesMap.resolveSlug);
-    const autoSectorColumn = detection.confidence === "header" ? detection.recommended : null;
+    // Aceita também detecção por VALORES (>=60% dos valores casam com setores
+    // cadastrados) — continua editável pelo usuário no card do arquivo.
+    const autoSectorColumn = detection.confidence === "header" || detection.confidence === "values"
+      ? detection.recommended
+      : null;
 
     // Tenta achar template salvo com a mesma assinatura de cabeçalho.
     // Quando encontra, aplica automaticamente e marca para incrementar o use_count.
@@ -1695,6 +1750,8 @@ const NewPayment = () => {
     }
     const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
     const dominantMapped = mapSectorFromRaw(dominantSectorRaw);
+    // Fallback por nome do arquivo — apenas SUGESTÃO quando a planilha não trouxe setor.
+    const filenameSector = dominantMapped ? null : suggestSectorFromFilename(f.name);
     const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
     // Hits do mapeamento (com override aplicado se houver template/manual)
@@ -1715,7 +1772,8 @@ const NewPayment = () => {
       matchedCompany: company ? { id: company.id, name: company.name } : null,
       matchScore: score,
       matchVia: via,
-      sectorMapping: dominantMapped,
+      sectorMapping: dominantMapped ?? filenameSector,
+      sectorSuggested: !dominantMapped && !!filenameSector,
       sectorMissing,
       rawMatrix: matrix,
       headerRowIndex: headerIdx,
@@ -2478,7 +2536,7 @@ const NewPayment = () => {
         priority: missingSector.length >= 3 ? "alta" : "media",
         icon: AlertTriangle,
         title: `${missingSector.length} arquivo${missingSector.length === 1 ? "" : "s"} sem setor`,
-        message: `Sem setor o motor não calcula. Escolha um setor abaixo pra aplicar de uma vez. Afetados: ${preview}.`,
+        message: `Setor ajuda na organização e nos relatórios (não bloqueia a importação). Escolha um setor abaixo pra aplicar de uma vez. Afetados: ${preview}.`,
         inlineActionsHint: `Aplicar em ${missingSector.length} ${missingSector.length === 1 ? "arquivo" : "arquivos"}:`,
         inlineActions: (Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((s) => ({
           id: `apply-${s}`,
@@ -5106,6 +5164,11 @@ const NewPayment = () => {
                               >
                                 <Pencil className="h-3 w-3 mr-1" />
                                 {`Setor: ${b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}`}
+                                {b.sectorSuggested && b.sectorMapping && (
+                                  <span className="ml-1 rounded px-1 py-px text-[9px] uppercase tracking-wide border border-border text-muted-foreground">
+                                    sugerido
+                                  </span>
+                                )}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-3" align="end">

@@ -762,8 +762,36 @@ export function ZeevAssistant({
                           </p>
                         </div>
                       </div>
+
+                      {/* Ações de aplicação direta (um clique) */}
+                      {ins.inlineActions && ins.inlineActions.length > 0 && (
+                        <div className="space-y-1.5 pl-4">
+                          {ins.inlineActionsHint && (
+                            <p className="text-[11px] text-muted-foreground">{ins.inlineActionsHint}</p>
+                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {ins.inlineActions.map((act) => (
+                              <Button
+                                key={act.id}
+                                size="sm"
+                                variant={act.tone === "primary" ? "default" : "outline"}
+                                onClick={() => act.onClick()}
+                                className={cn(
+                                  "h-7 text-[11px]",
+                                  act.tone === "primary" &&
+                                    "bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-dark))]",
+                                )}
+                                title={act.hint}
+                              >
+                                {act.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Ação primária: bulk > suggestRule > chat > filter */}
+
                         {canBulk ? (
                           <Button
                             size="sm"
