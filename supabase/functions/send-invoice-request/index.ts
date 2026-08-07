@@ -516,7 +516,8 @@ serve(async (req) => {
               const addr = enc(r, c);
               if (!ws[addr]) ws[addr] = { t: "s", v: "" };
               const cell = ws[addr];
-              if (c === 8 || moneyCols.has(c)) cell.t = "n";
+              // Só marca como numérico se o valor realmente for número (t:"n" com "" quebra o writer).
+              if ((c === 8 || moneyCols.has(c)) && typeof cell.v === "number") cell.t = "n";
               cell.s = {
                 font: { name: "Calibri", sz: 9, color: { rgb: TEXT } },
                 border: allThin,
