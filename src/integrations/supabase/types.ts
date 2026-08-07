@@ -4567,12 +4567,17 @@ export type Database = {
           company_id: string | null
           company_name: string | null
           created_at: string
+          erp_document_number: string | null
+          erp_posted_at: string | null
+          erp_posted_by: string | null
           expected_amount: number
           file_path: string | null
           hospital_id: string
           id: string
           invoice_number: string | null
           items_count: number
+          paid_at: string | null
+          paid_by: string | null
           payment_id: string
           received_amount: number | null
           received_at: string | null
@@ -4596,12 +4601,17 @@ export type Database = {
           company_id?: string | null
           company_name?: string | null
           created_at?: string
+          erp_document_number?: string | null
+          erp_posted_at?: string | null
+          erp_posted_by?: string | null
           expected_amount: number
           file_path?: string | null
           hospital_id: string
           id?: string
           invoice_number?: string | null
           items_count?: number
+          paid_at?: string | null
+          paid_by?: string | null
           payment_id: string
           received_amount?: number | null
           received_at?: string | null
@@ -4625,12 +4635,17 @@ export type Database = {
           company_id?: string | null
           company_name?: string | null
           created_at?: string
+          erp_document_number?: string | null
+          erp_posted_at?: string | null
+          erp_posted_by?: string | null
           expected_amount?: number
           file_path?: string | null
           hospital_id?: string
           id?: string
           invoice_number?: string | null
           items_count?: number
+          paid_at?: string | null
+          paid_by?: string | null
           payment_id?: string
           received_amount?: number | null
           received_at?: string | null
@@ -14550,6 +14565,8 @@ export type Database = {
         | "conciliada"
         | "divergente"
         | "cancelada"
+        | "lancada"
+        | "paga"
       item_ai_status:
         | "pendente"
         | "aprovado"
@@ -14860,6 +14877,8 @@ export const Constants = {
         "conciliada",
         "divergente",
         "cancelada",
+        "lancada",
+        "paga",
       ],
       item_ai_status: [
         "pendente",
