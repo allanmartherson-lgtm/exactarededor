@@ -73,6 +73,7 @@ import {
 import { MinimumGuaranteeCard } from "@/components/payment-detail/MinimumGuaranteeCard";
 import { useFinancialComposition } from "@/hooks/useFinancialComposition";
 import { useStaleAnalysisIndicator } from "@/hooks/useStaleAnalysisIndicator";
+import { useReconciliationRunStatus } from "@/hooks/useReconciliationRunStatus";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import CancelPaymentDialog from "@/components/payment-detail/CancelPaymentDialog";
@@ -127,8 +128,9 @@ import {
 import { calculateFinancialRisk } from "@/lib/riskScore";
 import { cn, normalizeString } from "@/lib/utils";
 
-import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
+import { ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
+import { ObservationTypeSelector } from "@/components/payment-detail/ObservationTypeSelector";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerCrossReferencePanel";
 import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
@@ -201,59 +203,6 @@ const HighlightBanner = ({
   );
 };
 
-const ObservationTypeSelector = ({
-  value,
-  onChange,
-  disabled
-}: {
-  value: ObservationType;
-  onChange: (v: ObservationType) => void;
-  disabled?: boolean;
-}) => {
-  return (
-    <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
-      <Button
-        variant={value === "informativo" ? "default" : "ghost"}
-        size="sm"
-        className="h-7 px-2 text-[11px] gap-1.5"
-        onClick={() => onChange("informativo")}
-        disabled={disabled}
-        type="button"
-      >
-        <Info className="h-3 w-3" />
-        Informativo
-      </Button>
-      <Button
-        variant={value === "impacta_aprovacao" ? "default" : "ghost"}
-        size="sm"
-        className={cn(
-          "h-7 px-2 text-[11px] gap-1.5",
-          value === "impacta_aprovacao" ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-        )}
-        onClick={() => onChange("impacta_aprovacao")}
-        disabled={disabled}
-        type="button"
-      >
-        <ShieldAlert className="h-3 w-3" />
-        Impacta aprovação
-      </Button>
-      <Button
-        variant={value === "justificativa_override" ? "default" : "ghost"}
-        size="sm"
-        className={cn(
-          "h-7 px-2 text-[11px] gap-1.5",
-          value === "justificativa_override" ? "bg-success hover:bg-success/90 text-white" : "text-success hover:text-success/90 hover:bg-success/10"
-        )}
-        onClick={() => onChange("justificativa_override")}
-        disabled={disabled}
-        type="button"
-      >
-        <Pencil className="h-3 w-3" />
-        Justificativa
-      </Button>
-    </div>
-  );
-};
 export default function CompanyAnalysis() {
   const { id, groupId } = useParams<{ id: string; groupId: string }>();
   const navigate = useNavigate();
@@ -302,25 +251,7 @@ export default function CompanyAnalysis() {
   // que o relatório por empresa reflita exatamente o relatório do lote.
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isConciliationOpen, setIsConciliationOpen] = useState(false);
-  const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    let active = true;
-    const check = async () => {
-      const { count } = await (supabase as any)
-        .from("reconciliation_runs")
-        .select("id", { count: "exact", head: true })
-        .eq("payment_id", id);
-      if (active) setHasReconciliationRun((count ?? 0) > 0);
-    };
-    check();
-    const ch = supabase
-      .channel(`recon-runs-company:${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "reconciliation_runs", filter: `payment_id=eq.${id}` }, check)
-      .subscribe();
-    return () => { active = false; supabase.removeChannel(ch); };
-  }, [id]);
+  const hasReconciliationRun = useReconciliationRunStatus(id);
 
   const handleOpenConciliation = () => {
     if (hasReconciliationRun === false) {

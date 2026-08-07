@@ -90,6 +90,7 @@ import { ProductionValidationButton } from "@/components/payment-detail/Producti
 import { ProductionValidationPanel } from "@/components/payment-detail/ProductionValidationPanel";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import { useUserCompanyNotes } from "@/hooks/useUserCompanyNotes";
+import { useReconciliationRunStatus } from "@/hooks/useReconciliationRunStatus";
 import { PrivateCompanyNote } from "@/components/payment-detail/PrivateCompanyNote";
 import { TussPrincipalAuditPanel, useTussAuditOpenCount } from "@/components/payment-detail/TussPrincipalAuditPanel";
 import { PayoutBreakdownCard } from "@/components/PayoutBreakdownCard";
@@ -121,61 +122,7 @@ import { confirmDialog } from "@/lib/confirm";
 import { DateInput } from "@/components/ui/date-input";
 import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
-
-
-const ObservationTypeSelector = ({
-  value,
-  onChange,
-  disabled
-}: {
-  value: ObservationType;
-  onChange: (v: ObservationType) => void;
-  disabled?: boolean;
-}) => {
-  return (
-    <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-full border w-fit">
-      <Button
-        variant={value === "informativo" ? "default" : "ghost"}
-        size="sm"
-        className="h-7 px-2 text-[11px] gap-1.5"
-        onClick={() => onChange("informativo")}
-        disabled={disabled}
-        type="button"
-      >
-        <Info className="h-3 w-3" />
-        Informativo
-      </Button>
-      <Button
-        variant={value === "impacta_aprovacao" ? "default" : "ghost"}
-        size="sm"
-        className={cn(
-          "h-7 px-2 text-[11px] gap-1.5",
-          value === "impacta_aprovacao" ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-        )}
-        onClick={() => onChange("impacta_aprovacao")}
-        disabled={disabled}
-        type="button"
-      >
-        <ShieldAlert className="h-3 w-3" />
-        Impacta aprovação
-      </Button>
-      <Button
-        variant={value === "justificativa_override" ? "default" : "ghost"}
-        size="sm"
-        className={cn(
-          "h-7 px-2 text-[11px] gap-1.5",
-          value === "justificativa_override" ? "bg-success hover:bg-success/90 text-white" : "text-success hover:text-success/90 hover:bg-success/10"
-        )}
-        onClick={() => onChange("justificativa_override")}
-        disabled={disabled}
-        type="button"
-      >
-        <Pencil className="h-3 w-3" />
-        Justificativa
-      </Button>
-    </div>
-  );
-};
+import { ObservationTypeSelector } from "@/components/payment-detail/ObservationTypeSelector";
 
 
 // Status que representam "handoff" — quem acabou de agir passou a bola adiante.
@@ -463,7 +410,7 @@ const PaymentDetail = () => {
   const setConciliationCompany = useCallback((c: string | null) => {
     setConciliationCompanyState(c);
   }, []);
-  const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean>(false);
+  const hasReconciliationRun = Boolean(useReconciliationRunStatus(id));
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
@@ -680,34 +627,6 @@ const PaymentDetail = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_questions", filter: `payment_id=eq.${id}` },
         () => load(),
-      )
-      .subscribe();
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(ch);
-    };
-  }, [id]);
-
-  // Detecta se já existe alguma conciliação para o lote — controla o botão por empresa.
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    const check = async () => {
-      const { data } = await (supabase as any)
-        .from("reconciliation_runs")
-        .select("id")
-        .eq("payment_id", id)
-        .limit(1)
-        .maybeSingle();
-      if (!cancelled) setHasReconciliationRun(!!data);
-    };
-    check();
-    const ch = supabase
-      .channel(`recon-runs-${id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reconciliation_runs", filter: `payment_id=eq.${id}` },
-        () => check(),
       )
       .subscribe();
     return () => {
