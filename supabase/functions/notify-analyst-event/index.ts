@@ -7,18 +7,17 @@ import {
   b2_iaConcluded,
   b3_returned,
 } from "../_shared/emailTemplates/templates.ts";
+import { sendCorporateEmail } from "../_shared/sendCorporateEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
-const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;
@@ -154,35 +153,24 @@ Deno.serve(async (req) => {
 
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
 
     const emailResults: unknown[] = [];
     const whatsappResults: unknown[] = [];
 
-    // Email
-    if (analyst.email && LOVABLE_API_KEY && RESEND_API_KEY && emailEnabled) {
-      try {
-        const r = await fetch(`${RESEND_GATEWAY}/emails`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": RESEND_API_KEY,
-          },
-          body: JSON.stringify({
-            from: EMAIL_FROM,
-            to: [analyst.email],
-            subject,
-            html,
-            text: bodyText,
-          }),
-        });
-        const json = await r.json().catch(() => ({}));
-        emailResults.push({ ok: r.ok, status: r.status, response: json });
-      } catch (e) {
-        emailResults.push({ ok: false, error: String(e) });
-      }
+    // Email via mailbox corporativo (send-email-corporate)
+    if (analyst.email && emailEnabled) {
+      const res = await sendCorporateEmail({
+        to: analyst.email,
+        subject,
+        html,
+        text: bodyText,
+        user_id: analyst.id,
+        payment_id: paymentId,
+        event_key: `analyst_event_${eventType}`,
+        template_key: `analyst_event_${eventType}`,
+      });
+      emailResults.push({ ok: res.ok, status: res.status, response: res.response });
     }
 
     // WhatsApp
