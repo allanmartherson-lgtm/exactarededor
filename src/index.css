@@ -926,13 +926,22 @@ All colors MUST be HSL.
  * Three columns: identification | actions | status pill.
  * ============================================================ */
 @layer components {
+  .list-row-group {
+    border-bottom: 1px solid hsl(var(--secondary)); /* border-light */
+    transition: background-color 0.1s ease;
+  }
+  .list-row-group:last-child {
+    border-bottom: 0;
+  }
+  .list-row-group:hover {
+    background: hsl(var(--muted)); /* bg-hover */
+  }
+
   .list-row {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    border-bottom: 1px solid hsl(var(--secondary)); /* border-light */
-    transition: background-color 0.1s ease;
   }
   @media (min-width: 640px) {
     .list-row {
@@ -940,12 +949,7 @@ All colors MUST be HSL.
       padding: 16px 20px;
     }
   }
-  .list-row:last-child {
-    border-bottom: 0;
-  }
-  .list-row:hover {
-    background: hsl(var(--muted)); /* bg-hover */
-  }
+
 
   .list-row__main {
     flex: 1 1 0%;
