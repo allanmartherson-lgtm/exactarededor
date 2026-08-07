@@ -20,7 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
 import { addBusinessDays, fmtMoney, formatCompetenceBR, formatDateBR, greetingBrasilia, joinPt } from "./text.ts";
 import { buildEmail } from "./templates.ts";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import * as XLSX from "https://esm.sh/xlsx-js-style@1.2.0";
 import { requireInternalOrRole, unauthorizedResponse } from "../_shared/requireInternalRole.ts";
 import { assertHospitalAccess } from "../_shared/hospitalAccessGuard.ts";
 import { a1_sendInvoiceRequest } from "../_shared/emailTemplates/templates.ts";
@@ -454,14 +454,131 @@ serve(async (req) => {
               ];
             }),
           ];
-          const ws = XLSX.utils.aoa_to_sheet(wsData);
-          const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
-          for (let R = 1; R <= range.e.r; R++) {
-            for (const C of [8, 9, 10]) {
-              const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
-              if (cell) cell.t = "n";
+          const NAVY_DARK = "002855";
+          const BRAND_BLUE = "003DA5";
+          const BRONZE = "C6A27C";
+          const TEXT = "1A2B4A";
+          const BORDER = "D9E1F0";
+          const ZEBRA = "F2F5FB";
+          const thin = { style: "thin", color: { rgb: BORDER } };
+          const allThin = { top: thin, bottom: thin, left: thin, right: thin };
+          const MONEY_FMT = 'R$ #,##0.00';
+          const headerLabels = wsData[0] as string[];
+          const lastCol = headerLabels.length - 1;
+          const bodyRows = wsData.slice(1);
+
+          const titleRow = ["Exacta · Rede D'Or — Detalhamento do Pedido de Nota Fiscal"];
+          const subtitleRow = [
+            [opts.recipient_label ?? "", competenciaStr ? `Competência ${competenciaStr}` : ""]
+              .filter(Boolean)
+              .join(" · "),
+          ];
+          const ws = XLSX.utils.aoa_to_sheet([titleRow, subtitleRow, headerLabels, ...bodyRows]);
+
+          const HEADER_R = 2; // 0-based
+          const firstDataR = 3;
+          const lastDataR = firstDataR + bodyRows.length - 1;
+          const totalR = lastDataR + 1;
+          const centerCols = new Set([0, 2, 4, 5, 8, 16]);
+          const moneyCols = new Set([9, 10]);
+
+          const enc = (r: number, c: number) => XLSX.utils.encode_cell({ r, c });
+
+          // Faixas institucionais
+          for (let c = 0; c <= lastCol; c++) {
+            for (const r of [0, 1]) {
+              const addr = enc(r, c);
+              if (!ws[addr]) ws[addr] = { t: "s", v: "" };
+              ws[addr].s = {
+                font: { name: "Calibri", sz: r === 0 ? 13 : 10, bold: r === 0, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: NAVY_DARK } },
+                alignment: { horizontal: "left", vertical: "center", indent: 1 },
+              };
+            }
+            // Cabeçalho
+            const h = ws[enc(HEADER_R, c)];
+            if (h) {
+              h.s = {
+                font: { name: "Calibri", sz: 9, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: BRAND_BLUE } },
+                alignment: { horizontal: "center", vertical: "center", wrapText: true },
+                border: allThin,
+              };
             }
           }
+
+          // Corpo
+          for (let r = firstDataR; r <= lastDataR; r++) {
+            const zebra = (r - firstDataR) % 2 === 1;
+            for (let c = 0; c <= lastCol; c++) {
+              const addr = enc(r, c);
+              if (!ws[addr]) ws[addr] = { t: "s", v: "" };
+              const cell = ws[addr];
+              if (c === 8 || moneyCols.has(c)) cell.t = "n";
+              cell.s = {
+                font: { name: "Calibri", sz: 9, color: { rgb: TEXT } },
+                border: allThin,
+                alignment: {
+                  horizontal: moneyCols.has(c) ? "right" : centerCols.has(c) ? "center" : "left",
+                  vertical: "center",
+                  wrapText: false,
+                },
+                ...(zebra ? { fill: { fgColor: { rgb: ZEBRA } } } : {}),
+                ...(moneyCols.has(c) ? { numFmt: MONEY_FMT } : {}),
+              };
+            }
+          }
+
+          // Linha TOTAL
+          const topBronze = { top: { style: "medium", color: { rgb: BRONZE } }, bottom: thin, left: thin, right: thin };
+          for (let c = 0; c <= lastCol; c++) {
+            const addr = enc(totalR, c);
+            ws[addr] = { t: "s", v: "" };
+            ws[addr].s = {
+              font: { name: "Calibri", sz: 9, bold: true, color: { rgb: BRAND_BLUE } },
+              border: topBronze,
+              alignment: { horizontal: "right", vertical: "center" },
+            };
+          }
+          ws[enc(totalR, 0)] = {
+            t: "s",
+            v: "TOTAL",
+            s: {
+              font: { name: "Calibri", sz: 10, bold: true, color: { rgb: BRAND_BLUE } },
+              border: topBronze,
+              alignment: { horizontal: "right", vertical: "center" },
+            },
+          };
+          if (bodyRows.length > 0) {
+            for (const c of [9, 10]) {
+              const colLetter = XLSX.utils.encode_col(c);
+              ws[enc(totalR, c)] = {
+                t: "n",
+                f: `SUM(${colLetter}${firstDataR + 1}:${colLetter}${lastDataR + 1})`,
+                s: {
+                  font: { name: "Calibri", sz: 10, bold: true, color: { rgb: BRAND_BLUE } },
+                  border: topBronze,
+                  alignment: { horizontal: "right", vertical: "center" },
+                  numFmt: MONEY_FMT,
+                },
+              };
+            }
+          }
+
+          ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: totalR, c: lastCol } });
+          ws["!merges"] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+            { s: { r: totalR, c: 0 }, e: { r: totalR, c: 8 } },
+          ];
+          ws["!rows"] = [
+            { hpt: 28 },
+            { hpt: 18 },
+            { hpt: 26 },
+          ];
+          ws["!autofilter"] = {
+            ref: `${XLSX.utils.encode_cell({ r: HEADER_R, c: 0 })}:${XLSX.utils.encode_cell({ r: lastDataR > HEADER_R ? lastDataR : HEADER_R, c: lastCol })}`,
+          };
           ws["!cols"] = [
             { wch: 16 }, // Nr. Atendimento
             { wch: 32 }, // Paciente
@@ -482,9 +599,10 @@ serve(async (req) => {
             { wch: 20 }, // CNPJ
           ];
           const wb = XLSX.utils.book_new();
-          const sheetName = (opts.recipient_label ?? "Itens").slice(0, 31);
+          const sheetName = (opts.recipient_label ?? "Itens").slice(0, 31).replace(/[\\/*?:[\]]/g, "-");
           XLSX.utils.book_append_sheet(wb, ws, sheetName);
-          xlsxBuffer = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
+          xlsxBuffer = XLSX.write(wb, { type: "base64", bookType: "xlsx", cellStyles: true });
+
           fileName = `Detalhamento_NF_${(opts.recipient_label ?? "empresa").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40)}.xlsx`;
         } catch (xlsxErr) {
           console.warn("[send-invoice-request] falha ao gerar XLSX:", xlsxErr instanceof Error ? xlsxErr.message : String(xlsxErr));
