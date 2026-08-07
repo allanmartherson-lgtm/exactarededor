@@ -1027,6 +1027,17 @@ All colors MUST be HSL.
     opacity: 0.55;
     cursor: not-allowed;
   }
+  /* Ação principal da linha (ex.: avançar o ciclo da NF). */
+  .list-row__btn--primary {
+    color: hsl(var(--primary-foreground));
+    background: hsl(var(--primary));
+    border-color: hsl(var(--primary));
+  }
+  .list-row__btn--primary:hover:not(:disabled) {
+    background: hsl(var(--primary) / 0.9);
+    color: hsl(var(--primary-foreground));
+  }
+
 
   /* Pills / chips / status indicators — same shape & soft elevation
      across light and dark. Fundo `--*-soft` + texto `--*` (cor da família)
