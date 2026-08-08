@@ -553,6 +553,19 @@ export function PaymentPivotSection({
   }, [rows, months, currentMonth, previousMonths, restrictActive, lotCompanySet]);
 
   const totalCurrent = totalsByMonth.get(currentMonth) ?? 0;
+
+  // Rede de segurança: se a restrição "Só PJs do lote" zerar a tabela mesmo
+  // havendo linhas vindas do RPC (ex.: nome de PJ grafado diferente no
+  // histórico), desliga a restrição automaticamente — default nunca pode
+  // resultar em tabela vazia com dado existente.
+  useEffect(() => {
+    if (loading) return;
+    if (restrictActive && rows.length > 0 && primaryRows.length === 0) {
+      setRestrictToLotCompanies(false);
+    }
+  }, [loading, restrictActive, rows.length, primaryRows.length]);
+
+
   // Meses anteriores efetivamente com dado — base honesta para a média.
   const effectivePrevMonths = useMemo(
     () => previousMonths.filter((m) => (totalsByMonth.get(m) ?? 0) > 0),
@@ -907,10 +920,41 @@ export function PaymentPivotSection({
               {!loading && visibleRows.length === 0 && (
                 <tr>
                   <td colSpan={months.length + 2} className="px-3 py-6 text-center text-muted-foreground text-xs">
-                    {labelFilter ? "Nenhum item corresponde ao filtro." : "Sem dados no período selecionado."}
+                    {labelFilter ? (
+                      <span className="inline-flex items-center gap-2">
+                        Nenhum item corresponde ao filtro da coluna.
+                        <button type="button" className="underline text-primary" onClick={() => { setLabelFilter(null); setFilterQuery(""); }}>
+                          Limpar filtro
+                        </button>
+                      </span>
+                    ) : rows.length > 0 ? (
+                      <span className="inline-flex flex-wrap items-center justify-center gap-2">
+                        Há movimento no período, mas os filtros atuais escondem todas as linhas.
+                        {restrictActive && (
+                          <button type="button" className="underline text-primary" onClick={() => setRestrictToLotCompanies(false)}>
+                            Mostrar todas as PJs
+                          </button>
+                        )}
+                        {trackFilter !== "todos" && (
+                          <button type="button" className="underline text-primary" onClick={() => setTrackFilter("todos")}>
+                            Ver todas as trilhas
+                          </button>
+                        )}
+                      </span>
+                    ) : trackFilter !== "todos" ? (
+                      <span className="inline-flex items-center gap-2">
+                        Sem dados no período para esta trilha.
+                        <button type="button" className="underline text-primary" onClick={() => setTrackFilter("todos")}>
+                          Ver todas as trilhas
+                        </button>
+                      </span>
+                    ) : (
+                      "Sem dados no período selecionado."
+                    )}
                   </td>
                 </tr>
               )}
+
               {!loading && bodyCollapsed && visibleRows.length > 0 && (
                 <tr>
                   <td colSpan={months.length + 2} className="px-3 py-3 text-center text-muted-foreground text-xs">
