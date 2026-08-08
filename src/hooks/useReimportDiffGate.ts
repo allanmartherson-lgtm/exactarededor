@@ -51,11 +51,30 @@ export type RunDiffGateOptions = {
 export function useReimportDiffGate() {
   const [diffState, setDiffState] = useState<ReimportDiffState | null>(null);
   const resolverRef = useRef<((v: ReimportDiffDecision) => void) | null>(null);
+  const lastStateRef = useRef<ReimportDiffState | null>(null);
 
   /** Handler dos botões do modal. */
   const resolveDiff = (decision: ReimportDiffDecision) => {
-    resolverRef.current?.(decision);
+    const resolve = resolverRef.current;
+    resolverRef.current = null;
+    setDiffState(null);
+    resolve?.(decision);
   };
+
+  /**
+   * Reabre o modal do diff exibindo o erro do commit e devolve a nova decisão
+   * ("confirm" = tentar novamente). Se não houver diff anterior, resolve como
+   * "cancel" para nunca deixar o chamador pendurado.
+   */
+  const showGateError = async (message: string): Promise<ReimportDiffDecision> => {
+    const prev = lastStateRef.current;
+    if (!prev) return "cancel";
+    return new Promise<ReimportDiffDecision>((resolve) => {
+      resolverRef.current = resolve;
+      setDiffState({ ...prev, errorMessage: message });
+    });
+  };
+
 
   /**
    * Devolve a decisão do analista. Falha ao montar o preview NÃO bloqueia a
