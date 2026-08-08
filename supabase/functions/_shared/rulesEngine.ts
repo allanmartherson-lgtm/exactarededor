@@ -476,6 +476,9 @@ export interface AnalysisResult {
   main_ambiguous?: boolean;
   /** Detalhamento por item de cálculo (quando a regra usa cálculos 1:N). */
   calculation_breakdown?: CalculationBreakdownEntry[];
+  /** Diagnóstico: por que cada cálculo da regra foi rejeitado (só metadado). */
+  calc_rejections?: CalcRejection[];
+
   /** Trace de auditoria: regras candidatas avaliadas e motivo de descarte/vitória. */
   selection_trace?: SelectionTrace;
   /** Unidade de aplicação efetivamente usada (do calc item ou da regra). */
@@ -520,10 +523,23 @@ export interface CalculationBreakdownEntry {
   matched: boolean;
   /** Quando matched=false, motivo curto: 'dia_da_semana'|'horario'|'condicoes'. */
   skip_reason?: string | null;
+  /** Quando matched=false, motivo em linguagem clara para o analista. */
+  skip_reason_label?: string | null;
   expected: number | null;
   explanation: string;
   alerts: string[];
 }
+
+/** Motivo de rejeição de um cálculo, em linguagem de analista (ai_findings.calc_rejections). */
+export interface CalcRejection {
+  calc_id: string | null;
+  calc_label: string;
+  reason_code: string;
+  motivo: string;
+  /** true quando o bloqueio é a ausência de marcação de caso especial. */
+  needs_special_case?: boolean;
+}
+
 
 export type MainReason =
   | "codigo_principal_pacote"
@@ -2058,6 +2074,84 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   return { ok: true };
 }
 
+/**
+ * Traduz o código de rejeição de um cálculo (`calcItemMatches`) para linguagem
+ * clara de analista, citando o filtro configurado e o valor do item.
+ * PURAMENTE INFORMATIVO — não altera nenhum valor calculado.
+ */
+export function describeCalcRejection(
+  c: RuleCalculationItem,
+  reason: string,
+  item: ItemInput,
+): string {
+  const list = (a?: unknown[] | null) =>
+    Array.isArray(a) && a.length > 0 ? a.map((x) => String(x)).join(", ") : "";
+  const code = reason.split(" ")[0];
+  const itemChar = (item.attendance_character ?? "").toString().trim();
+  const WD = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+
+  switch (code) {
+    case "caso_especial_nao_aprovado": {
+      const cases = list(c.special_case_filter) || "caso especial";
+      return `exige marcação de caso especial "${cases}" — item sem marcação aprovada`;
+    }
+    case "caso_especial_nao_listado": {
+      const cases = list(c.special_case_filter);
+      return `exige caso especial "${cases}" — item marcado como "${item.special_case_code ?? "—"}"`;
+    }
+    case "item_type_nao_corresponde":
+      return `exige um tipo de item específico (Parecer/Visita/Consulta) — item não tem esse tipo classificado`;
+    case "item_calc_exception_skip":
+      return `cálculo pulado por exceção manual registrada neste item`;
+    case "codigo_nao_listado":
+      return `exige código TUSS na lista (${list(c.procedure_codes)}) — item é ${item.procedure_code ?? "sem código"}`;
+    case "codigo_excluido":
+      return `exclui o código TUSS ${item.procedure_code ?? "—"} (lista de bloqueio do cálculo)`;
+    case "codigo_fora_do_pacote":
+      return `código ${item.procedure_code ?? "—"} não faz parte dos códigos deste pacote`;
+    case "palavra_chave":
+      return `exige palavra-chave no nome do procedimento — não encontrada em "${item.procedure_name ?? ""}"`;
+    case "convenio_nao_listado":
+      return `exige convênio na lista (${list(c.agreement_aliases)}) — item é ${item.agreement_name ?? "sem convênio"}`;
+    case "convenio_bloqueado":
+      return `bloqueia o convênio ${item.agreement_name ?? "—"}`;
+    case "funcao_medico":
+      return `exige função do médico (${list(c.doctor_roles)}) — item é ${item.doctor_role ?? "sem função"}`;
+    case "setor":
+      return `exige setor (${list(c.sectors)}) — item está em outro setor`;
+    case "especialidade_nao_informada":
+      return `exige especialidade (${list(c.specialties)}) — item sem especialidade informada`;
+    case "especialidade":
+      return `exige especialidade (${list(c.specialties)}) — item é ${item.specialty ?? "—"}`;
+    case "via_de_acesso":
+      return `exige via de acesso (${list(c.allowed_access_routes)}) — item é ${item.access_route ?? "sem via"}`;
+    case "feriado":
+      return `exige data em feriado nacional — data do item não é feriado`;
+    case "fim_de_semana":
+      return `exige final de semana — item é dia útil`;
+    case "fora_comercial_dia_util":
+      return `exige horário fora do comercial — item é dia útil em horário comercial`;
+    case "dia_da_semana": {
+      const dias = Array.isArray(c.weekdays) && c.weekdays.length > 0
+        ? c.weekdays.map((d) => WD[Number(d)] ?? String(d)).join(", ")
+        : (c.time_mode ?? "");
+      return `exige dia da semana (${dias}) — data do item não se enquadra`;
+    }
+    case "horario":
+      return `exige janela horária ${c.time_start ?? "?"}–${c.time_end ?? "?"} — horário do item fora da janela`;
+    case "eletivo_urgencia": {
+      const mode = String(c.elective_mode ?? "");
+      const alvo = mode.startsWith("eletiv") ? "eletivo" : "urgência";
+      const atual = itemChar || (alvo === "eletivo" ? "URGENCIA" : "ELETIVO");
+      return `exige caráter ${alvo} — item é ${atual}`;
+    }
+    default:
+      return `condição "${reason}" não satisfeita`;
+  }
+}
+
+
+
 /** Projeta um item de cálculo sobre a regra, criando uma "regra efetiva" para
  *  reutilizar os calculadores legados. */
 function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
@@ -2382,14 +2476,16 @@ export function applyCalculation(
 
       if (!m.ok) {
         const reason = (m as any).reason || "condicao_nao_satisfeita";
+        const humanReason = describeCalcRejection(c, reason, item);
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
-          matched: false, skip_reason: reason, expected: null,
-          explanation: `Não aplicado — condição "${reason}" não satisfeita.`,
+          matched: false, skip_reason: reason, skip_reason_label: humanReason, expected: null,
+          explanation: `Não aplicado — ${humanReason}.`,
           alerts: [],
         });
         continue;
       }
+
 
       anyMatched = true;
       const eff = ruleFromCalcItem(rule, c);
@@ -3879,6 +3975,22 @@ function finalizeAnalysis(
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
+    ...(() => {
+      // Diagnóstico (metadado puro): quando nenhum cálculo produziu valor,
+      // lista por que cada cálculo da regra foi rejeitado.
+      if (calc.expected !== null) return {};
+      const rejected = (calc.breakdown ?? []).filter((b) => b.matched === false);
+      if (rejected.length === 0) return {};
+      const calc_rejections: CalcRejection[] = rejected.map((b) => ({
+        calc_id: b.calc_id ?? null,
+        calc_label: b.label,
+        reason_code: b.skip_reason ?? "condicao_nao_satisfeita",
+        motivo: b.skip_reason_label ?? `condição "${b.skip_reason ?? "não satisfeita"}"`,
+        needs_special_case: String(b.skip_reason ?? "").startsWith("caso_especial"),
+      }));
+      return { calc_rejections };
+    })(),
+
     ...(calc.application_unit ? { application_unit_used: calc.application_unit } : {}),
     ...(calc.calc_duplicity ? { calc_duplicity: calc.calc_duplicity } : {}),
     convenio_basis_detected: basisDetected,
