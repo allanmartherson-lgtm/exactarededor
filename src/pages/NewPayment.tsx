@@ -3192,8 +3192,15 @@ const NewPayment = () => {
       size_bytes: number;
       sha256: string;
       bucket_role: ReturnType<typeof inferBucketRole>;
+      /**
+       * Cabeçalhos NA ORDEM ORIGINAL do arquivo. O raw_data é gravado como
+       * JSONB e o Postgres não preserva a ordem das chaves, então sem isso a
+       * aba "Base importada" não tem como reproduzir a sequência da planilha.
+       */
+      original_headers: string[];
     };
     const uploadedFiles: UploadedFile[] = [];
+
     const uploadFailures: { name: string; message: string }[] = [];
     const safeStorageExtension = (name: string) => {
       const match = name.match(/\.([A-Za-z0-9]{1,12})$/);
