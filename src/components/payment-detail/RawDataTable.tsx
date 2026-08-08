@@ -1,25 +1,69 @@
 /**
  * RawDataTable — exibe o `raw_data` (JSONB) dos payment_items da empresa
- * exatamente como foi importado da planilha, sem tratamento/normalização.
+ * como veio da planilha original.
  *
- * Objetivo: dar ao analista uma janela de conferência rápida contra a base
- * original — qual valor a analista de repasse informou, qual setor veio
- * escrito, etc. — sem precisar reabrir o Excel.
+ * O DADO é bruto (nada é reescrito no banco); a EXIBIÇÃO é formatada:
+ * serial Excel vira dd/mm/aaaa [hh:mm] e coluna de valor vira R$ pt-BR.
+ * A formatação vive em `@/lib/rawCellFormat` e é a mesma usada no modal
+ * "Ver planilha" da importação.
  *
- * Não formata células (nem datas, nem números). raw_data é espelho fiel.
+ * Ordem das colunas: o JSONB do Postgres NÃO preserva a ordem das chaves,
+ * então a ordem original da planilha é lida de
+ * `payment_source_files.original_headers` (gravada na importação). Lotes
+ * antigos sem esse campo caem no fallback: ordem de aparição das chaves.
  */
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Search, FileSpreadsheet } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { detectRawColKind, formatRawCell, orderHeaders, type RawColKind } from "@/lib/rawCellFormat";
 
 type ItemWithRaw = { id?: string | null; raw_data?: unknown; created_at?: string | null };
 
-export function RawDataTable({ items }: { items: ItemWithRaw[] }) {
+export function RawDataTable({ items, paymentId }: { items: ItemWithRaw[]; paymentId?: string | null }) {
   const [query, setQuery] = React.useState("");
+  const [originalOrder, setOriginalOrder] = React.useState<string[] | null>(null);
 
-  // Coleta todos os headers presentes (união de chaves) preservando a ordem
-  // do primeiro item — cabeçalhos que aparecem apenas em linhas posteriores
-  // vão para o fim.
+  // Busca a ordem original dos cabeçalhos gravada na importação.
+  // Falha/ausência é tolerada: sem isso apenas caímos no fallback de ordem.
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!paymentId) {
+      setOriginalOrder(null);
+      return;
+    }
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("payment_source_files")
+        .select("original_headers, created_at")
+        .eq("payment_id", paymentId)
+        .order("created_at", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        console.warn("[RawDataTable] não foi possível ler original_headers:", error.message);
+        setOriginalOrder(null);
+        return;
+      }
+      const merged: string[] = [];
+      const seen = new Set<string>();
+      for (const row of (data ?? []) as { original_headers?: unknown }[]) {
+        const arr = Array.isArray(row?.original_headers) ? row.original_headers : [];
+        for (const h of arr) {
+          const s = String(h ?? "").trim();
+          if (s && !seen.has(s)) {
+            seen.add(s);
+            merged.push(s);
+          }
+        }
+      }
+      setOriginalOrder(merged.length > 0 ? merged : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentId]);
+
+  // União das chaves presentes, preservando a ordem de aparição (fallback).
   const { headers, rows } = React.useMemo(() => {
     const seen = new Set<string>();
     const ordered: string[] = [];
@@ -36,12 +80,27 @@ export function RawDataTable({ items }: { items: ItemWithRaw[] }) {
       }
       dataRows.push(row);
     }
-    return { headers: ordered, rows: dataRows };
-  }, [items]);
+    return { headers: orderHeaders(ordered, originalOrder), rows: dataRows };
+  }, [items, originalOrder]);
+
+  const colKinds = React.useMemo(() => {
+    const map: Record<string, RawColKind> = {};
+    for (const h of headers) map[h] = detectRawColKind(h);
+    return map;
+  }, [headers]);
 
   const q = query.trim().toLowerCase();
+  // Busca casa tanto com o texto formatado (R$ 1.234,56 / 03/07/2026)
+  // quanto com o bruto (1234.56 / 46230.58125).
   const filtered = q
-    ? rows.filter((r) => headers.some((h) => String(r[h] ?? "").toLowerCase().includes(q)))
+    ? rows.filter((r) =>
+        headers.some((h) => {
+          const v = r[h];
+          const rawText = v == null ? "" : String(v).toLowerCase();
+          if (rawText.includes(q)) return true;
+          return formatRawCell(v, colKinds[h] ?? "other").toLowerCase().includes(q);
+        }),
+      )
     : rows;
 
   if (headers.length === 0) {
@@ -60,7 +119,8 @@ export function RawDataTable({ items }: { items: ItemWithRaw[] }) {
         <div className="flex-1">
           <div className="text-sm font-semibold">Base importada — planilha original</div>
           <div className="text-[11px] text-muted-foreground">
-            {rows.length.toLocaleString("pt-BR")} linha{rows.length === 1 ? "" : "s"} · {headers.length} coluna{headers.length === 1 ? "" : "s"} · dados brutos, sem tratamento
+            {rows.length.toLocaleString("pt-BR")} linha{rows.length === 1 ? "" : "s"} · {headers.length} coluna{headers.length === 1 ? "" : "s"} · visualização formatada da planilha original
+            {originalOrder ? " · colunas na ordem do arquivo" : ""}
           </div>
         </div>
         <div className="relative">
@@ -97,12 +157,18 @@ export function RawDataTable({ items }: { items: ItemWithRaw[] }) {
                 </td>
                 {headers.map((h) => {
                   const v = row[h];
-                  const text = v == null ? "" : String(v);
+                  const kind = colKinds[h] ?? "other";
+                  const text = formatRawCell(v, kind);
+                  const rawText = v == null ? "" : String(v);
                   return (
                     <td
                       key={h}
-                      className="px-3 py-1.5 border-b border-border/40 whitespace-nowrap max-w-[320px] truncate"
-                      title={text}
+                      className={`px-3 py-1.5 border-b border-border/40 whitespace-nowrap max-w-[320px] truncate ${
+                        kind === "currency" ? "text-right tabular-nums" : ""
+                      }`}
+                      // Tooltip mostra o valor bruto quando houve formatação —
+                      // o analista precisa poder conferir o dado original.
+                      title={text !== rawText && rawText ? `${text}  (bruto: ${rawText})` : text}
                     >
                       {text || <span className="text-muted-foreground/50">—</span>}
                     </td>
