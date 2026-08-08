@@ -2125,7 +2125,17 @@ const PaymentDetail = () => {
       }
       load();
     } catch (e) {
-      toast({ title: "Erro ao reimportar", description: String(e), variant: "destructive" });
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[reimport-lote]", e);
+      toast({ title: "Erro ao reimportar", description: msg, variant: "destructive" });
+      // Reabre o diff com o erro real e permite "Tentar novamente" (máx. 2).
+      if (attempt < 2) {
+        const again = await showGateError(msg);
+        if (again === "confirm") {
+          setReimporting(false);
+          await doReimport(files, overrides, attempt + 1);
+        }
+      }
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
