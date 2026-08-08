@@ -1782,9 +1782,14 @@ export default function CompanyAnalysis() {
       // NUNCA apagamos o payment_company_groups: se a reanálise falhar, a
       // empresa não pode sumir da lista. Só zeramos totais e deixamos o
       // analyze-payment reconciliar via UPDATE.
-      const { data: clearRes, error: clearErr } = await supabase.functions.invoke(
-        "clear-company-items",
-        { body: { payment_id: id, company_name: group.company_name } },
+      const { withTimeout } = await import("@/lib/withTimeout");
+      const { data: clearRes, error: clearErr } = await withTimeout(
+        supabase.functions.invoke(
+          "clear-company-items",
+          { body: { payment_id: id, company_name: group.company_name } },
+        ),
+        90_000,
+        "A limpeza dos itens da empresa",
       );
       if (clearErr) throw clearErr;
       if (clearRes && (clearRes as any).error) {
