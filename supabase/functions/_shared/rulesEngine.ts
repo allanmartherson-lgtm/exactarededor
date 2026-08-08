@@ -476,6 +476,9 @@ export interface AnalysisResult {
   main_ambiguous?: boolean;
   /** Detalhamento por item de cálculo (quando a regra usa cálculos 1:N). */
   calculation_breakdown?: CalculationBreakdownEntry[];
+  /** Diagnóstico: por que cada cálculo da regra foi rejeitado (só metadado). */
+  calc_rejections?: CalcRejection[];
+
   /** Trace de auditoria: regras candidatas avaliadas e motivo de descarte/vitória. */
   selection_trace?: SelectionTrace;
   /** Unidade de aplicação efetivamente usada (do calc item ou da regra). */
