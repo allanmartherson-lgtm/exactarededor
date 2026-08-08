@@ -33,6 +33,8 @@ export type ReimportDiffState = {
   sha256Matched: boolean;
   /** Linhas descartadas pelo filtro de não-item (totalizadores/sem identificação). */
   ignoredRows: IgnoredRowInfo[];
+  /** Mensagem da falha da última tentativa de commit (habilita "Tentar novamente"). */
+  errorMessage?: string | null;
 };
 
 export type RunDiffGateOptions = {
