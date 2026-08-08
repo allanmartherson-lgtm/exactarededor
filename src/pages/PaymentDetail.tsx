@@ -4176,7 +4176,10 @@ const PaymentDetail = () => {
           diff={reimportDiffState?.diff ?? null}
           sha256Matched={reimportDiffState?.sha256Matched ?? false}
           ignoredRows={reimportDiffState?.ignoredRows ?? []}
-          busy={reimporting}
+          errorMessage={reimportDiffState?.errorMessage ?? null}
+          /* Enquanto o modal está aberto o fluxo está parado aguardando decisão:
+             manter busy=true aqui desabilitava os botões e travava a operação. */
+          busy={reimporting && !reimportDiffState}
           onCancel={() => resolveDiff("cancel")}
           onConfirm={() => resolveDiff("confirm")}
           onSkip={() => resolveDiff("skip")}
