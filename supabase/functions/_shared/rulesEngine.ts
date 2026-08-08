@@ -520,10 +520,23 @@ export interface CalculationBreakdownEntry {
   matched: boolean;
   /** Quando matched=false, motivo curto: 'dia_da_semana'|'horario'|'condicoes'. */
   skip_reason?: string | null;
+  /** Quando matched=false, motivo em linguagem clara para o analista. */
+  skip_reason_label?: string | null;
   expected: number | null;
   explanation: string;
   alerts: string[];
 }
+
+/** Motivo de rejeição de um cálculo, em linguagem de analista (ai_findings.calc_rejections). */
+export interface CalcRejection {
+  calc_id: string | null;
+  calc_label: string;
+  reason_code: string;
+  motivo: string;
+  /** true quando o bloqueio é a ausência de marcação de caso especial. */
+  needs_special_case?: boolean;
+}
+
 
 export type MainReason =
   | "codigo_principal_pacote"
