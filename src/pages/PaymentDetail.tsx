@@ -1934,29 +1934,11 @@ const PaymentDetail = () => {
         });
       }
 
-      // Limpa itens dos grupos NÃO preservados. Grupos avançados mantêm
-      // itens e todas as intervenções manuais (economia/perda/absorção).
-      // Paginamos para evitar statement_timeout via cascades de triggers.
-      const DEL_CHUNK = 100;
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { data: idsBatch, error: idsErr } = await supabase
-          .from("payment_items")
-          .select("id,company_name")
-          .eq("payment_id", id)
-          .limit(DEL_CHUNK * 4);
-        if (idsErr) { toast({ title: "Falha ao listar itens p/ limpar", description: idsErr.message, variant: "destructive" }); return; }
-        if (!idsBatch || idsBatch.length === 0) break;
-        const deletable = idsBatch.filter((r) => !preservedCompanyKeys.has(nrm((r as any).company_name ?? "")));
-        if (deletable.length === 0) break;
-        const slice = deletable.slice(0, DEL_CHUNK);
-        const { error: delItemsErr } = await supabase
-          .from("payment_items")
-          .delete()
-          .in("id", slice.map((r) => r.id));
-        if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
-        if (idsBatch.length < DEL_CHUNK * 4 && deletable.length <= DEL_CHUNK) break;
-      }
+      // A limpeza dos itens NÃO acontece mais aqui: cada empresa é apagada e
+      // reinserida dentro da mesma transação pela RPC reimport_company_items,
+      // logo abaixo. Grupos preservados nunca são passados para a RPC.
+      const { withTimeout } = await import("@/lib/withTimeout");
+
 
       // Descarta linhas novas que pertenceriam a grupos preservados.
       const beforeFilter = allRows.length;
@@ -1986,10 +1968,25 @@ const PaymentDetail = () => {
       // Só sincroniza grupos NÃO preservados.
       const existingGroups = (allExistingGroups ?? []).filter((g) => !preservedCompanyKeys.has(nrm(g.company_name)));
       const newKeys = new Set(newGroupsMap.keys());
-      const toRemove = existingGroups.filter((g) => !newKeys.has(norm(g.company_name))).map((g) => g.id);
+      const toRemove = existingGroups.filter((g) => !newKeys.has(norm(g.company_name)));
       if (toRemove.length > 0) {
-        await supabase.from("payment_company_groups").delete().in("id", toRemove);
+        // Empresas que sumiram do arquivo: apaga os itens delas atomicamente
+        // antes de remover o grupo, para não deixar item órfão.
+        for (const g of toRemove) {
+          const { error: rmErr } = await withTimeout(
+            supabase.rpc("reimport_company_items" as never, {
+              p_payment_id: id,
+              p_company_name: g.company_name,
+              p_items: [] as never,
+            } as never),
+            90_000,
+            `A remoção dos itens de "${g.company_name}"`,
+          );
+          if (rmErr) throw new Error(`Falha ao remover itens de "${g.company_name}": ${rmErr.message} — nenhum item desta empresa foi alterado.`);
+        }
+        await supabase.from("payment_company_groups").delete().in("id", toRemove.map((g) => g.id));
       }
+
       for (const [key, g] of newGroupsMap.entries()) {
         const existing = existingGroups.find((eg) => norm(eg.company_name) === key);
         if (existing) {
@@ -2017,56 +2014,58 @@ const PaymentDetail = () => {
       }
 
 
-      const itemsToInsert = allRows.map((r) => ({
-        hospital_id: (payment as any).hospital_id,
-        payment_id: id,
-        doctor_name: r.doctor_name,
-        doctor_document: r.doctor_document,
-        doctor_email: r.doctor_email,
-        description: r.description,
-        gross_amount: r.gross_amount,
-        company_name: r.company_name,
-        company_id: r.company_id,
-        attendance_number: r.attendance_number,
-        procedure_code: r.procedure_code,
-        procedure_name: r.procedure_name,
-        access_route: r.access_route,
-        doctor_role: r.doctor_role,
-        agreement_text: r.agreement_text,
-        specialty: r.specialty,
-        procedure_amount: r.procedure_amount,
-        quantity: r.quantity,
-        procedure_date: r.procedure_date,
-        patient_name: r.patient_name,
-        sector: r.sector,
-        attendance_character: r.attendance_character,
-        raw_data: r.raw_data as never,
-        source_file_name: (r as any).source_file_name ?? null,
-        tipo_linha: r.tipo_linha,
-        // Override do parser: lote Consulta com TUSS fora dos códigos da Consulta
-        // → reclassifica para "Procedimento" já na importação. Sem override,
-        // mantém o tipo padrão do lote (resolvido pelo motor).
-        ...(r.payment_type_id_override
-          ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
-          : {}),
-      }));
-
-
-      // Inserção em chunks menores: cada INSERT dispara triggers FOR EACH ROW
-      // (hash, competência, financials) e FOR EACH STATEMENT (sync_company_groups
-      // que chama sync_payment_company_group por (payment_id, company_id) distinto).
-      // 200 é um meio-termo que evita statement_timeout em lotes médios/grandes.
-      const chunkSize = 200;
-      const { withTimeout } = await import("@/lib/withTimeout");
-      for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
-        const chunk = itemsToInsert.slice(i, i + chunkSize);
-        const { error: insErr } = await withTimeout(
-          supabase.from("payment_items").insert(chunk),
-          90_000,
-          `A gravação dos itens (bloco ${i / chunkSize + 1})`,
-        );
-        if (insErr) throw new Error(`Falha ao inserir itens: ${insErr.message}`);
+      // Reimportação ATÔMICA por empresa: a RPC apaga os itens da PJ no lote e
+      // insere os novos dentro de UMA transação. Se falhar, aquela PJ fica
+      // exatamente como estava (nada parcial).
+      const rowsByCompany = new Map<string, typeof allRows>();
+      for (const r of allRows) {
+        const name = (r.company_name ?? "Sem empresa").trim() || "Sem empresa";
+        const arr = rowsByCompany.get(name);
+        if (arr) arr.push(r);
+        else rowsByCompany.set(name, [r]);
       }
+
+      for (const [companyName, rows] of rowsByCompany.entries()) {
+        const payload = rows.map((r) => ({
+          doctor_name: r.doctor_name ?? null,
+          doctor_document: r.doctor_document ?? null,
+          doctor_email: r.doctor_email ?? null,
+          description: r.description ?? null,
+          gross_amount: r.gross_amount ?? null,
+          company_id: r.company_id ?? null,
+          attendance_number: r.attendance_number ?? null,
+          procedure_code: r.procedure_code ?? null,
+          procedure_name: r.procedure_name ?? null,
+          access_route: r.access_route ?? null,
+          doctor_role: r.doctor_role ?? null,
+          agreement_text: r.agreement_text ?? null,
+          specialty: r.specialty ?? null,
+          procedure_amount: r.procedure_amount ?? null,
+          quantity: r.quantity ?? null,
+          procedure_date: r.procedure_date ?? null,
+          patient_name: r.patient_name ?? null,
+          sector: r.sector ?? null,
+          attendance_character: r.attendance_character ?? null,
+          raw_data: r.raw_data ?? null,
+          tipo_linha: r.tipo_linha ?? null,
+          source_file_name: (r as any).source_file_name ?? null,
+          item_type_id: r.payment_type_id_override ?? null,
+          item_type_source: r.payment_type_id_override ? "auto_heuristic" : null,
+        }));
+        const { error: rpcErr } = await withTimeout(
+          supabase.rpc("reimport_company_items" as never, {
+            p_payment_id: id,
+            p_company_name: companyName,
+            p_items: payload as never,
+          } as never),
+          90_000,
+          `A reimportação atômica de "${companyName}"`,
+        );
+        if (rpcErr) {
+          throw new Error(`Falha ao reimportar "${companyName}": ${rpcErr.message} — nenhum item desta empresa foi alterado.`);
+        }
+      }
+
 
       // Totais do lote precisam incluir as PJs preservadas (não reimportadas),
       // caso contrário o header do lote passa a mostrar só a parte nova.
