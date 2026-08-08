@@ -31,6 +31,7 @@ import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/Payme
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { ReimportDiffDialog } from "@/components/ReimportDiffDialog";
+import type { IgnoredRowInfo } from "@/lib/importRowFilter";
 import { useReimportDiffGate } from "@/hooks/useReimportDiffGate";
 import { sha256Hex } from "@/lib/fileHash";
 import { AssistanceAlertsDetailModal } from "@/components/payment-detail/AssistanceAlertsDetailModal";
@@ -1661,6 +1662,7 @@ const PaymentDetail = () => {
     setReimporting(true);
     try {
       const { parsePaymentFile, inspectFileHeaders } = await import("@/lib/parsePaymentFile");
+      const reimportIgnoredRows: IgnoredRowInfo[] = [];
       const { computeHeaderSignature, summarizeMissing, inspectColumnMapping } = await import("@/lib/columnMapping");
       const { fetchAllPaginated } = await import("@/lib/fetchAllPaginated");
       const companiesData = await fetchAllPaginated<any>((from, to) =>
@@ -1765,6 +1767,7 @@ const PaymentDetail = () => {
               dynamic_fallback_item_type_id: dynamicFallbackItemTypeId,
             } : null,
           });
+          if (bucket.ignoredRows?.length) reimportIgnoredRows.push(...bucket.ignoredRows);
           if (bucket.rows.length > 0) {
             const path = `${user.id}/${Date.now()}-${sanitizeStorageName(file.name)}`;
             // upload em background — falha aqui não deve bloquear a reimportação
@@ -1891,6 +1894,7 @@ const PaymentDetail = () => {
             source_file_name: r.source_file_name ?? null,
             gross_amount: r.gross_amount ?? null,
           })),
+          ignoredRows: reimportIgnoredRows,
         });
         if (decision === "cancel") {
           toast({ title: "Reimportação cancelada" });
@@ -4171,6 +4175,7 @@ const PaymentDetail = () => {
           open={!!reimportDiffState}
           diff={reimportDiffState?.diff ?? null}
           sha256Matched={reimportDiffState?.sha256Matched ?? false}
+          ignoredRows={reimportDiffState?.ignoredRows ?? []}
           busy={reimporting}
           onCancel={() => resolveDiff("cancel")}
           onConfirm={() => resolveDiff("confirm")}
