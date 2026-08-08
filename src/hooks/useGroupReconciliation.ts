@@ -114,18 +114,8 @@ export function useGroupReconciliation(groupId: string | null | undefined) {
     void load();
   }, [load]);
 
-  const status: GateStatus = (() => {
-    if (!totals) return "sem_dados";
-    const diff = Math.abs(Number(totals.diferenca ?? 0));
-    const pct = Math.abs(Number(totals.diferenca_pct ?? 0));
-    if (diff <= thresholds.block_abs || pct <= thresholds.block_pct) return "conciliado";
-    const matched = overrides.some(
-      (o) =>
-        Math.abs(o.bruto_regra_snapshot - Number(totals.bruto_regra_total ?? 0)) < 0.01 &&
-        Math.abs(o.bruto_pedido_snapshot - Number(totals.bruto_pedido_total ?? 0)) < 0.01,
-    );
-    return matched ? "liberado" : "divergente";
-  })();
+  const status: GateStatus = computeGateStatus(totals, overrides, thresholds);
+
 
   return { totals, overrides, thresholds, loading, status, reload: load };
 }
