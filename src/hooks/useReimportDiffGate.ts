@@ -112,12 +112,12 @@ export function useReimportDiffGate() {
       const diff = computeReimportDiff(existingItems, opts.parsedRows);
 
       // 4) Abre o modal e aguarda a decisão do analista
+      const state: ReimportDiffState = { diff, sha256Matched, ignoredRows: opts.ignoredRows ?? [], errorMessage: null };
+      lastStateRef.current = state;
       const decision = await new Promise<ReimportDiffDecision>((resolve) => {
         resolverRef.current = resolve;
-        setDiffState({ diff, sha256Matched, ignoredRows: opts.ignoredRows ?? [] });
+        setDiffState(state);
       });
-      setDiffState(null);
-      resolverRef.current = null;
       return decision;
     } catch (diffErr) {
       // Falha no preview NÃO bloqueia a reimportação — apenas avisa e segue.
@@ -128,5 +128,6 @@ export function useReimportDiffGate() {
     }
   };
 
-  return { diffState, runDiffGate, resolveDiff };
+  return { diffState, runDiffGate, resolveDiff, showGateError };
+
 }
