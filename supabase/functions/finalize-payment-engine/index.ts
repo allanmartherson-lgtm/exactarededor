@@ -109,14 +109,30 @@ async function runPipeline(
 
   if (companyIds.length > 0) {
     const CONCURRENCY = 1;
+    // 2026-08-08: falhas por PJ (ex.: 502 de crash/boot-timeout do worker)
+    // eram ignoradas — a fonte era marcada como lida e a dedução daquela PJ
+    // sumia sem sinal. Agora acumulamos e registramos nos details da fonte.
+    const failures: Array<{ company_id: string; fn: string; status: number }> = [];
     const runForCompany = async (cid: string) => {
       if (want("company_adjustments") || want("glosa_debts")) {
-        await callFn("apply-company-deductions", { payment_id, company_id: cid });
+        const r = await callFn("apply-company-deductions", { payment_id, company_id: cid });
+        if (!r.ok) {
+          failures.push({ company_id: cid, fn: "apply-company-deductions", status: r.status });
+          console.error(`[finalize] apply-company-deductions falhou para PJ ${cid}: HTTP ${r.status} ${r.body.slice(0, 300)}`);
+        }
       }
       if (want("minimum_guarantee")) {
-        await callFn("apply-minimum-guarantee", { payment_id, company_id: cid });
+        const r = await callFn("apply-minimum-guarantee", { payment_id, company_id: cid });
+        if (!r.ok) {
+          failures.push({ company_id: cid, fn: "apply-minimum-guarantee", status: r.status });
+          console.error(`[finalize] apply-minimum-guarantee falhou para PJ ${cid}: HTTP ${r.status}`);
+        }
       }
-      await callFn("compute-company-financials", { payment_id, company_id: cid });
+      const rf = await callFn("compute-company-financials", { payment_id, company_id: cid });
+      if (!rf.ok) {
+        failures.push({ company_id: cid, fn: "compute-company-financials", status: rf.status });
+        console.error(`[finalize] compute-company-financials falhou para PJ ${cid}: HTTP ${rf.status}`);
+      }
     };
     for (let i = 0; i < companyIds.length; i += CONCURRENCY) {
       const batch = companyIds.slice(i, i + CONCURRENCY);
@@ -127,7 +143,10 @@ async function runPipeline(
       }
     }
 
+    const failuresFor = (fn: string) => failures.filter((f) => f.fn === fn);
+
     if (want("company_adjustments") || want("glosa_debts")) {
+      const dedFailures = failuresFor("apply-company-deductions");
       const { data: caa } = await supabase
         .from("company_adjustment_applications")
         .select("valor_aplicado, status, adjustment_id")
@@ -136,6 +155,7 @@ async function runPipeline(
       const totalCaa = (caa ?? []).reduce((s: number, r: any) => s + Number(r.valor_aplicado ?? 0), 0);
       await markSource(payment_id, "company_adjustments", (caa ?? []).length, totalCaa, {
         ajustes: Array.from(new Set((caa ?? []).map((r: any) => r.adjustment_id))).length,
+        ...(dedFailures.length ? { falhas: dedFailures.length, falhas_detalhe: dedFailures } : {}),
       });
 
       const { data: gpa } = await supabase
@@ -146,18 +166,22 @@ async function runPipeline(
       const totalGpa = (gpa ?? []).reduce((s: number, r: any) => s + Number(r.valor_aplicado ?? 0), 0);
       await markSource(payment_id, "glosa_debts", (gpa ?? []).length, totalGpa, {
         debitos: Array.from(new Set((gpa ?? []).map((r: any) => r.glosa_debt_id))).length,
+        ...(dedFailures.length ? { falhas: dedFailures.length, falhas_detalhe: dedFailures } : {}),
       });
     }
 
     if (want("minimum_guarantee")) {
+      const mgFailures = failuresFor("apply-minimum-guarantee");
       const { data: mga } = await supabase
         .from("minimum_guarantee_applications")
         .select("complemento_valor, status")
         .eq("payment_id", payment_id);
       const totalMg = (mga ?? []).reduce((s: number, r: any) => s + Number(r.complemento_valor ?? 0), 0);
-      await markSource(payment_id, "minimum_guarantee", (mga ?? []).length, totalMg);
+      await markSource(payment_id, "minimum_guarantee", (mga ?? []).length, totalMg,
+        mgFailures.length ? { falhas: mgFailures.length, falhas_detalhe: mgFailures } : {});
     }
   }
+
 
   if (want("pool_deductions")) {
     // Aqui o pipeline precisa ser determinístico: aguarda o cálculo real do
