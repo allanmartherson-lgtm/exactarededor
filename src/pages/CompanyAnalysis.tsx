@@ -138,6 +138,8 @@ import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerC
 import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
 import { AutoClassifiedBanner } from "@/components/payment-detail/AutoClassifiedBanner";
 import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
+import { fetchGroupGate } from "@/hooks/useGroupReconciliation";
+
 
 
 const HighlightBanner = ({
