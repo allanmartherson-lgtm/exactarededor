@@ -2057,10 +2057,15 @@ const PaymentDetail = () => {
       // que chama sync_payment_company_group por (payment_id, company_id) distinto).
       // 200 é um meio-termo que evita statement_timeout em lotes médios/grandes.
       const chunkSize = 200;
+      const { withTimeout } = await import("@/lib/withTimeout");
       for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
         const chunk = itemsToInsert.slice(i, i + chunkSize);
-        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
-        if (insErr) { toast({ title: "Falha ao inserir itens", description: insErr.message, variant: "destructive" }); return; }
+        const { error: insErr } = await withTimeout(
+          supabase.from("payment_items").insert(chunk),
+          90_000,
+          `A gravação dos itens (bloco ${i / chunkSize + 1})`,
+        );
+        if (insErr) throw new Error(`Falha ao inserir itens: ${insErr.message}`);
       }
 
       // Totais do lote precisam incluir as PJs preservadas (não reimportadas),
