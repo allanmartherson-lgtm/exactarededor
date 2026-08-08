@@ -3635,8 +3635,12 @@ export default function CompanyAnalysis() {
         open={!!reimportDiffState}
         diff={reimportDiffState?.diff ?? null}
         sha256Matched={reimportDiffState?.sha256Matched ?? false}
-          ignoredRows={reimportDiffState?.ignoredRows ?? []}
-        busy={reimporting}
+        ignoredRows={reimportDiffState?.ignoredRows ?? []}
+        errorMessage={reimportDiffState?.errorMessage ?? null}
+        /* IMPORTANTE: enquanto o modal do diff está aberto a operação está
+           PARADA aguardando a decisão — não pode ficar "busy", senão os botões
+           ficam desabilitados e o fluxo trava para sempre. */
+        busy={reimporting && !reimportDiffState}
         onCancel={() => resolveDiff("cancel")}
         onConfirm={() => resolveDiff("confirm")}
         onSkip={() => resolveDiff("skip")}
