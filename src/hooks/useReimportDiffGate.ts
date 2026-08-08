@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { sha256Hex } from "@/lib/fileHash";
+import type { IgnoredRowInfo } from "@/lib/importRowFilter";
 import {
   computeReimportDiff,
   type ExistingItemRow,
@@ -30,6 +31,8 @@ export type ReimportDiffState = {
   diff: ReimportDiff;
   /** true = todos os arquivos batem com um sha256 já registrado no lote. */
   sha256Matched: boolean;
+  /** Linhas descartadas pelo filtro de não-item (totalizadores/sem identificação). */
+  ignoredRows: IgnoredRowInfo[];
 };
 
 export type RunDiffGateOptions = {
@@ -39,6 +42,8 @@ export type RunDiffGateOptions = {
   parsedRows: ParsedItemRow[];
   /** Quando presente, compara só os itens desta PJ. */
   companyName?: string | null;
+  /** Linhas que o parser descartou por não serem item — exibidas no resumo. */
+  ignoredRows?: IgnoredRowInfo[];
 };
 
 export function useReimportDiffGate() {
@@ -88,7 +93,7 @@ export function useReimportDiffGate() {
       // 4) Abre o modal e aguarda a decisão do analista
       const decision = await new Promise<ReimportDiffDecision>((resolve) => {
         resolverRef.current = resolve;
-        setDiffState({ diff, sha256Matched });
+        setDiffState({ diff, sha256Matched, ignoredRows: opts.ignoredRows ?? [] });
       });
       setDiffState(null);
       resolverRef.current = null;

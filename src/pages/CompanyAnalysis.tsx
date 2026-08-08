@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { ReimportDiffDialog } from "@/components/ReimportDiffDialog";
+import type { IgnoredRowInfo } from "@/lib/importRowFilter";
 import { useReimportDiffGate } from "@/hooks/useReimportDiffGate";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -1619,6 +1620,7 @@ export default function CompanyAnalysis() {
         normalizeString(s ?? "").replace(/[^a-z0-9]/g, "");
       const targetLoose = looseKey(group.company_name);
       const targetId = group.company_id ?? null;
+      const reimportIgnoredRows: IgnoredRowInfo[] = [];
       let parsedRows: any[] = [];
       let fileNames: string[] = [];
 
@@ -1702,6 +1704,7 @@ export default function CompanyAnalysis() {
             .update({ last_used_at: new Date().toISOString() } as never)
             .eq("id", tpl.id);
         }
+        if (bucket.ignoredRows?.length) reimportIgnoredRows.push(...bucket.ignoredRows);
         if (bucket.rows.length > 0) {
           const fileMatchesGroup = matchesTarget(bucket.rawCompanyName, bucket.matchedCompany?.id ?? null)
             || matchesTarget(bucket.matchedCompany?.name ?? null, bucket.matchedCompany?.id ?? null);
@@ -1749,6 +1752,7 @@ export default function CompanyAnalysis() {
         paymentId: id,
         files,
         companyName: group.company_name,
+        ignoredRows: reimportIgnoredRows,
         parsedRows: (companyRows as Array<{
           attendance_number?: string | null;
           procedure_code?: string | null;
@@ -3631,6 +3635,7 @@ export default function CompanyAnalysis() {
         open={!!reimportDiffState}
         diff={reimportDiffState?.diff ?? null}
         sha256Matched={reimportDiffState?.sha256Matched ?? false}
+          ignoredRows={reimportDiffState?.ignoredRows ?? []}
         busy={reimporting}
         onCancel={() => resolveDiff("cancel")}
         onConfirm={() => resolveDiff("confirm")}
