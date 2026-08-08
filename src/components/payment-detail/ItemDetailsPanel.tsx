@@ -355,6 +355,8 @@ export function ItemDetailsPanel({
                 {calcMemory}
               </div>
             )}
+            <CalcRejectionsBlock item={item} />
+
             {appliedMethod && (
               <div className="mt-3 flex items-center gap-2 text-[12px] text-muted-foreground">
                 <span>Método aplicado:</span>
