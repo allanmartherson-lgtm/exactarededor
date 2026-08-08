@@ -401,7 +401,7 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
-  const { diffState: reimportDiffState, runDiffGate, resolveDiff } = useReimportDiffGate();
+  const { diffState: reimportDiffState, runDiffGate, resolveDiff, showGateError } = useReimportDiffGate();
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
@@ -1586,7 +1586,7 @@ export default function CompanyAnalysis() {
   };
 
 
-  const doReimport = async (files: File[], extraOverrides?: Record<string, Record<string, string>>) => {
+  const doReimport = async (files: File[], extraOverrides?: Record<string, Record<string, string>>, attempt = 0) => {
     if (!id || !payment || !user || !group) return;
     setReimporting(true);
     try {
@@ -1782,9 +1782,14 @@ export default function CompanyAnalysis() {
       // NUNCA apagamos o payment_company_groups: se a reanálise falhar, a
       // empresa não pode sumir da lista. Só zeramos totais e deixamos o
       // analyze-payment reconciliar via UPDATE.
-      const { data: clearRes, error: clearErr } = await supabase.functions.invoke(
-        "clear-company-items",
-        { body: { payment_id: id, company_name: group.company_name } },
+      const { withTimeout } = await import("@/lib/withTimeout");
+      const { data: clearRes, error: clearErr } = await withTimeout(
+        supabase.functions.invoke(
+          "clear-company-items",
+          { body: { payment_id: id, company_name: group.company_name } },
+        ),
+        90_000,
+        "A limpeza dos itens da empresa",
       );
       if (clearErr) throw clearErr;
       if (clearRes && (clearRes as any).error) {
@@ -1831,7 +1836,11 @@ export default function CompanyAnalysis() {
       const chunkSize = 200;
       for (let i = 0; i < newItems.length; i += chunkSize) {
         const chunk = newItems.slice(i, i + chunkSize);
-        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
+        const { error: insErr } = await withTimeout(
+          supabase.from("payment_items").insert(chunk),
+          90_000,
+          `A gravação dos itens (lote ${i / chunkSize + 1})`,
+        );
         if (insErr) throw insErr;
       }
 
@@ -1885,6 +1894,15 @@ export default function CompanyAnalysis() {
         || (typeof e === "string" ? e : JSON.stringify(e));
       toast.error("Erro ao reimportar", { description: msg });
       console.error("[reimport-company]", e);
+      // Reabre o modal do diff com o erro real e oferece "Tentar novamente".
+      // Limite de 2 tentativas manuais para não criar recursão infinita.
+      if (attempt < 2) {
+        const again = await showGateError(msg);
+        if (again === "confirm") {
+          setReimporting(false);
+          await doReimport(files, extraOverrides, attempt + 1);
+        }
+      }
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
@@ -3635,8 +3653,12 @@ export default function CompanyAnalysis() {
         open={!!reimportDiffState}
         diff={reimportDiffState?.diff ?? null}
         sha256Matched={reimportDiffState?.sha256Matched ?? false}
-          ignoredRows={reimportDiffState?.ignoredRows ?? []}
-        busy={reimporting}
+        ignoredRows={reimportDiffState?.ignoredRows ?? []}
+        errorMessage={reimportDiffState?.errorMessage ?? null}
+        /* IMPORTANTE: enquanto o modal do diff está aberto a operação está
+           PARADA aguardando a decisão — não pode ficar "busy", senão os botões
+           ficam desabilitados e o fluxo trava para sempre. */
+        busy={reimporting && !reimportDiffState}
         onCancel={() => resolveDiff("cancel")}
         onConfirm={() => resolveDiff("confirm")}
         onSkip={() => resolveDiff("skip")}

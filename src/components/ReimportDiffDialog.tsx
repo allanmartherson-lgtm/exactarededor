@@ -28,12 +28,14 @@ type Props = {
   sha256Matched: boolean; // true = todos os arquivos batem com hash já registrado
   ignoredRows?: IgnoredRowInfo[]; // linhas descartadas por não serem item
   busy?: boolean;
+  /** Erro da última tentativa de commit — exibido no rodapé do modal. */
+  errorMessage?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
   onSkip: () => void;
 };
 
-export function ReimportDiffDialog({ open, diff, sha256Matched, ignoredRows = [], busy, onCancel, onConfirm, onSkip }: Props) {
+export function ReimportDiffDialog({ open, diff, sha256Matched, ignoredRows = [], busy, errorMessage, onCancel, onConfirm, onSkip }: Props) {
   const [openChanged, setOpenChanged] = useState(true);
   const [openAdded, setOpenAdded] = useState(false);
   const [openRemoved, setOpenRemoved] = useState(false);
@@ -202,17 +204,30 @@ export function ReimportDiffDialog({ open, diff, sha256Matched, ignoredRows = []
           </div>
         </div>
 
+        {errorMessage && (
+          <div className="rounded-md border border-destructive/40 bg-destructive-soft/60 p-3 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="text-xs min-w-0">
+              <p className="font-medium text-destructive-text">A reimportação falhou</p>
+              <p className="text-muted-foreground break-words">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={busy}>Cancelar</Button>
+          {/* Cancelar NUNCA é desabilitado: o analista precisa sempre poder sair
+              do modal, mesmo com uma operação em andamento ou travada. */}
+          <Button variant="outline" onClick={onCancel}>Cancelar</Button>
           {sha256Matched && (
             <Button variant="secondary" onClick={onSkip} disabled={busy}>
               Pular — arquivo já processado
             </Button>
           )}
           <Button onClick={onConfirm} disabled={busy}>
-            {busy ? "Reimportando…" : "Confirmar reimportação"}
+            {busy ? "Reimportando…" : errorMessage ? "Tentar novamente" : "Confirmar reimportação"}
           </Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );

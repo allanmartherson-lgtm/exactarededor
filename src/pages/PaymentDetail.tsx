@@ -271,7 +271,7 @@ const PaymentDetail = () => {
   const [importProgress, setImportProgress] = useState<{ stage: "parse" | "persist"; current: number; total: number } | null>(null);
   // Preview do diff antes de gravar a reimportação. Resolver na ref para
   // encadear await dentro de doReimport sem restruturar o fluxo assíncrono.
-  const { diffState: reimportDiffState, runDiffGate, resolveDiff } = useReimportDiffGate();
+  const { diffState: reimportDiffState, runDiffGate, resolveDiff, showGateError } = useReimportDiffGate();
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
@@ -1656,7 +1656,7 @@ const PaymentDetail = () => {
   // apenas enquanto o lote está editável pelo analista (mesma regra do
   // botão "Editar lote"). Útil quando a planilha original tinha erro de
   // formato e o analista refez a base.
-  const doReimport = async (files: File[], overrides: Record<string, Record<string, string>> = {}) => {
+  const doReimport = async (files: File[], overrides: Record<string, Record<string, string>> = {}, attempt = 0) => {
     if (!id || !payment || !user) return;
     const importingInitialPaymentBase = canImportInitialPaymentBase;
     setReimporting(true);
@@ -2057,10 +2057,15 @@ const PaymentDetail = () => {
       // que chama sync_payment_company_group por (payment_id, company_id) distinto).
       // 200 é um meio-termo que evita statement_timeout em lotes médios/grandes.
       const chunkSize = 200;
+      const { withTimeout } = await import("@/lib/withTimeout");
       for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
         const chunk = itemsToInsert.slice(i, i + chunkSize);
-        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
-        if (insErr) { toast({ title: "Falha ao inserir itens", description: insErr.message, variant: "destructive" }); return; }
+        const { error: insErr } = await withTimeout(
+          supabase.from("payment_items").insert(chunk),
+          90_000,
+          `A gravação dos itens (bloco ${i / chunkSize + 1})`,
+        );
+        if (insErr) throw new Error(`Falha ao inserir itens: ${insErr.message}`);
       }
 
       // Totais do lote precisam incluir as PJs preservadas (não reimportadas),
@@ -2125,7 +2130,17 @@ const PaymentDetail = () => {
       }
       load();
     } catch (e) {
-      toast({ title: "Erro ao reimportar", description: String(e), variant: "destructive" });
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[reimport-lote]", e);
+      toast({ title: "Erro ao reimportar", description: msg, variant: "destructive" });
+      // Reabre o diff com o erro real e permite "Tentar novamente" (máx. 2).
+      if (attempt < 2) {
+        const again = await showGateError(msg);
+        if (again === "confirm") {
+          setReimporting(false);
+          await doReimport(files, overrides, attempt + 1);
+        }
+      }
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
@@ -4176,7 +4191,10 @@ const PaymentDetail = () => {
           diff={reimportDiffState?.diff ?? null}
           sha256Matched={reimportDiffState?.sha256Matched ?? false}
           ignoredRows={reimportDiffState?.ignoredRows ?? []}
-          busy={reimporting}
+          errorMessage={reimportDiffState?.errorMessage ?? null}
+          /* Enquanto o modal está aberto o fluxo está parado aguardando decisão:
+             manter busy=true aqui desabilitava os botões e travava a operação. */
+          busy={reimporting && !reimportDiffState}
           onCancel={() => resolveDiff("cancel")}
           onConfirm={() => resolveDiff("confirm")}
           onSkip={() => resolveDiff("skip")}

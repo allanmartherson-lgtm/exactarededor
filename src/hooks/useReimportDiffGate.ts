@@ -33,6 +33,8 @@ export type ReimportDiffState = {
   sha256Matched: boolean;
   /** Linhas descartadas pelo filtro de não-item (totalizadores/sem identificação). */
   ignoredRows: IgnoredRowInfo[];
+  /** Mensagem da falha da última tentativa de commit (habilita "Tentar novamente"). */
+  errorMessage?: string | null;
 };
 
 export type RunDiffGateOptions = {
@@ -49,11 +51,30 @@ export type RunDiffGateOptions = {
 export function useReimportDiffGate() {
   const [diffState, setDiffState] = useState<ReimportDiffState | null>(null);
   const resolverRef = useRef<((v: ReimportDiffDecision) => void) | null>(null);
+  const lastStateRef = useRef<ReimportDiffState | null>(null);
 
   /** Handler dos botões do modal. */
   const resolveDiff = (decision: ReimportDiffDecision) => {
-    resolverRef.current?.(decision);
+    const resolve = resolverRef.current;
+    resolverRef.current = null;
+    setDiffState(null);
+    resolve?.(decision);
   };
+
+  /**
+   * Reabre o modal do diff exibindo o erro do commit e devolve a nova decisão
+   * ("confirm" = tentar novamente). Se não houver diff anterior, resolve como
+   * "cancel" para nunca deixar o chamador pendurado.
+   */
+  const showGateError = async (message: string): Promise<ReimportDiffDecision> => {
+    const prev = lastStateRef.current;
+    if (!prev) return "cancel";
+    return new Promise<ReimportDiffDecision>((resolve) => {
+      resolverRef.current = resolve;
+      setDiffState({ ...prev, errorMessage: message });
+    });
+  };
+
 
   /**
    * Devolve a decisão do analista. Falha ao montar o preview NÃO bloqueia a
@@ -91,12 +112,12 @@ export function useReimportDiffGate() {
       const diff = computeReimportDiff(existingItems, opts.parsedRows);
 
       // 4) Abre o modal e aguarda a decisão do analista
+      const state: ReimportDiffState = { diff, sha256Matched, ignoredRows: opts.ignoredRows ?? [], errorMessage: null };
+      lastStateRef.current = state;
       const decision = await new Promise<ReimportDiffDecision>((resolve) => {
         resolverRef.current = resolve;
-        setDiffState({ diff, sha256Matched, ignoredRows: opts.ignoredRows ?? [] });
+        setDiffState(state);
       });
-      setDiffState(null);
-      resolverRef.current = null;
       return decision;
     } catch (diffErr) {
       // Falha no preview NÃO bloqueia a reimportação — apenas avisa e segue.
@@ -107,5 +128,6 @@ export function useReimportDiffGate() {
     }
   };
 
-  return { diffState, runDiffGate, resolveDiff };
+  return { diffState, runDiffGate, resolveDiff, showGateError };
+
 }
