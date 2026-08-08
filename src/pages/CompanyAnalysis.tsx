@@ -1836,7 +1836,11 @@ export default function CompanyAnalysis() {
       const chunkSize = 200;
       for (let i = 0; i < newItems.length; i += chunkSize) {
         const chunk = newItems.slice(i, i + chunkSize);
-        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
+        const { error: insErr } = await withTimeout(
+          supabase.from("payment_items").insert(chunk),
+          90_000,
+          `A gravação dos itens (lote ${i / chunkSize + 1})`,
+        );
         if (insErr) throw insErr;
       }
 
