@@ -478,6 +478,15 @@ export default function CompanyAnalysis() {
 
 
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
+  const [concluirBlock, setConcluirBlock] = useState<{
+    pedido: number;
+    regra: number;
+    diferenca: number;
+    diferencaPct: number;
+    blockPct: number;
+    blockAbs: number;
+  } | null>(null);
+
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [mappingPrompt, setMappingPrompt] = useState<{
