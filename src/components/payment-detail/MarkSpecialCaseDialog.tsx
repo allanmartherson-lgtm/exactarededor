@@ -34,9 +34,9 @@ export function MarkSpecialCaseDialog({
   const [submitting, setSubmitting] = useState(false);
   const [hasMatchingRule, setHasMatchingRule] = useState<boolean | null>(null);
 
-  // Gate: só renderiza se existir ao menos 1 regra ativa do hospital
-  // com special_case_filter preenchido (evita poluir UI quando nenhum
-  // tipo de caso especial está em uso pelas regras).
+  // Gate: só renderiza se existir ao menos 1 regra ativa do hospital cujo
+  // CÁLCULO tenha `special_case_filter` preenchido. (A coluna equivalente em
+  // `rules` foi descontinuada na unificação de jun/2026 e não é mais lida.)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -46,17 +46,30 @@ export function MarkSpecialCaseDialog({
         .eq("id", paymentId)
         .maybeSingle();
       const hospitalId = (pay as any)?.hospital_id ?? null;
+
+      const { data: calcs } = await supabase
+        .from("rule_calculations")
+        .select("rule_id")
+        .not("special_case_filter", "is", null);
+      const ruleIds = Array.from(new Set(
+        ((calcs ?? []) as Array<{ rule_id: string | null }>)
+          .map((c) => c.rule_id)
+          .filter((id): id is string => !!id),
+      ));
+      if (ruleIds.length === 0) { if (!cancelled) setHasMatchingRule(false); return; }
+
       let q = supabase
         .from("rules")
         .select("id", { count: "exact", head: true })
         .eq("active", true)
-        .not("special_case_filter", "is", null);
+        .in("id", ruleIds);
       if (hospitalId) q = q.eq("hospital_id", hospitalId);
       const { count } = await q;
       if (!cancelled) setHasMatchingRule((count ?? 0) > 0);
     })();
     return () => { cancelled = true; };
   }, [paymentId]);
+
 
   useEffect(() => {
     if (!open) return;
