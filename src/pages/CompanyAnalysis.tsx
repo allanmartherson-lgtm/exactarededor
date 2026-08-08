@@ -1894,6 +1894,15 @@ export default function CompanyAnalysis() {
         || (typeof e === "string" ? e : JSON.stringify(e));
       toast.error("Erro ao reimportar", { description: msg });
       console.error("[reimport-company]", e);
+      // Reabre o modal do diff com o erro real e oferece "Tentar novamente".
+      // Limite de 2 tentativas manuais para não criar recursão infinita.
+      if (attempt < 2) {
+        const again = await showGateError(msg);
+        if (again === "confirm") {
+          setReimporting(false);
+          await doReimport(files, extraOverrides, attempt + 1);
+        }
+      }
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
