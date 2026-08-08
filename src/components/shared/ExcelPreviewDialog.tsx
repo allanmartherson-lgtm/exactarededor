@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, Search, Rows3, Columns3, AlertTriangle } from "lucide-react";
+import { detectRawColKind, formatRawCell } from "@/lib/rawCellFormat";
+
 
 /**
  * Visualizador rápido da planilha crua (rawMatrix já parseada pelo XLSX).
