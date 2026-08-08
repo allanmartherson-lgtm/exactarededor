@@ -20,6 +20,10 @@ export type CallFnOptions = {
   fetchImpl?: typeof fetch;
 };
 
+/** 5xx de infraestrutura (crash/boot timeout/saturação do edge worker). */
+const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+
+
 export function parseRetryAfterMs(headerVal: string | null): number {
   if (!headerVal) return 0;
   const n = Number(headerVal);
