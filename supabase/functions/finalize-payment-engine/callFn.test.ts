@@ -117,3 +117,45 @@ Deno.test("parseRetryAfterMs aceita segundos e HTTP date, ignora inválido", () 
   const ms = parseRetryAfterMs(future);
   assert(ms > 0 && ms <= 2000, `esperado 0<ms<=2000, veio ${ms}`);
 });
+
+// 2026-08-08: 502/503/504 (crash ou boot-timeout do edge worker) são
+// transitórios — precisam ser retentados, não podem pular a dedução da PJ.
+Deno.test("HTTP 502 transitório é retentado e recupera em 200", async () => {
+  let calls = 0;
+  const fetchImpl = ((_i: string | URL | Request, _init?: RequestInit) => {
+    calls += 1;
+    return Promise.resolve(new Response("", { status: calls === 1 ? 502 : 200 }));
+  }) as typeof fetch;
+  const res = await callFn("apply-company-deductions", {}, {
+    baseUrl: "http://mock", serviceKey: "k", maxRetries: 3, maxBackoffMs: 10,
+    sleep: noSleep, fetchImpl,
+  });
+  assertEquals(calls, 2, "deve ter retentado o 502");
+  assertEquals(res.ok, true);
+  assertEquals(res.status, 200);
+});
+
+Deno.test("HTTP 502 persistente esgota retries e retorna ok=false", async () => {
+  const fetchImpl = makeFetchAlways(502);
+  const res = await callFn("apply-company-deductions", {}, {
+    baseUrl: "http://mock", serviceKey: "k", maxRetries: 2, maxBackoffMs: 10,
+    sleep: noSleep, fetchImpl,
+  });
+  assertEquals(res.ok, false);
+  assertEquals(res.status, 502);
+});
+
+Deno.test("HTTP 400 (erro de negócio) NÃO é retentado", async () => {
+  let calls = 0;
+  const fetchImpl = ((_i: string | URL | Request, _init?: RequestInit) => {
+    calls += 1;
+    return Promise.resolve(new Response('{"error":"payment_id obrigatório"}', { status: 400 }));
+  }) as typeof fetch;
+  const res = await callFn("apply-company-deductions", {}, {
+    baseUrl: "http://mock", serviceKey: "k", maxRetries: 3, maxBackoffMs: 10,
+    sleep: noSleep, fetchImpl,
+  });
+  assertEquals(calls, 1);
+  assertEquals(res.ok, false);
+  assertEquals(res.status, 400);
+});
