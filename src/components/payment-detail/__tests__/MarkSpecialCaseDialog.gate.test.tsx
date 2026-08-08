@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MarkSpecialCaseDialog } from "../MarkSpecialCaseDialog";
 
-// Mock supabase client to control rule-count and payment-hospital lookups.
+// Mock supabase: o gate agora conta regras ativas cujo CÁLCULO tem
+// special_case_filter (rule_calculations), não mais rules.special_case_filter.
+const ruleCalcsMock = vi.fn();
 const rulesCountMock = vi.fn();
 const paymentSingleMock = vi.fn();
 
@@ -17,16 +19,21 @@ vi.mock("@/integrations/supabase/client", () => {
         }),
       };
     }
+    if (table === "rule_calculations") {
+      return {
+        select: () => ({
+          not: () => Promise.resolve(ruleCalcsMock()),
+        }),
+      };
+    }
     if (table === "rules") {
-      // Chainable builder that ultimately resolves with { count }
       const builder: any = {
         eq: () => builder,
+        in: () => builder,
         not: () => builder,
         then: (resolve: any) => Promise.resolve(rulesCountMock()).then(resolve),
       };
-      return {
-        select: () => builder,
-      };
+      return { select: () => builder };
     }
     if (table === "special_case_types") {
       return {
@@ -48,12 +55,15 @@ vi.mock("@/hooks/use-toast", () => ({
 
 beforeEach(() => {
   rulesCountMock.mockReset();
+  ruleCalcsMock.mockReset();
   paymentSingleMock.mockReset();
   paymentSingleMock.mockResolvedValue({ data: { hospital_id: "hosp-1" } });
+  ruleCalcsMock.mockResolvedValue({ data: [{ rule_id: "r1" }] });
 });
 
-describe("MarkSpecialCaseDialog — gate por regra com special_case_filter", () => {
-  it("NÃO renderiza o botão quando nenhuma regra do hospital possui special_case_filter", async () => {
+describe("MarkSpecialCaseDialog — gate por cálculo com special_case_filter", () => {
+  it("NÃO renderiza quando nenhum cálculo tem special_case_filter", async () => {
+    ruleCalcsMock.mockResolvedValue({ data: [] });
     rulesCountMock.mockResolvedValue({ count: 0 });
     const { container } = render(<MarkSpecialCaseDialog paymentId="pay-1" />);
     await waitFor(() => {
@@ -62,7 +72,15 @@ describe("MarkSpecialCaseDialog — gate por regra com special_case_filter", () 
     expect(screen.queryByRole("button", { name: /caso especial/i })).toBeNull();
   });
 
-  it("renderiza o botão quando existe ao menos 1 regra ativa com special_case_filter", async () => {
+  it("NÃO renderiza quando o cálculo existe mas nenhuma regra ativa do hospital bate", async () => {
+    rulesCountMock.mockResolvedValue({ count: 0 });
+    const { container } = render(<MarkSpecialCaseDialog paymentId="pay-1" />);
+    await waitFor(() => {
+      expect(container.firstChild).toBeNull();
+    });
+  });
+
+  it("renderiza quando existe regra ativa com cálculo de caso especial", async () => {
     rulesCountMock.mockResolvedValue({ count: 3 });
     render(<MarkSpecialCaseDialog paymentId="pay-1" />);
     await waitFor(() => {

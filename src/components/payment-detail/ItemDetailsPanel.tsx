@@ -9,7 +9,9 @@
  * azul-claro nos dados) para o analista escanear rapidamente.
  */
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Sparkles } from "lucide-react";
+import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
+import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -150,7 +152,67 @@ function statusBadgeClass(status: string): string {
   return "bg-white/15 text-primary-foreground";
 }
 
+/** Seção "Caso especial" — mostra a marca existente do item ou, quando o
+ *  médico/PJ do item está vinculado a uma regra com cálculo de caso especial,
+ *  o botão para o analista sinalizar o atendimento. */
+function SpecialCaseSection({ item }: { item: AnyItem }) {
+  const paymentId: string | null = item.payment_id ?? null;
+  const hasRules = useHasSpecialCaseRules(paymentId);
+
+  const code = item.special_case_code ?? null;
+  const status = item.special_case_status ?? null;
+  const approved = status === "approved" && !!code;
+  const pending = status === "pending" && !!code;
+
+  if (approved || pending) {
+    return (
+      <Section title="Caso especial" defaultOpen tone="accent">
+        <div
+          className={cn(
+            "rounded-md border px-3 py-2 text-[12px]",
+            approved
+              ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+              : "border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200",
+          )}
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <span className="font-mono text-xs">{String(code)}</span>
+            <span className="opacity-80">
+              {approved ? "aprovado pela gestão médica" : "aguardando aprovação"}
+            </span>
+          </div>
+        </div>
+      </Section>
+    );
+  }
+
+  if (hasRules !== true || !paymentId || !item.id) return null;
+
+  return (
+    <Section title="Caso especial" defaultOpen tone="accent">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-[12px] text-muted-foreground">
+          Este item se aplica a um caso especial?
+        </p>
+        <MarkSpecialCaseDialog
+          paymentId={paymentId}
+          itemId={String(item.id)}
+          defaultAttendance={item.attendance_number ?? undefined}
+          doctorId={item.doctor_id ?? undefined}
+          trigger={
+            <Button size="sm" variant="outline" className="h-7 text-xs">
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Sinalizar caso especial
+            </Button>
+          }
+        />
+      </div>
+    </Section>
+  );
+}
+
 export function ItemDetailsPanel({
+
   open,
   onOpenChange,
   item,
@@ -359,6 +421,9 @@ export function ItemDetailsPanel({
               </div>
             </Section>
           )}
+
+          {/* 2c. Caso especial — marca existente ou ação para sinalizar */}
+          <SpecialCaseSection item={item} />
 
 
           {/* 3. Observações — cinza (menos importante) */}

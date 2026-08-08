@@ -9,12 +9,47 @@ import { supabase } from "@/integrations/supabase/client";
  * do cálculo (`rule_calculations.special_case_filter`). A coluna equivalente
  * em `rules` foi descontinuada e não é mais lida.
  *
- * - Sem `companyId`: regras escopadas ao hospital do pagamento (uso legado em PaymentDetail).
- * - Com `companyId`: além do hospital, a regra precisa estar vinculada à PJ
- *   (via `target_company_id` igual a essa PJ, ou via `target_doctor_id` de um
- *   médico que tem itens dessa PJ no pagamento). Regras globais (sem target)
- *   NÃO contam — analistas reportaram banner aparecendo em PJs sem vínculo real.
+ * Resolução de alvo (todas as formas usadas pelo cadastro de regras):
+ *  - FKs diretas: `target_doctor_id` / `target_company_id`
+ *  - Identificador textual: `target_type='medico'` + `target_identifier` (CRM)
+ *    e `target_type='empresa'` + `target_identifier` (CNPJ)
+ *  - Escopo grupo: `group_doctors[]` e `group_company_links[]`
+ *
+ * Regras globais (sem nenhum alvo) NÃO contam — analistas reportaram banner
+ * aparecendo em PJs sem vínculo real.
  */
+
+const digits = (s: unknown) => String(s ?? "").replace(/\D+/g, "");
+
+type RuleRow = {
+  id: string;
+  target_type: string | null;
+  target_identifier: string | null;
+  target_doctor_id: string | null;
+  target_company_id: string | null;
+  group_doctors: unknown;
+  group_company_links: unknown;
+};
+
+function collectIds(arr: unknown, keys: string[]): string[] {
+  if (!Array.isArray(arr)) return [];
+  const out: string[] = [];
+  for (const el of arr) {
+    if (typeof el === "string") { out.push(el); continue; }
+    if (el && typeof el === "object") {
+      for (const k of keys) {
+        const v = (el as Record<string, unknown>)[k];
+        if (typeof v === "string" && v) out.push(v);
+      }
+    }
+  }
+  return out;
+}
+
+function collectStrings(arr: unknown, keys: string[]): string[] {
+  return collectIds(arr, keys);
+}
+
 export function useHasSpecialCaseRules(
   paymentId: string | null | undefined,
   companyId?: string | null,
@@ -25,6 +60,8 @@ export function useHasSpecialCaseRules(
     if (!paymentId) { setHasRules(false); return; }
     let cancelled = false;
     (async () => {
+      const finish = (v: boolean) => { if (!cancelled) setHasRules(v); };
+
       const { data: pay } = await supabase
         .from("payments")
         .select("hospital_id")
@@ -32,7 +69,7 @@ export function useHasSpecialCaseRules(
         .maybeSingle();
       const hospitalId = (pay as { hospital_id?: string | null } | null)?.hospital_id ?? null;
 
-      // 1) Coleta IDs de regras que têm pelo menos 1 cálculo com special_case_filter preenchido.
+      // 1) Regras que têm pelo menos 1 cálculo com special_case_filter preenchido.
       const { data: calcs } = await supabase
         .from("rule_calculations")
         .select("rule_id")
@@ -44,86 +81,97 @@ export function useHasSpecialCaseRules(
             .filter((id): id is string => !!id),
         ),
       );
-      if (ruleIdsWithSpecialCalc.length === 0) {
-        if (!cancelled) setHasRules(false);
-        return;
-      }
+      if (ruleIdsWithSpecialCalc.length === 0) return finish(false);
 
-      // Modo escopado por pagamento (sem PJ específica): coleta TODAS as PJs e
-      // médicos com itens nesse pagamento e exige que pelo menos uma regra
-      // com special_case_filter aponte para algum desses targets. Regras
-      // globais (sem target) NÃO contam — analistas reportaram banner
-      // aparecendo em lotes cuja empresa não tem nenhuma regra de caso
-      // especial cadastrada.
-      if (!companyId) {
-        const { data: items } = await supabase
-          .from("payment_items")
-          .select("company_id, doctor_id")
-          .eq("payment_id", paymentId);
-        const companyIds = Array.from(new Set(
-          ((items ?? []) as Array<{ company_id: string | null }>)
-            .map((r) => r.company_id)
-            .filter((c): c is string => !!c),
-        ));
-        const doctorIds = Array.from(new Set(
-          ((items ?? []) as Array<{ doctor_id: string | null }>)
-            .map((r) => r.doctor_id)
-            .filter((d): d is string => !!d),
-        ));
-        const orParts: string[] = [];
-        if (companyIds.length > 0) orParts.push(`target_company_id.in.(${companyIds.join(",")})`);
-        if (doctorIds.length > 0) orParts.push(`target_doctor_id.in.(${doctorIds.join(",")})`);
-        if (orParts.length === 0) { if (!cancelled) setHasRules(false); return; }
-
-        let q = supabase
-          .from("rules")
-          .select("id", { count: "exact", head: true })
-          .eq("active", true)
-          .in("id", ruleIdsWithSpecialCalc)
-          .or(orParts.join(","));
-        if (hospitalId) q = q.eq("hospital_id", hospitalId);
-        const { count } = await q;
-        if (!cancelled) setHasRules((count ?? 0) > 0);
-        return;
-      }
-
-      // Modo escopado por PJ: descobre médicos com itens dessa PJ no pagamento
-      // para casar com regras `target_doctor_id`.
-      const { data: items } = await supabase
+      // 2) Alvos presentes no contexto (pagamento inteiro ou uma PJ específica).
+      let itemsQ = supabase
         .from("payment_items")
-        .select("doctor_id")
-        .eq("payment_id", paymentId)
-        .eq("company_id", companyId)
-        .not("doctor_id", "is", null);
+        .select("company_id, doctor_id")
+        .eq("payment_id", paymentId);
+      if (companyId) itemsQ = itemsQ.eq("company_id", companyId);
+      const { data: items } = await itemsQ;
+      const rows = (items ?? []) as Array<{ company_id: string | null; doctor_id: string | null }>;
 
-      const doctorIds = Array.from(
-        new Set(
-          ((items ?? []) as Array<{ doctor_id: string | null }>)
-            .map((r) => r.doctor_id)
-            .filter((d): d is string => !!d),
-        ),
+      const companyIds = new Set(
+        companyId
+          ? [companyId]
+          : rows.map((r) => r.company_id).filter((c): c is string => !!c),
       );
+      const doctorIds = new Set(rows.map((r) => r.doctor_id).filter((d): d is string => !!d));
+      if (companyIds.size === 0 && doctorIds.size === 0) return finish(false);
 
-      const orParts: string[] = [
-        `target_company_id.eq.${companyId}`,
-      ];
-      if (doctorIds.length > 0) {
-        orParts.push(`target_doctor_id.in.(${doctorIds.join(",")})`);
-      } else {
-        if (!cancelled) setHasRules(false);
-        return;
+      // 3) Regras candidatas (poucas — filtradas pelos cálculos especiais).
+      let rulesQ = supabase
+        .from("rules")
+        .select("id, target_type, target_identifier, target_doctor_id, target_company_id, group_doctors, group_company_links")
+        .eq("active", true)
+        .in("id", ruleIdsWithSpecialCalc);
+      if (hospitalId) rulesQ = rulesQ.eq("hospital_id", hospitalId);
+      const { data: rulesData } = await rulesQ;
+      const rules = (rulesData ?? []) as unknown as RuleRow[];
+      if (rules.length === 0) return finish(false);
+
+      // 4) Identificadores textuais (CRM / CNPJ) dos alvos do contexto.
+      const crmSet = new Set<string>();
+      const docSet = new Set<string>();
+      if (doctorIds.size > 0) {
+        const { data: docs } = await supabase
+          .from("doctors")
+          .select("id, crm")
+          .in("id", Array.from(doctorIds));
+        for (const d of (docs ?? []) as Array<{ crm: string | null }>) {
+          const c = digits(d.crm);
+          if (c) crmSet.add(c);
+        }
+      }
+      if (companyIds.size > 0) {
+        const { data: comps } = await supabase
+          .from("companies")
+          .select("id, document")
+          .in("id", Array.from(companyIds));
+        for (const c of (comps ?? []) as Array<{ document: string | null }>) {
+          const d = digits(c.document);
+          if (d) docSet.add(d);
+        }
       }
 
-      let q = supabase
-        .from("rules")
-        .select("id", { count: "exact", head: true })
-        .eq("active", true)
-        .in("id", ruleIdsWithSpecialCalc)
-        .or(orParts.join(","));
-      if (hospitalId) q = q.eq("hospital_id", hospitalId);
+      const matched = rules.some((r) => {
+        if (r.target_doctor_id && doctorIds.has(r.target_doctor_id)) return true;
+        if (r.target_company_id && companyIds.has(r.target_company_id)) return true;
 
-      const { count } = await q;
-      if (!cancelled) setHasRules((count ?? 0) > 0);
+        const ident = digits(r.target_identifier);
+        if (ident) {
+          if (r.target_type === "medico" && crmSet.has(ident)) return true;
+          if (r.target_type === "empresa" && docSet.has(ident)) return true;
+          // Sem target_type confiável: tenta ambos.
+          if (!r.target_type && (crmSet.has(ident) || docSet.has(ident))) return true;
+        }
+
+        // Escopo grupo
+        const gDocIds = collectIds(r.group_doctors, ["doctor_id", "id"]);
+        if (gDocIds.some((id) => doctorIds.has(id))) return true;
+        const gDocCrms = collectStrings(r.group_doctors, ["crm", "identifier"]).map(digits);
+        if (gDocCrms.some((c) => c && crmSet.has(c))) return true;
+
+        const gCoIds = collectIds(r.group_company_links, ["company_id", "id"]);
+        if (gCoIds.some((id) => companyIds.has(id))) return true;
+        const gCoDocs = collectStrings(r.group_company_links, ["company_document", "document"]).map(digits);
+        if (gCoDocs.some((d) => d && docSet.has(d))) return true;
+
+        // Médicos aninhados dentro dos vínculos de empresa
+        if (Array.isArray(r.group_company_links)) {
+          for (const link of r.group_company_links as Array<Record<string, unknown>>) {
+            const nested = link?.doctors;
+            const ids = collectIds(nested, ["doctor_id", "id"]);
+            if (ids.some((id) => doctorIds.has(id))) return true;
+            const crms = collectStrings(nested, ["crm", "identifier"]).map(digits);
+            if (crms.some((c) => c && crmSet.has(c))) return true;
+          }
+        }
+        return false;
+      });
+
+      finish(matched);
     })();
     return () => { cancelled = true; };
   }, [paymentId, companyId]);
