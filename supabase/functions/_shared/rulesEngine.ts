@@ -3975,6 +3975,22 @@ function finalizeAnalysis(
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
+    ...(() => {
+      // Diagnóstico (metadado puro): quando nenhum cálculo produziu valor,
+      // lista por que cada cálculo da regra foi rejeitado.
+      if (calc.expected !== null) return {};
+      const rejected = (calc.breakdown ?? []).filter((b) => b.matched === false);
+      if (rejected.length === 0) return {};
+      const calc_rejections: CalcRejection[] = rejected.map((b) => ({
+        calc_id: b.calc_id ?? null,
+        calc_label: b.label,
+        reason_code: b.skip_reason ?? "condicao_nao_satisfeita",
+        motivo: b.skip_reason_label ?? `condição "${b.skip_reason ?? "não satisfeita"}"`,
+        needs_special_case: String(b.skip_reason ?? "").startsWith("caso_especial"),
+      }));
+      return { calc_rejections };
+    })(),
+
     ...(calc.application_unit ? { application_unit_used: calc.application_unit } : {}),
     ...(calc.calc_duplicity ? { calc_duplicity: calc.calc_duplicity } : {}),
     convenio_basis_detected: basisDetected,
