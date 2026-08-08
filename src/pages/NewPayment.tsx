@@ -3235,6 +3235,12 @@ const NewPayment = () => {
           .from("payment-files")
           .upload(path, b.file, { upsert: false, contentType: b.file.type || undefined });
         if (upErr) throw new Error(upErr.message);
+        // Cabeçalhos na ordem exata do arquivo (linha de cabeçalho detectada).
+        const headerRow =
+          b.rawMatrix && typeof b.headerRowIndex === "number" ? (b.rawMatrix[b.headerRowIndex] ?? []) : [];
+        const originalHeaders = (headerRow as unknown[])
+          .map((c) => String(c ?? "").trim())
+          .filter((c) => c.length > 0);
         uploadedFiles.push({
           storage_path: path,
           original_filename: b.file.name,
@@ -3242,7 +3248,9 @@ const NewPayment = () => {
           size_bytes: b.file.size,
           sha256: hash,
           bucket_role: inferBucketRole(b.file.name),
+          original_headers: originalHeaders,
         });
+
       } catch (uploadErr) {
         // NÃO bloqueia a criação do lote — auditoria de arquivo é secundária.
         const message = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
