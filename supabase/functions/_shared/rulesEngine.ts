@@ -2476,14 +2476,16 @@ export function applyCalculation(
 
       if (!m.ok) {
         const reason = (m as any).reason || "condicao_nao_satisfeita";
+        const humanReason = describeCalcRejection(c, reason, item);
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
-          matched: false, skip_reason: reason, expected: null,
-          explanation: `Não aplicado — condição "${reason}" não satisfeita.`,
+          matched: false, skip_reason: reason, skip_reason_label: humanReason, expected: null,
+          explanation: `Não aplicado — ${humanReason}.`,
           alerts: [],
         });
         continue;
       }
+
 
       anyMatched = true;
       const eff = ruleFromCalcItem(rule, c);
