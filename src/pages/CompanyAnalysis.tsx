@@ -3566,7 +3566,49 @@ export default function CompanyAnalysis() {
       />
 
 
+      <AlertDialog open={!!concluirBlock} onOpenChange={(v) => { if (!v) setConcluirBlock(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Não é possível concluir — pendências bloqueiam o lote</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  Esta empresa tem divergência entre o bruto do pedido e o bruto calculado pela regra
+                  acima da tolerância ({concluirBlock?.blockPct}% ou{" "}
+                  {Number(concluirBlock?.blockAbs ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}),
+                  sem liberação registrada. Concluir agora não faria o lote avançar.
+                </p>
+                <ul className="list-disc pl-5">
+                  <li>
+                    Bruto do pedido:{" "}
+                    {Number(concluirBlock?.pedido ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </li>
+                  <li>
+                    Bruto da regra:{" "}
+                    {Number(concluirBlock?.regra ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </li>
+                  <li>
+                    Diferença:{" "}
+                    {Number(concluirBlock?.diferenca ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}{" "}
+                    ({Number(concluirBlock?.diferencaPct ?? 0).toFixed(2)}%)
+                  </li>
+                </ul>
+                <p>
+                  Onde resolver: no painel de conciliação desta empresa (Bruto do pedido × Bruto da regra) —
+                  ajuste os itens divergentes/sem regra, ou use “Liberar com justificativa” (diretor ou admin)
+                  para seguir com a divergência de forma sancionada.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button onClick={() => setConcluirBlock(null)}>Entendi, vou resolver</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Análise concluída</AlertDialogTitle>
