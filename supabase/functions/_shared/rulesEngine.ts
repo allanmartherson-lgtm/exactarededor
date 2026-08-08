@@ -2074,6 +2074,84 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   return { ok: true };
 }
 
+/**
+ * Traduz o código de rejeição de um cálculo (`calcItemMatches`) para linguagem
+ * clara de analista, citando o filtro configurado e o valor do item.
+ * PURAMENTE INFORMATIVO — não altera nenhum valor calculado.
+ */
+export function describeCalcRejection(
+  c: RuleCalculationItem,
+  reason: string,
+  item: ItemInput,
+): string {
+  const list = (a?: unknown[] | null) =>
+    Array.isArray(a) && a.length > 0 ? a.map((x) => String(x)).join(", ") : "";
+  const code = reason.split(" ")[0];
+  const itemChar = (item.attendance_character ?? "").toString().trim();
+  const WD = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+
+  switch (code) {
+    case "caso_especial_nao_aprovado": {
+      const cases = list(c.special_case_filter) || "caso especial";
+      return `exige marcação de caso especial "${cases}" — item sem marcação aprovada`;
+    }
+    case "caso_especial_nao_listado": {
+      const cases = list(c.special_case_filter);
+      return `exige caso especial "${cases}" — item marcado como "${item.special_case_code ?? "—"}"`;
+    }
+    case "item_type_nao_corresponde":
+      return `exige um tipo de item específico (Parecer/Visita/Consulta) — item não tem esse tipo classificado`;
+    case "item_calc_exception_skip":
+      return `cálculo pulado por exceção manual registrada neste item`;
+    case "codigo_nao_listado":
+      return `exige código TUSS na lista (${list(c.procedure_codes)}) — item é ${item.procedure_code ?? "sem código"}`;
+    case "codigo_excluido":
+      return `exclui o código TUSS ${item.procedure_code ?? "—"} (lista de bloqueio do cálculo)`;
+    case "codigo_fora_do_pacote":
+      return `código ${item.procedure_code ?? "—"} não faz parte dos códigos deste pacote`;
+    case "palavra_chave":
+      return `exige palavra-chave no nome do procedimento — não encontrada em "${item.procedure_name ?? ""}"`;
+    case "convenio_nao_listado":
+      return `exige convênio na lista (${list(c.agreement_aliases)}) — item é ${item.agreement_name ?? "sem convênio"}`;
+    case "convenio_bloqueado":
+      return `bloqueia o convênio ${item.agreement_name ?? "—"}`;
+    case "funcao_medico":
+      return `exige função do médico (${list(c.doctor_roles)}) — item é ${item.doctor_role ?? "sem função"}`;
+    case "setor":
+      return `exige setor (${list(c.sectors)}) — item está em outro setor`;
+    case "especialidade_nao_informada":
+      return `exige especialidade (${list(c.specialties)}) — item sem especialidade informada`;
+    case "especialidade":
+      return `exige especialidade (${list(c.specialties)}) — item é ${item.specialty ?? "—"}`;
+    case "via_de_acesso":
+      return `exige via de acesso (${list(c.allowed_access_routes)}) — item é ${item.access_route ?? "sem via"}`;
+    case "feriado":
+      return `exige data em feriado nacional — data do item não é feriado`;
+    case "fim_de_semana":
+      return `exige final de semana — item é dia útil`;
+    case "fora_comercial_dia_util":
+      return `exige horário fora do comercial — item é dia útil em horário comercial`;
+    case "dia_da_semana": {
+      const dias = Array.isArray(c.weekdays) && c.weekdays.length > 0
+        ? c.weekdays.map((d) => WD[Number(d)] ?? String(d)).join(", ")
+        : (c.time_mode ?? "");
+      return `exige dia da semana (${dias}) — data do item não se enquadra`;
+    }
+    case "horario":
+      return `exige janela horária ${c.time_start ?? "?"}–${c.time_end ?? "?"} — horário do item fora da janela`;
+    case "eletivo_urgencia": {
+      const mode = String(c.elective_mode ?? "");
+      const alvo = mode.startsWith("eletiv") ? "eletivo" : "urgência";
+      const atual = itemChar || (alvo === "eletivo" ? "URGENCIA" : "ELETIVO");
+      return `exige caráter ${alvo} — item é ${atual}`;
+    }
+    default:
+      return `condição "${reason}" não satisfeita`;
+  }
+}
+
+
+
 /** Projeta um item de cálculo sobre a regra, criando uma "regra efetiva" para
  *  reutilizar os calculadores legados. */
 function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
