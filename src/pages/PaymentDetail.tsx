@@ -1986,10 +1986,25 @@ const PaymentDetail = () => {
       // Só sincroniza grupos NÃO preservados.
       const existingGroups = (allExistingGroups ?? []).filter((g) => !preservedCompanyKeys.has(nrm(g.company_name)));
       const newKeys = new Set(newGroupsMap.keys());
-      const toRemove = existingGroups.filter((g) => !newKeys.has(norm(g.company_name))).map((g) => g.id);
+      const toRemove = existingGroups.filter((g) => !newKeys.has(norm(g.company_name)));
       if (toRemove.length > 0) {
-        await supabase.from("payment_company_groups").delete().in("id", toRemove);
+        // Empresas que sumiram do arquivo: apaga os itens delas atomicamente
+        // antes de remover o grupo, para não deixar item órfão.
+        for (const g of toRemove) {
+          const { error: rmErr } = await withTimeout(
+            supabase.rpc("reimport_company_items" as never, {
+              p_payment_id: id,
+              p_company_name: g.company_name,
+              p_items: [] as never,
+            } as never),
+            90_000,
+            `A remoção dos itens de "${g.company_name}"`,
+          );
+          if (rmErr) throw new Error(`Falha ao remover itens de "${g.company_name}": ${rmErr.message} — nenhum item desta empresa foi alterado.`);
+        }
+        await supabase.from("payment_company_groups").delete().in("id", toRemove.map((g) => g.id));
       }
+
       for (const [key, g] of newGroupsMap.entries()) {
         const existing = existingGroups.find((eg) => norm(eg.company_name) === key);
         if (existing) {
