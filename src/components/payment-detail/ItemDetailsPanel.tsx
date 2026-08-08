@@ -9,7 +9,8 @@
  * azul-claro nos dados) para o analista escanear rapidamente.
  */
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, ChevronUp, Sparkles } from "lucide-react";
+import { Ban, ChevronDown, ChevronRight, ChevronUp, Sparkles } from "lucide-react";
+
 import { MarkSpecialCaseDialog } from "./MarkSpecialCaseDialog";
 import { useHasSpecialCaseRules } from "./useHasSpecialCaseRules";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
