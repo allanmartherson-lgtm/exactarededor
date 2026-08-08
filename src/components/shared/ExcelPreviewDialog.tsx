@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, Search, Rows3, Columns3, AlertTriangle } from "lucide-react";
+import { detectRawColKind, formatRawCell } from "@/lib/rawCellFormat";
+
 
 /**
  * Visualizador rápido da planilha crua (rawMatrix já parseada pelo XLSX).
@@ -21,65 +23,11 @@ export interface ExcelPreviewDialogProps {
 
 const MAX_ROWS = 500;
 
-// Detecta se um cabeçalho de coluna sugere data, hora ou datetime.
-// Usa para reformatar serial Excel (ex: 46164, 0.468…) na exibição.
-type ColKind = "date" | "time" | "datetime" | "other";
-const detectColKind = (header: string): ColKind => {
-  const h = String(header ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-  if (!h) return "other";
-  const isDate = /(^|[\s_])(dt|data|dat)([\s_]|$)|nascimento|liberac|emissa|vencim|competenc|admiss|alta|evoluc|realiz|proced|atend/.test(h);
-  const isTime = /^hora$|(^|[\s_])hora([\s_]|$)|hr$|hh:mm/.test(h);
-  if (isTime && isDate) return "datetime";
-  if (isDate) return "date";
-  if (isTime) return "time";
-  return "other";
-};
+// Formatação de exibição (serial Excel → data, coluna de valor → R$ pt-BR)
+// vem do helper único compartilhado com a aba "Base importada".
+const detectColKind = detectRawColKind;
+const formatCell = formatRawCell;
 
-// Serial Excel para Date (base 1899-12-30). Só para exibição no preview.
-const excelSerialToDate = (n: number): Date | null => {
-  if (!Number.isFinite(n) || n <= 0 || n > 200000) return null;
-  const epoch = Date.UTC(1899, 11, 30);
-  return new Date(epoch + n * 86400 * 1000);
-};
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-const formatCell = (raw: unknown, kind: ColKind): string => {
-  if (raw == null || raw === "") return "";
-  if (raw instanceof Date) {
-    if (isNaN(+raw)) return String(raw);
-    if (kind === "time") return `${pad2(raw.getUTCHours())}:${pad2(raw.getUTCMinutes())}`;
-    const d = `${pad2(raw.getUTCDate())}/${pad2(raw.getUTCMonth() + 1)}/${raw.getUTCFullYear()}`;
-    if (kind === "datetime") return `${d} ${pad2(raw.getUTCHours())}:${pad2(raw.getUTCMinutes())}`;
-    return d;
-  }
-  if (kind !== "other" && typeof raw === "number") {
-    if (kind === "time") {
-      // fração de dia
-      const total = Math.round(raw * 24 * 60);
-      const hh = Math.floor(total / 60) % 24;
-      const mm = total % 60;
-      return `${pad2(hh)}:${pad2(mm)}`;
-    }
-    const dt = excelSerialToDate(raw);
-    if (dt) {
-      const d = `${pad2(dt.getUTCDate())}/${pad2(dt.getUTCMonth() + 1)}/${dt.getUTCFullYear()}`;
-      if (kind === "datetime") {
-        const frac = raw - Math.floor(raw);
-        const total = Math.round(frac * 24 * 60);
-        const hh = Math.floor(total / 60) % 24;
-        const mm = total % 60;
-        return `${d} ${pad2(hh)}:${pad2(mm)}`;
-      }
-      return d;
-    }
-  }
-  return String(raw);
-};
 
 export function ExcelPreviewDialog({ open, onOpenChange, fileName, matrix, headerRowIndex }: ExcelPreviewDialogProps) {
   const [query, setQuery] = React.useState("");

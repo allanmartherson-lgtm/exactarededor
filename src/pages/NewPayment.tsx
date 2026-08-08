@@ -3192,8 +3192,15 @@ const NewPayment = () => {
       size_bytes: number;
       sha256: string;
       bucket_role: ReturnType<typeof inferBucketRole>;
+      /**
+       * Cabeçalhos NA ORDEM ORIGINAL do arquivo. O raw_data é gravado como
+       * JSONB e o Postgres não preserva a ordem das chaves, então sem isso a
+       * aba "Base importada" não tem como reproduzir a sequência da planilha.
+       */
+      original_headers: string[];
     };
     const uploadedFiles: UploadedFile[] = [];
+
     const uploadFailures: { name: string; message: string }[] = [];
     const safeStorageExtension = (name: string) => {
       const match = name.match(/\.([A-Za-z0-9]{1,12})$/);
@@ -3228,6 +3235,12 @@ const NewPayment = () => {
           .from("payment-files")
           .upload(path, b.file, { upsert: false, contentType: b.file.type || undefined });
         if (upErr) throw new Error(upErr.message);
+        // Cabeçalhos na ordem exata do arquivo (linha de cabeçalho detectada).
+        const headerRow =
+          b.rawMatrix && typeof b.headerRowIndex === "number" ? (b.rawMatrix[b.headerRowIndex] ?? []) : [];
+        const originalHeaders = (headerRow as unknown[])
+          .map((c) => String(c ?? "").trim())
+          .filter((c) => c.length > 0);
         uploadedFiles.push({
           storage_path: path,
           original_filename: b.file.name,
@@ -3235,7 +3248,9 @@ const NewPayment = () => {
           size_bytes: b.file.size,
           sha256: hash,
           bucket_role: inferBucketRole(b.file.name),
+          original_headers: originalHeaders,
         });
+
       } catch (uploadErr) {
         // NÃO bloqueia a criação do lote — auditoria de arquivo é secundária.
         const message = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
@@ -3332,7 +3347,9 @@ const NewPayment = () => {
         size_bytes: f.size_bytes,
         sha256: f.sha256,
         bucket_role: f.bucket_role,
+        original_headers: f.original_headers.length > 0 ? f.original_headers : null,
         uploaded_by: user!.id,
+
       }));
       const { error: psfErr } = await (supabase as any)
         .from("payment_source_files")
