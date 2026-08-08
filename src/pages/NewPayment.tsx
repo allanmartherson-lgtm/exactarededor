@@ -3347,7 +3347,9 @@ const NewPayment = () => {
         size_bytes: f.size_bytes,
         sha256: f.sha256,
         bucket_role: f.bucket_role,
+        original_headers: f.original_headers.length > 0 ? f.original_headers : null,
         uploaded_by: user!.id,
+
       }));
       const { error: psfErr } = await (supabase as any)
         .from("payment_source_files")
