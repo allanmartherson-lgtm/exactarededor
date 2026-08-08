@@ -1776,73 +1776,59 @@ export default function CompanyAnalysis() {
         return;
       }
 
-      // Limpa SOMENTE itens desta empresa via edge function (service_role +
-      // statement_timeout=0). O DELETE direto pelo PostgREST estoura o timeout
-      // de ~8s quando há muitos itens + cascades (rule_calculations etc).
+      // Reimportação ATÔMICA: a RPC apaga os itens desta PJ e insere os novos
+      // dentro de UMA transação. Se qualquer passo falhar, nada é alterado.
       // NUNCA apagamos o payment_company_groups: se a reanálise falhar, a
       // empresa não pode sumir da lista. Só zeramos totais e deixamos o
       // analyze-payment reconciliar via UPDATE.
       const { withTimeout } = await import("@/lib/withTimeout");
-      const { data: clearRes, error: clearErr } = await withTimeout(
-        supabase.functions.invoke(
-          "clear-company-items",
-          { body: { payment_id: id, company_name: group.company_name } },
-        ),
+
+      const newItems = companyRows.map((r) => ({
+        doctor_name: r.doctor_name ?? null,
+        doctor_document: r.doctor_document ?? null,
+        doctor_email: r.doctor_email ?? null,
+        description: r.description ?? null,
+        gross_amount: (payment as any)?.analysis_mode === "confeccao" ? null : (r.gross_amount ?? null),
+        company_id: group.company_id ?? r.company_id ?? null,
+        attendance_number: r.attendance_number ?? null,
+        procedure_code: r.procedure_code ?? null,
+        procedure_name: r.procedure_name ?? null,
+        access_route: r.access_route ?? null,
+        doctor_role: r.doctor_role ?? null,
+        agreement_text: r.agreement_text ?? null,
+        specialty: r.specialty ?? null,
+        procedure_amount: r.procedure_amount ?? null,
+        quantity: r.quantity ?? null,
+        procedure_date: r.procedure_date ?? null,
+        patient_name: r.patient_name ?? null,
+        sector: r.sector ?? null,
+        attendance_character: r.attendance_character ?? null,
+        raw_data: r.raw_data ?? null,
+        tipo_linha: r.tipo_linha ?? null,
+        source_file_name: r.source_file_name ?? null,
+        item_type_id: r.payment_type_id_override ?? null,
+        item_type_source: r.payment_type_id_override ? "auto_heuristic" : null,
+      }));
+
+      const { error: rpcErr } = await withTimeout(
+        supabase.rpc("reimport_company_items" as never, {
+          p_payment_id: id,
+          p_company_name: group.company_name,
+          p_items: newItems as never,
+        } as never),
         90_000,
-        "A limpeza dos itens da empresa",
+        "A reimportação atômica dos itens da empresa",
       );
-      if (clearErr) throw clearErr;
-      if (clearRes && (clearRes as any).error) {
-        throw new Error((clearRes as any).detail || (clearRes as any).error);
+      if (rpcErr) {
+        throw new Error(`${rpcErr.message} — nenhum item foi alterado.`);
       }
+
       // Reseta totais do grupo (analyze-payment vai recalcular ao reanalisar).
       await supabase
         .from("payment_company_groups")
         .update({ items_count: 0, total_amount: 0 })
         .eq("id", group.id);
 
-
-      const newItems = companyRows.map((r) => ({
-        hospital_id: (payment as any).hospital_id,
-        payment_id: id,
-        doctor_name: r.doctor_name,
-        doctor_document: r.doctor_document,
-        doctor_email: r.doctor_email,
-        description: r.description,
-        gross_amount: (payment as any)?.analysis_mode === "confeccao" ? null : r.gross_amount,
-        company_name: group.company_name,
-        company_id: group.company_id ?? r.company_id,
-        attendance_number: r.attendance_number,
-        procedure_code: r.procedure_code,
-        procedure_name: r.procedure_name,
-        access_route: r.access_route,
-        doctor_role: r.doctor_role,
-        agreement_text: r.agreement_text,
-        specialty: r.specialty,
-        procedure_amount: r.procedure_amount,
-        quantity: r.quantity,
-        procedure_date: r.procedure_date,
-        patient_name: r.patient_name,
-        sector: r.sector,
-        attendance_character: r.attendance_character,
-        raw_data: r.raw_data as never,
-        tipo_linha: r.tipo_linha,
-        source_file_name: r.source_file_name ?? null,
-        ...(r.payment_type_id_override
-          ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
-          : {}),
-      }));
-
-      const chunkSize = 200;
-      for (let i = 0; i < newItems.length; i += chunkSize) {
-        const chunk = newItems.slice(i, i + chunkSize);
-        const { error: insErr } = await withTimeout(
-          supabase.from("payment_items").insert(chunk),
-          90_000,
-          `A gravação dos itens (lote ${i / chunkSize + 1})`,
-        );
-        if (insErr) throw insErr;
-      }
 
       // Recalcula totais do lote a partir dos itens remanescentes (todas empresas).
       // Pagina com .range(): PostgREST limita cada request a 1000 linhas, o que
