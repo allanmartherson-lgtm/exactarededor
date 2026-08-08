@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospital } from "@/contexts/HospitalContext";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
+import { useItemTypes } from "@/hooks/useItemTypes";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,7 +97,12 @@ export default function ManualPaymentEntry() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hospital } = useHospital();
-  const { list: paymentTypes } = usePaymentTypes({ onlyActive: true });
+  // Subtipo da LINHA = item_types (Parecer/Visita/Cirurgia/...). Modelos de
+  // pagamento do lote (Plantao/Remessa/Producao/Valor fixo) NAO entram aqui.
+  const { list: itemTypes } = useItemTypes({ onlyActive: true });
+  // Lista unificada usada apenas para rotular linhas antigas gravadas com id
+  // de payment_model (dados legados) — nunca para popular as opcoes novas.
+  const { list: unifiedTypes } = usePaymentTypes({ onlyActive: false });
   const { specialties: COMMON_SPECIALTIES } = useSpecialties();
 
   const [loading, setLoading] = useState(true);
@@ -110,13 +116,26 @@ export default function ManualPaymentEntry() {
   const [generalAttName, setGeneralAttName] = useState<string | null>(null);
   const [uploadingGeneral, setUploadingGeneral] = useState(false);
 
+  // Opções do dropdown: apenas item_types ativos. Se a linha já estava salva
+  // com um id fora desse catálogo (legado com payment_model), mantém o rótulo
+  // antigo como opção extra para não quebrar dados existentes.
+  const subtypeOptionsFor = (currentId: string | null) => {
+    const base = itemTypes.map((t) => ({ id: t.id, label: t.label }));
+    if (currentId && !base.some((t) => t.id === currentId)) {
+      const legacy = unifiedTypes.find((t) => t.id === currentId);
+      base.push({ id: currentId, label: legacy?.label ?? "Tipo legado" });
+    }
+    return base;
+  };
+
   const load = async () => {
     if (!id) return;
     setLoading(true);
     const { data: p } = await supabase.from("payments").select("*").eq("id", id).single();
     setPayment(p);
-    // D3.e.4: coluna canônica única `payment_model_id` (legada removida).
-    setDefaultTypeId((p as any)?.payment_model_id ?? null);
+    // O modelo de pagamento do lote NÃO é subtipo de item: o default da
+    // linha fica vazio e o analista escolhe entre os item_types.
+    setDefaultTypeId(null);
     setGeneralAttPath((p as any)?.manual_general_attachment_path ?? null);
     setGeneralAttName((p as any)?.manual_general_attachment_name ?? null);
 
@@ -636,7 +655,7 @@ export default function ManualPaymentEntry() {
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent>
-                              {paymentTypes.map((pt) => (
+                              {subtypeOptionsFor(r.itemTypeId).map((pt) => (
                                 <SelectItem key={pt.id} value={pt.id}>
                                   {pt.label}
                                 </SelectItem>
