@@ -401,7 +401,7 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
-  const { diffState: reimportDiffState, runDiffGate, resolveDiff } = useReimportDiffGate();
+  const { diffState: reimportDiffState, runDiffGate, resolveDiff, showGateError } = useReimportDiffGate();
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
