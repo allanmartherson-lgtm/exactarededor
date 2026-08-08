@@ -3249,7 +3249,7 @@ export default function CompanyAnalysis() {
 
         {/* ABA — Base importada (raw_data espelhado da planilha original) */}
         <TabsContent value="base-importada" className="space-y-3">
-          <RawDataTable items={items as any} />
+          <RawDataTable items={items as any} paymentId={(payment as any)?.id ?? null} />
         </TabsContent>
 
 
