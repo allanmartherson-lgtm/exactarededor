@@ -10,10 +10,10 @@ export class TimeoutError extends Error {
   }
 }
 
-export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+export function withTimeout<T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
-  return Promise.race([
-    p,
+  return Promise.race<T>([
+    Promise.resolve(p),
     new Promise<never>((_, reject) => {
       timer = setTimeout(
         () => reject(new TimeoutError(`${label} não respondeu em ${Math.round(ms / 1000)}s. Nada foi confirmado — tente novamente.`)),
