@@ -82,6 +82,12 @@ import { useSheetColumnTemplates } from "@/hooks/useSheetColumnTemplates";
 import ColumnMappingDialog from "@/components/payment/ColumnMappingDialog";
 import { confirmDialog } from "@/lib/confirm";
 import { detectSuspiciousRows } from "@/lib/detectSuspiciousRows";
+import {
+  partitionImportRows,
+  IGNORED_REASON_LABELS,
+  type IgnoredRowInfo,
+  type ImportRowLike,
+} from "@/lib/importRowFilter";
 import { SuspiciousRowsReview, type SuspiciousDecision } from "@/components/payment-wizard/SuspiciousRowsReview";
 import { ParecerReportWizardCard, type ParecerWizardPayload } from "@/components/payment-wizard/ParecerReportWizardCard";
 import { MixedParecerSetupCard, useAmbiguousTussCount, type MixedParecerSetup } from "@/components/payment-wizard/MixedParecerSetupCard";
@@ -1240,7 +1246,7 @@ const NewPayment = () => {
       const { procedure_code: _pc, procedure_name: _pn, ...rest } = manualMapping;
       return rest as ManualMapping;
     })();
-    return json.map((rawRow, rowIndex) => {
+    const mapped = json.map((rawRow, rowIndex) => {
       // Quando o analista (ou um template) forneceu mapeamento explícito,
       // injetamos o valor da coluna escolhida em todas as chaves canônicas
       // que o pick() conhece. Assim os pick() abaixo encontram o valor certo
@@ -1485,23 +1491,25 @@ const NewPayment = () => {
         line_issues.push({ severity: "alerta", field: "tipo_linha", message: parecerDivergence });
       }
       return { ...withType, line_issues } as ParsedRow;
-    }).filter((r) => {
+    });
+
+    // Filtro ÚNICO de linhas não-item — mesmo helper usado na reimportação
+    // (lote e PJ), para que um totalizador nunca entre por um caminho e seja
+    // descartado por outro. Ver src/lib/importRowFilter.ts.
+    const partition = partitionImportRows(mapped as unknown as ImportRowLike[]);
+    if (partition.ignored.length > 0) {
+      setIgnoredRowsByFile((prev) => ({ ...prev, [f.name]: partition.ignored }));
+    } else {
+      setIgnoredRowsByFile((prev) => {
+        if (!prev[f.name]) return prev;
+        const next = { ...prev };
+        delete next[f.name];
+        return next;
+      });
+    }
+
+    return (partition.kept as unknown as ParsedRow[]).filter((r) => {
       const hasDoctor = !!r.doctor_name?.trim();
-      const hasAttendance = !!r.attendance_number?.trim();
-      const hasPatient = !!r.patient_name?.trim();
-
-      // Relatórios de Parecer/Visita podem trazer linha-soma sem palavra
-      // "TOTAL": apenas tipo/TUSS/valor/descrição e nenhum dado assistencial.
-      // Se entrar na validação, vira falso bloqueio de "Médico obrigatório".
-      if (
-        (r.tipo_linha === "parecer" || r.tipo_linha === "visita") &&
-        !hasDoctor &&
-        !hasAttendance &&
-        !hasPatient
-      ) {
-        return false;
-      }
-
       return hasDoctor || Math.abs(r.gross_amount) > 0 || !!r.procedure_code || !!r.description;
     });
   };
@@ -2369,6 +2377,8 @@ const NewPayment = () => {
   // decide caso a caso ("descartar" / "total informativo" remove da base;
   // "manter como item" preserva). Enquanto houver pendência, envio é bloqueado.
   const [suspiciousDecisions, setSuspiciousDecisions] = useState<Record<string, SuspiciousDecision>>({});
+  /** Linhas descartadas automaticamente pelo filtro de não-item, por arquivo. */
+  const [ignoredRowsByFile, setIgnoredRowsByFile] = useState<Record<string, IgnoredRowInfo[]>>({});
   const decisionKey = (fileName: string, rowNumber: number) => `${fileName}::${rowNumber}`;
 
   // ===== Carregar rascunho ao montar (uma vez por hospital/modo/tipo) =====
@@ -5433,6 +5443,22 @@ const NewPayment = () => {
                             setSuspiciousDecisions((prev) => ({ ...prev, [decisionKey(b.file.name, rn)]: d }))
                           }
                         />
+                      )}
+                      {(ignoredRowsByFile[b.file.name]?.length ?? 0) > 0 && (
+                        <details className="mt-2 rounded-md border border-warning/40 bg-warning-soft/50 p-2 text-xs">
+                          <summary className="cursor-pointer text-warning-text font-medium">
+                            {ignoredRowsByFile[b.file.name].length} linha(s) ignorada(s) (totalizadores/sem identificação)
+                          </summary>
+                          <ul className="mt-2 space-y-1">
+                            {ignoredRowsByFile[b.file.name].slice(0, 20).map((ig, i) => (
+                              <li key={i} className="text-muted-foreground">
+                                {ig.rowNumber ? `L${ig.rowNumber} · ` : ""}
+                                {ig.preview} — {IGNORED_REASON_LABELS[ig.reason]}
+                                {ig.value ? ` · ${formatCurrency(ig.value)}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
                       )}
                     </div>
                     <div className="flex flex-col gap-1 flex-shrink-0">

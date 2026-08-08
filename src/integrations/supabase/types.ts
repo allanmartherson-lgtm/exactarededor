@@ -14457,6 +14457,10 @@ export type Database = {
             }
             Returns: undefined
           }
+      reimport_company_items: {
+        Args: { p_company_name: string; p_items?: Json; p_payment_id: string }
+        Returns: Json
+      }
       reject_campaign: {
         Args: { _campaign_id: string; _reason: string }
         Returns: undefined

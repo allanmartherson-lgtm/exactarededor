@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { ReimportDiffDialog } from "@/components/ReimportDiffDialog";
+import type { IgnoredRowInfo } from "@/lib/importRowFilter";
 import { useReimportDiffGate } from "@/hooks/useReimportDiffGate";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -400,7 +401,7 @@ export default function CompanyAnalysis() {
   const [manualItemOpen, setManualItemOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
-  const { diffState: reimportDiffState, runDiffGate, resolveDiff } = useReimportDiffGate();
+  const { diffState: reimportDiffState, runDiffGate, resolveDiff, showGateError } = useReimportDiffGate();
 
   // FAB de Conversas — escopo desta empresa. Conta apenas mensagens NÃO LIDAS
   // (não autoradas pelo usuário atual e ausentes em payment_question_reads).
@@ -1585,7 +1586,7 @@ export default function CompanyAnalysis() {
   };
 
 
-  const doReimport = async (files: File[], extraOverrides?: Record<string, Record<string, string>>) => {
+  const doReimport = async (files: File[], extraOverrides?: Record<string, Record<string, string>>, attempt = 0) => {
     if (!id || !payment || !user || !group) return;
     setReimporting(true);
     try {
@@ -1619,6 +1620,7 @@ export default function CompanyAnalysis() {
         normalizeString(s ?? "").replace(/[^a-z0-9]/g, "");
       const targetLoose = looseKey(group.company_name);
       const targetId = group.company_id ?? null;
+      const reimportIgnoredRows: IgnoredRowInfo[] = [];
       let parsedRows: any[] = [];
       let fileNames: string[] = [];
 
@@ -1702,6 +1704,7 @@ export default function CompanyAnalysis() {
             .update({ last_used_at: new Date().toISOString() } as never)
             .eq("id", tpl.id);
         }
+        if (bucket.ignoredRows?.length) reimportIgnoredRows.push(...bucket.ignoredRows);
         if (bucket.rows.length > 0) {
           const fileMatchesGroup = matchesTarget(bucket.rawCompanyName, bucket.matchedCompany?.id ?? null)
             || matchesTarget(bucket.matchedCompany?.name ?? null, bucket.matchedCompany?.id ?? null);
@@ -1749,6 +1752,7 @@ export default function CompanyAnalysis() {
         paymentId: id,
         files,
         companyName: group.company_name,
+        ignoredRows: reimportIgnoredRows,
         parsedRows: (companyRows as Array<{
           attendance_number?: string | null;
           procedure_code?: string | null;
@@ -1772,64 +1776,59 @@ export default function CompanyAnalysis() {
         return;
       }
 
-      // Limpa SOMENTE itens desta empresa via edge function (service_role +
-      // statement_timeout=0). O DELETE direto pelo PostgREST estoura o timeout
-      // de ~8s quando há muitos itens + cascades (rule_calculations etc).
+      // Reimportação ATÔMICA: a RPC apaga os itens desta PJ e insere os novos
+      // dentro de UMA transação. Se qualquer passo falhar, nada é alterado.
       // NUNCA apagamos o payment_company_groups: se a reanálise falhar, a
       // empresa não pode sumir da lista. Só zeramos totais e deixamos o
       // analyze-payment reconciliar via UPDATE.
-      const { data: clearRes, error: clearErr } = await supabase.functions.invoke(
-        "clear-company-items",
-        { body: { payment_id: id, company_name: group.company_name } },
+      const { withTimeout } = await import("@/lib/withTimeout");
+
+      const newItems = companyRows.map((r) => ({
+        doctor_name: r.doctor_name ?? null,
+        doctor_document: r.doctor_document ?? null,
+        doctor_email: r.doctor_email ?? null,
+        description: r.description ?? null,
+        gross_amount: (payment as any)?.analysis_mode === "confeccao" ? null : (r.gross_amount ?? null),
+        company_id: group.company_id ?? r.company_id ?? null,
+        attendance_number: r.attendance_number ?? null,
+        procedure_code: r.procedure_code ?? null,
+        procedure_name: r.procedure_name ?? null,
+        access_route: r.access_route ?? null,
+        doctor_role: r.doctor_role ?? null,
+        agreement_text: r.agreement_text ?? null,
+        specialty: r.specialty ?? null,
+        procedure_amount: r.procedure_amount ?? null,
+        quantity: r.quantity ?? null,
+        procedure_date: r.procedure_date ?? null,
+        patient_name: r.patient_name ?? null,
+        sector: r.sector ?? null,
+        attendance_character: r.attendance_character ?? null,
+        raw_data: r.raw_data ?? null,
+        tipo_linha: r.tipo_linha ?? null,
+        source_file_name: r.source_file_name ?? null,
+        item_type_id: r.payment_type_id_override ?? null,
+        item_type_source: r.payment_type_id_override ? "auto_heuristic" : null,
+      }));
+
+      const { error: rpcErr } = await withTimeout(
+        supabase.rpc("reimport_company_items" as never, {
+          p_payment_id: id,
+          p_company_name: group.company_name,
+          p_items: newItems as never,
+        } as never),
+        90_000,
+        "A reimportação atômica dos itens da empresa",
       );
-      if (clearErr) throw clearErr;
-      if (clearRes && (clearRes as any).error) {
-        throw new Error((clearRes as any).detail || (clearRes as any).error);
+      if (rpcErr) {
+        throw new Error(`${rpcErr.message} — nenhum item foi alterado.`);
       }
+
       // Reseta totais do grupo (analyze-payment vai recalcular ao reanalisar).
       await supabase
         .from("payment_company_groups")
         .update({ items_count: 0, total_amount: 0 })
         .eq("id", group.id);
 
-
-      const newItems = companyRows.map((r) => ({
-        hospital_id: (payment as any).hospital_id,
-        payment_id: id,
-        doctor_name: r.doctor_name,
-        doctor_document: r.doctor_document,
-        doctor_email: r.doctor_email,
-        description: r.description,
-        gross_amount: (payment as any)?.analysis_mode === "confeccao" ? null : r.gross_amount,
-        company_name: group.company_name,
-        company_id: group.company_id ?? r.company_id,
-        attendance_number: r.attendance_number,
-        procedure_code: r.procedure_code,
-        procedure_name: r.procedure_name,
-        access_route: r.access_route,
-        doctor_role: r.doctor_role,
-        agreement_text: r.agreement_text,
-        specialty: r.specialty,
-        procedure_amount: r.procedure_amount,
-        quantity: r.quantity,
-        procedure_date: r.procedure_date,
-        patient_name: r.patient_name,
-        sector: r.sector,
-        attendance_character: r.attendance_character,
-        raw_data: r.raw_data as never,
-        tipo_linha: r.tipo_linha,
-        source_file_name: r.source_file_name ?? null,
-        ...(r.payment_type_id_override
-          ? { item_type_id: r.payment_type_id_override, item_type_source: "auto_heuristic" as const }
-          : {}),
-      }));
-
-      const chunkSize = 200;
-      for (let i = 0; i < newItems.length; i += chunkSize) {
-        const chunk = newItems.slice(i, i + chunkSize);
-        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
-        if (insErr) throw insErr;
-      }
 
       // Recalcula totais do lote a partir dos itens remanescentes (todas empresas).
       // Pagina com .range(): PostgREST limita cada request a 1000 linhas, o que
@@ -1881,6 +1880,15 @@ export default function CompanyAnalysis() {
         || (typeof e === "string" ? e : JSON.stringify(e));
       toast.error("Erro ao reimportar", { description: msg });
       console.error("[reimport-company]", e);
+      // Reabre o modal do diff com o erro real e oferece "Tentar novamente".
+      // Limite de 2 tentativas manuais para não criar recursão infinita.
+      if (attempt < 2) {
+        const again = await showGateError(msg);
+        if (again === "confirm") {
+          setReimporting(false);
+          await doReimport(files, extraOverrides, attempt + 1);
+        }
+      }
     } finally {
       setReimporting(false);
       setReimportConfirm(null);
@@ -3631,7 +3639,12 @@ export default function CompanyAnalysis() {
         open={!!reimportDiffState}
         diff={reimportDiffState?.diff ?? null}
         sha256Matched={reimportDiffState?.sha256Matched ?? false}
-        busy={reimporting}
+        ignoredRows={reimportDiffState?.ignoredRows ?? []}
+        errorMessage={reimportDiffState?.errorMessage ?? null}
+        /* IMPORTANTE: enquanto o modal do diff está aberto a operação está
+           PARADA aguardando a decisão — não pode ficar "busy", senão os botões
+           ficam desabilitados e o fluxo trava para sempre. */
+        busy={reimporting && !reimportDiffState}
         onCancel={() => resolveDiff("cancel")}
         onConfirm={() => resolveDiff("confirm")}
         onSkip={() => resolveDiff("skip")}

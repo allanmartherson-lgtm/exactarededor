@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, ArrowRight, ChevronDown, ChevronRight, FileCheck2, Plus, Minus, Pencil } from "lucide-react";
 import type { ReimportDiff } from "@/lib/reimportDiff";
+import { IGNORED_REASON_LABELS, type IgnoredRowInfo } from "@/lib/importRowFilter";
 
 const currency = (v: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v ?? 0));
@@ -25,13 +26,16 @@ type Props = {
   open: boolean;
   diff: ReimportDiff | null;
   sha256Matched: boolean; // true = todos os arquivos batem com hash já registrado
+  ignoredRows?: IgnoredRowInfo[]; // linhas descartadas por não serem item
   busy?: boolean;
+  /** Erro da última tentativa de commit — exibido no rodapé do modal. */
+  errorMessage?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
   onSkip: () => void;
 };
 
-export function ReimportDiffDialog({ open, diff, sha256Matched, busy, onCancel, onConfirm, onSkip }: Props) {
+export function ReimportDiffDialog({ open, diff, sha256Matched, ignoredRows = [], busy, errorMessage, onCancel, onConfirm, onSkip }: Props) {
   const [openChanged, setOpenChanged] = useState(true);
   const [openAdded, setOpenAdded] = useState(false);
   const [openRemoved, setOpenRemoved] = useState(false);
@@ -102,6 +106,23 @@ export function ReimportDiffDialog({ open, diff, sha256Matched, busy, onCancel, 
               Δ {currency(deltaTotal)}
             </Badge>
           </div>
+
+          {ignoredRows.length > 0 && (
+            <details className="rounded-md border border-warning/40 bg-warning-soft/50 p-3 text-xs">
+              <summary className="cursor-pointer font-medium text-warning-text">
+                {ignoredRows.length} linha(s) ignorada(s) (totalizadores/sem identificação)
+              </summary>
+              <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                {ignoredRows.slice(0, 50).map((ig, i) => (
+                  <li key={i} className="text-muted-foreground">
+                    {ig.rowNumber ? `L${ig.rowNumber} · ` : ""}
+                    {ig.preview} — {IGNORED_REASON_LABELS[ig.reason]}
+                    {ig.value ? ` · ${currency(ig.value)}` : ""}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
 
           {sha256Matched && (
             <div className="rounded-md border border-info/30 bg-info-soft/40 p-3 flex items-start gap-2">
@@ -183,17 +204,30 @@ export function ReimportDiffDialog({ open, diff, sha256Matched, busy, onCancel, 
           </div>
         </div>
 
+        {errorMessage && (
+          <div className="rounded-md border border-destructive/40 bg-destructive-soft/60 p-3 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="text-xs min-w-0">
+              <p className="font-medium text-destructive-text">A reimportação falhou</p>
+              <p className="text-muted-foreground break-words">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={busy}>Cancelar</Button>
+          {/* Cancelar NUNCA é desabilitado: o analista precisa sempre poder sair
+              do modal, mesmo com uma operação em andamento ou travada. */}
+          <Button variant="outline" onClick={onCancel}>Cancelar</Button>
           {sha256Matched && (
             <Button variant="secondary" onClick={onSkip} disabled={busy}>
               Pular — arquivo já processado
             </Button>
           )}
           <Button onClick={onConfirm} disabled={busy}>
-            {busy ? "Reimportando…" : "Confirmar reimportação"}
+            {busy ? "Reimportando…" : errorMessage ? "Tentar novamente" : "Confirmar reimportação"}
           </Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
