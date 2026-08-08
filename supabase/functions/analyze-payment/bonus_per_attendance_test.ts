@@ -5,12 +5,22 @@ import {
   type RuleInput,
   type PaymentContext,
 } from "../_shared/rulesEngine.ts";
+import { synthesizeBonusLines } from "./bonusSynthesisFixture.ts";
 
 /**
  * Bônus de R$ 1.500 por ATENDIMENTO em fim de semana, para cirurgião principal.
- * Mesmo atendimento com 2 códigos (anchor = principal): bônus aplica 1× só.
+ * Mesmo atendimento com 2 códigos: o bônus sai 1× só.
  *
- * Também valida o fallback paciente+data quando attendance_number está vazio.
+ * MODELO ATUAL (duas fases)
+ * -------------------------
+ *  Fase A (`analyzePaymentItems`): regras de bônus são FILTRADAS na entrada e
+ *    não competem no matching por TUSS — antes, um bônus podia vencer o
+ *    procedimento e rotular o item como "bonus", sequestrando o cálculo real.
+ *  Fase B (síntese, em analyze-payment/index.ts): emite UMA linha
+ *    `complemento_bonus` por (regra × atendimento), ancorada no principal.
+ *
+ * Este teste cobre as duas metades: que a Fase A não encosta no item, e que a
+ * Fase B emite exatamente uma linha para o atendimento inteiro.
  */
 Deno.test("Bônus por atendimento: aplica 1× por grupo, não por código", () => {
   const rules: RuleInput[] = [
@@ -102,14 +112,31 @@ Deno.test("Bônus por atendimento: aplica 1× por grupo, não por código", () =
   const anchor = results.find((r) => r.item_id === "item-anchor")!;
   const secund = results.find((r) => r.item_id === "item-secundario")!;
 
-  // Anchor recebe o bônus calculado (200 + 1500 = 1700)
-  assertEquals(anchor.expected_amount, 1700, "Anchor deve receber 200 + 1500");
-  assertEquals(anchor.status, "aprovado");
+  // --- Fase A: o bônus NÃO pode sequestrar nenhum dos dois TUSS ---
+  assertEquals(
+    anchor.calculation_type_used === "bonus",
+    false,
+    "Regra de bônus não pode vencer o matching por item (sequestraria o cálculo do TUSS)",
+  );
+  assertEquals(secund.calculation_type_used === "bonus", false);
 
-  // Secundário tem bônus suprimido — esperado = pago, status aprovado
-  assertEquals(secund.suppressed_by_dedup, true, "Secundário deve estar suprimido");
-  assertEquals(secund.expected_amount, 100, "Secundário aceita o valor pago (sem bônus duplicado)");
-  assertEquals(secund.status, "aprovado");
+  // Os dois códigos precisam cair no MESMO atendimento — é isso que permite
+  // que a Fase B emita um único bônus para os dois.
+  assertEquals(anchor.attendance_group_key, secund.attendance_group_key);
+  assertEquals(anchor.is_main_procedure, true, "Maior procedure_amount é o principal");
+
+  // --- Fase B: exatamente 1 linha de bônus para o atendimento ---
+  const bonusLines = synthesizeBonusLines(items, results, rules, ctx);
+  assertEquals(bonusLines.length, 1, "Bônus deve sair 1× por atendimento, não por código");
+
+  const [line] = bonusLines;
+  assertEquals(line.anchor_item_id, "item-anchor", "Ancorado no cirurgião principal do procedimento principal");
+  assertEquals(line.application_unit, "por_atendimento");
+  // por_atendimento soma o grupo inteiro: 200 (anchor) + 100 (secundário).
+  assertEquals(line.bonus_base_amount, 300, "Base por_atendimento = soma do grupo");
+  assertEquals(line.bonus_fixed_amount, 1500);
+  assertEquals(line.gross_amount, 1500, "Valor da linha é só o bônus — não soma o honorário do pai");
+  assertEquals(line.expected_amount, line.gross_amount, "Linha sintética nasce sem divergência");
 });
 
 Deno.test("Bônus por atendimento: sexta-feira NÃO conta para bônus de fim de semana", () => {

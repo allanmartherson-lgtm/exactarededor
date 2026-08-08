@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ItemsDataGrid } from "../ItemsDataGrid";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
@@ -82,36 +82,36 @@ const clickFirstRow = (id: string) => {
   fireEvent.doubleClick(row);
 };
 
-describe("ItemsDataGrid — expansão inline e altura adaptativa", () => {
+describe("ItemsDataGrid — painel de detalhes e altura adaptativa", () => {
   beforeEach(() => {
     // jsdom não implementa scrollBy/scrollIntoView; mockamos para inspecionar.
     Element.prototype.scrollBy = vi.fn();
     Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it("abre o painel inline ao clicar e marca data-expanded-row", async () => {
+  // O detalhe do item deixou de ser uma <tr> expandida embaixo da linha
+  // (data-expanded-row) e passou a abrir no ItemDetailsPanel, um Sheet lateral
+  // com navegação anterior/próximo. Os testes abaixo cobrem o comportamento
+  // atual: duplo clique abre, duplo clique na mesma linha fecha.
+  it("duplo clique abre o painel de detalhes do item", async () => {
     renderGrid([
       makeItem({ id: "row-a", attendance_number: "ATD-1" }),
       makeItem({ id: "row-b", attendance_number: "ATD-2", patient_name: "Paciente Dois" }),
     ]);
-    expect(document.querySelector("[data-expanded-row]")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
     clickFirstRow("row-a");
-    const panel = await screen.findByText(/Atendimento/i, { selector: "p,div,span" }).catch(() => null);
-    expect(document.querySelector('[data-expanded-row="row-a"]')).toBeTruthy();
-    // toggle fecha
-    clickFirstRow("row-a");
-    expect(document.querySelector("[data-expanded-row]")).toBeNull();
-    void panel;
+    expect(await screen.findByRole("dialog")).toBeTruthy();
   });
 
-  it("aciona scroll automático para o painel expandido", async () => {
+  it("duplo clique na mesma linha fecha o painel", async () => {
     renderGrid([
-      makeItem({ id: "row-a" }),
+      makeItem({ id: "row-a", attendance_number: "ATD-1" }),
       makeItem({ id: "row-b", attendance_number: "ATD-2", patient_name: "Paciente Dois" }),
     ]);
     clickFirstRow("row-a");
-    await new Promise<void>((r) => requestAnimationFrame(() => r()));
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    clickFirstRow("row-a");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("aplica baseline min-h 640 para diferentes tipos de regra e tamanhos de tela", () => {

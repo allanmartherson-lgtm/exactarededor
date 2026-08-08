@@ -5,19 +5,29 @@ import {
   type RuleInput,
   type PaymentContext,
 } from "../_shared/rulesEngine.ts";
+import { synthesizeBonusLines } from "./bonusSynthesisFixture.ts";
 
 /**
  * MODO CONFECÇÃO — Bônus de final de semana
  *
  * Na confecção a base do analista NÃO traz gross_amount (não há valor pago);
- * só vem procedure_amount (valor de tabela). O motor precisa:
- *  1. Calcular o expected_amount do âncora como procedure_amount + bônus.
- *  2. Não zerar o auxiliar quando o bônus é suprimido — fallback para
- *     procedure_amount (preserva o repasse base do médico auxiliar).
+ * só vem procedure_amount (valor de tabela).
  *
- * Este teste blinda o fallback `gross_amount ?? procedure_amount` em
- * rulesEngine.ts (linha 3052) e a base do split de bônus no
- * analyze-payment/index.ts (parentBase = procedure_amount em confecção).
+ * Antes, o bônus era somado dentro do expected_amount do item âncora e depois
+ * "splitado" numa linha separada — o que exigia o fallback
+ * `gross_amount ?? procedure_amount` e a aritmética de reverter o pai.
+ *
+ * Hoje o bônus JÁ NASCE como linha própria (Fase B — ver
+ * bonusSynthesisFixture.ts), e a base dessa fase é `procedure_amount` em
+ * qualquer modo. Isso elimina por construção o bug que estes testes protegiam:
+ * não existe mais um âncora inflado para desinflar, nem auxiliar zerado por
+ * supressão de bônus.
+ *
+ * O que os testes abaixo blindam agora:
+ *  1. Sem gross_amount, o bônus ainda sai com o valor certo (base = tabela).
+ *  2. O auxiliar mantém o próprio cálculo — o bônus não passa por ele.
+ *  3. A linha sintética nasce com gross_amount = expected_amount = bônus, e o
+ *     pai continua valendo só o honorário base.
  */
 
 function buildBonusRule(): RuleInput {
@@ -91,16 +101,23 @@ Deno.test("CONFECÇÃO · bônus FDS aplicado ao âncora usa procedure_amount co
     } as any,
   ];
 
-  const results = analyzePaymentItems(items, [buildBonusRule()], ctx);
+  const rules = [buildBonusRule()];
+  const results = analyzePaymentItems(items, rules, ctx);
   const anchor = results.find((r) => r.item_id === "anchor-confeccao")!;
 
-  // expected = procedure_amount(200) + bonus(1500) = 1700
-  assertEquals(anchor.expected_amount, 1700,
-    "Em confecção, expected do âncora deve ser procedure_amount + bônus");
-  assertEquals(anchor.calculation_type_used, "bonus");
+  // O item do procedimento NÃO vira "bonus" — segue com o próprio cálculo.
+  assertEquals(anchor.calculation_type_used === "bonus", false);
+
+  const [line, ...extras] = synthesizeBonusLines(items, results, rules, ctx);
+  assertEquals(extras.length, 0, "Um atendimento, uma linha de bônus");
+  // Mesmo sem gross_amount, a base vem de procedure_amount (valor de tabela).
+  assertEquals(line.bonus_base_amount, 200,
+    "Em confecção a base do bônus é procedure_amount — nunca 0 por falta de gross_amount");
+  assertEquals(line.gross_amount, 1500);
+  assertEquals(line.expected_amount, 1500);
 });
 
-Deno.test("CONFECÇÃO · auxiliar com bônus suprimido cai em procedure_amount (não zero)", () => {
+Deno.test("CONFECÇÃO · auxiliar mantém o próprio repasse — o bônus não passa por ele", () => {
   const items: ItemInput[] = [
     {
       id: "anchor-aux-conf",
@@ -142,13 +159,41 @@ Deno.test("CONFECÇÃO · auxiliar com bônus suprimido cai em procedure_amount 
     } as any,
   ];
 
-  const results = analyzePaymentItems(items, [buildBonusRule()], ctx);
+  const rules = [buildBonusRule()];
+  const results = analyzePaymentItems(items, rules, ctx);
   const aux = results.find((r) => r.item_id === "aux-conf")!;
 
-  assertEquals(aux.suppressed_by_dedup, true, "Auxiliar deve estar marcado como bônus suprimido");
-  assertEquals(aux.expected_amount, 80,
-    "Auxiliar suprimido em confecção: expected = procedure_amount (não zero)");
+  // O bônus não é mais somado-e-suprimido item a item, então o auxiliar nunca
+  // chega a ser zerado: ele simplesmente não é tocado pela regra de bônus.
+  assertEquals(aux.calculation_type_used === "bonus", false,
+    "Bônus não pode assumir o cálculo do auxiliar");
   assert(aux.expected_amount !== 0, "Regressão: expected do auxiliar não pode ser zero em confecção");
+
+  // ATENÇÃO — o agrupamento é por atendimento | paciente | data | empresa |
+  // MÉDICO (ver selectMainProcedures). Ou seja, "por_atendimento" quer dizer
+  // "por atendimento de cada médico": principal e auxiliar são grupos
+  // distintos e cada um recebe a própria linha quando a regra não filtra
+  // função. Isso é o que o motor faz hoje — o teste registra o fato para que
+  // uma mudança nesse comportamento seja deliberada, não silenciosa.
+  const semFiltroDeFuncao = synthesizeBonusLines(items, results, rules, ctx);
+  assertEquals(semFiltroDeFuncao.length, 2,
+    "Sem filtro de função, cada médico do atendimento recebe a própria linha de bônus");
+  for (const l of semFiltroDeFuncao) {
+    // Cada linha usa a base do SEU grupo (um médico), nunca a soma dos dois.
+    assert(
+      l.bonus_base_amount === 300 || l.bonus_base_amount === 80,
+      `base inesperada: ${l.bonus_base_amount}`,
+    );
+  }
+
+  // A forma suportada de dizer "só o cirurgião principal" é o filtro de função
+  // no cálculo — aí sai exatamente uma linha, ancorada nele.
+  const regraSoPrincipal = buildBonusRule();
+  (regraSoPrincipal as any).calculations[0].doctor_roles = ["cirurgiao"];
+  const comFiltro = synthesizeBonusLines(items, results, [regraSoPrincipal], ctx);
+  assertEquals(comFiltro.length, 1, "Com doctor_roles, o bônus sai 1× para o principal");
+  assertEquals(comFiltro[0].anchor_item_id, "anchor-aux-conf");
+  assertEquals(comFiltro[0].bonus_base_amount, 300);
 });
 
 Deno.test("CONFECÇÃO · sexta-feira não dispara bônus mesmo sem gross_amount", () => {
@@ -187,12 +232,12 @@ Deno.test("CONFECÇÃO · sexta-feira não dispara bônus mesmo sem gross_amount
 });
 
 /**
- * Cobertura adicional: simula a aritmética do SPLIT do analyze-payment
- * (parentBase = procedure_amount em confecção). Garante que a linha
- * sintética de complemento_bonus seria criada com o valor correto e que
- * o procedimento pai volta a refletir só o honorário base.
+ * Cobertura do INVARIANTE que sobreviveu ao fim do split: o pai continua
+ * valendo só o honorário base e a linha sintética carrega exatamente o bônus.
+ * Antes isso era obtido desinflando o âncora; hoje é obtido por construção,
+ * porque as duas fases nunca somam no mesmo lugar.
  */
-Deno.test("CONFECÇÃO · split sintetiza linha de bônus com valor correto e zera divergência do pai", () => {
+Deno.test("CONFECÇÃO · linha de bônus carrega só o bônus e o pai fica com a base", () => {
   const items: ItemInput[] = [
     {
       id: "split-anchor",
@@ -215,26 +260,25 @@ Deno.test("CONFECÇÃO · split sintetiza linha de bônus com valor correto e ze
     } as any,
   ];
 
-  const results = analyzePaymentItems(items, [buildBonusRule()], ctx);
+  const rules = [buildBonusRule()];
+  const results = analyzePaymentItems(items, rules, ctx);
   const anchor = results.find((r) => r.item_id === "split-anchor")!;
 
-  // Replica a lógica de analyze-payment/index.ts (linhas 1654-1710) para
-  // o modo confecção — sem rodar o handler completo, validamos o cálculo.
-  const isConfeccao = true;
-  const parent = items[0] as any;
-  const parentGrossRaw = Number(parent.gross_amount ?? 0);
-  const parentBase = isConfeccao
-    ? Number(parent.procedure_amount ?? parentGrossRaw ?? 0)
-    : parentGrossRaw;
-  const exp = anchor.expected_amount!;
-  const bonusAmt = Number((exp - parentBase).toFixed(2));
+  const parentBase = Number((items[0] as any).procedure_amount);
+  assertEquals(parentBase, 200, "Base do pai em confecção = procedure_amount");
 
-  assertEquals(parentBase, 200, "parentBase em confecção = procedure_amount");
-  assertEquals(bonusAmt, 1500, "Linha sintética de bônus deve ser exatamente 1500");
-  // Pai pós-revert deve voltar a refletir só a base
-  const parentExpectedPosRevert = parentBase;
-  assertEquals(parentExpectedPosRevert + bonusAmt, exp,
-    "Invariante: pai(base) + bônus(sintético) === expected original");
+  const [bonusLine] = synthesizeBonusLines(items, results, rules, ctx);
+  assertEquals(bonusLine.gross_amount, 1500, "A linha sintética carrega exatamente o bônus");
+
+  // O pai NÃO pode carregar o bônus junto — se carregasse, o total do
+  // atendimento contaria o bônus duas vezes assim que a linha for inserida.
+  assert(
+    (anchor.expected_amount ?? 0) < parentBase + bonusLine.gross_amount,
+    "Regressão: bônus somado no pai E na linha sintética duplica o repasse",
+  );
+
+  // Invariante do repasse do atendimento: base + bônus, cada um no seu lugar.
+  assertEquals(parentBase + bonusLine.gross_amount, 1700);
 });
 
 Deno.test("CONFECÇÃO · linha sintética de bônus persiste gross_amount igual ao repasse calculado", () => {
@@ -261,4 +305,53 @@ Deno.test("CONFECÇÃO · linha sintética de bônus persiste gross_amount igual
     "Regressão: gross_amount não pode ser null em complemento_bonus de confecção");
   assertEquals(bonusInsertPayload.expected_amount, 1500);
   assertEquals(bonusInsertPayload.ai_findings.expected_amount, 1500);
+});
+
+/**
+ * Rede de proteção do `bonusSynthesisFixture.ts`.
+ *
+ * O fixture ESPELHA a Fase B, que vive inline no handler do `index.ts` e não é
+ * importável. Se a Fase B mudar e o fixture não, os testes acima continuariam
+ * verdes validando uma lógica que não existe mais em produção. Este teste lê o
+ * source do `index.ts` e falha quando as decisões espelhadas saem de sincronia.
+ */
+Deno.test("Fase B do index.ts não saiu de sincronia com o fixture de teste", async () => {
+  const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
+
+  // 1) A fase existe e continua sendo por (regra × atendimento).
+  assert(
+    /Síntese de linhas de bônus/.test(src),
+    "bloco de síntese de bônus não encontrado no index.ts",
+  );
+  assert(
+    /tipo_linha:\s*"complemento_bonus"/.test(src),
+    "linha sintética deixou de usar tipo_linha='complemento_bonus'",
+  );
+  assert(/synthetic_bonus:\s*true/.test(src), "flag synthetic_bonus removida");
+
+  // 2) Elegibilidade continua delegada às mesmas primitivas exportadas — é o
+  //    que o fixture reusa de verdade em vez de reimplementar.
+  assert(/selectWinningRule\(anchor,\s*\[rule as any\],\s*ctx\)/.test(src),
+    "3a: elegibilidade da regra deixou de usar selectWinningRule sobre o âncora");
+  assert(/calcItemMatches\(bonusCalc as any,\s*anchor\)/.test(src),
+    "3b: elegibilidade do cálculo deixou de usar calcItemMatches sobre o âncora");
+
+  // 3) Base por unidade de aplicação: por_item = âncora, senão soma do grupo.
+  assert(/applicationUnit === "por_item"/.test(src), "3c: regra de base por_item mudou");
+  assert(/for \(const it of groupItems\) base \+= Number\(it\.procedure_amount \?\? 0\)/.test(src),
+    "3c: base por_atendimento deixou de somar procedure_amount do grupo");
+
+  // 4) Valor: fixo + percentual sobre a base, calc vencendo a regra.
+  assert(/const bonusAmt = Number\(\(fixed \+ pctAmt\)\.toFixed\(2\)\)/.test(src),
+    "3d: composição do valor do bônus (fixo + percentual) mudou");
+
+  // 5) Fase A continua excluindo bônus do matching por item — é a premissa de
+  //    tudo acima.
+  const engine = await Deno.readTextFile(
+    new URL("../_shared/rulesEngine.ts", import.meta.url),
+  );
+  assert(
+    /\(r\.calculation_type \?\? ""\) !== "bonus"/.test(engine),
+    "rulesEngine voltou a deixar regras de bônus competirem no matching por item",
+  );
 });

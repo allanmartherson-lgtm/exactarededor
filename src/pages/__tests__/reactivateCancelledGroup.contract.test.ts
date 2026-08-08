@@ -16,19 +16,28 @@ import { resolve } from "node:path";
 
 const migrationsDir = resolve(__dirname, "../../../supabase/migrations");
 
-/** Retorna o conteúdo da migração mais recente que define a função. */
+/**
+ * Retorna o CORPO da função na migração mais recente que a define.
+ *
+ * O recorte pelo corpo é essencial: a mesma migração costuma redefinir
+ * outras funções que também dão UPDATE em payment_company_groups. Lendo o
+ * arquivo inteiro, o `blockFor` abaixo casava com o primeiro UPDATE do
+ * arquivo — de outra função — e o contrato passava a validar o trecho errado.
+ */
 const latestRpcDefinition = (): string => {
   const files = readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
     .sort();
   for (let i = files.length - 1; i >= 0; i--) {
     const body = readFileSync(resolve(migrationsDir, files[i]), "utf8");
-    if (
-      body.includes("FUNCTION public.reactivate_cancelled_group") ||
-      body.includes("function public.reactivate_cancelled_group")
-    ) {
-      return body;
-    }
+    const start = body.search(
+      /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.reactivate_cancelled_group/i,
+    );
+    if (start === -1) continue;
+    // Corpo vai até o fim do bloco dollar-quoted que fecha a função.
+    const rest = body.slice(start);
+    const end = rest.search(/\n\s*\$(?:function)?\$\s*;/i);
+    return end === -1 ? rest : rest.slice(0, end);
   }
   throw new Error("Nenhuma migração define reactivate_cancelled_group");
 };

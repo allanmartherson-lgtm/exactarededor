@@ -21,12 +21,16 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 // Mock supabase usado por outros caminhos indiretos
 vi.mock("@/integrations/supabase/client", () => {
-  const chain: any = new Proxy({}, {
+  // `then` precisa resolver de verdade: hooks como useManualInterventionReasons
+  // chamam .then() direto no builder do PostgREST. Devolver undefined aqui
+  // derrubava a renderização com "then is not a function".
+  const chain: any = new Proxy(function () {}, {
     get(_t, prop: string) {
-      if (prop === "then") return undefined;
+      if (prop === "then") return (resolve: (r: unknown) => void) => resolve({ data: [], error: null });
       if (prop === "single" || prop === "maybeSingle") return vi.fn(() => Promise.resolve({ data: null, error: null }));
       return vi.fn(() => chain);
     },
+    apply() { return chain; },
   });
   return {
     supabase: {

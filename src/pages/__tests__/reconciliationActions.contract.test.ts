@@ -72,7 +72,9 @@ const latestMigrationContaining = (needle: string): string => {
 
 // ─── 1. Trigger no banco ────────────────────────────────────────────────────
 describe("Trigger enforce_recon_action_analysis_stage", () => {
-  const sql = latestMigrationContaining("enforce_recon_action_analysis_stage");
+  // Precisa ser a migração que DEFINE o trigger. Um needle genérico pegava
+  // a migração mais recente que apenas o cita num comentário.
+  const sql = latestMigrationContaining("CREATE TRIGGER trg_enforce_recon_action_analysis_stage");
 
   it("é criado em BEFORE INSERT OR UPDATE OF action_taken", () => {
     expect(sql).toMatch(/CREATE\s+TRIGGER\s+trg_enforce_recon_action_analysis_stage/i);
@@ -148,22 +150,32 @@ describe("PaymentConciliationModal.handleAction — não mistura com fluxo de NF
     }
   });
 
-  it("filtro de 'lote ativo' para incorporar usa exclusivamente status de análise", () => {
-    // O modal filtra payment_company_groups via payments.status IN (...analysis...).
-    // Garantimos que a lista usada é subset estrito do allowlist canônico.
-    const inMatch = handler.match(/\.in\(['"]payments\.status['"],\s*\[([^\]]+)\]/);
-    expect(inMatch, "filtro .in('payments.status', [...]) não encontrado").not.toBeNull();
-    const statuses = inMatch![1]
-      .split(",")
-      .map((s) => s.replace(/['"\s]/g, ""))
-      .filter(Boolean);
-    expect(statuses.length).toBeGreaterThan(0);
-    for (const s of statuses) {
-      expect(
-        (ANALYSIS_STAGE as readonly string[]).includes(s),
-        `status '${s}' usado no filtro NÃO pertence à etapa de análise`,
-      ).toBe(true);
+  it("incorporar só grava no lote vigente — nunca procura outro lote", () => {
+    // O alvo da incorporação é SEMPRE o `paymentId` do modal aberto. Antes o
+    // handler escolhia um "lote ativo" por consulta (`.in('payments.status',
+    // [...analysis])`); hoje não há escolha nenhuma, o que é mais forte: não
+    // existe caminho para escrever num lote que já entrou no ciclo de NF.
+    //
+    // O que garante que o lote vigente está de fato na etapa de análise é o
+    // trigger enforce_recon_action_analysis_stage (bloco 1 deste arquivo).
+    // Aqui protegemos a outra metade: que o cliente não volte a resolver lote
+    // por conta própria.
+    expect(handler, "handler não pode consultar a tabela payments").not.toMatch(
+      /\.from\(\s*['"]payments['"]\s*\)/,
+    );
+    expect(handler, "handler não pode filtrar por payments.status").not.toContain(
+      "payments.status",
+    );
+
+    // E toda escrita fica presa ao lote do modal.
+    const eqPaymentId = [...handler.matchAll(/\.eq\(\s*['"]payment_id['"]\s*,\s*([A-Za-z0-9_.]+)/g)];
+    expect(eqPaymentId.length, "esperado ao menos um .eq('payment_id', paymentId)").toBeGreaterThan(0);
+    for (const m of eqPaymentId) {
+      expect(m[1], `.eq('payment_id', ${m[1]}) deveria usar paymentId`).toBe("paymentId");
     }
+    expect(handler, "o insert do item incorporado usa o lote vigente").toMatch(
+      /payment_id:\s*paymentId/,
+    );
   });
 
   it("toda gravação em reconciliation_items grava action_taken válido", () => {

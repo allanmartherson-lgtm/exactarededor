@@ -78,6 +78,23 @@ const renderResetPageWithCachedToken = () => {
   );
 };
 
+/**
+ * O botão primário do formulário passou a ser `<CuraSubmitButton>`, que renderiza
+ * o web component `<cura-button>` do design system CURA mais um `<button
+ * type="submit">` oculto (`aria-hidden`) só para disparar o submit nativo.
+ *
+ * Como o custom element não é registrado no ambiente de teste, não existe shadow
+ * DOM e portanto nenhum `role="button"` — por isso consultamos pelo texto do
+ * próprio `cura-button`. Clicar nele aciona `form.requestSubmit()`, que é o
+ * mesmo caminho do usuário real.
+ */
+const submitButton = () =>
+  screen.getByText(/salvar nova senha/i, { selector: "cura-button" });
+const findSubmitButton = () =>
+  screen.findByText(/salvar nova senha/i, { selector: "cura-button" });
+const querySubmitButton = () =>
+  screen.queryByText(/salvar nova senha/i, { selector: "cura-button" });
+
 describe("SetPassword reset flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -137,10 +154,10 @@ describe("SetPassword reset flow", () => {
   it("valida o token, salva a nova senha e confirma login imediato", async () => {
     renderResetPage();
 
-    expect(await screen.findByRole("button", { name: /salvar nova senha/i })).toBeInTheDocument();
+    expect(await findSubmitButton()).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "SenhaNova#123" } });
     fireEvent.change(screen.getByLabelText("Confirmar senha"), { target: { value: "SenhaNova#123" } });
-    fireEvent.click(screen.getByRole("button", { name: /salvar nova senha/i }));
+    fireEvent.click(submitButton());
 
     await waitFor(() => {
       expect(recoveryAuth.verifyOtp).toHaveBeenCalledWith({ token_hash: "reset-token", type: "recovery" });
@@ -156,19 +173,21 @@ describe("SetPassword reset flow", () => {
     mainAuth.signInWithPassword.mockResolvedValue({ data: { session: null }, error: { message: "Invalid login credentials" } });
     renderResetPage();
 
-    expect(await screen.findByRole("button", { name: /salvar nova senha/i })).toBeInTheDocument();
+    expect(await findSubmitButton()).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "SenhaNova#123" } });
     fireEvent.change(screen.getByLabelText("Confirmar senha"), { target: { value: "SenhaNova#123" } });
-    fireEvent.click(screen.getByRole("button", { name: /salvar nova senha/i }));
+    fireEvent.click(submitButton());
 
     expect(await screen.findByText(/senha salva, mas login imediato falhou/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /salvar nova senha/i })).toBeEnabled();
+    // `toBeEnabled` só vale para elementos de formulário; no custom element o
+    // que importa é não ter ficado travado em `disabled` após a falha.
+    expect(submitButton()).not.toHaveAttribute("disabled");
   });
 
   it("usa o token salvo no cache quando a URL já foi limpa no boot", async () => {
     renderResetPageWithCachedToken();
 
-    expect(await screen.findByRole("button", { name: /salvar nova senha/i })).toBeInTheDocument();
+    expect(await findSubmitButton()).toBeInTheDocument();
     expect(recoveryAuth.verifyOtp).toHaveBeenCalledWith({ token_hash: "reset-token", type: "recovery" });
   });
 
@@ -196,7 +215,7 @@ describe("SetPassword reset flow", () => {
     expect(matches.length).toBeGreaterThan(0);
 
 
-    expect(screen.queryByRole("button", { name: /salvar nova senha/i })).not.toBeInTheDocument();
+    expect(querySubmitButton()).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /voltar ao login/i })).toBeInTheDocument();
     expect(recoveryAuth.updateUser).not.toHaveBeenCalled();
     expect(mainAuth.signInWithPassword).not.toHaveBeenCalled();

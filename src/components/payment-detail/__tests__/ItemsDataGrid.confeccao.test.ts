@@ -31,7 +31,10 @@ describe("ItemsDataGrid · modo confecção · contrato", () => {
   });
 
   it("aplica expectedColWidth no <col> da tabela", () => {
-    expect(grid).toMatch(/<col\s+style=\{\{\s*width:\s*expectedColWidth\s*\}\}/);
+    // A largura passou a ser resolvida por `colStyle(colKey, default)`, que
+    // respeita o redimensionamento manual da coluna. O que importa aqui segue
+    // sendo que a coluna "esperado" tire a largura de `expectedColWidth`.
+    expect(grid).toMatch(/<col\s+style=\{colStyle\("esperado",\s*expectedColWidth\)\}/);
   });
 });
 

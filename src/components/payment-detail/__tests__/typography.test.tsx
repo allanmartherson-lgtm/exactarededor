@@ -17,8 +17,18 @@ describe("ItemsDataGrid — tipografia compartilhada", () => {
   });
 
   it("TEXT_LABEL mantém escala 10px uppercase wide tracking", () => {
-    expect(TEXT_LABEL).toBe(
+    // O que este teste realmente protege é a escala base — ela abre o valor e
+    // não pode mudar em silêncio.
+    expect(TEXT_LABEL.startsWith(
       "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight",
+    )).toBe(true);
+    // Igualdade exata logo abaixo, para que QUALQUER acréscimo também precise
+    // passar por aqui de forma explícita. As variantes `[&_button]` normalizam
+    // a tipografia de botões dentro do label (ex.: headers ordenáveis).
+    expect(TEXT_LABEL).toBe(
+      "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight" +
+        " [&_button]:uppercase [&_button]:!text-[10px] [&_button]:!font-medium" +
+        " [&_button]:tracking-wide [&_button]:!leading-tight",
     );
   });
 

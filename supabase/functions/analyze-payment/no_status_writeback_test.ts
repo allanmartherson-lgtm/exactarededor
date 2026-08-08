@@ -66,7 +66,7 @@ Deno.test("analyze-payment: comentário documenta o invariante para futuros mant
 });
 
 Deno.test(
-  "PaymentDetail: sendForValidation grava status=aguardando_validacao (fila coletiva)",
+  "PaymentDetail: envio para validação é delegado à RPC atômica (fila coletiva)",
   async () => {
     const path = new URL(
       "../../../src/pages/PaymentDetail.tsx",
@@ -74,8 +74,12 @@ Deno.test(
     );
     const src = await Deno.readTextFile(path);
 
-    // Update precisa setar status=aguardando_validacao.
-    assertStringIncludes(src, 'status: "aguardando_validacao"');
+    // O envio deixou de ser um UPDATE em loop no cliente e passou a ser uma
+    // única chamada a `bulk_send_groups_to_validation` — que é quem grava
+    // status='aguardando_validacao' e chama recompute_payment_status_from_groups.
+    // O loop antigo deixava grupos travados em 'concluida_analista' quando uma
+    // das chamadas falhava em silêncio (RLS, AbortError, throttling).
+    assertStringIncludes(src, "bulk_send_groups_to_validation");
     // Não pode mais existir atribuição individual de validador.
     assertEquals(
       /assigned_validator_id/.test(src),
@@ -87,5 +91,33 @@ Deno.test(
       false,
       "PaymentDetail não pode mais referenciar assigned_validator_group_id (fila coletiva).",
     );
+  },
+);
+
+Deno.test(
+  "bulk_send_groups_to_validation: é a RPC que grava aguardando_validacao e recomputa o pagamento",
+  async () => {
+    // Contraparte do teste acima: o cliente delegou, então o invariante
+    // ("enviar coloca o grupo em aguardando_validacao") tem que estar aqui.
+    const migrationsDir = new URL("../../migrations/", import.meta.url);
+    const files: string[] = [];
+    for await (const entry of Deno.readDir(migrationsDir)) {
+      if (entry.isFile && entry.name.endsWith(".sql")) files.push(entry.name);
+    }
+    files.sort();
+
+    let sql: string | null = null;
+    for (let i = files.length - 1; i >= 0; i--) {
+      const body = await Deno.readTextFile(new URL(files[i], migrationsDir));
+      if (body.includes("FUNCTION public.bulk_send_groups_to_validation")) {
+        sql = body;
+        break;
+      }
+    }
+    assert(sql, "nenhuma migração define bulk_send_groups_to_validation");
+
+    assertStringIncludes(sql, "SET status = 'aguardando_validacao'");
+    // Status do pagamento continua derivado dos grupos — nunca escrito direto.
+    assertStringIncludes(sql, "recompute_payment_status_from_groups");
   },
 );

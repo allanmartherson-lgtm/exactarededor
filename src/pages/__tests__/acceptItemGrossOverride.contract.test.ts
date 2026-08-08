@@ -54,6 +54,19 @@ const compute = readFileSync(
   resolve(__dirname, "../../../supabase/functions/compute-company-financials/index.ts"),
   "utf8",
 );
+// O cálculo do bruto saiu do TypeScript e passou a ser feito por uma RPC de
+// agregação no banco (a edge function só consome `agg.bruto_simple`). As regras
+// de package_absorbed e de acate vivem lá — é a migration que precisa ser
+// inspecionada, não mais o index.ts.
+const financialAggSql = (() => {
+  const dir = resolve(__dirname, "../../../supabase/migrations");
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => readFileSync(resolve(dir, f), "utf8"))
+    .filter((b) => /bruto_simple/i.test(b))
+    .join("\n");
+})();
 const companyAnalysis = readFileSync(
   resolve(__dirname, "../CompanyAnalysis.tsx"),
   "utf8",
@@ -129,15 +142,19 @@ describe("pool · acate mantendo pago", () => {
 
   it("pool usa gross_amount quando item foi acatado mantendo pago", () => {
     expect(recalcPools).toMatch(/gross_override_reason\s*===\s*"acatado_pago"[\s\S]*gross_amount/);
-    expect(computeFinancials).toMatch(/gross_override_reason\s*===\s*"acatado_pago"[\s\S]*gross_amount/);
+    // Mesma migração de camada do package_absorbed: quem decide usar
+    // gross_amount no acate "mantendo pago" é a RPC de agregação.
+    expect(financialAggSql).toMatch(/gross_override_reason\s*=\s*'acatado_pago'[\s\S]{0,120}gross_amount/i);
   });
 });
 
 describe("composição financeira · líquido reflete acate", () => {
   it("compute-company-financials exclui itens package_absorbed do bruto", () => {
-    expect(compute).toMatch(/!it\.package_absorbed/);
+    expect(financialAggSql).toMatch(/NOT\s+(?:COALESCE|coalesce)\(\s*(?:pi\.)?package_absorbed/i);
     // Texto explicando a regra (guard contra remoção acidental)
-    expect(compute).toMatch(/absorbed[\s\S]*pacote/i);
+    // A edge function segue documentando a regra, mesmo consumindo o valor
+    // já agregado — guard contra a remoção silenciosa da explicação.
+    expect(compute).toMatch(/absorvidos em pacote[\s\S]{0,40}package_absorbed/i);
   });
 
   it("CompanyAnalysis chama composition.refresh() após acatar e desfazer", () => {

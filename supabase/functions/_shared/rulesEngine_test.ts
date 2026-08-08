@@ -167,8 +167,17 @@ Deno.test("classifyDoctorRole normaliza Cirurgião", () => {
 
 Deno.test("normName e normAgreement lidam com acentos e espaços", () => {
   assertEquals(normName("João Müller "), "joao muller");
-  assertEquals(normAgreement(" Bradesco Saúde  "), "bradescosaude");
-  assertEquals(normAgreement("SUL AMÉRICA"), "sulamerica");
+
+  // Convênio conhecido: acento e espaço são removidos e o texto ainda resolve
+  // para o SLUG CANÔNICO do stem (convenioStems.ts), que é o que as regras
+  // cadastradas comparam. "Bradesco Saúde" e "Sul América" são dois produtos
+  // reais da Rede D'Or — o slug é a chave, não o texto da planilha.
+  assertEquals(normAgreement(" Bradesco Saúde  "), "bradesco_segur");
+  assertEquals(normAgreement("SUL AMÉRICA"), "sul_america");
+
+  // Convênio sem cadastro e sem stem: cai no normalizado cru — é aqui que o
+  // tratamento de acento/espaço/pontuação fica visível isolado do canônico.
+  assertEquals(normAgreement(" Convênio Genérico Ltda. "), "conveniogenericoltda");
 });
 
 Deno.test("normAccessRoute normaliza variações de Via de Acesso", () => {

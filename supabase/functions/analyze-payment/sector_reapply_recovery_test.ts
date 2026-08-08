@@ -1,6 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/mod.ts";
 
 import { extendSectorMap, inferItemSector, normName, type ItemInput, type PaymentContext } from "../_shared/rulesEngine.ts";
+import { applySectorStems } from "../_shared/sectorStems.ts";
 
 Deno.test("reanálise: recupera setor da planilha quando payment_items.sector ficou salvo como outro", () => {
   extendSectorMap([
@@ -46,5 +47,14 @@ Deno.test("reanálise: recupera setor da planilha quando payment_items.sector fi
   };
 
   assertEquals(recoveredSector, "Centro Cirúrgico (DFStar)");
-  assertEquals(inferItemSector(item, ctx), "cirurgia");
+  // O que este teste protege é a RECUPERAÇÃO: com `sector` persistido como
+  // "outro", o motor tem que voltar a olhar o texto da planilha e resolver um
+  // setor real — nunca ficar em "outro".
+  //
+  // A categoria canônica é `centro_cirurgico` (ver sectorStems.ts): desde que
+  // os stems determinísticos passaram a rodar ANTES do SECTOR_MAP, tanto
+  // "Centro Cirúrgico (DFStar)" quanto o próprio slug "cirurgia" convergem
+  // para essa mesma categoria — que é a string comparada em `rules.sectors`.
+  assertEquals(inferItemSector(item, ctx), "centro_cirurgico");
+  assertEquals(applySectorStems("cirurgia"), "centro_cirurgico");
 });
