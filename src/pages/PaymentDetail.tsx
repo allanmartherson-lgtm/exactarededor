@@ -271,7 +271,7 @@ const PaymentDetail = () => {
   const [importProgress, setImportProgress] = useState<{ stage: "parse" | "persist"; current: number; total: number } | null>(null);
   // Preview do diff antes de gravar a reimportação. Resolver na ref para
   // encadear await dentro de doReimport sem restruturar o fluxo assíncrono.
-  const { diffState: reimportDiffState, runDiffGate, resolveDiff } = useReimportDiffGate();
+  const { diffState: reimportDiffState, runDiffGate, resolveDiff, showGateError } = useReimportDiffGate();
   const addCompanyInputRef = useRef<HTMLInputElement | null>(null);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addCompanyConfirm, setAddCompanyConfirm] = useState<File[] | null>(null);
