@@ -7527,6 +7527,7 @@ export type Database = {
           is_legacy: boolean
           mime_type: string | null
           original_filename: string
+          original_headers: Json | null
           payment_id: string
           sha256: string | null
           sheet_name: string | null
@@ -7543,6 +7544,7 @@ export type Database = {
           is_legacy?: boolean
           mime_type?: string | null
           original_filename: string
+          original_headers?: Json | null
           payment_id: string
           sha256?: string | null
           sheet_name?: string | null
@@ -7559,6 +7561,7 @@ export type Database = {
           is_legacy?: boolean
           mime_type?: string | null
           original_filename?: string
+          original_headers?: Json | null
           payment_id?: string
           sha256?: string | null
           sheet_name?: string | null

@@ -1,0 +1,2 @@
+ALTER TABLE public.payment_source_files ADD COLUMN IF NOT EXISTS original_headers jsonb;
+COMMENT ON COLUMN public.payment_source_files.original_headers IS 'Cabecalhos da planilha na ordem original do arquivo, gravados na importacao. Usado apenas para ordenar colunas na exibicao da base importada.';
