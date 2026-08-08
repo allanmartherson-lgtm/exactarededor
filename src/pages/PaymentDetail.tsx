@@ -1934,29 +1934,11 @@ const PaymentDetail = () => {
         });
       }
 
-      // Limpa itens dos grupos NÃO preservados. Grupos avançados mantêm
-      // itens e todas as intervenções manuais (economia/perda/absorção).
-      // Paginamos para evitar statement_timeout via cascades de triggers.
-      const DEL_CHUNK = 100;
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { data: idsBatch, error: idsErr } = await supabase
-          .from("payment_items")
-          .select("id,company_name")
-          .eq("payment_id", id)
-          .limit(DEL_CHUNK * 4);
-        if (idsErr) { toast({ title: "Falha ao listar itens p/ limpar", description: idsErr.message, variant: "destructive" }); return; }
-        if (!idsBatch || idsBatch.length === 0) break;
-        const deletable = idsBatch.filter((r) => !preservedCompanyKeys.has(nrm((r as any).company_name ?? "")));
-        if (deletable.length === 0) break;
-        const slice = deletable.slice(0, DEL_CHUNK);
-        const { error: delItemsErr } = await supabase
-          .from("payment_items")
-          .delete()
-          .in("id", slice.map((r) => r.id));
-        if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
-        if (idsBatch.length < DEL_CHUNK * 4 && deletable.length <= DEL_CHUNK) break;
-      }
+      // A limpeza dos itens NÃO acontece mais aqui: cada empresa é apagada e
+      // reinserida dentro da mesma transação pela RPC reimport_company_items,
+      // logo abaixo. Grupos preservados nunca são passados para a RPC.
+      const { withTimeout } = await import("@/lib/withTimeout");
+
 
       // Descarta linhas novas que pertenceriam a grupos preservados.
       const beforeFilter = allRows.length;
