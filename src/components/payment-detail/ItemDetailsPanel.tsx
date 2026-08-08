@@ -212,7 +212,70 @@ function SpecialCaseSection({ item }: { item: AnyItem }) {
   );
 }
 
+/**
+ * Diagnóstico "sem cálculo aplicável": lista por que cada cálculo da regra
+ * foi rejeitado (metadado `ai_findings.calc_rejections`, gravado pelo motor).
+ * Itens analisados antes desta versão não têm o metadado — nesse caso nada
+ * é exibido e o texto genérico do motor permanece.
+ */
+function CalcRejectionsBlock({ item }: { item: AnyItem }) {
+  const rejections = Array.isArray(item.ai_findings?.calc_rejections)
+    ? (item.ai_findings.calc_rejections as Array<{
+        calc_id: string | null;
+        calc_label: string;
+        motivo: string;
+        needs_special_case?: boolean;
+      }>)
+    : [];
+  const paymentId: string | null = item.payment_id ?? null;
+  const hasSpecialCaseRules = useHasSpecialCaseRules(paymentId);
+  const alreadyMarked = !!item.special_case_code;
+
+  if (rejections.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+        Cálculos avaliados
+      </div>
+      <ul className="mt-2 space-y-2">
+        {rejections.map((r, i) => {
+          const showShortcut =
+            r.needs_special_case === true &&
+            hasSpecialCaseRules === true &&
+            !alreadyMarked &&
+            !!paymentId &&
+            !!item.id;
+          return (
+            <li key={r.calc_id ?? i} className="flex items-start gap-2 text-[12px]">
+              <Ban className="h-3.5 w-3.5 mt-0.5 shrink-0 text-destructive/70" />
+              <div className="min-w-0">
+                <div className="font-medium text-foreground break-words">{r.calc_label}</div>
+                <div className="text-muted-foreground break-words">{r.motivo}</div>
+                {showShortcut && (
+                  <MarkSpecialCaseDialog
+                    paymentId={paymentId!}
+                    itemId={String(item.id)}
+                    defaultAttendance={item.attendance_number ?? undefined}
+                    doctorId={item.doctor_id ?? undefined}
+                    trigger={
+                      <Button size="sm" variant="outline" className="mt-1 h-6 text-[11px]">
+                        <Sparkles className="h-3 w-3 mr-1" /> Marcar caso especial
+                      </Button>
+                    }
+                  />
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function ItemDetailsPanel({
+
 
   open,
   onOpenChange,
