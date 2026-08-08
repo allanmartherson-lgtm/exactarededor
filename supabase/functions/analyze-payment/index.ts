@@ -2553,6 +2553,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           contagio_source_tuss: (r as any).contagio_source_tuss ?? null,
         },
         calculation_breakdown: r.calculation_breakdown ?? null,
+        // Diagnóstico "sem cálculo aplicável" — metadado puro (não afeta valores).
+        calc_rejections: (r as any).calc_rejections ?? null,
+
         selection_trace: r.selection_trace ?? null,
         decision_fields: decisionFields,
       } as any;
