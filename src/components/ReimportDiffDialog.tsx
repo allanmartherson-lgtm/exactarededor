@@ -28,12 +28,14 @@ type Props = {
   sha256Matched: boolean; // true = todos os arquivos batem com hash já registrado
   ignoredRows?: IgnoredRowInfo[]; // linhas descartadas por não serem item
   busy?: boolean;
+  /** Erro da última tentativa de commit — exibido no rodapé do modal. */
+  errorMessage?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
   onSkip: () => void;
 };
 
-export function ReimportDiffDialog({ open, diff, sha256Matched, ignoredRows = [], busy, onCancel, onConfirm, onSkip }: Props) {
+export function ReimportDiffDialog({ open, diff, sha256Matched, ignoredRows = [], busy, errorMessage, onCancel, onConfirm, onSkip }: Props) {
   const [openChanged, setOpenChanged] = useState(true);
   const [openAdded, setOpenAdded] = useState(false);
   const [openRemoved, setOpenRemoved] = useState(false);
