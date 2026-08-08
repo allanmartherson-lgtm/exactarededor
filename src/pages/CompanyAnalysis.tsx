@@ -138,6 +138,8 @@ import { ParecerCrossReferencePanel } from "@/components/payment-detail/ParecerC
 import { MixedParecerRetroAction } from "@/components/payment-detail/MixedParecerRetroAction";
 import { AutoClassifiedBanner } from "@/components/payment-detail/AutoClassifiedBanner";
 import { HospitalScopedGuard } from "@/components/HospitalScopedGuard";
+import { fetchGroupGate } from "@/hooks/useGroupReconciliation";
+
 
 
 const HighlightBanner = ({
@@ -476,6 +478,15 @@ export default function CompanyAnalysis() {
 
 
   const [postConcluirOpen, setPostConcluirOpen] = useState(false);
+  const [concluirBlock, setConcluirBlock] = useState<{
+    pedido: number;
+    regra: number;
+    diferenca: number;
+    diferencaPct: number;
+    blockPct: number;
+    blockAbs: number;
+  } | null>(null);
+
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [mappingPrompt, setMappingPrompt] = useState<{
@@ -1291,7 +1302,26 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
+    // Gate ANTES de gravar: mesmo critério que bloqueia o avanço/aprovação do lote.
+    try {
+      const gate = await fetchGroupGate(group.id);
+      if (gate.status === "divergente") {
+        setBusy(false);
+        setConcluirBlock({
+          pedido: Number(gate.totals?.bruto_pedido_total ?? 0),
+          regra: Number(gate.totals?.bruto_regra_total ?? 0),
+          diferenca: Number(gate.totals?.diferenca ?? 0),
+          diferencaPct: Number(gate.totals?.diferenca_pct ?? 0),
+          blockPct: gate.thresholds.block_pct,
+          blockAbs: gate.thresholds.block_abs,
+        });
+        return;
+      }
+    } catch (e) {
+      console.error("[CompanyAnalysis] falha ao verificar gate de conciliação", e);
+    }
     await autoClaim();
+
     const { error } = await supabase
       .from("payment_company_groups")
       .update({ status: "concluida_analista" })
@@ -3536,7 +3566,49 @@ export default function CompanyAnalysis() {
       />
 
 
+      <AlertDialog open={!!concluirBlock} onOpenChange={(v) => { if (!v) setConcluirBlock(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Não é possível concluir — pendências bloqueiam o lote</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  Esta empresa tem divergência entre o bruto do pedido e o bruto calculado pela regra
+                  acima da tolerância ({concluirBlock?.blockPct}% ou{" "}
+                  {Number(concluirBlock?.blockAbs ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}),
+                  sem liberação registrada. Concluir agora não faria o lote avançar.
+                </p>
+                <ul className="list-disc pl-5">
+                  <li>
+                    Bruto do pedido:{" "}
+                    {Number(concluirBlock?.pedido ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </li>
+                  <li>
+                    Bruto da regra:{" "}
+                    {Number(concluirBlock?.regra ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </li>
+                  <li>
+                    Diferença:{" "}
+                    {Number(concluirBlock?.diferenca ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}{" "}
+                    ({Number(concluirBlock?.diferencaPct ?? 0).toFixed(2)}%)
+                  </li>
+                </ul>
+                <p>
+                  Onde resolver: no painel de conciliação desta empresa (Bruto do pedido × Bruto da regra) —
+                  ajuste os itens divergentes/sem regra, ou use “Liberar com justificativa” (diretor ou admin)
+                  para seguir com a divergência de forma sancionada.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button onClick={() => setConcluirBlock(null)}>Entendi, vou resolver</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={postConcluirOpen} onOpenChange={setPostConcluirOpen}>
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Análise concluída</AlertDialogTitle>
