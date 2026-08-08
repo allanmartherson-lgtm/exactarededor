@@ -110,8 +110,8 @@ export const PageHeader = ({
           })}
         </nav>
       )}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-3 min-w-0">
+      <div className="flex items-start justify-between gap-4 flex-wrap min-w-0">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           {showBack && (
             <Button
               type="button"
@@ -124,8 +124,8 @@ export const PageHeader = ({
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          <div className="min-w-0">
-            <h1 className="text-[34px] font-semibold tracking-tight text-foreground leading-none">
+          <div className="min-w-0 w-full">
+            <h1 className="text-[34px] font-semibold tracking-tight text-foreground leading-none truncate">
               {title}
             </h1>
             {description && (
@@ -136,7 +136,7 @@ export const PageHeader = ({
           </div>
         </div>
         {actions && (
-          <div className="flex items-center gap-2 flex-wrap shrink-0">{actions}</div>
+          <div className="flex items-center gap-2 flex-wrap justify-end min-w-0 max-w-full">{actions}</div>
         )}
       </div>
     </div>

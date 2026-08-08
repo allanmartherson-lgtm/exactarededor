@@ -3366,7 +3366,7 @@ const PaymentDetail = () => {
         })()}
         sticky
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end min-w-0 max-w-full">
             {!isConfeccao && (
               <div className="md:hidden">
                 <Select value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
@@ -5048,7 +5048,7 @@ const PaymentDetail = () => {
             </div>
 
             {!isConfeccao && (
-            <div className="flex items-center gap-1.5 p-1.5 bg-muted/50 rounded-full border w-full md:w-fit overflow-x-auto flex-nowrap [&_button]:rounded-full [&_[role=combobox]]:rounded-full">
+            <div className="flex items-center gap-1.5 p-1.5 bg-muted/50 rounded-full border w-full md:w-fit max-w-full min-w-0 overflow-x-auto flex-nowrap [&_button]:rounded-full [&_[role=combobox]]:rounded-full">
               <Button
                 variant={criticalFilter === "all" ? "default" : "ghost"}
                 size="sm"
