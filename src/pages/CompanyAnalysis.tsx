@@ -1302,7 +1302,26 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
+    // Gate ANTES de gravar: mesmo critério que bloqueia o avanço/aprovação do lote.
+    try {
+      const gate = await fetchGroupGate(group.id);
+      if (gate.status === "divergente") {
+        setBusy(false);
+        setConcluirBlock({
+          pedido: Number(gate.totals?.bruto_pedido_total ?? 0),
+          regra: Number(gate.totals?.bruto_regra_total ?? 0),
+          diferenca: Number(gate.totals?.diferenca ?? 0),
+          diferencaPct: Number(gate.totals?.diferenca_pct ?? 0),
+          blockPct: gate.thresholds.block_pct,
+          blockAbs: gate.thresholds.block_abs,
+        });
+        return;
+      }
+    } catch (e) {
+      console.error("[CompanyAnalysis] falha ao verificar gate de conciliação", e);
+    }
     await autoClaim();
+
     const { error } = await supabase
       .from("payment_company_groups")
       .update({ status: "concluida_analista" })
