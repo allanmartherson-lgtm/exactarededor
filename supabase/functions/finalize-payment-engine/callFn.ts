@@ -58,9 +58,22 @@ export async function callFn(
         attempt += 1;
         continue;
       }
+      // 2026-08-08: 502/503/504 são crash / boot-timeout / saturação do worker
+      // (não erro de negócio — esses voltam 4xx/500 com JSON). São transitórios
+      // e as funções alvo são idempotentes (lock + upsert), então retentamos com
+      // backoff em vez de pular silenciosamente a dedução daquela PJ.
+      if (TRANSIENT_STATUSES.has(r.status) && attempt < maxRetries) {
+        const suggested = parseRetryAfterMs(r.headers.get("retry-after"));
+        const backoff = Math.min(maxBackoffMs, Math.max(2000 * 2 ** attempt, suggested));
+        console.warn(`[finalize] callFn(${name}) HTTP ${r.status} transitório — aguardando ${backoff}ms (tentativa ${attempt + 1}/${maxRetries})`);
+        await sleep(backoff);
+        attempt += 1;
+        continue;
+      }
       // Contrato: 429 residual (após esgotar retries) NUNCA pode voltar ok=true.
       // r.ok já é false para 4xx/5xx, mas deixamos explícito para o leitor.
       return { ok: r.ok && r.status !== 429, status: r.status, body: txt };
+
     } catch (e: unknown) {
       const err = e as { name?: string; message?: string; retryAfterMs?: number } | undefined;
       const msg = String(err?.message ?? e);
